@@ -1,16 +1,18 @@
 --- 
 import Layout from '../../layouts/Layout.astro';
 
-// 动态渲染
-export const prerender = false;
-
-// 关键！保护 slug
-const { slug } = Astro.params;
-if (!slug || slug === 'favicon.ico') {
-  // 404 或重定向
-  return Astro.redirect('/');
+// 必须：预生成 5 个路径
+export async function getStaticPaths() {
+  return [
+    { params: { slug: 'image' } },
+    { params: { slug: 'logo' } },
+    { params: { slug: 'video' } },
+    { params: { slug: 'writing' } },
+    { params: { slug: 'resume' } },
+  ];
 }
 
+const { slug } = Astro.params;
 let tools = { data: [], hash: '' };
 
 try {
