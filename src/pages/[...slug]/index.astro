@@ -1,0 +1,72 @@
+--- 
+import Layout from '../../layouts/Layout.astro';
+
+// 动态渲染
+export const prerender = false;
+
+// 关键！保护 slug
+const { slug } = Astro.params;
+if (!slug || slug === 'favicon.ico') {
+  // 404 或重定向
+  return Astro.redirect('/');
+}
+
+let tools = { data: [], hash: '' };
+
+try {
+  const module = await import(`../../content/auto/${slug}.json`);
+  tools = module.default || tools;
+} catch (e) {
+  console.error('Load failed:', e);
+}
+---
+<Layout title={`Best Free AI ${slug} Tools 2025`}>
+  <h1>Best Free AI {slug} Tools 2025</h1>
+  <p><strong>Updated:</strong> {new Date().toLocaleDateString()} | <strong>Hash:</strong> {tools.hash}</p>
+
+  {tools.data?.length > 0 ? (
+    <table border="1" style="width:100%; border-collapse:collapse; margin:1rem 0;">
+      <thead>
+        <tr>
+          <th>Tool</th>
+          <th>Free Tier</th>
+          <th>Limit</th>
+          <th>Source</th>
+        </tr>
+      </thead>
+      <tbody>
+        {tools.data.map(t => (
+          <tr>
+            <td><a href={t.source} target="_blank" rel="noopener">{t.name}</a></td>
+            <td>{t.free}</td>
+            <td>{t.limit}</td>
+            <td><a href={t.source} target="_blank" rel="noopener">Official</a></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ) : (
+    <p>No tools found for "{slug}". <a href="/">← Back to Home</a></p>
+  )}
+
+  <!-- 互链 -->
+  <div style="margin-top:2rem; display:flex; gap:1rem; flex-wrap:wrap;">
+    {['image', 'logo', 'video', 'writing', 'resume'].filter(s => s !== slug).map(s => (
+      <a href={`/${s}/`} style="padding:0.5rem 1rem; background:#007bff; color:white; border-radius:4px; text-decoration:none;">
+        → Best {s} AI Tools
+      </a>
+    ))}
+  </div>
+
+  <!-- AdSense -->
+  <div style="margin:2rem 0; text-align:center;">
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-3940256099942544"
+         data-ad-slot="1234567890"
+         data-ad-format="auto"></ins>
+    <script>
+         (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+  </div>
+</Layout>
