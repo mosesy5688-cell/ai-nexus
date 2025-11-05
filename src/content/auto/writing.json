@@ -1,0 +1,12 @@
+{
+  "data": [
+    {
+      "name": "ChatGPT",
+      "free": "Yes",
+      "limit": "Unlimited",
+      "source": "https://openai.com/pricing"
+    }
+  ],
+  "hash": "746595fb9dbbcb64b5824bc0d4579ee45e99c0685cc1e1c6fab33ff5c8c69f8e",
+  "updated": "2025-11-02T10:00:38.214Z"
+}
