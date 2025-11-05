@@ -45,26 +45,20 @@ const itemListSchema = {
   <p><strong>Updated:</strong> {new Date().toLocaleDateString()} | <strong>Hash:</strong> {tools.hash}</p>
 
   {tools.data?.length > 0 ? (
-    <table border="1" style="width:100%; border-collapse:collapse; margin:1rem 0;">
-      <thead>
-        <tr>
-          <th>Tool</th>
-          <th>Free Tier</th>
-          <th>Limit</th>
-          <th>Source</th>
-        </tr>
-      </thead>
-      <tbody>
-        {tools.data.map(t => (
-          <tr>
-            <td><a href={t.source} target="_blank" rel="noopener">{t.name}</a></td>
-            <td>{t.free}</td>
-            <td>{t.limit}</td>
-            <td><a href={t.source} target="_blank" rel="noopener">Official</a></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <div class="card-grid">
+      {tools.data.map(t => (
+        <div class="card">
+          <div class="card-body">
+            <h2 class="card-title">{t.name}</h2>
+            <p class="card-info"><strong>Free Tier:</strong> {t.free}</p>
+            <p class="card-info"><strong>Limit:</strong> {t.limit}</p>
+          </div>
+          <div class="card-footer">
+            <a href={t.source} target="_blank" rel="noopener" class="card-button">Visit</a>
+          </div>
+        </div>
+      ))}
+    </div>
   ) : (
     <p>No tools found for "{slug}". <a href="/">← Back to Home</a></p>
   )}
@@ -93,3 +87,58 @@ const itemListSchema = {
   {/* SEO: JSON-LD Structured Data */}
   <script type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
 </Layout>
+
+<style>
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+  .card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    transition: box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  .card-body {
+    padding: 1.5rem;
+  }
+  .card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: 1rem;
+  }
+  .card-info {
+    font-size: 0.9rem;
+    color: #4b5563;
+    margin: 0.5rem 0;
+  }
+  .card-footer {
+    padding: 0 1.5rem 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .card-button {
+    display: inline-block;
+    background-color: #007bff;
+    color: white;
+    padding: 0.5rem 1.25rem;
+    border-radius: 0.375rem;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color 0.2s ease-in-out;
+  }
+  .card-button:hover {
+    background-color: #0056b3;
+  }
+</style>
