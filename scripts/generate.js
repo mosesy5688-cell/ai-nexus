@@ -64,9 +64,9 @@ async function fetchData(niche) {
   // 其他 niche：官网静态数据（防超时）
   const staticData = {
     logo: [
-        { name: 'Looka', free: 'No (free creation/customization)', limit: 'Unlimited creation, no free downloads', source: 'https://looka.com' },
-        { name: 'Canva', free: 'Yes (limited AI generations)', limit: '20/month (free plan)', source: 'https://www.canva.com/create/logos/' },
-        { name: 'Wix Logo Maker', free: 'Yes (free design and customization)', limit: 'Unlimited design and customization, no free high-res downloads', source: 'https://www.wix.com/logo/maker' }
+        { name: 'Looka', free: 'No (free creation/customization)', limit: 'Unlimited creation, no free downloads', source: 'https://looka.com', description: 'AI-powered logo maker and brand identity platform designed to help entrepreneurs and small businesses create professional logos.' },
+        { name: 'Canva', free: 'Yes (limited AI generations)', limit: '20/month (free plan)', source: 'https://www.canva.com/create/logos/', description: 'Offers an AI logo generator with both free and paid tiers, providing various features for creating professional-looking logos.' },
+        { name: 'Wix Logo Maker', free: 'Yes (free design and customization)', limit: 'Unlimited design and customization, no free high-res downloads', source: 'https://www.wix.com/logo/maker', description: 'Leverages AI technology to simplify the logo design process, making it accessible even for those without graphic design experience.' }
     ],
     video: [{ name: 'CapCut', free: 'Yes', limit: 'Unlimited', source: 'https://www.capcut.com/pricing' }],
     writing: [{ name: 'ChatGPT', free: 'Yes', limit: 'Unlimited', source: 'https://openai.com/pricing' }],

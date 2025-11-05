@@ -50,6 +50,7 @@ const itemListSchema = {
         <div class="card">
           <div class="card-body">
             <h2 class="card-title">{t.name}</h2>
+            <p class="card-description">{t.description}</p>
             <p class="card-info"><strong>Free Tier:</strong> {t.free}</p>
             <p class="card-info"><strong>Limit:</strong> {t.limit}</p>
           </div>
@@ -111,12 +112,22 @@ const itemListSchema = {
   }
   .card-body {
     padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
   }
   .card-title {
     font-size: 1.25rem;
     font-weight: 600;
     margin-top: 0;
     margin-bottom: 1rem;
+  }
+  .card-description {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    flex-grow: 1;
   }
   .card-info {
     font-size: 0.9rem;
