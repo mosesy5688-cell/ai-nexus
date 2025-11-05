@@ -63,7 +63,10 @@ async function fetchData(niche) {
 
   // 其他 niche：官网静态数据（防超时）
   const staticData = {
-    logo: [{ name: 'Looka', free: 'No (free creation/customization)', limit: 'Unlimited creation, no free downloads', source: 'https://looka.com' }],
+    logo: [
+        { name: 'Looka', free: 'No (free creation/customization)', limit: 'Unlimited creation, no free downloads', source: 'https://looka.com' },
+        { name: 'Canva', free: 'Yes (limited AI generations)', limit: '20/month (free plan)', source: 'https://www.canva.com/create/logos/' }
+    ],
     video: [{ name: 'CapCut', free: 'Yes', limit: 'Unlimited', source: 'https://www.capcut.com/pricing' }],
     writing: [{ name: 'ChatGPT', free: 'Yes', limit: 'Unlimited', source: 'https://openai.com/pricing' }],
     resume: [{ name: 'Rezi', free: 'Yes', limit: 'Unlimited', source: 'https://www.rezi.ai/pricing' }]
