@@ -65,7 +65,8 @@ async function fetchData(niche) {
   const staticData = {
     logo: [
         { name: 'Looka', free: 'No (free creation/customization)', limit: 'Unlimited creation, no free downloads', source: 'https://looka.com' },
-        { name: 'Canva', free: 'Yes (limited AI generations)', limit: '20/month (free plan)', source: 'https://www.canva.com/create/logos/' }
+        { name: 'Canva', free: 'Yes (limited AI generations)', limit: '20/month (free plan)', source: 'https://www.canva.com/create/logos/' },
+        { name: 'Wix Logo Maker', free: 'Yes (free design and customization)', limit: 'Unlimited design and customization, no free high-res downloads', source: 'https://www.wix.com/logo/maker' }
     ],
     video: [{ name: 'CapCut', free: 'Yes', limit: 'Unlimited', source: 'https://www.capcut.com/pricing' }],
     writing: [{ name: 'ChatGPT', free: 'Yes', limit: 'Unlimited', source: 'https://openai.com/pricing' }],
