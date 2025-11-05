@@ -46,19 +46,36 @@ const itemListSchema = {
 
   {tools.data?.length > 0 ? (
     <div class="card-grid">
-      {tools.data.map(t => (
-        <div class="card">
-          <div class="card-body">
-            <h2 class="card-title">{t.name}</h2>
-            <p class="card-description">{t.description}</p>
-            <p class="card-info"><strong>Free Tier:</strong> {t.free}</p>
-            <p class="card-info"><strong>Limit:</strong> {t.limit}</p>
+      {tools.data.flatMap((t, index) => {
+        const toolCard = (
+          <div class="card">
+            <div class="card-body">
+              <h2 class="card-title">{t.name}</h2>
+              <p class="card-description">{t.description}</p>
+              <p class="card-info"><strong>Free Tier:</strong> {t.free}</p>
+              <p class="card-info"><strong>Limit:</strong> {t.limit}</p>
+            </div>
+            <div class="card-footer">
+              <a href={t.source} target="_blank" rel="noopener" class="card-button">Visit</a>
+            </div>
           </div>
-          <div class="card-footer">
-            <a href={t.source} target="_blank" rel="noopener" class="card-button">Visit</a>
-          </div>
-        </div>
-      ))}
+        );
+
+        if ((index + 1) === 4) {
+          const adCard = (
+            <div class="ad-card">
+              <ins class="adsbygoogle"
+                   style="display:block"
+                   data-ad-client="ca-pub-3940256099942544"
+                   data-ad-slot="1234567890"
+                   data-ad-format="auto"></ins>
+            </div>
+          );
+          return [toolCard, adCard];
+        }
+
+        return [toolCard];
+      })}
     </div>
   ) : (
     <p>No tools found for "{slug}". <a href="/">← Back to Home</a></p>
@@ -109,6 +126,18 @@ const itemListSchema = {
   .card:hover {
     transform: translateY(-5px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  .ad-card {
+    grid-column: 1 / -1; /* Span full width */
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100px; /* Ensure it has some height */
   }
   .card-body {
     padding: 1.5rem;
