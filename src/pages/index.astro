@@ -1,29 +1,48 @@
 ---
-import Layout from '../layouts/Layout.astro';
+// This is the root index page (/) which serves as the main entry point
+// and displays the list of core keywords for navigation.
+import Layout from '~/layouts/Layout.astro'; // FIXED: Use alias for stable import
+import { CORE_KEYWORDS } from '~/content/config.ts'; // FIXED: Use alias for stable import
 
-const categories = ['image', 'logo', 'video', 'writing', 'resume'];
+// Note: The logic from the old src/pages/[lang]/index.astro is moved here.
+// You should now delete src/pages/[lang]/index.astro after this step.
 ---
-<Layout title="AI Nexus - Home">
-  <h1>Welcome to AI Nexus</h1>
-  <p>Your central hub for discovering the best AI tools.</p>
-  <h2>Categories</h2>
-  <ul>
-    {categories.map(slug => (
-      <li><a href={`/${slug}/`}>{slug.charAt(0).toUpperCase() + slug.slice(1)}</a></li>
-    ))}
-    </ul>
-
-  <h2>Platforms</h2>
-  <ul>
-    <li><a href="/platforms/pytorch-hub/">PyTorch Hub Models</a></li>
-    <li><a href="/platforms/tensorflow-hub/">TensorFlow Hub</a></li>
-    <li><a href="/platforms/kaggle-models/">Kaggle Models</a></li>
-    <li><a href="/platforms/paperswithcode/">PapersWithCode</a></li>
-    <li><a href="/platforms/onnx-model-zoo/">ONNX Model Zoo</a></li>
-    <li><a href="/platforms/uci-ml-repository/">UCI ML Repository</a></li>
-    <li><a href="/platforms/google-dataset-search/">Google Dataset Search</a></li>
-    <li><a href="/platforms/aws-open-data/">AWS Open Data</a></li>
-    <li><a href="/platforms/civitai/">Civitai</a></li>
-    <li><a href="/platforms/allenai/">AllenAI</a></li>
-  </ul>
+<Layout title="AI Nexus - Explore Core Models & Tools">
+  <main class="max-w-4xl mx-auto px-4 py-16">
+    <header class="text-center mb-12">
+      <h1 class="text-5xl font-extrabold text-gray-900 dark:text-gray-100 mb-4">
+        Discover AI Models and Tools
+      </h1>
+      <p class="text-xl text-gray-600 dark:text-gray-400">
+        Browse core keywords to find the best open-source models for your needs.
+      </p>
+    </header>
+    
+    <div class="bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 sm:p-10">
+      <h2 class="text-2xl font-semibold text-gray-800 dark:text-white mb-6 border-b pb-3 border-gray-200 dark:border-gray-700">
+        Core Keywords
+      </h2>
+      
+      <ul class="space-y-4">
+        {CORE_KEYWORDS.map(keyword => (
+          <li class="group">
+            <a 
+              href={`/${keyword.slug}`} 
+              class="block p-4 rounded-lg bg-gray-50 hover:bg-blue-50 dark:bg-gray-700 dark:hover:bg-blue-900/50 transition duration-150 ease-in-out border border-gray-100 dark:border-gray-600"
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-lg font-medium text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                  {keyword.title}
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-transform duration-150 ease-in-out transform group-hover:translate-x-1"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {keyword.description}
+              </p>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </main>
 </Layout>
