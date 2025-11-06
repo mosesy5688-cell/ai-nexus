@@ -8,12 +8,12 @@
 - **Environment Setup**: Cloned the `ai-nexus` repository and completed dependency installation using `npm install`.
 - **Cloudflare Configuration**: Created a Pages project and linked it to the GitHub repository, simultaneously creating the KV namespace `AI_DATA` and completing its binding.
 - **Content Configuration**: Completed code optimization and deployment for `src/content/config.ts`, defining core keywords and FAQ content structure.
+- **Data Fetching Script Refinement**: Completed code optimization and deployment for `scripts/fetch-data.js`. Used commit message: 'refactor: Update data script to fetch from HuggingFace and store in Cloudflare KV.'
 ---
 
 ## In Progress
 - **Authoritative Content Template Development**: Currently building the core keyword authoritative content page template in `src/templates/Keyword.astro` according to the project plan.
 - **Schema Generation Logic Implementation**: Currently implementing the functionality in `src/lib/schema.ts` to generate high-quality JSON-LD Schema for articles, FAQs, etc., to optimize search engine rich snippets.
-- **Data Fetching Script Refinement**: Currently refining the `scripts/fetch-data.js` script to ensure stable and reliable data retrieval from HuggingFace and Civitai APIs.
 ---
 
 ## Major Blockers Encountered

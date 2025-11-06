@@ -1,23 +1,26 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { useTranslations } from '../../i18n/utils';
-import { i18n } from '../../i18n/config';
+import { CORE_KEYWORDS } from '../../content/config.ts';
 
 export function getStaticPaths() {
-  return i18n.locales.map(lang => ({ params: { lang } }));
+  // We are no longer using i18n, so we generate a single static page.
+  // This page will be available at /keywords
+  return [
+    { params: { lang: 'keywords' } }
+  ];
 }
-
-const { lang } = Astro.params;
-const t = useTranslations(lang);
-
-const categories = ['image', 'logo', 'video', 'writing', 'resume'];
 ---
-<Layout title={t('brand.name')}>
-  <h1>{t('brand.name')}</h1>
-  <p>{t('home.welcome')}</p>
-  <ul>
-    {categories.map(slug => (
-      <li><a href={`/${lang}/${slug}/`}>{t(`nav.${slug}`)}</a></li>
-    ))}
-  </ul>
+<Layout title="Keywords">
+  <main class="container">
+    <h1>Keywords</h1>
+    <p>A list of core keywords and topics.</p>
+    <ul class="list-group">
+      {CORE_KEYWORDS.map(keyword => (
+        <li class="list-group-item">
+          <a href={`/${keyword.slug}`}>{keyword.title}</a>
+        </li>
+      ))}
+    </ul>
+  </main>
 </Layout>
+```
