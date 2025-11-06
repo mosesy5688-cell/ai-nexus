@@ -1,8 +1,8 @@
 ---
 // This is the root index page (/) which serves as the main entry point
 // and displays the list of core keywords for navigation.
-import Layout from '../layouts/Layout.astro'; // FIX: Revert to relative path for Astro component
-import { CORE_KEYWORDS } from '~/content/config.ts'; // Keep alias for TS file
+import Layout from '../layouts/Layout.astro'; // Relative path (Stable)
+import { CORE_KEYWORDS } from '../content/config.ts'; // FIX: Revert to relative path for TS file
 
 // Note: The logic from the old src/pages/[lang]/index.astro is moved here.
 ---
