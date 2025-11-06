@@ -3,8 +3,6 @@
 // and displays the list of core keywords for navigation.
 import Layout from '../layouts/Layout.astro'; // Relative path (Stable)
 import { CORE_KEYWORDS } from '../content/config.ts'; // Relative path (Stable)
-
-// Note: The logic from the old src/pages/[lang]/index.astro is moved here.
 ---
 <Layout title="AI Nexus - Explore Core Models & Tools">
   <main class="max-w-6xl mx-auto px-4 py-16">
@@ -16,26 +14,27 @@ import { CORE_KEYWORDS } from '../content/config.ts'; // Relative path (Stable)
         Browse the most influential open-source models, libraries, and tools across key artificial intelligence domains.
       </p>
     </header>
-    
+
     <div class="bg-white dark:bg-gray-900/50 backdrop-blur-sm shadow-2xl shadow-blue-500/10 rounded-3xl p-6 sm:p-12 border border-gray-100 dark:border-gray-800">
       <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-8">
         Core Model Categories
       </h2>
-      
+
       <!-- Responsive Grid for Keywords -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {CORE_KEYWORDS.map(keyword => (
           <div class="group">
-            <a 
-              href={`/${keyword.slug}`} 
+            <a
+              href={`/${keyword.slug}`}
               class="relative block h-full p-6 rounded-xl bg-gray-50 dark:bg-gray-800 transition duration-300 ease-in-out transform hover:scale-[1.02] hover:shadow-blue-500/30 hover:shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden"
             >
-              
+
               {/* Decorative Accent */}
               <div class="absolute inset-0 bg-gradient-to-br from-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
               <div class="relative z-10">
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600 dark:text-blue-400 mb-3"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 16c-3.31 0-6-2.69-6-6h2c0 2.21 1.79 4 4 4s4-1.79 4-4h2c0 3.31-2.69 6-6 6zm5-8h-2c0-2.21-1.79-4-4-4s-4 1.79-4 4H5c0-3.31 2.69-6 6-6s6 2.69 6 6z"/></svg>
+                {/* Chip/Square Icon */}
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600 dark:text-blue-400 mb-3"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M7 7h.01"/><path d="M7 17h.01"/><path d="M17 7h.01"/><path d="M17 17h.01"/></svg>
 
                 <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2 leading-snug">
                   {keyword.title}

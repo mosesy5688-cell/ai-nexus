@@ -1,42 +1,39 @@
 ---
+// This is the main layout component that wraps all pages.
+// It includes the necessary HTML structure, metadata, and global styles.
+
+interface Props {
+	title: string;
+}
+
 const { title } = Astro.props;
 ---
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{title}</title>
-  <!-- Assuming Tailwind CSS is configured and imported globally or via Astro integration -->    
-</head>
-<body class="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900">
-  <!-- Navigation Bar -->
-  <nav class="bg-gray-900 text-white p-4 shadow-lg sticky top-0 z-10">
-    <div class="container mx-auto flex justify-between items-center max-w-7xl">
-      <a href="/" class="text-2xl font-bold tracking-wider hover:text-blue-400 transition-colors">AI Nexus</a>
-      <div class="space-x-4">
-        <a href="/" class="text-white hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition-colors">Home</a>
-        <!-- Keywords index is now the root page -->
-        <a href="/" class="text-white hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition-colors">Keywords</a>
-      </div>
-    </div>
-  </nav>
 
-  <!-- Main Content Slot -->
-  <!-- flex-grow ensures this section fills the remaining vertical space -->
-  <main class="flex-grow">
-    <slot />
-  </main>
+<!doctype html>
+<html lang="en" class="dark">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="description" content="Discover open-source AI models and tools." />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<title>{title}</title>
 
-  <!-- Footer -->
-  <footer class="bg-gray-800 text-gray-400 text-center p-4 border-t border-gray-700">
-    <div class="container mx-auto text-sm">
-      <p>&copy; {new Date().getFullYear()} AI Nexus. All rights reserved.</p>
-      <p class="mt-1">
-        Project source on 
-        <a href="#" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 hover:underline transition-colors">GitHub</a>
-      </p>
-    </div>
-  </footer>
-</body>
+		<!-- Link the Tailwind base stylesheet to ensure global CSS is applied -->
+		<link rel="stylesheet" href="../styles/base.css" />
+	</head>
+	<body class="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans antialiased">
+		<slot />
+	</body>
 </html>
+
+<style is:global>
+	/* Ensure all links have basic styling */
+	a {
+		@apply text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition duration-150;
+	}
+
+	/* Override default styles for Markdown links, if used */
+	.prose a {
+		@apply font-medium underline;
+	}
+</style>

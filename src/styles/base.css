@@ -1,0 +1,6 @@
+/* * This is a required file used to import Tailwind's core directives.
+ * The @astrojs/tailwind integration will read this file and inject all generated CSS.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
