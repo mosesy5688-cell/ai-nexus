@@ -1,57 +1,52 @@
 ---
-// This is the root index page (/) which serves as the main entry point
-// and displays the list of core keywords for navigation.
-import Layout from '../layouts/Layout.astro'; // Relative path (Stable)
-import { CORE_KEYWORDS } from '../content/config.ts'; // Relative path (Stable)
+import Layout from '../layouts/Layout.astro';
+import { CORE_KEYWORDS } from '../content/config.ts';
 ---
-<Layout title="AI Nexus - Explore Core Models & Tools">
-  <main class="max-w-6xl mx-auto px-4 py-16">
-    <header class="text-center mb-16 space-y-4">
-      <h1 class="text-6xl font-black text-gray-900 dark:text-gray-50 tracking-tighter">
-        The Open-Source <span class="text-blue-600 dark:text-blue-400">AI Nexus</span>
+
+<Layout title="AI-Nexus - The Open-Source AI Guide">
+  <!-- Hero Section -->
+  <section class="relative h-[560px] flex items-center justify-center text-center bg-gradient-to-br from-blue-600/20 via-transparent to-purple-600/20 dark:from-blue-900/30 dark:to-purple-900/30 px-4">
+    <div class="absolute inset-0 bg-grid-pattern opacity-5 dark:opacity-10"></div>
+    <div class="relative z-10 max-w-4xl mx-auto">
+      <h1 class="text-5xl md:text-7xl font-black tracking-tighter text-gray-900 dark:text-white">
+        The Open-Source <span class="text-blue-600">AI</span> Nexus
       </h1>
-      <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-        Browse the most influential open-source models, libraries, and tools across key artificial intelligence domains.
+      <p class="mt-6 text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+        An authoritative index of open-source AI models, tools, and resources, curated for developers and researchers.
       </p>
-    </header>
+      <div class="mt-8 flex justify-center gap-4">
+        <a href="#keywords" class="bg-blue-600 text-white font-medium px-6 py-3 rounded-lg hover:bg-blue-700 transition shadow-lg">Browse Keywords</a>
+        <a href="/about" class="bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 font-medium px-6 py-3 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition">Learn More</a>
+      </div>
+    </div>
+  </section>
 
-    <div class="bg-white dark:bg-gray-900/50 backdrop-blur-sm shadow-2xl shadow-blue-500/10 rounded-3xl p-6 sm:p-12 border border-gray-100 dark:border-gray-800">
-      <h2 class="text-3xl font-bold text-gray-800 dark:text-white mb-8">
-        Core Model Categories
-      </h2>
+  <!-- Keywords Section -->
+  <section id="keywords" class="py-20 sm:py-32">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center">
+        <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">Explore Core Categories</h2>
+        <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">Dive into curated lists of tools for specific AI domains.</p>
+      </div>
 
-      <!-- Responsive Grid for Keywords -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {CORE_KEYWORDS.map(keyword => (
-          <div class="group">
-            <a
-              href={`/${keyword.slug}`}
-              class="relative block h-full p-6 rounded-xl bg-gray-50 dark:bg-gray-800 transition duration-300 ease-in-out transform hover:scale-[1.02] hover:shadow-blue-500/30 hover:shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden"
-            >
-
-              {/* Decorative Accent */}
-              <div class="absolute inset-0 bg-gradient-to-br from-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
-              <div class="relative z-10">
-                {/* Chip/Square Icon */}
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600 dark:text-blue-400 mb-3"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M7 7h.01"/><path d="M7 17h.01"/><path d="M17 7h.01"/><path d="M17 17h.01"/></svg>
-
-                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2 leading-snug">
-                  {keyword.title}
-                </h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-3">
-                  {keyword.description}
-                </p>
-              </div>
-
-              {/* Arrow Icon */}
-              <span class="absolute right-4 bottom-4 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-transform duration-300 transform group-hover:translate-x-1">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-              </span>
-            </a>
-          </div>
+          <a href={`/${keyword.slug}`} class="group block p-8 rounded-2xl bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-xl hover:border-blue-500/50 transition-all duration-300">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">{keyword.title}</h3>
+            <p class="mt-2 text-gray-500 dark:text-gray-400">{keyword.description}</p>
+            <div class="mt-4 font-medium text-blue-600 dark:text-blue-400 flex items-center gap-2">
+              Explore <span class="group-hover:translate-x-1 transition-transform">&rarr;</span>
+            </div>
+          </a>
         ))}
       </div>
     </div>
-  </main>
+  </section>
 </Layout>
+
+<style>
+  .bg-grid-pattern {
+    background-image: linear-gradient(to right, rgba(128, 128, 128, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(128, 128, 128, 0.1) 1px, transparent 1px);
+    background-size: 2rem 2rem;
+  }
+</style>

@@ -1,0 +1,27 @@
+---
+import KeywordPageLayout from '../layouts/KeywordPageLayout.astro';
+import { CORE_KEYWORDS } from '../content/config.ts';
+import { getToolsForKeyword } from '../lib/data.ts';
+
+export async function getStaticPaths() {
+  return CORE_KEYWORDS.map(keyword => ({
+    params: { keyword: keyword.slug },
+  }));
+}
+
+const { keyword } = Astro.params;
+const kv = Astro.locals.runtime.env.AI_NEXUS_KV;
+
+const currentKeyword = CORE_KEYWORDS.find(k => k.slug === keyword);
+const tools = await getToolsForKeyword(keyword, kv);
+
+const pageTitle = currentKeyword?.title || keyword || 'AI Tools';
+const pageDescription = currentKeyword?.description || `Explore tools related to ${pageTitle}.`;
+---
+
+<KeywordPageLayout
+  title={pageTitle}
+  description={pageDescription}
+  tools={tools}
+  keyword={keyword}
+/>

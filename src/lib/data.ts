@@ -1,11 +1,9 @@
-// src/lib/data.ts
 import { resolve } from 'path';
 import fs from 'fs';
+import type { KVNamespace } from '@cloudflare/workers-types';
 
-/**
- * Defines the structure for a tool object, mirroring the data in models.json.
- */
-interface Tool {
+// Define the structure for a tool object
+export interface Tool {
   id: string;
   name: string;
   author: string;
@@ -17,65 +15,47 @@ interface Tool {
   lastModified: string;
 }
 
-// --- Synchronous, Robust File Loading (Bypassing Rollup/Vite Module Resolution) ---
+// Function to get tools from Cloudflare KV
+async function getToolsFromKV(kv: KVNamespace): Promise<Tool[]> {
+  const data = await kv.get("models", "json");
+  return data || [];
+}
 
-// FIX: Resolve the absolute path to models.json relative to the project's root (process.cwd()).
-// The file is assumed to be moved to the public/ directory, which Astro copies to the build root.
+// --- Synchronous, Robust File Loading for Development ---
 const DATA_FILE_PATH = resolve(process.cwd(), 'public/models.json');
-
-// 3. Synchronously read and parse the JSON file during module initialization
-let ALL_TOOLS: Tool[] = [];
+let ALL_TOOLS_DEV: Tool[] = [];
 try {
-  // Read the file content as a string
   const fileContent = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
-  // Parse the JSON content
-  const toolsData = JSON.parse(fileContent);
-  // Cast and assign
-  ALL_TOOLS = toolsData as Tool[];
+  ALL_TOOLS_DEV = JSON.parse(fileContent) as Tool[];
 } catch (e) {
-  // If the file is missing (e.g., during development setup), we log an error
-  // but allow the application to proceed with empty data, preventing a build crash.
   console.error(`ERROR: Failed to load tool data from ${DATA_FILE_PATH}`);
-  console.error('This is usually because the data generation script was not run, or the path is incorrect.');
-  console.error(e);
-}
-
-// ----------------------------------------------------------------------------------
-
-/**
- * Returns all available tools from the static models.json file.
- *
- * @returns An array of Tool objects.
- */
-export function getAllTools(): Tool[] {
-  // Returning a copy of the pre-imported ALL_TOOLS array is synchronous and fast.
-  return [...ALL_TOOLS];
 }
 
 /**
- * Filters the complete list of tools based on a given keyword slug.
- * The slug is matched against the tags and task fields of each tool.
- *
- * @param slug The keyword slug to filter by (e.g., 'ai-image-generation').
- * @returns An array of Tool objects that match the keyword.
+ * Returns all available tools.
+ * In a production environment, it fetches from Cloudflare KV.
+ * In a development environment, it reads from the local models.json file.
  */
-export function getToolsForKeyword(slug: string): Tool[] {
-  const allTools = getAllTools();
+export async function getAllTools(kv?: KVNamespace): Promise<Tool[]> {
+  if (import.meta.env.PROD && kv) {
+    return await getToolsFromKV(kv);
+  }
+  return [...ALL_TOOLS_DEV];
+}
 
-  // Normalize the input slug for case-insensitive and hyphen-agnostic matching.
-  const normalizedSlug = slug.toLowerCase().replace(/-/g, ' ');
+/**
+ * Filters the complete list of tools based on a given keyword.
+ */
+export async function getToolsForKeyword(keyword: string, kv?: KVNamespace): Promise<Tool[]> {
+  const allTools = await getAllTools(kv);
+  const normalizedKeyword = keyword.toLowerCase().replace(/-/g, ' ');
 
-  // Filter the tools
   return allTools.filter(tool => {
-    // 1. Check if tags match
     const matchesTag = tool.tags?.some(tag =>
-      tag.toLowerCase().includes(normalizedSlug)
+      tag.toLowerCase().includes(normalizedKeyword)
     );
-
-    // 2. Check if the primary task matches
-    const matchesTask = tool.task?.toLowerCase().includes(normalizedSlug);
-
-    // A tool matches if its tags OR its task includes the normalized slug.
+    const matchesTask = tool.task?.toLowerCase().includes(normalizedKeyword);
     return matchesTag || matchesTask;
   });
 }
+

@@ -1,93 +1,90 @@
-    const axios = require('axios');
-    const fs = require('fs');
-    const path = require('path');
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
 
-    // --- Configuration ---
-    // HuggingFace API: Fetch top 100 models sorted by likes, ensuring stability and quality. 
-    const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100';
+// --- Configuration ---
+const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100';
+const OUTPUT_FILE_PATH = path.join(__dirname, '../public/models.json');
 
-    // The local file path where the static data will be stored. 
-    const OUTPUT_FILE_PATH = path.join(__dirname, '../src/data/models.json');
+async function fetchHuggingFaceData() {
+    console.log('📦 Fetching data from HuggingFace API...');
+    try {
+        const { data } = await axios.get(HUGGINGFACE_API_URL);
+        const transformedData = data.map(model => ({
+            id: model.modelId,
+            name: model.modelId.split('/')[1] || model.modelId,
+            author: model.author,
+            source: `https://huggingface.co/${model.modelId}`,
+            task: model.pipeline_tag || 'N/A',
+            tags: model.tags || [],
+            likes: model.likes,
+            downloads: model.downloads,
+            lastModified: model.lastModified,
+        }));
+        console.log(`✅ Successfully fetched and transformed ${transformedData.length} models.`);
+        return transformedData;
+    } catch (error) {
+        console.error('❌ Failed to fetch data from HuggingFace:', error.message);
+        if (error.response) {
+            console.error(`    - Status: ${error.response.status}`);
+            console.error(`    - Data: ${JSON.stringify(error.response.data)}`);
+        }
+        process.exit(1);
+    }
+}
 
-    /**
-     * Fetches and transforms model data from the HuggingFace API.
-     * This function is designed to be reliable for automated execution in a CI/CD environment.
-     */ 
-    async function fetchHuggingFaceData() {
-        console.log('📦 Fetching data from HuggingFace API...');
+function writeDataToFile(filePath, data) {
+    console.log(`- Writing data to static file: ${filePath}`);
+    try {
+        const dir = path.dirname(filePath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+        console.log('✅ Successfully wrote data to file.');
+    } catch (error) {
+        console.error('❌ Failed to write data to file:', error.message);
+        process.exit(1);
+    }
+}
+
+async function writeToKV(data) {
+    if (process.env.CI) {
+        console.log('CI environment detected, writing to Cloudflare KV...');
         try {
-            const { data } = await axios.get(HUGGINGFACE_API_URL);
-
-            // Transform the raw API data into a clean, structured format for our application. 
-            const transformedData = data.map(model => ({
-                id: model.modelId,
-                name: model.modelId.split('/')[1] || model.modelId,
-                author: model.author,
-                source: `https://huggingface.co/${model.modelId}`,
-                task: model.pipeline_tag || 'N/A',
-                tags: model.tags || [],
-                likes: model.likes,
-                downloads: model.downloads,
-                lastModified: model.lastModified,
-            }));
-            
-            console.log(`✅ Successfully fetched and transformed ${transformedData.length} models.`);
-            return transformedData;
-
-        } catch (error) {
-            console.error('❌ Failed to fetch data from HuggingFace:', error.message);
-            if (error.response) {
-                console.error(`    - Status: ${error.response.status}`);
-                console.error(`    - Data: ${JSON.stringify(error.response.data)}`);
+            const { CF_ACCOUNT_ID, CF_API_TOKEN, KV_NAMESPACE_ID } = process.env;
+            if (!CF_ACCOUNT_ID || !CF_API_TOKEN || !KV_NAMESPACE_ID) {
+                console.error('Missing Cloudflare credentials. Make sure CF_ACCOUNT_ID, CF_API_TOKEN, and KV_NAMESPACE_ID are set as environment variables.');
+                process.exit(1);
             }
-            // Exit with a non-zero code to signal failure to the GitHub Action runner. 
+
+            const dataString = JSON.stringify(data);
+            execSync(`npx wrangler kv:key put --namespace-id="${KV_NAMESPACE_ID}" "models" '${dataString}'`, {
+                env: { ...process.env, CF_API_TOKEN },
+                stdio: 'inherit'
+            });
+
+            console.log('✅ Successfully wrote data to Cloudflare KV.');
+        } catch (error) {
+            console.error('❌ Failed to write data to Cloudflare KV:', error.message);
             process.exit(1);
         }
+    } else {
+        console.log('Not in CI environment, skipping KV write.');
     }
+}
 
-    /**
-     * Writes the provided data to a local JSON file.
-     * @param {string} filePath The path to the output file. 
-     * @param {any} data The JSON-serializable data to store.
-     */ 
-    function writeDataToFile(filePath, data) {
-        console.log(`- Writing data to static file: ${filePath}`);
-        try {
-            // Ensure the directory exists before writing the file. 
-            const dir = path.dirname(filePath);
-            if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-            }
-            // Write data as a formatted JSON string to ensure readability. 
-            fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-            console.log('✅ Successfully wrote data to file.');
-        } catch (error) {
-            console.error('❌ Failed to write data to file:', error.message);
-            
-            // Exit with a non-zero code to signal failure. 
-            process.exit(1);
-        }
+async function main() {
+    console.log('--- Starting AI-Nexus Data Fetching Script ---');
+    const modelsData = await fetchHuggingFaceData();
+    if (modelsData && modelsData.length > 0) {
+        writeDataToFile(OUTPUT_FILE_PATH, modelsData);
+        await writeToKV(modelsData);
+    } else {
+        console.log('🔥 No data was fetched, skipping file write and KV update.');
     }
+    console.log('--- ✅ Data fetching script finished successfully! ---');
+}
 
-    /**
-     * Main execution function to orchestrate the data fetching and storage process.
-     */ 
-    async function main() {
-        console.log('--- Starting AI-Nexus Data Fetching Script (Static JSON Strategy) ---');
-        
-        // 1. Fetch the data from the primary source. 
-        const modelsData = await fetchHuggingFaceData();
-        
-        // 2. Write the fetched data to a local JSON file for the static site. 
-        if (modelsData && modelsData.length > 0) {
-            writeDataToFile(OUTPUT_FILE_PATH, modelsData);
-        } else {
-            console.log('🔥 No data was fetched, skipping file write.');
-        }
-        
-        console.log('--- ✅ Data fetching script finished successfully! ---');
-    }
-
-    // Execute the main function. 
-    main();
-    
+main();

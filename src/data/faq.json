@@ -1,0 +1,16 @@
+{
+  "ai-image-generation": [
+    {
+      "question": "What is AI image generation?",
+      "answer": "AI image generation is the process of using artificial intelligence models to create images from text descriptions."
+    },
+    {
+      "question": "How do AI image generators work?",
+      "answer": "Most AI image generators use a process called diffusion. They start with a random noise image and gradually refine it to match the text prompt."
+    },
+    {
+      "question": "What are some popular AI image generation models?",
+      "answer": "Some popular models include Stable Diffusion, Midjourney, and DALL-E 2."
+    }
+  ]
+}

@@ -1,21 +1,91 @@
 ---
 import Layout from './Layout.astro';
-import Adsense from '../components/Adsense.astro';
-const { frontmatter } = Astro.props;
+import type { Tool } from '../lib/data';
+import FAQSection from '../components/FAQSection.astro';
+import faqs from '../data/faq.json';
+import { generateArticleSchema } from '../lib/schema';
+
+interface Props {
+  title: string;
+  description: string;
+  tools: Tool[];
+  keyword: string;
+}
+
+const { title, description, tools, keyword } = Astro.props;
+const keywordFaqs = faqs[keyword] || [];
+const schema = generateArticleSchema(keyword, title, description);
 ---
-<Layout title={frontmatter.title} description={frontmatter.description}>
-  <!-- Ad Slot 1: Above the fold -->
-  <Adsense slot="1234567890" />
 
-  <slot />
+<Layout title={title} description={description}>
+  <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+  <main class="container max-w-7xl mx-auto px-4 py-8">
+    <!-- Header Section -->
+    <header class="text-center mb-12">
+      <h1 class="text-4xl sm:text-5xl font-extrabold text-gray-900 dark:text-gray-100 mb-4">
+        {title}
+      </h1>
+      <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        {description}
+      </p>
+      <a 
+        href="/" 
+        class="inline-flex items-center mt-4 text-blue-600 hover:text-blue-500 font-medium transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="m15 18-6-6 6-6"/></svg>
+        Back to Keywords
+      </a>
+    </header>
 
-  <!-- Ad Slot 2: Footer ad -->
-  <Adsense slot="3456789012" />
+    <!-- Tool Listing Section -->
+    {tools.length > 0 ? (
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {tools.map((tool) => (
+          <article class="bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 border border-gray-200 dark:border-gray-700 p-6 flex flex-col justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2 line-clamp-2">
+                {tool.name}
+              </h2>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                Task: <span class="font-medium text-gray-700 dark:text-gray-300">{tool.task || 'General'}</span>
+              </p>
+              
+              <div class="flex flex-wrap gap-2 mb-4">
+                {tool.tags.slice(0, 3).map(tag => (
+                  <span class="text-xs font-semibold px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
 
-  <!-- Interlinking -->
-  <div style="margin:2rem 0; text-align:center;">
-    <a href="/">← Home</a> |
-    <a href="/disclaimer/">Disclaimer</a> |
-    <a href="https://github.com/mosesyang/ai-nexus">GitHub</a>
-  </div>
+            <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
+              <span class="text-sm text-gray-500 dark:text-gray-400">
+                By {tool.author}
+              </span>
+              <a 
+                href={tool.source} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                class="bg-blue-600 text-white text-sm font-medium py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+              >
+                Go to Model
+              </a>
+            </div>
+          </article>
+        ))}
+      </div>
+    ) : (
+      <div class="text-center p-12 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-inner">
+        <p class="text-xl text-gray-500 dark:text-gray-400">
+          No tools found for "{title}".
+        </p>
+        <p class="text-md text-gray-400 dark:text-gray-500 mt-2">
+          Try a different keyword or check back later after the data pipeline runs.
+        </p>
+      </div>
+    )}
+  </main>
+
+  {keywordFaqs.length > 0 && <FAQSection faqs={keywordFaqs} />}
 </Layout>
