@@ -1,20 +1,15 @@
---- 
+---
 import Layout from '../../layouts/Layout.astro';
 
-// 必须：预生成 5 个路径
+const slugs = ['image', 'logo', 'video', 'writing', 'resume'];
+
 export async function getStaticPaths() {
-  return [
-    { params: { slug: 'image' } },
-    { params: { slug: 'logo' } },
-    { params: { slug: 'video' } },
-    { params: { slug: 'writing' } },
-    { params: { slug: 'resume' } },
-  ];
+  return slugs.map(slug => ({ params: { slug } }));
 }
 
 const { slug } = Astro.params;
-let tools = { data: [], hash: '' };
 
+let tools = { data: [], hash: '' };
 try {
   const module = await import(`../../content/auto/${slug}.json`);
   tools = module.default || tools;
@@ -22,11 +17,13 @@ try {
   console.error('Load failed:', e);
 }
 
+const pageTitle = `Best Free AI ${slug} Tools 2025`;
+
 // Structured Data for SEO
 const itemListSchema = {
   "@context": "https://schema.org",
   "@type": "ItemList",
-  "name": `Best Free AI ${slug} Tools 2025`,
+  "name": pageTitle,
   "description": `A curated list of the best free AI tools for ${slug} generation in 2025.`,
   "itemListElement": tools.data.map((tool, index) => ({
     "@type": "ListItem",
@@ -35,13 +32,13 @@ const itemListSchema = {
       "@type": "SoftwareApplication",
       "name": tool.name,
       "url": tool.source,
-      "applicationCategory": "MultimediaApplication" // General category
+      "applicationCategory": "MultimediaApplication"
     }
   }))
 };
 ---
-<Layout title={`Best Free AI ${slug} Tools 2025`}>
-  <h1>Best Free AI {slug} Tools 2025</h1>
+<Layout title={pageTitle}>
+  <h1>{pageTitle}</h1>
   <p><strong>Updated:</strong> {new Date().toLocaleDateString()} | <strong>Hash:</strong> {tools.hash}</p>
 
   {tools.data?.length > 0 ? (
@@ -83,7 +80,7 @@ const itemListSchema = {
 
   <!-- 互链 -->
   <div style="margin-top:2rem; display:flex; gap:1rem; flex-wrap:wrap;">
-    {['image', 'logo', 'video', 'writing', 'resume'].filter(s => s !== slug).map(s => (
+    {slugs.filter(s => s !== slug).map(s => (
       <a href={`/${s}/`} style="padding:0.5rem 1rem; background:#007bff; color:white; border-radius:4px; text-decoration:none;">
         → Best {s} AI Tools
       </a>
@@ -107,6 +104,7 @@ const itemListSchema = {
 </Layout>
 
 <style>
+  /* CSS remains the same */
   .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

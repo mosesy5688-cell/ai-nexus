@@ -1,0 +1,21 @@
+---
+import Layout from './Layout.astro';
+import Adsense from '../components/Adsense.astro';
+const { frontmatter } = Astro.props;
+---
+<Layout title={frontmatter.title} description={frontmatter.description}>
+  <!-- Ad Slot 1: Above the fold -->
+  <Adsense slot="1234567890" />
+
+  <slot />
+
+  <!-- Ad Slot 2: Footer ad -->
+  <Adsense slot="3456789012" />
+
+  <!-- Interlinking -->
+  <div style="margin:2rem 0; text-align:center;">
+    <a href="/">← Home</a> |
+    <a href="/disclaimer/">Disclaimer</a> |
+    <a href="https://github.com/mosesyang/ai-nexus">GitHub</a>
+  </div>
+</Layout>

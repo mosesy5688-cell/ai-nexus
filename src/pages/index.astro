@@ -1,13 +1,29 @@
---- 
-import Layout from '../layouts/Layout.astro';
 ---
-<Layout title="AI Tools Nexus">
-  <h1>AI Tools Nexus</h1>
+import Layout from '../layouts/Layout.astro';
+
+const categories = ['image', 'logo', 'video', 'writing', 'resume'];
+---
+<Layout title="AI Nexus - Home">
+  <h1>Welcome to AI Nexus</h1>
+  <p>Your central hub for discovering the best AI tools.</p>
+  <h2>Categories</h2>
   <ul>
-    <li><a href="/image/">Image</a></li>
-    <li><a href="/logo/">Logo</a></li>
-    <li><a href="/video/">Video</a></li>
-    <li><a href="/writing/">Writing</a></li>
-    <li><a href="/resume/">Resume</a></li>
+    {categories.map(slug => (
+      <li><a href={`/${slug}/`}>{slug.charAt(0).toUpperCase() + slug.slice(1)}</a></li>
+    ))}
+    </ul>
+
+  <h2>Platforms</h2>
+  <ul>
+    <li><a href="/platforms/pytorch-hub/">PyTorch Hub Models</a></li>
+    <li><a href="/platforms/tensorflow-hub/">TensorFlow Hub</a></li>
+    <li><a href="/platforms/kaggle-models/">Kaggle Models</a></li>
+    <li><a href="/platforms/paperswithcode/">PapersWithCode</a></li>
+    <li><a href="/platforms/onnx-model-zoo/">ONNX Model Zoo</a></li>
+    <li><a href="/platforms/uci-ml-repository/">UCI ML Repository</a></li>
+    <li><a href="/platforms/google-dataset-search/">Google Dataset Search</a></li>
+    <li><a href="/platforms/aws-open-data/">AWS Open Data</a></li>
+    <li><a href="/platforms/civitai/">Civitai</a></li>
+    <li><a href="/platforms/allenai/">AllenAI</a></li>
   </ul>
 </Layout>

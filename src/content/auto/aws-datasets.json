@@ -1,0 +1,76 @@
+{
+  "data": [
+    {
+      "name": "(EXPERIMENTAL) NOAA FourCastNet Global Forecast System (FourCastNetGFS) (EXPERIMENTAL)",
+      "description": "FourCastNet GFS data",
+      "free": "Yes (Public Dataset)",
+      "limit": "Unlimited",
+      "source": "For the NOAA Product, https://fourcastnetgfs.readthedocs.io/en/latest/index.html and for background FourCastNet v2 information, https://github.com/ecmwf-lab/ai-models-fourcastnetv2."
+    },
+    {
+      "name": "(EXPERIMENTAL) NOAA FourCastNet Global Forecast System (FourCastNetGFS) (EXPERIMENTAL)",
+      "description": "New data notifications for FourCastNet GFS, only Lambda and SQS protocols allowed",
+      "free": "Yes (Public Dataset)",
+      "limit": "Unlimited",
+      "source": "For the NOAA Product, https://fourcastnetgfs.readthedocs.io/en/latest/index.html and for background FourCastNet v2 information, https://github.com/ecmwf-lab/ai-models-fourcastnetv2."
+    },
+    {
+      "name": "(EXPERIMENTAL) NOAA GraphCast Global Forecast System (GFS) (EXPERIMENTAL)",
+      "description": "GraphCast GFS data",
+      "free": "Yes (Public Dataset)",
+      "limit": "Unlimited",
+      "source": "For the NOAA Product, https://graphcastgfs.readthedocs.io/en/latest/index.html and for background graphcast information, https://github.com/google-deepmind/graphcast/tree/main/graphcast"
+    },
+    {
+      "name": "(EXPERIMENTAL) NOAA GraphCast Global Forecast System (GFS) (EXPERIMENTAL)",
+      "description": "New data notifications for GraphCast GFS, only Lambda and SQS protocols allowed",
+      "free": "Yes (Public Dataset)",
+      "limit": "Unlimited",
+      "source": "For the NOAA Product, https://graphcastgfs.readthedocs.io/en/latest/index.html and for background graphcast information, https://github.com/google-deepmind/graphcast/tree/main/graphcast"
+    },
+    {
+      "name": "1000 Genomes",
+      "description": "http://wwwinternationalgenomeorg/formats",
+      "free": "Yes (Public Dataset)",
+      "limit": "Unlimited",
+      "source": "https://github.com/awslabs/open-data-docs/tree/main/docs/1000genomes"
+    },
+    {
+      "name": "1000 Genomes Phase 3 Reanalysis with DRAGEN 3.5, 3.7, 4.0, and 4.2",
+      "description": "CRAM, SNV-vcf, SNV-gvcf, STR-vcf, STR-bam, SV-vcf, ROH-vcf, CNV-vcf, CNV-bw, cyp2b6-tsv, cyp2d6-tsv, gba-tsv, smn-tsv, star-allele-tsv, hla-tsv, gvcf, json, metrics and other supporting files from DRAGEN v427 analyses and Nirvana Annotation in a public S3 bucket",
+      "free": "Yes (Public Dataset)",
+      "limit": "Unlimited",
+      "source": "[DRAGEN Support Resources](https://support.illumina.com/sequencing/sequencing_software/dragen-bio-it-platform.html)"
+    },
+    {
+      "name": "1000 Genomes Phase 3 Reanalysis with DRAGEN 3.5, 3.7, 4.0, and 4.2",
+      "description": "CRAM, SNV-vcf, SNV-gvcf, STR-vcf, STR-bam, SV-vcf, ROH-vcf, CNV-vcf, CNV-bw, cyp2b6-tsv, cyp2d6-tsv, gba-tsv, smn-tsv, star-allele-tsv, metrics and other supporting files from DRAGEN v403 analyses and Nirvana Annotation in a public S3 bucket",
+      "free": "Yes (Public Dataset)",
+      "limit": "Unlimited",
+      "source": "[DRAGEN Support Resources](https://support.illumina.com/sequencing/sequencing_software/dragen-bio-it-platform.html)"
+    },
+    {
+      "name": "1000 Genomes Phase 3 Reanalysis with DRAGEN 3.5, 3.7, 4.0, and 4.2",
+      "description": "BAM, SNV-vcf, SNV-gvcf, STR-vcf, STR-bam, SV-vcf, ROH-vcf, CNV-vcf, CNV-bw, cyp2d6-tsv, metrics and other supporting files from DRAGEN v376 analyses in a public S3 bucket This is a clone of the 1000genomes-dragen-376 bucket in the us-east-1 region",
+      "free": "Yes (Public Dataset)",
+      "limit": "Unlimited",
+      "source": "[DRAGEN Support Resources](https://support.illumina.com/sequencing/sequencing_software/dragen-bio-it-platform.html)"
+    },
+    {
+      "name": "1000 Genomes Phase 3 Reanalysis with DRAGEN 3.5, 3.7, 4.0, and 4.2",
+      "description": "BAM, SNV-vcf, SNV-gvcf, STR-vcf, STR-bam, SV-vcf, ROH-vcf, CNV-vcf, CNV-bw, cyp2d6-tsv, metrics and other supporting files from DRAGEN v376 analyses in a public S3 bucket",
+      "free": "Yes (Public Dataset)",
+      "limit": "Unlimited",
+      "source": "[DRAGEN Support Resources](https://support.illumina.com/sequencing/sequencing_software/dragen-bio-it-platform.html)"
+    },
+    {
+      "name": "1000 Genomes Phase 3 Reanalysis with DRAGEN 3.5, 3.7, 4.0, and 4.2",
+      "description": "BAM, SNV-vcf, SNV-gvcf, STR-vcf, STR-bam, SV-vcf, ROH-vcf, CNV-vcf, CNV-bw, metrics  and other supporting files from DRAGEN v356b analyses in a public S3 bucket",
+      "free": "Yes (Public Dataset)",
+      "limit": "Unlimited",
+      "source": "[DRAGEN Support Resources](https://support.illumina.com/sequencing/sequencing_software/dragen-bio-it-platform.html)"
+    }
+  ],
+  "hash": "4f4103f4d52167ec9e8ae41f3c862499c7078b38dc84c474f2a0d51c224dd8f4",
+  "updated": "2025-11-05T11:23:49.878Z"
+}

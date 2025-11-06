@@ -1,0 +1,74 @@
+--- 
+import Layout from '../layouts/Layout.astro';
+import Adsense from '../components/Adsense.astro';
+import { promises as fs } from 'fs';
+import path from 'path';
+
+const { platform } = Astro.params;
+
+// Function to read data from JSON file
+async function getPlatformData(platformSlug) {
+  try {
+    const dataPath = path.join(process.cwd(), 'src', 'data', `${platformSlug}.json`);
+    const jsonData = await fs.readFile(dataPath, 'utf-8');
+    return JSON.parse(jsonData);
+  } catch (error) {
+    console.error(`Error reading data for ${platformSlug}:`, error);
+    return [];
+  }
+}
+
+const data = await getPlatformData(platform);
+const platformName = platform.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+---
+<Layout title={`Top AI Tools from ${platformName}`}>
+  <h1>{platformName}</h1>
+
+  <!-- Ad Slot 1: Above the fold -->
+  <Adsense slot="1234567890" />
+
+  <p>Here are some of the top AI models and datasets from {platformName}, a trusted source for the AI community.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Free</th>
+        <th>Limit</th>
+        <th>Benchmark</th>
+        <th>Source</th>
+      </tr>
+    </thead>
+    <tbody>
+      {data.map((item, index) => (
+        <>
+          <tr>
+            <td>{item.name}</td>
+            <td>{item.free}</td>
+            <td>{item.limit}</td>
+            <td>{item.benchmark}</td>
+            <td><a href={item.source} target="_blank" rel="noopener noreferrer">Link</a></td>
+          </tr>
+          {/* Ad Slot 2: In-content ad every 5 items */}
+          {index > 0 && (index + 1) % 5 === 0 && (
+            <tr>
+              <td colspan="5">
+                <Adsense slot="2345678901" />
+              </td>
+            </tr>
+          )}
+        </>
+      ))}
+    </tbody>
+  </table>
+
+  <!-- Ad Slot 3: Footer ad -->
+  <Adsense slot="3456789012" />
+
+  <!-- Interlinking -->
+  <div style="margin:2rem 0; text-align:center;">
+    <a href="/">← Home</a> |
+    <a href="/disclaimer/">Disclaimer</a> |
+    <a href="https://github.com/mosesyang/ai-nexus">GitHub</a>
+  </div>
+</Layout>

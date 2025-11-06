@@ -1,0 +1,13 @@
+---
+const { slot, format = 'auto', responsive = true } = Astro.props;
+const client = "ca-pub-3940256099942544"; // This is a test client ID. Replace with your own.
+---
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client={client}
+     data-ad-slot={slot}
+     data-ad-format={format}
+     data-full-width-responsive={responsive.toString()}></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>

@@ -1,0 +1,23 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { useTranslations } from '../../i18n/utils';
+import { i18n } from '../../i18n/config';
+
+export function getStaticPaths() {
+  return i18n.locales.map(lang => ({ params: { lang } }));
+}
+
+const { lang } = Astro.params;
+const t = useTranslations(lang);
+
+const categories = ['image', 'logo', 'video', 'writing', 'resume'];
+---
+<Layout title={t('brand.name')}>
+  <h1>{t('brand.name')}</h1>
+  <p>{t('home.welcome')}</p>
+  <ul>
+    {categories.map(slug => (
+      <li><a href={`/${lang}/${slug}/`}>{t(`nav.${slug}`)}</a></li>
+    ))}
+  </ul>
+</Layout>
