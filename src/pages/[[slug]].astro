@@ -1,7 +1,9 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { CORE_KEYWORDS } from '../content/config';
-import { getToolsForKeyword } from '../lib/data';
+// FIX: Explicitly add the .ts extension to resolve build error
+import { CORE_KEYWORDS } from '../content/config.ts';
+// FIX: Explicitly add the .ts extension to resolve build error
+import { getToolsForKeyword } from '../lib/data.ts';
 
 // Define the paths for all available keyword slugs
 export async function getStaticPaths() {
