@@ -1,6 +1,5 @@
 // src/lib/data.ts
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import { resolve } from 'path';
 import fs from 'fs';
 
 /**
@@ -20,13 +19,9 @@ interface Tool {
 
 // --- Synchronous, Robust File Loading (Bypassing Rollup/Vite Module Resolution) ---
 
-// 1. Get the current directory path for data.ts
-// This resolves the correct absolute path regardless of where the build runs.
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// 2. Resolve the absolute path to models.json (from src/lib/ to src/data/)
-const DATA_FILE_PATH = resolve(__dirname, '../data/models.json');
+// FIX: Resolve the absolute path to models.json relative to the project's root (process.cwd()).
+// The file is assumed to be moved to the public/ directory, which Astro copies to the build root.
+const DATA_FILE_PATH = resolve(process.cwd(), 'public/models.json');
 
 // 3. Synchronously read and parse the JSON file during module initialization
 let ALL_TOOLS: Tool[] = [];
