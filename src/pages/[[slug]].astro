@@ -1,8 +1,7 @@
 ---
-import Layout from '~/layouts/Layout.astro'; // FIXED: Use alias for stable import
-// FIX: Use the stable '~' alias for internal module imports
+import Layout from '../layouts/Layout.astro'; // FIX: Revert to relative path for Astro component
+// Keep alias for TS files, which need the stable path
 import { CORE_KEYWORDS } from '~/content/config.ts';
-// FIX: Use the stable '~' alias for internal module imports
 import { getToolsForKeyword } from '~/lib/data.ts';
 
 // Define the paths for all available keyword slugs

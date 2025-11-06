@@ -1,11 +1,10 @@
 ---
 // This is the root index page (/) which serves as the main entry point
 // and displays the list of core keywords for navigation.
-import Layout from '~/layouts/Layout.astro'; // FIXED: Use alias for stable import
-import { CORE_KEYWORDS } from '~/content/config.ts'; // FIXED: Use alias for stable import
+import Layout from '../layouts/Layout.astro'; // FIX: Revert to relative path for Astro component
+import { CORE_KEYWORDS } from '~/content/config.ts'; // Keep alias for TS file
 
 // Note: The logic from the old src/pages/[lang]/index.astro is moved here.
-// You should now delete src/pages/[lang]/index.astro after this step.
 ---
 <Layout title="AI Nexus - Explore Core Models & Tools">
   <main class="max-w-4xl mx-auto px-4 py-16">
