@@ -1,8 +1,10 @@
 // src/lib/data.ts
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+import fs from 'fs';
 
 /**
  * Defines the structure for a tool object, mirroring the data in models.json.
- * These properties match the data saved by scripts/fetch-data.js.
  */
 interface Tool {
   id: string;
@@ -16,32 +18,54 @@ interface Tool {
   lastModified: string;
 }
 
-// FIX: Revert to relative path to ensure stable import of the static JSON file.
-import toolsData from '../data/models.json';
+// --- Synchronous, Robust File Loading (Bypassing Rollup/Vite Module Resolution) ---
 
-// Cast the imported data to the Tool array type.
-const ALL_TOOLS: Tool[] = toolsData as Tool[];
+// 1. Get the current directory path for data.ts
+// This resolves the correct absolute path regardless of where the build runs.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
+// 2. Resolve the absolute path to models.json (from src/lib/ to src/data/)
+const DATA_FILE_PATH = resolve(__dirname, '../data/models.json');
+
+// 3. Synchronously read and parse the JSON file during module initialization
+let ALL_TOOLS: Tool[] = [];
+try {
+  // Read the file content as a string
+  const fileContent = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
+  // Parse the JSON content
+  const toolsData = JSON.parse(fileContent);
+  // Cast and assign
+  ALL_TOOLS = toolsData as Tool[];
+} catch (e) {
+  // If the file is missing (e.g., during development setup), we log an error
+  // but allow the application to proceed with empty data, preventing a build crash.
+  console.error(`ERROR: Failed to load tool data from ${DATA_FILE_PATH}`);
+  console.error('This is usually because the data generation script was not run, or the path is incorrect.');
+  console.error(e);
+}
+
+// ----------------------------------------------------------------------------------
 
 /**
  * Returns all available tools from the static models.json file.
  *
- * @returns A promise that resolves to an array of `Tool` objects.
+ * @returns An array of Tool objects.
  */
-export async function getAllTools(): Promise<Tool[]> {
+export function getAllTools(): Tool[] {
   // Returning a copy of the pre-imported ALL_TOOLS array is synchronous and fast.
   return [...ALL_TOOLS];
 }
 
 /**
  * Filters the complete list of tools based on a given keyword slug.
- * The slug is matched against the `tags` and `task` fields of each tool.
+ * The slug is matched against the tags and task fields of each tool.
  *
  * @param slug The keyword slug to filter by (e.g., 'ai-image-generation').
- * @returns A promise that resolves to an array of `Tool` objects that match the keyword.
+ * @returns An array of Tool objects that match the keyword.
  */
-export async function getToolsForKeyword(slug: string): Promise<Tool[]> {
-  const allTools = await getAllTools();
+export function getToolsForKeyword(slug: string): Tool[] {
+  const allTools = getAllTools();
 
   // Normalize the input slug for case-insensitive and hyphen-agnostic matching.
   const normalizedSlug = slug.toLowerCase().replace(/-/g, ' ');
