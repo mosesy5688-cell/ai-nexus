@@ -1,0 +1,11 @@
+name = "ai-nexus"
+main = "./dist/worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+# This is where you can define variables that are accessible in your Worker
+# MY_VARIABLE = "my-variable-value"
+
+[[kv_namespaces]]
+binding = "AI_NEXUS_KV"
+id = "${KV_NAMESPACE_ID}"
