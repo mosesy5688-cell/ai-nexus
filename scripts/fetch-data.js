@@ -61,7 +61,7 @@ async function writeToKV(data) {
 
             const dataString = JSON.stringify(data);
             execSync(`npx wrangler kv:key put --namespace-id="${KV_NAMESPACE_ID}" "models" '${dataString}'`, {
-                env: { ...process.env, CF_API_TOKEN },
+                env: { ...process.env, CF_API_TOKEN, CF_ACCOUNT_ID },
                 stdio: 'inherit'
             });
 
