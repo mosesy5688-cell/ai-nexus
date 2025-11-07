@@ -1,6 +1,9 @@
 name: Daily Data Refresh and Deploy
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     - cron: '0 8 * * *' # Runs once daily at 8:00 UTC
   workflow_dispatch:
