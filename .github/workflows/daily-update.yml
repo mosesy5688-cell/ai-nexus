@@ -27,6 +27,13 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Debugging Step
+        run: |
+          echo "CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}"
+          echo "CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}"
+          echo "KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID }}"
+          echo "CLOUDFLARE_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}"
+
       - name: Fetch Fresh Data and Store in KV
         run: npm run discover
         env:
