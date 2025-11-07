@@ -29,8 +29,8 @@ jobs:
 
       - name: Debugging Step
         run: |
-          echo "CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}"
-          echo "CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}"
+          echo "CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          echo "CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}"
           echo "KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID }}"
           echo "CLOUDFLARE_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}"
 
@@ -38,8 +38,8 @@ jobs:
         run: npm run discover
         env:
           CI: true
-          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID }}
 
       - name: Build application
