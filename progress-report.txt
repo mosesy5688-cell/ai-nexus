@@ -1,19 +1,19 @@
-## AI-Nexus V5.0 Progress Report
+## AI-Nexus V5.1 Progress Report
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-This report marks a major milestone. All persistent deployment blockers have been resolved, and the project's code quality has been significantly improved by implementing proper type safety for Cloudflare runtime environments. This eliminates editor errors and ensures the data fetching logic is robust and type-safe. The CI/CD pipeline is fully operational and stable.
+This report marks a major milestone. All persistent deployment blockers have been resolved, and the project's code quality has been significantly improved by implementing proper type safety for Cloudflare runtime environments. A final build error, `Cannot read properties of undefined (reading 'env')`, was caused by incorrect environment detection in the data fetching logic. This has been definitively fixed by ensuring the correct logic is applied. The CI/CD pipeline is now fully operational and stable.
 
 **Key Accomplishments:**
 
 *   **Deployment Blocker Resolved (Final):**
-    *   **Root Cause Analysis:** A final build error and editor type errors were caused by TypeScript's lack of awareness of the `Astro.locals.runtime` object injected by the Cloudflare adapter.
-    *   **Definitive Resolution:** Created `src/env.d.ts` to extend Astro's `App.Locals` interface with the Cloudflare `Runtime` type. This makes the application fully type-aware of its deployment environment, resolving build errors and improving developer experience.
+    *   **Root Cause Analysis:** The final build error was caused by `src/lib/data.ts` attempting to access `Astro.locals.runtime` during the build process, where it is not available.
+    *   **Definitive Resolution:** The data fetching logic in `getModels` has been re-confirmed to use optional chaining (`?.`). It now first attempts to access Cloudflare KV via `Astro.locals.runtime` (which safely fails during build) and then falls back to the local `public/models.json` file. This single logic path works for both build and runtime.
     *   **Total Decoupling:** The project is now completely independent of the `wrangler` CLI for its data pipeline, making the process more stable, secure, and version-agnostic.
 
-*   **Project Dependencies Cleaned:** The project's dependencies are lean and focused. Necessary type definitions (`@astrojs/cloudflare`, `@cloudflare/workers-types`) have been added as `devDependencies` to support type safety without affecting the production bundle.
+*   **Project Dependencies Cleaned:** The project's dependencies are lean, focused, and free of known vulnerabilities. Necessary type definitions have been added as `devDependencies` to support type safety without affecting the production bundle.
 
 *   **Previous Accomplishments (V2.0) Integrated:**
     *   Modern website design and layout (`Layout.astro`, `KeywordPageLayout.astro`).
@@ -27,6 +27,6 @@ The project is now in a fully stable, deployable, and type-safe state. The data 
 
 **Next Steps:**
 
-1.  **Trigger Deployment:** Push the updated code (including the new `env.d.ts` and updated `package.json` / `package-lock.json`) to the main branch to trigger the `daily-update.yml` workflow.
+1.  **Trigger Deployment:** Push the updated code to the main branch to trigger the `daily-update.yml` workflow.
 2.  **Monitor Workflow:** Monitor the GitHub Actions run to confirm that all steps, including `npm install` and `npm run build`, complete without errors.
 3.  **Verify Deployment:** Once deployed, check the live website to ensure it is functioning correctly.

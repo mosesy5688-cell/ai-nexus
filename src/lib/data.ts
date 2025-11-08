@@ -30,6 +30,7 @@ interface Tool {
 export async function getModels(Astro: AstroGlobal): Promise<Model[]> {
   // In a production environment on Cloudflare, `Astro.locals.runtime` is available.
   // During the build process (`npm run build`), `Astro.locals.runtime` is undefined.
+  // The optional chaining `?.` prevents a crash during build time.
   if (Astro.locals.runtime?.env?.AI_NEXUS_KV) {
     const kvModels = await Astro.locals.runtime.env.AI_NEXUS_KV.get<Model[]>('models', 'json');
     if (kvModels) return kvModels;
