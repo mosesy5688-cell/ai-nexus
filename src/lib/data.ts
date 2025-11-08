@@ -1,5 +1,6 @@
 import type { AstroGlobal } from 'astro';
 import localModels from '../../public/models.json';
+import logoTools from '../content/auto/logo.json';
 
 interface Model {
   id: string;
@@ -11,6 +12,14 @@ interface Model {
   likes: number;
   downloads: number;
   lastModified: string;
+}
+
+interface Tool {
+  name: string;
+  free: string;
+  limit: string;
+  source: string;
+  description: string;
 }
 
 /**
@@ -26,4 +35,17 @@ export async function getModels(Astro: AstroGlobal): Promise<Model[]> {
   }
   // Fallback for build, dev, or if KV is empty
   return localModels as Model[];
+}
+
+/**
+ * Fetches tool data for a given keyword from static JSON files.
+ * This is a simplified implementation. A more robust solution would
+ * dynamically import based on the keyword.
+ */
+export function getToolsForKeyword(keyword: string): Tool[] {
+  // Currently, we only have 'logo' tools data.
+  if (keyword === 'logo-design') { // Assuming 'logo-design' is the slug
+    return logoTools.data;
+  }
+  return [];
 }
