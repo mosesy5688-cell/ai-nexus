@@ -139,7 +139,9 @@ import type { Model } from '../lib/data';
 
     // Re-attach event listeners for the newly created buttons
     // This dispatches a custom event that the layout script can listen for.
-    document.dispatchEvent(new CustomEvent('ai-nexus:search-results-rendered'));
+    document.dispatchEvent(new CustomEvent('ai-nexus:search-results-rendered', {
+      detail: { models: results }
+    }));
   }
 
   const debouncedSearch = debounce(performSearch, 300);

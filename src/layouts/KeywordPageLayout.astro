@@ -68,65 +68,70 @@ const schema = generateArticleSchema(keyword, title, description);
 </Layout>
 
 <script define:vars={{ models }}>
-  // This script now also handles modals for dynamically added cards (e.g., from search)
-  document.addEventListener('DOMContentLoaded', () => {
-    const modal = document.getElementById('model-modal');
-    const modalContent = document.getElementById('modal-content');
-    const modalBackdrop = document.getElementById('modal-backdrop');
-    const closeBtn = document.getElementById('modal-close-btn');
+  // --- Modal Interaction Logic ---
 
-    const titleEl = document.getElementById('modal-title');
-    const authorEl = document.getElementById('modal-author');
-    const taskEl = document.getElementById('modal-task');
-    const platformEl = document.getElementById('modal-source-platform');
-    const descriptionEl = document.getElementById('modal-description');
-    const sourceLinkEl = document.getElementById('modal-source-link');
+  // Combine initial models with any models from search results
+  let allAvailableModels = [...models];
 
-    function openModal(model) {
-      if (!model || !modal) return;
+  const modal = document.getElementById('model-modal');
+  const modalContent = document.getElementById('modal-content');
+  const modalBackdrop = document.getElementById('modal-backdrop');
+  const closeBtn = document.getElementById('modal-close-btn');
 
-      // Populate modal content
-      titleEl.textContent = model.name;
-      authorEl.textContent = `By ${model.author || 'Community'}`;
-      taskEl.textContent = `Task: ${model.task?.replace(/-/g, ' ') || 'General'}`;
-      platformEl.textContent = model.sourcePlatform || '';
-      descriptionEl.textContent = model.description || 'No detailed description available.';
-      sourceLinkEl.href = model.source;
+  const titleEl = document.getElementById('modal-title');
+  const authorEl = document.getElementById('modal-author');
+  const taskEl = document.getElementById('modal-task');
+  const platformEl = document.getElementById('modal-source-platform');
+  const descriptionEl = document.getElementById('modal-description');
+  const sourceLinkEl = document.getElementById('modal-source-link');
 
-      // Show modal with animation
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      setTimeout(() => {
-        modalContent.classList.remove('scale-95', 'opacity-0');
-        modalContent.classList.add('scale-100', 'opacity-100');
-      }, 10); // Small delay to allow CSS transition
-    }
+  function openModal(model) {
+    if (!model || !modal) return;
 
-    function closeModal() {
-      modalContent.classList.add('scale-95', 'opacity-0');
-      setTimeout(() => {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-      }, 300); // Match transition duration
-    }
+    // Populate modal content
+    titleEl.textContent = model.name;
+    authorEl.textContent = `By ${model.author || 'Community'}`;
+    taskEl.textContent = `Task: ${model.task?.replace(/-/g, ' ') || 'General'}`;
+    platformEl.textContent = model.sourcePlatform || '';
+    descriptionEl.textContent = model.description || 'No detailed description available.';
+    sourceLinkEl.href = model.source;
 
-    function attachEventListeners() {
-      document.querySelectorAll('.view-details-btn').forEach(button => {
-        // Remove old listener to prevent duplicates
-        button.replaceWith(button.cloneNode(true));
-      });
-      document.querySelectorAll('.view-details-btn').forEach(button => {
-        button.addEventListener('click', (e) => {
-          const card = (e.target as HTMLElement).closest('[data-model-id]');
-          const modelId = card?.getAttribute('data-model-id');
-          const modelData = models.find(m => m.id === modelId);
-          openModal(modelData);
-        });
-      });
-    }
+    // Show modal with animation
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    setTimeout(() => {
+      modalContent.classList.remove('scale-95', 'opacity-0');
+      modalContent.classList.add('scale-100', 'opacity-100');
+    }, 10); // Small delay for CSS transition
+  }
 
-    attachEventListeners();
-    closeBtn?.addEventListener('click', closeModal);
-    modalBackdrop?.addEventListener('click', closeModal);
+  function closeModal() {
+    if (!modal || !modalContent) return;
+    modalContent.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }, 300); // Match transition duration
+  }
+
+  // Use event delegation to handle clicks on any '.view-details-btn', even dynamic ones.
+  document.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest('.view-details-btn');
+    if (!button) return;
+
+    const card = button.closest('[data-model-id]');
+    const modelId = card?.getAttribute('data-model-id');
+    const modelData = allAvailableModels.find(m => m.id === modelId);
+    openModal(modelData);
   });
+
+  // Listen for search results to update the available models list
+  document.addEventListener('ai-nexus:search-results-rendered', (event: CustomEvent) => {
+    if (event.detail?.models) {
+      allAvailableModels = [...new Map([...models, ...event.detail.models].map(item => [item.id, item])).values()];
+    }
+  });
+
+  closeBtn?.addEventListener('click', closeModal);
+  modalBackdrop?.addEventListener('click', closeModal);
 </script>
