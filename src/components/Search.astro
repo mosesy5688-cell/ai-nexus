@@ -1,0 +1,121 @@
+---
+// src/components/Search.astro
+import type { Model } from '../lib/data';
+---
+
+<div id="search-component" class="relative w-full max-w-3xl mx-auto mb-12">
+  <div class="relative">
+    <input 
+      type="search" 
+      id="search-input" 
+      placeholder="Search for models like 'Llama', 'TTS', 'image generation'..."
+      class="w-full px-5 py-4 text-lg text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-full focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 focus:border-blue-500 dark:focus:border-blue-500 outline-none transition-all duration-300 shadow-sm"
+    />
+    <div id="search-spinner" class="absolute right-5 top-1/2 -translate-y-1/2 hidden animate-spin">
+      <svg class="w-6 h-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    </div>
+  </div>
+  <div id="search-results-container" class="absolute top-full left-0 right-0 mt-2 z-10">
+    <!-- Search results will be injected here -->
+  </div>
+</div>
+
+<script>
+  const searchInput = document.getElementById('search-input') as HTMLInputElement;
+  const resultsContainer = document.getElementById('search-results-container');
+  const spinner = document.getElementById('search-spinner');
+  let models: any[] = [];
+  let fetchController: AbortController | null = null;
+
+  // Debounce function to limit how often the search function is called
+  function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+
+    return (...args: Parameters<F>): Promise<ReturnType<F>> =>
+      new Promise(resolve => {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+
+        timeout = setTimeout(() => resolve(func(...args)), waitFor);
+      });
+  }
+
+  async function performSearch() {
+    if (fetchController) {
+      fetchController.abort();
+    }
+    fetchController = new AbortController();
+
+    const query = searchInput.value.toLowerCase().trim();
+
+    if (query.length < 2) {
+      resultsContainer.innerHTML = '';
+      spinner.classList.add('hidden');
+      return;
+    }
+
+    spinner.classList.remove('hidden');
+
+    // Fetch models only when a search is initiated for the first time
+    if (models.length === 0) {
+      try {
+        const response = await fetch('/models.json', { signal: fetchController.signal });
+        models = await response.json();
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          console.log('Fetch aborted');
+        } else {
+          console.error('Failed to fetch models:', error);
+        }
+        spinner.classList.add('hidden');
+        return;
+      }
+    }
+
+    const filteredModels = models.filter(model => {
+      const name = model.name?.toLowerCase() || '';
+      const description = model.description?.toLowerCase() || '';
+      const task = model.task?.toLowerCase() || '';
+      const tags = (model.tags || []).join(' ').toLowerCase();
+      
+      return name.includes(query) || description.includes(query) || task.includes(query) || tags.includes(query);
+    }).slice(0, 10); // Limit to top 10 results for performance
+
+    renderResults(filteredModels);
+    spinner.classList.add('hidden');
+  }
+
+  function renderResults(results: any[]) {
+    if (results.length === 0) {
+      resultsContainer.innerHTML = `
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-200 dark:border-gray-700">
+          <p class="text-gray-500 dark:text-gray-400">No models found for your query.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const resultsHTML = results.map(model => `
+      <a href="${model.source}" target="_blank" rel="noopener noreferrer" class="block p-4 mb-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 transition-colors">
+        <h3 class="font-bold text-gray-900 dark:text-white">${model.name}</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">${model.description || `Task: ${model.task}`}</p>
+      </a>
+    `).join('');
+
+    resultsContainer.innerHTML = `<div class="max-h-96 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-900/80 backdrop-blur-sm rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">${resultsHTML}</div>`;
+  }
+
+  const debouncedSearch = debounce(performSearch, 300);
+  searchInput.addEventListener('input', debouncedSearch);
+
+  // Hide results when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!document.getElementById('search-component').contains(e.target as Node)) {
+      resultsContainer.innerHTML = '';
+    }
+  });
+</script>
