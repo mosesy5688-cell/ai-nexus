@@ -1,34 +1,31 @@
 ---
 // src/pages/[keyword].astro
 import KeywordPageLayout from '../layouts/KeywordPageLayout.astro';
-import { getModels } from '../lib/data';
-import { CORE_KEYWORDS } from '../content/config';
+import { getModels } from '../lib/data.ts';
+import { CORE_KEYWORDS } from '../content/config.ts';
 
-/**
- * Astro's function to generate static paths at build time.
- * It creates a page for each keyword defined in CORE_KEYWORDS.
- */
 export async function getStaticPaths() {
   return CORE_KEYWORDS.map((keyword) => ({
     params: { keyword: keyword.slug },
   }));
 }
 
-
 const { keyword: keywordSlug } = Astro.params;
-
-
 const currentKeyword = CORE_KEYWORDS.find(k => k.slug === keywordSlug);
-
-// Fetch all models from the local `public/models.json` file.
-// This function is now simplified and does not depend on the runtime environment.
 const allModels = await getModels();
-// Filter models safely, checking if `model.tags` exists before calling .includes()
-const filteredModels = allModels.filter(model =>
-  (Array.isArray(model.tags) && model.tags.includes(keywordSlug)) || model.task === keywordSlug
-);
 
-// Define props to pass to the layout component
+let filteredModels = [];
+if (currentKeyword) {
+  const matchTerms = currentKeyword.matchTerms;
+  filteredModels = allModels.filter(model => {
+    const modelTask = model.task?.toLowerCase() || '';
+    const modelTags = (model.tags || []).map(t => t.toLowerCase());
+    
+    // Check if the model's task or any of its tags match any of the keyword's matchTerms
+    return matchTerms.some(term => modelTask === term || modelTags.includes(term));
+  });
+}
+
 const pageTitle = currentKeyword?.title || 'AI Models';
 const pageDescription = currentKeyword?.description || `A curated list of AI models for ${keywordSlug}.`;
 ---
