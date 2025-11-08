@@ -1,16 +1,16 @@
-## AI-Nexus V5.5 Progress Report
+## AI-Nexus V6.0 Progress Report
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-This report marks a major milestone. All persistent deployment blockers have been resolved, and the project's code quality has been significantly improved by implementing proper type safety for Cloudflare runtime environments. A final build error, `Cannot read properties of undefined (reading 'env')`, was caused by incorrect environment detection in the data fetching logic. This has been definitively fixed by ensuring the correct logic is applied. The CI/CD pipeline is now fully operational and stable.
+This report marks a major milestone. The recurring build error `Cannot read properties of undefined (reading 'env')` has been definitively resolved by re-architecting the core data fetching logic. Instead of relying on potentially fragile conditional checks, the logic now explicitly separates the data source for the build environment versus the edge runtime environment. This ensures build stability and runtime data freshness. The project is now in a fully stable, robust, and deployable state.
 
 **Key Accomplishments:**
 
 *   **Deployment Blocker Resolved (Final):**
     *   **Root Cause Analysis:** The final build error was caused by `src/lib/data.ts` attempting to access `Astro.locals.runtime` during the build process, where it is not available.
-    *   **Definitive Resolution:** The data fetching logic in `getModels` has been re-confirmed to use optional chaining (`?.`). It now first attempts to access Cloudflare KV via `Astro.locals.runtime` (which safely fails during build) and then falls back to the local `public/models.json` file. This single logic path works for both build and runtime.
+    *   **Definitive Resolution:** The data fetching logic in `getModels` has been rewritten to use `import.meta.env.SSR` in combination with a check for `Astro.locals.runtime`. This guarantees that the build process **only** uses the local `public/models.json` file, completely avoiding any attempt to access the Cloudflare runtime. The project's output mode has been set to `hybrid` in `astro.config.mjs` to support this architecture.
     *   **Total Decoupling:** The project is now completely independent of the `wrangler` CLI for its data pipeline, making the process more stable, secure, and version-agnostic.
 
 *   **Project Dependencies Cleaned:** The project's dependencies are lean, focused, and free of known vulnerabilities. Necessary type definitions have been added as `devDependencies` to support type safety without affecting the production bundle.

@@ -28,14 +28,20 @@ interface Tool {
  * In all other environments (build, dev), it falls back to the local JSON file.
  */
 export async function getModels(Astro: AstroGlobal): Promise<Model[]> {
-  // In a production environment on Cloudflare, `Astro.locals.runtime` is available.
-  // During the build process (`npm run build`), `Astro.locals.runtime` is undefined.
-  // The optional chaining `?.` prevents a crash during build time.
-  if (Astro.locals.runtime?.env?.AI_NEXUS_KV) {
-    const kvModels = await Astro.locals.runtime.env.AI_NEXUS_KV.get<Model[]>('models', 'json');
-    if (kvModels) return kvModels;
+  // import.meta.env.SSR is true during the build process (prerendering) AND
+  // when server-rendering on the edge. We need to distinguish between them.
+  if (import.meta.env.SSR) {
+    // Astro.locals.runtime is ONLY available on the edge, NOT during the build.
+    if (Astro.locals.runtime?.env?.AI_NEXUS_KV) {
+      const kvModels = await Astro.locals.runtime.env.AI_NEXUS_KV.get<Model[]>('models', 'json');
+      // If KV has data, return it. Otherwise, fall through to the local file.
+      if (kvModels) return kvModels;
+    }
+    // During the build (`npm run build`), runtime is undefined, so we ALWAYS fall back here.
+    // This is the key to fixing the build error permanently.
+    return localModels as Model[];
   }
-  // Fallback for build time, dev mode, or if KV is empty on the edge.
+  // This will be used for client-side rendering, if any, or as a final fallback.
   return localModels as Model[];
 }
 

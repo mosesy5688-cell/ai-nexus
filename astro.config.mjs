@@ -1,9 +1,13 @@
 import { defineConfig } from 'astro/config';
-import sitemap from '@astrojs/sitemap';
+import tailwind from "@astrojs/tailwind";
+import sitemap from "@astrojs/sitemap";
+import cloudflare from "@astrojs/cloudflare";
 
+// https://astro.build/config
 export default defineConfig({
   site: 'https://ai-nexus.dev',
-  output: 'static',
-  build: { assets: '_astro' },
-  integrations: [sitemap()]
+  integrations: [tailwind(), sitemap()],
+  output: 'hybrid',
+  adapter: cloudflare()
 });
+
