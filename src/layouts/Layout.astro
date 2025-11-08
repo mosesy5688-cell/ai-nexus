@@ -17,6 +17,21 @@ import '../styles/base.css';
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="description" content={description} />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={Astro.url} />
+    <meta property="og:title" content={`${title} | AI-Nexus`} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={new URL('/og-image.png', Astro.url)} />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content={Astro.url} />
+    <meta property="twitter:title" content={`${title} | AI-Nexus`} />
+    <meta property="twitter:description" content={description} />
+    <meta property="twitter:image" content={new URL('/og-image.png', Astro.url)} />
+
     <title>{title} | AI-Nexus</title>
 
     <!-- Google Fonts: Inter -->
@@ -69,8 +84,6 @@ import '../styles/base.css';
                 <div>
                     <h3 class="text-base font-semibold text-gray-900 dark:text-white">Legal</h3>
                     <ul class="mt-4 space-y-2">
-                        <li><a href="/privacy" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Privacy Policy</a></li>
-                        <li><a href="/terms" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Terms of Service</a></li>
                         <li><a href="/compliance" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Compliance</a></li>
                     </ul>
                 </div>

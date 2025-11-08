@@ -1,15 +1,52 @@
 ---
+// src/pages/about.astro
 import Layout from '../layouts/Layout.astro';
+import { CORE_KEYWORDS } from '../content/config';
 ---
 
-<Layout title="About AI-Nexus">
-  <div class="max-w-3xl mx-auto px-4 py-16">
-    <h1 class="text-4xl font-bold text-center mb-8">About AI-Nexus</h1>
-    <p class="text-lg text-gray-600 dark:text-gray-400">
-      AI-Nexus is a curated index of open-source artificial intelligence models and tools. Our mission is to provide a high-quality, authoritative resource for developers, researchers, and anyone interested in the latest advancements in AI.
-    </p>
-    <p class="text-lg text-gray-600 dark:text-gray-400 mt-4">
-      We believe that open-source is the key to innovation and progress in the field of AI. By providing a centralized and well-organized directory of open-source AI resources, we hope to foster collaboration and accelerate the development of new and exciting AI applications.
-    </p>
-  </div>
+<Layout 
+  title="About AI-Nexus" 
+  description="Learn about AI-Nexus, our mission to democratize access to open-source AI, and how our automated platform works to bring you the latest and greatest models.">
+  <main class="container max-w-4xl mx-auto px-4 py-16 sm:py-24">
+    <header class="text-center mb-16">
+      <h1 class="text-5xl md:text-6xl font-black tracking-tighter text-gray-900 dark:text-white">
+        About AI-Nexus
+      </h1>
+      <p class="mt-6 text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+        Our mission is to build the most comprehensive, automated, and accessible guide to the open-source AI universe.
+      </p>
+    </header>
+
+    <div class="prose dark:prose-invert prose-lg max-w-none space-y-12">
+      <section>
+        <h2 class="text-3xl font-bold">What is AI-Nexus?</h2>
+        <p>
+          AI-Nexus is an ambitious, fully automated platform designed for developers, researchers, and AI enthusiasts. In a landscape that changes daily, finding the right open-source model can be a challenge. We solve this by programmatically discovering, categorizing, and indexing the most popular and impactful AI models from leading platforms like Hugging Face and Civitai.
+        </p>
+        <p>
+          Our entire system, from data fetching to content generation, runs on a zero-cost, serverless architecture, demonstrating the power of modern cloud infrastructure.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-3xl font-bold">How It Works</h2>
+        <p>
+          Our automated CI/CD pipeline, powered by GitHub Actions, runs daily to ensure our content is always fresh:
+        </p>
+        <ol>
+          <li><strong>Discover:</strong> A script fetches the latest and most-liked models from various public APIs.</li>
+          <li><strong>Filter & Sanitize:</strong> We automatically filter out any potentially unsafe or NSFW content to maintain a compliant and family-safe environment.</li>
+          <li><strong>Categorize:</strong> Models are intelligently sorted into relevant categories like <a href={`/${CORE_KEYWORDS[0].slug}`}>{CORE_KEYWORDS[0].title}</a> and <a href={`/${CORE_KEYWORDS[1].slug}`}>{CORE_KEYWORDS[1].title}</a>.</li>
+          <li><strong>Deploy:</strong> The updated, content-rich site is built and deployed globally via Cloudflare Pages, ensuring lightning-fast access for everyone.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2 class="text-3xl font-bold">Our Philosophy</h2>
+        <p>
+          We believe in the power of open-source. By making AI models more discoverable and accessible, we aim to empower the next generation of innovators. This project itself is open-source, and we welcome contributions from the community. If you're interested in our mission, find a bug, or have an idea for a new feature, please visit our <a href="https://github.com/mosesy5688-cell/ai-nexus" target="_blank" rel="noopener noreferrer">GitHub repository</a>.
+        </p>
+      </section>
+    </div>
+  </main>
 </Layout>
