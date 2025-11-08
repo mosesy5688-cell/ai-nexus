@@ -1,5 +1,6 @@
 ---
 // src/components/Search.astro
+import ModelCard from './ModelCard.astro';
 import type { Model } from '../lib/data';
 ---
 
@@ -18,9 +19,14 @@ import type { Model } from '../lib/data';
       </svg>
     </div>
   </div>
-  <div id="search-results-container" class="absolute top-full left-0 right-0 mt-2 z-10">
+  <div id="search-results-container" class="mt-8">
     <!-- Search results will be injected here -->
   </div>
+</div>
+
+<!-- This is a template for client-side rendering. It will be cloned. -->
+<div id="model-card-template" class="hidden">
+    <ModelCard model={{ id: 'template', name: 'Template', source: '#', task: '', tags: [], likes: 0, downloads: 0, lastModified: '' }} />
 </div>
 
 <script>
@@ -89,24 +95,51 @@ import type { Model } from '../lib/data';
     spinner.classList.add('hidden');
   }
 
-  function renderResults(results: any[]) {
+  function renderResults(results: Model[]) {
     if (results.length === 0) {
       resultsContainer.innerHTML = `
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-200 dark:border-gray-700">
-          <p class="text-gray-500 dark:text-gray-400">No models found for your query.</p>
+        <div class="text-center p-12 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-inner">
+          <p class="text-xl text-gray-500 dark:text-gray-400">No models found for your query.</p>
         </div>
       `;
       return;
     }
 
-    const resultsHTML = results.map(model => `
-      <a href="${model.source}" target="_blank" rel="noopener noreferrer" class="block p-4 mb-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 transition-colors">
-        <h3 class="font-bold text-gray-900 dark:text-white">${model.name}</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">${model.description || `Task: ${model.task}`}</p>
-      </a>
-    `).join('');
+    const template = document.getElementById('model-card-template')?.firstElementChild;
+    if (!template) return;
 
-    resultsContainer.innerHTML = `<div class="max-h-96 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-900/80 backdrop-blur-sm rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">${resultsHTML}</div>`;
+    const grid = document.createElement('div');
+    grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+
+    results.forEach(model => {
+      const cardClone = template.cloneNode(true) as HTMLElement;
+      cardClone.setAttribute('data-model-id', model.id);
+      
+      const titleEl = cardClone.querySelector('h2');
+      if (titleEl) titleEl.textContent = model.name;
+
+      const platformEl = cardClone.querySelector('.whitespace-nowrap');
+      if (platformEl) {
+        platformEl.textContent = model.sourcePlatform || '';
+        platformEl.className = `text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap ${model.sourcePlatform === 'Civitai' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'}`;
+      }
+
+      const pElements = cardClone.querySelectorAll('p');
+      if (pElements[0]) pElements[0].innerHTML = `Task: <span class="font-medium text-gray-700 dark:text-gray-300 capitalize">${model.task?.replace(/-/g, ' ') || 'General'}</span>`;
+      if (pElements[1]) pElements[1].textContent = model.description || 'No description available.';
+
+      const authorEl = cardClone.querySelector('.mt-4 > span');
+      if(authorEl) authorEl.textContent = `By ${model.author || 'Community'}`;
+
+      grid.appendChild(cardClone);
+    });
+
+    resultsContainer.innerHTML = '';
+    resultsContainer.appendChild(grid);
+
+    // Re-attach event listeners for the newly created buttons
+    // This dispatches a custom event that the layout script can listen for.
+    document.dispatchEvent(new CustomEvent('ai-nexus:search-results-rendered'));
   }
 
   const debouncedSearch = debounce(performSearch, 300);
@@ -114,7 +147,7 @@ import type { Model } from '../lib/data';
 
   // Hide results when clicking outside
   document.addEventListener('click', (e) => {
-    if (!document.getElementById('search-component').contains(e.target as Node)) {
+    if (!document.getElementById('search-component')?.contains(e.target as Node)) {
       resultsContainer.innerHTML = '';
     }
   });

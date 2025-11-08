@@ -68,6 +68,7 @@ const schema = generateArticleSchema(keyword, title, description);
 </Layout>
 
 <script define:vars={{ models }}>
+  // This script now also handles modals for dynamically added cards (e.g., from search)
   document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('model-modal');
     const modalContent = document.getElementById('modal-content');
@@ -109,15 +110,22 @@ const schema = generateArticleSchema(keyword, title, description);
       }, 300); // Match transition duration
     }
 
-    document.querySelectorAll('.view-details-btn').forEach(button => {
-      button.addEventListener('click', (e) => {
-        const card = (e.target as HTMLElement).closest('[data-model-id]');
-        const modelId = card?.getAttribute('data-model-id');
-        const modelData = models.find(m => m.id === modelId);
-        openModal(modelData);
+    function attachEventListeners() {
+      document.querySelectorAll('.view-details-btn').forEach(button => {
+        // Remove old listener to prevent duplicates
+        button.replaceWith(button.cloneNode(true));
       });
-    });
+      document.querySelectorAll('.view-details-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const card = (e.target as HTMLElement).closest('[data-model-id]');
+          const modelId = card?.getAttribute('data-model-id');
+          const modelData = models.find(m => m.id === modelId);
+          openModal(modelData);
+        });
+      });
+    }
 
+    attachEventListeners();
     closeBtn?.addEventListener('click', closeModal);
     modalBackdrop?.addEventListener('click', closeModal);
   });
