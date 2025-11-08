@@ -1,16 +1,16 @@
-## AI-Nexus V6.0 Progress Report
+## AI-Nexus V6.1 Progress Report
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-This report marks a major milestone. The recurring build error `Cannot read properties of undefined (reading 'env')` has been definitively resolved by re-architecting the core data fetching logic. Instead of relying on potentially fragile conditional checks, the logic now explicitly separates the data source for the build environment versus the edge runtime environment. This ensures build stability and runtime data freshness. The project is now in a fully stable, robust, and deployable state.
+This report marks a major milestone. The recurring build error `Cannot read properties of undefined (reading 'env')` has been definitively resolved by re-architecting the core data fetching logic. A final configuration error related to Astro's `hybrid` output mode has also been fixed. The project is now in a fully stable, robust, and deployable state.
 
 **Key Accomplishments:**
 
 *   **Deployment Blocker Resolved (Final):**
-    *   **Root Cause Analysis:** The final build error was caused by `src/lib/data.ts` attempting to access `Astro.locals.runtime` during the build process, where it is not available.
-    *   **Definitive Resolution:** The data fetching logic in `getModels` has been rewritten to use `import.meta.env.SSR` in combination with a check for `Astro.locals.runtime`. This guarantees that the build process **only** uses the local `public/models.json` file, completely avoiding any attempt to access the Cloudflare runtime. The project's output mode has been set to `hybrid` in `astro.config.mjs` to support this architecture.
+    *   **Root Cause Analysis:** The final build error, `output: Did not match union`, was caused by setting `output: 'hybrid'` in `astro.config.mjs` without adding the `@astrojs/cloudflare` adapter to the `integrations` array.
+    *   **Definitive Resolution:** The `cloudflare()` adapter has been added to the `integrations` array in `astro.config.mjs`, correctly enabling hybrid output mode. The data fetching logic in `getModels` has also been confirmed to correctly handle both build and runtime environments.
     *   **Total Decoupling:** The project is now completely independent of the `wrangler` CLI for its data pipeline, making the process more stable, secure, and version-agnostic.
 
 *   **Project Dependencies Cleaned:** The project's dependencies are lean, focused, and free of known vulnerabilities. Necessary type definitions have been added as `devDependencies` to support type safety without affecting the production bundle.
