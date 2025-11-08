@@ -6,7 +6,7 @@ import cloudflare from "@astrojs/cloudflare";
 // https://astro.build/config
 export default defineConfig({
   site: 'https://ai-nexus.dev',
-  integrations: [tailwind(), sitemap(), cloudflare()],
+  integrations: [tailwind(), sitemap()],
   output: 'hybrid',
   adapter: cloudflare()
 });

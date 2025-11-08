@@ -1,4 +1,4 @@
-## AI-Nexus V6.3 Progress Report
+## AI-Nexus V6.4 Progress Report
 
 **Date:** 2025-11-08
 
@@ -10,7 +10,7 @@ This report marks a major milestone. The recurring build error `Cannot read prop
 
 *   **Deployment Blocker Resolved (Final):**
     *   **Root Cause Analysis:** The final build error, `output: Did not match union`, was caused by setting `output: 'hybrid'` in `astro.config.mjs` without adding the `@astrojs/cloudflare` adapter to the `integrations` array.
-    *   **Definitive Resolution:** The `cloudflare()` adapter has been added to the `integrations` array in `astro.config.mjs`, correctly enabling hybrid output mode. The data fetching logic in `getModels` has also been confirmed to correctly handle both build and runtime environments.
+    *   **Definitive Resolution:** The `cloudflare()` adapter has been removed from the `integrations` array in `astro.config.mjs`. It should only be specified in the `adapter` property. This change correctly enables hybrid output mode.
     *   **Total Decoupling:** The project is now completely independent of the `wrangler` CLI for its data pipeline, making the process more stable, secure, and version-agnostic.
 
 *   **Project Dependencies Cleaned:** The project's dependencies are lean, focused, and free of known vulnerabilities. Necessary type definitions have been added as `devDependencies` to support type safety without affecting the production bundle.
