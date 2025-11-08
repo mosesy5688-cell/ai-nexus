@@ -1,31 +1,29 @@
-## AI-Nexus V9.2 - Content Enrichment & Archiving
+## AI-Nexus V9.3 - AdSense Compliance & Refactoring
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-This phase focuses on enriching the website's content and implementing a robust data management strategy. The data fetching script has been significantly upgraded to include a new data source (Civitai) and to archive daily data snapshots, fulfilling the user's request to preserve historical content. UI components have been updated to display this richer data.
+This phase focuses on a critical review and implementation of changes to ensure Google AdSense compliance. The primary issue of potential NSFW content has been addressed by implementing an automated filtering system in the data pipeline. Additionally, ad slots have been refactored into a reusable component for better maintainability.
 
 **Key Accomplishments:**
 
-*   **Content Enrichment:** The `scripts/fetch-data.js` script now reads data from `src/data/civitai.json` and merges it with data from the Hugging Face API, significantly increasing the number of models displayed on the site.
-*   **Data Archiving:** The script now saves a timestamped copy of the data to `public/archives/` each day, preserving a history of the fetched content. It continues to update `public/models.json` to provide the latest data for the static build.
-*   **Code & UI Enhancements:**
-    *   The data script now sanitizes HTML from descriptions to display clean text.
-    *   The `ModelCard.astro` component has been updated to show the data source (Hugging Face or Civitai) and a model description.
-    *   The `Model` type in `src/lib/data.ts` has been updated to reflect the new data structure.
+*   **AdSense Compliance:**
+    *   **NSFW Content Filtering:** The `scripts/fetch-data.js` script has been updated with a filtering mechanism to automatically remove any models whose name, description, or tags contain prohibited keywords (e.g., 'nsfw', 'porn', 'explicit'). This is a crucial step for AdSense approval.
+    *   **Required Pages & Files:** The project structure includes a Privacy Policy (`privacy.astro`) and an `ads.txt` file, which are essential for compliance.
+*   **Ad Slot Refactoring:** Ad placements have been refactored into a reusable `src/components/AdSlot.astro` component, simplifying future ad code management.
 
 *   **Stable Foundation:**
     *   Modern website design and layout (`Layout.astro`, `KeywordPageLayout.astro`).
-    *   Enriched content structure with FAQs (`faq.json`).
+    *   A robust data pipeline with content enrichment and archiving capabilities.
     *   SEO enhancements with JSON-LD schemas (`schema.ts`).
 
 **Current Status:**
 
-The project's content base is now significantly larger and more valuable. The data pipeline is more robust, with a clear strategy for both current builds and historical archiving.
+The project is now in a much stronger position for AdSense approval. The automated content filtering provides a critical safeguard against policy violations.
 
 **Next Steps:**
 
 1.  **Ad Integration:** With ad slots already in place, the next step is to sign up for an ad network (like Google AdSense), get the ad code snippets, and paste them into the designated slots in the layout files.
 2.  **Update `ads.txt`:** Once approved by an ad network, update the `public/ads.txt` file with the provided authorization line.
-3.  **Implement Community Features:** Begin work on the planned user reviews and discussion forum.
+3.  **Implement Community Features:** Begin work on the planned user reviews and discussion forum, ensuring a robust moderation plan is in place before launch to maintain compliance.

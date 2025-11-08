@@ -5,6 +5,7 @@ import FAQSection from '../components/FAQSection.astro';
 import faqs from '../data/faq.json';
 import { generateArticleSchema } from '../lib/schema';
 import ModelCard from '../components/ModelCard.astro';
+import AdSlot from '../components/AdSlot.astro';
 
 interface Props {
   title: string;
@@ -39,10 +40,7 @@ const schema = generateArticleSchema(keyword, title, description);
     </header>
 
     <!-- Ad Slot: Header Banner -->
-    <div class="my-8 text-center bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
-      <p class="text-gray-500 dark:text-gray-400 text-sm">[Adsense Header Banner - 728x90]</p>
-    </div>
-
+    <AdSlot width={728} height={90} label="Adsense Header Banner" />
     <!-- Tool Listing Section -->
     {models.length > 0 ? (
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -61,9 +59,6 @@ const schema = generateArticleSchema(keyword, title, description);
   </main>
 
   <!-- Ad Slot: Footer Banner -->
-  <div class="container max-w-7xl mx-auto px-4 my-8 text-center bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
-    <p class="text-gray-500 dark:text-gray-400 text-sm">[Adsense Footer Banner - 728x90]</p>
-  </div>
-
+  <AdSlot width={728} height={90} label="Adsense Footer Banner" class="container max-w-7xl mx-auto px-4" />
   {keywordFaqs.length > 0 && <FAQSection faqs={keywordFaqs} />}
 </Layout>

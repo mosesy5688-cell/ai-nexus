@@ -1,0 +1,19 @@
+---
+// src/components/AdSlot.astro
+interface Props {
+  width: number;
+  height: number;
+  label: string;
+  class?: string;
+}
+
+const { width, height, label, class: className } = Astro.props;
+---
+
+<div class:list={["my-8 text-center bg-gray-100 dark:bg-gray-800 p-4 rounded-lg", className]}>
+  <!-- 
+    Google AdSense code for this slot goes here.
+    Make sure the ad unit size matches the width and height props.
+  -->
+  <p class="text-gray-500 dark:text-gray-400 text-sm">[{label} - {width}x{height}]</p>
+</div>

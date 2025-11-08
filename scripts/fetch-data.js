@@ -8,6 +8,17 @@ const CIVITAI_DATA_PATH = path.join(__dirname, '../src/data/civitai.json');
 const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100';
 const OUTPUT_FILE_PATH = path.join(__dirname, '../public/models.json');
 const ARCHIVE_DIR = path.join(__dirname, '../public/archives');
+const NSFW_KEYWORDS = [
+    'nsfw', 
+    'porn', 
+    'hentai', 
+    'sexy', 
+    'explicit', 
+    'erotic', 
+    'nude', 
+    'naked',
+    'adult'
+];
 
 async function fetchHuggingFaceData() {
     console.log('📦 Fetching data from HuggingFace API...');
@@ -113,6 +124,19 @@ async function writeToKV(key, value) {
     }
 }
 
+function isNsfw(model) {
+    const name = model.name.toLowerCase();
+    const description = (model.description || '').toLowerCase();
+    const tags = (model.tags || []).map(t => t.toLowerCase());
+
+    for (const keyword of NSFW_KEYWORDS) {
+        if (name.includes(keyword) || description.includes(keyword) || tags.includes(keyword)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 async function main() {
     console.log('--- Starting AI-Nexus Data Fetching Script ---');
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -121,8 +145,10 @@ async function main() {
     const huggingFaceModels = await fetchHuggingFaceData();
     const civitaiModels = readCivitaiData();
 
-    // Combine and sort data by likes
-    const combinedData = [...huggingFaceModels, ...civitaiModels].sort((a, b) => b.likes - a.likes);
+    // Combine, filter out NSFW content, and then sort data by likes
+    const allModels = [...huggingFaceModels, ...civitaiModels];
+    const sfwModels = allModels.filter(model => !isNsfw(model));
+    const combinedData = sfwModels.sort((a, b) => b.likes - a.likes);
 
     if (combinedData && combinedData.length > 0) {
         console.log(`- Total models to write: ${combinedData.length}`);
