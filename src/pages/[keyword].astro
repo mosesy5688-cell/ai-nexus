@@ -1,8 +1,8 @@
 ---
 // src/pages/[keyword].astro
 import KeywordPageLayout from '../layouts/KeywordPageLayout.astro';
-import { getModels } from '../lib/data.ts';
-import { CORE_KEYWORDS } from '../content/config.ts';
+import { getModels } from '../lib/data';
+import { CORE_KEYWORDS } from '../content/config';
 
 /**
  * Astro's function to generate static paths at build time.
@@ -14,19 +14,18 @@ export async function getStaticPaths() {
   }));
 }
 
-// Get the current keyword's slug from the URL parameters
+
 const { keyword: keywordSlug } = Astro.params;
 
-// Find the full keyword object to get its title and description
+
 const currentKeyword = CORE_KEYWORDS.find(k => k.slug === keywordSlug);
 
 // Fetch all models from the local `public/models.json` file.
 // This function is now simplified and does not depend on the runtime environment.
 const allModels = await getModels();
-
-// Filter the models to find ones relevant to the current keyword slug.
-const filteredModels = allModels.filter(model => 
-  model.tags.includes(keywordSlug) || model.task === keywordSlug
+// Filter models safely, checking if `model.tags` exists before calling .includes()
+const filteredModels = allModels.filter(model =>
+  (Array.isArray(model.tags) && model.tags.includes(keywordSlug)) || model.task === keywordSlug
 );
 
 // Define props to pass to the layout component
