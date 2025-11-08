@@ -1,5 +1,5 @@
 import type { AstroGlobal } from 'astro';
-import localModels from '../public/models.json';
+import localModels from '../../public/models.json';
 
 interface Model {
   id: string;
