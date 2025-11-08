@@ -28,15 +28,11 @@ interface Tool {
  * In all other environments (build, dev), it falls back to the local JSON file.
  */
 export async function getModels(Astro: AstroGlobal): Promise<Model[]> {
-  // During the build process (`npm run build`), `import.meta.env.SSR` is true.
-  // We must use the local file because the Cloudflare runtime is not available.
-  if (import.meta.env.SSR) {
-    return localModels as Model[];
-  }
-
-  // When running on the edge (after deployment), `Astro.locals.runtime` is available.
+  // In a server environment (SSR), which includes both build time and edge runtime.
   if (Astro.locals.runtime?.env?.AI_NEXUS_KV) {
+    // This block will only execute on the Cloudflare edge, where `runtime` is defined.
     const kvModels = await Astro.locals.runtime.env.AI_NEXUS_KV.get<Model[]>('models', 'json');
+    // If KV has data, return it. Otherwise, fall through to the local file.
     if (kvModels) return kvModels;
   }
   // Fallback for build, dev, or if KV is empty
