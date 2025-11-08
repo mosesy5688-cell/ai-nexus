@@ -1,6 +1,5 @@
 import type { AstroGlobal } from 'astro';
 import localModels from '../../public/models.json';
-import logoTools from '../content/auto/logo.json';
 
 interface Model {
   id: string;
@@ -27,7 +26,7 @@ interface Tool {
  * In a production Cloudflare environment, it fetches from KV.
  * In all other environments (build, dev), it falls back to the local JSON file.
  */
-export async function getModels(_Astro?: AstroGlobal): Promise<Model[]> {
+export async function getModels(): Promise<Model[]> {
   // In a pure static build (`output: 'static'`), we only ever read from the local file.
   // The `npm run discover` script ensures this file has the latest data before the build starts.
   // This completely eliminates any dependency on runtime environments during the build process.
@@ -35,14 +34,17 @@ export async function getModels(_Astro?: AstroGlobal): Promise<Model[]> {
 }
 
 /**
- * Fetches tool data for a given keyword from static JSON files.
- * This is a simplified implementation. A more robust solution would
- * dynamically import based on the keyword.
+ * Dynamically fetches tool data for a given keyword from static JSON files.
  */
-export function getToolsForKeyword(keyword: string): Tool[] {
-  // Currently, we only have 'logo' tools data.
-  if (keyword === 'logo-design') { // Assuming 'logo-design' is the slug
-    return logoTools.data;
+export async function getToolsForKeyword(keyword: string): Promise<Tool[]> {
+  try {
+    // Dynamically import the JSON file based on the keyword slug.
+    // This makes the function scalable for new tool categories.
+    const toolModule = await import(`../content/auto/${keyword}.json`);
+    return toolModule.data || [];
+  } catch (error) {
+    // If the file doesn't exist for a given keyword, return an empty array.
+    console.warn(`[data] No tool data found for keyword: ${keyword}`);
+    return [];
   }
-  return [];
 }
