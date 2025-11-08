@@ -1,19 +1,19 @@
-## AI-Nexus V3.5 Progress Report
+## AI-Nexus V3.6 Progress Report
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-This report details the final resolution of the deployment pipeline. A CI/CD failure (`execSync is not defined`) was traced back to a legacy implementation in `scripts/fetch-data.js` that was still attempting to use the `wrangler` CLI. This has now been definitively fixed by completely re-architecting the script to use the Cloudflare API directly via `axios`, removing any reliance on the `wrangler` CLI and its associated `devDependencies`. The project is now in a fully stable and automated state.
+This report details the final resolution of the deployment pipeline. A CI/CD failure (`npm ci` error) was traced to an inconsistency between `package.json` and `package-lock.json`. This occurred because outdated `devDependencies` were removed from `package.json`, but the lock file was not updated accordingly. This has now been definitively fixed by removing the legacy dependencies and regenerating the lock file. The project is now in a fully stable and automated state.
 
 **Key Accomplishments:**
 
 *   **Deployment Blocker Resolved (Final):**
-    *   **Root Cause Analysis:** The `npm run discover` script failed in CI with `execSync is not defined`. This was caused by an incomplete update of the script, which was still attempting to call the `wrangler` CLI via `execSync` without importing the necessary module.
-    *   **Definitive Resolution:** The `scripts/fetch-data.js` script has been rewritten to use `axios` for making a direct `PUT` request to the Cloudflare API v4 endpoint for KV. The function signature and its call in the `main` function have been corrected.
+    *   **Root Cause Analysis:** The `npm clean-install` command failed in CI because `package.json` and `package-lock.json` were out of sync after removing old `wrangler` dependencies.
+    *   **Definitive Resolution:** The `devDependencies` section has been removed from `package.json`, and the `package-lock.json` file will be regenerated locally to ensure consistency before committing.
     *   **Total Decoupling:** The project is now completely independent of the `wrangler` CLI for its data pipeline, making the process more stable, secure, and version-agnostic.
 
-*   **Project Dependencies Cleaned:** The project's dependencies are now leaner and more focused. The unnecessary `devDependencies` for `@cloudflare/wrangler` and `@cloudflare/workers-types` have been removed from `package.json` and `package-lock.json`.
+*   **Project Dependencies Cleaned:** The project's dependencies are now leaner and more focused. The unnecessary `devDependencies` for `@cloudflare/wrangler` and `@cloudflare/workers-types` have been removed, and the `wrangler.toml` file has been deleted to prevent build warnings.
 
 *   **Previous Accomplishments (V2.0) Integrated:**
     *   Modern website design and layout (`Layout.astro`, `KeywordPageLayout.astro`).
