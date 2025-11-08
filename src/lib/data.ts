@@ -6,6 +6,7 @@ interface Model {
   name: string;
   author?: string;
   source: string;
+  description?: string;
   task: string;
   tags: string[];
   likes: number;

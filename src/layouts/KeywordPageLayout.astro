@@ -38,6 +38,11 @@ const schema = generateArticleSchema(keyword, title, description);
       </a>
     </header>
 
+    <!-- Ad Slot: Header Banner -->
+    <div class="my-8 text-center bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
+      <p class="text-gray-500 dark:text-gray-400 text-sm">[Adsense Header Banner - 728x90]</p>
+    </div>
+
     <!-- Tool Listing Section -->
     {models.length > 0 ? (
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -54,6 +59,11 @@ const schema = generateArticleSchema(keyword, title, description);
       </div>
     )}
   </main>
+
+  <!-- Ad Slot: Footer Banner -->
+  <div class="container max-w-7xl mx-auto px-4 my-8 text-center bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
+    <p class="text-gray-500 dark:text-gray-400 text-sm">[Adsense Footer Banner - 728x90]</p>
+  </div>
 
   {keywordFaqs.length > 0 && <FAQSection faqs={keywordFaqs} />}
 </Layout>

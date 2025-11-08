@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 // --- Configuration ---
+const CIVITAI_DATA_PATH = path.join(__dirname, '../src/data/civitai.json');
 const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100';
 const OUTPUT_FILE_PATH = path.join(__dirname, '../public/models.json');
 
@@ -30,6 +31,33 @@ async function fetchHuggingFaceData() {
             console.error(`    - Data: ${JSON.stringify(error.response.data)}`);
         }
         process.exit(1);
+    }
+}
+
+function readCivitaiData() {
+    console.log('📦 Reading data from Civitai JSON file...');
+    try {
+        if (!fs.existsSync(CIVITAI_DATA_PATH)) {
+            console.warn(`- Civitai data file not found at ${CIVITAI_DATA_PATH}. Skipping.`);
+            return [];
+        }
+        const civitaiData = JSON.parse(fs.readFileSync(CIVITAI_DATA_PATH, 'utf-8'));
+        const transformedData = civitaiData.map(model => ({
+            id: `civitai-${model.name.toLowerCase().replace(/\s+/g, '-')}`,
+            name: model.name,
+            author: 'Civitai Community',
+            source: model.source,
+            task: 'image-generation', // Assume all are image generation for now
+            tags: model.tags || [],
+            likes: model.likes || 0, // Add likes if available, otherwise 0
+            downloads: model.downloads || 0, // Add downloads if available, otherwise 0
+            lastModified: new Date().toISOString(), // Use current date as placeholder
+        }));
+        console.log(`✅ Successfully read and transformed ${transformedData.length} models from Civitai.`);
+        return transformedData;
+    } catch (error) {
+        console.error('❌ Failed to read or parse Civitai data:', error.message);
+        return []; // Return empty array on error to not break the build
     }
 }
 
@@ -82,10 +110,16 @@ async function writeToKV(key, value) {
 
 async function main() {
     console.log('--- Starting AI-Nexus Data Fetching Script ---');
-    const modelsData = await fetchHuggingFaceData();
-    if (modelsData && modelsData.length > 0) {
-        writeDataToFile(OUTPUT_FILE_PATH, modelsData);
-        await writeToKV('models', JSON.stringify(modelsData));
+    const huggingFaceModels = await fetchHuggingFaceData();
+    const civitaiModels = readCivitaiData();
+
+    // Combine and sort data, giving priority to Hugging Face by likes
+    const combinedData = [...huggingFaceModels, ...civitaiModels].sort((a, b) => b.likes - a.likes);
+
+    if (combinedData && combinedData.length > 0) {
+        console.log(`- Total models to write: ${combinedData.length}`);
+        writeDataToFile(OUTPUT_FILE_PATH, combinedData);
+        await writeToKV('models', JSON.stringify(combinedData));
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
     }

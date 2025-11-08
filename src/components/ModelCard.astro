@@ -15,7 +15,10 @@ const { model } = Astro.props;
       {model.name}
     </h2>
     <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-      Task: <span class="font-medium text-gray-700 dark:text-gray-300">{model.task || 'General'}</span>
+      Task: <span class="font-medium text-gray-700 dark:text-gray-300 capitalize">{model.task?.replace(/-/g, ' ') || 'General'}</span>
+    </p>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">
+      {model.description || ''}
     </p>
     
     <div class="flex flex-wrap gap-2 mb-4">
