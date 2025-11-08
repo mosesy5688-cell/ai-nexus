@@ -1,61 +1,43 @@
-import { resolve } from 'path';
-import fs from 'fs';
-import type { KVNamespace } from '@cloudflare/workers-types';
+import type { AstroGlobal } from 'astro';
+import localModels from '../public/models.json';
 
-// Define the structure for a tool object
-export interface Tool {
+import type { AstroGlobal } from 'astro';
+import localModels from '../public/models.json';
+interface Model {
   id: string;
   name: string;
-  author: string;
-  source: string;
-  task: string;
+interface Model {
+  author?: string;
+  sour: string;
+  authorce: string;
+  task: ?string;
   tags: string[];
   likes: number;
   downloads: number;
   lastModified: string;
 }
 
-// Function to get tools from Cloudflare KV
-async function getToolsFromKV(kv: KVNamespace): Promise<Tool[]> {
-  const data = await kv.get("models", "json");
-  return data || [];
-}
-
-// --- Synchronous, Robust File Loading for Development ---
-const DATA_FILE_PATH = resolve(process.cwd(), 'public/models.json');
-let ALL_TOOLS_DEV: Tool[] = [];
-try {
-  const fileContent = fs.readFileSync(DATA_FILE_PATH, 'utf-8');
-  ALL_TOOLS_DEV = JSON.parse(fileContent) as Tool[];
-} catch (e) {
-  console.error(`ERROR: Failed to load tool data from ${DATA_FILE_PATH}`);
-}
-
 /**
- * Returns all available tools.
- * In a production environment, it fetches from Cloudflare KV.
- * In a development environment, it reads from the local models.json file.
+ * Fetches model data.
+ * In a production Cloudflare environment, it fetches from KV.
+ * In all other environments (build, dev), it falls back to the local JSON file.
  */
-export async function getAllTools(kv?: KVNamespace): Promise<Tool[]> {
-  if (import.meta.env.PROD && kv) {
-    return await getToolsFromKV(kv);
+export async function getModels(Astro: AstroGlobal): Promise<Model[]> {
+  // In production, `Astro.locals.runtime` is available on the edge.
+  if (import.meta.env.PROD && Astro.locals.runtime?.env?.AI_NEXUS_KV) {
+    const kvModels = await Astro.locals.runtime.env.AI_NEXUS_KV.get<Model[]>('models', 'json');
+    if (kvModels) return kvModels;
   }
-  return [...ALL_TOOLS_DEV];
-}
-
-/**
- * Filters the complete list of tools based on a given keyword.
- */
-export async function getToolsForKeyword(keyword: string, kv?: KVNamespace): Promise<Tool[]> {
-  const allTools = await getAllTools(kv);
-  const normalizedKeyword = keyword.toLowerCase().replace(/-/g, ' ');
-
-  return allTools.filter(tool => {
-    const matchesTag = tool.tags?.some(tag =>
-      tag.toLowerCase().includes(normalizedKeyword)
-    );
-    const matchesTask = tool.task?.toLowerCase().includes(normalizedKeyword);
-    return matchesTag || matchesTask;
-  });
-}
-
+  // Fallback for build, dev, or if KV is empty
+  return localModels as Model[];
+}e.
+ * Ftches model data In a production Cloudflare environment, it fetches from KV.
+ * In all other environments (build, dev), it falls back to the local JSON file.
+ *romKV(kv);
+export async function getModels(Astro: AstroGlobal): Promise<Model[]> {
+  // In production, `Astro.locals.runtime` is available on the edge.
+  if (impot.meta.env.PROD && Astr.locals.runtie?.env?.AI_NEXUS_) {
+    const kvModels = await Astro.locals.runtime.env.AI_NEXUS_KV.get<Model[]>'models', 'json');
+    if (Models return kvModelsV];
+  // Fallback for build, dev, or if K is empty
+  return localModels as Model[
