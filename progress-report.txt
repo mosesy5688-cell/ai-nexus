@@ -1,29 +1,30 @@
-## AI-Nexus V9.6 - Content Population & Logic Enhancement
+## AI-Nexus V9.7 - Interactive Model Details Modal
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-This phase focuses on populating the website with content by resolving the core issue of data-to-page matching. A more flexible and robust keyword matching system has been implemented, allowing models from various sources to be correctly categorized and displayed on their respective keyword pages.
+This phase significantly enhances user experience by implementing an interactive modal for model details. Instead of linking directly to external sites, users can now click "View Details" on a model card to open an in-page modal. This modal displays the full model description and an ad slot before providing the final link to the source, increasing user engagement and ad revenue opportunities.
 
 **Key Accomplishments:**
 
-*   **Content Populated:** The website's keyword pages are now correctly displaying relevant AI models. This was achieved by:
-    *   **Enhanced Keyword Matching:** The `CORE_KEYWORDS` configuration in `src/content/config.ts` was updated to include a `matchTerms` array, defining all relevant data tags and tasks for each category.
-    *   **Updated Page Logic:** The dynamic pages (`[keyword].astro` and `[[slug]].astro`) were updated to use this new `matchTerms` array for filtering, ensuring a correct and comprehensive list of models is displayed.
+*   **Modal Implementation:**
+    *   A new reusable `src/components/ModelModal.astro` component was created to serve as the pop-up container.
+    *   The `ModelCard.astro` component was refactored to trigger the modal instead of being a direct link.
+    *   Client-side JavaScript was added to `KeywordPageLayout.astro` to dynamically populate and manage the modal's state, providing a smooth, single-page-app-like experience.
+*   **Enhanced User Journey & Monetization:** The new flow keeps users on the site longer, provides them with more detailed content upfront, and strategically places an ad within the modal, creating a new, high-value ad impression.
 
 *   **Stable Foundation:**
     *   Modern website design and layout (`Layout.astro`, `KeywordPageLayout.astro`).
     *   A robust data pipeline with content enrichment, archiving, and AdSense compliance filtering.
     *   SEO enhancements with JSON-LD schemas (`schema.ts`).
-    *   A reusable, client-side search component is in place.
 
 **Current Status:**
 
-The project is now a content-rich, functional website. The core architecture is stable, and the automated content pipeline is working as intended.
+The project's user interface is now more interactive and professional. The new modal system is fully functional, improving both user experience and the site's monetization potential.
 
 **Next Steps:**
 
 1.  **Ad Integration:** With ad slots already in place, the next step is to sign up for an ad network (like Google AdSense), get the ad code snippets, and paste them into the designated slots in the layout files.
 2.  **Update `ads.txt`:** Once approved by an ad network, update the `public/ads.txt` file with the provided authorization line.
-3.  **UI/UX Enhancements:** Further refine the display of search results and consider adding sorting or advanced filtering options.
+3.  **UI/UX Enhancements:** Consider adding a "copy to clipboard" button for model names or other useful quick actions within the modal.

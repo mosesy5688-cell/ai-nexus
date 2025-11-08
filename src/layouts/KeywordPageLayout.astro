@@ -6,6 +6,7 @@ import faqs from '../data/faq.json';
 import { generateArticleSchema } from '../lib/schema';
 import ModelCard from '../components/ModelCard.astro';
 import AdSlot from '../components/AdSlot.astro';
+import ModelModal from '../components/ModelModal.astro';
 
 interface Props {
   title: string;
@@ -61,4 +62,63 @@ const schema = generateArticleSchema(keyword, title, description);
   <!-- Ad Slot: Footer Banner -->
   <AdSlot width={728} height={90} label="Adsense Footer Banner" class="container max-w-7xl mx-auto px-4" />
   {keywordFaqs.length > 0 && <FAQSection faqs={keywordFaqs} />}
+
+  <!-- Single Modal Container for all models -->
+  <ModelModal />
 </Layout>
+
+<script define:vars={{ models }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('model-modal');
+    const modalContent = document.getElementById('modal-content');
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    const closeBtn = document.getElementById('modal-close-btn');
+
+    const titleEl = document.getElementById('modal-title');
+    const authorEl = document.getElementById('modal-author');
+    const taskEl = document.getElementById('modal-task');
+    const platformEl = document.getElementById('modal-source-platform');
+    const descriptionEl = document.getElementById('modal-description');
+    const sourceLinkEl = document.getElementById('modal-source-link');
+
+    function openModal(model) {
+      if (!model || !modal) return;
+
+      // Populate modal content
+      titleEl.textContent = model.name;
+      authorEl.textContent = `By ${model.author || 'Community'}`;
+      taskEl.textContent = `Task: ${model.task?.replace(/-/g, ' ') || 'General'}`;
+      platformEl.textContent = model.sourcePlatform || '';
+      descriptionEl.textContent = model.description || 'No detailed description available.';
+      sourceLinkEl.href = model.source;
+
+      // Show modal with animation
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => {
+        modalContent.classList.remove('scale-95', 'opacity-0');
+        modalContent.classList.add('scale-100', 'opacity-100');
+      }, 10); // Small delay to allow CSS transition
+    }
+
+    function closeModal() {
+      modalContent.classList.add('scale-95', 'opacity-0');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }, 300); // Match transition duration
+    }
+
+    document.querySelectorAll('.view-details-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        const card = (e.target as HTMLElement).closest('[data-model-id]');
+        const modelId = card?.getAttribute('data-model-id');
+        const modelData = models.find(m => m.id === modelId);
+        openModal(modelData);
+      });
+    });
+
+    closeBtn?.addEventListener('click', closeModal);
+    modalBackdrop?.addEventListener('click', closeModal);
+  });
+</script>
