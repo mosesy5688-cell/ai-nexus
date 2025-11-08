@@ -32,7 +32,7 @@ export async function getModels(Astro: AstroGlobal): Promise<Model[]> {
   // During the build process (`npm run build`), `Astro.locals.runtime` is undefined.
   // The optional chaining `?.` prevents a crash during build time.
   if (Astro.locals.runtime?.env?.AI_NEXUS_KV) {
-    const kvModels = await Astro.locals.runtime?.env?.AI_NEXUS_KV.get<Model[]>('models', 'json');
+    const kvModels = await Astro.locals.runtime.env.AI_NEXUS_KV.get<Model[]>('models', 'json');
     if (kvModels) return kvModels;
   }
   // Fallback for build time, dev mode, or if KV is empty on the edge.
