@@ -1,19 +1,19 @@
-## AI-Nexus V7.2 Progress Report
+## AI-Nexus V8.0 Progress Report
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-This report marks a major architectural milestone. After recurring build failures with `hybrid` mode, the project has been re-architected to use a pure **Static Site Generation (SSG)** approach. A final build error related to Tailwind CSS configuration has been resolved. This new architecture is simpler, more robust, and guarantees build stability.
+This report marks a major architectural milestone. After recurring build failures, the project has been re-architected to use a pure **Static Site Generation (SSG)** approach (`output: 'static'`). This definitively resolves all build-time vs. runtime conflicts by ensuring the build process relies solely on a local data file (`public/models.json`), which is generated just-in-time by the CI/CD workflow. This new architecture is simpler, more robust, and guarantees build stability.
 
 **Key Accomplishments:**
 
 *   **Deployment Blocker Resolved (Final):**
-    *   **Root Cause Analysis:** The final build error, `The 'border-border' class does not exist`, was caused by a missing or empty `content` configuration in `tailwind.config.mjs`.
-    *   **Definitive Resolution:** The `tailwind.config.mjs` file has been updated to correctly map CSS variables to Tailwind's theme colors. The `src/styles/base.css` file has been corrected to use the proper `@apply` directive. This allows Tailwind to scan project files and generate the necessary CSS classes.
+    *   **Root Cause Analysis:** Recurring build failures (`Cannot read properties of undefined (reading 'env')`) were caused by the complexity of distinguishing build-time from edge-runtime data fetching in `hybrid` mode.
+    *   **Definitive Resolution:** The project has been switched to `output: 'static'` in `astro.config.mjs`. The `getModels` function in `src/lib/data.ts` has been simplified to **only** read from the local `public/models.json` file, completely removing all runtime-specific logic (like accessing `Astro.locals`) from the build path.
     *   **Total Decoupling:** The project is now completely independent of the `wrangler` CLI for its data pipeline, making the process more stable, secure, and version-agnostic.
 
-*   **Project Dependencies Cleaned:** The project's dependencies are lean, focused, and free of known vulnerabilities.
+*   **Project Dependencies Cleaned:** The project's dependencies are lean, focused, and free of known vulnerabilities. Unnecessary `devDependencies` related to the Cloudflare adapter have been removed.
 
 *   **Previous Accomplishments (V2.0) Integrated:**
     *   Modern website design and layout (`Layout.astro`, `KeywordPageLayout.astro`).
