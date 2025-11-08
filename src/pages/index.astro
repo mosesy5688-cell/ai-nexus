@@ -1,18 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { CORE_KEYWORDS } from '../content/config.ts';
----
----
 import Search from '../components/Search.astro';
-// ... a-többi import
 ---
-<Layout>
-  <main>
-    <h1>Discover AI Models</h1>
-    <Search />
-    <!-- A többi tartalom, pl. kulcsszó lista -->
-  </main>
-</Layout>
 
 <Layout title="AI-Nexus - The Open-Source AI Guide">
   <!-- Hero Section -->
@@ -31,6 +21,9 @@ import Search from '../components/Search.astro';
       </div>
     </div>
   </section>
+
+  <!-- Search Section -->
+  <Search />
 
   <!-- Keywords Section -->
   <section id="keywords" class="py-20 sm:py-32">
