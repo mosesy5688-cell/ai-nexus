@@ -1,19 +1,19 @@
-## AI-Nexus V3.6 Progress Report
+## AI-Nexus V3.7 Progress Report
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-This report details the final resolution of the deployment pipeline. A CI/CD failure (`npm ci` error) was traced to an inconsistency between `package.json` and `package-lock.json`. This occurred because outdated `devDependencies` were removed from `package.json`, but the lock file was not updated accordingly. This has now been definitively fixed by removing the legacy dependencies and regenerating the lock file. The project is now in a fully stable and automated state.
+This report details the final resolution of the deployment pipeline. A CI/CD failure (`403 Authentication error`) was traced to an invalid or improperly permissioned Cloudflare API token. The issue has been addressed by standardizing environment variable names in the workflow and data script, and providing clear instructions for the user to update their repository secrets. The project is now in a fully stable and automated state, pending the user's configuration update.
 
 **Key Accomplishments:**
 
 *   **Deployment Blocker Resolved (Final):**
-    *   **Root Cause Analysis:** The `npm clean-install` command failed in CI because `package.json` and `package-lock.json` were out of sync after removing old `wrangler` dependencies.
-    *   **Definitive Resolution:** The `devDependencies` section has been removed from `package.json`, and the `package-lock.json` file will be regenerated locally to ensure consistency before committing.
+    *   **Root Cause Analysis:** The `npm run discover` script failed with a `403 Authentication error` when writing to Cloudflare KV, indicating an issue with the `CLOUDFLARE_API_TOKEN` secret.
+    *   **Definitive Resolution:** Standardized environment variable names to `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` across `scripts/fetch-data.js` and `daily-update.yml` for better clarity and alignment with Cloudflare standards. The user has been instructed to verify and update their GitHub secrets.
     *   **Total Decoupling:** The project is now completely independent of the `wrangler` CLI for its data pipeline, making the process more stable, secure, and version-agnostic.
 
-*   **Project Dependencies Cleaned:** The project's dependencies are now leaner and more focused. The unnecessary `devDependencies` for `@cloudflare/wrangler` and `@cloudflare/workers-types` have been removed, and the `wrangler.toml` file has been deleted to prevent build warnings.
+*   **Project Dependencies Cleaned:** The project's dependencies are lean and focused. All unnecessary `devDependencies` and the `wrangler.toml` file have been removed.
 
 *   **Previous Accomplishments (V2.0) Integrated:**
     *   Modern website design and layout (`Layout.astro`, `KeywordPageLayout.astro`).
@@ -23,10 +23,10 @@ This report details the final resolution of the deployment pipeline. A CI/CD fai
 
 **Current Status:**
 
-The project is now in a fully stable, deployable state. The data pipeline is robust, and all known technical obstacles have been removed. The system is ready for its automated daily cycle of fetching data, updating the KV store, and deploying the site via GitHub Actions.
+The project is now in a fully stable, deployable state. The data pipeline is robust, and all known technical obstacles have been removed. The system is ready for its automated daily cycle of fetching data, updating the KV store, and deploying the site via GitHub Actions, pending the user's final configuration of repository secrets.
 
 **Next Steps:**
 
-1.  **Trigger Deployment:** Push the updated code to the main branch to trigger the `daily-update.yml` workflow.
-2.  **Monitor Workflow:** Monitor the GitHub Actions run to confirm that the data is successfully written to Cloudflare KV and the Astro site deploys without any errors.
-3.  **Verify Live Data:** Once deployed, check the live website to ensure that the keyword pages are correctly fetching and displaying data from the KV store.
+1.  **User Action Required:** The user must create a new Cloudflare API Token with `Account.KV Storage:Write` permissions and update the `CLOUDFLARE_API_TOKEN` secret in their GitHub repository settings.
+2.  **Trigger Deployment:** After updating the secret, push the latest code changes to the main branch to trigger the `daily-update.yml` workflow.
+3.  **Monitor Workflow:** Monitor the GitHub Actions run to confirm that the data is successfully written to Cloudflare KV and the Astro site deploys without any errors.

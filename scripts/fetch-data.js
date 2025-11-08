@@ -51,19 +51,19 @@ function writeDataToFile(filePath, data) {
 async function writeToKV(key, value) {
     if (process.env.CI) {
         console.log('CI environment detected, writing to Cloudflare KV...');
-        const { CF_ACCOUNT_ID, CF_API_TOKEN, KV_NAMESPACE_ID } = process.env;
+        const { CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, KV_NAMESPACE_ID } = process.env;
 
-        if (!CF_ACCOUNT_ID || !CF_API_TOKEN || !KV_NAMESPACE_ID) {
-            console.error('❌ Missing Cloudflare credentials. Set CF_ACCOUNT_ID, CF_API_TOKEN, and KV_NAMESPACE_ID.');
+        if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_API_TOKEN || !KV_NAMESPACE_ID) {
+            console.error('❌ Missing Cloudflare credentials. Set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, and KV_NAMESPACE_ID.');
             process.exit(1);
         }
 
-        const url = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/storage/kv/namespaces/${KV_NAMESPACE_ID}/values/${key}`;
+        const url = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${KV_NAMESPACE_ID}/values/${key}`;
 
         try {
             await axios.put(url, value, {
                 headers: {
-                    'Authorization': `Bearer ${CF_API_TOKEN}`,
+                    'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
                     'Content-Type': 'application/json'
                 }
             });
