@@ -1,27 +1,42 @@
 ---
+// src/pages/[keyword].astro
 import KeywordPageLayout from '../layouts/KeywordPageLayout.astro';
+import { getModels } from '../lib/data.ts';
 import { CORE_KEYWORDS } from '../content/config.ts';
-import { getToolsForKeyword } from '../lib/data.ts';
 
+/**
+ * Astro's function to generate static paths at build time.
+ * It creates a page for each keyword defined in CORE_KEYWORDS.
+ */
 export async function getStaticPaths() {
-  return CORE_KEYWORDS.map(keyword => ({
+  return CORE_KEYWORDS.map((keyword) => ({
     params: { keyword: keyword.slug },
   }));
 }
 
-const { keyword } = Astro.params;
-const kv = Astro.locals.runtime.env.AI_NEXUS_KV;
+// Get the current keyword's slug from the URL parameters
+const { keyword: keywordSlug } = Astro.params;
 
-const currentKeyword = CORE_KEYWORDS.find(k => k.slug === keyword);
-const tools = await getToolsForKeyword(keyword, kv);
+// Find the full keyword object to get its title and description
+const currentKeyword = CORE_KEYWORDS.find(k => k.slug === keywordSlug);
 
-const pageTitle = currentKeyword?.title || keyword || 'AI Tools';
-const pageDescription = currentKeyword?.description || `Explore tools related to ${pageTitle}.`;
+// Fetch all models from the local `public/models.json` file.
+// This function is now simplified and does not depend on the runtime environment.
+const allModels = await getModels();
+
+// Filter the models to find ones relevant to the current keyword slug.
+const filteredModels = allModels.filter(model => 
+  model.tags.includes(keywordSlug) || model.task === keywordSlug
+);
+
+// Define props to pass to the layout component
+const pageTitle = currentKeyword?.title || 'AI Models';
+const pageDescription = currentKeyword?.description || `A curated list of AI models for ${keywordSlug}.`;
 ---
 
-<KeywordPageLayout
-  title={pageTitle}
-  description={pageDescription}
-  tools={tools}
-  keyword={keyword}
+<KeywordPageLayout 
+  title={pageTitle} 
+  description={pageDescription} 
+  models={filteredModels} 
+  keyword={keywordSlug} 
 />

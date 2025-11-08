@@ -1,4 +1,4 @@
-## AI-Nexus V8.0 Progress Report
+## AI-Nexus V8.1 Progress Report
 
 **Date:** 2025-11-08
 
@@ -10,7 +10,7 @@ This report marks a major architectural milestone. After recurring build failure
 
 *   **Deployment Blocker Resolved (Final):**
     *   **Root Cause Analysis:** Recurring build failures (`Cannot read properties of undefined (reading 'env')`) were caused by the complexity of distinguishing build-time from edge-runtime data fetching in `hybrid` mode.
-    *   **Definitive Resolution:** The project has been switched to `output: 'static'` in `astro.config.mjs`. The `getModels` function in `src/lib/data.ts` has been simplified to **only** read from the local `public/models.json` file, completely removing all runtime-specific logic (like accessing `Astro.locals`) from the build path.
+    *   **Definitive Resolution:** The project has been switched to `output: 'static'` in `astro.config.mjs`. The `getModels` function in `src/lib/data.ts` and the page `src/pages/[keyword].astro` have been simplified to **only** read from the local `public/models.json` file, completely removing all runtime-specific logic (like accessing `Astro.locals`) from the build path.
     *   **Total Decoupling:** The project is now completely independent of the `wrangler` CLI for its data pipeline, making the process more stable, secure, and version-agnostic.
 
 *   **Project Dependencies Cleaned:** The project's dependencies are lean, focused, and free of known vulnerabilities. Unnecessary `devDependencies` related to the Cloudflare adapter have been removed.
