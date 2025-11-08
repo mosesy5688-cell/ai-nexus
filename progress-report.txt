@@ -1,16 +1,16 @@
-## AI-Nexus V7.0 Progress Report
+## AI-Nexus V7.1 Progress Report
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-This report marks a major architectural milestone. After recurring build failures with `hybrid` mode, the project has been re-architected to use a pure **Static Site Generation (SSG)** approach (`output: 'static'`). This definitively resolves all build-time vs. runtime conflicts by ensuring the build process relies solely on a local data file (`public/models.json`), which is generated just-in-time by the CI/CD workflow. This new architecture is simpler, more robust, and guarantees build stability.
+This report marks a major architectural milestone. After recurring build failures with `hybrid` mode, the project has been re-architected to use a pure **Static Site Generation (SSG)** approach. A final build error related to Tailwind CSS configuration has been resolved. This new architecture is simpler, more robust, and guarantees build stability.
 
 **Key Accomplishments:**
 
 *   **Deployment Blocker Resolved (Final):**
-    *   **Root Cause Analysis:** Recurring build failures were caused by the instability of `hybrid` mode in the CI environment and the complexity of distinguishing build-time from edge-runtime data fetching.
-    *   **Definitive Resolution:** The project has been switched to `output: 'static'` in `astro.config.mjs`. The `getModels` function in `src/lib/data.ts` has been simplified to **only** read from the local `public/models.json` file, completely removing all runtime-specific logic (like accessing `Astro.locals`) from the build path.
+    *   **Root Cause Analysis:** The final build error, `The 'border-border' class does not exist`, was caused by a missing or empty `content` configuration in `tailwind.config.mjs`.
+    *   **Definitive Resolution:** A `tailwind.config.mjs` file has been created with the correct `content` paths, allowing Tailwind to scan project files and generate the necessary CSS classes. The project is now configured for a pure static build (`output: 'static'`), which resolves all previous build-time vs. runtime conflicts.
     *   **Total Decoupling:** The project is now completely independent of the `wrangler` CLI for its data pipeline, making the process more stable, secure, and version-agnostic.
 
 *   **Project Dependencies Cleaned:** The project's dependencies are lean, focused, and free of known vulnerabilities.
@@ -19,7 +19,7 @@ This report marks a major architectural milestone. After recurring build failure
     *   Modern website design and layout (`Layout.astro`, `KeywordPageLayout.astro`).
     *   Enriched content structure with FAQs (`faq.json`).
     *   SEO enhancements with JSON-LD schemas (`schema.ts`).
-    *   A simplified and robust data fetching architecture.
+    *   A simplified and robust static data fetching architecture.
 
 **Current Status:**
 
