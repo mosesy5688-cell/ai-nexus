@@ -1,7 +1,6 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 // --- Configuration ---
 const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100';
@@ -79,7 +78,7 @@ async function main() {
     const modelsData = await fetchHuggingFaceData();
     if (modelsData && modelsData.length > 0) {
         writeDataToFile(OUTPUT_FILE_PATH, modelsData);
-        await writeToKV(modelsData);
+        await writeToKV('models', JSON.stringify(modelsData));
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
     }
