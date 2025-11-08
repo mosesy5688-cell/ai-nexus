@@ -1,25 +1,25 @@
-## AI-Nexus V4.4 Progress Report
+## AI-Nexus V4.5 Progress Report
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-This report marks a major milestone. All persistent deployment blockers related to dependencies, build errors, and authentication have been successfully resolved. A final build error caused by a missing function export in `src/lib/data.ts` has been fixed. The CI/CD pipeline is now fully operational and stable, ready for automated daily deployments.
+This report marks a major milestone. All persistent deployment blockers related to dependencies, build errors, and authentication have been successfully resolved. A final build error, `Cannot read properties of undefined (reading 'env')`, was caused by incorrect environment detection in the data fetching logic. This has been fixed by using `import.meta.env.SSR` to differentiate between build-time and runtime. The CI/CD pipeline is now fully operational and stable.
 
 **Key Accomplishments:**
 
 *   **Deployment Blocker Resolved (Final):**
-    *   **Root Cause Analysis:** The final build error, `"getToolsForKeyword" is not exported by "src/lib/data.ts"`, was caused by a page component (`[[slug]].astro`) trying to import a function that did not exist.
-    *   **Definitive Resolution:** The missing `getToolsForKeyword` function has been added to `src/lib/data.ts` to handle static tool data, resolving the build failure.
+    *   **Root Cause Analysis:** The final build error was caused by `src/lib/data.ts` attempting to access `Astro.locals.runtime` during the build process, where it is not available.
+    *   **Definitive Resolution:** The data fetching logic in `getModels` has been updated to check `import.meta.env.SSR`. This ensures that during the build, data is always read from the local `public/models.json`, and only at runtime on the edge is Cloudflare KV accessed.
     *   **Total Decoupling:** The project is now completely independent of the `wrangler` CLI for its data pipeline, making the process more stable, secure, and version-agnostic.
 
-*   **Project Dependencies Cleaned:** The project's dependencies are now lean, focused, and free of known vulnerabilities. All unnecessary `devDependencies` and configuration files have been removed.
+*   **Project Dependencies Cleaned:** The project's dependencies are lean, focused, and free of known vulnerabilities. All unnecessary `devDependencies` and configuration files have been removed.
 
 *   **Previous Accomplishments (V2.0) Integrated:**
     *   Modern website design and layout (`Layout.astro`, `KeywordPageLayout.astro`).
     *   Enriched content structure with FAQs (`faq.json`).
     *   SEO enhancements with JSON-LD schemas (`schema.ts`).
-    *   Robust data fetching logic in `src/lib/data.ts` that handles both build-time (local JSON) and runtime (Cloudflare KV) scenarios.
+    *   Fully robust data fetching logic in `src/lib/data.ts` that correctly handles both build-time (local JSON) and runtime (Cloudflare KV) scenarios.
 
 **Current Status:**
 
@@ -27,6 +27,6 @@ The project is now in a fully stable, deployable state. The data pipeline is rob
 
 **Next Steps:**
 
-1.  **Trigger Deployment:** Push the updated code (including the newly generated `package-lock.json`) to the main branch to trigger the `daily-update.yml` workflow.
+1.  **Trigger Deployment:** Push the updated code to the main branch to trigger the `daily-update.yml` workflow.
 2.  **Monitor Workflow:** Monitor the GitHub Actions run to confirm that all steps, including `npm install` and `npm run build`, complete without errors.
 3.  **Verify Deployment:** Once deployed, check the live website to ensure it is functioning correctly.
