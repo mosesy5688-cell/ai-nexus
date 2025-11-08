@@ -2,7 +2,6 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-
 // --- Configuration ---
 const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100';
 const OUTPUT_FILE_PATH = path.join(__dirname, '../public/models.json');
@@ -49,24 +48,31 @@ function writeDataToFile(filePath, data) {
     }
 }
 
-async function writeToKV(data) {
+async function writeToKV(key, value) {
     if (process.env.CI) {
         console.log('CI environment detected, writing to Cloudflare KV...');
+        const { CF_ACCOUNT_ID, CF_API_TOKEN, KV_NAMESPACE_ID } = process.env;
+
+        if (!CF_ACCOUNT_ID || !CF_API_TOKEN || !KV_NAMESPACE_ID) {
+            console.error('❌ Missing Cloudflare credentials. Set CF_ACCOUNT_ID, CF_API_TOKEN, and KV_NAMESPACE_ID.');
+            process.exit(1);
+        }
+
+        const url = `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/storage/kv/namespaces/${KV_NAMESPACE_ID}/values/${key}`;
+
         try {
-            const { CF_ACCOUNT_ID, CF_API_TOKEN, KV_NAMESPACE_ID } = process.env;
-            if (!CF_ACCOUNT_ID || !CF_API_TOKEN || !KV_NAMESPACE_ID) {
-                console.error('Missing Cloudflare credentials. Make sure CF_ACCOUNT_ID, CF_API_TOKEN, and KV_NAMESPACE_ID are set as environment variables.');
-                process.exit(1);
-            }
-
-            const dataString = JSON.stringify(data);
-            execSync(`npx wrangler kv:key put --namespace-id="${KV_NAMESPACE_ID}" "models" '${dataString}' --api-token="${CF_API_TOKEN}" --account-id="${CF_ACCOUNT_ID}"`, {
-                stdio: 'inherit'
+            await axios.put(url, value, {
+                headers: {
+                    'Authorization': `Bearer ${CF_API_TOKEN}`,
+                    'Content-Type': 'application/json'
+                }
             });
-
-            console.log('✅ Successfully wrote data to Cloudflare KV.');
+            console.log(`✅ Successfully wrote data for key: "${key}" to Cloudflare KV.`);
         } catch (error) {
             console.error('❌ Failed to write data to Cloudflare KV:', error.message);
+            if (error.response) {
+                console.error('    - Error details:', error.response.data);
+            }
             process.exit(1);
         }
     } else {
