@@ -24,7 +24,7 @@ import '../styles/base.css';
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
 </head>
-<body class="bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200 font-sans antialiased">
+<body class="bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200 font-sans antialiased flex flex-col min-h-screen">
 
     <!-- Header -->
     <header class="border-b border-gray-200 dark:border-gray-800 sticky top-0 bg-gray-50/80 dark:bg-gray-950/80 backdrop-blur-sm z-50">
@@ -44,37 +44,39 @@ import '../styles/base.css';
     </header>
 
     <!-- Main Content -->
-    <main>
+    <div class="flex-grow">
         <slot />
-    </main>
+    </div>
 
     <!-- Footer -->
     <footer class="bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
         <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+                <div class="col-span-2 md:col-span-1">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">AI-Nexus</h3>
                     <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                         The open-source guide to the AI universe.
                     </p>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Quick Links</h3>
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">Quick Links</h3>
                     <ul class="mt-4 space-y-2">
                         <li><a href="/" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Home</a></li>
                         <li><a href="/#keywords" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Keywords</a></li>
+                        <li><a href="/about" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">About</a></li>
                     </ul>
                 </div>
                 <div>
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Legal</h3>
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">Legal</h3>
                     <ul class="mt-4 space-y-2">
                         <li><a href="/privacy" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Privacy Policy</a></li>
                         <li><a href="/terms" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Terms of Service</a></li>
+                        <li><a href="/compliance" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Compliance</a></li>
                     </ul>
                 </div>
             </div>
             <div class="mt-8 border-t border-gray-200 dark:border-gray-700 pt-8 text-center">
-                <p class="text-sm text-gray-500 dark:text-gray-400">&copy; {new Date().getFullYear()} AI-Nexus. All rights reserved.</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">&copy; {new Date().getFullYear()} AI-Nexus. All rights reserved. This project is open-source, contribute on <a href="https://github.com/mosesy5688-cell/ai-nexus" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 hover:underline transition-colors">GitHub</a>.</p>
             </div>
         </div>
     </footer>

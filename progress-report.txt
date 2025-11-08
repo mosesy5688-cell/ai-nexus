@@ -1,30 +1,29 @@
-## AI-Nexus V9.7 - Interactive Model Details Modal
+## AI-Nexus V9.8 - Compliance Statement
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-This phase significantly enhances user experience by implementing an interactive modal for model details. Instead of linking directly to external sites, users can now click "View Details" on a model card to open an in-page modal. This modal displays the full model description and an ad slot before providing the final link to the source, increasing user engagement and ad revenue opportunities.
+To strengthen the site's position for advertising approval and build user trust, a dedicated Compliance & Content Policy page has been created. This page transparently communicates the site's commitment to safety, its automated NSFW content filtering mechanisms, and its adherence to advertising network policies.
 
 **Key Accomplishments:**
 
-*   **Modal Implementation:**
-    *   A new reusable `src/components/ModelModal.astro` component was created to serve as the pop-up container.
-    *   The `ModelCard.astro` component was refactored to trigger the modal instead of being a direct link.
-    *   Client-side JavaScript was added to `KeywordPageLayout.astro` to dynamically populate and manage the modal's state, providing a smooth, single-page-app-like experience.
-*   **Enhanced User Journey & Monetization:** The new flow keeps users on the site longer, provides them with more detailed content upfront, and strategically places an ad within the modal, creating a new, high-value ad impression.
+*   **Compliance Page Created:** A new page at `/compliance` has been added, detailing the site's content policies, including the automated filtering of adult content.
+*   **Footer Link Added:** The new compliance page is now accessible via a link in the website's global footer, ensuring transparency for all users and reviewers.
+*   **Strengthened AdSense Case:** By proactively and clearly stating its compliance efforts, the project significantly improves its chances of a successful Google AdSense application.
 
 *   **Stable Foundation:**
     *   Modern website design and layout (`Layout.astro`, `KeywordPageLayout.astro`).
     *   A robust data pipeline with content enrichment, archiving, and AdSense compliance filtering.
     *   SEO enhancements with JSON-LD schemas (`schema.ts`).
+    *   Interactive UI features like search and model-details modals.
 
 **Current Status:**
 
-The project's user interface is now more interactive and professional. The new modal system is fully functional, improving both user experience and the site's monetization potential.
+The project now includes all essential legal and policy pages required for a professional, ad-supported website. The codebase is stable and feature-rich.
 
 **Next Steps:**
 
 1.  **Ad Integration:** With ad slots already in place, the next step is to sign up for an ad network (like Google AdSense), get the ad code snippets, and paste them into the designated slots in the layout files.
 2.  **Update `ads.txt`:** Once approved by an ad network, update the `public/ads.txt` file with the provided authorization line.
-3.  **UI/UX Enhancements:** Consider adding a "copy to clipboard" button for model names or other useful quick actions within the modal.
+3.  **Final Content Review:** Perform a final review of all pages to ensure content quality and consistency before submitting for AdSense review.
