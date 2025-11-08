@@ -1,11 +1,13 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const cheerio = require('cheerio');
 
 // --- Configuration ---
 const CIVITAI_DATA_PATH = path.join(__dirname, '../src/data/civitai.json');
 const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100';
 const OUTPUT_FILE_PATH = path.join(__dirname, '../public/models.json');
+const ARCHIVE_DIR = path.join(__dirname, '../public/archives');
 
 async function fetchHuggingFaceData() {
     console.log('📦 Fetching data from HuggingFace API...');
@@ -15,6 +17,7 @@ async function fetchHuggingFaceData() {
             id: model.modelId,
             name: model.modelId.split('/')[1] || model.modelId,
             author: model.author,
+            sourcePlatform: 'Hugging Face',
             source: `https://huggingface.co/${model.modelId}`,
             task: model.pipeline_tag || 'N/A',
             tags: model.tags || [],
@@ -45,8 +48,10 @@ function readCivitaiData() {
         const transformedData = civitaiData.map(model => ({
             id: `civitai-${model.name.toLowerCase().replace(/\s+/g, '-')}`,
             name: model.name,
-            author: 'Civitai Community',
+            author: model.author || 'Civitai Community',
+            sourcePlatform: 'Civitai',
             source: model.source,
+            description: cheerio.load(model.description || '').text().trim().substring(0, 200), // Sanitize and truncate description
             task: 'image-generation', // Assume all are image generation for now
             tags: model.tags || [],
             likes: model.likes || 0, // Add likes if available, otherwise 0
@@ -110,14 +115,22 @@ async function writeToKV(key, value) {
 
 async function main() {
     console.log('--- Starting AI-Nexus Data Fetching Script ---');
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const archiveFilePath = path.join(ARCHIVE_DIR, `${today}.json`);
+
     const huggingFaceModels = await fetchHuggingFaceData();
     const civitaiModels = readCivitaiData();
 
-    // Combine and sort data, giving priority to Hugging Face by likes
+    // Combine and sort data by likes
     const combinedData = [...huggingFaceModels, ...civitaiModels].sort((a, b) => b.likes - a.likes);
 
     if (combinedData && combinedData.length > 0) {
         console.log(`- Total models to write: ${combinedData.length}`);
+        
+        // 1. Write to dated archive file
+        writeDataToFile(archiveFilePath, combinedData);
+
+        // 2. Write to the main models.json for the build process
         writeDataToFile(OUTPUT_FILE_PATH, combinedData);
         await writeToKV('models', JSON.stringify(combinedData));
     } else {

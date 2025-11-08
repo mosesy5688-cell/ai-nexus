@@ -1,31 +1,31 @@
-## AI-Nexus V9.1 - Code Refactoring & Cleanup
+## AI-Nexus V9.2 - Content Enrichment & Archiving
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-With the deployment pipeline stable, this phase focuses on improving code quality and maintainability. Key optimizations include refactoring the UI into a dedicated `ModelCard` component and making the data loading logic more robust and scalable. Unused data files have been cleaned up to streamline the project structure.
+This phase focuses on enriching the website's content and implementing a robust data management strategy. The data fetching script has been significantly upgraded to include a new data source (Civitai) and to archive daily data snapshots, fulfilling the user's request to preserve historical content. UI components have been updated to display this richer data.
 
 **Key Accomplishments:**
 
-*   **UI Refactoring:** The model display logic has been extracted from `KeywordPageLayout.astro` into a new, reusable `src/components/ModelCard.astro` component. This simplifies the layout file and improves component modularity.
-*   **Data Logic Optimization:** The `getToolsForKeyword` function in `src/lib/data.ts` has been rewritten to dynamically import data files based on the keyword, making it more scalable. The `getModels` function signature was also simplified.
-*   **File Cleanup:** Removed unused JSON files (`resume.json`, `video.json`, `writing.json`) from the `src/content/auto/` directory, resulting in a cleaner and more focused project structure.
+*   **Content Enrichment:** The `scripts/fetch-data.js` script now reads data from `src/data/civitai.json` and merges it with data from the Hugging Face API, significantly increasing the number of models displayed on the site.
+*   **Data Archiving:** The script now saves a timestamped copy of the data to `public/archives/` each day, preserving a history of the fetched content. It continues to update `public/models.json` to provide the latest data for the static build.
+*   **Code & UI Enhancements:**
+    *   The data script now sanitizes HTML from descriptions to display clean text.
+    *   The `ModelCard.astro` component has been updated to show the data source (Hugging Face or Civitai) and a model description.
+    *   The `Model` type in `src/lib/data.ts` has been updated to reflect the new data structure.
 
 *   **Stable Foundation:**
     *   Modern website design and layout (`Layout.astro`, `KeywordPageLayout.astro`).
     *   Enriched content structure with FAQs (`faq.json`).
     *   SEO enhancements with JSON-LD schemas (`schema.ts`).
-    *   A simplified and robust static data fetching architecture.
 
 **Current Status:**
 
-The project's codebase is now cleaner, more modular, and better prepared for future expansion. The stable CI/CD pipeline remains fully operational.
+The project's content base is now significantly larger and more valuable. The data pipeline is more robust, with a clear strategy for both current builds and historical archiving.
 
 **Next Steps:**
 
-With the codebase now optimized, focus can shift to enhancing the user-facing features and content.
-
-1.  **Expand Data Sources:** Integrate additional data sources beyond Hugging Face (e.g., Civitai) to enrich the content.
-2.  **Implement Community Features:** Begin work on the planned user reviews and discussion forum as outlined in the project blueprint.
-3.  **Content Population:** Begin adding more curated tool data and FAQ content.
+1.  **Ad Integration:** With ad slots already in place, the next step is to sign up for an ad network (like Google AdSense), get the ad code snippets, and paste them into the designated slots in the layout files.
+2.  **Update `ads.txt`:** Once approved by an ad network, update the `public/ads.txt` file with the provided authorization line.
+3.  **Implement Community Features:** Begin work on the planned user reviews and discussion forum.

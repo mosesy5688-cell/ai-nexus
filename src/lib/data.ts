@@ -5,6 +5,7 @@ interface Model {
   id: string;
   name: string;
   author?: string;
+  sourcePlatform?: 'Hugging Face' | 'Civitai';
   source: string;
   description?: string;
   task: string;
