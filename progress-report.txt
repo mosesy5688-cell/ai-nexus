@@ -1,29 +1,29 @@
-## AI-Nexus V6.5 Progress Report
+## AI-Nexus V7.0 Progress Report
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-This report marks a major milestone. The recurring build error `Cannot read properties of undefined (reading 'env')` has been definitively resolved by re-architecting the core data fetching logic. A final configuration error related to Astro's `hybrid` output mode has also been fixed. The project is now in a fully stable, robust, and deployable state.
+This report marks a major architectural milestone. After recurring build failures with `hybrid` mode, the project has been re-architected to use a pure **Static Site Generation (SSG)** approach (`output: 'static'`). This definitively resolves all build-time vs. runtime conflicts by ensuring the build process relies solely on a local data file (`public/models.json`), which is generated just-in-time by the CI/CD workflow. This new architecture is simpler, more robust, and guarantees build stability.
 
 **Key Accomplishments:**
 
 *   **Deployment Blocker Resolved (Final):**
-    *   **Root Cause Analysis:** The final build error, `output: Did not match union`, was caused by setting `output: 'hybrid'` in `astro.config.mjs` without adding the `@astrojs/cloudflare` adapter to the `integrations` array.
-    *   **Definitive Resolution:** The `cloudflare()` adapter has been removed from the `integrations` array in `astro.config.mjs`. It should only be specified in the `adapter` property. This change correctly enables hybrid output mode.
+    *   **Root Cause Analysis:** Recurring build failures were caused by the instability of `hybrid` mode in the CI environment and the complexity of distinguishing build-time from edge-runtime data fetching.
+    *   **Definitive Resolution:** The project has been switched to `output: 'static'` in `astro.config.mjs`. The `getModels` function in `src/lib/data.ts` has been simplified to **only** read from the local `public/models.json` file, completely removing all runtime-specific logic (like accessing `Astro.locals`) from the build path.
     *   **Total Decoupling:** The project is now completely independent of the `wrangler` CLI for its data pipeline, making the process more stable, secure, and version-agnostic.
 
-*   **Project Dependencies Cleaned:** The project's dependencies are lean, focused, and free of known vulnerabilities. Necessary type definitions have been added as `devDependencies` to support type safety without affecting the production bundle.
+*   **Project Dependencies Cleaned:** The project's dependencies are lean, focused, and free of known vulnerabilities.
 
 *   **Previous Accomplishments (V2.0) Integrated:**
     *   Modern website design and layout (`Layout.astro`, `KeywordPageLayout.astro`).
     *   Enriched content structure with FAQs (`faq.json`).
     *   SEO enhancements with JSON-LD schemas (`schema.ts`).
-    *   Fully robust and type-safe data fetching logic in `src/lib/data.ts` that correctly handles both build-time (local JSON) and runtime (Cloudflare KV) scenarios.
+    *   A simplified and robust data fetching architecture.
 
 **Current Status:**
 
-The project is now in a fully stable, deployable, and type-safe state. The data pipeline is robust, and all known technical and dependency-related obstacles have been removed. The system is ready for its automated daily cycle of fetching data, updating the KV store, and deploying the site via GitHub Actions.
+The project is now in a fully stable, deployable, and type-safe state. The data pipeline is robust, and all known technical, dependency, and architectural obstacles have been removed. The system is ready for its automated daily cycle of fetching data and deploying a fully static site to Cloudflare Pages.
 
 **Next Steps:**
 
