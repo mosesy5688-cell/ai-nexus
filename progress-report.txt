@@ -1,19 +1,19 @@
-## AI-Nexus V4.5 Progress Report
+## AI-Nexus V4.6 Progress Report
 
 **Date:** 2025-11-08
 
 **Summary:**
 
-This report marks a major milestone. All persistent deployment blockers related to dependencies, build errors, and authentication have been successfully resolved. A final build error, `Cannot read properties of undefined (reading 'env')`, was caused by incorrect environment detection in the data fetching logic. This has been fixed by using `import.meta.env.SSR` to differentiate between build-time and runtime. The CI/CD pipeline is now fully operational and stable.
+This report marks a major milestone. All persistent deployment blockers related to dependencies, build errors, and authentication have been successfully resolved. A final build error, `astro: Permission denied`, was traced to a file permission issue within the CI/CD environment. This has been definitively fixed by adding a step to the workflow to grant execute permissions to the installed node modules. The CI/CD pipeline is now fully operational and stable.
 
 **Key Accomplishments:**
 
 *   **Deployment Blocker Resolved (Final):**
-    *   **Root Cause Analysis:** The final build error was caused by `src/lib/data.ts` attempting to access `Astro.locals.runtime` during the build process, where it is not available.
-    *   **Definitive Resolution:** The data fetching logic in `getModels` has been updated to check `import.meta.env.SSR`. This ensures that during the build, data is always read from the local `public/models.json`, and only at runtime on the edge is Cloudflare KV accessed.
+    *   **Root Cause Analysis:** The final build error, `astro: Permission denied`, was caused by the `astro` executable in `node_modules/.bin` lacking execute permissions within the GitHub Actions runner.
+    *   **Definitive Resolution:** A new step, `chmod +x node_modules/.bin/*`, has been added to the `daily-update.yml` workflow immediately after `npm install`. This ensures all scripts required by npm are executable.
     *   **Total Decoupling:** The project is now completely independent of the `wrangler` CLI for its data pipeline, making the process more stable, secure, and version-agnostic.
 
-*   **Project Dependencies Cleaned:** The project's dependencies are lean, focused, and free of known vulnerabilities. All unnecessary `devDependencies` and configuration files have been removed.
+*   **Project Dependencies Cleaned:** The project's dependencies are lean, focused, and free of known vulnerabilities. All unnecessary `devDependencies` and configuration files (`wrangler.toml`) have been removed.
 
 *   **Previous Accomplishments (V2.0) Integrated:**
     *   Modern website design and layout (`Layout.astro`, `KeywordPageLayout.astro`).
