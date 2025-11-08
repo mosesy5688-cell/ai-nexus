@@ -51,7 +51,7 @@
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border; /* This now correctly refers to the color defined in tailwind.config.mjs */
   }
   body {
     @apply bg-background text-foreground;
