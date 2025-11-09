@@ -48,25 +48,25 @@ export const CORE_KEYWORDS: Keyword[] = [
     slug: 'code-generation',
     title: 'Code Synthesis & Programming Helpers',
     description: 'AI tools for generating code snippets, completing functions, or translating between programming languages (e.g., Code Llama, GitHub Copilot alternatives).',
-    matchTerms: ['code-generation', 'code-completion'],
+    matchTerms: ['code-generation', 'code-completion', 'text-generation'], // Broaden to include general text models
   },
   {
     slug: 'face-swapping',
     title: 'Face Swapping & Deepfakes',
     description: 'Models dedicated to changing faces in images or videos for entertainment or research purposes.',
-    matchTerms: ['face-swapping', 'deepfake'],
+    matchTerms: ['face-swapping', 'deepfake', 'image-to-image'], // Broaden to include image models
   },
   {
     slug: 'machine-translation',
     title: 'Machine Translation',
     description: 'High-quality models for automated language translation between various dialects (e.g., NLLB).',
-    matchTerms: ['translation'],
+    matchTerms: ['translation', 'text2text-generation'],
   },
   {
     slug: 'reinforcement-learning',
     title: 'Reinforcement Learning (RL)',
     description: 'Models focused on training agents to make sequential decisions in dynamic environments (e.g., AlphaZero methods).',
-    matchTerms: ['reinforcement-learning'],
+    matchTerms: ['reinforcement-learning', 'robotics'],
   },
 ];
 
