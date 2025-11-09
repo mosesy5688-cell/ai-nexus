@@ -1,10 +1,10 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import type { Model } from '../lib/data';
-import { CORE_KEYWORDS } from '../content/config';
-import { getModels } from '../lib/data';
-import AdSlot from '../components/AdSlot.astro';
-import ModelCard from '../components/ModelCard.astro';
+import Layout from '../../layouts/Layout.astro';
+import type { Model } from '../../lib/data';
+import { CORE_KEYWORDS } from '../../content/config';
+import { getModels } from '../../lib/data';
+import AdSlot from '../../components/AdSlot.astro';
+import ModelCard from '../../components/ModelCard.astro';
 
 export async function getStaticPaths() {
   // Create a page for every main keyword and every sub-keyword
