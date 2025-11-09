@@ -9,8 +9,7 @@ export default defineConfig({
   integrations: [
     tailwind(), 
     sitemap({
-      // Add all dynamic model pages to the sitemap
-      customPages: models.map(model => `/model/${model.id.replace(/\//g, '--')}`)
+      // This will automatically include all static pages, including the new model detail pages.
     })
   ],
   output: 'static'

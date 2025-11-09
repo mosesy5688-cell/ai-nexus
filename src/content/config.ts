@@ -39,7 +39,7 @@ export const CORE_KEYWORDS: Keyword[] = [
         slug: 'code-generation',
         title: 'Code Synthesis & Programming Helpers',
         description: 'AI tools for generating code snippets, completing functions, or translating between programming languages.',
-        matchTerms: ['code-generation', 'code-completion', 'text-generation'], // Broaden to include general text models
+        matchTerms: ['code-generation', 'code-completion', 'text-generation'],
       },
       {
         slug: 'machine-translation',

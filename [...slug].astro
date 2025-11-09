@@ -1,0 +1,72 @@
+---
+// src/pages/model/[...slug].astro
+import Layout from '../../layouts/Layout.astro';
+import { getModels } from '../../lib/data';
+import AdSlot from '../../components/AdSlot.astro';
+
+export async function getStaticPaths() {
+  const models = await getModels();
+  return models.map(model => ({
+    params: { slug: model.id.replace(/\//g, '--') }, // Use a URL-safe separator
+    props: { model },
+  }));
+}
+
+const { model } = Astro.props;
+---
+
+<Layout title={model.name} description={`Details and source for the AI model: ${model.name}. ${model.description || ''}`}>
+  <main class="container max-w-4xl mx-auto px-4 py-12">
+    <header class="mb-12">
+      <a 
+        href="javascript:history.back()" 
+        class="inline-flex items-center mb-6 text-blue-600 hover:text-blue-500 font-medium transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="m15 18-6-6 6-6"></path></svg>
+        Back to list
+      </a>
+      <h1 class="text-4xl sm:text-5xl font-extrabold text-gray-900 dark:text-gray-100 mb-4">
+        {model.name}
+      </h1>
+      <div class="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+        <span>By {model.author || 'Community'}</span>
+        <span class="text-gray-300 dark:text-gray-600">•</span>
+        <span>Task: <span class="font-medium capitalize">{model.task?.replace(/-/g, ' ') || 'General'}</span></span>
+        <span class="text-gray-300 dark:text-gray-600">•</span>
+        <span>From: {model.sourcePlatform || 'N/A'}</span>
+      </div>
+    </header>
+
+    <div class="prose dark:prose-invert prose-lg max-w-none space-y-8">
+      <section>
+        <h2 class="text-2xl font-bold">Model Description</h2>
+        <p>
+          {model.description || 'No detailed description is available for this model.'}
+        </p>
+      </section>
+
+      <!-- Ad Slot: In-Article -->
+      <AdSlot width={300} height={250} label="Adsense In-Article" />
+
+      <section>
+        <h2 class="text-2xl font-bold">Model Details</h2>
+        <ul class="list-disc pl-6 space-y-2">
+          <li><strong>Likes:</strong> {model.likes.toLocaleString()}</li>
+          <li><strong>Downloads:</strong> {model.downloads.toLocaleString()}</li>
+          <li><strong>Last Updated:</strong> {new Date(model.lastModified).toLocaleDateString()}</li>
+        </ul>
+      </section>
+
+      <section class="text-center pt-8">
+        <a 
+          href={model.source} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          class="inline-block bg-blue-600 text-white text-xl font-semibold py-4 px-10 rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+        >
+          Go to Model Source
+        </a>
+      </section>
+    </div>
+  </main>
+</Layout>

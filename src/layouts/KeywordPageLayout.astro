@@ -1,7 +1,6 @@
 ---
 import Layout from './Layout.astro';
 import type { Model } from '../lib/data';
-import faqs from '../data/faq.json';
 import { generateArticleSchema } from '../lib/schema';
 import AdSlot from '../components/AdSlot.astro';
 import ModelCard from '../components/ModelCard.astro';
@@ -14,7 +13,6 @@ interface Props {
 }
 
 const { title, description, models, keyword } = Astro.props;
-const keywordFaqs = faqs[keyword as keyof typeof faqs] || [];
 const schema = generateArticleSchema(keyword, title, description);
 ---
 
