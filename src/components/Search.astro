@@ -113,7 +113,9 @@ import type { Model } from '../lib/data';
 
     results.forEach(model => {
       const cardClone = template.cloneNode(true) as HTMLElement;
-      cardClone.setAttribute('data-model-id', model.id);
+      // Set the correct href for the link
+      const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
+      cardClone.setAttribute('href', modelUrl);
       
       const titleEl = cardClone.querySelector('h2');
       if (titleEl) titleEl.textContent = model.name;
