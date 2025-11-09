@@ -3,7 +3,7 @@
     "id": "deepseek-ai/DeepSeek-R1",
     "name": "DeepSeek-R1",
     "sourcePlatform": "Hugging Face",
-    "description": "deepseek-ai/DeepSeek-R1",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1",
     "task": "text-generation",
     "tags": [
@@ -28,7 +28,7 @@
     "id": "black-forest-labs/FLUX.1-dev",
     "name": "FLUX.1-dev",
     "sourcePlatform": "Hugging Face",
-    "description": "black-forest-labs/FLUX.1-dev",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/black-forest-labs/FLUX.1-dev",
     "task": "text-to-image",
     "tags": [
@@ -43,14 +43,14 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 11757,
+    "likes": 11758,
     "downloads": 1551361
   },
   {
     "id": "stabilityai/stable-diffusion-xl-base-1.0",
     "name": "stable-diffusion-xl-base-1.0",
     "sourcePlatform": "Hugging Face",
-    "description": "stabilityai/stable-diffusion-xl-base-1.0",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
     "task": "text-to-image",
     "tags": [
@@ -69,14 +69,14 @@
       "diffusers:StableDiffusionXLPipeline",
       "region:us"
     ],
-    "likes": 7109,
+    "likes": 7110,
     "downloads": 2620641
   },
   {
     "id": "CompVis/stable-diffusion-v1-4",
     "name": "stable-diffusion-v1-4",
     "sourcePlatform": "Hugging Face",
-    "description": "CompVis/stable-diffusion-v1-4",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/CompVis/stable-diffusion-v1-4",
     "task": "text-to-image",
     "tags": [
@@ -96,14 +96,14 @@
       "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 6931,
+    "likes": 6932,
     "downloads": 532452
   },
   {
     "id": "meta-llama/Meta-Llama-3-8B",
     "name": "Meta-Llama-3-8B",
     "sourcePlatform": "Hugging Face",
-    "description": "meta-llama/Meta-Llama-3-8B",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/meta-llama/Meta-Llama-3-8B",
     "task": "text-generation",
     "tags": [
@@ -129,7 +129,7 @@
     "id": "hexgrad/Kokoro-82M",
     "name": "Kokoro-82M",
     "sourcePlatform": "Hugging Face",
-    "description": "hexgrad/Kokoro-82M",
+    "description": "A model for text-to-speech.",
     "source": "https://huggingface.co/hexgrad/Kokoro-82M",
     "task": "text-to-speech",
     "tags": [
@@ -150,7 +150,7 @@
     "id": "openai/whisper-large-v3",
     "name": "whisper-large-v3",
     "sourcePlatform": "Hugging Face",
-    "description": "openai/whisper-large-v3",
+    "description": "A model for automatic-speech-recognition.",
     "source": "https://huggingface.co/openai/whisper-large-v3",
     "task": "automatic-speech-recognition",
     "tags": [
@@ -266,14 +266,14 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 5073,
+    "likes": 5074,
     "downloads": 4006061
   },
   {
     "id": "bigscience/bloom",
     "name": "bloom",
     "sourcePlatform": "Hugging Face",
-    "description": "bigscience/bloom",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/bigscience/bloom",
     "task": "text-generation",
     "tags": [
@@ -349,7 +349,7 @@
     "id": "meta-llama/Llama-3.1-8B-Instruct",
     "name": "Llama-3.1-8B-Instruct",
     "sourcePlatform": "Hugging Face",
-    "description": "meta-llama/Llama-3.1-8B-Instruct",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct",
     "task": "text-generation",
     "tags": [
@@ -379,14 +379,14 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 4888,
+    "likes": 4889,
     "downloads": 4977717
   },
   {
     "id": "stabilityai/stable-diffusion-3-medium",
     "name": "stable-diffusion-3-medium",
     "sourcePlatform": "Hugging Face",
-    "description": "stabilityai/stable-diffusion-3-medium",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/stabilityai/stable-diffusion-3-medium",
     "task": "text-to-image",
     "tags": [
@@ -405,7 +405,7 @@
     "id": "meta-llama/Llama-2-7b-chat-hf",
     "name": "Llama-2-7b-chat-hf",
     "sourcePlatform": "Hugging Face",
-    "description": "meta-llama/Llama-2-7b-chat-hf",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/meta-llama/Llama-2-7b-chat-hf",
     "task": "text-generation",
     "tags": [
@@ -433,7 +433,7 @@
     "id": "mistralai/Mixtral-8x7B-Instruct-v0.1",
     "name": "Mixtral-8x7B-Instruct-v0.1",
     "sourcePlatform": "Hugging Face",
-    "description": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+    "description": "A model for various tasks.",
     "source": "https://huggingface.co/mistralai/Mixtral-8x7B-Instruct-v0.1",
     "task": "N/A",
     "tags": [
@@ -457,7 +457,7 @@
     "id": "meta-llama/Llama-2-7b",
     "name": "Llama-2-7b",
     "sourcePlatform": "Hugging Face",
-    "description": "meta-llama/Llama-2-7b",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/meta-llama/Llama-2-7b",
     "task": "text-generation",
     "tags": [
@@ -479,7 +479,7 @@
     "id": "black-forest-labs/FLUX.1-schnell",
     "name": "FLUX.1-schnell",
     "sourcePlatform": "Hugging Face",
-    "description": "black-forest-labs/FLUX.1-schnell",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/black-forest-labs/FLUX.1-schnell",
     "task": "text-to-image",
     "tags": [
@@ -494,14 +494,14 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 4376,
+    "likes": 4377,
     "downloads": 907556
   },
   {
     "id": "meta-llama/Meta-Llama-3-8B-Instruct",
     "name": "Meta-Llama-3-8B-Instruct",
     "sourcePlatform": "Hugging Face",
-    "description": "meta-llama/Meta-Llama-3-8B-Instruct",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct",
     "task": "text-generation",
     "tags": [
@@ -528,7 +528,7 @@
     "id": "openai/gpt-oss-120b",
     "name": "gpt-oss-120b",
     "sourcePlatform": "Hugging Face",
-    "description": "openai/gpt-oss-120b",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/openai/gpt-oss-120b",
     "task": "text-generation",
     "tags": [
@@ -553,7 +553,7 @@
     "id": "sentence-transformers/all-MiniLM-L6-v2",
     "name": "all-MiniLM-L6-v2",
     "sourcePlatform": "Hugging Face",
-    "description": "sentence-transformers/all-MiniLM-L6-v2",
+    "description": "A model for sentence-similarity.",
     "source": "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
     "task": "sentence-similarity",
     "tags": [
@@ -601,14 +601,14 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 4089,
+    "likes": 4090,
     "downloads": 136985262
   },
   {
     "id": "stabilityai/stable-diffusion-2-1",
     "name": "stable-diffusion-2-1",
     "sourcePlatform": "Hugging Face",
-    "description": "stabilityai/stable-diffusion-2-1",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/stabilityai/stable-diffusion-2-1",
     "task": "text-to-image",
     "tags": [
@@ -632,7 +632,7 @@
     "id": "mistralai/Mistral-7B-v0.1",
     "name": "Mistral-7B-v0.1",
     "sourcePlatform": "Hugging Face",
-    "description": "mistralai/Mistral-7B-v0.1",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
     "task": "text-generation",
     "tags": [
@@ -657,7 +657,7 @@
     "id": "deepseek-ai/DeepSeek-V3",
     "name": "DeepSeek-V3",
     "sourcePlatform": "Hugging Face",
-    "description": "deepseek-ai/DeepSeek-V3",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/deepseek-ai/DeepSeek-V3",
     "task": "text-generation",
     "tags": [
@@ -681,7 +681,7 @@
     "id": "lllyasviel/ControlNet-v1-1",
     "name": "ControlNet-v1-1",
     "sourcePlatform": "Hugging Face",
-    "description": "lllyasviel/ControlNet-v1-1",
+    "description": "A model for various tasks.",
     "source": "https://huggingface.co/lllyasviel/ControlNet-v1-1",
     "task": "N/A",
     "tags": [
@@ -695,7 +695,7 @@
     "id": "WarriorMama777/OrangeMixs",
     "name": "OrangeMixs",
     "sourcePlatform": "Hugging Face",
-    "description": "WarriorMama777/OrangeMixs",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/WarriorMama777/OrangeMixs",
     "task": "text-to-image",
     "tags": [
@@ -716,7 +716,7 @@
     "id": "openai/gpt-oss-20b",
     "name": "gpt-oss-20b",
     "sourcePlatform": "Hugging Face",
-    "description": "openai/gpt-oss-20b",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/openai/gpt-oss-20b",
     "task": "text-generation",
     "tags": [
@@ -741,7 +741,7 @@
     "id": "lllyasviel/ControlNet",
     "name": "ControlNet",
     "sourcePlatform": "Hugging Face",
-    "description": "lllyasviel/ControlNet",
+    "description": "A model for various tasks.",
     "source": "https://huggingface.co/lllyasviel/ControlNet",
     "task": "N/A",
     "tags": [
@@ -755,7 +755,7 @@
     "id": "deepseek-ai/Janus-Pro-7B",
     "name": "Janus-Pro-7B",
     "sourcePlatform": "Hugging Face",
-    "description": "deepseek-ai/Janus-Pro-7B",
+    "description": "A model for any-to-any.",
     "source": "https://huggingface.co/deepseek-ai/Janus-Pro-7B",
     "task": "any-to-any",
     "tags": [
@@ -778,7 +778,7 @@
     "id": "microsoft/phi-2",
     "name": "phi-2",
     "sourcePlatform": "Hugging Face",
-    "description": "microsoft/phi-2",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/microsoft/phi-2",
     "task": "text-generation",
     "tags": [
@@ -802,7 +802,7 @@
     "id": "google/gemma-7b",
     "name": "gemma-7b",
     "sourcePlatform": "Hugging Face",
-    "description": "google/gemma-7b",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/google/gemma-7b",
     "task": "text-generation",
     "tags": [
@@ -848,7 +848,7 @@
     "id": "stabilityai/stable-diffusion-3.5-large",
     "name": "stable-diffusion-3.5-large",
     "sourcePlatform": "Hugging Face",
-    "description": "stabilityai/stable-diffusion-3.5-large",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/stabilityai/stable-diffusion-3.5-large",
     "task": "text-to-image",
     "tags": [
@@ -862,14 +862,14 @@
       "diffusers:StableDiffusion3Pipeline",
       "region:us"
     ],
-    "likes": 3202,
+    "likes": 3203,
     "downloads": 218584
   },
   {
     "id": "stabilityai/stable-video-diffusion-img2vid-xt",
     "name": "stable-video-diffusion-img2vid-xt",
     "sourcePlatform": "Hugging Face",
-    "description": "stabilityai/stable-video-diffusion-img2vid-xt",
+    "description": "A model for image-to-video.",
     "source": "https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt",
     "task": "image-to-video",
     "tags": [
@@ -887,7 +887,7 @@
     "id": "prompthero/openjourney",
     "name": "openjourney",
     "sourcePlatform": "Hugging Face",
-    "description": "prompthero/openjourney",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/prompthero/openjourney",
     "task": "text-to-image",
     "tags": [
@@ -909,7 +909,7 @@
     "id": "coqui/XTTS-v2",
     "name": "XTTS-v2",
     "sourcePlatform": "Hugging Face",
-    "description": "coqui/XTTS-v2",
+    "description": "A model for text-to-speech.",
     "source": "https://huggingface.co/coqui/XTTS-v2",
     "task": "text-to-speech",
     "tags": [
@@ -925,7 +925,7 @@
     "id": "deepseek-ai/DeepSeek-V3-0324",
     "name": "DeepSeek-V3-0324",
     "sourcePlatform": "Hugging Face",
-    "description": "deepseek-ai/DeepSeek-V3-0324",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/deepseek-ai/DeepSeek-V3-0324",
     "task": "text-generation",
     "tags": [
@@ -950,7 +950,7 @@
     "id": "openai-community/gpt2",
     "name": "gpt2",
     "sourcePlatform": "Hugging Face",
-    "description": "openai-community/gpt2",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/openai-community/gpt2",
     "task": "text-generation",
     "tags": [
@@ -980,7 +980,7 @@
     "id": "mistralai/Mistral-7B-Instruct-v0.2",
     "name": "Mistral-7B-Instruct-v0.2",
     "sourcePlatform": "Hugging Face",
-    "description": "mistralai/Mistral-7B-Instruct-v0.2",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2",
     "task": "text-generation",
     "tags": [
@@ -1005,7 +1005,7 @@
     "id": "bigcode/starcoder",
     "name": "starcoder",
     "sourcePlatform": "Hugging Face",
-    "description": "bigcode/starcoder",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/bigcode/starcoder",
     "task": "text-generation",
     "tags": [
@@ -1034,7 +1034,7 @@
     "id": "zai-org/chatglm-6b",
     "name": "chatglm-6b",
     "sourcePlatform": "Hugging Face",
-    "description": "zai-org/chatglm-6b",
+    "description": "A model for various tasks.",
     "source": "https://huggingface.co/zai-org/chatglm-6b",
     "task": "N/A",
     "tags": [
@@ -1059,7 +1059,7 @@
     "id": "Qwen/QwQ-32B",
     "name": "QwQ-32B",
     "sourcePlatform": "Hugging Face",
-    "description": "Qwen/QwQ-32B",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/Qwen/QwQ-32B",
     "task": "text-generation",
     "tags": [
@@ -1087,7 +1087,7 @@
     "id": "CompVis/stable-diffusion-v-1-4-original",
     "name": "stable-diffusion-v-1-4-original",
     "sourcePlatform": "Hugging Face",
-    "description": "CompVis/stable-diffusion-v-1-4-original",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/CompVis/stable-diffusion-v-1-4-original",
     "task": "text-to-image",
     "tags": [
@@ -1108,7 +1108,7 @@
     "id": "nari-labs/Dia-1.6B",
     "name": "Dia-1.6B",
     "sourcePlatform": "Hugging Face",
-    "description": "nari-labs/Dia-1.6B",
+    "description": "A model for text-to-speech.",
     "source": "https://huggingface.co/nari-labs/Dia-1.6B",
     "task": "text-to-speech",
     "tags": [
@@ -1128,7 +1128,7 @@
     "id": "openai/whisper-large-v3-turbo",
     "name": "whisper-large-v3-turbo",
     "sourcePlatform": "Hugging Face",
-    "description": "openai/whisper-large-v3-turbo",
+    "description": "A model for automatic-speech-recognition.",
     "source": "https://huggingface.co/openai/whisper-large-v3-turbo",
     "task": "automatic-speech-recognition",
     "tags": [
@@ -1250,7 +1250,7 @@
     "id": "deepseek-ai/DeepSeek-OCR",
     "name": "DeepSeek-OCR",
     "sourcePlatform": "Hugging Face",
-    "description": "deepseek-ai/DeepSeek-OCR",
+    "description": "A model for image-text-to-text.",
     "source": "https://huggingface.co/deepseek-ai/DeepSeek-OCR",
     "task": "image-text-to-text",
     "tags": [
@@ -1269,14 +1269,14 @@
       "license:mit",
       "region:us"
     ],
-    "likes": 2557,
+    "likes": 2560,
     "downloads": 3003594
   },
   {
     "id": "meta-llama/Llama-3.3-70B-Instruct",
     "name": "Llama-3.3-70B-Instruct",
     "sourcePlatform": "Hugging Face",
-    "description": "meta-llama/Llama-3.3-70B-Instruct",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct",
     "task": "text-generation",
     "tags": [
@@ -1306,14 +1306,14 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2554,
+    "likes": 2555,
     "downloads": 676951
   },
   {
     "id": "stabilityai/sdxl-turbo",
     "name": "sdxl-turbo",
     "sourcePlatform": "Hugging Face",
-    "description": "stabilityai/sdxl-turbo",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/stabilityai/sdxl-turbo",
     "task": "text-to-image",
     "tags": [
@@ -1333,7 +1333,7 @@
     "id": "BAAI/bge-m3",
     "name": "bge-m3",
     "sourcePlatform": "Hugging Face",
-    "description": "BAAI/bge-m3",
+    "description": "A model for sentence-similarity.",
     "source": "https://huggingface.co/BAAI/bge-m3",
     "task": "sentence-similarity",
     "tags": [
@@ -1361,7 +1361,7 @@
     "id": "google-bert/bert-base-uncased",
     "name": "bert-base-uncased",
     "sourcePlatform": "Hugging Face",
-    "description": "google-bert/bert-base-uncased",
+    "description": "A model for fill-mask.",
     "source": "https://huggingface.co/google-bert/bert-base-uncased",
     "task": "fill-mask",
     "tags": [
@@ -1392,7 +1392,7 @@
     "id": "hakurei/waifu-diffusion",
     "name": "waifu-diffusion",
     "sourcePlatform": "Hugging Face",
-    "description": "hakurei/waifu-diffusion",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/hakurei/waifu-diffusion",
     "task": "text-to-image",
     "tags": [
@@ -1414,7 +1414,7 @@
     "id": "tiiuae/falcon-40b",
     "name": "falcon-40b",
     "sourcePlatform": "Hugging Face",
-    "description": "tiiuae/falcon-40b",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/tiiuae/falcon-40b",
     "task": "text-generation",
     "tags": [
@@ -1447,7 +1447,7 @@
     "id": "black-forest-labs/FLUX.1-Kontext-dev",
     "name": "FLUX.1-Kontext-dev",
     "sourcePlatform": "Hugging Face",
-    "description": "black-forest-labs/FLUX.1-Kontext-dev",
+    "description": "A model for image-to-image.",
     "source": "https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev",
     "task": "image-to-image",
     "tags": [
@@ -1470,7 +1470,7 @@
     "id": "deepseek-ai/DeepSeek-R1-0528",
     "name": "DeepSeek-R1-0528",
     "sourcePlatform": "Hugging Face",
-    "description": "deepseek-ai/DeepSeek-R1-0528",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528",
     "task": "text-generation",
     "tags": [
@@ -1495,7 +1495,7 @@
     "id": "xai-org/grok-1",
     "name": "grok-1",
     "sourcePlatform": "Hugging Face",
-    "description": "xai-org/grok-1",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/xai-org/grok-1",
     "task": "text-generation",
     "tags": [
@@ -1512,7 +1512,7 @@
     "id": "perplexity-ai/r1-1776",
     "name": "r1-1776",
     "sourcePlatform": "Hugging Face",
-    "description": "perplexity-ai/r1-1776",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/perplexity-ai/r1-1776",
     "task": "text-generation",
     "tags": [
@@ -1537,7 +1537,7 @@
     "id": "sesame/csm-1b",
     "name": "csm-1b",
     "sourcePlatform": "Hugging Face",
-    "description": "sesame/csm-1b",
+    "description": "A model for text-to-speech.",
     "source": "https://huggingface.co/sesame/csm-1b",
     "task": "text-to-speech",
     "tags": [
@@ -1558,7 +1558,7 @@
     "id": "mistralai/Mistral-7B-Instruct-v0.3",
     "name": "Mistral-7B-Instruct-v0.3",
     "sourcePlatform": "Hugging Face",
-    "description": "mistralai/Mistral-7B-Instruct-v0.3",
+    "description": "A model for various tasks.",
     "source": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3",
     "task": "N/A",
     "tags": [
@@ -1578,7 +1578,7 @@
     "id": "moonshotai/Kimi-K2-Instruct",
     "name": "Kimi-K2-Instruct",
     "sourcePlatform": "Hugging Face",
-    "description": "moonshotai/Kimi-K2-Instruct",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/moonshotai/Kimi-K2-Instruct",
     "task": "text-generation",
     "tags": [
@@ -1595,14 +1595,14 @@
       "fp8",
       "region:us"
     ],
-    "likes": 2223,
+    "likes": 2224,
     "downloads": 81289
   },
   {
     "id": "meta-llama/Llama-2-70b-chat-hf",
     "name": "Llama-2-70b-chat-hf",
     "sourcePlatform": "Hugging Face",
-    "description": "meta-llama/Llama-2-70b-chat-hf",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/meta-llama/Llama-2-70b-chat-hf",
     "task": "text-generation",
     "tags": [
@@ -1630,7 +1630,7 @@
     "id": "meta-llama/Llama-2-7b-hf",
     "name": "Llama-2-7b-hf",
     "sourcePlatform": "Hugging Face",
-    "description": "meta-llama/Llama-2-7b-hf",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/meta-llama/Llama-2-7b-hf",
     "task": "text-generation",
     "tags": [
@@ -1657,7 +1657,7 @@
     "id": "microsoft/phi-4",
     "name": "phi-4",
     "sourcePlatform": "Hugging Face",
-    "description": "microsoft/phi-4",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/microsoft/phi-4",
     "task": "text-generation",
     "tags": [
@@ -1686,7 +1686,7 @@
     "id": "Qwen/Qwen-Image",
     "name": "Qwen-Image",
     "sourcePlatform": "Hugging Face",
-    "description": "Qwen/Qwen-Image",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/Qwen/Qwen-Image",
     "task": "text-to-image",
     "tags": [
@@ -1707,7 +1707,7 @@
     "id": "meta-llama/Llama-3.2-1B",
     "name": "Llama-3.2-1B",
     "sourcePlatform": "Hugging Face",
-    "description": "meta-llama/Llama-3.2-1B",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/meta-llama/Llama-3.2-1B",
     "task": "text-generation",
     "tags": [
@@ -1742,7 +1742,7 @@
     "id": "ByteDance/SDXL-Lightning",
     "name": "SDXL-Lightning",
     "sourcePlatform": "Hugging Face",
-    "description": "ByteDance/SDXL-Lightning",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/ByteDance/SDXL-Lightning",
     "task": "text-to-image",
     "tags": [
@@ -1760,7 +1760,7 @@
     "id": "Qwen/Qwen-Image-Edit",
     "name": "Qwen-Image-Edit",
     "sourcePlatform": "Hugging Face",
-    "description": "Qwen/Qwen-Image-Edit",
+    "description": "A model for image-to-image.",
     "source": "https://huggingface.co/Qwen/Qwen-Image-Edit",
     "task": "image-to-image",
     "tags": [
@@ -1781,7 +1781,7 @@
     "id": "tencent/HunyuanVideo",
     "name": "HunyuanVideo",
     "sourcePlatform": "Hugging Face",
-    "description": "tencent/HunyuanVideo",
+    "description": "A model for text-to-video.",
     "source": "https://huggingface.co/tencent/HunyuanVideo",
     "task": "text-to-video",
     "tags": [
@@ -1798,7 +1798,7 @@
     "id": "lllyasviel/sd_control_collection",
     "name": "sd_control_collection",
     "sourcePlatform": "Hugging Face",
-    "description": "lllyasviel/sd_control_collection",
+    "description": "A model for various tasks.",
     "source": "https://huggingface.co/lllyasviel/sd_control_collection",
     "task": "N/A",
     "tags": [
@@ -1811,7 +1811,7 @@
     "id": "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
     "name": "Llama-3.1-Nemotron-70B-Instruct-HF",
     "sourcePlatform": "Hugging Face",
-    "description": "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
     "task": "text-generation",
     "tags": [
@@ -1841,7 +1841,7 @@
     "id": "zai-org/chatglm2-6b",
     "name": "chatglm2-6b",
     "sourcePlatform": "Hugging Face",
-    "description": "zai-org/chatglm2-6b",
+    "description": "A model for various tasks.",
     "source": "https://huggingface.co/zai-org/chatglm2-6b",
     "task": "N/A",
     "tags": [
@@ -1867,7 +1867,7 @@
     "id": "Lightricks/LTX-Video",
     "name": "LTX-Video",
     "sourcePlatform": "Hugging Face",
-    "description": "Lightricks/LTX-Video",
+    "description": "A model for image-to-video.",
     "source": "https://huggingface.co/Lightricks/LTX-Video",
     "task": "image-to-video",
     "tags": [
@@ -1887,7 +1887,7 @@
     "id": "stabilityai/stable-diffusion-xl-refiner-1.0",
     "name": "stable-diffusion-xl-refiner-1.0",
     "sourcePlatform": "Hugging Face",
-    "description": "stabilityai/stable-diffusion-xl-refiner-1.0",
+    "description": "A model for image-to-image.",
     "source": "https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0",
     "task": "image-to-image",
     "tags": [
@@ -1910,7 +1910,7 @@
     "id": "databricks/dolly-v2-12b",
     "name": "dolly-v2-12b",
     "sourcePlatform": "Hugging Face",
-    "description": "databricks/dolly-v2-12b",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/databricks/dolly-v2-12b",
     "task": "text-generation",
     "tags": [
@@ -1932,7 +1932,7 @@
     "id": "microsoft/VibeVoice-1.5B",
     "name": "VibeVoice-1.5B",
     "sourcePlatform": "Hugging Face",
-    "description": "microsoft/VibeVoice-1.5B",
+    "description": "A model for text-to-speech.",
     "source": "https://huggingface.co/microsoft/VibeVoice-1.5B",
     "task": "text-to-speech",
     "tags": [
@@ -1951,14 +1951,14 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1953,
+    "likes": 1954,
     "downloads": 184870
   },
   {
     "id": "Qwen/Qwen2.5-Coder-32B-Instruct",
     "name": "Qwen2.5-Coder-32B-Instruct",
     "sourcePlatform": "Hugging Face",
-    "description": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/Qwen/Qwen2.5-Coder-32B-Instruct",
     "task": "text-generation",
     "tags": [
@@ -1984,14 +1984,14 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1946,
+    "likes": 1947,
     "downloads": 110623
   },
   {
     "id": "stabilityai/stable-diffusion-2",
     "name": "stable-diffusion-2",
     "sourcePlatform": "Hugging Face",
-    "description": "stabilityai/stable-diffusion-2",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/stabilityai/stable-diffusion-2",
     "task": "text-to-image",
     "tags": [
@@ -2015,7 +2015,7 @@
     "id": "meta-llama/Llama-3.1-8B",
     "name": "Llama-3.1-8B",
     "sourcePlatform": "Hugging Face",
-    "description": "meta-llama/Llama-3.1-8B",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/meta-llama/Llama-3.1-8B",
     "task": "text-generation",
     "tags": [
@@ -2049,7 +2049,7 @@
     "id": "openai/clip-vit-large-patch14",
     "name": "clip-vit-large-patch14",
     "sourcePlatform": "Hugging Face",
-    "description": "openai/clip-vit-large-patch14",
+    "description": "A model for zero-shot-image-classification.",
     "source": "https://huggingface.co/openai/clip-vit-large-patch14",
     "task": "zero-shot-image-classification",
     "tags": [
@@ -2073,7 +2073,7 @@
     "id": "briaai/RMBG-1.4",
     "name": "RMBG-1.4",
     "sourcePlatform": "Hugging Face",
-    "description": "briaai/RMBG-1.4",
+    "description": "A model for image-segmentation.",
     "source": "https://huggingface.co/briaai/RMBG-1.4",
     "task": "image-segmentation",
     "tags": [
@@ -2101,7 +2101,7 @@
     "id": "Qwen/Qwen2.5-Omni-7B",
     "name": "Qwen2.5-Omni-7B",
     "sourcePlatform": "Hugging Face",
-    "description": "Qwen/Qwen2.5-Omni-7B",
+    "description": "A model for any-to-any.",
     "source": "https://huggingface.co/Qwen/Qwen2.5-Omni-7B",
     "task": "any-to-any",
     "tags": [
@@ -2123,7 +2123,7 @@
     "id": "mistralai/Mistral-7B-Instruct-v0.1",
     "name": "Mistral-7B-Instruct-v0.1",
     "sourcePlatform": "Hugging Face",
-    "description": "mistralai/Mistral-7B-Instruct-v0.1",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1",
     "task": "text-generation",
     "tags": [
@@ -2150,7 +2150,7 @@
     "id": "HuggingFaceH4/zephyr-7b-beta",
     "name": "zephyr-7b-beta",
     "sourcePlatform": "Hugging Face",
-    "description": "HuggingFaceH4/zephyr-7b-beta",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/HuggingFaceH4/zephyr-7b-beta",
     "task": "text-generation",
     "tags": [
@@ -2184,7 +2184,7 @@
     "id": "meta-llama/Llama-3.2-3B-Instruct",
     "name": "Llama-3.2-3B-Instruct",
     "sourcePlatform": "Hugging Face",
-    "description": "meta-llama/Llama-3.2-3B-Instruct",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct",
     "task": "text-generation",
     "tags": [
@@ -2213,14 +2213,14 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1795,
+    "likes": 1796,
     "downloads": 1812318
   },
   {
     "id": "h94/IP-Adapter-FaceID",
     "name": "IP-Adapter-FaceID",
     "sourcePlatform": "Hugging Face",
-    "description": "h94/IP-Adapter-FaceID",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/h94/IP-Adapter-FaceID",
     "task": "text-to-image",
     "tags": [
@@ -2238,7 +2238,7 @@
     "id": "openai/whisper-large-v2",
     "name": "whisper-large-v2",
     "sourcePlatform": "Hugging Face",
-    "description": "openai/whisper-large-v2",
+    "description": "A model for automatic-speech-recognition.",
     "source": "https://huggingface.co/openai/whisper-large-v2",
     "task": "automatic-speech-recognition",
     "tags": [
@@ -2362,7 +2362,7 @@
     "id": "mistralai/Mixtral-8x7B-v0.1",
     "name": "Mixtral-8x7B-v0.1",
     "sourcePlatform": "Hugging Face",
-    "description": "mistralai/Mixtral-8x7B-v0.1",
+    "description": "A model for various tasks.",
     "source": "https://huggingface.co/mistralai/Mixtral-8x7B-v0.1",
     "task": "N/A",
     "tags": [
@@ -2386,7 +2386,7 @@
     "id": "CohereLabs/c4ai-command-r-plus",
     "name": "c4ai-command-r-plus",
     "sourcePlatform": "Hugging Face",
-    "description": "CohereLabs/c4ai-command-r-plus",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/CohereLabs/c4ai-command-r-plus",
     "task": "text-generation",
     "tags": [
@@ -2418,7 +2418,7 @@
     "id": "Qwen/QwQ-32B-Preview",
     "name": "QwQ-32B-Preview",
     "sourcePlatform": "Hugging Face",
-    "description": "Qwen/QwQ-32B-Preview",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/Qwen/QwQ-32B-Preview",
     "task": "text-generation",
     "tags": [
@@ -2445,7 +2445,7 @@
     "id": "dreamlike-art/dreamlike-photoreal-2.0",
     "name": "dreamlike-photoreal-2.0",
     "sourcePlatform": "Hugging Face",
-    "description": "dreamlike-art/dreamlike-photoreal-2.0",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/dreamlike-art/dreamlike-photoreal-2.0",
     "task": "text-to-image",
     "tags": [
@@ -2469,7 +2469,7 @@
     "id": "mattshumer/Reflection-Llama-3.1-70B",
     "name": "Reflection-Llama-3.1-70B",
     "sourcePlatform": "Hugging Face",
-    "description": "mattshumer/Reflection-Llama-3.1-70B",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/mattshumer/Reflection-Llama-3.1-70B",
     "task": "text-generation",
     "tags": [
@@ -2493,7 +2493,7 @@
     "id": "microsoft/Florence-2-large",
     "name": "Florence-2-large",
     "sourcePlatform": "Hugging Face",
-    "description": "microsoft/Florence-2-large",
+    "description": "A model for image-text-to-text.",
     "source": "https://huggingface.co/microsoft/Florence-2-large",
     "task": "image-text-to-text",
     "tags": [
@@ -2516,7 +2516,7 @@
     "id": "microsoft/OmniParser",
     "name": "OmniParser",
     "sourcePlatform": "Hugging Face",
-    "description": "microsoft/OmniParser",
+    "description": "A model for image-text-to-text.",
     "source": "https://huggingface.co/microsoft/OmniParser",
     "task": "image-text-to-text",
     "tags": [
@@ -2530,14 +2530,14 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1695,
+    "likes": 1696,
     "downloads": 292
   },
   {
     "id": "Kijai/WanVideo_comfy",
     "name": "WanVideo_comfy",
     "sourcePlatform": "Hugging Face",
-    "description": "Kijai/WanVideo_comfy",
+    "description": "A model for various tasks.",
     "source": "https://huggingface.co/Kijai/WanVideo_comfy",
     "task": "N/A",
     "tags": [
@@ -2554,7 +2554,7 @@
     "id": "microsoft/Phi-3-mini-128k-instruct",
     "name": "Phi-3-mini-128k-instruct",
     "sourcePlatform": "Hugging Face",
-    "description": "microsoft/Phi-3-mini-128k-instruct",
+    "description": "A model for text-generation.",
     "source": "https://huggingface.co/microsoft/Phi-3-mini-128k-instruct",
     "task": "text-generation",
     "tags": [
@@ -2580,7 +2580,7 @@
     "id": "deepseek-ai/DeepSeek-V3-Base",
     "name": "DeepSeek-V3-Base",
     "sourcePlatform": "Hugging Face",
-    "description": "deepseek-ai/DeepSeek-V3-Base",
+    "description": "A model for various tasks.",
     "source": "https://huggingface.co/deepseek-ai/DeepSeek-V3-Base",
     "task": "N/A",
     "tags": [
@@ -2598,7 +2598,7 @@
     "id": "google/gemma-3-27b-it",
     "name": "gemma-3-27b-it",
     "sourcePlatform": "Hugging Face",
-    "description": "google/gemma-3-27b-it",
+    "description": "A model for image-text-to-text.",
     "source": "https://huggingface.co/google/gemma-3-27b-it",
     "task": "image-text-to-text",
     "tags": [
@@ -2649,7 +2649,7 @@
     "id": "tencent/Hunyuan3D-2",
     "name": "Hunyuan3D-2",
     "sourcePlatform": "Hugging Face",
-    "description": "tencent/Hunyuan3D-2",
+    "description": "A model for image-to-3d.",
     "source": "https://huggingface.co/tencent/Hunyuan3D-2",
     "task": "image-to-3d",
     "tags": [
@@ -2672,7 +2672,7 @@
     "id": "mistralai/Mistral-Nemo-Instruct-2407",
     "name": "Mistral-Nemo-Instruct-2407",
     "sourcePlatform": "Hugging Face",
-    "description": "mistralai/Mistral-Nemo-Instruct-2407",
+    "description": "A model for various tasks.",
     "source": "https://huggingface.co/mistralai/Mistral-Nemo-Instruct-2407",
     "task": "N/A",
     "tags": [
@@ -2701,7 +2701,7 @@
     "id": "2Noise/ChatTTS",
     "name": "ChatTTS",
     "sourcePlatform": "Hugging Face",
-    "description": "2Noise/ChatTTS",
+    "description": "A model for text-to-audio.",
     "source": "https://huggingface.co/2Noise/ChatTTS",
     "task": "text-to-audio",
     "tags": [
@@ -2718,7 +2718,7 @@
     "id": "xinsir/controlnet-union-sdxl-1.0",
     "name": "controlnet-union-sdxl-1.0",
     "sourcePlatform": "Hugging Face",
-    "description": "xinsir/controlnet-union-sdxl-1.0",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/xinsir/controlnet-union-sdxl-1.0",
     "task": "text-to-image",
     "tags": [
@@ -2739,7 +2739,7 @@
     "id": "docling-project/SmolDocling-256M-preview",
     "name": "SmolDocling-256M-preview",
     "sourcePlatform": "Hugging Face",
-    "description": "docling-project/SmolDocling-256M-preview",
+    "description": "A model for image-text-to-text.",
     "source": "https://huggingface.co/docling-project/SmolDocling-256M-preview",
     "task": "image-text-to-text",
     "tags": [
@@ -2770,7 +2770,7 @@
     "id": "gsdf/Counterfeit-V2.5",
     "name": "Counterfeit-V2.5",
     "sourcePlatform": "Hugging Face",
-    "description": "gsdf/Counterfeit-V2.5",
+    "description": "A model for text-to-image.",
     "source": "https://huggingface.co/gsdf/Counterfeit-V2.5",
     "task": "text-to-image",
     "tags": [
@@ -2792,7 +2792,7 @@
     "id": "nanonets/Nanonets-OCR-s",
     "name": "Nanonets-OCR-s",
     "sourcePlatform": "Hugging Face",
-    "description": "nanonets/Nanonets-OCR-s",
+    "description": "A model for image-text-to-text.",
     "source": "https://huggingface.co/nanonets/Nanonets-OCR-s",
     "task": "image-text-to-text",
     "tags": [
@@ -2818,7 +2818,7 @@
     "id": "meta-llama/Llama-3.2-11B-Vision-Instruct",
     "name": "Llama-3.2-11B-Vision-Instruct",
     "sourcePlatform": "Hugging Face",
-    "description": "meta-llama/Llama-3.2-11B-Vision-Instruct",
+    "description": "A model for image-text-to-text.",
     "source": "https://huggingface.co/meta-llama/Llama-3.2-11B-Vision-Instruct",
     "task": "image-text-to-text",
     "tags": [
@@ -2854,7 +2854,7 @@
     "id": "microsoft/Phi-4-multimodal-instruct",
     "name": "Phi-4-multimodal-instruct",
     "sourcePlatform": "Hugging Face",
-    "description": "microsoft/Phi-4-multimodal-instruct",
+    "description": "A model for automatic-speech-recognition.",
     "source": "https://huggingface.co/microsoft/Phi-4-multimodal-instruct",
     "task": "automatic-speech-recognition",
     "tags": [
@@ -2922,7 +2922,7 @@
     ],
     "likes": 0,
     "downloads": 0,
-    "lastModified": "2025-11-09T11:42:38.400Z"
+    "lastModified": "2025-11-09T14:56:14.920Z"
   },
   {
     "id": "civitai-dreamshaper",
@@ -2956,7 +2956,7 @@
     ],
     "likes": 0,
     "downloads": 0,
-    "lastModified": "2025-11-09T11:42:38.406Z"
+    "lastModified": "2025-11-09T14:56:14.924Z"
   },
   {
     "id": "civitai-realistic-vision-v6.0-b1",
@@ -2976,7 +2976,7 @@
     ],
     "likes": 0,
     "downloads": 0,
-    "lastModified": "2025-11-09T11:42:38.412Z"
+    "lastModified": "2025-11-09T14:56:14.931Z"
   },
   {
     "id": "civitai-easynegative",
@@ -2996,7 +2996,7 @@
     ],
     "likes": 0,
     "downloads": 0,
-    "lastModified": "2025-11-09T11:42:38.413Z"
+    "lastModified": "2025-11-09T14:56:14.931Z"
   },
   {
     "id": "civitai-counterfeit-v3.0",
@@ -3012,7 +3012,7 @@
     ],
     "likes": 0,
     "downloads": 0,
-    "lastModified": "2025-11-09T11:42:38.413Z"
+    "lastModified": "2025-11-09T14:56:14.932Z"
   },
   {
     "id": "civitai-rev-animated",
@@ -3032,7 +3032,7 @@
     ],
     "likes": 0,
     "downloads": 0,
-    "lastModified": "2025-11-09T11:42:38.417Z"
+    "lastModified": "2025-11-09T14:56:14.934Z"
   },
   {
     "id": "civitai-detail-tweaker-xl",
@@ -3051,6 +3051,6 @@
     ],
     "likes": 0,
     "downloads": 0,
-    "lastModified": "2025-11-09T11:42:38.417Z"
+    "lastModified": "2025-11-09T14:56:14.935Z"
   }
 ]

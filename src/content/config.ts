@@ -39,13 +39,13 @@ export const CORE_KEYWORDS: Keyword[] = [
         slug: 'code-generation',
         title: 'Code Synthesis & Programming Helpers',
         description: 'AI tools for generating code snippets, completing functions, or translating between programming languages.',
-        matchTerms: ['code-generation', 'code-completion'],
+        matchTerms: ['code-generation', 'code-completion', 'code'],
       },
       {
         slug: 'machine-translation',
         title: 'Machine Translation',
         description: 'High-quality models for automated language translation between various dialects (e.g., NLLB).',
-        matchTerms: ['translation', 'text2text-generation'],
+        matchTerms: ['translation'],
       }
     ]
   },
@@ -74,7 +74,7 @@ export const CORE_KEYWORDS: Keyword[] = [
     title: 'Video & Animation Generation',
     description: 'Models that create dynamic video clips, animated sequences, or motion from text or images.',
     matchTerms: ['video-generation', 'image-to-video', 'text-to-video', 'video-classification'],
-  },
+  }
 ];
 
 // Content collections definitions (currently empty, but required by Astro's content system)

@@ -29,7 +29,7 @@ async function fetchHuggingFaceData() {
             name: model.modelId.split('/')[1] || model.modelId,
             author: model.author,
             sourcePlatform: 'Hugging Face',
-            description: model.cardData?.description || model.id, // Add description
+            description: model.cardData?.description || `A model for ${model.pipeline_tag || 'various tasks'}.`, // Add description
             source: `https://huggingface.co/${model.modelId}`,
             task: model.pipeline_tag || 'N/A',
             tags: model.tags || [],
