@@ -48,13 +48,13 @@ export const CORE_KEYWORDS: Keyword[] = [
     slug: 'code-generation',
     title: 'Code Synthesis & Programming Helpers',
     description: 'AI tools for generating code snippets, completing functions, or translating between programming languages (e.g., Code Llama, GitHub Copilot alternatives).',
-    matchTerms: ['code-generation', 'code-completion', 'text-generation'], // Broaden to include general text models
+    matchTerms: ['code-generation', 'code-completion', 'text-generation'],
   },
   {
     slug: 'face-swapping',
     title: 'Face Swapping & Deepfakes',
     description: 'Models dedicated to changing faces in images or videos for entertainment or research purposes.',
-    matchTerms: ['face-swapping', 'deepfake', 'image-to-image'], // Broaden to include image models
+    matchTerms: ['face-swapping', 'deepfake', 'image-to-image'],
   },
   {
     slug: 'machine-translation',
