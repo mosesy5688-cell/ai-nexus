@@ -39,35 +39,27 @@ export const CORE_KEYWORDS: Keyword[] = [
         slug: 'code-generation',
         title: 'Code Synthesis & Programming Helpers',
         description: 'AI tools for generating code snippets, completing functions, or translating between programming languages.',
-        matchTerms: ['code-generation', 'code-completion', 'text-generation'],
+        matchTerms: ['code-generation', 'code-completion'],
       },
       {
         slug: 'machine-translation',
         title: 'Machine Translation',
         description: 'High-quality models for automated language translation between various dialects (e.g., NLLB).',
-        matchTerms: ['translation', 'text2text-generation'],
+        matchTerms: ['translation'],
       }
     ]
   },
   {
-    slug: 'ai-audio-tools',
-    title: 'AI Audio & Speech Tools',
-    description: 'A suite of models for processing, generating, and understanding audio and speech.',
-    matchTerms: ['audio', 'speech'],
-    subKeywords: [
-      {
-        slug: 'speech-to-text',
-        title: 'Speech Recognition & ASR',
-        description: 'Tools for converting spoken language into text, essential for transcription and voice command interfaces (e.g., Whisper).',
-        matchTerms: ['automatic-speech-recognition', 'speech-recognition'],
-      },
-      {
-        slug: 'text-to-speech',
-        title: 'Text-to-Speech (TTS)',
-        description: 'Synthetic voice generation for narration, virtual assistants, and accessibility features.',
-        matchTerms: ['text-to-speech', 'text-to-audio'],
-      }
-    ]
+    slug: 'speech-to-text',
+    title: 'Speech Recognition & ASR',
+    description: 'Tools for converting spoken language into text, essential for transcription and voice command interfaces (e.g., Whisper).',
+    matchTerms: ['automatic-speech-recognition', 'speech-recognition'],
+  },
+  {
+    slug: 'text-to-speech',
+    title: 'Text-to-Speech (TTS)',
+    description: 'Synthetic voice generation for narration, virtual assistants, and accessibility features.',
+    matchTerms: ['text-to-speech', 'text-to-audio'],
   },
   {
     slug: 'video-generation',
@@ -80,6 +72,14 @@ export const CORE_KEYWORDS: Keyword[] = [
     title: 'Reinforcement Learning (RL)',
     description: 'Models focused on training agents to make sequential decisions in dynamic environments (e.g., AlphaZero methods).',
     matchTerms: ['reinforcement-learning', 'robotics'],
+    subKeywords: [
+      {
+        slug: 'ai-audio-tools',
+        title: 'AI Audio & Speech Tools',
+        description: 'A suite of models for processing, generating, and understanding audio and speech.',
+        matchTerms: ['audio', 'speech'],
+      }
+    ]
   },
 ];
 
