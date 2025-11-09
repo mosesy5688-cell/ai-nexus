@@ -3,6 +3,9 @@
 import KeywordPageLayout from '../layouts/KeywordPageLayout.astro';
 import { getModels } from '../lib/data.ts';
 import { CORE_KEYWORDS } from '../content/config.ts';
+// This import is necessary for Astro to know about the component during build,
+// even though it's used in the layout.
+import AdSlot from '../../components/AdSlot.astro';
 
 export async function getStaticPaths() {
   return CORE_KEYWORDS.map((keyword) => ({
