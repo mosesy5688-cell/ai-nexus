@@ -5,7 +5,7 @@ import models from './public/models.json';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://ai-nexus.dev',
+  site: 'https://free2aitools.com',
   integrations: [
     tailwind(), 
     sitemap({
