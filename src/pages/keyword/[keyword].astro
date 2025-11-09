@@ -26,7 +26,7 @@ const filteredModels = allModels.filter(model => {
     return matchTerms.some(term => modelTask === term || modelTags.includes(term));
 });
 
-const title = currentKeyword?.title || 'AI Models';
+const title = currentKeyword?.title ? `${currentKeyword.title} - Free AI Tools` : 'AI Models - Free AI Tools';
 const description = currentKeyword?.description || `A curated list of AI models.`;
 ---
 <Layout {title} {description}>
@@ -47,7 +47,7 @@ const description = currentKeyword?.description || `A curated list of AI models.
         ) : (
         <div class="text-center p-12 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-inner mt-8">
             <p class="text-xl text-gray-500 dark:text-gray-400">
-            No models found for "{title}".
+            No models found for "{currentKeyword?.title || keyword}".
             </p>
         </div>
         )}
