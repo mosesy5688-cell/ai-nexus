@@ -1,7 +1,6 @@
 ---
 import Layout from './Layout.astro';
 import type { Model } from '../lib/data';
-import FAQSection from '../components/FAQSection.astro';
 import faqs from '../data/faq.json';
 import { generateArticleSchema } from '../lib/schema';
 import AdSlot from '../components/AdSlot.astro';
@@ -60,5 +59,4 @@ const schema = generateArticleSchema(keyword, title, description);
 
   <!-- Ad Slot: Footer Banner -->
   <AdSlot width={728} height={90} label="Adsense Footer Banner" class="container max-w-7xl mx-auto px-4" />
-  {keywordFaqs.length > 0 && <FAQSection faqs={keywordFaqs} />}
 </Layout>
