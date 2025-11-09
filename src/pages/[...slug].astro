@@ -1,8 +1,8 @@
 ---
 // src/pages/model/[...slug].astro
-import Layout from '../../layouts/Layout.astro';
-import { getModels } from '../../lib/data';
-import AdSlot from '../../components/AdSlot.astro';
+import Layout from '../layouts/Layout.astro';
+import { getModels } from '../lib/data';
+import AdSlot from '../components/AdSlot.astro';
 
 export async function getStaticPaths() {
   const models = await getModels();
