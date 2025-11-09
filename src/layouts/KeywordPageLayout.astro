@@ -15,7 +15,6 @@ const { title, description, models, keyword } = Astro.props;
 ---
 
 <Layout title={title} description={description}>
-  <script type="application/ld+json" set:html={JSON.stringify(schema)} />
   <main class="container max-w-7xl mx-auto px-4 py-8">
     <!-- Header Section -->
     <header class="text-center mb-12">
@@ -56,3 +55,4 @@ const { title, description, models, keyword } = Astro.props;
   <!-- Ad Slot: Footer Banner -->
   <AdSlot width={728} height={90} label="Adsense Footer Banner" class="container max-w-7xl mx-auto px-4" />
 </Layout>
+<script type="application/ld+json" set:html={JSON.stringify(schema)} />

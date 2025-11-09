@@ -52,15 +52,6 @@ import Search from '../components/Search.astro';
                 ))}
               </div>
             )}
-            {keyword.subKeywords && (
-              <div class="mt-4 pl-4 border-l-2 border-gray-200 dark:border-gray-700 space-y-2">
-                {keyword.subKeywords.map(sub => (
-                  <a href={`/${sub.slug}`} class="block text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                    &bull; {sub.title}
-                  </a>
-                ))}
-              </div>
-            )}
           </div>
         ))}
       </div>
