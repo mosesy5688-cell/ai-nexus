@@ -1,0 +1,30 @@
+---
+import models from '../../public/models.json';
+import BaseLayout from './BaseLayout.astro';
+import ModelCard from '../components/ModelCard.astro';
+import type { Model } from '../types';
+
+const { frontmatter } = Astro.props;
+const keyword = frontmatter.keyword;
+
+if (!keyword) {
+    throw new Error('The "keyword" property is missing in the frontmatter of the MDX file.');
+}
+
+// Filter models that have the current keyword in their tags array
+const relevantModels: Model[] = models.filter(model => 
+  model.tags && model.tags.map(tag => tag.toLowerCase()).includes(keyword.toLowerCase())
+);
+---
+<BaseLayout title={frontmatter.title} description={frontmatter.description}>
+  <main class="container mx-auto px-4 py-8">
+    <!-- Content from the MDX file (e.g., H1, intro paragraph) will be rendered here -->
+    <article class="prose dark:prose-invert max-w-none mb-12">
+        <slot />
+    </article>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {relevantModels.map(model => <ModelCard model={model} />)}
+    </div>
+  </main>
+</BaseLayout>
