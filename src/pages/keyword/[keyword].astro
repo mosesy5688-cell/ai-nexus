@@ -1,56 +1,18 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import type { Model } from '../../lib/data';
-import { CORE_KEYWORDS } from '../../content/config';
-import { getModels } from '../../lib/data';
-import AdSlot from '../../components/AdSlot.astro';
-import ModelCard from '../../components/ModelCard.astro';
+import { getCollection } from 'astro:content';
+import KeywordPageLayout from '@/layouts/KeywordPageLayout.astro';
 
 export async function getStaticPaths() {
-  // Create a page for every main keyword and every sub-keyword
-  return CORE_KEYWORDS.flatMap(keyword => [
-    { params: { keyword: keyword.slug } },
-    ...(keyword.subKeywords ? keyword.subKeywords.map(sub => ({ params: { keyword: sub.slug } })) : [])
-  ]);
+  const keywordEntries = await getCollection('keywords');
+  return keywordEntries.map(entry => ({
+    params: { keyword: entry.slug },
+    props: { entry },
+  }));
 }
 
-const { keyword } = Astro.params;
-const allKeywords = [...CORE_KEYWORDS, ...CORE_KEYWORDS.flatMap(k => k.subKeywords || [])];
-const currentKeyword = allKeywords.find(k => k.slug === keyword);
-const allModels = await getModels();
-
-const filteredModels = allModels.filter(model => {
-    const matchTerms = currentKeyword?.matchTerms || [];
-    const modelTask = model.task?.toLowerCase() || '';
-    const modelTags = (model.tags || []).map(t => t.toLowerCase());
-    return matchTerms.some(term => modelTask === term || modelTags.includes(term));
-});
-
-const title = currentKeyword?.title ? `${currentKeyword.title} - Free AI Tools` : 'AI Models - Free AI Tools';
-const description = currentKeyword?.description || `A curated list of AI models.`;
+const { entry } = Astro.props;
+const { Content } = await entry.render();
 ---
-<Layout {title} {description}>
-    <main class="container max-w-7xl mx-auto px-4 py-8">
-        <header class="text-center mb-12">
-            <h1 class="text-4xl sm:text-5xl font-extrabold text-gray-900 dark:text-gray-100 mb-4">
-                {currentKeyword?.title || 'AI Models'}
-            </h1>
-            <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-                {description}
-            </p>
-        </header>
-        <AdSlot width={728} height={90} label="Adsense Header Banner" />
-        {filteredModels.length > 0 ? (
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-            {filteredModels.map((model) => <ModelCard model={model} />)}
-        </div>
-        ) : (
-        <div class="text-center p-12 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-inner mt-8">
-            <p class="text-xl text-gray-500 dark:text-gray-400">
-            No models found for "{currentKeyword?.title || keyword}".
-            </p>
-        </div>
-        )}
-    </main>
-    <AdSlot width={728} height={90} label="Adsense Footer Banner" class="container max-w-7xl mx-auto px-4" />
-</Layout>
+<KeywordPageLayout frontmatter={entry.data}>
+  <Content />
+</KeywordPageLayout>
