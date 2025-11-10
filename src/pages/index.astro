@@ -1,13 +1,13 @@
 ---
-import Layout from '@/layouts/Layout.astro';
 import ModelCard from '@/components/ModelCard.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
 import { CORE_KEYWORDS } from '@/content/config';
 import models from '../../public/models.json';
 
 const featuredModels = models.slice(0, 12); // Show top 12 models on the homepage
 ---
 
-<Layout 
+<BaseLayout 
   title="Free AI Tools | The Ultimate Open-Source AI Index"
   description="Discover the best free, open-source AI models and tools. An automated, comprehensive directory for developers, researchers, and AI enthusiasts.">
 
@@ -15,10 +15,10 @@ const featuredModels = models.slice(0, 12); // Show top 12 models on the homepag
   <section class="text-center py-20 sm:py-32">
     <div class="container max-w-4xl mx-auto px-4">
       <h1 class="text-5xl md:text-7xl font-black tracking-tighter text-gray-900 dark:text-white">
-        The Open-Source AI Universe
+        Discover the Open-Source AI Universe
       </h1>
       <p class="mt-6 text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-        Your automated guide to the most popular and powerful open-source AI models.
+        Your comprehensive, auto-updating guide to the world's best open-source AI models.
       </p>
     </div>
   </section>
@@ -26,7 +26,7 @@ const featuredModels = models.slice(0, 12); // Show top 12 models on the homepag
   <!-- Core Keywords Section -->
   <section id="keywords" class="py-16 bg-gray-100 dark:bg-gray-900">
     <div class="container max-w-7xl mx-auto px-4">
-      <h2 class="text-3xl font-bold text-center mb-12 text-gray-900 dark:text-white">Explore Core AI Fields</h2>
+      <h2 class="text-3xl font-bold text-center mb-12 text-gray-900 dark:text-white">Explore by Category</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {CORE_KEYWORDS.map(keyword => (
           <a href={`/keyword/${keyword.slug}`} class="block p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1 transition-all">
@@ -41,13 +41,71 @@ const featuredModels = models.slice(0, 12); // Show top 12 models on the homepag
   <!-- Featured Models Section -->
   <section class="py-20">
     <div class="container max-w-7xl mx-auto px-4">
-      <h2 class="text-3xl font-bold text-center mb-12 text-gray-900 dark:text-white">Featured Models</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl font-bold text-gray-900 dark:text-white">Find Your AI Model</h2>
+        <p class="mt-2 text-lg text-gray-600 dark:text-gray-400">Search through our entire collection of AI models.</p>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="max-w-2xl mx-auto mb-12">
+        <input 
+          type="search" 
+          id="search-input"
+          placeholder="Search for models, tasks, or tags (e.g., 'Llama 3', 'text-to-image')..."
+          class="w-full px-5 py-3 text-lg bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-full focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
+        />
+      </div>
+
+      <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {featuredModels.map(model => (
           <ModelCard model={model} />
         ))}
       </div>
+      <p id="no-results" class="text-center text-xl text-gray-500 mt-12 hidden">No models found matching your search.</p>
     </div>
   </section>
 
-</Layout>
+  <script define:vars={{ allModels: models }}>
+    const searchInput = document.getElementById('search-input');
+    const modelsGrid = document.getElementById('models-grid');
+    const noResults = document.getElementById('no-results');
+    const modelCardTemplate = (model) => {
+      const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
+      const platforms = model.sources ? model.sources.map(s => s.platform).join(', ') : model.sourcePlatform;
+      const likes = model.likes.toLocaleString();
+      const downloads = model.downloads.toLocaleString();
+
+      return `
+        <div class="border rounded-lg p-4 shadow-md hover:shadow-lg transition-shadow bg-white dark:bg-gray-800 flex flex-col">
+          <h3 class="text-xl font-bold mb-2 text-gray-900 dark:text-white">${model.name}</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Platform(s): ${platforms}</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Task: ${model.task}</p>
+          <p class="text-gray-700 dark:text-gray-300 mb-4 line-clamp-2 flex-grow">${model.description}</p>
+          <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+            <span class="flex items-center">❤️ ${likes}</span>
+            <span class="flex items-center">↓ ${downloads}</span>
+          </div>
+          <a href="${modelUrl}" class="text-blue-500 hover:underline font-semibold mt-4 block text-right">View Details &rarr;</a>
+        </div>
+      `;
+    };
+
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      const filteredModels = allModels.filter(model => 
+        model.name.toLowerCase().includes(query) ||
+        model.description.toLowerCase().includes(query) ||
+        (model.tags && model.tags.some(tag => tag.toLowerCase().includes(query)))
+      );
+
+      if (filteredModels.length > 0) {
+        modelsGrid.innerHTML = filteredModels.map(modelCardTemplate).join('');
+        modelsGrid.classList.remove('hidden');
+        noResults.classList.add('hidden');
+      } else {
+        modelsGrid.classList.add('hidden');
+        noResults.classList.remove('hidden');
+      }
+    });
+  </script>
+</BaseLayout>
