@@ -1,1 +1,89 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="UTF-8"><meta name="description" content="A model for various tasks."><meta name="viewport" content="width=device-width"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="generator" content="Astro v5.15.3"><title>ControlNet</title><link rel="stylesheet" href="/_astro/about.DFKUOu0z.css"></head> <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100"> <header class="bg-white dark:bg-gray-800 shadow-md"> <nav class="container mx-auto px-4 py-4"> <a href="/" class="text-2xl font-bold text-gray-900 dark:text-white">AI Nexus</a> </nav> </header>  <main class="container mx-auto px-4 py-12"> <article class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg"> <header class="border-b pb-4 mb-4"> <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">ControlNet</h1>  </header> <div class="grid grid-cols-1 md:grid-cols-3 gap-8"> <div class="md:col-span-2"> <h2 class="text-2xl font-semibold mb-2 text-gray-800 dark:text-gray-200">Description</h2> <p class="text-gray-700 dark:text-gray-300 prose prose-lg max-w-none">A model for various tasks.</p> <h2 class="text-2xl font-semibold mt-6 mb-2 text-gray-800 dark:text-gray-200">Sources</h2> <ul class="list-disc list-inside"> <li><a href="https://huggingface.co/lllyasviel/ControlNet" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline">Hugging Face</a></li> </ul> </div> <aside> <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg"> <h3 class="text-xl font-bold mb-3 text-gray-900 dark:text-white">Details</h3> <p><strong>Task:</strong> N/A</p> <p><strong>Likes:</strong> 3,764</p> <p><strong>Downloads:</strong> 0</p> <p><strong>Last Updated:</strong> Invalid Date</p> </div> <!-- Amazon Ad Slot --> <div class="ad-container my-4 mt-6">  <div id="amazon-ad-YOUR_AMAZON_DETAIL_PAGE_AD_ID" style="width:100%;height:250px">  </div>  </div> </aside> </div> </article> </main>  </body></html>
+<!DOCTYPE html><html lang="en"> <head><meta charset="UTF-8"><meta name="description" content="A model for various tasks."><meta name="viewport" content="width=device-width"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="generator" content="Astro v5.15.3"><title>ControlNet</title><link rel="stylesheet" href="/_astro/about.CDWXvzd1.css"></head> <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col min-h-screen"> <header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50"> <nav class="container mx-auto px-4 py-4 flex justify-between items-center"> <a href="/" class="text-2xl font-bold text-gray-900 dark:text-white">Free AI Tools</a> <div class="space-x-4"> <a href="/#explore" class="text-gray-600 dark:text-gray-300 hover:text-blue-500">Explore</a> <a href="/about" class="text-gray-600 dark:text-gray-300 hover:text-blue-500">About</a> </div> </nav> </header> <main class="flex-grow">  <main class="container mx-auto px-4 py-12"> <div class="mb-8"> <a href="javascript:history.back()" class="text-blue-500 hover:underline">&larr; Back to previous page</a> </div> <article class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg"> <header class="border-b pb-4 mb-4"> <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">ControlNet</h1>  </header> <div class="grid grid-cols-1 md:grid-cols-3 gap-8"> <div class="md:col-span-2"> <section> <h2 class="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200">Description</h2> <div class="prose dark:prose-invert prose-lg max-w-none text-gray-700 dark:text-gray-300"> <p>A model for various tasks.</p> </div> </section> <section class="mt-8"> <h2 class="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200">Tags</h2> <div id="tags-container" class="flex flex-wrap gap-2"> <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">license:openrail</span><span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">region:us</span>  </div> </section> <!-- Amazon Ad Slot - Moved to a more prominent position --> <div class="ad-container my-4 mt-12">  <div id="amazon-ad-YOUR_AMAZON_DETAIL_PAGE_AD_ID" style="width:100%;height:250px">  </div>  </div> <section class="mt-8"> <h2 class="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200">Details & Usage</h2> <div class="prose dark:prose-invert prose-lg max-w-none bg-gray-50 dark:bg-gray-900 p-4 rounded-md"> <div>---
+license: openrail
+---
+
+This is the pretrained weights and some other detector weights of ControlNet.
+
+See also: https://github.com/lllyasviel/ControlNet
+
+# Description of Files
+
+ControlNet/models/control_sd15_canny.pth
+
+- The ControlNet+SD1.5 model to control SD using canny edge detection.
+
+ControlNet/models/control_sd15_depth.pth
+
+- The ControlNet+SD1.5 model to control SD using Midas depth estimation.
+
+ControlNet/models/control_sd15_hed.pth
+
+- The ControlNet+SD1.5 model to control SD using HED edge detection (soft edge).
+
+ControlNet/models/control_sd15_mlsd.pth
+
+- The ControlNet+SD1.5 model to control SD using M-LSD line detection (will also work with traditional Hough transform).
+
+ControlNet/models/control_sd15_normal.pth
+
+- The ControlNet+SD1.5 model to control SD using normal map. Best to use the normal map generated by that Gradio app. Other normal maps may also work as long as the direction is correct (left looks red, right looks blue, up looks green, down looks purple). 
+
+ControlNet/models/control_sd15_openpose.pth
+
+- The ControlNet+SD1.5 model to control SD using OpenPose pose detection. Directly manipulating pose skeleton should also work.
+
+ControlNet/models/control_sd15_scribble.pth
+
+- The ControlNet+SD1.5 model to control SD using human scribbles. The model is trained with boundary edges with very strong data augmentation to simulate boundary lines similar to that drawn by human.
+
+ControlNet/models/control_sd15_seg.pth
+
+- The ControlNet+SD1.5 model to control SD using semantic segmentation. The protocol is ADE20k.
+
+ControlNet/annotator/ckpts/body_pose_model.pth
+
+- Third-party model: Openpose’s pose detection model.
+
+ControlNet/annotator/ckpts/hand_pose_model.pth
+
+- Third-party model: Openpose’s hand detection model.
+
+ControlNet/annotator/ckpts/dpt_hybrid-midas-501f0c75.pt
+
+- Third-party model: Midas depth estimation model.
+
+ControlNet/annotator/ckpts/mlsd_large_512_fp32.pth
+
+- Third-party model: M-LSD detection model.
+
+ControlNet/annotator/ckpts/mlsd_tiny_512_fp32.pth
+
+- Third-party model: M-LSD’s another smaller detection model (we do not use this one).
+
+ControlNet/annotator/ckpts/network-bsds500.pth
+
+- Third-party model: HED boundary detection.
+
+ControlNet/annotator/ckpts/upernet_global_small.pth
+
+- Third-party model: Uniformer semantic segmentation.
+
+ControlNet/training/fill50k.zip
+
+- The data for our training tutorial.
+
+# Related Resources
+
+Special Thank to the great project - [Mikubill' A1111 Webui Plugin](https://github.com/Mikubill/sd-webui-controlnet) !
+
+We also thank Hysts for making [Gradio](https://github.com/gradio-app/gradio) demo in [Hugging Face Space](https://huggingface.co/spaces/hysts/ControlNet) as well as more than 65 models in that amazing [Colab list](https://github.com/camenduru/controlnet-colab)! 
+
+Thank haofanwang for making [ControlNet-for-Diffusers](https://github.com/haofanwang/ControlNet-for-Diffusers)!
+
+We also thank all authors for making Controlnet DEMOs, including but not limited to [fffiloni](https://huggingface.co/spaces/fffiloni/ControlNet-Video), [other-model](https://huggingface.co/spaces/hysts/ControlNet-with-other-models), [ThereforeGames](https://github.com/AUTOMATIC1111/stable-diffusion-webui/discussions/7784), [RamAnanth1](https://huggingface.co/spaces/RamAnanth1/ControlNet), etc!
+
+# Misuse, Malicious Use, and Out-of-Scope Use
+
+The model should not be used to intentionally create or disseminate images that create hostile or alienating environments for people. This includes generating images that people would foreseeably find disturbing, distressing, or offensive; or content that propagates historical or current stereotypes.
+
+</div> </div> </section> </div> <aside> <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg sticky top-24"> <h3 class="text-xl font-bold mb-3 text-gray-900 dark:text-white">Details</h3> <div class="space-y-2 text-gray-700 dark:text-gray-300"> <p><strong>Task:</strong> N/A</p> <p><strong>Likes:</strong> 3,763</p> <p><strong>Downloads:</strong> 0</p> <p><strong>Last Updated:</strong> N/A</p> </div> <div class="mt-4 border-t border-gray-200 dark:border-gray-600 pt-4"> <h4 class="font-semibold mb-2 text-gray-900 dark:text-white">Sources</h4> <ul class="space-y-1"> <li><a href="https://huggingface.co/lllyasviel/ControlNet" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline break-all">Hugging Face &rarr;</a></li> </ul> </div> </div> </aside> </div> </article> </main>  </main> <footer class="bg-gray-800 text-gray-300 py-8 mt-16"> <div class="container mx-auto px-4 text-center"> <div class="flex justify-center gap-4 mb-4"> <a href="/about" class="hover:underline">About</a> <a href="/compliance" class="hover:underline">Compliance</a> </div> <p class="text-sm">&copy; 2025 Free AI Tools. An open-source project to index the world of AI.</p> </div> </footer> </body></html>

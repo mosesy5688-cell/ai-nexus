@@ -22,7 +22,7 @@ const allModels = models; // Initially show all models
       <div class="max-w-2xl mx-auto mb-16">
         <input 
           type="search" 
-          id="search-input"
+          id="explore-search-input"
           placeholder="Search for models, tasks, or tags (e.g., 'Llama 3', 'text-to-image')..."
           class="w-full px-5 py-3 text-lg bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-full focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
         />
@@ -41,7 +41,8 @@ const allModels = models; // Initially show all models
   </section>
 
   <script define:vars={{ allModels }}>
-    const searchInput = document.getElementById('search-input');
+    const headerSearchInput = document.getElementById('header-search');
+    const exploreSearchInput = document.getElementById('explore-search-input');
     const modelsGrid = document.getElementById('models-grid');
     const noResults = document.getElementById('no-results');
     
@@ -67,15 +68,44 @@ const allModels = models; // Initially show all models
       `;
     };
 
-    searchInput.addEventListener('input', (e) => {
-      const query = e.target.value.toLowerCase();
+    const performSearch = (query) => {
+      const lowerCaseQuery = query.toLowerCase();
       const filteredModels = allModels.filter(model => 
-        model.name.toLowerCase().includes(query) ||
-        model.description.toLowerCase().includes(query) ||
-        (model.tags && model.tags.some(tag => tag.toLowerCase().includes(query)))
+        model.name.toLowerCase().includes(lowerCaseQuery) ||
+        model.description.toLowerCase().includes(lowerCaseQuery) ||
+        (model.tags && model.tags.some(tag => tag.toLowerCase().includes(lowerCaseQuery)))
       );
 
-      modelsGrid.innerHTML = filteredModels.map(modelCardTemplate).join('') || '<p class="text-center text-xl text-gray-500 col-span-full">No models found.</p>';
+      if (filteredModels.length > 0) {
+        modelsGrid.innerHTML = filteredModels.map(modelCardTemplate).join('');
+        modelsGrid.classList.remove('hidden');
+        noResults.classList.add('hidden');
+      } else {
+        modelsGrid.innerHTML = '';
+        modelsGrid.classList.add('hidden');
+        noResults.classList.remove('hidden');
+      }
+    }
+
+    const handleInput = (e) => {
+      const query = e.target.value;
+      exploreSearchInput.value = query;
+      headerSearchInput.value = query;
+      performSearch(query);
+    };
+
+    exploreSearchInput.addEventListener('input', handleInput);
+    headerSearchInput.addEventListener('input', handleInput);
+
+    // Check for URL query parameter on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const query = urlParams.get('q');
+      if (query) {
+        exploreSearchInput.value = query;
+        headerSearchInput.value = query;
+        performSearch(query);
+      }
     });
   </script>
 </BaseLayout>

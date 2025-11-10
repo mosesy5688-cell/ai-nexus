@@ -1,0 +1,62 @@
+[
+  {
+    "slug": "endpoints_compatible",
+    "title": "Endpoints_compatible",
+    "count": 59
+  },
+  {
+    "slug": "autotrain_compatible",
+    "title": "Autotrain_compatible",
+    "count": 52
+  },
+  {
+    "slug": "ai-tool",
+    "title": "Ai Tool",
+    "count": 48
+  },
+  {
+    "slug": "text-generation",
+    "title": "Text Generation",
+    "count": 41
+  },
+  {
+    "slug": "conversational",
+    "title": "Conversational",
+    "count": 30
+  },
+  {
+    "slug": "text-to-image",
+    "title": "Text To Image",
+    "count": 20
+  },
+  {
+    "slug": "stable-diffusion",
+    "title": "Stable Diffusion",
+    "count": 15
+  },
+  {
+    "slug": "llama",
+    "title": "Llama",
+    "count": 14
+  },
+  {
+    "slug": "python",
+    "title": "Python",
+    "count": 14
+  },
+  {
+    "slug": "facebook",
+    "title": "Facebook",
+    "count": 12
+  },
+  {
+    "slug": "meta",
+    "title": "Meta",
+    "count": 12
+  },
+  {
+    "slug": "llm",
+    "title": "Llm",
+    "count": 10
+  }
+]
