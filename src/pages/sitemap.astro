@@ -1,19 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import models from '../../public/models.json';
-
-// Manually define keyword pages to avoid build-time path resolution issues.
-const keywordPages = [
-  { slug: 'stable-diffusion', data: { title: 'Top Free AI Tools for Stable Diffusion' } },
-  { slug: 'image-generation', data: { title: 'Top Free AI Tools for Image Generation' } },
-];
-
-// Define static pages
-const staticPages = [
-    { url: '/', title: 'Home' },
-    { url: '/about', title: 'About Us' },
-    { url: '/compliance', title: 'Compliance' },
-];
+import { staticPages, keywordPages, modelPages } from '@/data/sitemap';
 ---
 <BaseLayout title="Sitemap | Free AI Tools" description="A complete list of all pages and AI models available on Free AI Tools.">
     <main class="container mx-auto px-4 py-12">
@@ -31,17 +18,17 @@ const staticPages = [
         <section class="mb-10">
             <h2 class="text-2xl font-semibold mb-4 border-b pb-2 text-gray-800 dark:text-gray-200">Keyword Categories</h2>
             <ul class="list-disc list-inside space-y-2">
-                {keywordPages.map(keyword => (
-                    <li><a href={`/keyword/${keyword.slug}`} class="text-blue-500 hover:underline">{keyword.data.title}</a></li>
+                {keywordPages.map(page => (
+                    <li><a href={`/keyword/${page.slug}`} class="text-blue-500 hover:underline">{page.title}</a></li>
                 ))}
             </ul>
         </section>
 
         <section>
-            <h2 class="text-2xl font-semibold mb-4 border-b pb-2 text-gray-800 dark:text-gray-200">All AI Models ({models.length})</h2>
+            <h2 class="text-2xl font-semibold mb-4 border-b pb-2 text-gray-800 dark:text-gray-200">All AI Models ({modelPages.length})</h2>
             <ul class="list-disc list-inside space-y-2 columns-1 md:columns-2 lg:columns-3">
-                {models.map(model => (
-                    <li><a href={`/model/${model.id.replace(/\//g, '--')}`} class="text-blue-500 hover:underline">{model.name}</a></li>
+                {modelPages.map(page => (
+                    <li><a href={page.url} class="text-blue-500 hover:underline">{page.name}</a></li>
                 ))}
             </ul>
         </section>
