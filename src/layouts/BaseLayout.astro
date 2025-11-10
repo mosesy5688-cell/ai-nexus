@@ -17,12 +17,24 @@ const { title, description } = Astro.props;
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
 	</head>
-	<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-		<header class="bg-white dark:bg-gray-800 shadow-md">
-			<nav class="container mx-auto px-4 py-4">
-				<a href="/" class="text-2xl font-bold text-gray-900 dark:text-white">AI Nexus</a>
+	<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col min-h-screen">
+		<header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
+			<nav class="container mx-auto px-4 py-4 flex justify-between items-center">
+				<a href="/" class="text-2xl font-bold text-gray-900 dark:text-white">Free AI Tools</a>
+				<div class="space-x-4">
+					<a href="/#explore" class="text-gray-600 dark:text-gray-300 hover:text-blue-500">Explore</a>
+					<a href="/about" class="text-gray-600 dark:text-gray-300 hover:text-blue-500">About</a>
+				</div>
 			</nav>
 		</header>
-		<slot />
+		<main class="flex-grow">
+			<slot />
+		</main>
+		<footer class="bg-gray-800 text-gray-300 py-8 mt-16">
+			<div class="container mx-auto px-4 text-center">
+				<p>&copy; {new Date().getFullYear()} Free AI Tools. All rights reserved.</p>
+				<p class="mt-2 text-sm">An open-source project to index the world of AI.</p>
+			</div>
+		</footer>
 	</body>
 </html>
