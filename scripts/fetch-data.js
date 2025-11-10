@@ -146,8 +146,8 @@ async function writeToKV(key, value) {
         const { CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, KV_NAMESPACE_ID } = process.env;
 
         if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_API_TOKEN || !KV_NAMESPACE_ID) {
-            console.error('❌ Missing Cloudflare credentials. Set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, and KV_NAMESPACE_ID.');
-            process.exit(1);
+            console.warn('⚠️ Missing Cloudflare credentials for KV write. Skipping KV update, but continuing build.');
+            return; // Exit the function gracefully
         }
 
         const url = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${KV_NAMESPACE_ID}/values/${key}`;
