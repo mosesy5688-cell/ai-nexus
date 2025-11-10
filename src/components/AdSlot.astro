@@ -1,11 +1,11 @@
 ---
 export interface Props {
   type: 'google' | 'amazon' | 'custom' | 'affiliate-banner' | 'media-net';
-  // Google AdSense 专用
-  googleAdClient?: string; // 例如 'ca-pub-YOUR_ADSENSE_PUBLISHER_ID'
-  googleAdSlot?: string;   // 例如 'YOUR_GOOGLE_SLOT_ID'
-  // 其他广告网络通用
-  adId?: string;           // 例如 Amazon 的 ad unit ID, 或其他网络的 ID
+  // For Google AdSense
+  googleAdClient?: string; // e.g., 'ca-pub-YOUR_ADSENSE_PUBLISHER_ID'
+  googleAdSlot?: string;   // e.g., 'YOUR_GOOGLE_SLOT_ID'
+  // For other ad networks
+  adId?: string;           // e.g., Amazon's ad unit ID, or other network IDs
   width?: string;
   height?: string;
   className?: string;
@@ -16,10 +16,28 @@ const { type, googleAdClient, googleAdSlot, adId, width, height, className } = A
 
 <div class={`ad-container my-4 ${className || ''}`}>
   {type === 'google' && googleAdClient && googleAdSlot && (
-    <ins class="adsbygoogle"
-         style="display:block;"
-         data-ad-client={googleAdClient}
-         data-ad-slot={googleAdSlot}
-         data-ad-format="auto"
-         data-full-width-responsive="true"></ins>
-    <script is:inline>
+    <>
+      <ins class="adsbygoogle"
+           style="display:block;"
+           data-ad-client={googleAdClient}
+           data-ad-slot={googleAdSlot}
+           data-ad-format="auto"
+           data-full-width-responsive="true"></ins>
+      <script is:inline>
+        (window.adsbygoogle = window.adsbygoogle || []).push({});
+      </script>
+    </>
+  )}
+
+  {type === 'amazon' && adId && (
+    <div id={`amazon-ad-${adId}`} style={{ width, height }}>
+      {/* Place Amazon Associates ad code here */}
+    </div>
+  )}
+
+  {type === 'media-net' && adId && (
+    <div id={`media-net-ad-${adId}`} style={{ width, height }}>
+      {/* Place Media.net ad code here */}
+    </div>
+  )}
+</div>

@@ -3,6 +3,7 @@ import models from '../../public/models.json';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import ModelCard from '../components/ModelCard.astro';
 import type { Model } from '../types';
+import AdSlot from '@/components/AdSlot.astro';
 
 const { frontmatter } = Astro.props;
 const keyword = frontmatter.keyword;
@@ -18,6 +19,9 @@ const relevantModels: Model[] = models.filter(model =>
 ---
 <BaseLayout title={frontmatter.title} description={frontmatter.description}>
   <main class="container mx-auto px-4 py-8">
+    {/* Example: Ad slot at the top of the page */}
+    <AdSlot type="google" googleAdClient="ca-pub-YOUR_ID" googleAdSlot="YOUR_SLOT_1" className="mb-8 text-center" />
+
     <!-- Content from the MDX file (e.g., H1, intro paragraph) will be rendered here -->
     <article class="prose dark:prose-invert max-w-none mb-12">
         <slot />
@@ -26,5 +30,8 @@ const relevantModels: Model[] = models.filter(model =>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {relevantModels.map(model => <ModelCard model={model} />)}
     </div>
+
+    {/* Example: Ad slot at the bottom of the page */}
+    <AdSlot type="amazon" adId="YOUR_AMAZON_ID" width="728px" height="90px" className="mt-12 text-center" />
   </main>
 </BaseLayout>
