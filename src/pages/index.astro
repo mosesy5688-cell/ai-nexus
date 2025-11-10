@@ -2,6 +2,7 @@
 import ModelCard from '@/components/ModelCard.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { CORE_CATEGORIES } from '@/content/config';
+import AdSlot from '@/components/AdSlot.astro';
 import models from '../../public/models.json';
 
 const featuredModels = models.slice(0, 12); // Show top 12 models on the homepage
@@ -54,6 +55,9 @@ const featuredModels = models.slice(0, 12); // Show top 12 models on the homepag
           ))}
         </div>
       </div>
+
+      <!-- Homepage Ad Slot -->
+      <AdSlot type="google" googleAdClient="ca-pub-YOUR_ID" googleAdSlot="YOUR_HOMEPAGE_SLOT" className="my-16 text-center" />
 
       <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {featuredModels.map(model => (
