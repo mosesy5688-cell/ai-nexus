@@ -12,13 +12,34 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
       </h1>
     </header>
 
-    <div class="prose dark:prose-invert prose-lg max-w-none">
-      <p>
-        At Free AI Tools, we are committed to maintaining a safe and compliant platform. Our automated systems are designed to filter and exclude any content that could be considered Not Safe For Work (NSFW), explicit, or otherwise inappropriate. We strive to create a resource that is accessible and useful for everyone, including students, researchers, and professionals.
-      </p>
-      <p>
-        If you encounter any content that you believe violates this policy, please contact us through our <a href="https://github.com/mosesy5688-cell/ai-nexus/issues" target="_blank" rel="noopener noreferrer">GitHub issues page</a>.
-      </p>
+    <div class="prose dark:prose-invert prose-lg max-w-none space-y-12">
+      <section>
+        <h2 class="text-3xl font-bold">Our Commitment</h2>
+        <p>
+          At Free AI Tools, we are dedicated to creating and maintaining a safe, respectful, and compliant platform for all users. Our primary goal is to provide a valuable resource for discovering open-source AI models while ensuring the content presented is appropriate for a general audience, including students, researchers, and professionals.
+        </p>
+      </section>
+
+      <section>
+        <h2 class="text-3xl font-bold">Content Filtering Policy</h2>
+        <p>
+          Our platform is fully automated. We utilize scripts to fetch data from public sources like Hugging Face and GitHub. A critical part of this process is our content filtering system.
+        </p>
+        <ul>
+          <li><strong>Automated NSFW Filtering:</strong> Our scripts are designed to identify and exclude models and tools that are tagged with or contain descriptions related to "Not Safe For Work" (NSFW), explicit, or adult themes. We maintain a blocklist of keywords to ensure this filtering is as effective as possible.</li>
+          <li><strong>Best-Effort Basis:</strong> While we strive for 100% accuracy, automated filtering has its limitations. The AI landscape is vast and constantly changing, and occasionally, inappropriate content may slip through. We operate on a best-effort basis and are continually improving our filtering algorithms.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 class="text-3xl font-bold">Reporting & Takedown</h2>
+        <p>
+          Community vigilance is essential to keeping our platform safe. If you encounter any model or content that you believe violates our safety policy or is otherwise inappropriate, we encourage you to report it.
+        </p>
+        <p>
+          The most effective way to report an issue is by creating an issue on our <a href="https://github.com/mosesy5688-cell/ai-nexus/issues" target="_blank" rel="noopener noreferrer">official GitHub repository</a>. Please provide a link to the content in question and a brief description of why you believe it should be reviewed. We take all reports seriously and will act promptly to investigate and, if necessary, remove the content.
+        </p>
+      </section>
     </div>
   </main>
 </BaseLayout>
