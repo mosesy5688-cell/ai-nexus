@@ -29,7 +29,7 @@ const hasMoreTags = model.tags?.length > 15;
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div class="md:col-span-2">
           <section>
-            <h2 class="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200">Description</h2>
+            <h2 class="text-2xl font-semibold mb-3 text-gray-800 dark:text-gray-200">Description</h2>
             <div class="prose dark:prose-invert prose-lg max-w-none text-gray-700 dark:text-gray-300">
               <p>{model.description}</p>
             </div>
@@ -37,7 +37,7 @@ const hasMoreTags = model.tags?.length > 15;
 
           {model.tags && model.tags.length > 0 && (
             <section class="mt-8">
-              <h2 class="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200">Tags</h2>
+              <h2 class="text-2xl font-semibold mb-3 text-gray-800 dark:text-gray-200">Tags</h2>
               <div id="tags-container" class="flex flex-wrap gap-2">
                 {visibleTags.map(tag => (
                   <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">{tag}</span>
@@ -56,8 +56,8 @@ const hasMoreTags = model.tags?.length > 15;
 
           {model.readme && (
             <section class="mt-8">
-              <h2 class="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200">Details & Usage</h2>
-              <div class="prose dark:prose-invert prose-lg max-w-none bg-gray-50 dark:bg-gray-900 p-4 rounded-md">
+              <h2 class="text-2xl font-semibold mb-3 text-gray-800 dark:text-gray-200">Details & Usage</h2>
+              <div class="prose dark:prose-invert prose-lg max-w-none bg-gray-100 dark:bg-gray-900 p-4 rounded-lg prose-pre:bg-gray-200 dark:prose-pre:bg-gray-800 prose-pre:text-gray-800 dark:prose-pre:text-gray-200">
                 <div set:html={model.readme} />
               </div>
             </section>
@@ -66,14 +66,26 @@ const hasMoreTags = model.tags?.length > 15;
 
         <aside>
           <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg sticky top-24">
-            <h3 class="text-xl font-bold mb-3 text-gray-900 dark:text-white">Details</h3>
-            <div class="space-y-2 text-gray-700 dark:text-gray-300">
-              <p><strong>Task:</strong> {model.task}</p>
-              <p><strong>Likes:</strong> {model.likes.toLocaleString()}</p>
-              <p><strong>Downloads:</strong> {model.downloads.toLocaleString()}</p>
-              <p><strong>Last Updated:</strong> {formattedLastUpdated}</p>
+            <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Details</h3>
+            <div class="space-y-4 text-gray-700 dark:text-gray-300">
+              <div class="flex items-center gap-2">
+                <span class="font-semibold">Task:</span>
+                <span>{model.task}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-semibold">Likes:</span>
+                <span class="flex items-center gap-1">❤️ {model.likes.toLocaleString()}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-semibold">Downloads:</span>
+                <span class="flex items-center gap-1">↓ {model.downloads.toLocaleString()}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-semibold">Updated:</span>
+                <span>{formattedLastUpdated}</span>
+              </div>
             </div>
-            <div class="mt-4 border-t border-gray-200 dark:border-gray-600 pt-4">
+            <div class="mt-6 border-t border-gray-200 dark:border-gray-600 pt-6">
               <h4 class="font-semibold mb-2 text-gray-900 dark:text-white">Sources</h4>
               <ul class="space-y-1">
                 {model.sources.map(source => (
