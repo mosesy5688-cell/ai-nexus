@@ -2,8 +2,8 @@
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import ModelCard from '@/components/ModelCard.astro';
 import AdSlot from '@/components/AdSlot.astro';
-import models from '../../../public/models.json';
-import keywords from '../../../public/keywords.json';
+import models from '@/data/models.json';
+import keywords from '@/data/keywords.json';
 import type { Model } from '@/types';
 
 export async function getStaticPaths() {

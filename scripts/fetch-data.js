@@ -5,9 +5,9 @@ const path = require('path');
 // --- Configuration ---
 const CIVITAI_DATA_PATH = path.join(__dirname, '../src/data/civitai.json');
 const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100';
-const OUTPUT_FILE_PATH = path.join(__dirname, '../public/models.json');
-const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../public/keywords.json');
-const ARCHIVE_DIR = path.join(__dirname, '../public/archives');
+const OUTPUT_FILE_PATH = path.join(__dirname, '../src/data/models.json');
+const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../src/data/keywords.json');
+const ARCHIVE_DIR = path.join(__dirname, '../src/data/archives');
 const NSFW_KEYWORDS = [
     'nsfw', 
     'porn', 
