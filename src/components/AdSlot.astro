@@ -1,19 +1,25 @@
 ---
-// src/components/AdSlot.astro
-interface Props {
-  width: number;
-  height: number;
-  label: string;
-  class?: string;
+export interface Props {
+  type: 'google' | 'amazon' | 'custom' | 'affiliate-banner' | 'media-net';
+  // Google AdSense 专用
+  googleAdClient?: string; // 例如 'ca-pub-YOUR_ADSENSE_PUBLISHER_ID'
+  googleAdSlot?: string;   // 例如 'YOUR_GOOGLE_SLOT_ID'
+  // 其他广告网络通用
+  adId?: string;           // 例如 Amazon 的 ad unit ID, 或其他网络的 ID
+  width?: string;
+  height?: string;
+  className?: string;
 }
 
-const { width, height, label, class: className } = Astro.props;
+const { type, googleAdClient, googleAdSlot, adId, width, height, className } = Astro.props;
 ---
 
-<div class:list={["my-8 text-center bg-gray-100 dark:bg-gray-800 p-4 rounded-lg", className]}>
-  <!-- 
-    Google AdSense code for this slot goes here.
-    Make sure the ad unit size matches the width and height props.
-  -->
-  <p class="text-gray-500 dark:text-gray-400 text-sm">[{label} - {width}x{height}]</p>
-</div>
+<div class={`ad-container my-4 ${className || ''}`}>
+  {type === 'google' && googleAdClient && googleAdSlot && (
+    <ins class="adsbygoogle"
+         style="display:block;"
+         data-ad-client={googleAdClient}
+         data-ad-slot={googleAdSlot}
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+    <script is:inline>
