@@ -4,302 +4,189 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import AdSlot from '@/components/AdSlot.astro';
 
 export interface Props {
-  model: Model;
+  model: Model;
 }
 
 const { model } = Astro.props;
 const lastUpdatedDate = new Date(model.lastModified);
-const formattedLastUpdated = !isNaN(lastUpdatedDate.getTime()) 
-  ? lastUpdatedDate.toLocaleDateString() 
-  : 'N/A';
+const formattedLastUpdated = !isNaN(lastUpdatedDate.getTime()) 
+  ? lastUpdatedDate.toLocaleDateString() 
+  : 'N/A';
 const visibleTags = model.tags?.slice(0, 15) || [];
 const hasMoreTags = model.tags?.length > 15;
 ---
 <BaseLayout title={model.name} description={model.description.substring(0, 160)}>
-  <div class="container mx-auto px-4 py-12">
-    <a href="javascript:history.back()" class="text-blue-500 hover:underline mb-8 block">&larr; Back to previous page</a>
-    <article class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
-      <header class="border-b pb-4 mb-4">
-        <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">{model.name}</h1>
-        {model.author && <p class="text-lg text-gray-500 dark:text-gray-400 mt-1">by {model.author}</p>}
-      </header>
+  <div class="container mx-auto px-4 py-12">
+    <a href="javascript:history.back()" class="text-blue-500 hover:underline mb-8 block font-medium transition-colors">&larr; Back to previous page</a>
+    
+    <article class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl">
+      
+            <header class="border-b pb-4 mb-6">
+        <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white leading-tight">{model.name}</h1>
+        {model.author && <p class="text-lg text-gray-500 dark:text-gray-400 mt-2">by **{model.author}**</p>}
+      </header>
 
-      <!-- Tab Navigation -->
-      <div class="border-b border-gray-200 dark:border-gray-700 mb-8">
-        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-          <button class="tab-button active-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
-            Files
-          </button>
-          <button class="tab-button inactive-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
-            Community
-          </button>
-        </nav>
-      </div>
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-12 relative">
+        
+                <div class="lg:col-span-3">
+          
+                    {model.tags && model.tags.length > 0 && (
+            <section class="mb-8">
+              <h3 class="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">Tags</h3>
+              <div id="tags-container" class="flex flex-wrap gap-2">
+                {visibleTags.map(tag => (
+                  <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300 transition-colors">{tag}</span>
+                ))}
+                {hasMoreTags && (
+                  <button id="show-all-tags" class="bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1 rounded-full dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                    Show all ({model.tags.length})
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
 
-      <!-- Tab Content -->
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 relative">
-        <div class="lg:col-span-3">
-            <!-- Main Content: README and Tabs -->
-            {model.readme ? (
-                <section id="details-usage">
-                    <h2 class="text-2xl font-semibold mb-3 text-gray-800 dark:text-gray-200">Details & Usage</h2>
-                    <div class="prose dark:prose-invert prose-lg max-w-none bg-gray-100 dark:bg-gray-900 p-6 rounded-lg prose-pre:bg-gray-200 dark:prose-pre:bg-gray-800 prose-pre:text-gray-800 dark:prose-pre:text-gray-200">
-                        <div set:html={model.readme} />
-                    </div>
-                </section>
-            ) : (
-                <p>No detailed information (README) available for this model.</p>
-            )}
+                    {model.readme ? (
+            <section id="details-usage" class="mt-8 mb-10">
+              <h2 class="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200 border-b pb-2">Details & Usage</h2>
+              <div class="prose dark:prose-invert prose-lg max-w-none bg-gray-50 dark:bg-gray-900 p-6 rounded-lg prose-pre:bg-gray-200 dark:prose-pre:bg-gray-800 prose-pre:text-gray-800 dark:prose-pre:text-gray-200 border border-gray-100 dark:border-gray-700 shadow-inner">
+                <div set:html={model.readme} />
+              </div>
+            </section>
+          ) : (
+            <p class="text-lg text-red-500 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800 mb-10">
+              No detailed information (README) available for this model.
+            </p>
+          )}
+          
+                    <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+            <nav class="-mb-px flex space-x-8" aria-label="Secondary Tabs">
+              <button id="tab-btn-files" class="tab-button active-tab whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-xl focus:outline-none">
+                Files
+              </button>
+              <button id="tab-btn-community" class="tab-button inactive-tab whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-xl focus:outline-none">
+                Community
+              </button>
+            </nav>
+          </div>
 
-            <div id="tab-content" class="mt-12">
-                <!-- Files Tab -->
-                <div id="tab-files" class="tab-panel">
-                    <h2 class="text-2xl font-semibold mb-4">Files and Versions</h2>
-                    <p>This section will list the model files. (Functionality to be implemented)</p>
-                    <!-- Amazon Ad Slot -->
-                    <AdSlot type="amazon" adId="YOUR_AMAZON_DETAIL_PAGE_AD_ID" width="100%" height="250px" className="mt-12" />
-                </div>
+                    <div id="tab-content" class="mt-6">
+                        <div id="tab-files" class="tab-panel">
+              <h2 class="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Files and Versions</h2>
+              <p class="text-gray-600 dark:text-gray-400">This section will list the model files. (Functionality to be implemented)</p>
+                            <AdSlot type="amazon" adId="YOUR_AMAZON_DETAIL_PAGE_AD_ID" width="100%" height="250px" className="mt-10" />
+            </div>
 
-                <!-- Community Tab -->
-                <div id="tab-community" class="tab-panel hidden">
-                    <h2 class="text-2xl font-semibold mb-4">Community</h2>
-                    <p>This section will display community discussions and showcase user-created content. (Functionality to be implemented)</p>
-                    {model.tags && model.tags.length > 0 && (
-                        <section class="mt-8">
-                            <h3 class="text-xl font-semibold mb-3 text-gray-800 dark:text-gray-200">Tags</h3>
-                            <div id="tags-container" class="flex flex-wrap gap-2">
-                                {visibleTags.map(tag => (
-                                    <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">{tag}</span>
-                                ))}
-                                {hasMoreTags && (
-                                    <button id="show-all-tags" class="bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1 rounded-full dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600">
-                                        Show all ({model.tags.length})
-                                    </button>
-                                )}
-                            </div>
-                        </section>
-                    )}
-                </div>
-            </div>
-        </div>
-        <aside class="lg:col-span-1">
-            <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg sticky top-24">
-                <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Details</h3>
-                <div class="space-y-4 text-gray-700 dark:text-gray-300">
-                    <div class="flex items-center gap-2">
-                        <span class="font-semibold">Task:</span>
-                        <span>{model.task}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-semibold">Likes:</span>
-                        <span class="flex items-center gap-1">❤️ {model.likes.toLocaleString()}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-semibold">Downloads:</span>
-                        <span class="flex items-center gap-1">↓ {model.downloads.toLocaleString()}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-semibold">Updated:</span>
-                        <span>{formattedLastUpdated}</span>
-                    </div>
-                </div>
-                <div class="mt-6 border-t border-gray-200 dark:border-gray-600 pt-6">
-                    <h4 class="font-semibold mb-2 text-gray-900 dark:text-white">Sources</h4>
-                    <ul class="space-y-1">
-                        {model.sources.map(source => (
-                            <li><a href={source.url} target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline break-all">{source.platform} &rarr;</a></li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
-        </aside>
-      </div>
-    </article>
-  </div>
+                        <div id="tab-community" class="tab-panel hidden">
+              <h2 class="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Community Discussions</h2>
+              <p class="text-gray-600 dark:text-gray-400">This section will display community discussions and showcase user-created content. (Functionality to be implemented)</p>
+            </div>
+          </div>
+        </div>
+        
+                <aside class="lg:col-span-1">
+          <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg sticky top-6 shadow-md border border-gray-100 dark:border-gray-600">
+            <h3 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white border-b pb-2">Model Details</h3>
+            
+                        <div class="space-y-3 text-gray-700 dark:text-gray-300">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">⚙️</span>
+                <span class="font-semibold">Task:</span>
+                <span class="break-all">{model.task}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xl">❤️</span>
+                <span class="font-semibold">Likes:</span>
+                <span>{model.likes.toLocaleString()}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xl">⬇️</span>
+                <span class="font-semibold">Downloads:</span>
+                <span>{model.downloads.toLocaleString()}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xl">📅</span>
+                <span class="font-semibold">Updated:</span>
+                <span>{formattedLastUpdated}</span>
+              </div>
+            </div>
+            
+                        {model.sources && model.sources.length > 0 && (
+              <div class="mt-6 border-t border-gray-200 dark:border-gray-600 pt-6">
+                <h4 class="font-bold text-lg mb-3 text-gray-900 dark:text-white">Sources & Repositories</h4>
+                <ul class="space-y-2">
+                  {model.sources.map(source => (
+                    <li>
+                      <a href={source.url} target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors break-all flex items-center gap-1">
+                        <span>{source.platform}</span>
+                        <span class="ml-1 text-sm">&rarr;</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
+    </article>
+  </div>
 
-  <script define:vars={{ allTags: model.tags, hasMoreTags }}>
-    // Tab switching logic
-    const tabs = document.querySelectorAll('.tab-button');
-    const panels = document.querySelectorAll('.tab-panel');
+    <script define:vars={{ allTags: model.tags, hasMoreTags }}>
+    // Tab switching logic
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+    const tabIdMap = {
+      'tab-btn-files': 'tab-files',
+      'tab-btn-community': 'tab-community',
+    };
 
-    tabs.forEach((tab, index) => {
-      tab.addEventListener('click', () => {
-        tabs.forEach(t => t.classList.replace('active-tab', 'inactive-tab'));
-        tab.classList.replace('inactive-tab', 'active-tab');
+    tabButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        // Update active tab
+        tabButtons.forEach(t => t.classList.replace('active-tab', 'inactive-tab'));
+        button.classList.replace('inactive-tab', 'active-tab');
 
-        panels.forEach(p => p.classList.add('hidden'));
-        panels[index].classList.remove('hidden');
-      });
-    });
+        // Get the target panel ID
+        const targetPanelId = tabIdMap[button.id];
 
-    // "Show all tags" button logic
-    if (hasMoreTags) {
-      const showAllBtn = document.getElementById('show-all-tags');
-      const tagsContainer = document.getElementById('tags-container');
+        // Update panel visibility
+        tabPanels.forEach(p => p.classList.add('hidden'));
+        if (targetPanelId) {
+          document.getElementById(targetPanelId)?.classList.remove('hidden');
+        }
+      });
+    });
 
-      showAllBtn.addEventListener('click', () => {
-        const remainingTags = allTags.slice(15);
-        const tagsHtml = remainingTags.map(tag => 
-          `<span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">${tag}</span>`
-        ).join('');
-        
-        // Create a temporary element to parse the HTML string
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = tagsHtml;
 
-        // Append the new tag elements
-        tagsContainer.append(...tempDiv.childNodes);
-        showAllBtn.remove();
-      });
-    }
-  </script>
-  <style>
-    .active-tab {
-      @apply border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400;
-    }
-    .inactive-tab {
-      @apply border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600;
-    }
-  </style>
-</BaseLayout>
-                        </div>
-                    </div>
-                </aside>
-            </div>
-        </div>
+    // "Show all tags" button logic
+    if (hasMoreTags) {
+      const showAllBtn = document.getElementById('show-all-tags');
+      const tagsContainer = document.getElementById('tags-container');
 
-        <!-- Files Tab -->
-        <div id="tab-files" class="tab-panel hidden">
-            <h2 class="text-2xl font-semibold mb-4">Files and Versions</h2>
-            <p>This section will list the model files. (Functionality to be implemented)</p>
-            <!-- Amazon Ad Slot -->
-            <AdSlot type="amazon" adId="YOUR_AMAZON_DETAIL_PAGE_AD_ID" width="100%" height="250px" className="mt-12" />
-        </div>
+      if (showAllBtn && tagsContainer) {
+        showAllBtn.addEventListener('click', () => {
+          const remainingTags = allTags.slice(15);
+          const tagsHtml = remainingTags.map(tag => 
+            `<span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300 transition-colors">${tag}</span>`
+          ).join('');
+          
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = tagsHtml;
 
-        <!-- Community Tab -->
-        <div id="tab-community" class="tab-panel hidden">
-            <h2 class="text-2xl font-semibold mb-4">Community</h2>
-            <p>This section will display community discussions and showcase user-created content. (Functionality to be implemented)</p>
-            {model.tags && model.tags.length > 0 && (
-                <section class="mt-8">
-                    <h3 class="text-xl font-semibold mb-3 text-gray-800 dark:text-gray-200">Tags</h3>
-                    <div id="tags-container" class="flex flex-wrap gap-2">
-                        {visibleTags.map(tag => (
-                            <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">{tag}</span>
-                        ))}
-                        {hasMoreTags && (
-                            <button id="show-all-tags" class="bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1 rounded-full dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600">
-                                Show all ({model.tags.length})
-                            </button>
-                        )}
-                    </div>
-                </section>
-            )}
-        </div>
-      </div>
-    </article>
-  </div>
+          tagsContainer.append(...tempDiv.childNodes);
+          showAllBtn.remove();
+        });
+      }
+    }
+  </script>
 
-  <script define:vars={{ allTags: model.tags, hasMoreTags }}>
-    // Tab switching logic
-    const tabs = document.querySelectorAll('.tab-button');
-    const panels = document.querySelectorAll('.tab-panel');
-
-    tabs.forEach((tab, index) => {
-      tab.addEventListener('click', () => {
-        tabs.forEach(t => t.classList.replace('active-tab', 'inactive-tab'));
-        tab.classList.replace('inactive-tab', 'active-tab');
-
-        panels.forEach(p => p.classList.add('hidden'));
-        panels[index].classList.remove('hidden');
-      });
-    });
-
-    // "Show all tags" button logic
-    if (hasMoreTags) {
-      const showAllBtn = document.getElementById('show-all-tags');
-      const tagsContainer = document.getElementById('tags-container');
-
-      showAllBtn.addEventListener('click', () => {
-        const remainingTags = allTags.slice(15);
-        const tagsHtml = remainingTags.map(tag => 
-          `<span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">${tag}</span>`
-        ).join('');
-        
-        // Create a temporary element to parse the HTML string
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = tagsHtml;
-
-        // Append the new tag elements
-        tagsContainer.append(...tempDiv.childNodes);
-        showAllBtn.remove();
-      });
-    }
-  </script>
-  <style>
-    .active-tab {
-      @apply border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400;
-    }
-    .inactive-tab {
-      @apply border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600;
-    }
-  </style>
-</BaseLayout>
-          <!-- Amazon Ad Slot - Moved to a more prominent position -->
-          <AdSlot type="amazon" adId="YOUR_AMAZON_DETAIL_PAGE_AD_ID" width="100%" height="250px" className="mt-12" />
-
-          {model.readme && (
-            <section class="mt-8">
-              <h2 class="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200">Details & Usage</h2>
-              <div class="prose dark:prose-invert prose-lg max-w-none bg-gray-50 dark:bg-gray-900 p-4 rounded-md">
-                <div set:html={model.readme} />
-              </div>
-            </section>
-          )}
-        </div>
-
-        <aside>
-          <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg sticky top-24">
-            <h3 class="text-xl font-bold mb-3 text-gray-900 dark:text-white">Details</h3>
-            <div class="space-y-2 text-gray-700 dark:text-gray-300">
-              <p><strong>Task:</strong> {model.task}</p>
-              <p><strong>Likes:</strong> {model.likes.toLocaleString()}</p>
-              <p><strong>Downloads:</strong> {model.downloads.toLocaleString()}</p>
-              <p><strong>Last Updated:</strong> {formattedLastUpdated}</p>
-            </div>
-            <div class="mt-4 border-t border-gray-200 dark:border-gray-600 pt-4">
-              <h4 class="font-semibold mb-2 text-gray-900 dark:text-white">Sources</h4>
-              <ul class="space-y-1">
-                {model.sources.map(source => (
-                  <li><a href={source.url} target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline break-all">{source.platform} &rarr;</a></li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </article>
-  </main>
-
-  {hasMoreTags && (
-    <script define:vars={{ allTags: model.tags }}>
-      const showAllBtn = document.getElementById('show-all-tags');
-      const tagsContainer = document.getElementById('tags-container');
-
-      showAllBtn.addEventListener('click', () => {
-        const remainingTags = allTags.slice(15);
-        const tagsHtml = remainingTags.map(tag => 
-          `<span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">${tag}</span>`
-        ).join('');
-        
-        // Create a temporary element to parse the HTML string
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = tagsHtml;
-
-        // Append the new tag elements
-        tagsContainer.append(...tempDiv.childNodes);
-        showAllBtn.remove();
-      });
-    </script>
-  )}
+  <style>
+    .active-tab {
+      @apply border-blue-600 text-blue-700 dark:border-blue-400 dark:text-blue-400;
+    }
+    .inactive-tab {
+      @apply border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600;
+    }
+  </style>
 </BaseLayout>
