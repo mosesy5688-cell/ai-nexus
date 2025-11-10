@@ -1,60 +1,24 @@
 ---
-// src/pages/compliance.astro
-import Layout from '../layouts/Layout.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
 ---
 
-<Layout title="Compliance & Content Policy - Free AI Tools" description="Our commitment to providing safe, high-quality content and our adherence to advertising policies.">
-  <main class="container max-w-4xl mx-auto px-4 py-12">
-    <header class="text-center mb-12">
-      <h1 class="text-4xl sm:text-5xl font-extrabold text-gray-900 dark:text-gray-100 mb-4">
-        Compliance & Content Policy
+<BaseLayout 
+  title="Compliance & Safety | Free AI Tools" 
+  description="Our commitment to providing a safe, compliant, and family-friendly index of open-source AI models.">
+  <main class="container max-w-4xl mx-auto px-4 py-16 sm:py-24">
+    <header class="text-center mb-16">
+      <h1 class="text-5xl md:text-6xl font-black tracking-tighter text-gray-900 dark:text-white">
+        Compliance & Safety
       </h1>
-      <p class="text-lg text-gray-600 dark:text-gray-400">
-        Free AI Tools is committed to maintaining a safe, ethical, and high-quality platform for all users.
-      </p>
     </header>
 
-    <div class="prose dark:prose-invert prose-lg max-w-none space-y-8">
-      <section>
-        <h2 class="text-2xl font-bold">Content Filtering & Safety</h2>
-        <p>
-          Our primary goal is to provide a comprehensive and valuable resource for discovering open-source AI models. To ensure a safe browsing experience for all our users and to comply with the policies of our advertising partners, such as Google AdSense, we have implemented a strict content filtering policy.
-        </p>
-        <ul>
-          <li>
-            <strong>Automated NSFW Filtering:</strong> Our data processing scripts automatically scan the names, descriptions, and tags of all models fetched from external sources (like Hugging Face and Civitai).
-          </li>
-          <li>
-            <strong>Prohibited Content:</strong> Any model that contains keywords related to adult, explicit, or Not-Safe-For-Work (NSFW) content is automatically excluded from our website's listings. We maintain a zero-tolerance policy for sexually explicit material.
-          </li>
-          <li>
-            <strong>Ongoing Monitoring:</strong> We continuously update our filtering mechanisms to adapt to new data and ensure our platform remains clean and compliant.
-          </li>
-        </ul>
-      </section>
-
-      <section>
-        <h2 class="text-2xl font-bold">Advertising Policy</h2>
-        <p>
-          To support the operational costs of this project, Free AI Tools displays advertisements. We are committed to adhering to the policies of our advertising partners. This includes, but is not limited to:
-        </p>
-        <ul>
-          <li>Ensuring all site content is family-safe and free of prohibited material.</li>
-          <li>Maintaining original, high-quality content that provides value to our users.</li>
-          <li>Providing a transparent and user-friendly site navigation experience.</li>
-          <li>Clearly distinguishing advertisements from main site content.</li>
-        </ul>
-      </section>
-
-      <section>
-        <h2 class="text-2xl font-bold">Reporting & Contact</h2>
-        <p>
-          We rely on our automated systems and community to help us maintain a high standard of quality. If you encounter any content on our site that you believe is inappropriate, violates our policies, or is displayed in error, please do not hesitate to contact us.
-        </p>
-        <p>
-          You can reach our compliance team at: <a href="mailto:compliance@free2aitools.com">compliance@free2aitools.com</a>. We take all reports seriously and will investigate promptly.
-        </p>
-      </section>
+    <div class="prose dark:prose-invert prose-lg max-w-none">
+      <p>
+        At Free AI Tools, we are committed to maintaining a safe and compliant platform. Our automated systems are designed to filter and exclude any content that could be considered Not Safe For Work (NSFW), explicit, or otherwise inappropriate. We strive to create a resource that is accessible and useful for everyone, including students, researchers, and professionals.
+      </p>
+      <p>
+        If you encounter any content that you believe violates this policy, please contact us through our <a href="https://github.com/mosesy5688-cell/ai-nexus/issues" target="_blank" rel="noopener noreferrer">GitHub issues page</a>.
+      </p>
     </div>
   </main>
-</Layout>
+</BaseLayout>

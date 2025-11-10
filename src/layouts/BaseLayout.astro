@@ -32,8 +32,11 @@ const { title, description } = Astro.props;
 		</main>
 		<footer class="bg-gray-800 text-gray-300 py-8 mt-16">
 			<div class="container mx-auto px-4 text-center">
-				<p>&copy; {new Date().getFullYear()} Free AI Tools. All rights reserved.</p>
-				<p class="mt-2 text-sm">An open-source project to index the world of AI.</p>
+				<div class="flex justify-center gap-4 mb-4">
+					<a href="/about" class="hover:underline">About</a>
+					<a href="/compliance" class="hover:underline">Compliance</a>
+				</div>
+				<p class="text-sm">&copy; {new Date().getFullYear()} Free AI Tools. An open-source project to index the world of AI.</p>
 			</div>
 		</footer>
 	</body>

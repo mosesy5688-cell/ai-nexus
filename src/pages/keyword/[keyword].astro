@@ -24,10 +24,16 @@ const relevantModels: Model[] = models.filter(model =>
 ---
 <BaseLayout title={frontmatter.title} description={frontmatter.description}>
   <main class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+      <a href="/#categories" class="text-blue-500 hover:underline">&larr; Back to Categories</a>
+    </div>
     <article class="prose dark:prose-invert max-w-none mb-12 text-center">
         <h1 class="text-4xl font-bold">{frontmatter.title}</h1>
         <p class="text-lg">{frontmatter.description}</p>
     </article>
+
+    <!-- Ad Slot for Keyword Pages -->
+    <AdSlot type="google" googleAdClient="ca-pub-YOUR_ID" googleAdSlot="YOUR_KEYWORD_PAGE_SLOT" className="my-12 text-center" />
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {relevantModels.map(model => <ModelCard model={model} />)}

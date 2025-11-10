@@ -17,6 +17,9 @@ const hasMoreTags = model.tags?.length > 15;
 ---
 <BaseLayout title={model.name} description={model.description.substring(0, 160)}>
   <main class="container mx-auto px-4 py-12">
+    <div class="mb-8">
+      <a href="javascript:history.back()" class="text-blue-500 hover:underline">&larr; Back to previous page</a>
+    </div>
     <article class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
       <header class="border-b pb-4 mb-4">
         <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">{model.name}</h1>

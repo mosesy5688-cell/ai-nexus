@@ -1,0 +1,81 @@
+---
+import ModelCard from '@/components/ModelCard.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import AdSlot from '@/components/AdSlot.astro';
+import models from '../../public/models.json';
+
+const allModels = models; // Initially show all models
+---
+
+<BaseLayout 
+  title="Explore All AI Models | Free AI Tools"
+  description="Search and browse our entire collection of open-source AI models and tools.">
+
+  <section id="explore" class="py-20">
+    <div class="container max-w-7xl mx-auto px-4">
+      <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-900 dark:text-white">Explore All Models</h1>
+        <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">Search our comprehensive index of open-source AI.</p>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="max-w-2xl mx-auto mb-16">
+        <input 
+          type="search" 
+          id="search-input"
+          placeholder="Search for models, tasks, or tags (e.g., 'Llama 3', 'text-to-image')..."
+          class="w-full px-5 py-3 text-lg bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-full focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
+        />
+      </div>
+
+      <!-- Ad Slot -->
+      <AdSlot type="google" googleAdClient="ca-pub-YOUR_ID" googleAdSlot="YOUR_EXPLORE_PAGE_SLOT" className="my-16 text-center" />
+
+      <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {allModels.map(model => (
+          <ModelCard model={model} />
+        ))}
+      </div>
+      <p id="no-results" class="text-center text-xl text-gray-500 mt-12 hidden">No models found matching your search.</p>
+    </div>
+  </section>
+
+  <script define:vars={{ allModels }}>
+    const searchInput = document.getElementById('search-input');
+    const modelsGrid = document.getElementById('models-grid');
+    const noResults = document.getElementById('no-results');
+    
+    // The template function is now self-contained here
+    const modelCardTemplate = (model) => {
+      const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
+      const platforms = model.sources ? model.sources.map(s => s.platform).join(', ') : (model.sourcePlatform || 'N/A');
+      const likes = model.likes?.toLocaleString() || '0';
+      const downloads = model.downloads?.toLocaleString() || '0';
+
+      return `
+        <div class="border rounded-lg p-4 shadow-md hover:shadow-lg transition-shadow bg-white dark:bg-gray-800 flex flex-col">
+          <h3 class="text-xl font-bold mb-2 text-gray-900 dark:text-white">${model.name}</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Platform(s): ${platforms}</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Task: ${model.task}</p>
+          <p class="text-gray-700 dark:text-gray-300 mb-4 line-clamp-2 flex-grow">${model.description}</p>
+          <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+            <span class="flex items-center gap-1">❤️ ${likes}</span>
+            <span class="flex items-center gap-1">↓ ${downloads}</span>
+          </div>
+          <a href="${modelUrl}" class="text-blue-500 hover:underline font-semibold mt-4 block text-right">View Details &rarr;</a>
+        </div>
+      `;
+    };
+
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      const filteredModels = allModels.filter(model => 
+        model.name.toLowerCase().includes(query) ||
+        model.description.toLowerCase().includes(query) ||
+        (model.tags && model.tags.some(tag => tag.toLowerCase().includes(query)))
+      );
+
+      modelsGrid.innerHTML = filteredModels.map(modelCardTemplate).join('') || '<p class="text-center text-xl text-gray-500 col-span-full">No models found.</p>';
+    });
+  </script>
+</BaseLayout>

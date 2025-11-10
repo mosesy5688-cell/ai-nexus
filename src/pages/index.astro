@@ -1,11 +1,6 @@
 ---
-import ModelCard from '@/components/ModelCard.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import { CORE_CATEGORIES } from '@/content/config';
-import AdSlot from '@/components/AdSlot.astro';
-import models from '../../public/models.json';
-
-const featuredModels = models.slice(0, 12); // Show top 12 models on the homepage
 ---
 
 <BaseLayout 
@@ -25,90 +20,23 @@ const featuredModels = models.slice(0, 12); // Show top 12 models on the homepag
   </section>
 
   <!-- Explore Section -->
-  <section id="explore" class="py-20 bg-gray-100 dark:bg-gray-900">
+  <section id="categories" class="py-20 bg-gray-100 dark:bg-gray-900">
     <div class="container max-w-7xl mx-auto px-4">
       <div class="text-center mb-12">
-        <h2 class="text-4xl font-bold text-gray-900 dark:text-white">Explore Models</h2>
-        <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">Search by name or browse by category.</p>
-      </div>
-
-      <!-- Search Bar -->
-      <div class="max-w-2xl mx-auto mb-12">
-        <input 
-          type="search" 
-          id="search-input"
-          placeholder="Search for models, tasks, or tags (e.g., 'Llama 3', 'text-to-image')..."
-          class="w-full px-5 py-3 text-lg bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-full focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
-        />
+        <h2 class="text-4xl font-bold text-gray-900 dark:text-white">Explore Core Categories</h2>
+        <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">Dive into curated lists of tools for specific AI domains.</p>
       </div>
 
       <!-- Core Categories -->
-      <div class="mb-16">
-        <h3 class="text-2xl font-bold text-center mb-8 text-gray-800 dark:text-gray-200">Or, Browse Core Categories</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {CORE_CATEGORIES.map(category => (
-            <a href={`/keyword/${category.slug}`} class="flex flex-col p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
-              <h4 class="text-xl font-bold text-gray-900 dark:text-white">{category.title}</h4>
-              <p class="mt-2 text-gray-600 dark:text-gray-400 flex-grow">{category.description}</p>
-              <span class="mt-4 font-semibold text-blue-500 dark:text-blue-400 self-end">Explore &rarr;</span>
-            </a>
-          ))}
-        </div>
-      </div>
-
-      <!-- Homepage Ad Slot -->
-      <AdSlot type="google" googleAdClient="ca-pub-YOUR_ID" googleAdSlot="YOUR_HOMEPAGE_SLOT" className="my-16 text-center" />
-
-      <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {featuredModels.map(model => (
-          <ModelCard model={model} />
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {CORE_CATEGORIES.map(category => (
+          <a href={`/keyword/${category.slug}`} class="flex flex-col p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">{category.title}</h3>
+            <p class="mt-2 text-gray-600 dark:text-gray-400 flex-grow">{category.description}</p>
+            <span class="mt-4 font-semibold text-blue-500 dark:text-blue-400 self-end">Explore &rarr;</span>
+          </a>
         ))}
       </div>
-      <p id="no-results" class="text-center text-xl text-gray-500 mt-12 hidden">No models found matching your search.</p>
     </div>
   </section>
-
-  <script define:vars={{ allModels: models }}>
-    const searchInput = document.getElementById('search-input');
-    const modelsGrid = document.getElementById('models-grid');
-    const noResults = document.getElementById('no-results');
-    const modelCardTemplate = (model) => {
-      const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
-      const platforms = model.sources ? model.sources.map(s => s.platform).join(', ') : model.sourcePlatform;
-      const likes = model.likes.toLocaleString();
-      const downloads = model.downloads.toLocaleString();
-
-      return `
-        <div class="border rounded-lg p-4 shadow-md hover:shadow-lg transition-shadow bg-white dark:bg-gray-800 flex flex-col">
-          <h3 class="text-xl font-bold mb-2 text-gray-900 dark:text-white">${model.name}</h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Platform(s): ${platforms}</p>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Task: ${model.task}</p>
-          <p class="text-gray-700 dark:text-gray-300 mb-4 line-clamp-2 flex-grow">${model.description}</p>
-          <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
-            <span class="flex items-center">❤️ ${likes}</span>
-            <span class="flex items-center">↓ ${downloads}</span>
-          </div>
-          <a href="${modelUrl}" class="text-blue-500 hover:underline font-semibold mt-4 block text-right">View Details &rarr;</a>
-        </div>
-      `;
-    };
-
-    searchInput.addEventListener('input', (e) => {
-      const query = e.target.value.toLowerCase();
-      const filteredModels = allModels.filter(model => 
-        model.name.toLowerCase().includes(query) ||
-        model.description.toLowerCase().includes(query) ||
-        (model.tags && model.tags.some(tag => tag.toLowerCase().includes(query)))
-      );
-
-      if (filteredModels.length > 0) {
-        modelsGrid.innerHTML = filteredModels.map(modelCardTemplate).join('');
-        modelsGrid.classList.remove('hidden');
-        noResults.classList.add('hidden');
-      } else {
-        modelsGrid.classList.add('hidden');
-        noResults.classList.remove('hidden');
-      }
-    });
-  </script>
 </BaseLayout>
