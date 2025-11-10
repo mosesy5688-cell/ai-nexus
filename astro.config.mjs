@@ -3,7 +3,6 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import tailwind from "@astrojs/tailwind";
 import sitemap from "@astrojs/sitemap";
-import mdx from "@astrojs/mdx";
 import models from './public/models.json';
 
 const siteUrl = 'https://free2aitools.com';

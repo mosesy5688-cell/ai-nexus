@@ -13,6 +13,7 @@ export interface Model {
     likes: number;
     downloads: number;
     lastModified: string;
+    readme?: string;
     // A model can have multiple sources (e.g., from Hugging Face and GitHub)
     sources: SourceInfo[];
 }

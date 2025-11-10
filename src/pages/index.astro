@@ -1,7 +1,7 @@
 ---
 import ModelCard from '@/components/ModelCard.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import { CORE_KEYWORDS } from '@/content/config';
+import { CORE_CATEGORIES } from '@/content/config';
 import models from '../../public/models.json';
 
 const featuredModels = models.slice(0, 12); // Show top 12 models on the homepage
@@ -9,16 +9,16 @@ const featuredModels = models.slice(0, 12); // Show top 12 models on the homepag
 
 <BaseLayout 
   title="Free AI Tools | The Ultimate Open-Source AI Index"
-  description="Discover the best free, open-source AI models and tools. An automated, comprehensive directory for developers, researchers, and AI enthusiasts.">
+  description="An authoritative index of open-source AI models, tools, and resources, curated for developers and researchers.">
 
   <!-- Hero Section -->
   <section class="text-center py-20 sm:py-32">
     <div class="container max-w-4xl mx-auto px-4">
       <h1 class="text-5xl md:text-7xl font-black tracking-tighter text-gray-900 dark:text-white">
-        Discover the Open-Source AI Universe
+        Free AI Tools: The Open-Source AI Nexus
       </h1>
       <p class="mt-6 text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-        Your comprehensive, auto-updating guide to the world's best open-source AI models.
+        An authoritative index of open-source AI models, tools, and resources, curated for developers and researchers.
       </p>
     </div>
   </section>
@@ -26,12 +26,14 @@ const featuredModels = models.slice(0, 12); // Show top 12 models on the homepag
   <!-- Core Keywords Section -->
   <section id="keywords" class="py-16 bg-gray-100 dark:bg-gray-900">
     <div class="container max-w-7xl mx-auto px-4">
-      <h2 class="text-3xl font-bold text-center mb-12 text-gray-900 dark:text-white">Explore by Category</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {CORE_KEYWORDS.map(keyword => (
-          <a href={`/keyword/${keyword.slug}`} class="block p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1 transition-all">
-            <h3 class="text-xl font-bold text-gray-900 dark:text-white">{keyword.title}</h3>
-            <p class="mt-2 text-gray-600 dark:text-gray-400">Explore models &rarr;</p>
+      <h2 class="text-3xl font-bold text-center mb-4 text-gray-900 dark:text-white">Explore Core Categories</h2>
+      <p class="text-lg text-center text-gray-600 dark:text-gray-400 mb-12 max-w-3xl mx-auto">Dive into curated lists of tools for specific AI domains.</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {CORE_CATEGORIES.map(category => (
+          <a href={`/keyword/${category.slug}`} class="flex flex-col p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">{category.title}</h3>
+            <p class="mt-2 text-gray-600 dark:text-gray-400 flex-grow">{category.description}</p>
+            <span class="mt-4 font-semibold text-blue-500 dark:text-blue-400 self-end">Explore &rarr;</span>
           </a>
         ))}
       </div>

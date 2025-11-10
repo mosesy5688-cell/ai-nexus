@@ -32,17 +32,30 @@ async function fetchHuggingFaceData() {
     console.log('📦 Fetching data from HuggingFace API...');
     try {
         const { data } = await axios.get(HUGGINGFACE_API_URL);
-        const transformedData = data.map(model => ({
-            id: model.modelId,
-            name: model.modelId.split('/')[1] || model.modelId, // Use the repo name as the model name
-            author: model.author,
-            description: model.cardData?.description || `A model for ${model.pipeline_tag || 'various tasks'}.`,
-            task: model.pipeline_tag || 'N/A',
-            tags: model.tags || [],
-            likes: model.likes,
-            downloads: model.downloads,
-            lastModified: model.lastModified,
-            sources: [{ platform: 'Hugging Face', url: `https://huggingface.co/${model.modelId}` }],
+        const transformedData = await Promise.all(data.map(async (model) => {
+            let readmeContent = null;
+            try {
+                // Attempt to fetch the README.md file for each model
+                const readmeUrl = `https://huggingface.co/${model.modelId}/raw/main/README.md`;
+                const readmeResponse = await axios.get(readmeUrl);
+                readmeContent = readmeResponse.data;
+            } catch (e) {
+                // It's okay if a README doesn't exist, we'll just skip it.
+            }
+
+            return {
+                id: model.modelId,
+                name: model.modelId.split('/')[1] || model.modelId,
+                author: model.author,
+                description: model.cardData?.description || `A model for ${model.pipeline_tag || 'various tasks'}.`,
+                task: model.pipeline_tag || 'N/A',
+                tags: model.tags || [],
+                likes: model.likes,
+                downloads: model.downloads,
+                lastModified: model.lastModified,
+                readme: readmeContent,
+                sources: [{ platform: 'Hugging Face', url: `https://huggingface.co/${model.modelId}` }],
+            };
         }));
         console.log(`✅ Successfully fetched and transformed ${transformedData.length} models.`);
         return transformedData;
