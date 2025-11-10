@@ -11,9 +11,8 @@ export default defineConfig({
   integrations: [
     tailwind(), 
     sitemap({
-      // This function ensures all dynamic model pages are included in the sitemap.
-      // Dynamically create full URLs for custom pages using the siteUrl constant.
-      customPages: models.map(model => `${siteUrl}/model/${model.id.replace(/\//g, '--')}`)
+      // Let Astro auto-discover all pages, including dynamic ones.
+      // No need for `customPages` which was causing build issues.
     })
   ],
   output: 'static'
