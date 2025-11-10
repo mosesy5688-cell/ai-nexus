@@ -6,6 +6,7 @@ const path = require('path');
 const CIVITAI_DATA_PATH = path.join(__dirname, '../src/data/civitai.json');
 const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100';
 const OUTPUT_FILE_PATH = path.join(__dirname, '../public/models.json');
+const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../public/keywords.json');
 const ARCHIVE_DIR = path.join(__dirname, '../public/archives');
 const NSFW_KEYWORDS = [
     'nsfw', 
@@ -92,7 +93,7 @@ async function fetchGitHubData() {
             console.error(`    - Status: ${error.response.status}`);
             console.error(`    - Data: ${JSON.stringify(error.response.data)}`);
         }
-        process.exit(1);
+        return []; // Return empty on error to avoid breaking the build
     }
 }
 
@@ -184,6 +185,33 @@ function isNsfw(model) {
     return false;
 }
 
+function discoverAndSaveKeywords(models) {
+    console.log('Discovering hot keywords...');
+    const tagFrequency = new Map();
+    const excludedTags = new Set(['transformers', 'safetensors', 'pytorch', 'diffusers', 'en', 'license:mit', 'region:us', 'custom_code']);
+
+    for (const model of models) {
+        if (model.tags) {
+            for (const tag of model.tags) {
+                if (!excludedTags.has(tag) && !tag.includes(':') && tag.length > 2 && tag.length < 25) {
+                    tagFrequency.set(tag, (tagFrequency.get(tag) || 0) + 1);
+                }
+            }
+        }
+    }
+
+    const sortedTags = Array.from(tagFrequency.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 12) // Get the top 12 hot keywords
+        .map(entry => ({
+            slug: entry[0],
+            title: entry[0].replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), // Format title
+            count: entry[1]
+        }));
+
+    writeDataToFile(KEYWORDS_OUTPUT_PATH, sortedTags);
+}
+
 async function main() {
     console.log('--- Starting AI-Nexus Data Fetching Script ---');
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -237,6 +265,9 @@ async function main() {
         // 2. Write to the main models.json for the build process
         writeDataToFile(OUTPUT_FILE_PATH, combinedData);
         await writeToKV('models', JSON.stringify(combinedData));
+
+        // 5. Discover and save hot keywords based on the final model list
+        discoverAndSaveKeywords(combinedData);
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
     }

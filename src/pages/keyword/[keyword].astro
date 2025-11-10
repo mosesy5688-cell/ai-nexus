@@ -1,35 +1,36 @@
 ---
-import { getCollection } from 'astro:content';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import ModelCard from '@/components/ModelCard.astro';
 import AdSlot from '@/components/AdSlot.astro';
 import models from '../../../public/models.json';
+import keywords from '../../../public/keywords.json';
 import type { Model } from '@/types';
 
 export async function getStaticPaths() {
-  const keywordEntries = await getCollection('keywords');
-  return keywordEntries.map(entry => ({
-    params: { keyword: entry.slug },
-    props: { frontmatter: entry.data },
+  // Generate a page for each discovered keyword
+  return keywords.map(keyword => ({
+    params: { keyword: keyword.slug },
+    props: { keyword },
   }));
 }
 
-const { frontmatter } = Astro.props;
-const keyword = frontmatter.keyword;
+const { keyword } = Astro.props;
+const keywordSlug = keyword.slug;
+const keywordTitle = keyword.title;
 
 // Filter models that have the current keyword in their tags array
 const relevantModels: Model[] = models.filter(model => 
-  model.tags && model.tags.map(tag => tag.toLowerCase()).includes(keyword.toLowerCase())
+  model.tags && model.tags.map(tag => tag.toLowerCase()).includes(keywordSlug.toLowerCase())
 );
 ---
-<BaseLayout title={frontmatter.title} description={frontmatter.description}>
+<BaseLayout title={`Top AI Models for ${keywordTitle}`} description={`Explore the best open-source AI models for ${keywordTitle}.`}>
   <main class="container mx-auto px-4 py-8">
     <div class="mb-8">
       <a href="/#categories" class="text-blue-500 hover:underline">&larr; Back to Categories</a>
     </div>
     <article class="prose dark:prose-invert max-w-none mb-12 text-center">
-        <h1 class="text-4xl font-bold">{frontmatter.title}</h1>
-        <p class="text-lg">{frontmatter.description}</p>
+        <h1 class="text-4xl font-bold">{`AI Models for ${keywordTitle}`}</h1>
+        <p class="text-lg">{`Browse our collection of ${relevantModels.length} models related to ${keywordTitle}.`}</p>
     </article>
 
     <!-- Ad Slot for Keyword Pages -->
