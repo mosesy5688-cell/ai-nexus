@@ -9,6 +9,12 @@ const keywordsCollection = defineCollection({
   }),
 });
 
+export const CORE_KEYWORDS = [
+    { slug: 'image-generation', title: 'Image Generation' },
+    { slug: 'stable-diffusion', title: 'Stable Diffusion' },
+    // Add more core keywords here as your site grows
+];
+
 export const collections = {
   'keywords': keywordsCollection,
 };

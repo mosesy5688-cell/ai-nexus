@@ -7,10 +7,11 @@ export interface Props {
 
 const { model } = Astro.props;
 const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
+const platforms = model.sources ? model.sources.map(s => s.platform).join(', ') : model.sourcePlatform;
 ---
 <div class="border rounded-lg p-4 shadow-md hover:shadow-lg transition-shadow bg-white dark:bg-gray-800">
     <h3 class="text-xl font-bold mb-2 text-gray-900 dark:text-white">{model.name}</h3>
-    <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Platform: {model.sourcePlatform}</p>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Platform(s): {platforms}</p>
     <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Task: {model.task}</p>
     <p class="text-gray-700 dark:text-gray-300 mb-4 line-clamp-2">{model.description}</p>
     <a href={modelUrl} class="text-blue-500 hover:underline font-semibold">View Details &rarr;</a>
