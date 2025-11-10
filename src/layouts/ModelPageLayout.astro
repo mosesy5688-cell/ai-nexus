@@ -23,84 +23,116 @@ const hasMoreTags = model.tags?.length > 15;
     <article class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
       <header class="border-b pb-4 mb-4">
         <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">{model.name}</h1>
-        {model.author && <p class="text-lg text-gray-500 dark:text-gray-400 mt-1">by {model.author}</p>}
+        <div class="flex items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
+            {model.author && <span>by {model.author}</span>}
+            <span class="flex items-center gap-1">❤️ {model.likes.toLocaleString()}</span>
+            <span class="flex items-center gap-1">↓ {model.downloads.toLocaleString()}</span>
+            <span>Updated on {formattedLastUpdated}</span>
+        </div>
       </header>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div class="md:col-span-2">
-          <section>
-            <h2 class="text-2xl font-semibold mb-3 text-gray-800 dark:text-gray-200">Description</h2>
-            <div class="prose dark:prose-invert prose-lg max-w-none text-gray-700 dark:text-gray-300">
-              <p>{model.description}</p>
+      <!-- Tab Navigation -->
+      <div class="border-b border-gray-200 dark:border-gray-700 mb-8">
+        <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+          <button class="tab-button active-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+            Model Card
+          </button>
+          <button class="tab-button inactive-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+            Files
+          </button>
+          <button class="tab-button inactive-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">
+            Community
+          </button>
+        </nav>
+      </div>
+
+      <!-- Tab Content -->
+      <div id="tab-content">
+        <!-- Model Card / README Tab -->
+        <div id="tab-model-card" class="tab-panel">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <div class="lg:col-span-3">
+                    {model.readme ? (
+                        <section>
+                            <div class="prose dark:prose-invert prose-lg max-w-none bg-gray-100 dark:bg-gray-900 p-6 rounded-lg prose-pre:bg-gray-200 dark:prose-pre:bg-gray-800 prose-pre:text-gray-800 dark:prose-pre:text-gray-200">
+                                <div set:html={model.readme} />
+                            </div>
+                        </section>
+                    ) : (
+                        <p>No detailed information (README) available for this model.</p>
+                    )}
+                </div>
+                <aside class="lg:col-span-1">
+                    <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg sticky top-24">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Details</h3>
+                        <div class="space-y-4 text-gray-700 dark:text-gray-300">
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold">Task:</span>
+                                <span>{model.task}</span>
+                            </div>
+                        </div>
+                        <div class="mt-6 border-t border-gray-200 dark:border-gray-600 pt-6">
+                            <h4 class="font-semibold mb-2 text-gray-900 dark:text-white">Sources</h4>
+                            <ul class="space-y-1">
+                                {model.sources.map(source => (
+                                    <li><a href={source.url} target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline break-all">{source.platform} &rarr;</a></li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                </aside>
             </div>
-          </section>
-
-          {model.tags && model.tags.length > 0 && (
-            <section class="mt-8">
-              <h2 class="text-2xl font-semibold mb-3 text-gray-800 dark:text-gray-200">Tags</h2>
-              <div id="tags-container" class="flex flex-wrap gap-2">
-                {visibleTags.map(tag => (
-                  <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">{tag}</span>
-                ))}
-                {hasMoreTags && (
-                  <button id="show-all-tags" class="bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1 rounded-full dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600">
-                    Show all ({model.tags.length})
-                  </button>
-                )}
-              </div>
-            </section>
-          )}
-
-          <!-- Amazon Ad Slot - Moved to a more prominent position -->
-          <AdSlot type="amazon" adId="YOUR_AMAZON_DETAIL_PAGE_AD_ID" width="100%" height="250px" className="mt-12" />
-
-          {model.readme && (
-            <section class="mt-8">
-              <h2 class="text-2xl font-semibold mb-3 text-gray-800 dark:text-gray-200">Details & Usage</h2>
-              <div class="prose dark:prose-invert prose-lg max-w-none bg-gray-100 dark:bg-gray-900 p-4 rounded-lg prose-pre:bg-gray-200 dark:prose-pre:bg-gray-800 prose-pre:text-gray-800 dark:prose-pre:text-gray-200">
-                <div set:html={model.readme} />
-              </div>
-            </section>
-          )}
         </div>
 
-        <aside>
-          <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg sticky top-24">
-            <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Details</h3>
-            <div class="space-y-4 text-gray-700 dark:text-gray-300">
-              <div class="flex items-center gap-2">
-                <span class="font-semibold">Task:</span>
-                <span>{model.task}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="font-semibold">Likes:</span>
-                <span class="flex items-center gap-1">❤️ {model.likes.toLocaleString()}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="font-semibold">Downloads:</span>
-                <span class="flex items-center gap-1">↓ {model.downloads.toLocaleString()}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="font-semibold">Updated:</span>
-                <span>{formattedLastUpdated}</span>
-              </div>
-            </div>
-            <div class="mt-6 border-t border-gray-200 dark:border-gray-600 pt-6">
-              <h4 class="font-semibold mb-2 text-gray-900 dark:text-white">Sources</h4>
-              <ul class="space-y-1">
-                {model.sources.map(source => (
-                  <li><a href={source.url} target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline break-all">{source.platform} &rarr;</a></li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </aside>
+        <!-- Files Tab -->
+        <div id="tab-files" class="tab-panel hidden">
+            <h2 class="text-2xl font-semibold mb-4">Files and Versions</h2>
+            <p>This section will list the model files. (Functionality to be implemented)</p>
+            <!-- Amazon Ad Slot -->
+            <AdSlot type="amazon" adId="YOUR_AMAZON_DETAIL_PAGE_AD_ID" width="100%" height="250px" className="mt-12" />
+        </div>
+
+        <!-- Community Tab -->
+        <div id="tab-community" class="tab-panel hidden">
+            <h2 class="text-2xl font-semibold mb-4">Community</h2>
+            <p>This section will display community discussions and showcase user-created content. (Functionality to be implemented)</p>
+            {model.tags && model.tags.length > 0 && (
+                <section class="mt-8">
+                    <h3 class="text-xl font-semibold mb-3 text-gray-800 dark:text-gray-200">Tags</h3>
+                    <div id="tags-container" class="flex flex-wrap gap-2">
+                        {visibleTags.map(tag => (
+                            <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">{tag}</span>
+                        ))}
+                        {hasMoreTags && (
+                            <button id="show-all-tags" class="bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1 rounded-full dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600">
+                                Show all ({model.tags.length})
+                            </button>
+                        )}
+                    </div>
+                </section>
+            )}
+        </div>
       </div>
     </article>
   </main>
 
-  {hasMoreTags && (
-    <script define:vars={{ allTags: model.tags }}>
+  <script define:vars={{ allTags: model.tags, hasMoreTags }}>
+    // Tab switching logic
+    const tabs = document.querySelectorAll('.tab-button');
+    const panels = document.querySelectorAll('.tab-panel');
+
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.replace('active-tab', 'inactive-tab'));
+        tab.classList.replace('inactive-tab', 'active-tab');
+
+        panels.forEach(p => p.classList.add('hidden'));
+        panels[index].classList.remove('hidden');
+      });
+    });
+
+    // "Show all tags" button logic
+    if (hasMoreTags) {
       const showAllBtn = document.getElementById('show-all-tags');
       const tagsContainer = document.getElementById('tags-container');
 
@@ -118,8 +150,16 @@ const hasMoreTags = model.tags?.length > 15;
         tagsContainer.append(...tempDiv.childNodes);
         showAllBtn.remove();
       });
-    </script>
-  )}
+    }
+  </script>
+  <style>
+    .active-tab {
+      @apply border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400;
+    }
+    .inactive-tab {
+      @apply border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600;
+    }
+  </style>
 </BaseLayout>
           <!-- Amazon Ad Slot - Moved to a more prominent position -->
           <AdSlot type="amazon" adId="YOUR_AMAZON_DETAIL_PAGE_AD_ID" width="100%" height="250px" className="mt-12" />
