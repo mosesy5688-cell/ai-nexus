@@ -1,18 +1,36 @@
 ---
 import { getCollection } from 'astro:content';
-import KeywordPageLayout from '@/layouts/KeywordPageLayout.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import ModelCard from '@/components/ModelCard.astro';
+import AdSlot from '@/components/AdSlot.astro';
+import models from '../../../public/models.json';
+import type { Model } from '@/types';
 
 export async function getStaticPaths() {
   const keywordEntries = await getCollection('keywords');
   return keywordEntries.map(entry => ({
     params: { keyword: entry.slug },
-    props: { entry },
+    props: { frontmatter: entry.data },
   }));
 }
 
-const { entry } = Astro.props;
-const { Content } = await entry.render();
+const { frontmatter } = Astro.props;
+const keyword = frontmatter.keyword;
+
+// Filter models that have the current keyword in their tags array
+const relevantModels: Model[] = models.filter(model => 
+  model.tags && model.tags.map(tag => tag.toLowerCase()).includes(keyword.toLowerCase())
+);
 ---
-<KeywordPageLayout frontmatter={entry.data}>
-  <Content />
-</KeywordPageLayout>
+<BaseLayout title={frontmatter.title} description={frontmatter.description}>
+  <main class="container mx-auto px-4 py-8">
+    <article class="prose dark:prose-invert max-w-none mb-12 text-center">
+        <h1 class="text-4xl font-bold">{frontmatter.title}</h1>
+        <p class="text-lg">{frontmatter.description}</p>
+    </article>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {relevantModels.map(model => <ModelCard model={model} />)}
+    </div>
+  </main>
+</BaseLayout>
