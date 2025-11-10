@@ -12,6 +12,8 @@ const keywordsCollection = defineCollection({
 export const CORE_KEYWORDS = [
     { slug: 'image-generation', title: 'Image Generation' },
     { slug: 'stable-diffusion', title: 'Stable Diffusion' },
+    { slug: 'text-to-speech', title: 'Text-to-Speech' },
+    { slug: 'code-generation', title: 'Code Generation' },
     // Add more core keywords here as your site grows
 ];
 

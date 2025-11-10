@@ -1,56 +1,53 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import { CORE_KEYWORDS } from '../content/config.ts';
-import Search from '../components/Search.astro';
+import Layout from '@/layouts/Layout.astro';
+import ModelCard from '@/components/ModelCard.astro';
+import { CORE_KEYWORDS } from '@/content/config';
+import models from '../../public/models.json';
+
+const featuredModels = models.slice(0, 12); // Show top 12 models on the homepage
 ---
 
-<Layout title="Free AI Tools - The Open-Source AI Guide">
+<Layout 
+  title="Free AI Tools | The Ultimate Open-Source AI Index"
+  description="Discover the best free, open-source AI models and tools. An automated, comprehensive directory for developers, researchers, and AI enthusiasts.">
+
   <!-- Hero Section -->
-  <section class="relative h-[560px] flex items-center justify-center text-center bg-gradient-to-br from-blue-600/20 via-transparent to-purple-600/20 dark:from-blue-900/30 dark:to-purple-900/30 px-4">
-    <div class="absolute inset-0 bg-grid-pattern opacity-5 dark:opacity-10"></div>
-    <div class="relative z-10 max-w-4xl mx-auto">
+  <section class="text-center py-20 sm:py-32">
+    <div class="container max-w-4xl mx-auto px-4">
       <h1 class="text-5xl md:text-7xl font-black tracking-tighter text-gray-900 dark:text-white">
-        The Open-Source <span class="text-blue-600">AI</span> Nexus
+        The Open-Source AI Universe
       </h1>
-      <p class="mt-6 text-lg md:text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-        An authoritative index of open-source AI models, tools, and resources, curated for developers and researchers.
+      <p class="mt-6 text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+        Your automated guide to the most popular and powerful open-source AI models.
       </p>
-      <div class="mt-8 flex justify-center gap-4">
-        <a href="#keywords" class="bg-blue-600 text-white font-medium px-6 py-3 rounded-lg hover:bg-blue-700 transition shadow-lg">Browse Keywords</a>
-        <a href="/about" class="bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 font-medium px-6 py-3 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition">Learn More</a>
-      </div>
     </div>
   </section>
 
-  <!-- Search Section -->
-  <Search />
-
-  <!-- Keywords Section -->
-  <section id="keywords" class="py-20 sm:py-32">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="text-center">
-        <h2 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">Explore Core Categories</h2>
-        <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">Dive into curated lists of tools for specific AI domains.</p>
-      </div>
-
-      <div class="mt-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {CORE_KEYWORDS.flatMap(keyword => [keyword, ...(keyword.subKeywords || [])]).map(keyword => (
-          <a href={`/keyword/${keyword.slug}`} class="group block p-8 rounded-2xl bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-xl hover:border-blue-500/50 transition-all duration-300">
+  <!-- Core Keywords Section -->
+  <section id="keywords" class="py-16 bg-gray-100 dark:bg-gray-900">
+    <div class="container max-w-7xl mx-auto px-4">
+      <h2 class="text-3xl font-bold text-center mb-12 text-gray-900 dark:text-white">Explore Core AI Fields</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {CORE_KEYWORDS.map(keyword => (
+          <a href={`/keyword/${keyword.slug}`} class="block p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl hover:-translate-y-1 transition-all">
             <h3 class="text-xl font-bold text-gray-900 dark:text-white">{keyword.title}</h3>
-            <p class="mt-2 text-gray-500 dark:text-gray-400">{keyword.description}</p>
-            <div class="mt-4 font-medium text-blue-600 dark:text-blue-400 flex items-center gap-2">
-              Explore <span class="group-hover:translate-x-1 transition-transform">&rarr;</span>
-            </div>
+            <p class="mt-2 text-gray-600 dark:text-gray-400">Explore models &rarr;</p>
           </a>
         ))}
       </div>
     </div>
   </section>
-</Layout>
 
-<style>
-  .bg-grid-pattern {
-    background-image: linear-gradient(to right, rgba(128, 128, 128, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(128, 128, 128, 0.1) 1px, transparent 1px);
-    background-size: 2rem 2rem;
-  }
-</style>
+  <!-- Featured Models Section -->
+  <section class="py-20">
+    <div class="container max-w-7xl mx-auto px-4">
+      <h2 class="text-3xl font-bold text-center mb-12 text-gray-900 dark:text-white">Featured Models</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {featuredModels.map(model => (
+          <ModelCard model={model} />
+        ))}
+      </div>
+    </div>
+  </section>
+
+</Layout>
