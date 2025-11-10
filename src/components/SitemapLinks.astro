@@ -1,12 +1,11 @@
 ---
 import models from '../../public/models.json';
 
-// Use import.meta.glob to fetch keyword pages. This is more stable in some build environments.
-const keywordFiles = await import.meta.glob('@/content/keywords/**/*.mdx');
-const keywordPages = Object.entries(keywordFiles).map(([path, module]) => ({
-  slug: path.match(/\/content\/keywords\/(.*?)\/index.mdx/)?.[1] || '',
-  data: module.frontmatter,
-}));
+// Manually define keyword pages to avoid build-time path resolution issues.
+const keywordPages = [
+  { slug: 'stable-diffusion', data: { title: 'Top Free AI Tools for Stable Diffusion' } },
+  { slug: 'image-generation', data: { title: 'Top Free AI Tools for Image Generation' } },
+];
 ---
 <section class="mb-10">
     <h2 class="text-2xl font-semibold mb-4 border-b pb-2 text-gray-800 dark:text-gray-200">Keyword Categories</h2>
