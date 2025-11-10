@@ -1,13 +1,6 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import models from '../../public/models.json';
-
-// Use import.meta.glob to avoid issues with getCollection in this context.
-const keywordFiles = await import.meta.glob('@/content/keywords/**/*.mdx');
-const keywordPages = Object.entries(keywordFiles).map(([path, module]) => ({
-  slug: path.match(/\/content\/keywords\/(.*?)\/index.mdx/)?.[1] || '',
-  data: module.frontmatter,
-}));
+import SitemapLinks from '@/components/SitemapLinks.astro';
 
 const staticPages = [
     { url: '/', title: 'Home' },
@@ -28,22 +21,7 @@ const staticPages = [
             </ul>
         </section>
 
-        <section class="mb-10">
-            <h2 class="text-2xl font-semibold mb-4 border-b pb-2 text-gray-800 dark:text-gray-200">Keyword Categories</h2>
-            <ul class="list-disc list-inside space-y-2">
-                {keywordPages.map(keyword => (
-                    <li><a href={`/keyword/${keyword.slug}`} class="text-blue-500 hover:underline">{keyword.data.title}</a></li>
-                ))}
-            </ul>
-        </section>
+        <SitemapLinks />
 
-        <section>
-            <h2 class="text-2xl font-semibold mb-4 border-b pb-2 text-gray-800 dark:text-gray-200">All AI Models ({models.length})</h2>
-            <ul class="list-disc list-inside space-y-2 columns-1 md:columns-2 lg:columns-3">
-                {models.map(model => (
-                    <li><a href={`/model/${model.id.replace(/\//g, '--')}`} class="text-blue-500 hover:underline">{model.name}</a></li>
-                ))}
-            </ul>
-        </section>
     </main>
 </BaseLayout>
