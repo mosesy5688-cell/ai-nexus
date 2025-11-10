@@ -8,6 +8,12 @@ export interface Props {
 }
 
 const { model } = Astro.props;
+const lastUpdatedDate = new Date(model.lastModified);
+const formattedLastUpdated = !isNaN(lastUpdatedDate.getTime()) 
+  ? lastUpdatedDate.toLocaleDateString() 
+  : 'N/A';
+const visibleTags = model.tags?.slice(0, 15) || [];
+const hasMoreTags = model.tags?.length > 15;
 ---
 <BaseLayout title={model.name} description={model.description.substring(0, 160)}>
   <main class="container mx-auto px-4 py-12">
@@ -20,31 +26,38 @@ const { model } = Astro.props;
       <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div class="md:col-span-2">
           <section>
-            <h2 class="text-2xl font-semibold mb-3 text-gray-800 dark:text-gray-200">Description</h2>
-            <div class="prose dark:prose-invert prose-lg max-w-none text-gray-700 dark:text-gray-300">
+            <h2 class="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200">Description</h2>
+            <div class="prose dark:prose-invert prose-xl max-w-none text-gray-700 dark:text-gray-300">
               <p>{model.description}</p>
             </div>
           </section>
 
           {model.tags && model.tags.length > 0 && (
             <section class="mt-8">
-              <h2 class="text-2xl font-semibold mb-3 text-gray-800 dark:text-gray-200">Tags</h2>
-              <div class="flex flex-wrap gap-2">
-                {model.tags.map(tag => (
+              <h2 class="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200">Tags</h2>
+              <div id="tags-container" class="flex flex-wrap gap-2">
+                {visibleTags.map(tag => (
                   <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">{tag}</span>
                 ))}
+                {hasMoreTags && (
+                  <button id="show-all-tags" class="bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1 rounded-full dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600">
+                    Show all ({model.tags.length})
+                  </button>
+                )}
               </div>
             </section>
           )}
         </div>
 
         <aside>
-          <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+          <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg sticky top-24">
             <h3 class="text-xl font-bold mb-3 text-gray-900 dark:text-white">Details</h3>
-            <p><strong>Task:</strong> {model.task}</p>
-            <p><strong>Likes:</strong> {model.likes.toLocaleString()}</p>
-            <p><strong>Downloads:</strong> {model.downloads.toLocaleString()}</p>
-            <p><strong>Last Updated:</strong> {new Date(model.lastModified).toLocaleDateString()}</p>
+            <div class="space-y-2 text-gray-700 dark:text-gray-300">
+              <p><strong>Task:</strong> {model.task}</p>
+              <p><strong>Likes:</strong> {model.likes.toLocaleString()}</p>
+              <p><strong>Downloads:</strong> {model.downloads.toLocaleString()}</p>
+              <p><strong>Last Updated:</strong> {formattedLastUpdated}</p>
+            </div>
             <div class="mt-4 border-t border-gray-200 dark:border-gray-600 pt-4">
               <h4 class="font-semibold mb-2 text-gray-900 dark:text-white">Sources</h4>
               <ul class="space-y-1">
@@ -61,4 +74,26 @@ const { model } = Astro.props;
       </div>
     </article>
   </main>
+
+  {hasMoreTags && (
+    <script define:vars={{ allTags: model.tags }}>
+      const showAllBtn = document.getElementById('show-all-tags');
+      const tagsContainer = document.getElementById('tags-container');
+
+      showAllBtn.addEventListener('click', () => {
+        const remainingTags = allTags.slice(15);
+        const tagsHtml = remainingTags.map(tag => 
+          `<span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300">${tag}</span>`
+        ).join('');
+        
+        // Create a temporary element to parse the HTML string
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = tagsHtml;
+
+        // Append the new tag elements
+        tagsContainer.append(...tempDiv.childNodes);
+        showAllBtn.remove();
+      });
+    </script>
+  )}
 </BaseLayout>
