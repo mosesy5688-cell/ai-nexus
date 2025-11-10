@@ -3,7 +3,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import models from '../../public/models.json';
 
 // Use import.meta.glob to avoid issues with getCollection in this context.
-const keywordFiles = await import.meta.glob('../content/keywords/**/*.mdx');
+const keywordFiles = await import.meta.glob('@/content/keywords/**/*.mdx');
 const keywordPages = Object.entries(keywordFiles).map(([path, module]) => ({
   slug: path.match(/\/content\/keywords\/(.*?)\/index.mdx/)?.[1] || '',
   data: module.frontmatter,
