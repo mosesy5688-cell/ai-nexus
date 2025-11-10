@@ -1,7 +1,6 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const cheerio = require('cheerio');
 
 // --- Configuration ---
 const CIVITAI_DATA_PATH = path.join(__dirname, '../src/data/civitai.json');
@@ -20,27 +19,62 @@ const NSFW_KEYWORDS = [
     'adult'
 ];
 
+/**
+ * Normalizes a model name to create a consistent key for deduplication.
+ * @param {string} name The name of the model.
+ * @returns {string} A normalized string.
+ */
+function getModelKey(name) {
+    return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 async function fetchHuggingFaceData() {
     console.log('📦 Fetching data from HuggingFace API...');
     try {
         const { data } = await axios.get(HUGGINGFACE_API_URL);
         const transformedData = data.map(model => ({
             id: model.modelId,
-            name: model.modelId.split('/')[1] || model.modelId,
+            name: model.modelId.split('/')[1] || model.modelId, // Use the repo name as the model name
             author: model.author,
-            sourcePlatform: 'Hugging Face',
-            description: model.cardData?.description || `A model for ${model.pipeline_tag || 'various tasks'}.`, // Add description
-            source: `https://huggingface.co/${model.modelId}`,
+            description: model.cardData?.description || `A model for ${model.pipeline_tag || 'various tasks'}.`,
             task: model.pipeline_tag || 'N/A',
             tags: model.tags || [],
             likes: model.likes,
             downloads: model.downloads,
             lastModified: model.lastModified,
+            sources: [{ platform: 'Hugging Face', url: `https://huggingface.co/${model.modelId}` }],
         }));
         console.log(`✅ Successfully fetched and transformed ${transformedData.length} models.`);
         return transformedData;
     } catch (error) {
         console.error('❌ Failed to fetch data from HuggingFace:', error.message);
+        return []; // Return empty on error to avoid breaking the build
+    }
+}
+
+async function fetchGitHubData() {
+    console.log('📦 Fetching data from GitHub API...');
+    const GITHUB_API_URL = 'https://api.github.com/search/repositories?q=topic:ai-tool&sort=stars&order=desc&per_page=50';
+    try {
+        const { data } = await axios.get(GITHUB_API_URL, {
+            headers: { 'Accept': 'application/vnd.github.v3+json' }
+        });
+        const transformedData = data.items.map(repo => ({
+            id: `github-${repo.full_name.replace('/', '-')}`,
+            name: repo.name,
+            author: repo.owner.login,
+            description: repo.description || 'An AI tool from GitHub.',
+            task: 'tool', // Assign a generic task for GitHub repos
+            tags: repo.topics || [],
+            likes: repo.stargazers_count,
+            downloads: repo.watchers_count, // Using watchers as a proxy for downloads
+            lastModified: repo.updated_at,
+            sources: [{ platform: 'GitHub', url: repo.html_url }],
+        }));
+        console.log(`✅ Successfully fetched and transformed ${transformedData.length} models from GitHub.`);
+        return transformedData;
+    } catch (error) {
+        console.error('❌ Failed to fetch data from GitHub:', error.message);
         if (error.response) {
             console.error(`    - Status: ${error.response.status}`);
             console.error(`    - Data: ${JSON.stringify(error.response.data)}`);
@@ -60,15 +94,14 @@ function readCivitaiData() {
         const transformedData = civitaiData.map(model => ({
             id: `civitai-${model.name.toLowerCase().replace(/\s+/g, '-')}`,
             name: model.name,
-            author: model.author || 'Civitai Community',
-            sourcePlatform: 'Civitai',
-            source: model.source,
-            description: cheerio.load(model.description || '').text().trim().substring(0, 200), // Sanitize and truncate description
+            author: model.creator?.username || 'Civitai Community',
+            description: model.description || 'An image generation model from Civitai.',
             task: 'image-generation', // Assume all are image generation for now
             tags: model.tags || [],
-            likes: model.likes || 0, // Add likes if available, otherwise 0
-            downloads: model.downloads || 0, // Add downloads if available, otherwise 0
-            lastModified: new Date().toISOString(), // Use current date as placeholder
+            likes: model.stats?.favoriteCount || 0,
+            downloads: model.stats?.downloadCount || 0,
+            lastModified: model.lastUpdate || new Date().toISOString(),
+            sources: [{ platform: 'Civitai', url: `https://civitai.com/models/${model.id}` }],
         }));
         console.log(`✅ Successfully read and transformed ${transformedData.length} models from Civitai.`);
         return transformedData;
@@ -143,16 +176,47 @@ async function main() {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const archiveFilePath = path.join(ARCHIVE_DIR, `${today}.json`);
 
-    const huggingFaceModels = await fetchHuggingFaceData();
-    const civitaiModels = readCivitaiData();
+    // 1. Fetch data from all sources
+    const sourcesData = await Promise.all([
+        fetchHuggingFaceData(),
+        readCivitaiData(),
+        fetchGitHubData(),
+    ]);
 
-    // Combine, filter out NSFW content, and then sort data by likes
-    const allModels = [...huggingFaceModels, ...civitaiModels];
-    const sfwModels = allModels.filter(model => !isNsfw(model));
-    const combinedData = sfwModels.sort((a, b) => b.likes - a.likes);
+    const allRawModels = sourcesData.flat();
 
-    if (combinedData && combinedData.length > 0) {
-        console.log(`- Total models to write: ${combinedData.length}`);
+    // 2. Filter out NSFW content
+    const sfwModels = allRawModels.filter(model => !isNsfw(model));
+    console.log(`- Filtered down to ${sfwModels.length} SFW models.`);
+
+    // 3. Deduplicate and merge models
+    const mergedModels = new Map();
+    for (const model of sfwModels) {
+        const key = getModelKey(model.name);
+        if (mergedModels.has(key)) {
+            // Merge logic
+            const existing = mergedModels.get(key);
+            existing.likes += model.likes;
+            existing.downloads += model.downloads;
+            existing.tags = [...new Set([...existing.tags, ...model.tags])]; // Merge and deduplicate tags
+            existing.sources.push(...model.sources);
+            // Prioritize description from Hugging Face or GitHub over others
+            if (!existing.description.includes('from GitHub') && (model.description.includes('from GitHub') || model.sources.some(s => s.platform === 'Hugging Face'))) {
+                existing.description = model.description;
+            }
+        } else {
+            mergedModels.set(key, model);
+        }
+    }
+
+    // 4. Convert map back to array and sort
+    const finalModels = Array.from(mergedModels.values());
+    finalModels.sort((a, b) => b.likes - a.likes);
+
+    console.log(`- Merged models down to ${finalModels.length} unique entries.`);
+
+    if (finalModels.length > 0) {
+        const combinedData = finalModels; // Use the final merged and sorted data
         
         // 1. Write to dated archive file
         writeDataToFile(archiveFilePath, combinedData);
