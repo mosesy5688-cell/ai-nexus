@@ -21,12 +21,7 @@ const hasMoreTags = model.tags?.length > 15;
     <article class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
       <header class="border-b pb-4 mb-4">
         <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">{model.name}</h1>
-        <div class="flex items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
-            {model.author && <span>by {model.author}</span>}
-            <span class="flex items-center gap-1">❤️ {model.likes.toLocaleString()}</span>
-            <span class="flex items-center gap-1">↓ {model.downloads.toLocaleString()}</span>
-            <span>Updated on {formattedLastUpdated}</span>
-        </div>
+        {model.author && <p class="text-lg text-gray-500 dark:text-gray-400 mt-1">by {model.author}</p>}
       </header>
 
       <!-- Tab Navigation -->
@@ -67,6 +62,18 @@ const hasMoreTags = model.tags?.length > 15;
                             <div class="flex items-center gap-2">
                                 <span class="font-semibold">Task:</span>
                                 <span>{model.task}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold">Likes:</span>
+                                <span class="flex items-center gap-1">❤️ {model.likes.toLocaleString()}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold">Downloads:</span>
+                                <span class="flex items-center gap-1">↓ {model.downloads.toLocaleString()}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-semibold">Updated:</span>
+                                <span>{formattedLastUpdated}</span>
                             </div>
                         </div>
                         <div class="mt-6 border-t border-gray-200 dark:border-gray-600 pt-6">
