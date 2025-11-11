@@ -3,7 +3,6 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import tailwind from "@astrojs/tailwind";
 import sitemap from "@astrojs/sitemap";
-import react from "@astrojs/react";
 import mdx from "@astrojs/mdx";
 
 const siteUrl = 'https://free2aitools.com';
@@ -20,8 +19,8 @@ export default defineConfig({
     },
   },
   integrations: [
-    react(),
-    mdx(),
+    react(), // Keep react() as you are using React components
+    // mdx() is removed as src/content is deleted
     tailwind(), 
     sitemap({
       // Let Astro auto-discover all pages, including dynamic ones.

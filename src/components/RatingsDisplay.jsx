@@ -91,8 +91,8 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
         }
     };
 
-    if (loading) return <p>Loading ratings...</p>;
-    if (error) return <p>Error loading ratings: {error}</p>;
+  if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading ratings...</p>;
+  if (error) return <p className="text-red-500 dark:text-red-400">Error loading ratings: {error}. Please try again later.</p>;
 
     return (
         <div>
