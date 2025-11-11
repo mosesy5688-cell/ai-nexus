@@ -5,6 +5,6 @@
 }
 
 .dark {
-  --color-background: #111827; /* gray-900 */
-  --color-text-primary: #F9FAFB; /* gray-50 */
+  --color-background: #1F2937; /* gray-800 */
+  --color-text-primary: #D1D5DB; /* gray-300 (a bright silver) */
 }
