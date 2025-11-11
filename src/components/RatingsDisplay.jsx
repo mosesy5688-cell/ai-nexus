@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-function Star({ filled, onClick }) {
+function Star({ filled, onClick, onMouseEnter, onMouseLeave }) {
     return (
         <svg
             onClick={onClick}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
             className={`w-6 h-6 cursor-pointer ${filled ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
             fill="currentColor"
             viewBox="0 0 20 20"
@@ -19,6 +21,7 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
     const [error, setError] = useState(null);
 
     const [userRating, setUserRating] = useState(0);
+    const [hoverRating, setHoverRating] = useState(0);
     const [userComment, setUserComment] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitMessage, setSubmitMessage] = useState('');
@@ -64,11 +67,23 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
                 throw new Error(result.error || 'Failed to submit rating.');
             }
 
+            // Optimistic UI Update: Immediately add the new comment to the list
+            const newCommentData = {
+                rating: userRating,
+                comment: userComment,
+                timestamp: new Date().toISOString(),
+            };
+            setData(prevData => ({
+                ...prevData,
+                comments: [newCommentData, ...prevData.comments],
+                total_ratings: prevData.total_ratings + 1,
+                // Note: We don't update average_rating optimistically to avoid complex calculations
+            }));
+
             setSubmitMessage('Thank you for your feedback!');
             setUserRating(0);
             setUserComment('');
-            // Refresh data after a successful submission
-            setTimeout(fetchData, 1000);
+            setTimeout(fetchData, 2000); // Re-sync with the server after a delay
         } catch (err) {
             setSubmitMessage(err.message);
         } finally {
@@ -84,7 +99,7 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
             <div className="flex items-center gap-4 mb-6">
                 <div className="flex items-center">
                     {[1, 2, 3, 4, 5].map((star) => (
-                        <Star key={star} filled={star <= data.average_rating} />
+                        <Star key={star} filled={star <= Math.round(data.average_rating)} />
                     ))}
                 </div>
                 <div className="text-lg">
@@ -94,33 +109,44 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
                 </div>
             </div>
 
-            <div className="my-8 p-6 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                <h3 className="text-xl font-semibold mb-4">Leave a Review</h3>
-                <form onSubmit={handleSubmit}>
-                    <div className="mb-4">
-                        <label className="block mb-2 font-medium">Your Rating:</label>
-                        <div className="flex">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                                <Star key={star} filled={star <= userRating} onClick={() => setUserRating(star)} />
-                            ))}
+            {submitMessage.startsWith('Thank you') ? (
+                <div className="my-8 p-6 bg-green-50 dark:bg-green-900/50 rounded-lg text-center">
+                    <p className="text-xl font-semibold text-green-700 dark:text-green-300">{submitMessage}</p>
+                </div>
+            ) : (
+                <div className="my-8 p-6 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <h3 className="text-xl font-semibold mb-4">Leave a Review</h3>
+                    <form onSubmit={handleSubmit}>
+                        <div className="mb-4">
+                            <label className="block mb-2 font-medium">Your Rating:</label>
+                            <div className="flex" onMouseLeave={() => setHoverRating(0)}>
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star 
+                                        key={star} 
+                                        filled={star <= (hoverRating || userRating)} 
+                                        onClick={() => setUserRating(star)}
+                                        onMouseEnter={() => setHoverRating(star)}
+                                    />
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                    <div className="mb-4">
-                        <label htmlFor="comment" className="block mb-2 font-medium">Your Comment (optional):</label>
-                        <textarea
-                            id="comment"
-                            value={userComment}
-                            onChange={(e) => setUserComment(e.target.value)}
-                            className="w-full p-2 border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                            rows="3"
-                        ></textarea>
-                    </div>
-                    <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400">
-                        {isSubmitting ? 'Submitting...' : 'Submit Review'}
-                    </button>
-                    {submitMessage && <p className={`mt-4 text-sm ${submitMessage.startsWith('Error') ? 'text-red-500' : 'text-green-500'}`}>{submitMessage}</p>}
-                </form>
-            </div>
+                        <div className="mb-4">
+                            <label htmlFor="comment" className="block mb-2 font-medium">Your Comment (optional):</label>
+                            <textarea
+                                id="comment"
+                                value={userComment}
+                                onChange={(e) => setUserComment(e.target.value)}
+                                className="w-full p-2 border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                                rows="3"
+                            ></textarea>
+                        </div>
+                        <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400">
+                            {isSubmitting ? 'Submitting...' : 'Submit Review'}
+                        </button>
+                        {submitMessage && <p className={`mt-4 text-sm ${submitMessage.startsWith('Error') ? 'text-red-500' : 'text-green-500'}`}>{submitMessage}</p>}
+                    </form>
+                </div>
+            )}
 
             <div>
                 <h3 className="text-xl font-semibold mb-4">Comments ({data.comments.length})</h3>

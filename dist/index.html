@@ -1,10 +1,45 @@
-<!DOCTYPE html><html lang="en"> <head><meta charset="UTF-8"><meta name="description" content="An authoritative index of open-source AI models, tools, and resources, curated for developers and researchers."><meta name="viewport" content="width=device-width"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="generator" content="Astro v5.15.3"><title>Free AI Tools | The Ultimate Open-Source AI Index</title><link rel="stylesheet" href="/_astro/about.BWOaSv6e.css"></head> <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col min-h-screen"> <header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50"> <nav class="container mx-auto px-4 py-4 flex justify-between items-center"> <a href="/" class="text-2xl font-bold text-gray-900 dark:text-white shrink-0">Free AI Tools</a> <div class="w-full max-w-md mx-4"> <input type="search" id="header-search" placeholder="Search models..." class="w-full px-4 py-2 text-base bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"> </div> <div class="space-x-4 shrink-0"> <a href="/explore" class="text-gray-600 dark:text-gray-300 hover:text-blue-500">Explore</a> <a href="/about" class="text-gray-600 dark:text-gray-300 hover:text-blue-500">About</a> </div> </nav> </header> <main class="flex-grow">  <section class="text-center py-24 md:py-36 bg-white dark:bg-gray-950 border-b border-gray-100 dark:border-gray-800"> <div class="container max-w-5xl mx-auto px-6"> <h1 class="text-6xl md:text-8xl font-extrabold tracking-tighter text-gray-900 dark:text-white leading-tight"> <span class="block text-blue-600 dark:text-blue-400">The Open-Source AI Nexus</span>
+<!DOCTYPE html><html lang="en" data-astro-cid-37fxchfa> <head><meta charset="UTF-8"><meta name="description" content="An authoritative index of open-source AI models, tools, and resources, curated for developers and researchers."><meta name="viewport" content="width=device-width"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="generator" content="Astro v5.15.3"><title>Free AI Tools | The Ultimate Open-Source AI Index</title><link rel="stylesheet" href="/_astro/about.DnK1pLJZ.css">
+<style>body{background-color:var(--color-background);color:var(--color-text-primary)}:root{--color-background: #F9FAFB;--color-text-primary: #111827}.dark{--color-background: #1F2937;--color-text-primary: #D1D5DB}
+</style></head> <body class="flex flex-col min-h-screen" data-astro-cid-37fxchfa> <header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50" data-astro-cid-37fxchfa> <nav class="container mx-auto px-4 py-4 flex justify-between items-center" data-astro-cid-37fxchfa> <a href="/" class="text-2xl font-bold text-gray-900 dark:text-white shrink-0" data-astro-cid-37fxchfa>Free AI Tools</a> <div class="w-full max-w-md mx-4" data-astro-cid-37fxchfa> <input type="search" id="header-search" placeholder="Search models..." class="w-full px-4 py-2 text-base bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" data-astro-cid-37fxchfa> </div> <div class="flex items-center space-x-4 shrink-0" data-astro-cid-37fxchfa> <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" aria-label="Toggle theme"> <svg id="theme-icon-light" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg> <svg id="theme-icon-dark" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg> </button> <script>
+  const theme = (() => {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
+      return localStorage.getItem('theme');
+    }
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light';
+  })();
+
+  if (theme === 'dark') {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+
+  const handleToggleClick = () => {
+    const element = document.documentElement;
+    element.classList.toggle("dark");
+
+    const isDark = element.classList.contains("dark");
+    localStorage.setItem("theme", isDark ? "dark" : "light");
+
+    document.getElementById('theme-icon-light').classList.toggle('hidden', isDark);
+    document.getElementById('theme-icon-dark').classList.toggle('hidden', !isDark);
+  }
+
+  document.getElementById('theme-toggle').addEventListener('click', handleToggleClick);
+
+  // Set initial icon state
+  document.getElementById('theme-icon-light').classList.toggle('hidden', theme === 'dark');
+  document.getElementById('theme-icon-dark').classList.toggle('hidden', theme !== 'dark');
+</script> <a href="/explore" class="text-gray-600 dark:text-gray-300 hover:text-blue-500" data-astro-cid-37fxchfa>Explore</a> <a href="/about" class="text-gray-600 dark:text-gray-300 hover:text-blue-500" data-astro-cid-37fxchfa>About</a> </div> </nav> </header> <main class="flex-grow" data-astro-cid-37fxchfa>  <section class="text-center py-12 md:py-20 border-b border-gray-200 dark:border-gray-800"> <div class="container max-w-5xl mx-auto px-6"> <h1 class="text-4xl md:text-5xl font-extrabold tracking-tighter text-gray-900 dark:text-white leading-tight"> <span class="block text-blue-600 dark:text-blue-400">The Open-Source AI Nexus</span>
 Free AI Tools Index
 </h1> <p class="mt-8 text-xl md:text-2xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto font-light">
 An **authoritative index** of open-source AI models, tools, and resources, curated for developers and researchers.
 </p> <a href="#categories" class="mt-8 inline-block px-8 py-3 text-lg font-semibold rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-500/50">
 Start Exploring Categories ↓
-</a> </div> </section> <section id="categories" class="py-20 md:py-24 bg-gray-50 dark:bg-gray-900"> <div class="container max-w-7xl mx-auto px-6"> <div class="text-center mb-16"> <span class="text-sm font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Deep Dive</span> <h2 class="mt-2 text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white">Explore Core Categories</h2> <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">Navigate the AI landscape through curated domain lists.</p> </div> <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8"> <a             href="/keyword/endpoints_compatible"             class="flex flex-col p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 
+</a> </div> </section> <section id="categories" class="py-20 md:py-24"> <div class="container max-w-7xl mx-auto px-6"> <div class="text-center mb-16"> <span class="text-sm font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">Deep Dive</span> <h2 class="mt-2 text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white">Explore Core Categories</h2> <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">Navigate the AI landscape through curated domain lists.</p> </div> <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8"> <a             href="/keyword/endpoints_compatible"             class="flex flex-col p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 
                 hover:shadow-2xl hover:border-blue-400 hover:-translate-y-1 transition-all duration-300 group"          > <div class="flex-grow"> <h3 class="text-2xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"> Endpoints_compatible </h3> <p class="mt-3 text-base text-gray-500 dark:text-gray-400">
 Explore **59** models and resources in this category.
 </p> </div> <span class="mt-6 font-semibold text-blue-500 dark:text-blue-400 self-start flex items-center gap-1">
@@ -64,4 +99,4 @@ View Details
 Explore **10** models and resources in this category.
 </p> </div> <span class="mt-6 font-semibold text-blue-500 dark:text-blue-400 self-start flex items-center gap-1">
 View Details
-<span class="text-xl group-hover:translate-x-1 transition-transform">&rarr;</span> </span> </a> </div> </div> </section>  </main> <footer class="bg-gray-800 text-gray-300 py-8 mt-16"> <div class="container mx-auto px-4 text-center"> <div class="flex justify-center gap-4 mb-4"> <a href="/about" class="hover:underline">About</a> <a href="/compliance" class="hover:underline">Compliance</a> </div> <p class="text-sm">&copy; 2025 Free AI Tools. An open-source project to index the world of AI.</p> </div> </footer> <script type="module">const e=document.getElementById("header-search");e.addEventListener("keydown",n=>{if(n.key==="Enter"){const o=e.value;window.location.href=`/explore?q=${encodeURIComponent(o)}`}});</script> </body> </html>
+<span class="text-xl group-hover:translate-x-1 transition-transform">&rarr;</span> </span> </a> </div> </div> </section>  </main> <footer class="bg-gray-800 text-gray-300 py-8 mt-16" data-astro-cid-37fxchfa> <div class="container mx-auto px-4 text-center" data-astro-cid-37fxchfa> <div class="flex justify-center gap-4 mb-4" data-astro-cid-37fxchfa> <a href="/about" class="hover:underline" data-astro-cid-37fxchfa>About</a> <a href="/compliance" class="hover:underline" data-astro-cid-37fxchfa>Compliance</a> </div> <p class="text-sm mt-2" data-astro-cid-37fxchfa>&copy; 2025 Free AI Tools. An open-source project to index the world of AI.</p> <a href="mailto:compliance@free2aitools.com" class="text-sm text-gray-400 hover:underline mt-1 block" data-astro-cid-37fxchfa>compliance@free2aitools.com</a> </div> </footer> <script type="module">const e=document.getElementById("header-search");e.addEventListener("keydown",n=>{if(n.key==="Enter"){const o=e.value;window.location.href=`/explore?q=${encodeURIComponent(o)}`}});</script> </body> </html>

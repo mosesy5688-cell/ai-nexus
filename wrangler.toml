@@ -1,0 +1,10 @@
+# wrangler.toml
+
+# [vars] 是针对 Pages Functions 的配置，通常由 Cloudflare Pages 自动处理
+# 但是对于本地测试，我们需要一个 [d1_databases] 或 [kv_namespaces] 模拟
+
+# 为您的 Pages Functions 绑定创建一个 KV 模拟
+[[kv_namespaces]]
+binding = "RATINGS_KV"  # 必须与您在 Pages Settings 中设置的变量名一致
+id = "DUMMY_ID" # 占位符，本地模式下不重要
+preview_id = "DUMMY_PREVIEW_ID"
