@@ -2,6 +2,7 @@
 import type { Model } from '@/types';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import AdSlot from '@/components/AdSlot.astro';
+import ModelRatings from '@/components/ModelRatings.astro'; // Import the ratings component
 
 export interface Props {
   model: Model;
@@ -43,6 +44,15 @@ const hasMoreTags = model.tags?.length > 15;
                   </button>
                 )}
               </div>
+            </section>
+          )}
+
+          {model.summary_ai && (
+            <section class="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 shadow-sm">
+              <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-300 mb-2">AI Summary</h3>
+              <p class="text-gray-700 dark:text-gray-300 text-base leading-relaxed">
+                {model.summary_ai}
+              </p>
             </section>
           )}
 
@@ -126,6 +136,11 @@ const hasMoreTags = model.tags?.length > 15;
                 </ul>
               </div>
             )}
+
+                    {/* User Ratings and Comments Section */}
+            <section class="mt-10">
+              <ModelRatings modelId={model.id} />
+            </section>
           </div>
         </aside>
       </div>

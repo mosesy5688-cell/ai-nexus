@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-
+import { h } from 'react'; // Explicitly import h for JSX runtime
 function Star({ filled, onClick, onMouseEnter, onMouseLeave }) {
     return (
         <svg
@@ -123,7 +123,7 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
                                 {[1, 2, 3, 4, 5].map((star) => (
                                     <Star 
                                         key={star} 
-                                        filled={star <= (hoverRating || userRating)} 
+                                        filled={star <= (hoverRating || userRating)}
                                         onClick={() => setUserRating(star)}
                                         onMouseEnter={() => setHoverRating(star)}
                                     />
@@ -153,7 +153,7 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
                 <div className="space-y-4">
                     {data.comments.length > 0 ? (
                         data.comments.map((c, index) => (
-                            <div key={index} className="p-4 border-b border-gray-200 dark:border-gray-700">
+                            <div key={index} className="p-4 border-b border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
                                 <div className="flex items-center mb-1">
                                     {[1, 2, 3, 4, 5].map((star) => <Star key={star} filled={star <= c.rating} />)}
                                 </div>

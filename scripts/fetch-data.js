@@ -110,7 +110,7 @@ async function fetchHuggingFaceData() {
             }
 
             // We pass an empty object for currentModelData as this is the first fetch
-            const aiSummary = await getAISummary(readmeContent, model.modelId, {});
+            const aiSummary = await getAISummary(readmeContent, model.modelId, model); // Pass model for caching check
 
             return {
                 id: model.modelId,
@@ -124,7 +124,7 @@ async function fetchHuggingFaceData() {
                 lastModified: model.lastModified,
                 readme: readmeContent,
                 thumbnail: model.cardData?.image, // Add thumbnail from cardData
-                summary_ai: aiSummary,
+                summary_ai: aiSummary, // Correctly assign the AI summary
                 sources: [{ platform: 'Hugging Face', url: `https://huggingface.co/${model.modelId}` }],
             };
         }));

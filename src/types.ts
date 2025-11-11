@@ -14,7 +14,7 @@ export interface Model {
     downloads: number;
     lastModified: string;
     thumbnail?: string;
-    summary_ai?: string;
+    summary_ai?: string; // Ensure this is present
     readme?: string;
     // A model can have multiple sources (e.g., from Hugging Face and GitHub)
     sources: SourceInfo[];

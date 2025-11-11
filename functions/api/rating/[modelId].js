@@ -1,6 +1,11 @@
 // /functions/api/rating/[modelId].js
 
 const RATING_KEY_PREFIX = 'rating:';
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
 const RATE_LIMIT_KEY_PREFIX = 'rate_limit:';
 const RATE_LIMIT_SECONDS = 5; // 5 seconds between submissions
 
@@ -12,19 +17,24 @@ export async function onRequest(context) {
   const { request, env, params } = context;
   const { modelId } = params;
 
-  if (!modelId) {
-    return new Response(JSON.stringify({ error: "Model ID is required." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-  }
+  try {
+    if (!modelId) {
+      return new Response(JSON.stringify({ error: "Model ID is required." }), { status: 400, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+    }
 
-  switch (request.method) {
-    case 'GET':
-      return handleGetRequest(env.RATINGS_KV, modelId);
-    case 'POST':
-      return handlePostRequest(request, env.RATINGS_KV, modelId);
-    case 'OPTIONS':
-      return new Response(null, { status: 204 }); // Handle CORS preflight
-    default:
-      return new Response('Method Not Allowed', { status: 405 });
+    switch (request.method) {
+      case 'GET':
+        return handleGetRequest(env.RATINGS_KV, modelId);
+      case 'POST':
+        return handlePostRequest(request, env.RATINGS_KV, modelId);
+      case 'OPTIONS':
+        return new Response(null, { status: 204, headers: CORS_HEADERS }); // Explicit CORS for preflight
+      default:
+        return new Response('Method Not Allowed', { status: 405, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+    }
+  } catch (e) {
+    console.error("Function execution error:", e);
+    return new Response(JSON.stringify({ error: "Internal Server Error", details: e.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
   }
 }
 
@@ -86,7 +96,7 @@ async function handlePostRequest(request, kv, modelId) {
   const lastSubmission = await kv.get(rateLimitKey);
   if (lastSubmission) {
     console.log(`Rate limit hit for IP: ${userIp}`);
-    return new Response(JSON.stringify({ error: `Rate limit exceeded. Please wait ${RATE_LIMIT_SECONDS} seconds.` }), { status: 429, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: `Rate limit exceeded. Please wait ${RATE_LIMIT_SECONDS} seconds.` }), { status: 429, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
   }
 
   let payload;
@@ -94,12 +104,12 @@ async function handlePostRequest(request, kv, modelId) {
     // Crucial Check: Ensure the content type is correct before trying to parse JSON.
     if (request.headers.get('Content-Type') !== 'application/json') {
       console.error('Invalid Content-Type header.');
-      return new Response(JSON.stringify({ error: "Invalid request: Content-Type must be application/json." }), { status: 415, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: "Invalid request: Content-Type must be application/json." }), { status: 415, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
     }
     console.log('Attempting to parse JSON body...');
     payload = await request.json();
   } catch (e) {
-    return new Response(JSON.stringify({ error: "Invalid JSON payload." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: "Invalid JSON payload." }), { status: 400, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
   }
 
   const { rating, comment } = payload;
@@ -107,7 +117,7 @@ async function handlePostRequest(request, kv, modelId) {
   if (typeof rating !== 'number' || rating < 1 || rating > 5) {
     console.error(`Invalid rating value: ${rating}`);
     return new Response(JSON.stringify({ error: "Rating must be a number between 1 and 5." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-  }
+  } // Added CORS_HEADERS
 
   const sanitizedComment = (comment || '').trim().substring(0, 1000);
   const uniqueId = crypto.randomUUID();
@@ -125,7 +135,7 @@ async function handlePostRequest(request, kv, modelId) {
   console.log('Successfully submitted rating.');
 
   return new Response(JSON.stringify({ success: true, message: "Rating submitted successfully." }), {
-    status: 201,
-    headers: { 'Content-Type': 'application/json' },
+    status: 201, // Added CORS_HEADERS
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   });
 }
