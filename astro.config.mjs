@@ -3,7 +3,6 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import tailwind from "@astrojs/tailwind";
 import sitemap from "@astrojs/sitemap";
-import react from "@astrojs/react"; // Import React integration
 import mdx from "@astrojs/mdx";
 
 const siteUrl = 'https://free2aitools.com';
@@ -20,7 +19,7 @@ export default defineConfig({
     },
   },
   integrations: [
-    react(), // Add React integration
+    react(),
     mdx(),
     tailwind(), 
     sitemap({
