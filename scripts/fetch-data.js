@@ -55,6 +55,7 @@ async function fetchHuggingFaceData() {
                 downloads: model.downloads,
                 lastModified: model.lastModified,
                 readme: readmeContent,
+                thumbnail: model.cardData?.image, // Add thumbnail from cardData
                 sources: [{ platform: 'Hugging Face', url: `https://huggingface.co/${model.modelId}` }],
             };
         }));
@@ -84,6 +85,7 @@ async function fetchGitHubData() {
             downloads: repo.watchers_count, // Using watchers as a proxy for downloads
             lastModified: repo.updated_at,
             sources: [{ platform: 'GitHub', url: repo.html_url }],
+            thumbnail: repo.owner.avatar_url, // Use owner's avatar as a placeholder thumbnail
         }));
         console.log(`✅ Successfully fetched and transformed ${transformedData.length} models from GitHub.`);
         return transformedData;
@@ -115,6 +117,7 @@ function readCivitaiData() {
             likes: model.stats?.favoriteCount || 0,
             downloads: model.stats?.downloadCount || 0,
             lastModified: model.lastUpdate || new Date().toISOString(),
+            thumbnail: model.images?.[0]?.url, // Use the first image as a thumbnail
             sources: [{ platform: 'Civitai', url: `https://civitai.com/models/${model.id}` }],
         }));
         console.log(`✅ Successfully read and transformed ${transformedData.length} models from Civitai.`);

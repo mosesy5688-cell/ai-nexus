@@ -2,6 +2,7 @@
 import ModelCard from '@/components/ModelCard.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import AdSlot from '@/components/AdSlot.astro';
+import ExploreFilters from '@/components/ExploreFilters.astro';
 import models from '@/data/models.json';
 
 const allModels = models; // Initially show all models
@@ -28,6 +29,9 @@ const allModels = models; // Initially show all models
         />
       </div>
 
+      <!-- Filter Component -->
+      <ExploreFilters />
+
       <!-- Ad Slot -->
       <AdSlot type="google" googleAdClient="ca-pub-YOUR_ID" googleAdSlot="YOUR_EXPLORE_PAGE_SLOT" className="my-16 text-center" />
 
@@ -46,7 +50,7 @@ const allModels = models; // Initially show all models
     const modelsGrid = document.getElementById('models-grid');
     const noResults = document.getElementById('no-results');
     
-    // The template function is now self-contained here
+    // Make the template function globally available for the filter component
     const modelCardTemplate = (model) => {
       const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
       const platforms = model.sources ? model.sources.map(s => s.platform).join(', ') : (model.sourcePlatform || 'N/A');
@@ -67,6 +71,7 @@ const allModels = models; // Initially show all models
         </div>
       `;
     };
+    window.modelCardTemplate = modelCardTemplate;
 
     const performSearch = (query) => {
       const lowerCaseQuery = query.toLowerCase();

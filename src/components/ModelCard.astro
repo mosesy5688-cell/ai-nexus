@@ -10,8 +10,18 @@ const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
 const platforms = model.sources ? model.sources.map(s => s.platform).join(', ') : model.sourcePlatform;
 const likes = model.likes?.toLocaleString() || '0';
 const downloads = model.downloads?.toLocaleString() || '0';
+
+let proxyImageUrl = null;
+if (model.thumbnail) {
+  proxyImageUrl = `/img?url=${encodeURIComponent(model.thumbnail)}&width=400&quality=75`;
+}
 ---
 <div class="border rounded-lg p-4 shadow-md hover:shadow-lg transition-shadow bg-white dark:bg-gray-800 flex flex-col">
+    {proxyImageUrl && (
+      <div class="w-full h-40 bg-gray-200 dark:bg-gray-700 rounded-md mb-4 overflow-hidden">
+        <img src={proxyImageUrl} alt={`${model.name} thumbnail`} class="w-full h-full object-cover" loading="lazy" width="400" height="225" />
+      </div>
+    )}
     <h3 class="text-xl font-bold mb-2 text-gray-900 dark:text-white">{model.name}</h3>
     <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Platform(s): {platforms || 'N/A'}</p>
     <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Task: {model.task}</p>

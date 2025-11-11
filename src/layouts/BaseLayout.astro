@@ -1,4 +1,6 @@
 ---
+import ThemeToggle from '@/components/ThemeToggle.astro';
+
 export interface Props {
 	title: string;
 	description: string;
@@ -16,6 +18,7 @@ const { title, description } = Astro.props;
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
+		<style is:global>@import '../styles/theme.css';</style>
 	</head>
 	<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col min-h-screen">
 		<header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
@@ -24,7 +27,8 @@ const { title, description } = Astro.props;
 				<div class="w-full max-w-md mx-4">
 					<input type="search" id="header-search" placeholder="Search models..." class="w-full px-4 py-2 text-base bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors" />
 				</div>
-				<div class="space-x-4 shrink-0">
+				<div class="flex items-center space-x-4 shrink-0">
+					<ThemeToggle />
 					<a href="/explore" class="text-gray-600 dark:text-gray-300 hover:text-blue-500">Explore</a>
 					<a href="/about" class="text-gray-600 dark:text-gray-300 hover:text-blue-500">About</a>
 				</div>

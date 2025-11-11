@@ -1,0 +1,10 @@
+/* src/styles/theme.css */
+:root {
+  --color-background: #F9FAFB; /* gray-50 */
+  --color-text-primary: #111827; /* gray-900 */
+}
+
+.dark {
+  --color-background: #111827; /* gray-900 */
+  --color-text-primary: #F9FAFB; /* gray-50 */
+}
