@@ -1,4 +1,4 @@
-// /functions/api/rating/_middleware.js
+// /functions/api/rating/[modelId].js
 
 const RATING_KEY_PREFIX = 'rating:';
 const RATE_LIMIT_KEY_PREFIX = 'rate_limit:';
@@ -6,28 +6,26 @@ const RATE_LIMIT_SECONDS = 5; // 5 seconds between submissions
 
 /**
  * Main request handler for Cloudflare Pages Functions.
- * This middleware intercepts all requests to /api/rating/*
  * @param {EventContext} context - The context object provided by Cloudflare.
  */
 export async function onRequest(context) {
-  const { request, env } = context;
-  const url = new URL(request.url);
+  const { request, env, params } = context;
+  const { modelId } = params;
 
-  // Manually parse the modelId from the URL path
-  const pathSegments = url.pathname.split('/');
-  const modelId = pathSegments[pathSegments.length - 1];
-
-  if (!modelId || pathSegments.length < 4) {
-    return new Response(JSON.stringify({ error: "Invalid or missing model ID in URL." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  if (!modelId) {
+    return new Response(JSON.stringify({ error: "Model ID is required." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
 
-  if (request.method === 'GET') {
-    return handleGetRequest(env.RATINGS_KV, modelId);
-  } else if (request.method === 'POST') {
-    return handlePostRequest(request, env.RATINGS_KV, modelId);
+  switch (request.method) {
+    case 'GET':
+      return handleGetRequest(env.RATINGS_KV, modelId);
+    case 'POST':
+      return handlePostRequest(request, env.RATINGS_KV, modelId);
+    case 'OPTIONS':
+      return new Response(null, { status: 204 }); // Handle CORS preflight
+    default:
+      return new Response('Method Not Allowed', { status: 405 });
   }
-
-  return new Response('Method Not Allowed', { status: 405 });
 }
 
 /**

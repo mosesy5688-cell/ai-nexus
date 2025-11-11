@@ -1,4 +1,4 @@
-@domain = https://35a87ddc.ai-nexus-293.pages.dev/
+@domain = https://a069329d.ai-nexus-293.pages.dev/
 
 ### 1. 提交 POST 请求 (Rating / 评论)
 # 验证状态码 201 Created
