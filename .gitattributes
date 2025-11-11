@@ -13,3 +13,7 @@
 *.css text
 *.html text
 *.svg text
+
+# Ignore generated data files
+/src/data/models.json
+/src/data/keywords.json
