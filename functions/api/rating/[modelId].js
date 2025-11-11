@@ -25,8 +25,10 @@ export async function onRequest(context) {
 
     switch (request.method) {
       case 'GET':
+        // GET now calls handler which ensures CORS headers are present
         return handleGetRequest(env.RATINGS_KV, modelId);
       case 'POST':
+        // POST now calls handler which ensures CORS headers are present
         return handlePostRequest(request, env.RATINGS_KV, modelId);
       case 'OPTIONS':
         return new Response(null, { status: 204, headers: CORS_HEADERS }); // Explicit CORS for preflight
@@ -50,7 +52,7 @@ async function handleGetRequest(kv, modelId) {
   if (list.keys.length === 0) {
     return new Response(JSON.stringify({ average_rating: 0, total_ratings: 0, comments: [] }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
     });
   }
 
@@ -78,7 +80,7 @@ async function handleGetRequest(kv, modelId) {
 
   return new Response(JSON.stringify({ average_rating, total_ratings, comments }), {
     status: 200,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   });
 }
 
@@ -117,8 +119,8 @@ async function handlePostRequest(request, kv, modelId) {
 
   if (typeof rating !== 'number' || rating < 1 || rating > 5) {
     console.error(`Invalid rating value: ${rating}`);
-    return new Response(JSON.stringify({ error: "Rating must be a number between 1 and 5." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-  } // Added CORS_HEADERS
+    return new Response(JSON.stringify({ error: "Rating must be a number between 1 and 5." }), { status: 400, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });
+  }
 
   const sanitizedComment = (comment || '').trim().substring(0, 1000);
   const uniqueId = crypto.randomUUID();
@@ -136,7 +138,7 @@ async function handlePostRequest(request, kv, modelId) {
   console.log('Successfully submitted rating.');
 
   return new Response(JSON.stringify({ success: true, message: "Rating submitted successfully." }), {
-    status: 201, // Added CORS_HEADERS
+    status: 201,
     headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   });
 }

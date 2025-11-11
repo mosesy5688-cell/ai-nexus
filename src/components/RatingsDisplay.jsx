@@ -142,7 +142,7 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
                             ></textarea>
                         </div>
                         <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
-                            {isSubmitting ? '正在提交...' : '提交评论'}
+                            {isSubmitting ? 'Submitting...' : 'Submit Review'}
                         </button>
                         {submitMessage && <p className={`mt-4 text-sm ${submitMessage.startsWith('Error') ? 'text-red-500' : 'text-green-500'}`}>{submitMessage}</p>}
                     </form>

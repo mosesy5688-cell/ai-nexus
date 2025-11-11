@@ -11,7 +11,7 @@ const { slug } = Astro.params;
 const model = models.find(m => m.id.replace(/\//g, '--') === slug);
 
 if (!model) {
-  return Astro.redirect('/404', 404); // 如果模型未找到，重定向到 404 页面
+  return Astro.redirect('/404', 404); // If model is not found, redirect to 404 page
 }
 ---
 <ModelPageLayout model={model} />
