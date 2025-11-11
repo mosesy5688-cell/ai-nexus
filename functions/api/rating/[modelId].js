@@ -17,6 +17,7 @@ export async function onRequest(context) {
   const { request, env, params } = context;
   const { modelId } = params;
 
+  console.log(`[API Function] Invoked for path: ${request.url}, method: ${request.method}, modelId: ${modelId}`);
   try {
     if (!modelId) {
       return new Response(JSON.stringify({ error: "Model ID is required." }), { status: 400, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } });

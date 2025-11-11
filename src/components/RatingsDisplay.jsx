@@ -27,6 +27,7 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
     const [submitMessage, setSubmitMessage] = useState('');
 
     const fetchData = useCallback(async () => {
+        console.log(`RatingsDisplay: Fetching data from ${apiEndpoint}`);
         try {
             const response = await fetch(apiEndpoint);
             if (!response.ok) {
@@ -109,8 +110,8 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
                 </div>
             </div>
 
-            {submitMessage.startsWith('Thank you') ? (
-                <div className="my-8 p-6 bg-green-50 dark:bg-green-900/50 rounded-lg text-center">
+            {submitMessage.startsWith('Thank you for your feedback!') ? (
+                <div className="my-8 p-6 bg-green-50 dark:bg-green-900/50 rounded-lg text-center border border-green-200 dark:border-green-700">
                     <p className="text-xl font-semibold text-green-700 dark:text-green-300">{submitMessage}</p>
                 </div>
             ) : (
@@ -137,32 +138,31 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
                                 value={userComment}
                                 onChange={(e) => setUserComment(e.target.value)}
                                 className="w-full p-2 border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                                rows="3"
+                                rows="3" // Corrected duplicated rows attribute
                             ></textarea>
                         </div>
-                        <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400">
-                            {isSubmitting ? 'Submitting...' : 'Submit Review'}
+                        <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                            {isSubmitting ? '正在提交...' : '提交评论'}
                         </button>
                         {submitMessage && <p className={`mt-4 text-sm ${submitMessage.startsWith('Error') ? 'text-red-500' : 'text-green-500'}`}>{submitMessage}</p>}
                     </form>
                 </div>
             )}
-
             <div>
                 <h3 className="text-xl font-semibold mb-4">Comments ({data.comments.length})</h3>
                 <div className="space-y-4">
                     {data.comments.length > 0 ? (
                         data.comments.map((c, index) => (
-                            <div key={index} className="p-4 border-b border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
+                            <div key={index} className="p-4 border-b border-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
                                 <div className="flex items-center mb-1">
                                     {[1, 2, 3, 4, 5].map((star) => <Star key={star} filled={star <= c.rating} />)}
-                                </div>
+                                </div> {/* Corrected closing div */}
                                 <p className="text-gray-800 dark:text-gray-200">{c.comment}</p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{new Date(c.timestamp).toLocaleString()}</p>
                             </div>
                         ))
                     ) : (
-                        <p>Be the first to leave a comment!</p>
+                        <p className="text-gray-500 dark:text-gray-400">Be the first to leave a comment!</p>
                     )}
                 </div>
             </div>

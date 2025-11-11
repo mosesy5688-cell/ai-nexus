@@ -13,6 +13,7 @@ const lastUpdatedDate = new Date(model.lastModified);
 const formattedLastUpdated = !isNaN(lastUpdatedDate.getTime()) 
   ? lastUpdatedDate.toLocaleDateString() 
   : 'N/A';
+console.log(`[ModelPageLayout] Model ID: ${model.id}`); // Log model ID
 const visibleTags = model.tags?.slice(0, 15) || [];
 const hasMoreTags = model.tags?.length > 15;
 ---
