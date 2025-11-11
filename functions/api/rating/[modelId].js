@@ -78,16 +78,25 @@ async function handleGetRequest(kv, modelId) {
  * @param {string} modelId - The ID of the model.
  */
 async function handlePostRequest(request, kv, modelId) {
+  console.log(`Handling POST for modelId: ${modelId}`);
+
   const userIp = request.headers.get('cf-connecting-ip') || 'unknown_ip';
   const rateLimitKey = `${RATE_LIMIT_KEY_PREFIX}${userIp}`;
 
   const lastSubmission = await kv.get(rateLimitKey);
   if (lastSubmission) {
+    console.log(`Rate limit hit for IP: ${userIp}`);
     return new Response(JSON.stringify({ error: `Rate limit exceeded. Please wait ${RATE_LIMIT_SECONDS} seconds.` }), { status: 429, headers: { 'Content-Type': 'application/json' } });
   }
 
   let payload;
   try {
+    // Crucial Check: Ensure the content type is correct before trying to parse JSON.
+    if (request.headers.get('Content-Type') !== 'application/json') {
+      console.error('Invalid Content-Type header.');
+      return new Response(JSON.stringify({ error: "Invalid request: Content-Type must be application/json." }), { status: 415, headers: { 'Content-Type': 'application/json' } });
+    }
+    console.log('Attempting to parse JSON body...');
     payload = await request.json();
   } catch (e) {
     return new Response(JSON.stringify({ error: "Invalid JSON payload." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -96,6 +105,7 @@ async function handlePostRequest(request, kv, modelId) {
   const { rating, comment } = payload;
 
   if (typeof rating !== 'number' || rating < 1 || rating > 5) {
+    console.error(`Invalid rating value: ${rating}`);
     return new Response(JSON.stringify({ error: "Rating must be a number between 1 and 5." }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
 
@@ -109,8 +119,10 @@ async function handlePostRequest(request, kv, modelId) {
     timestamp: new Date().toISOString(),
   };
 
+  console.log('Writing data to KV:', newRatingKey);
   await kv.put(newRatingKey, JSON.stringify(dataToStore));
   await kv.put(rateLimitKey, '1', { expirationTtl: RATE_LIMIT_SECONDS });
+  console.log('Successfully submitted rating.');
 
   return new Response(JSON.stringify({ success: true, message: "Rating submitted successfully." }), {
     status: 201,
