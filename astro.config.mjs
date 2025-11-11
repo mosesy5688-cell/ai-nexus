@@ -3,9 +3,8 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import tailwind from "@astrojs/tailwind";
 import sitemap from "@astrojs/sitemap";
+import react from "@astrojs/react"; // Import React integration
 import mdx from "@astrojs/mdx";
-
-import preact from '@astrojs/preact';
 
 const siteUrl = 'https://free2aitools.com';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -20,9 +19,14 @@ export default defineConfig({
       },
     },
   },
-  integrations: [mdx(), tailwind(), sitemap({
-    // Let Astro auto-discover all pages, including dynamic ones.
-    // No need for `customPages` which was causing build issues.
-  }), preact()],
+  integrations: [
+    react(), // Add React integration
+    mdx(),
+    tailwind(), 
+    sitemap({
+      // Let Astro auto-discover all pages, including dynamic ones.
+      // No need for `customPages` which was causing build issues.
+    })
+  ],
   output: 'static'
 });
