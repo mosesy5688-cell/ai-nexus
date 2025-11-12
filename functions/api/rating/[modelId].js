@@ -16,7 +16,7 @@ const RATE_LIMIT_SECONDS = 5; // 5 seconds between submissions
 export async function onRequest(context) {
   const { request, env, params } = context;
   // The modelId is URL-encoded by the client, so we must decode it here.
-  const modelId = decodeURIComponent(params.modelId); 
+  const modelId = decodeURIComponent(params.modelId);
 
   console.log(`[API Function] Invoked for path: ${request.url}, method: ${request.method}, modelId: ${modelId}`);
   try {

@@ -31,11 +31,8 @@ export default function RatingsDisplay({ modelId }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
-  // The model ID contains slashes (e.g., "meta-llama--Meta-Llama-3-8B-Instruct").
-  // We must URL-encode it to ensure it's treated as a single URL segment.
   const safeModelId = encodeURIComponent(modelId);
 
-  const apiPath = safeModelId ? `/api/rating/${safeModelId}` : null;
   
   // -------------------------
   // 1. Fetch Ratings (GET)
@@ -43,13 +40,12 @@ export default function RatingsDisplay({ modelId }) {
   const fetchRatings = async () => {
     if (!apiPath) return;
     setLoading(true);
-    setError(null);
     try {
       const data = await fetcher(apiPath);
       setRatings(data);
     } catch (err) {
       console.error('Fetch Error:', err);
-      setError('Error loading ratings: ' + err.message);
+      setError('Error loading ratings: ' + err.message); // Keep this for user feedback
     } finally {
       setLoading(false);
     }
@@ -57,7 +53,7 @@ export default function RatingsDisplay({ modelId }) {
 
   useEffect(() => {
     fetchRatings();
-  }, [apiPath]);
+  }, [modelId]); 
 
   // -------------------------
   // 2. Submit Rating (POST)
