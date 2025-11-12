@@ -69,7 +69,7 @@ async function main() {
     let content = `---
 title: "${title}"
 description: "${description}"
-layout: ../../../layouts/KeywordPageLayout.astro
+layout: ../../../layouts/MainLayout.astro
 ---
 
 # ${title}
