@@ -61,7 +61,7 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
     }, [modelId]);
 
     useEffect(() => {
-        if (modelId) { // Only fetch if modelId is available
+        if (modelId) {
             fetchData();
         }
     }, [fetchData, modelId]);
