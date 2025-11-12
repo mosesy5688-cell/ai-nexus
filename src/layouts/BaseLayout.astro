@@ -18,15 +18,16 @@ const { title, description } = Astro.props;
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
-		<style is:global>@import '../styles/theme.css';</style>
-		<style>
-			body {
-				background-color: var(--color-background);
-				color: var(--color-text-primary);
-			}
-		</style>
+
+		<!-- Modern Font Stack -->
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+		<!-- Global Styles -->
+		<style is:global>@import '@/styles/base.css';</style>
 	</head>
-	<body class="flex flex-col min-h-screen">
+	<body class="bg-background text-foreground font-sans antialiased flex flex-col min-h-screen">
 		<header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
 			<nav class="container mx-auto px-4 py-4 flex justify-between items-center">
 				<a href="/" class="text-2xl font-bold text-gray-900 dark:text-white shrink-0">Free AI Tools</a>

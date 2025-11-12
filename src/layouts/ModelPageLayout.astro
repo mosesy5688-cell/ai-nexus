@@ -1,14 +1,15 @@
 ---
 import type { Model } from '@/types';
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import AdSlot from '@/components/AdSlot.astro';
 import ModelRatings from '@/components/ModelRatings.astro'; // Import the ratings component
+import ModelCard from '@/components/ModelCard.astro';
 
 export interface Props {
   model: Model;
+  relatedModels: Model[];
 }
 
-const { model } = Astro.props;
+const { model, relatedModels } = Astro.props;
 const lastUpdatedDate = new Date(model.lastModified);
 const formattedLastUpdated = !isNaN(lastUpdatedDate.getTime()) 
   ? lastUpdatedDate.toLocaleDateString() 
@@ -16,12 +17,27 @@ const formattedLastUpdated = !isNaN(lastUpdatedDate.getTime()) 
 console.log(`[ModelPageLayout] Model ID: ${model.id}`); // Log model ID
 const visibleTags = model.tags?.slice(0, 15) || [];
 const hasMoreTags = model.tags?.length > 15;
+
+// Breadcrumbs logic
+const breadcrumbs = [
+  { name: 'Home', href: '/' },
+  { name: 'Explore', href: '/explore' },
+  { name: model.name, href: `/model/${model.id.replace(/\//g, '--')}` }
+];
 ---
 <BaseLayout title={model.name} description={model.description.substring(0, 160)}>
   <div class="container mx-auto px-4 py-12 md:py-16">
-    <a href="javascript:history.back()" class="text-blue-600 dark:text-blue-400 hover:underline mb-8 inline-flex items-center gap-2 font-medium transition-colors group">
-      <span class="transition-transform group-hover:-translate-x-1">&larr;</span> Back to previous page
-    </a>
+    <!-- Breadcrumbs Navigation -->
+    <nav aria-label="Breadcrumb" class="mb-8">
+      <ol class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+        {breadcrumbs.map((crumb, index) => (
+          <li class="flex items-center gap-2">
+            <a href={crumb.href} class="hover:underline hover:text-primary transition-colors">{crumb.name}</a>
+            {index < breadcrumbs.length - 1 && <span class="opacity-50">/</span>}
+          </li>
+        ))}
+      </ol>
+    </nav>
     
     <article class="bg-white dark:bg-gray-800/50 p-6 md:p-8 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700/50">
       
@@ -78,6 +94,20 @@ const hasMoreTags = model.tags?.length > 15;
             <ModelRatings modelId={model.id} />
           </div>
         </section>
+
+        <!-- Related Models Section -->
+        {relatedModels.length > 0 && (
+          <section class="mt-20">
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-12">
+              <h2 class="text-3xl font-bold mb-8 text-gray-800 dark:text-gray-200">You Might Also Like</h2>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {relatedModels.map(related => (
+                  <ModelCard model={related} />
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
         
         </div>
         

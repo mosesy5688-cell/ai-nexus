@@ -1,17 +1,23 @@
 ---
 import models from '@/data/models.json';
 import ModelPageLayout from '@/layouts/ModelPageLayout.astro';
+import type { Model } from '@/types';
 
 export function getStaticPaths() {
   return models.map(model => ({
     params: { slug: model.id.replace(/\//g, '--') }
   }));
 }
+
 const { slug } = Astro.params;
-const model = models.find(m => m.id.replace(/\//g, '--') === slug);
+const model = models.find(m => m.id.replace(/\//g, '--') === slug) as Model | undefined;
 
 if (!model) {
   return Astro.redirect('/404', 404); // If model is not found, redirect to 404 page
 }
----
-<ModelPageLayout model={model} />
+
+// Find related models based on shared tags (simple logic for demonstration)
+const relatedModels = models.filter(m => 
+  m.id !== model.id && m.tags.some(tag => model.tags.includes(tag))
+).slice(0, 3); // Limit to 3 related models
+<ModelPageLayout model={model} relatedModels={relatedModels} />

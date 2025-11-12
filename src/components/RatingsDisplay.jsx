@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import StarRating from './StarRating'; // We will create a new star rating component
+import StarRating from './StarRating';
 // Utility function for robust JSON fetching and error handling
 async function fetcher(url, options = {}) {
   const response = await fetch(url, options);
@@ -28,7 +28,7 @@ export default function RatingsDisplay({ modelId: initialModelId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [newRating, setNewRating] = useState(5); // Default to 5 stars
-  const [newComment, setNewComment] = useState('');
+  const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
@@ -116,104 +116,95 @@ export default function RatingsDisplay({ modelId: initialModelId }) {
   const reviews = ratings?.comments || [];
 
   return (
-    <div className="space-y-12 font-sans">
-      {/* --- 1. Ratings Summary --- */}
-      <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
-        <h3 className="text-2xl font-bold text-gray-900 dark:text-white">User Ratings</h3>
-        <div className="flex items-center mt-4 space-x-4">
-          <div className="flex items-baseline space-x-1">
-            <span className="text-5xl font-extrabold text-blue-600 dark:text-blue-400">{averageRating.toFixed(1)}</span>
-            <span className="text-xl font-medium text-gray-500 dark:text-gray-400">/ 5</span>
+    <div className="max-w-4xl mx-auto font-sans">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
+        {/* --- 1. Ratings Summary (Left Column) --- */}
+        <div className="md:col-span-1 p-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col items-center justify-center text-center">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white">User Ratings</h3>
+          <div className="flex items-baseline mt-4 space-x-2">
+            <span className="text-6xl font-extrabold text-primary">{averageRating.toFixed(1)}</span>
+            <span className="text-2xl font-medium text-gray-500 dark:text-gray-400">/ 5</span>
           </div>
-          <div className="flex flex-col">
-            <StarRating rating={averageRating} />
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Based on {totalRatings} ratings</p>
+          <div className="mt-2">
+            <StarRating rating={averageRating} size="h-6 w-6" />
           </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Based on {totalRatings} ratings</p>
         </div>
-      </div>
-      
-      {/* Submission Form */}
-      <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
-        <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Leave a Review</h4>
-        {submitError && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{submitError}</p>}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="rating-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Your Rating
-            </label>
-            <div className="relative">
-              <select
-                id="rating-select"
-                value={newRating}
-                onChange={(e) => setNewRating(Number(e.target.value))}
-                disabled={submitting}
-                className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out appearance-none"
-              >
-                {[5, 4, 3, 2, 1].map(star => (
-                  <option key={star} value={star}>{star} Star{star > 1 ? 's' : ''}</option>
+
+        {/* --- 2. Submission Form (Right Column) --- */}
+        <div className="md:col-span-2 p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
+          <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Leave a Review</h4>
+          {submitError && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{submitError}</p>}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="rating-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Your Rating
+              </label>
+              <div className="flex space-x-1">
+                {[5, 4, 3, 2, 1].map((star) => (
+                  <button
+                    type="button"
+                    key={star}
+                    onClick={() => setNewRating(star)}
+                    className={`text-3xl transition-transform duration-150 ease-in-out ${newRating >= star ? 'text-yellow-400 scale-110' : 'text-gray-300 dark:text-gray-600'} hover:scale-125`}
+                    aria-label={`Rate ${star} stars`}
+                    disabled={submitting}
+                  >
+                    ★
+                  </button>
                 ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
-                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
               </div>
             </div>
-          </div>
 
-          <div>
-            <label htmlFor="comment-textarea" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Your Comment (optional)
-            </label>
-            <textarea
-              id="comment-textarea"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              disabled={submitting}
-              rows="4"
-              placeholder="Share your thoughts about this model..."
-              className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out"
-            />
-          </div>
+            <div>
+              <label htmlFor="comment-textarea" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Your Comment (optional)
+              </label>
+              <textarea
+                id="comment-textarea"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                disabled={submitting}
+                rows="4"
+                placeholder="Share your thoughts about this model..."
+                className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition duration-150 ease-in-out"
+              />
+            </div>
 
-          <div>
-            <button 
-              type="submit" 
-              disabled={submitting}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-150 ease-in-out"
-            >
-              {submitting ? 'Submitting...' : 'Submit Review'}
-            </button>
-          </div>
-        </form>
+            <div>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-150 ease-in-out"
+              >
+                {submitting ? 'Submitting...' : 'Submit Review'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
 
-      {/* Display Comments */}
-      <div className="space-y-6">
-        <h4 className="text-xl font-bold text-gray-900 dark:text-white">Comments ({totalRatings})</h4>
+      {/* --- 3. Display Comments --- */}
+      <div className="mt-16 space-y-8">
+        <h4 className="text-2xl font-bold text-gray-900 dark:text-white">Comments ({reviews.length})</h4>
         {reviews.length === 0 ? (
-          <div className="text-center py-10 px-6 bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
+          <div className="text-center py-12 px-6 bg-white dark:bg-gray-800/50 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700">
             <p className="text-gray-500 dark:text-gray-400">Be the first to leave a review!</p>
           </div>
         ) : (
           <div className="space-y-6">
             {reviews.map((review, index) => (
-            <div key={index} className="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
-              <div className="flex items-start space-x-4">
-                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 font-bold">
-                  U
+              <div key={index} className="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <StarRating rating={review.rating} />
+                  <small className="text-xs text-gray-500 dark:text-gray-400">
+                    {new Date(review.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </small>
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <StarRating rating={review.rating} />
-                    <small className="text-xs text-gray-500 dark:text-gray-400">
-                      {new Date(review.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                    </small>
-                  </div>
-                  <p className="mt-3 text-gray-700 dark:text-gray-300 leading-relaxed">
-                    {review.comment || <span className="italic text-gray-400 dark:text-gray-500">No comment provided.</span>}
-                  </p>
-                </div>
+                <p className="mt-4 text-gray-700 dark:text-gray-300 leading-relaxed">
+                  {review.comment || <span className="italic text-gray-400 dark:text-gray-500">No comment provided.</span>}
+                </p>
               </div>
-            </div>
             ))}
           </div>
         )}
