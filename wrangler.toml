@@ -1,5 +1,5 @@
 name = "ai-nexus"
 compatibility_date = "2024-01-01"
-build_output_dir = "dist"
+pages_build_output_dir = "dist"
 build_command = "npm run build"
 functions_dir = "functions"

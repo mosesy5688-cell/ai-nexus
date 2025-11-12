@@ -1,10 +1,10 @@
 ---
-import BaseLayout from '@/layouts/BaseLayout.astro';
-import ModelCard from '@/components/ModelCard.astro';
-import AdSlot from '@/components/AdSlot.astro';
-import models from '@/data/models.json';
-import keywords from '@/data/keywords.json';
-import type { Model } from '@/types';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ModelCard from '../../components/ModelCard.astro';
+import AdSlot from '../../components/AdSlot.astro';
+import models from '../../data/models.json';
+import keywords from '../../data/keywords.json';
+import type { Model } from '../../types';
 
 export async function getStaticPaths() {
   // Generate a page for each discovered keyword
@@ -15,12 +15,12 @@ export async function getStaticPaths() {
 }
 
 const { keyword } = Astro.props;
-const keywordSlug = keyword.slug;
-const keywordTitle = keyword.title;
+const keywordSlug = keyword?.slug ?? '';
+const keywordTitle = keyword?.title ?? 'Unknown';
 
 // Filter models that have the current keyword in their tags array
 const relevantModels: Model[] = models.filter(model => 
-  model.tags && model.tags.map(tag => tag.toLowerCase()).includes(keywordSlug.toLowerCase())
+  Array.isArray(model.tags) && model.tags.map(tag => tag.toLowerCase()).includes(keywordSlug.toLowerCase())
 );
 ---
 <BaseLayout title={`Top AI Models for ${keywordTitle}`} description={`Explore the best open-source AI models for ${keywordTitle}.`}>
