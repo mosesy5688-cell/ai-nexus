@@ -50,7 +50,7 @@ const hasMoreTags = model.tags?.length > 15;
             </section>
           )}
 
-          {model.summary_ai && model.summary_ai.length > 10 && (
+          {model.summary_ai && model.summary_ai.length > 50 && (
             <section class="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 shadow-sm">
               <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-300 mb-2">AI Summary</h3>
               <p class="text-gray-700 dark:text-gray-300 text-base leading-relaxed">

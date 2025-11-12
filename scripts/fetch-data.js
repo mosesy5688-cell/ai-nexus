@@ -46,8 +46,10 @@ async function getAISummary(readmeText, modelId, currentModelData) {
   }
 
   // 2. Cost Control: If no README or it's too short, don't call the API.
-  if (!readmeText || readmeText.length < 500) {
-    return (readmeText || '').substring(0, 250); // Return a simple truncated version
+  // Also, truncate the readme to a reasonable length to avoid overly long API calls.
+  const truncatedReadme = (readmeText || '').substring(0, 8000);
+  if (truncatedReadme.length < 500) {
+    return truncatedReadme.substring(0, 250); // Return a simple truncated version
   }
 
   // 3. API Key Check: Only proceed if the API key is available.
@@ -70,7 +72,7 @@ async function getAISummary(readmeText, modelId, currentModelData) {
           },
           {
             role: 'user',
-            content: `Based on the following README content, generate a professional summary of the model's purpose, key features, and ideal use case. The summary must be 100 words or less.\n\nREADME:\n"""\n${readmeText}\n"""`,
+            content: `Based on the following README content, generate a professional summary of the model's purpose, key features, and ideal use case. The summary must be 100 words or less.\n\nREADME:\n"""\n${truncatedReadme}\n"""`,
           },
         ],
         temperature: 0.5,

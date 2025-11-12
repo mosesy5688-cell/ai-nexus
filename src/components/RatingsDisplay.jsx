@@ -77,7 +77,6 @@ export default function RatingsDisplay({ modelId }) {
         body: JSON.stringify({
           rating: newRating,
           comment: newComment,
-          timestamp: Date.now(),
         }),
       });
 
