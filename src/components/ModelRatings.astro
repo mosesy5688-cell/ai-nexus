@@ -1,34 +1,14 @@
 ---
 // src/components/ModelRatings.astro
-// This component is responsible for loading data and rendering the interactive part
+import RatingsDisplay from './RatingsDisplay.jsx';
 
-import RatingsDisplay from './RatingsDisplay.jsx'; // 使用 React/Preact/Vue 组件处理交互
-
-// 假设我们从父页面接收 modelId
 interface Props {
     modelId: string;
 }
 const { modelId } = Astro.props;
-
-// 注意：这里使用 client:visible，只有当用户滚动到组件可见时才加载，提高初始性能
 ---
 
-<section id="model-ratings" class="rating-section">
-    <h2>User Ratings & Comments</h2>
-    
-    <RatingsDisplay 
-        client:visible 
-        modelId={modelId} 
-        apiEndpoint={`/api/rating/${modelId}`} 
-    />
-</section>
-
-<style>
-    /* 基础样式，您可以在您的全局 CSS 中定义 */
-    .rating-section {
-        margin-top: 2rem;
-        padding: 1.5rem;
-        border: 1px solid var(--color-card-border);
-        border-radius: 8px;
-    }
-</style>
+<RatingsDisplay 
+    client:visible 
+    modelId={modelId} 
+/>

@@ -18,12 +18,14 @@ const visibleTags = model.tags?.slice(0, 15) || [];
 const hasMoreTags = model.tags?.length > 15;
 ---
 <BaseLayout title={model.name} description={model.description.substring(0, 160)}>
-  <div class="container mx-auto px-4 py-12">
-    <a href="javascript:history.back()" class="text-blue-500 hover:underline mb-8 block font-medium transition-colors">&larr; Back to previous page</a>
+  <div class="container mx-auto px-4 py-12 md:py-16">
+    <a href="javascript:history.back()" class="text-blue-600 dark:text-blue-400 hover:underline mb-8 inline-flex items-center gap-2 font-medium transition-colors group">
+      <span class="transition-transform group-hover:-translate-x-1">&larr;</span> Back to previous page
+    </a>
     
-    <article class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl">
+    <article class="bg-white dark:bg-gray-800/50 p-6 md:p-8 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700/50">
       
-            <header class="border-b pb-4 mb-6">
+            <header class="border-b border-gray-200 dark:border-gray-700 pb-6 mb-8">
         <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white leading-tight">{model.name}</h1>
         {model.author && <p class="text-lg text-gray-500 dark:text-gray-400 mt-2">by **{model.author}**</p>}
       </header>
@@ -33,7 +35,7 @@ const hasMoreTags = model.tags?.length > 15;
                 <div class="lg:col-span-3">
           
                     {model.tags && model.tags.length > 0 && (
-            <section class="mb-8">
+            <section class="mb-10">
               <h3 class="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">Tags</h3>
               <div id="tags-container" class="flex flex-wrap gap-2">
                 {visibleTags.map(tag => (
@@ -48,7 +50,7 @@ const hasMoreTags = model.tags?.length > 15;
             </section>
           )}
 
-          {model.summary_ai && (
+          {model.summary_ai && model.summary_ai.length > 10 && (
             <section class="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 shadow-sm">
               <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-300 mb-2">AI Summary</h3>
               <p class="text-gray-700 dark:text-gray-300 text-base leading-relaxed">
@@ -58,7 +60,7 @@ const hasMoreTags = model.tags?.length > 15;
           )}
 
                     {model.readme ? (
-            <section id="details-usage" class="mt-8 mb-10">
+            <section id="details-usage" class="mt-8 mb-12">
               <h2 class="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200 border-b pb-2">Details & Usage</h2>
               <div class="prose dark:prose-invert prose-lg max-w-none bg-gray-50 dark:bg-gray-900 p-6 rounded-lg prose-pre:bg-gray-200 dark:prose-pre:bg-gray-800 prose-pre:text-gray-800 dark:prose-pre:text-gray-200 border border-gray-100 dark:border-gray-700 shadow-inner">
                 <div set:html={model.readme} />
@@ -69,30 +71,14 @@ const hasMoreTags = model.tags?.length > 15;
               No detailed information (README) available for this model.
             </p>
           )}
-          
-                    <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
-            <nav class="-mb-px flex space-x-8" aria-label="Secondary Tabs">
-              <button id="tab-btn-files" class="tab-button whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-xl focus:outline-none active-tab">
-                Files
-              </button>
-              <button id="tab-btn-community" class="tab-button whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-xl focus:outline-none inactive-tab">
-                Community
-              </button>
-            </nav>
-          </div>
-
-                    <div id="tab-content" class="mt-6">
-                        <div id="tab-files" class="tab-panel">
-              <h2 class="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Files and Versions</h2>
-              <p class="text-gray-600 dark:text-gray-400">This section will list the model files. (Functionality to be implemented)</p>
-                            <AdSlot type="amazon" adId="YOUR_AMAZON_DETAIL_PAGE_AD_ID" width="100%" height="250px" className="mt-10" />
-            </div>
-
-                        <div id="tab-community" class="tab-panel hidden">
-              <h2 class="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Community Discussions</h2>
-              <p class="text-gray-600 dark:text-gray-400">This section will display community discussions and showcase user-created content. (Functionality to be implemented)</p>
-            </div>
-          </div>
+        
+        {/* User Ratings and Comments Section - Moved from aside to main content area */}
+        <section class="mt-16">
+          <div class="border-t border-gray-200 dark:border-gray-700 pt-12">
+            <ModelRatings modelId={model.id} />
+          </div>
+        </section>
+        
         </div>
         
                 <aside class="lg:col-span-1">
@@ -137,11 +123,6 @@ const hasMoreTags = model.tags?.length > 15;
                 </ul>
               </div>
             )}
-
-                    {/* User Ratings and Comments Section */}
-            <section class="mt-10">
-              <ModelRatings modelId={model.id} />
-            </section>
           </div>
         </aside>
       </div>
@@ -149,32 +130,6 @@ const hasMoreTags = model.tags?.length > 15;
   </div>
 
     <script define:vars={{ allTags: model.tags, hasMoreTags }}>
-    // Tab switching logic
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const tabPanels = document.querySelectorAll('.tab-panel');
-    const tabIdMap = {
-      'tab-btn-files': 'tab-files',
-      'tab-btn-community': 'tab-community',
-    };
-
-    tabButtons.forEach(button => {
-      button.addEventListener('click', () => {
-        // Update active tab
-        tabButtons.forEach(t => t.classList.replace('active-tab', 'inactive-tab'));
-        button.classList.replace('inactive-tab', 'active-tab');
-
-        // Get the target panel ID
-        const targetPanelId = tabIdMap[button.id];
-
-        // Update panel visibility
-        tabPanels.forEach(p => p.classList.add('hidden'));
-        if (targetPanelId) {
-          document.getElementById(targetPanelId)?.classList.remove('hidden');
-        }
-      });
-    });
-
-
     // "Show all tags" button logic
     if (hasMoreTags) {
       const showAllBtn = document.getElementById('show-all-tags');
