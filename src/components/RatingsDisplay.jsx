@@ -33,7 +33,6 @@ export default function RatingsDisplay({ modelId }) {
 
   const getApiPath = () => modelId ? `/api/rating/${encodeURIComponent(modelId)}` : null;
 
-  
   // -------------------------
   // 1. Fetch Ratings (GET)
   // -------------------------

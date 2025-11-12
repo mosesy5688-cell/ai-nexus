@@ -1,23 +1,112 @@
 ---
-import models from '@/data/models.json';
-import ModelPageLayout from '@/layouts/ModelPageLayout.astro';
-import type { Model } from '@/types';
+import MainLayout from '../../../layouts/MainLayout.astro';
+import models from '../../../src/data/models.json';
+import RatingsDisplay from '../../../components/RatingsDisplay';
+import StarRating from '../../../components/StarRating.astro';
 
-export function getStaticPaths() {
+export async function getStaticPaths() {
   return models.map(model => ({
-    params: { slug: model.id.replace(/\//g, '--') }
+    params: { slug: model.id },
+    props: { model },
   }));
 }
 
-const { slug } = Astro.params;
-const model = models.find(m => m.id.replace(/\//g, '--') === slug) as Model | undefined;
+const { model } = Astro.props;
 
-if (!model) {
-  return Astro.redirect('/404', 404); // If model is not found, redirect to 404 page
-}
+const pageTitle = model.name;
+const pageDescription = model.summary_ai || model.description;
 
-// Find related models based on shared tags (simple logic for demonstration)
-const relatedModels = models.filter(m => 
-  m.id !== model.id && m.tags.some(tag => model.tags.includes(tag))
-).slice(0, 3); // Limit to 3 related models
-<ModelPageLayout model={model} relatedModels={relatedModels} />
+const hasMoreTags = model.tags.length > 15;
+const visibleTags = model.tags.slice(0, 15);
+---
+<MainLayout title={pageTitle} description={pageDescription}>
+  <div class="container mx-auto px-4 py-12">
+    <a href="javascript:history.back()" class="text-primary hover:underline mb-8 block font-medium transition-colors">&larr; Back to previous page</a>
+
+    <article class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-xl shadow-xl">
+      <header class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight">{model.name}</h1>
+        {model.summary_ai && <p class="mt-2 text-lg text-gray-600 dark:text-gray-300">{model.summary_ai}</p>}
+      </header>
+
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-12 relative">
+        <div class="lg:col-span-3">
+          <!-- Tags Section -->
+          <section class="mb-8">
+            <h3 class="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200">Tags</h3>
+            <div id="tags-container" class="flex flex-wrap gap-2">
+              {visibleTags.map(tag => (
+                <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300 transition-colors">{tag}</span>
+              ))}
+              {hasMoreTags && (
+                <button id="show-all-tags" class="text-blue-500 hover:underline text-sm font-medium">Show all</button>
+              )}
+            </div>
+          </section>
+
+          <!-- README / Details Section -->
+          <section id="details-usage" class="mt-8 mb-10">
+            <h2 class="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-2">Details & Usage</h2>
+            <div class="prose dark:prose-invert prose-lg max-w-none bg-gray-50 dark:bg-gray-900/50 p-4 sm:p-6 rounded-lg border border-gray-100 dark:border-gray-700/50 shadow-inner">
+              {model.readme ? (
+                <div set:html={model.readme} />
+              ) : (
+                <p>{model.description}</p>
+              )}
+            </div>
+          </section>
+
+          <!-- Ratings and Community Section -->
+          <section id="community-ratings" class="mt-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-2">Community Ratings</h2>
+            <RatingsDisplay client:load modelId={model.id} />
+          </section>
+
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="lg:col-span-1">
+          <div class="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg sticky top-28 shadow-md border border-gray-100 dark:border-gray-700/50">
+            <h3 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-600 pb-2">Model Details</h3>
+            <div class="space-y-4 text-gray-700 dark:text-gray-300">
+              <div class="flex items-center gap-3">
+                <span class="text-xl">👤</span>
+                <div><span class="font-semibold">Author:</span> {model.author}</div>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xl">⚙️</span>
+                <div><span class="font-semibold">Task:</span> <span class="break-all">{model.task}</span></div>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xl">❤️</span>
+                <div><span class="font-semibold">Likes:</span> {model.likes.toLocaleString()}</div>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xl">⬇️</span>
+                <div><span class="font-semibold">Downloads:</span> {model.downloads.toLocaleString()}</div>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xl">📅</span>
+                <div><span class="font-semibold">Updated:</span> {new Date(model.lastModified).toLocaleDateString()}</div>
+              </div>
+            </div>
+
+            <div class="mt-6 border-t border-gray-200 dark:border-gray-600 pt-6">
+              <h4 class="font-bold text-lg mb-3 text-gray-900 dark:text-white">Sources</h4>
+              <ul class="space-y-2">
+                {model.sources.map(source => (
+                  <li>
+                    <a href={source.url} target="_blank" rel="noopener noreferrer" class="text-primary hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors break-all flex items-center gap-1">
+                      <span>{source.platform}</span>
+                      <span class="ml-1 text-sm">&rarr;</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </article>
+  </div>
+</MainLayout>
