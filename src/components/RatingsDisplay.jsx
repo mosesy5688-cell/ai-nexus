@@ -27,9 +27,14 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
     const [submitMessage, setSubmitMessage] = useState('');
 
     const fetchData = useCallback(async () => {
-        console.log(`RatingsDisplay: Fetching data from ${apiEndpoint}`);
+        // URL-encode the modelId to safely handle slashes and other special characters.
+        const encodedModelId = encodeURIComponent(modelId);
+        const safeApiEndpoint = `/api/rating/${encodedModelId}`;
+
+        console.log(`RatingsDisplay: Fetching data from ${safeApiEndpoint}`);
         try {
-            const response = await fetch(apiEndpoint);
+            // Use the new, safe endpoint for the fetch call.
+            const response = await fetch(safeApiEndpoint);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -40,7 +45,7 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
         } finally {
             setLoading(false);
         }
-    }, [apiEndpoint]);
+    }, [modelId]); // Depend on modelId, as apiEndpoint is now constructed inside.
 
     useEffect(() => {
         fetchData();
@@ -56,7 +61,10 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
         setSubmitMessage('');
 
         try {
-            const response = await fetch(apiEndpoint, {
+            const encodedModelId = encodeURIComponent(modelId);
+            const safeApiEndpoint = `/api/rating/${encodedModelId}`;
+
+            const response = await fetch(safeApiEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ rating: userRating, comment: userComment }),
