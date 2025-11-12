@@ -1,5 +1,5 @@
 ---
-import MainLayout from '@/layouts/MainLayout.astro';
+import BaseLayout from '@/layouts/BaseLayout.astro';
 import models from '@/data/models.json';
 import RatingsDisplay from '@/components/RatingsDisplay';
 import StarRating from '@/components/StarRating.astro';
@@ -19,7 +19,7 @@ const pageDescription = model.summary_ai || model.description;
 const hasMoreTags = model.tags.length > 15;
 const visibleTags = model.tags.slice(0, 15);
 ---
-<MainLayout title={pageTitle} description={pageDescription}>
+<BaseLayout title={pageTitle} description={pageDescription}>
   <div class="container mx-auto px-4 py-12">
     <a href="javascript:history.back()" class="text-primary hover:underline mb-8 block font-medium transition-colors">&larr; Back to previous page</a>
 
@@ -109,4 +109,4 @@ const visibleTags = model.tags.slice(0, 15);
       </div>
     </article>
   </div>
-</MainLayout>
+</BaseLayout>

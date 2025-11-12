@@ -92,6 +92,11 @@ async function getAISummary(readmeText, modelId, currentModelData) {
  * @param {string} name The name of the model.
  * @returns {string} A normalized string.
  */
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function getModelKey(name) {
     return name.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -102,7 +107,8 @@ async function fetchHuggingFaceData(existingModels) {
 
     try {
         const { data } = await axios.get(HUGGINGFACE_API_URL);
-        const transformedData = await Promise.all(data.map(async (model) => {
+        const transformedData = [];
+        for (const model of data) {
             let readmeContent = null;
             const currentModelData = existingModelsMap.get(model.modelId) || {};
 
@@ -120,7 +126,7 @@ async function fetchHuggingFaceData(existingModels) {
             }
             const aiSummary = await getAISummary(readmeContent, model.modelId, currentModelData);
 
-            return {
+            transformedData.push({
                 id: model.modelId,
                 name: model.modelId.split('/')[1] || model.modelId,
                 author: model.author,
@@ -134,8 +140,11 @@ async function fetchHuggingFaceData(existingModels) {
                 thumbnail: model.cardData?.image, // Add thumbnail from cardData
                 summary_ai: aiSummary, // Correctly assign the AI summary
                 sources: [{ platform: 'Hugging Face', url: `https://huggingface.co/${model.modelId}` }],
-            };
-        }));
+            });
+
+            // Add a small delay to avoid hitting the rate limit so aggressively
+            await sleep(200); // 200ms delay between each summary generation
+        }
         console.log(`✅ Successfully fetched and transformed ${transformedData.length} models.`);
         return transformedData;
     } catch (error) {
