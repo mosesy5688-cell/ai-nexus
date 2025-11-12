@@ -21,15 +21,6 @@ const NSFW_KEYWORDS = [
 ];
 
 /**
- * Normalizes a model name to create a consistent key for deduplication.
- * @param {string} name The name of the model.
- * @returns {string} A normalized string.
- */
-function getModelKey(name) {
-    return name.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-/**
  * Generates an AI summary for a model's README, with caching and cost-control.
  * @param {string | null} readmeText The README content.
  * @param {string} modelId The ID of the model for logging.
@@ -94,6 +85,15 @@ async function getAISummary(readmeText, modelId, currentModelData) {
     console.error(`❌ Failed to generate AI summary for ${modelId}:`, error.response?.data?.error?.message || error.message);
     return ''; // Return empty on failure
   }
+}
+
+/**
+ * Normalizes a model name to create a consistent key for deduplication.
+ * @param {string} name The name of the model.
+ * @returns {string} A normalized string.
+ */
+function getModelKey(name) {
+    return name.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 async function fetchHuggingFaceData(existingModels) {
@@ -306,6 +306,7 @@ async function main() {
             console.warn('Could not parse existing models.json. Proceeding without cache.');
         }
     }
+
     // 1. Fetch data from all sources
     const sourcesData = await Promise.all([
         fetchHuggingFaceData(existingModels),

@@ -22,8 +22,7 @@ async function fetcher(url, options = {}) {
   return response.json();
 }
 
-export default function RatingsDisplay({ modelId: initialModelId }) {
-  const [modelId, setModelId] = useState(initialModelId);
+export default function RatingsDisplay({ modelId }) {
   const [ratings, setRatings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,14 +30,6 @@ export default function RatingsDisplay({ modelId: initialModelId }) {
   const [newComment, setNewComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-
-  // On the client, the component hydrates without props. We need to get the modelId from the DOM.
-  useEffect(() => {
-    const wrapper = document.getElementById('ratings-display-wrapper');
-    if (wrapper && wrapper.dataset.modelId) {
-      setModelId(wrapper.dataset.modelId);
-    }
-  }, []);
 
   const getApiPath = () => modelId ? `/api/rating/${encodeURIComponent(modelId)}` : null;
 
