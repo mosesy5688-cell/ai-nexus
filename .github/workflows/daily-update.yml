@@ -14,6 +14,10 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    # FIX: The 'permissions' block is correctly placed here, at the JOB level.
+    permissions:
+      contents: read # Required for Checkout action
+      deployments: write # Required for Cloudflare Pages action
     name: Fetch Data, Build, and Deploy
     steps:
       - name: Checkout
@@ -30,13 +34,10 @@ jobs:
         run: npm install
 
       # This step ensures that scripts installed by npm packages are executable.
-      # It's a good practice for compatibility across different CI environments.
       - name: Add execute permission to scripts
+        # This resolves the 'astro: Permission denied' error seen in previous logs.
         run: chmod +x node_modules/.bin/*
 
-      # This is the core step. The `npm run build` command now correctly handles both
-      # data fetching (via fetch-data.js) and the Astro site build.
-      # All necessary secrets are provided as environment variables here.
       - name: Fetch Data and Build Application
         run: npm run build
         env:
@@ -48,12 +49,8 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID }}
 
-      # This step publishes the built application (from the `./dist` directory) to Cloudflare Pages.
-      # It requires specific permissions to deploy.
       - name: Publish to Cloudflare Pages
-        # Grant write permissions only for this specific deployment step
-        permissions:
-          deployments: write
+        # permissions block REMOVED from this step
         uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
