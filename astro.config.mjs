@@ -11,9 +11,6 @@ export default defineConfig({
   site: 'https://free2aitools.com',
   integrations: [react()],
   vite: {
-    ssr: {
-      noExternal: ['@astrojs/react']
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
