@@ -22,8 +22,7 @@ async function fetcher(url, options = {}) {
   return response.json();
 }
 
-export default function RatingsDisplay({ modelId }) {
-  // Use a state for modelId, initialized from props (for SSR) or read from DOM (for client).
+export default function RatingsDisplay({ modelId: initialModelId }) {
   const [modelId, setModelId] = useState(initialModelId);
   const [ratings, setRatings] = useState(null);
   const [loading, setLoading] = useState(true);

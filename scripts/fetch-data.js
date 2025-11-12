@@ -64,7 +64,7 @@ async function getAISummary(readmeText, modelId, currentModelData) {
     const response = await axios.post(
       'https://api.groq.com/openai/v1/chat/completions',
       {
-        model: 'mixtral-8x7b-32768', // High-performance model
+        model: 'llama3-70b-8192', // Use a current, high-performance model
         messages: [
           {
             role: 'system',
