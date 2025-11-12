@@ -125,7 +125,7 @@ async function handlePostRequest(context, modelId) {
   }
 
   const sanitizedComment = (comment || '').trim().substring(0, 1000);
-  const uniqueId = context.crypto.randomUUID();
+  const uniqueId = crypto.randomUUID();
   const newRatingKey = `${RATING_KEY_PREFIX}${modelId}:${uniqueId}`;
 
   const dataToStore = {
