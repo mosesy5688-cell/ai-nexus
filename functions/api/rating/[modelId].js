@@ -30,7 +30,7 @@ export async function onRequest(context) {
         return handleGetRequest(env.RATINGS_KV, modelId);
       case 'POST':
         // POST now calls handler which ensures CORS headers are present
-        return handlePostRequest(request, env.RATINGS_KV, modelId);
+        return handlePostRequest(context, modelId);
       case 'OPTIONS':
         return new Response(null, { status: 204, headers: CORS_HEADERS }); // Explicit CORS for preflight
       default:
@@ -87,11 +87,12 @@ async function handleGetRequest(kv, modelId) {
 
 /**
  * Handles POST requests to submit a new rating and comment.
- * @param {Request} request - The incoming request object.
- * @param {KVNamespace} kv - The KV namespace.
+ * @param {EventContext} context - The context object from Cloudflare.
  * @param {string} modelId - The ID of the model.
  */
-async function handlePostRequest(request, kv, modelId) {
+async function handlePostRequest(context, modelId) {
+  const { request, env } = context;
+  const kv = env.RATINGS_KV;
   console.log(`Handling POST for modelId: ${modelId}`);
 
   const userIp = request.headers.get('cf-connecting-ip') || 'unknown_ip';
@@ -124,7 +125,7 @@ async function handlePostRequest(request, kv, modelId) {
   }
 
   const sanitizedComment = (comment || '').trim().substring(0, 1000);
-  const uniqueId = crypto.randomUUID();
+  const uniqueId = context.crypto.randomUUID();
   const newRatingKey = `${RATING_KEY_PREFIX}${modelId}:${uniqueId}`;
 
   const dataToStore = {
