@@ -32,6 +32,7 @@ export default function RatingsDisplay({ modelId }) {
   const [submitError, setSubmitError] = useState(null);
 
   const safeModelId = encodeURIComponent(modelId);
+  const apiPath = safeModelId ? `/api/rating/${safeModelId}` : null;
 
   
   // -------------------------
@@ -53,7 +54,7 @@ export default function RatingsDisplay({ modelId }) {
 
   useEffect(() => {
     fetchRatings();
-  }, [modelId]); 
+  }, [apiPath]); 
 
   // -------------------------
   // 2. Submit Rating (POST)

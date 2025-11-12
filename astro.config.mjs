@@ -19,6 +19,7 @@ export default defineConfig({
     },
   },
   integrations: [
+    react(),
     sitemap({
       // Let Astro auto-discover all pages, including dynamic ones.
       // No need for `customPages` which was causing build issues.
