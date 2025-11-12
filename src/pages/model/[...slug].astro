@@ -1,8 +1,8 @@
 ---
-import MainLayout from '../../layouts/MainLayout.astro';
-import models from '../../data/models.json';
-import RatingsDisplay from '../../components/RatingsDisplay';
-import StarRating from '../../components/StarRating.astro';
+import MainLayout from '@/layouts/MainLayout.astro';
+import models from '@/data/models.json';
+import RatingsDisplay from '@/components/RatingsDisplay';
+import StarRating from '@/components/StarRating.astro';
 
 export async function getStaticPaths() {
   return models.map(model => ({

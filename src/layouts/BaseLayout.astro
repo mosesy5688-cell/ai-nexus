@@ -1,5 +1,5 @@
 ---
-import ThemeToggle from '../components/ThemeToggle.astro';
+import ThemeToggle from '@/components/ThemeToggle.astro';
 
 export interface Props {
 	title: string;
@@ -23,9 +23,9 @@ const { title, description } = Astro.props;
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
-
-		<!-- Global Styles -->
-		<style is:global>@import '../styles/base.css';</style>
+		
+		<!-- Global Styles - Using alias for consistency -->
+		<style is:global>@import '@/styles/base.css';</style>
 	</head>
 	<body class="bg-background text-foreground font-sans antialiased flex flex-col min-h-screen">
 		<header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">

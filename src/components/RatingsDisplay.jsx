@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import StarRating from './StarRating.astro';
+import StarRating from '@/components/StarRating.astro';
 // Utility function for robust JSON fetching and error handling
 async function fetcher(url, options = {}) {
   const response = await fetch(url, options);
