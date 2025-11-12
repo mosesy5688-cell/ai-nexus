@@ -27,30 +27,12 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
     const [submitMessage, setSubmitMessage] = useState('');
 
     const fetchData = useCallback(async () => {
-        if (!modelId) {
-            setError("Model ID is missing.");
-            setLoading(false);
-            return;
-        }
-
-        const encodedModelId = encodeURIComponent(modelId);
-        const safeApiEndpoint = `/api/rating/${encodedModelId}`;
-
-        console.log(`RatingsDisplay: Fetching data from ${safeApiEndpoint}`);
-        setLoading(true);
-        setError(null);
+        console.log(`RatingsDisplay: Fetching data from ${apiEndpoint}`);
         try {
-            const response = await fetch(safeApiEndpoint);
-
+            const response = await fetch(apiEndpoint);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
-            const contentType = response.headers.get("content-type");
-            if (!contentType || !contentType.includes("application/json")) {
-                throw new TypeError("Received non-JSON response from server.");
-            }
-
             const result = await response.json();
             setData(result);
         } catch (e) {
@@ -58,42 +40,32 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
         } finally {
             setLoading(false);
         }
-    }, [modelId]);
+    }, [apiEndpoint]);
 
     useEffect(() => {
-        if (modelId) {
-            fetchData();
-        }
+        fetchData();
     }, [fetchData, modelId]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (userRating === 0) {
-            setSubmitMessage('Please select a rating.');
+      setSubmitMessage('Please select a rating.');
             return;
         }
         setIsSubmitting(true);
         setSubmitMessage('');
 
         try {
-            const encodedModelId = encodeURIComponent(modelId);
-            const safeApiEndpoint = `/api/rating/${encodedModelId}`;
-
-            const response = await fetch(safeApiEndpoint, {
+            const response = await fetch(apiEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ rating: userRating, comment: userComment }),
             });
 
-            const contentType = response.headers.get("content-type");
-            if (!response.ok || !contentType || !contentType.includes("application/json")) {
-                throw new Error("Server returned an invalid response after submission.");
-            }
-
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to submit rating.');
+        throw new Error(result.error || 'Failed to submit rating.');
             }
 
             // Optimistic UI Update: Immediately add the new comment to the list
@@ -159,14 +131,14 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
                                 ))}
                             </div>
                         </div>
-                        <div className="mb-4">
+                      <div className="mb-4">
                             <label htmlFor="comment" className="block mb-2 font-medium">Your Comment (optional):</label>
                             <textarea
                                 id="comment"
                                 value={userComment}
                                 onChange={(e) => setUserComment(e.target.value)}
                                 className="w-full p-2 border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                                rows="3" // Corrected duplicated rows attribute
+                            rows="3"
                             ></textarea>
                         </div>
                         <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
@@ -181,10 +153,10 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
                 <div className="space-y-4">
                     {data.comments.length > 0 ? (
                         data.comments.map((c, index) => (
-                            <div key={index} className="p-4 border-b border-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
+                            <div key={index} className="p-4 border-b border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
                                 <div className="flex items-center mb-1">
                                     {[1, 2, 3, 4, 5].map((star) => <Star key={star} filled={star <= c.rating} />)}
-                                </div> {/* Corrected closing div */}
+                    </div>
                                 <p className="text-gray-800 dark:text-gray-200">{c.comment}</p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{new Date(c.timestamp).toLocaleString()}</p>
                             </div>

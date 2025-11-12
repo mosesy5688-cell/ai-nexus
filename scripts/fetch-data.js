@@ -139,7 +139,7 @@ async function fetchHuggingFaceData() {
 async function fetchGitHubData() {
     console.log('📦 Fetching data from GitHub API...');
     const GITHUB_API_URL = 'https://api.github.com/search/repositories?q=topic:ai-tool&sort=stars&order=desc&per_page=50';
-    try { // An AI tool from GitHub.
+    try {
         const { data } = await axios.get(GITHUB_API_URL, {
             headers: { 'Accept': 'application/vnd.github.v3+json' }
         });
