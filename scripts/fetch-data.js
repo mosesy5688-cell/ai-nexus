@@ -96,23 +96,29 @@ async function getAISummary(readmeText, modelId, currentModelData) {
   }
 }
 
-async function fetchHuggingFaceData() {
+async function fetchHuggingFaceData(existingModels) {
     console.log('📦 Fetching data from HuggingFace API...');
+    const existingModelsMap = new Map(existingModels.map(m => [m.id, m]));
+
     try {
         const { data } = await axios.get(HUGGINGFACE_API_URL);
         const transformedData = await Promise.all(data.map(async (model) => {
             let readmeContent = null;
+            const currentModelData = existingModelsMap.get(model.modelId) || {};
+
             try {
-                // Attempt to fetch the README.md file for each model
-                const readmeUrl = `https://huggingface.co/${model.modelId}/raw/main/README.md`;
-                const readmeResponse = await axios.get(readmeUrl);
-                readmeContent = readmeResponse.data;
+                // Reuse existing readme if available to reduce fetches
+                if (currentModelData.readme) {
+                    readmeContent = currentModelData.readme;
+                } else {
+                    const readmeUrl = `https://huggingface.co/${model.modelId}/raw/main/README.md`;
+                    const readmeResponse = await axios.get(readmeUrl);
+                    readmeContent = readmeResponse.data;
+                }
             } catch (e) {
                 // It's okay if a README doesn't exist, we'll just skip it.
             }
-
-            // We pass an empty object for currentModelData as this is the first fetch
-            const aiSummary = await getAISummary(readmeContent, model.modelId, model); // Pass model for caching check
+            const aiSummary = await getAISummary(readmeContent, model.modelId, currentModelData);
 
             return {
                 id: model.modelId,
@@ -291,9 +297,18 @@ async function main() {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const archiveFilePath = path.join(ARCHIVE_DIR, `${today}.json`);
 
+    // Read existing models to enable caching for AI summaries
+    let existingModels = [];
+    if (fs.existsSync(OUTPUT_FILE_PATH)) {
+        try {
+            existingModels = JSON.parse(fs.readFileSync(OUTPUT_FILE_PATH, 'utf-8'));
+        } catch (e) {
+            console.warn('Could not parse existing models.json. Proceeding without cache.');
+        }
+    }
     // 1. Fetch data from all sources
     const sourcesData = await Promise.all([
-        fetchHuggingFaceData(),
+        fetchHuggingFaceData(existingModels),
         readCivitaiData(),
         fetchGitHubData(),
     ]);
