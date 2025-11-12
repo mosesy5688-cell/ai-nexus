@@ -27,17 +27,30 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
     const [submitMessage, setSubmitMessage] = useState('');
 
     const fetchData = useCallback(async () => {
-        // URL-encode the modelId to safely handle slashes and other special characters.
+        if (!modelId) {
+            setError("Model ID is missing.");
+            setLoading(false);
+            return;
+        }
+
         const encodedModelId = encodeURIComponent(modelId);
         const safeApiEndpoint = `/api/rating/${encodedModelId}`;
 
         console.log(`RatingsDisplay: Fetching data from ${safeApiEndpoint}`);
+        setLoading(true);
+        setError(null);
         try {
-            // Use the new, safe endpoint for the fetch call.
             const response = await fetch(safeApiEndpoint);
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
+
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new TypeError("Received non-JSON response from server.");
+            }
+
             const result = await response.json();
             setData(result);
         } catch (e) {
@@ -45,10 +58,12 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
         } finally {
             setLoading(false);
         }
-    }, [modelId]); // Depend on modelId, as apiEndpoint is now constructed inside.
+    }, [modelId]);
 
     useEffect(() => {
-        fetchData();
+        if (modelId) { // Only fetch if modelId is available
+            fetchData();
+        }
     }, [fetchData, modelId]);
 
     const handleSubmit = async (e) => {
@@ -69,6 +84,11 @@ export default function RatingsDisplay({ modelId, apiEndpoint }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ rating: userRating, comment: userComment }),
             });
+
+            const contentType = response.headers.get("content-type");
+            if (!response.ok || !contentType || !contentType.includes("application/json")) {
+                throw new Error("Server returned an invalid response after submission.");
+            }
 
             const result = await response.json();
 
