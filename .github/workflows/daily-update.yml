@@ -27,8 +27,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # The failing 'discover' step is removed.
-      # All environment variables are consolidated here for the combined build/fetch process.
       - name: Fetch Data and Build Application
         run: npm run build
         env:
@@ -37,7 +35,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID }}
-
       - name: Publish to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:

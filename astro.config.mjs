@@ -19,7 +19,6 @@ export default defineConfig({
     },
   },
   integrations: [
-    react(), // Keep react() as you are using React components
     tailwind(), 
     sitemap({
       // Let Astro auto-discover all pages, including dynamic ones.

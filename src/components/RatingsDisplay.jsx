@@ -32,11 +32,9 @@ export default function RatingsDisplay({ modelId }) {
   const [submitError, setSubmitError] = useState(null);
 
   // The model ID contains slashes (e.g., "meta-llama--Meta-Llama-3-8B-Instruct").
-  // Cloudflare Pages Functions automatically handles the path segment in [modelId].js, 
-  // but we ensure the URL is correctly constructed.
-  const safeModelId = modelId; 
+  // We must URL-encode it to ensure it's treated as a single URL segment.
+  const safeModelId = encodeURIComponent(modelId);
 
-  // FIX: This path construction is now guaranteed to be correct: /api/rating/repo--model-name
   const apiPath = safeModelId ? `/api/rating/${safeModelId}` : null;
   
   // -------------------------
@@ -59,7 +57,7 @@ export default function RatingsDisplay({ modelId }) {
 
   useEffect(() => {
     fetchRatings();
-  }, [modelId]); 
+  }, [apiPath]);
 
   // -------------------------
   // 2. Submit Rating (POST)
@@ -72,7 +70,6 @@ export default function RatingsDisplay({ modelId }) {
     setSubmitError(null);
 
     try {
-      // FIX: Use the correct, clean API path for POST.
       await fetcher(apiPath, {
         method: 'POST',
         headers: {
