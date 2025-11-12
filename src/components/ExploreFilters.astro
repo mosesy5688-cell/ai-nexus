@@ -1,6 +1,6 @@
 ---
 // src/components/ExploreFilters.astro
-import models from '@/data/models.json';
+import models from '../data/models.json';
 
 // 1. Extract unique tasks
 const allTasks = models.flatMap(model => model.task || []);
