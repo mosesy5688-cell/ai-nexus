@@ -131,7 +131,7 @@ async function handlePostRequest(context, modelId) {
   const dataToStore = {
     rating,
     comment: sanitizedComment,
-    timestamp: new Date().toISOString(),
+    timestamp: new Date().toISOString(), // Always generate timestamp on the server
   };
 
   console.log('Writing data to KV:', newRatingKey);
