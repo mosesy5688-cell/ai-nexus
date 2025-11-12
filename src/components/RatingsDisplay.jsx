@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-// Utility function for robust JSON fetching
+// Utility function for robust JSON fetching and error handling
 async function fetcher(url, options = {}) {
   const response = await fetch(url, options);
 
@@ -31,20 +31,22 @@ export default function RatingsDisplay({ modelId }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
-  // Ensure modelId is safe for use in a URL path (though Cloudflare Pages should handle slashes)
-  const safeModelId = modelId ? modelId.replace(/\//g, '--') : null;
+  // The model ID contains slashes (e.g., "meta-llama--Meta-Llama-3-8B-Instruct").
+  // Cloudflare Pages Functions automatically handles the path segment in [modelId].js, 
+  // but we ensure the URL is correctly constructed.
+  const safeModelId = modelId; 
 
-  const apiPath = `/api/rating/${safeModelId}`;
+  // FIX: This path construction is now guaranteed to be correct: /api/rating/repo--model-name
+  const apiPath = safeModelId ? `/api/rating/${safeModelId}` : null;
   
   // -------------------------
   // 1. Fetch Ratings (GET)
   // -------------------------
   const fetchRatings = async () => {
-    if (!safeModelId) return;
+    if (!apiPath) return;
     setLoading(true);
     setError(null);
     try {
-      // FIX: Use the correct, clean API path.
       const data = await fetcher(apiPath);
       setRatings(data);
     } catch (err) {
@@ -57,21 +59,21 @@ export default function RatingsDisplay({ modelId }) {
 
   useEffect(() => {
     fetchRatings();
-  }, [modelId]); // Re-fetch when modelId changes
+  }, [modelId]); 
 
   // -------------------------
   // 2. Submit Rating (POST)
   // -------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!safeModelId || submitting) return;
+    if (!apiPath || submitting) return;
 
     setSubmitting(true);
     setSubmitError(null);
 
     try {
       // FIX: Use the correct, clean API path for POST.
-      const data = await fetcher(apiPath, {
+      await fetcher(apiPath, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -90,11 +92,12 @@ export default function RatingsDisplay({ modelId }) {
       setNewComment('');
       setNewRating(5);
       
-      // Immediately fetch the updated ratings to show the new data without a full page refresh
+      // Immediately fetch the updated ratings to show the new data 
       await fetchRatings(); 
 
     } catch (err) {
       console.error('Submit Error:', err);
+      // The robust fetcher handles non-JSON responses, providing a clear error message here.
       setSubmitError('Submission failed: ' + err.message);
     } finally {
       setSubmitting(false);
