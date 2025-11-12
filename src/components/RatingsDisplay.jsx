@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import StarRating from '@/components/StarRating.astro';
+import StarRating from '@/components/StarRating.astro'; // Assuming this component is still needed for display
 // Utility function for robust JSON fetching and error handling
 async function fetcher(url, options = {}) {
   const response = await fetch(url, options);
@@ -106,14 +106,14 @@ export default function RatingsDisplay({ modelId }) {
   const reviews = ratings?.comments || [];
 
   return (
-    <div className="max-w-4xl mx-auto font-sans">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
+    <div className="font-sans">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
         {/* --- 1. Ratings Summary (Left Column) --- */}
-        <div className="md:col-span-1 p-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700/50 flex flex-col items-center justify-center text-center">
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white">User Ratings</h3>
+        <div className="md:col-span-1 p-6 bg-input-background/50 rounded-2xl border border-card-border flex flex-col items-center justify-center text-center shadow-md">
+          <h3 className="text-2xl font-bold text-foreground">User Ratings</h3>
           <div className="flex items-baseline mt-4 space-x-2">
-            <span className="text-6xl font-extrabold text-primary">{averageRating.toFixed(1)}</span>
-            <span className="text-2xl font-medium text-gray-500 dark:text-gray-400">/ 5</span>
+            <span className="text-6xl font-extrabold text-primary">{averageRating > 0 ? averageRating.toFixed(1) : 'N/A'}</span>
+            {averageRating > 0 && <span className="text-2xl font-medium text-muted-foreground">/ 5</span>}
           </div>
           <div className="mt-2">
             <StarRating rating={averageRating} size="h-6 w-6" />
@@ -122,12 +122,12 @@ export default function RatingsDisplay({ modelId }) {
         </div>
 
         {/* --- 2. Submission Form (Right Column) --- */}
-        <div className="md:col-span-2 p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
-          <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Leave a Review</h4>
+        <div className="md:col-span-2 p-6 bg-card-background rounded-2xl shadow-lg border border-card-border">
+          <h4 className="text-xl font-bold text-foreground mb-4">Leave a Review</h4>
           {submitError && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{submitError}</p>}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="rating-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="rating-select" className="block text-sm font-medium text-muted-foreground mb-2">
                 Your Rating
               </label>
               <div className="flex space-x-1">
@@ -136,7 +136,7 @@ export default function RatingsDisplay({ modelId }) {
                     type="button"
                     key={star}
                     onClick={() => setNewRating(star)}
-                    className={`text-3xl transition-transform duration-150 ease-in-out ${newRating >= star ? 'text-yellow-400 scale-110' : 'text-gray-300 dark:text-gray-600'} hover:scale-125`}
+                    className={`text-3xl transition-transform duration-150 ease-in-out ${newRating >= star ? 'text-yellow-400 scale-110' : 'text-gray-400 dark:text-gray-600'} hover:scale-125`}
                     aria-label={`Rate ${star} stars`}
                     disabled={submitting}
                   >
@@ -147,7 +147,7 @@ export default function RatingsDisplay({ modelId }) {
             </div>
 
             <div>
-              <label htmlFor="comment-textarea" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="comment-textarea" className="block text-sm font-medium text-muted-foreground mb-2">
                 Your Comment (optional)
               </label>
               <textarea
@@ -156,8 +156,8 @@ export default function RatingsDisplay({ modelId }) {
                 onChange={(e) => setNewComment(e.target.value)}
                 disabled={submitting}
                 rows="4"
-                placeholder="Share your thoughts about this model..."
-                className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition duration-150 ease-in-out"
+                placeholder="Share your experience with this model..."
+                className="w-full px-4 py-2 bg-input-background border border-input-border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition duration-150 ease-in-out"
               />
             </div>
 
@@ -165,7 +165,7 @@ export default function RatingsDisplay({ modelId }) {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-150 ease-in-out"
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-all duration-150 ease-in-out"
               >
                 {submitting ? 'Submitting...' : 'Submit Review'}
               </button>
@@ -175,24 +175,24 @@ export default function RatingsDisplay({ modelId }) {
       </div>
 
       {/* --- 3. Display Comments --- */}
-      <div className="mt-16 space-y-8">
-        <h4 className="text-2xl font-bold text-gray-900 dark:text-white">Comments ({reviews.length})</h4>
+      <div className="mt-12">
+        <h4 className="text-2xl font-bold text-foreground mb-6">Comments ({reviews.length})</h4>
         {reviews.length === 0 ? (
-          <div className="text-center py-12 px-6 bg-white dark:bg-gray-800/50 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700">
-            <p className="text-gray-500 dark:text-gray-400">Be the first to leave a review!</p>
+          <div className="text-center py-12 px-6 bg-input-background/50 rounded-2xl border-2 border-dashed border-card-border">
+            <p className="text-muted-foreground">Be the first to leave a review!</p>
           </div>
         ) : (
           <div className="space-y-6">
             {reviews.map((review, index) => (
-              <div key={index} className="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
+              <div key={index} className="p-6 bg-card-background rounded-xl shadow-md border border-card-border">
                 <div className="flex items-center justify-between">
                   <StarRating rating={review.rating} />
-                  <small className="text-xs text-gray-500 dark:text-gray-400">
+                  <small className="text-xs text-muted-foreground">
                     {new Date(review.timestamp).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                   </small>
                 </div>
-                <p className="mt-4 text-gray-700 dark:text-gray-300 leading-relaxed">
-                  {review.comment || <span className="italic text-gray-400 dark:text-gray-500">No comment provided.</span>}
+                <p className="mt-4 text-foreground/90 leading-relaxed">
+                  {review.comment || <span className="italic text-muted-foreground">No comment provided.</span>}
                 </p>
               </div>
             ))}
