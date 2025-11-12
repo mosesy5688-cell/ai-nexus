@@ -31,18 +31,19 @@ export default function RatingsDisplay({ modelId }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
-  const safeModelId = encodeURIComponent(modelId);
-  const apiPath = safeModelId ? `/api/rating/${safeModelId}` : null;
+  // Construct the API path inside the functions that use it to ensure it's always fresh.
+  const getApiPath = () => modelId ? `/api/rating/${encodeURIComponent(modelId)}` : null;
 
   
   // -------------------------
   // 1. Fetch Ratings (GET)
   // -------------------------
   const fetchRatings = async () => {
-    if (!apiPath) return;
+    const path = getApiPath();
+    if (!path) return;
     setLoading(true);
     try {
-      const data = await fetcher(apiPath);
+      const data = await fetcher(path);
       setRatings(data);
     } catch (err) {
       console.error('Fetch Error:', err);
@@ -54,20 +55,21 @@ export default function RatingsDisplay({ modelId }) {
 
   useEffect(() => {
     fetchRatings();
-  }, [apiPath]); 
+  }, [modelId]); // Re-fetch when the modelId prop changes.
 
   // -------------------------
   // 2. Submit Rating (POST)
   // -------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!apiPath || submitting) return;
+    const path = getApiPath();
+    if (!path || submitting) return;
 
     setSubmitting(true);
     setSubmitError(null);
 
     try {
-      await fetcher(apiPath, {
+      await fetcher(path, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
