@@ -1,171 +1,168 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { h } from 'react'; // Explicitly import h for JSX runtime
-function Star({ filled, onClick, onMouseEnter, onMouseLeave }) {
-    return (
-        <svg
-            onClick={onClick}
-            onMouseEnter={onMouseEnter}
-            onMouseLeave={onMouseLeave}
-            className={`w-6 h-6 cursor-pointer ${filled ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'}`}
-            fill="currentColor"
-            viewBox="0 0 20 20"
-        >
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-        </svg>
-    );
+import { useState, useEffect } from 'react';
+
+// Utility function for robust JSON fetching
+async function fetcher(url, options = {}) {
+  const response = await fetch(url, options);
+
+  // 1. Check if response is successful (2xx status codes)
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const contentType = response.headers.get("content-type");
+  // 2. Check if response is JSON (crucial to catch 404 HTML pages)
+  if (!contentType || !contentType.includes("application/json")) {
+    // If the content type is not JSON (e.g., text/html for a 404),
+    // throw a specific error instead of failing on res.json().
+    const text = await response.text();
+    console.error("Non-JSON Response Content:", text);
+    throw new Error("Server returned an invalid or non-JSON response.");
+  }
+
+  return response.json();
 }
 
-export default function RatingsDisplay({ modelId, apiEndpoint }) {
-    const [data, setData] = useState({ average_rating: 0, total_ratings: 0, comments: [] });
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+export default function RatingsDisplay({ modelId }) {
+  const [ratings, setRatings] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [newRating, setNewRating] = useState(5); // Default to 5 stars
+  const [newComment, setNewComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
-    const [userRating, setUserRating] = useState(0);
-    const [hoverRating, setHoverRating] = useState(0);
-    const [userComment, setUserComment] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submitMessage, setSubmitMessage] = useState('');
+  // Ensure modelId is safe for use in a URL path (though Cloudflare Pages should handle slashes)
+  const safeModelId = modelId ? modelId.replace(/\//g, '--') : null;
 
-    const fetchData = useCallback(async () => {
-        console.log(`RatingsDisplay: Fetching data from ${apiEndpoint}`);
-        try {
-            const response = await fetch(apiEndpoint);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const result = await response.json();
-            setData(result);
-        } catch (e) {
-            setError(e.message);
-        } finally {
-            setLoading(false);
-        }
-    }, [apiEndpoint]);
+  const apiPath = `/api/rating/${safeModelId}`;
+  
+  // -------------------------
+  // 1. Fetch Ratings (GET)
+  // -------------------------
+  const fetchRatings = async () => {
+    if (!safeModelId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      // FIX: Use the correct, clean API path.
+      const data = await fetcher(apiPath);
+      setRatings(data);
+    } catch (err) {
+      console.error('Fetch Error:', err);
+      setError('Error loading ratings: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData, modelId]);
+  useEffect(() => {
+    fetchRatings();
+  }, [modelId]); // Re-fetch when modelId changes
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (userRating === 0) {
-      setSubmitMessage('Please select a rating.');
-            return;
-        }
-        setIsSubmitting(true);
-        setSubmitMessage('');
+  // -------------------------
+  // 2. Submit Rating (POST)
+  // -------------------------
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!safeModelId || submitting) return;
 
-        try {
-            const response = await fetch(apiEndpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rating: userRating, comment: userComment }),
-            });
+    setSubmitting(true);
+    setSubmitError(null);
 
-            const result = await response.json();
+    try {
+      // FIX: Use the correct, clean API path for POST.
+      const data = await fetcher(apiPath, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rating: newRating,
+          comment: newComment,
+          timestamp: Date.now(),
+        }),
+      });
 
-            if (!response.ok) {
-        throw new Error(result.error || 'Failed to submit rating.');
-            }
+      // Successful submission
+      alert('Review submitted successfully!');
+      
+      // Update local state and refresh data
+      setNewComment('');
+      setNewRating(5);
+      
+      // Immediately fetch the updated ratings to show the new data without a full page refresh
+      await fetchRatings(); 
 
-            // Optimistic UI Update: Immediately add the new comment to the list
-            const newCommentData = {
-                rating: userRating,
-                comment: userComment,
-                timestamp: new Date().toISOString(),
-            };
-            setData(prevData => ({
-                ...prevData,
-                comments: [newCommentData, ...prevData.comments],
-                total_ratings: prevData.total_ratings + 1,
-                // Note: We don't update average_rating optimistically to avoid complex calculations
-            }));
+    } catch (err) {
+      console.error('Submit Error:', err);
+      setSubmitError('Submission failed: ' + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-            setSubmitMessage('Thank you for your feedback!');
-            setUserRating(0);
-            setUserComment('');
-            setTimeout(fetchData, 2000); // Re-sync with the server after a delay
-        } catch (err) {
-            setSubmitMessage(err.message);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+  if (!modelId) return <div>Model ID is missing.</div>;
+  if (loading) return <div>Loading ratings...</div>;
+  if (error) return <div style={{ color: 'red' }}>{error}</div>;
 
-  if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading ratings...</p>;
-  if (error) return <p className="text-red-500 dark:text-red-400">Error loading ratings: {error}. Please try again later.</p>;
+  const totalRatings = ratings?.reviews?.length || 0;
+  const averageRating = ratings?.averageRating || 0;
+  const reviews = ratings?.reviews || [];
 
-    return (
-        <div>
-            <div className="flex items-center gap-4 mb-6">
-                <div className="flex items-center">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                        <Star key={star} filled={star <= Math.round(data.average_rating)} />
-                    ))}
-                </div>
-                <div className="text-lg">
-                    <span className="font-bold">{data.average_rating}</span>
-                    <span className="text-gray-500 dark:text-gray-400"> / 5</span>
-                    <span className="ml-2 text-gray-500 dark:text-gray-400">({data.total_ratings} ratings)</span>
-                </div>
+  return (
+    <div>
+      <h3>User Ratings & Comments</h3>
+      <p>{averageRating.toFixed(1)} / 5 ({totalRatings} ratings)</p>
+
+      {/* Submission Form */}
+      <div className="review-form">
+        <h4>Leave a Review</h4>
+        {submitError && <p style={{ color: 'red' }}>{submitError}</p>}
+        <form onSubmit={handleSubmit}>
+          <label>
+            Your Rating:
+            <select
+              value={newRating}
+              onChange={(e) => setNewRating(Number(e.target.value))}
+              disabled={submitting}
+            >
+              {[1, 2, 3, 4, 5].map(star => (
+                <option key={star} value={star}>{star} Star{star > 1 ? 's' : ''}</option>
+              ))}
+            </select>
+          </label>
+          <br />
+          <label>
+            Your Comment (optional):
+            <textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              disabled={submitting}
+              rows="3"
+            />
+          </label>
+          <br />
+          <button type="submit" disabled={submitting}>
+            {submitting ? 'Submitting...' : 'Submit Review'}
+          </button>
+        </form>
+      </div>
+
+      {/* Display Comments */}
+      <div className="comments-list">
+        <h4>Comments ({totalRatings})</h4>
+        {reviews.length === 0 ? (
+          <p>Be the first to leave a comment!</p>
+        ) : (
+          reviews.map((review, index) => (
+            <div key={index} className="comment-item">
+              <p><strong>Rating:</strong> {review.rating} / 5</p>
+              <p>{review.comment}</p>
+              <small>{new Date(review.timestamp).toLocaleDateString()}</small>
             </div>
-
-            {submitMessage.startsWith('Thank you for your feedback!') ? (
-                <div className="my-8 p-6 bg-green-50 dark:bg-green-900/50 rounded-lg text-center border border-green-200 dark:border-green-700">
-                    <p className="text-xl font-semibold text-green-700 dark:text-green-300">{submitMessage}</p>
-                </div>
-            ) : (
-                <div className="my-8 p-6 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <h3 className="text-xl font-semibold mb-4">Leave a Review</h3>
-                    <form onSubmit={handleSubmit}>
-                        <div className="mb-4">
-                            <label className="block mb-2 font-medium">Your Rating:</label>
-                            <div className="flex" onMouseLeave={() => setHoverRating(0)}>
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                    <Star 
-                                        key={star} 
-                                        filled={star <= (hoverRating || userRating)}
-                                        onClick={() => setUserRating(star)}
-                                        onMouseEnter={() => setHoverRating(star)}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                      <div className="mb-4">
-                            <label htmlFor="comment" className="block mb-2 font-medium">Your Comment (optional):</label>
-                            <textarea
-                                id="comment"
-                                value={userComment}
-                                onChange={(e) => setUserComment(e.target.value)}
-                                className="w-full p-2 border rounded bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                            rows="3"
-                            ></textarea>
-                        </div>
-                        <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed">
-                            {isSubmitting ? 'Submitting...' : 'Submit Review'}
-                        </button>
-                        {submitMessage && <p className={`mt-4 text-sm ${submitMessage.startsWith('Error') ? 'text-red-500' : 'text-green-500'}`}>{submitMessage}</p>}
-                    </form>
-                </div>
-            )}
-            <div>
-                <h3 className="text-xl font-semibold mb-4">Comments ({data.comments.length})</h3>
-                <div className="space-y-4">
-                    {data.comments.length > 0 ? (
-                        data.comments.map((c, index) => (
-                            <div key={index} className="p-4 border-b border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
-                                <div className="flex items-center mb-1">
-                                    {[1, 2, 3, 4, 5].map((star) => <Star key={star} filled={star <= c.rating} />)}
-                    </div>
-                                <p className="text-gray-800 dark:text-gray-200">{c.comment}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{new Date(c.timestamp).toLocaleString()}</p>
-                            </div>
-                        ))
-                    ) : (
-                        <p className="text-gray-500 dark:text-gray-400">Be the first to leave a comment!</p>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
+          ))
+        )}
+      </div>
+    </div>
+  );
 }
