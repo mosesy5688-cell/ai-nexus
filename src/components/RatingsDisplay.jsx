@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import StarRating from './StarRating'; // 我们将创建一个新的星级评分组件
+import StarRating from './StarRating'; // We will create a new star rating component
 // Utility function for robust JSON fetching and error handling
 async function fetcher(url, options = {}) {
   const response = await fetch(url, options);
@@ -110,7 +110,7 @@ export default function RatingsDisplay({ modelId }) {
 
   return (
     <div className="space-y-12 font-sans">
-      {/* --- 1. 评分汇总 --- */}
+      {/* --- 1. Ratings Summary --- */}
       <div className="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700">
         <h3 className="text-2xl font-bold text-gray-900 dark:text-white">User Ratings</h3>
         <div className="flex items-center mt-4 space-x-4">
