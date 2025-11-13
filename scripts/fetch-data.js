@@ -22,73 +22,6 @@ const NSFW_KEYWORDS = [
 ];
 
 /**
- * Generates an AI summary for a model's README, with caching and cost-control.
- * @param {string | null} readmeText The README content.
- * @param {string} modelId The ID of the model for logging.
- * @param {object} currentModelData The existing model data to check for a cached summary.
- * @returns {Promise<string>} The AI-generated summary or a fallback.
- */
-async function getAISummary(readmeText, modelId, currentModelData) {
-  const GROQ_API_KEY = process.env.GROQ_API_KEY;
-
-  // 1. Caching: If a good summary already exists, reuse it.
-  if (currentModelData?.summary_ai && currentModelData.summary_ai.length > 50) {
-    console.log(`- Reusing existing AI summary for ${modelId}.`);
-    return currentModelData.summary_ai;
-  }
-
-  // 2. Cost Control: If no README or it's too short, don't call the API.
-  // Also, truncate the readme to a reasonable length to avoid overly long API calls.
-  const truncatedReadme = (readmeText || '').substring(0, 8000);
-  if (truncatedReadme.length < 500) {
-    return truncatedReadme.substring(0, 250); // Return a simple truncated version
-  }
-
-  // 3. API Key Check: Only proceed if the API key is available.
-  if (!GROQ_API_KEY) {
-    console.warn(`- GROQ_API_KEY not found. Skipping AI summary for ${modelId}.`);
-    return ''; // Return empty if no key
-  }
-
-  console.log(`- Generating AI summary for ${modelId}...`);
-
-  try {
-    const response = await axios.post(
-      'https://api.groq.com/openai/v1/chat/completions',
-      {
-        model: 'llama-3.1-70b-versatile', // Use a current, high-performance model
-        messages: [
-          {
-            role: 'system',
-            content: "You are a helpful assistant that creates concise summaries of AI models for a technical audience. Your summaries should be professional, clear, and highlight the model's core purpose and features.",
-          },
-          {
-            role: 'user',
-            content: `Based on the following README content, generate a professional summary of the model's purpose, key features, and ideal use case. The summary must be 100 words or less.\n\nREADME:\n"""\n${truncatedReadme}\n"""`,
-          },
-        ],
-        temperature: 0.5,
-        max_tokens: 150,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${GROQ_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    const summary = response.data.choices[0]?.message?.content.trim() || '';
-    console.log(`- AI summary generated for ${modelId}.`);
-    return summary;
-
-  } catch (error) {
-    console.error(`❌ Failed to generate AI summary for ${modelId}:`, error.response?.data?.error?.message || error.message);
-    return ''; // Return empty on failure
-  }
-}
-
-/**
  * Generates a weekly AI report using the Groq API based on the latest models.
  * @param {Array<object>} models The list of recently fetched models.
  * @returns {Promise<void>}
@@ -170,7 +103,6 @@ async function fetchHuggingFaceData(existingModels) {
             } catch (e) {
                 // It's okay if a README doesn't exist, we'll just skip it.
             }
-            const aiSummary = await getAISummary(readmeContent, model.modelId, currentModelData);
 
             transformedData.push({
                 id: model.modelId,
@@ -184,7 +116,6 @@ async function fetchHuggingFaceData(existingModels) {
                 lastModified: model.lastModified,
                 readme: readmeContent,
                 thumbnail: model.cardData?.image, // Add thumbnail from cardData
-                summary_ai: aiSummary,
                 sources: [{ platform: 'Hugging Face', url: `https://huggingface.co/${model.modelId}` }],
             });
 
