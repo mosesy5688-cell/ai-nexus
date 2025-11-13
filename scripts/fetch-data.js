@@ -165,7 +165,7 @@ async function fetchGitHubData() {
             name: repo.name,
             author: repo.owner.login,
             description: repo.description || 'An AI tool from GitHub.',
-            task: 'tool', // Assign a generic task for GitHub repos
+            task: 'tool', // Assign a default task for GitHub repos
             tags: repo.topics || [],
             likes: repo.stargazers_count,
             downloads: repo.watchers_count, // Using watchers as a proxy for downloads

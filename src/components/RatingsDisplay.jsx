@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import StarRating from '@/components/StarRating.astro'; // Assuming this component is still needed for display
+import StarRating from '@/components/StarRating.jsx'; // CRITICAL FIX: Corrected import path from .astro to .jsx
 
 // Utility function for robust JSON fetching and error handling
 async function fetcher(url, options = {}) {

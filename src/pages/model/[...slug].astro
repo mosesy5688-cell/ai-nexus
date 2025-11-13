@@ -16,8 +16,9 @@ export async function getStaticPaths() {
 const { model } = Astro.props;
 
 // Find related models (simple logic: same task, different model)
+// CRITICAL FIX: Add checks for `model.task` and `m.task` to prevent build errors if the task property is missing.
 const relatedModels = allModels
-  .filter(m => m.task === model.task && m.id !== model.id)
+  .filter(m => model.task && m.task && m.task === model.task && m.id !== model.id)
   .sort((a, b) => b.likes - a.likes)
   .slice(0, 4);
 
