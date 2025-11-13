@@ -27,9 +27,7 @@ const pageDescription = "Stay updated with the latest trends, insights, and anal
             <p class="text-sm text-muted-foreground mb-6">
               Published on: {new Date(report.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
-            <div class="prose dark:prose-invert max-w-none leading-relaxed">
-              {report.content.split('\n').map(paragraph => <p>{paragraph}</p>)}
-            </div>
+            <div class="prose dark:prose-invert max-w-none leading-relaxed" set:html={report.content.replace(/\n/g, '<br />')}></div>
           </article>
         ))
       ) : (

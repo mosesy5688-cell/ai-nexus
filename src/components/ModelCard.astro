@@ -12,27 +12,19 @@ const platforms = model.sources ? model.sources.map(s => s.platform).join(', ') 
 const likes = model.likes?.toLocaleString() || '0';
 const downloads = model.downloads?.toLocaleString() || '0';
 
-let proxyImageUrl = null;
-if (model.thumbnail) {
-  // The image proxy seems to be removed or not working, linking directly for now.
-  // If you have an image proxy at `/img`, you can uncomment the line below.
-  // proxyImageUrl = `/img?url=${encodeURIComponent(model.thumbnail)}&width=400&quality=75`;
-  proxyImageUrl = model.thumbnail;
-}
+const thumbnail = model.thumbnail 
+    ? `<img src="${model.thumbnail}" alt="${model.name} thumbnail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="400" height="225" />`
+    : `<div class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-500">No Image</div>`;
 ---
-<a href={modelUrl} class="group block border rounded-lg p-4 shadow-md hover:shadow-xl transition-all duration-300 bg-card-background hover:border-primary/50 flex flex-col h-full">
-    <div class="w-full h-40 bg-input-background rounded-md mb-4 overflow-hidden">
-        {proxyImageUrl ? (
-            <img src={proxyImageUrl} alt={`${model.name} thumbnail`} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="400" height="225" />
-        ) : (
-            <div class="w-full h-full flex items-center justify-center bg-input-background/50 text-muted-foreground">No Image</div>
-        )}
+<a href={modelUrl} class="group block border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-800 hover:border-blue-500/50 flex flex-col h-full">
+    <div class="w-full h-40 bg-gray-100 dark:bg-gray-900 rounded-md mb-4 overflow-hidden">
+        <Fragment set:html={thumbnail} />
     </div>
-    <h3 class="text-xl font-bold mb-2 text-foreground group-hover:text-primary transition-colors">{model.name || 'Untitled Model'}</h3>
-    <p class="text-sm text-muted-foreground mb-1">Platform(s): {platforms}</p>
-    <p class="text-sm text-muted-foreground mb-3">Task: {model.task || 'N/A'}</p>
-    <p class="text-foreground/80 mb-4 line-clamp-3 flex-grow">{model.description || 'No description available.'}</p>
-    <div class="flex items-center justify-between text-sm text-muted-foreground border-t border-card-border pt-3 mt-auto">
+    <h3 class="text-xl font-bold mb-2 text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{model.name || 'Untitled Model'}</h3>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Platform(s): {platforms}</p>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">Task: {model.task || 'N/A'}</p>
+    <p class="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3 flex-grow">{model.description || 'No description available.'}</p>
+    <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-3 mt-auto">
         <span class="flex items-center gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" /></svg>
             {likes}

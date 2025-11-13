@@ -1,11 +1,11 @@
 ---
 import ModelCard from '@/components/ModelCard.astro';
-import BaseLayout from '@/layouts/BaseLayout.astro';
+import Layout from '@/layouts/Layout.astro';
 import AdSlot from '@/components/AdSlot.astro';
 import ExploreFilters from '@/components/ExploreFilters.astro';
 ---
 
-<BaseLayout 
+<Layout 
   title="Explore All AI Models | Free AI Tools"
   description="Search and browse our entire collection of open-source AI models and tools.">
 
@@ -13,7 +13,7 @@ import ExploreFilters from '@/components/ExploreFilters.astro';
     <div class="container max-w-7xl mx-auto px-4">
       <div class="text-center mb-12">
         <h1 class="text-4xl font-bold text-gray-900 dark:text-white">Explore All Models</h1>
-        <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">Search our comprehensive index of open-source AI.</p>
+        <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">Search our comprehensive index of open-source AI.</p>
       </div>
 
       <!-- Search Bar -->
@@ -21,7 +21,7 @@ import ExploreFilters from '@/components/ExploreFilters.astro';
         <input 
           type="search" 
           id="explore-search-input"
-          placeholder="Search for models, tasks, or tags (e.g., 'Llama 3', 'text-to-image')..."
+          placeholder="Search for models, tasks, or keywords (e.g., 'Llama 3', 'text-to-image')..."
           class="w-full px-5 py-3 text-lg bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-full focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
         />
       </div>
@@ -30,82 +30,78 @@ import ExploreFilters from '@/components/ExploreFilters.astro';
       <ExploreFilters />
 
       <!-- Ad Slot -->
-      <AdSlot type="google" googleAdClient="ca-pub-YOUR_ID" googleAdSlot="YOUR_EXPLORE_PAGE_SLOT" className="my-16 text-center" />
+      <div class="my-16 text-center text-xs text-gray-400 dark:text-gray-600">
+        [ Explore Page Ad Slot ]
+      </div>
 
       <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
       <div id="loading-indicator" class="text-center text-xl text-gray-500 mt-12">Loading models...</div>
       <p id="no-results" class="text-center text-xl text-gray-500 mt-12 hidden">No models found matching your search.</p>
     </div>
   </section>
+</Layout>
 
   <script>
     let allModels = [];
-    const headerSearchInput = document.getElementById('header-search');
     const exploreSearchInput = document.getElementById('explore-search-input');
     const modelsGrid = document.getElementById('models-grid');
     const noResults = document.getElementById('no-results');
-    
-    // Make the template function globally available for the filter component
-    const modelCardTemplate = (model) => {
-      const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
-      const platforms = model.sources ? model.sources.map(s => s.platform).join(', ') : (model.sourcePlatform || 'N/A');
-      const likes = model.likes?.toLocaleString() || '0';
-      const downloads = model.downloads?.toLocaleString() || '0';
+    const loadingIndicator = document.getElementById('loading-indicator');
 
-      let proxyImageUrl = null;
-      if (model.thumbnail) {
-        proxyImageUrl = `/img?url=${encodeURIComponent(model.thumbnail)}&width=400&quality=75`;
-      }
+    // This function creates the HTML for a single model card.
+    // It's defined here to be reused by the filtering logic.
+    window.renderModelCard = (model) => {
+        const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
+        const platforms = model.sources ? model.sources.map(s => s.platform).join(', ') : 'N/A';
+        const likes = model.likes?.toLocaleString() || '0';
+        const downloads = model.downloads?.toLocaleString() || '0';
+        const thumbnail = model.thumbnail ? `<img src="${model.thumbnail}" alt="${model.name} thumbnail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="400" height="225" />` : `<div class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-500">No Image</div>`;
 
-      return `
-        <div class="border rounded-lg p-4 shadow-md hover:shadow-lg transition-shadow bg-white dark:bg-gray-800 flex flex-col">
-          ${proxyImageUrl ? `
-          <div class="w-full h-40 bg-gray-200 dark:bg-gray-700 rounded-md mb-4 overflow-hidden">
-            <img src="${proxyImageUrl}" alt="${model.name} thumbnail" class="w-full h-full object-cover" loading="lazy" width="400" height="225" />
-          </div>
-          ` : ''}
-          <h3 class="text-xl font-bold mb-2 text-gray-900 dark:text-white">${model.name}</h3>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Platform(s): ${platforms}</p>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Task: ${model.task}</p>
-          <p class="text-gray-700 dark:text-gray-300 mb-4 line-clamp-2 flex-grow">${model.description}</p>
-          <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
-            <span class="flex items-center gap-1">❤️ ${likes}</span>
-            <span class="flex items-center gap-1">↓ ${downloads}</span>
-          </div>
-          <a href="${modelUrl}" class="text-blue-500 hover:underline font-semibold mt-4 block text-right">View Details &rarr;</a>
-        </div>
-      `;
+        return `
+            <a href="${modelUrl}" class="group block border rounded-lg p-4 shadow-md hover:shadow-xl transition-all duration-300 bg-card-background hover:border-primary/50 flex flex-col h-full">
+                <div class="w-full h-40 bg-input-background rounded-md mb-4 overflow-hidden">
+                    ${thumbnail}
+                </div>
+                <h3 class="text-xl font-bold mb-2 text-foreground group-hover:text-primary transition-colors">${model.name || 'Untitled Model'}</h3>
+                <p class="text-sm text-muted-foreground mb-1">Platform(s): ${platforms}</p>
+                <p class="text-sm text-muted-foreground mb-3">Task: ${model.task || 'N/A'}</p>
+                <p class="text-foreground/80 mb-4 line-clamp-3 flex-grow">${model.description || 'No description available.'}</p>
+                <div class="flex items-center justify-between text-sm text-muted-foreground border-t border-card-border pt-3 mt-auto">
+                    <span class="flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" /></svg>
+                        ${likes}
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                        ${downloads}
+                    </span>
+                </div>
+            </a>
+        `;
     };
-    window.modelCardTemplate = modelCardTemplate;
 
-    const performSearch = (query) => {
-      const lowerCaseQuery = query.toLowerCase().trim();
-      const filteredModels = allModels.filter(model => 
-        model.name.toLowerCase().includes(lowerCaseQuery) ||
-        model.description.toLowerCase().includes(lowerCaseQuery) ||
-        (model.tags && model.tags.some(tag => tag.toLowerCase().includes(lowerCaseQuery)))
-      );
-
-      if (filteredModels.length > 0) {
-        modelsGrid.innerHTML = filteredModels.map(modelCardTemplate).join('');
-        modelsGrid.classList.remove('hidden');
-        noResults.classList.add('hidden');
-      } else {
-        modelsGrid.innerHTML = '';
-        modelsGrid.classList.add('hidden');
-        noResults.classList.remove('hidden');
-      }
-    }
-
-    const handleInput = (e) => {
-      const query = e.target.value;
-      exploreSearchInput.value = query;
-      headerSearchInput.value = query;
-      performSearch(query);
+    // This function performs the actual filtering and updates the DOM.
+    // It's exposed globally so ExploreFilters.astro can call it.
+    window.performSearch = (query, selectedTags = []) => {
+        const lowerCaseQuery = query.toLowerCase().trim();
+        
+        const filteredModels = allModels.filter(model => {
+            const queryMatch = !lowerCaseQuery || 
+                model.name.toLowerCase().includes(lowerCaseQuery) ||
+                (model.description && model.description.toLowerCase().includes(lowerCaseQuery)) ||
+                (model.task && model.task.toLowerCase().includes(lowerCaseQuery));
+            
+            const tagsMatch = selectedTags.length === 0 || 
+                selectedTags.every(tag => model.tags && model.tags.includes(tag));
+            
+            return queryMatch && tagsMatch;
+        });
+        
+        modelsGrid.innerHTML = filteredModels.map(window.renderModelCard).join('');
+        noResults.classList.toggle('hidden', filteredModels.length > 0);
     };
 
     async function initializePage() {
-      const loadingIndicator = document.getElementById('loading-indicator');
       try {
         const response = await fetch('/data/models.json');
         if (!response.ok) {
@@ -113,19 +109,21 @@ import ExploreFilters from '@/components/ExploreFilters.astro';
         }
         allModels = await response.json();
         window.allModels = allModels; // Make it globally available for ExploreFilters.astro
-        loadingIndicator.classList.add('hidden');
         
-        exploreSearchInput.addEventListener('input', handleInput);
-        headerSearchInput.addEventListener('input', handleInput);
+        exploreSearchInput.addEventListener('input', (e) => {
+            const query = e.target.value;
+            window.performSearch(query, window.getSelectedTags ? window.getSelectedTags() : []);
+        });
 
         const urlParams = new URLSearchParams(window.location.search);
         const query = urlParams.get('q');
         if (query) {
           exploreSearchInput.value = query;
-          headerSearchInput.value = query;
-          performSearch(query);
         } else {
-          performSearch(''); // Render all models initially
+          // If there's a tag in the URL, let ExploreFilters handle the initial search
+          if (!urlParams.get('tag')) {
+            window.performSearch(''); // Render all models initially
+          }
         }
       } catch (error) {
         loadingIndicator.textContent = 'Failed to load models.';
@@ -133,6 +131,10 @@ import ExploreFilters from '@/components/ExploreFilters.astro';
       }
     }
 
-    document.addEventListener('DOMContentLoaded', initializePage);
+    document.addEventListener('DOMContentLoaded', async () => {
+        await initializePage();
+        // Dispatch a custom event to let other components know the models are loaded
+        document.dispatchEvent(new CustomEvent('modelsLoaded'));
+        loadingIndicator.classList.add('hidden');
+    });
   </script>
-</BaseLayout>

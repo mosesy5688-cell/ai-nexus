@@ -184,7 +184,7 @@ async function fetchHuggingFaceData(existingModels) {
                 lastModified: model.lastModified,
                 readme: readmeContent,
                 thumbnail: model.cardData?.image, // Add thumbnail from cardData
-                summary_ai: aiSummary, // Correctly assign the AI summary
+                summary_ai: aiSummary,
                 sources: [{ platform: 'Hugging Face', url: `https://huggingface.co/${model.modelId}` }],
             });
 
@@ -368,6 +368,25 @@ async function updateReportsFile(newReport) {
     writeDataToFile(REPORTS_OUTPUT_PATH, reports.slice(0, 52)); // Keep latest 52 reports
 }
 
+async function updateReportsFile(newReport) {
+    let reports = [];
+    if (fs.existsSync(REPORTS_OUTPUT_PATH)) {
+        try {
+            reports = JSON.parse(fs.readFileSync(REPORTS_OUTPUT_PATH, 'utf-8'));
+        } catch (e) {
+            console.warn('Could not parse existing reports.json. Starting fresh.');
+        }
+    } else if (!newReport) {
+        // CRITICAL FIX: If the report file doesn't exist and there's no new report,
+        // create an empty file to prevent build errors.
+        writeDataToFile(REPORTS_OUTPUT_PATH, []);
+        return;
+    }
+    if (!newReport) return;
+    reports.unshift(newReport); // Add new report to the beginning
+    writeDataToFile(REPORTS_OUTPUT_PATH, reports.slice(0, 52)); // Keep latest 52 reports
+}
+
 async function main() {
     console.log('--- Starting AI-Nexus Data Fetching Script ---');
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -440,6 +459,8 @@ async function main() {
         await updateReportsFile(newReport);
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
+        // Ensure reports file exists even if no data is fetched
+        await updateReportsFile(null);
     }
     console.log('--- ✅ Data fetching script finished successfully! ---');
 }
