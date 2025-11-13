@@ -3,6 +3,9 @@
 import Layout from '@/layouts/Layout.astro';
 import reportsData from '@/data/reports.json';
 
+// Safety check in case the JSON file is empty or malformed after a failed build step.
+const safeReportsData = Array.isArray(reportsData) ? reportsData : [];
+
 const pageTitle = "AI Industry Weekly Reports";
 const pageDescription = "Stay updated with the latest trends, insights, and analyses on the open-source AI model landscape, generated weekly.";
 ---
@@ -17,8 +20,8 @@ const pageDescription = "Stay updated with the latest trends, insights, and anal
     </header>
 
     <div class="max-w-4xl mx-auto space-y-12">
-      {reportsData.length > 0 ? (
-        reportsData.map((report, index) => (
+      {safeReportsData.length > 0 ? (
+        safeReportsData.map((report, index) => (
           <article class="bg-card-background p-8 rounded-2xl shadow-lg border border-card-border">
             <h2 class="text-2xl font-bold text-primary mb-2">{report.title}</h2>
             <p class="text-sm text-muted-foreground mb-6">
