@@ -1,19 +1,20 @@
 ---
 // src/components/Footer.astro
 const currentYear = new Date().getFullYear();
-const socialLinks = [
-  { href: "https://github.com/your-username/ai-nexus", label: "GitHub" },
-  { href: "https://twitter.com/your-username", label: "Twitter" },
-];
 ---
 
-<footer class="bg-gray-100 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 mt-auto">
-  <div class="container mx-auto px-4 py-6">
-    <div class="flex flex-col sm:flex-row items-center justify-between">
-      <p class="text-sm text-gray-500 dark:text-gray-400 text-center sm:text-left mb-4 sm:mb-0">
-        &copy; {currentYear} AI-Nexus. All rights reserved.
-      </p>
-      <!-- You can add social media links or other footer content here -->
+<footer class="bg-gray-800 text-gray-300 py-8 mt-16">
+  <div class="container mx-auto px-4 text-center">
+    <div class="flex justify-center gap-4 mb-4">
+      <a href="/about" class="hover:underline">About</a>
+      <a href="/compliance" class="hover:underline">Compliance</a>
     </div>
+    <p class="text-sm mt-2">
+      &copy; {currentYear} Free AI Tools. An open-source project to index the
+      world of AI.
+      </p>
+    <a href="mailto:compliance@free2aitools.com" class="text-sm text-gray-400 hover:underline mt-1 block"
+      >compliance@free2aitools.com</a
+    >
   </div>
 </footer>
