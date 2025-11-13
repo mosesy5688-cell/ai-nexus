@@ -14,8 +14,8 @@ const safeReportsData = Array.isArray(reportsData) ? reportsData : [];
 <Layout title={pageTitle} description={pageDescription}>
   <div class="container mx-auto px-4 py-12">
     <header class="text-center mb-12">
-      <h1 class="text-4xl font-extrabold text-foreground">AI Industry Weekly Reports</h1>
-      <p class="mt-4 text-lg text-muted-foreground">
+      <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">AI Industry Weekly Reports</h1>
+      <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">
         Generated insights on the evolving world of open-source AI.
       </p>
     </header>
@@ -25,50 +25,29 @@ const safeReportsData = Array.isArray(reportsData) ? reportsData : [];
       <input 
         type="search" 
         id="reports-search-input"
-        placeholder="Search reports by title or content..."
-        class="w-full px-5 py-3 text-lg bg-card-background border-2 border-card-border rounded-full focus:ring-4 focus:ring-primary/50 focus:border-primary outline-none transition-all"
+        placeholder="Search reports by title or content..." 
+        class="w-full px-5 py-3 text-lg bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-full focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
       />
     </div>
 
     <div id="reports-list" class="max-w-4xl mx-auto space-y-12">
       {safeReportsData.length > 0 ? (
         safeReportsData.map((report) => (
-          <article class="report-article bg-card-background p-8 rounded-2xl shadow-lg border border-card-border" data-title={report.title.toLowerCase()} data-content={report.content.toLowerCase()}>
-            <h2 class="text-2xl font-bold text-primary mb-2">{report.title}</h2>
-            <p class="text-sm text-muted-foreground mb-6">
+          <article class="report-article bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700" data-title={report.title.toLowerCase()} data-content={report.content.toLowerCase()}>
+            <h2 class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">{report.title}</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
               Published on: {new Date(report.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
             <div class="prose dark:prose-invert max-w-none leading-relaxed" set:html={marked.parse(report.content)} />
           </article>
         ))
       ) : (
-        <p id="no-reports-message" class="text-center text-muted-foreground">No reports have been generated yet. Please run the data fetching script.</p>
+        <p id="no-reports-message" class="text-center text-gray-500 dark:text-gray-400">No reports have been generated yet. Please run the data fetching script.</p>
       )}
-      <p id="no-search-results" class="text-center text-muted-foreground hidden">No reports match your search.</p>    
+      <p id="no-search-results" class="text-center text-gray-500 dark:text-gray-400 hidden">No reports match your search.</p>    
     </div>
   </div>
 </Layout>
-
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const searchInput = document.getElementById('reports-search-input');
-    const reportArticles = document.querySelectorAll('.report-article');
-    const noSearchResults = document.getElementById('no-search-results');
-
-    searchInput.addEventListener('input', (e) => {
-      const query = e.target.value.toLowerCase().trim();
-      let visibleCount = 0;
-      reportArticles.forEach(article => {
-        const title = article.dataset.title || '';
-        const content = article.dataset.content || '';
-        const isVisible = title.includes(query) || content.includes(query);
-        article.style.display = isVisible ? 'block' : 'none';
-        if (isVisible) visibleCount++;
-      });
-      noSearchResults.classList.toggle('hidden', visibleCount > 0);
-    });
-  });
-</script>
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
