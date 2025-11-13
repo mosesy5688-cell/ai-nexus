@@ -1,7 +1,6 @@
 ---
 // src/pages/model/[...slug].astro
 import Layout from '@/layouts/Layout.astro';
-import allModels from '@/data/models.json';
 import { Image } from 'astro:assets';
 import RatingsDisplay from '@/components/RatingsDisplay';
 import ModelCard from '@/components/ModelCard.astro';
@@ -18,13 +17,12 @@ export async function getStaticPaths() {
   });
 }
 
-// CRITICAL FIX: Use the `model` object passed directly from `getStaticPaths` via props.
-// This was the root cause of missing content on the page.
+// CRITICAL FIX: Use the `model` object passed directly from `getStaticPaths` via props
 const { model } = Astro.props;
 
 // CRITICAL FIX: If no model is found for the given slug, return a 404 response.
 if (!model) {
-  return new Response(null, { status: 404, statusText: 'Not Found' });
+  return Astro.redirect('/404');
 }
 
 // Find related models (simple logic: same task, different model)
@@ -108,7 +106,8 @@ const pageDescription = model.summary_ai || model.description || `Explore detail
 
               <!-- Ratings Panel -->
               <div id="tab-panel-ratings" class="tab-panel hidden">
-                <RatingsDisplay client:load modelId={model.id} />
+                <!-- Ratings feature is deprecated -->
+                <p class="text-muted-foreground">The community reviews feature is currently under maintenance.</p>
               </div>
             </div>
           </div>
@@ -158,7 +157,6 @@ const pageDescription = model.summary_ai || model.description || `Explore detail
       <section class="mt-20">
         <h2 class="text-3xl font-bold text-foreground mb-8">Related Models</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* CRITICAL FIX: Pass the `related` model object to the ModelCard component */}
           {relatedModels.map(related => <ModelCard model={related} />)}
         </div>
       </section>

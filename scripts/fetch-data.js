@@ -7,6 +7,7 @@ const CIVITAI_DATA_PATH = path.join(__dirname, '../src/data/civitai.json');
 const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100';
 const OUTPUT_FILE_PATH = path.join(__dirname, '../src/data/models.json');
 const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../src/data/keywords.json');
+const REPORTS_OUTPUT_PATH = path.join(__dirname, '../src/data/reports.json');
 const ARCHIVE_DIR = path.join(__dirname, '../src/data/archives');
 const NSFW_KEYWORDS = [
     'nsfw', 
@@ -87,6 +88,51 @@ async function getAISummary(readmeText, modelId, currentModelData) {
   }
 }
 
+/**
+ * Generates a weekly AI report using the Groq API based on the latest models.
+ * @param {Array<object>} models The list of recently fetched models.
+ * @returns {Promise<void>}
+ */
+async function generateAIWeeklyReport(models) {
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    if (!GROQ_API_KEY) {
+        console.warn('- GROQ_API_KEY not found. Skipping AI weekly report generation.');
+        return;
+    }
+
+    console.log('- Generating AI weekly report...');
+    const latestModels = models.slice(0, 10).map(m => `- ${m.name} (Task: ${m.task}, Likes: ${m.likes})`).join('\n');
+
+    try {
+        const response = await axios.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            {
+                model: 'llama-3.1-70b-versatile',
+                messages: [
+                    {
+                        role: 'system',
+                        content: "You are an AI industry analyst. Your task is to write a concise, insightful weekly report on trends in the open-source AI model landscape. The report should be engaging and around 200-300 words."
+                    },
+                    {
+                        role: 'user',
+                        content: `Based on the following list of trending open-source AI models, write a weekly report. Analyze any noticeable trends (e.g., a rise in specific model types, new popular tasks, etc.), mention one or two standout models, and conclude with a brief forward-looking statement.
+
+Trending Models This Week:
+${latestModels}`
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 400,
+            },
+            { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' } }
+        );
+        const reportContent = response.data.choices[0]?.message?.content.trim() || '';
+        return { title: `AI Model Trends: Week of ${new Date().toLocaleDateString()}`, content: reportContent, date: new Date().toISOString() };
+    } catch (error) {
+        console.error(`❌ Failed to generate AI weekly report:`, error.response?.data?.error?.message || error.message);
+        return null;
+    }
+}
 /**
  * Normalizes a model name to create a consistent key for deduplication.
  * @param {string} name The name of the model.
@@ -303,6 +349,21 @@ function discoverAndSaveKeywords(models) {
     writeDataToFile(KEYWORDS_OUTPUT_PATH, sortedTags);
 }
 
+async function updateReportsFile(newReport) {
+    if (!newReport) return;
+
+    let reports = [];
+    if (fs.existsSync(REPORTS_OUTPUT_PATH)) {
+        try {
+            reports = JSON.parse(fs.readFileSync(REPORTS_OUTPUT_PATH, 'utf-8'));
+        } catch (e) {
+            console.warn('Could not parse existing reports.json. Starting fresh.');
+        }
+    }
+    reports.unshift(newReport); // Add new report to the beginning
+    writeDataToFile(REPORTS_OUTPUT_PATH, reports.slice(0, 52)); // Keep latest 52 reports
+}
+
 async function main() {
     console.log('--- Starting AI-Nexus Data Fetching Script ---');
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -369,6 +430,10 @@ async function main() {
 
         // 5. Discover and save hot keywords based on the final model list
         discoverAndSaveKeywords(combinedData);
+
+        // 6. Generate and save the AI weekly report
+        const newReport = await generateAIWeeklyReport(combinedData);
+        await updateReportsFile(newReport);
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
     }
