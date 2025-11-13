@@ -28,10 +28,10 @@ if (model.thumbnail) {
             <div class="w-full h-full flex items-center justify-center bg-input-background/50 text-muted-foreground">No Image</div>
         )}
     </div>
-    <h3 class="text-xl font-bold mb-2 text-foreground group-hover:text-primary transition-colors">{model.name}</h3>
+    <h3 class="text-xl font-bold mb-2 text-foreground group-hover:text-primary transition-colors">{model.name || 'Untitled Model'}</h3>
     <p class="text-sm text-muted-foreground mb-1">Platform(s): {platforms}</p>
-    <p class="text-sm text-muted-foreground mb-3">Task: {model.task || 'N/A'}</p>
-    <p class="text-foreground/80 mb-4 line-clamp-3 flex-grow">{model.description || 'No description available.'}</p>
+    <p class="text-sm text-muted-foreground mb-3">Task: {model.task || 'General'}</p>
+    <p class="text-foreground/80 mb-4 line-clamp-3 flex-grow">{model.description || 'No description provided for this model.'}</p>
     <div class="flex items-center justify-between text-sm text-muted-foreground border-t border-card-border pt-3 mt-auto">
         <span class="flex items-center gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" /></svg>

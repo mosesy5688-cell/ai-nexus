@@ -170,8 +170,9 @@ async function fetchGitHubData() {
             likes: repo.stargazers_count,
             downloads: repo.watchers_count, // Using watchers as a proxy for downloads
             lastModified: repo.updated_at,
+            readme: null, // GitHub READMEs are not fetched in this version
             sources: [{ platform: 'GitHub', url: repo.html_url }],
-            thumbnail: repo.owner.avatar_url, // Use owner's avatar as a placeholder thumbnail
+            thumbnail: repo.owner.avatar_url,
         }));
         console.log(`✅ Successfully fetched and transformed ${transformedData.length} models from GitHub.`);
         return transformedData;
@@ -203,6 +204,7 @@ function readCivitaiData() {
             likes: model.stats?.favoriteCount || 0,
             downloads: model.stats?.downloadCount || 0,
             lastModified: model.lastUpdate || new Date().toISOString(),
+            readme: null, // Civitai READMEs are not fetched
             thumbnail: model.images?.[0]?.url, // Use the first image as a thumbnail
             sources: [{ platform: 'Civitai', url: `https://civitai.com/models/${model.id}` }],
         }));

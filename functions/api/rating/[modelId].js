@@ -55,7 +55,11 @@ async function handleGetRequest(kv, modelId) {
   }
 
   const ratingPromises = list.keys.map(key => kv.get(key.name, 'json'));
-  const ratingsData = await Promise.all(ratingPromises);
+  // CRITICAL FIX: Use Promise.allSettled to prevent a single corrupted KV entry from failing the entire request.
+  const results = await Promise.allSettled(ratingPromises);
+  
+  // Filter out rejected promises and extract the values from fulfilled ones.
+  const ratingsData = results.filter(result => result.status === 'fulfilled' && result.value).map(result => result.value);
 
   let totalRatingSum = 0;
   const comments = [];

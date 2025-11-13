@@ -65,7 +65,13 @@ import '../styles/base.css';
 
     <!-- Main Content -->
     <div class="flex-grow">
+        <!-- Global Ad Slot - Top of Content -->
+        <div id="global-ad-slot-top" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-4 text-center text-xs text-muted-foreground/50">
+            <!-- AdSense/Amazon ad code can be placed here -->
+        </div>
         <slot />
+        <!-- Global Ad Slot - Bottom of Content -->
+        <div id="global-ad-slot-bottom" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-4 text-center text-xs text-muted-foreground/50"></div>
     </div>
 
     <!-- Footer -->

@@ -137,24 +137,32 @@ const pageDescription = model.summary_ai || model.description || `Explore detail
                 ))}
               </ul>
             </div>
+            <!-- Sidebar Ad Slot -->
+            <div id="sidebar-ad-slot" class="mt-8 text-center text-xs text-muted-foreground/50">
+              <!-- AdSense/Amazon ad code for sidebar can be placed here -->
+              [ Sidebar Ad Slot ]
+            </div>
           </div>
         </aside>
       </div>
     </article>
 
     <!-- Related Models Section -->
-    {relatedModels.length > 0 && (
+    {relatedModels.length > 0 && <>
+      {/* Content Area Ad Slot */}
+      <div id="content-ad-slot-bottom" class="my-12 text-center text-xs text-muted-foreground/50">
+        <!-- AdSense/Amazon ad code for bottom of content can be placed here -->
+        [ Content Ad Slot ]
+      </div>
+
       <section class="mt-20">
         <h2 class="text-3xl font-bold text-foreground mb-8">Related Models</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {relatedModels.map(related => (
-            <div class="text-foreground">
-              <ModelCard model={related} />
-            </div>
-          ))}
+          {/* CRITICAL FIX: Pass the `related` model object to the ModelCard component */}
+          {relatedModels.map(related => <ModelCard model={related} />)}
         </div>
       </section>
-    )}
+    </>}
   </div>
 
   <script>
