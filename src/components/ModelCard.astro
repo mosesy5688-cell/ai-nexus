@@ -6,29 +6,40 @@ export interface Props {
 }
 
 const { model } = Astro.props;
+// CRITICAL FIX: Ensure slug generation here matches the logic in [...slug].astro
 const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
-const platforms = model.sources ? model.sources.map(s => s.platform).join(', ') : model.sourcePlatform;
+const platforms = model.sources ? model.sources.map(s => s.platform).join(', ') : 'N/A';
 const likes = model.likes?.toLocaleString() || '0';
 const downloads = model.downloads?.toLocaleString() || '0';
 
 let proxyImageUrl = null;
 if (model.thumbnail) {
-  proxyImageUrl = `/img?url=${encodeURIComponent(model.thumbnail)}&width=400&quality=75`;
+  // The image proxy seems to be removed or not working, linking directly for now.
+  // If you have an image proxy at `/img`, you can uncomment the line below.
+  // proxyImageUrl = `/img?url=${encodeURIComponent(model.thumbnail)}&width=400&quality=75`;
+  proxyImageUrl = model.thumbnail;
 }
 ---
-<div class="border rounded-lg p-4 shadow-md hover:shadow-lg transition-shadow bg-white dark:bg-gray-800 flex flex-col">
-    {proxyImageUrl && (
-      <div class="w-full h-40 bg-gray-200 dark:bg-gray-700 rounded-md mb-4 overflow-hidden">
-        <img src={proxyImageUrl} alt={`${model.name} thumbnail`} class="w-full h-full object-cover" loading="lazy" width="400" height="225" />
-      </div>
-    )}
-    <h3 class="text-xl font-bold mb-2 text-gray-900 dark:text-white">{model.name}</h3>
-    <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Platform(s): {platforms || 'N/A'}</p>
-    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Task: {model.task}</p>
-    <p class="text-gray-700 dark:text-gray-300 mb-4 line-clamp-2 flex-grow">{model.description}</p>
-    <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
-        <span class="flex items-center gap-1">❤️ {likes}</span>
-        <span class="flex items-center gap-1">↓ {downloads}</span>
+<a href={modelUrl} class="group block border rounded-lg p-4 shadow-md hover:shadow-xl transition-all duration-300 bg-card-background hover:border-primary/50 flex flex-col h-full">
+    <div class="w-full h-40 bg-input-background rounded-md mb-4 overflow-hidden">
+        {proxyImageUrl ? (
+            <img src={proxyImageUrl} alt={`${model.name} thumbnail`} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="400" height="225" />
+        ) : (
+            <div class="w-full h-full flex items-center justify-center bg-input-background/50 text-muted-foreground">No Image</div>
+        )}
     </div>
-    <a href={modelUrl} class="text-blue-500 hover:underline font-semibold mt-4 block text-right">View Details &rarr;</a>
-</div>
+    <h3 class="text-xl font-bold mb-2 text-foreground group-hover:text-primary transition-colors">{model.name}</h3>
+    <p class="text-sm text-muted-foreground mb-1">Platform(s): {platforms}</p>
+    <p class="text-sm text-muted-foreground mb-3">Task: {model.task || 'N/A'}</p>
+    <p class="text-foreground/80 mb-4 line-clamp-3 flex-grow">{model.description || 'No description available.'}</p>
+    <div class="flex items-center justify-between text-sm text-muted-foreground border-t border-card-border pt-3 mt-auto">
+        <span class="flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" /></svg>
+            {likes}
+        </span>
+        <span class="flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+            {downloads}
+        </span>
+    </div>
+</a>

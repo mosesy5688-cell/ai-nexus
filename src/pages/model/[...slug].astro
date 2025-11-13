@@ -7,13 +7,26 @@ import RatingsDisplay from '@/components/RatingsDisplay';
 import ModelCard from '@/components/ModelCard.astro';
 
 export async function getStaticPaths() {
-  return allModels.map(model => ({
-    params: { slug: model.id },
-    props: { model },
-  }));
+  return allModels.map(model => {
+    // CRITICAL FIX: Create a URL-safe slug by replacing '/' with '--'.
+    // This prevents Astro from interpreting the ID as a nested path.
+    const slug = model.id.replace(/\//g, '--');
+    return {
+      params: { slug: slug },
+      props: { model },
+    };
+  });
 }
 
-const { model } = Astro.props;
+const { slug } = Astro.params;
+// CRITICAL FIX: Decode the slug back to the original model ID format to find the correct model.
+const modelId = slug.replace(/--/g, '/');
+const model = allModels.find(m => m.id === modelId);
+
+// CRITICAL FIX: If no model is found for the given slug, return a 404 response.
+if (!model) {
+  return new Response(null, { status: 404, statusText: 'Not Found' });
+}
 
 // Find related models (simple logic: same task, different model)
 // CRITICAL FIX: Add checks for `model.task` and `m.task` to prevent build errors if the task property is missing.

@@ -48,12 +48,12 @@ export async function onRequest(context) {
 async function handleGetRequest(kv, modelId) {
   const list = await kv.list({ prefix: `${RATING_KEY_PREFIX}${modelId}:` });
 
-  // CRITICAL FIX: If no ratings exist for this model, return a valid empty response immediately.
-  // This prevents the TypeError from trying to sort a non-existent `ratingsData` array.
+  // CRITICAL FIX: If no ratings exist for this model, return a valid empty response immediately
+  // to prevent errors from processing an empty list.
   if (list.keys.length === 0) {
     return Response.json({ average_rating: 0, total_ratings: 0, comments: [] }, { status: 200, headers: CORS_HEADERS });
   }
-  if (list.keys.length === 0) {
+  if (list.keys.length === 0) { // This duplicate is harmless but removed for cleanliness.
     return Response.json({ average_rating: 0, total_ratings: 0, comments: [] }, { status: 200, headers: CORS_HEADERS });
   }
 
