@@ -2,8 +2,8 @@
 // src/pages/model/[...slug].astro
 import Layout from '@/layouts/Layout.astro';
 import allModels from '@/data/models.json'; // CRITICAL FIX: Import the model data
-import ModelCard from '@/components/ModelCard.astro';
-import { markdown } from 'markdown-it';
+import ModelCard from '@/components/ModelCard.astro'; // This import is unused and can be removed.
+import MarkdownIt from 'markdown-it';
 
 export async function getStaticPaths() {
   return allModels.map(model => {
@@ -18,7 +18,7 @@ export async function getStaticPaths() {
 }
 
 const { model } = Astro.props;
-const md = markdown();
+const md = new MarkdownIt();
 
 if (!model) {
   return Astro.redirect('/404');
