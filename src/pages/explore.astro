@@ -1,8 +1,8 @@
 ---
 import ModelCard from '@/components/ModelCard.astro';
 import Layout from '@/layouts/Layout.astro';
-import ExploreFilters from '@/components/ExploreFilters.astro';
 import allModels from '@/data/models.json';
+import ExploreFilters from '@/components/ExploreFilters.astro';
 
 const models = allModels;
 ---
@@ -31,13 +31,13 @@ const models = allModels;
       <!-- Filter Component -->
       <ExploreFilters />
 
-      <div class="my-12 text-center text-xs text-gray-400 dark:text-gray-600">
+      <div class="my-16 text-center text-xs text-gray-400 dark:text-gray-600">
         [ Ad Slot ]
       </div>
 
       <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {models.map(model => (
-          <div class="model-card-wrapper" data-model-name={model.name.toLowerCase()} data-model-desc={(model.description || '').toLowerCase()} data-model-task={(model.task || '').toLowerCase()} data-model-tags={(model.tags || []).join(' ').toLowerCase()}>
+          <div class="model-card-wrapper" data-model-name={model.name.toLowerCase()} data-model-desc={(model.description || '').toLowerCase()} data-model-task={(model.task || '').toLowerCase()} data-model-tags={(model.tags || []).join(' ')}>
             <ModelCard model={model} />
           </div>
         ))}
@@ -49,8 +49,7 @@ const models = allModels;
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    const searchInput = document.getElementById('explore-search-input');
-    const modelsGrid = document.getElementById('models-grid');
+    const exploreSearchInput = document.getElementById('explore-search-input');
     const noResults = document.getElementById('no-results');
     const allModelCards = Array.from(document.querySelectorAll('.model-card-wrapper'));
 
@@ -60,18 +59,17 @@ const models = allModels;
       let visibleCount = 0;
 
       allModelCards.forEach(card => {
-        const name = card.dataset.modelName || '';
-        const desc = card.dataset.modelDesc || '';
-        const task = card.dataset.modelTask || '';
-        const tags = card.dataset.modelTags || '';
+        const name = card.dataset.modelName;
+        const desc = card.dataset.modelDesc;
+        const task = card.dataset.modelTask;
+        const cardTags = card.dataset.modelTags;
 
         const queryMatch = !lowerCaseQuery || 
           name.includes(lowerCaseQuery) ||
           desc.includes(lowerCaseQuery) ||
           task.includes(lowerCaseQuery);
 
-        const tagsMatch = selectedTags.length === 0 || 
-          selectedTags.every(tag => tags.includes(tag));
+        const tagsMatch = selectedTags.length === 0 || selectedTags.every(tag => cardTags.includes(tag));
 
         if (queryMatch && tagsMatch) {
           card.style.display = 'block';
@@ -84,22 +82,21 @@ const models = allModels;
       noResults.classList.toggle('hidden', visibleCount > 0);
     };
 
-    // Initial setup
+    // Initial setup from URL params
     const urlParams = new URLSearchParams(window.location.search);
     const query = urlParams.get('q');
     if (query) {
-      searchInput.value = query;
+      exploreSearchInput.value = query;
     }
 
     // Event listener for the search input
-    searchInput.addEventListener('input', (e) => {
+    exploreSearchInput.addEventListener('input', (e) => {
       const query = e.target.value;
       const selectedTags = window.getSelectedTags ? window.getSelectedTags() : [];
       window.performSearch(query, selectedTags);
     });
 
     // Dispatch a custom event to let ExploreFilters know it can initialize
-    // This replaces the need for fetching data, as it's now pre-rendered.
     document.dispatchEvent(new CustomEvent('modelsLoaded'));
   });
 </script>

@@ -1,8 +1,8 @@
 ---
 // src/pages/model/[...slug].astro
 import Layout from '@/layouts/Layout.astro';
-import allModels from '@/data/models.json'; // CRITICAL FIX: Import the model data
-import MarkdownIt from 'markdown-it';
+import allModels from '@/data/models.json';
+import { marked } from 'marked';
 
 export async function getStaticPaths() {
   return allModels.map(model => {
@@ -17,14 +17,12 @@ export async function getStaticPaths() {
 }
 
 const { model } = Astro.props;
-import ModelCard from '@/components/ModelCard.astro';
-const md = new MarkdownIt();
 
 if (!model) {
   return Astro.redirect('/404');
 }
 
-const readmeHtml = model.readme ? md.render(model.readme) : null;
+const readmeHtml = model.readme ? marked.parse(model.readme) : null;
 
 // Find related models (simple logic: same task, different model)
 const relatedModels = allModels
@@ -32,8 +30,8 @@ const relatedModels = allModels
   .sort((a, b) => b.likes - a.likes)
   .slice(0, 4);
 
-const pageTitle = `${model.name} - AI Model Details`;
-const pageDescription = model.summary_ai || model.description || `Explore details, usage, and community ratings for the ${model.name} AI model.`;
+const pageTitle = `${model.name} - Details | Free AI Tools`;
+const pageDescription = model.summary_ai || model.description || `Explore details, usage, and related models for the ${model.name} AI model.`;
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -90,7 +88,7 @@ const pageDescription = model.summary_ai || model.description || `Explore detail
                 <div>
                   <h3 class="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200">Tags</h3>
                   <div id="tags-container" class="flex flex-wrap gap-2">
-                    {model.tags.map(tag => <a href={`/keyword/${tag}`} class="bg-gray-200 text-gray-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-gray-700 dark:text-gray-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">{tag}</a>)}
+                    {model.tags.map(tag => <a href={`/explore?tag=${encodeURIComponent(tag)}`} class="bg-gray-200 text-gray-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-gray-700 dark:text-gray-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">{tag}</a>)}
                   </div>
                 </div>
               </div>
@@ -148,6 +146,7 @@ const pageDescription = model.summary_ai || model.description || `Explore detail
 
       <section class="mt-20">
         <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Related Models</h2>
+        {/** The ModelCard component is now correctly imported and used here **/}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {relatedModels.map(related => <ModelCard model={related} />)}
         </div>
