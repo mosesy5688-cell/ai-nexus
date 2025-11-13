@@ -112,6 +112,8 @@ export default function RatingsDisplay({ modelId }) {
   if (error) return <div style={{ color: 'red' }}>{error}</div>;
 
 
+  const totalRatings = ratings?.total_ratings || 0;
+  const averageRating = ratings?.average_rating || 0;
   const reviews = ratings?.comments || [];
 
   return (

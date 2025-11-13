@@ -55,11 +55,13 @@ async function handleGetRequest(kv, modelId) {
   const ratingPromises = list.keys.map(key => kv.get(key.name, 'json'));
   const ratingsData = await Promise.all(ratingPromises);
 
+  let totalRatingSum = 0;
   const comments = [];
 
   for (const data of ratingsData) {
     try {
       if (data && typeof data.rating === 'number' && data.rating >= 1 && data.rating <= 5) {
+        totalRatingSum += data.rating;
         comments.push({
           rating: data.rating,
           comment: data.comment,

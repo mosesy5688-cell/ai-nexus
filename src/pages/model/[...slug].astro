@@ -87,9 +87,7 @@ const pageDescription = model.summary_ai || model.description || `Explore detail
               <!-- Readme Panel -->
               <div id="tab-panel-readme" class="tab-panel hidden">
                 {model.readme ? (
-                  <div class="prose prose-lg dark:prose-invert max-w-none bg-input-background/50 p-6 rounded-lg border border-input-border shadow-inner">
-                    <Fragment set:html={model.readme} />
-                  </div>
+                  <div class="prose prose-lg dark:prose-invert max-w-none bg-input-background/50 p-6 rounded-lg border border-input-border shadow-inner" set:html={model.readme} />
                 ) : (
                   <p class="text-muted-foreground">No README available for this model.</p>
                 )}
