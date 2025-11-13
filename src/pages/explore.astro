@@ -3,9 +3,6 @@ import ModelCard from '@/components/ModelCard.astro';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import AdSlot from '@/components/AdSlot.astro';
 import ExploreFilters from '@/components/ExploreFilters.astro';
-import models from '@/data/models.json';
-
-const allModels = models; // Initially show all models
 ---
 
 <BaseLayout 
@@ -35,16 +32,14 @@ const allModels = models; // Initially show all models
       <!-- Ad Slot -->
       <AdSlot type="google" googleAdClient="ca-pub-YOUR_ID" googleAdSlot="YOUR_EXPLORE_PAGE_SLOT" className="my-16 text-center" />
 
-      <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {allModels.map(model => (
-          <ModelCard model={model} />
-        ))}
-      </div>
+      <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+      <div id="loading-indicator" class="text-center text-xl text-gray-500 mt-12">Loading models...</div>
       <p id="no-results" class="text-center text-xl text-gray-500 mt-12 hidden">No models found matching your search.</p>
     </div>
   </section>
 
-  <script define:vars={{ allModels }}>
+  <script>
+    let allModels = [];
     const headerSearchInput = document.getElementById('header-search');
     const exploreSearchInput = document.getElementById('explore-search-input');
     const modelsGrid = document.getElementById('models-grid');
@@ -57,8 +52,18 @@ const allModels = models; // Initially show all models
       const likes = model.likes?.toLocaleString() || '0';
       const downloads = model.downloads?.toLocaleString() || '0';
 
+      let proxyImageUrl = null;
+      if (model.thumbnail) {
+        proxyImageUrl = `/img?url=${encodeURIComponent(model.thumbnail)}&width=400&quality=75`;
+      }
+
       return `
         <div class="border rounded-lg p-4 shadow-md hover:shadow-lg transition-shadow bg-white dark:bg-gray-800 flex flex-col">
+          ${proxyImageUrl ? `
+          <div class="w-full h-40 bg-gray-200 dark:bg-gray-700 rounded-md mb-4 overflow-hidden">
+            <img src="${proxyImageUrl}" alt="${model.name} thumbnail" class="w-full h-full object-cover" loading="lazy" width="400" height="225" />
+          </div>
+          ` : ''}
           <h3 class="text-xl font-bold mb-2 text-gray-900 dark:text-white">${model.name}</h3>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Platform(s): ${platforms}</p>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">Task: ${model.task}</p>
@@ -74,7 +79,7 @@ const allModels = models; // Initially show all models
     window.modelCardTemplate = modelCardTemplate;
 
     const performSearch = (query) => {
-      const lowerCaseQuery = query.toLowerCase();
+      const lowerCaseQuery = query.toLowerCase().trim();
       const filteredModels = allModels.filter(model => 
         model.name.toLowerCase().includes(lowerCaseQuery) ||
         model.description.toLowerCase().includes(lowerCaseQuery) ||
@@ -99,18 +104,35 @@ const allModels = models; // Initially show all models
       performSearch(query);
     };
 
-    exploreSearchInput.addEventListener('input', handleInput);
-    headerSearchInput.addEventListener('input', handleInput);
+    async function initializePage() {
+      const loadingIndicator = document.getElementById('loading-indicator');
+      try {
+        const response = await fetch('/data/models.json');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        allModels = await response.json();
+        window.allModels = allModels; // Make it globally available for ExploreFilters.astro
+        loadingIndicator.classList.add('hidden');
+        
+        exploreSearchInput.addEventListener('input', handleInput);
+        headerSearchInput.addEventListener('input', handleInput);
 
-    // Check for URL query parameter on page load
-    document.addEventListener('DOMContentLoaded', () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const query = urlParams.get('q');
-      if (query) {
-        exploreSearchInput.value = query;
-        headerSearchInput.value = query;
-        performSearch(query);
+        const urlParams = new URLSearchParams(window.location.search);
+        const query = urlParams.get('q');
+        if (query) {
+          exploreSearchInput.value = query;
+          headerSearchInput.value = query;
+          performSearch(query);
+        } else {
+          performSearch(''); // Render all models initially
+        }
+      } catch (error) {
+        loadingIndicator.textContent = 'Failed to load models.';
+        console.error('Failed to fetch models:', error);
       }
-    });
+    }
+
+    document.addEventListener('DOMContentLoaded', initializePage);
   </script>
 </BaseLayout>

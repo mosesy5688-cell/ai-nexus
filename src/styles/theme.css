@@ -75,13 +75,3 @@
     --tw-prose-pre-bg: #111827; /* gray-900 */
   }
 }
-/* src/styles/theme.css */
-:root {
-  --color-background: #F9FAFB; /* gray-50 */
-  --color-text-primary: #111827; /* gray-900 */
-}
-
-.dark {
-  --color-background: #1F2937; /* gray-800 */
-  --color-text-primary: #D1D5DB; /* gray-300 (a bright silver) */
-}
