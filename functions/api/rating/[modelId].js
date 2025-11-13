@@ -55,17 +55,20 @@ async function handleGetRequest(kv, modelId) {
   const ratingPromises = list.keys.map(key => kv.get(key.name, 'json'));
   const ratingsData = await Promise.all(ratingPromises);
 
-  let totalRatingSum = 0;
   const comments = [];
 
   for (const data of ratingsData) {
-    if (data && typeof data.rating === 'number' && data.rating >= 1 && data.rating <= 5) {
-      totalRatingSum += data.rating;
-      comments.push({
-        rating: data.rating,
-        comment: data.comment,
-        timestamp: data.timestamp,
-      });
+    try {
+      if (data && typeof data.rating === 'number' && data.rating >= 1 && data.rating <= 5) {
+        comments.push({
+          rating: data.rating,
+          comment: data.comment,
+          timestamp: data.timestamp,
+        });
+      }
+    } catch (e) {
+      // Log if a specific entry is corrupted, but don't fail the whole request.
+      console.error(`Skipping corrupted rating entry: ${e.message}`);
     }
   }
 
@@ -73,7 +76,7 @@ async function handleGetRequest(kv, modelId) {
   const average_rating = total_ratings > 0 ? parseFloat((totalRatingSum / total_ratings).toFixed(2)) : 0;
 
   comments.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
+  
   return Response.json({ average_rating, total_ratings, comments }, { status: 200, headers: CORS_HEADERS });
 }
 
@@ -114,15 +117,20 @@ async function handlePostRequest(context, modelId) {
   const sanitizedComment = (comment || '').trim().substring(0, 1000);
   const uniqueId = crypto.randomUUID();
   const newRatingKey = `${RATING_KEY_PREFIX}${modelId}:${uniqueId}`;
+  const timestamp = new Date().toISOString();
 
-  await kv.put(newRatingKey, JSON.stringify({
+  const newRatingData = {
     rating,
     comment: sanitizedComment,
-    timestamp: new Date().toISOString(), // Always generate timestamp on the server
-  }));
+    timestamp, // Always generate timestamp on the server
+  };
+
+  await kv.put(newRatingKey, JSON.stringify(newRatingData));
 
   // Set rate limit TTL
   await kv.put(rateLimitKey, '1', { expirationTtl: RATE_LIMIT_SECONDS });
 
-  return Response.json({ success: true, message: "Rating submitted successfully." }, { status: 201, headers: CORS_HEADERS });
+  // Return the newly created rating data along with a success message.
+  // This allows the client to optimistically update the UI without a full re-fetch.
+  return Response.json({ success: true, message: "Rating submitted successfully.", newRating: newRatingData }, { status: 201, headers: CORS_HEADERS });
 }
