@@ -1,44 +1,53 @@
 ---
 import Layout from '@/layouts/Layout.astro';
+
+const pageTitle = "Compliance & Safety | Free AI Tools";
+const pageDescription = "Our commitment to providing a safe, compliant, and family-friendly index of open-source AI models, including our DMCA notice and takedown procedures.";
 ---
 
-<Layout 
-  title="Compliance & Safety | Free AI Tools"
-  description="Our commitment to providing a safe, compliant, and family-friendly index of open-source AI models.">
+<Layout title={pageTitle} description={pageDescription}>
   <main class="container max-w-4xl mx-auto px-4 py-16 sm:py-24">
     <header class="text-center mb-16">
       <h1 class="text-5xl md:text-6xl font-black tracking-tighter text-gray-900 dark:text-white">
-        Compliance & Safety
+        Compliance & Legal
       </h1>
+      <p class="mt-6 text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+        Our commitment to operating a safe, legal, and respectful platform.
+      </p>      
     </header>
 
     <div class="prose dark:prose-invert prose-lg max-w-none space-y-12">
       <section>
-        <h2 class="text-3xl font-bold">Our Commitment</h2>
+        <h2 class="text-3xl font-bold">Content & Safety Policy</h2>
         <p>
-          At Free AI Tools, we are dedicated to creating and maintaining a safe, respectful, and compliant platform for all users. Our primary goal is to provide a valuable resource for discovering open-source AI models while ensuring the content presented is appropriate for a general audience, including students, researchers, and professionals.
+          Our platform is designed to be a safe and family-friendly resource. We employ automated scripts to filter content based on keywords associated with Not-Safe-For-Work (NSFW) material. This includes, but is not limited to, terms related to explicit, adult, or violent content.
         </p>
-      </section>
 
-      <section>
-        <h2 class="text-3xl font-bold">Content Filtering Policy</h2>
-        <p>
-          Our platform is fully automated. We utilize scripts to fetch data from public sources like Hugging Face and GitHub. A critical part of this process is our content filtering system.
-        </p>
         <ul>
-          <li><strong>Automated NSFW Filtering:</strong> Our scripts are designed to identify and exclude models and tools that are tagged with or contain descriptions related to "Not Safe For Work" (NSFW), explicit, or adult themes. We maintain a blocklist of keywords to ensure this filtering is as effective as possible.</li>
-          <li><strong>Best-Effort Basis:</strong> While we strive for 100% accuracy, automated filtering has its limitations. The AI landscape is vast and constantly changing, and occasionally, inappropriate content may slip through. We operate on a best-effort basis and are continually improving our filtering algorithms.</li>
+          <li><strong>Automated Filtering:</strong> Our scripts identify and exclude models tagged with or containing descriptions related to NSFW, explicit, or adult themes.</li>
+          <li><strong>No Hosting:</strong> We do not host any models or images directly; we only link to publicly available resources on platforms like Hugging Face, GitHub, and Civitai.</li>
+          <li><strong>Best-Effort Basis:</strong> While we strive for accuracy, automated filtering may not be perfect. We are continually improving our algorithms.</li>
         </ul>
       </section>
 
       <section>
         <h2 class="text-3xl font-bold">Reporting & Takedown</h2>
         <p>
-          Community vigilance is essential to keeping our platform safe. If you encounter any model or content that you believe violates our safety policy or is otherwise inappropriate, we encourage you to report it.
+          We respect the intellectual property rights of others. If you believe that any link on our site points to material that infringes on your copyright, please contact us. To file a DMCA notice, please send an email to <a href="mailto:compliance@free2aitools.com">compliance@free2aitools.com</a> with the following information:
         </p>
+        <ul>
+          <li>A physical or electronic signature of the copyright owner or a person authorized to act on their behalf.</li>
+          <li>Identification of the copyrighted work claimed to have been infringed.</li>
+          <li>Identification of the link or material on our site that is claimed to be infringing and that is to be removed.</li>
+          <li>Your contact information, including your address, telephone number, and an email address.</li>
+          <li>A statement that you have a good faith belief that use of the material in the manner complained of is not authorized by the copyright owner, its agent, or the law.</li>
+          <li>A statement that the information in the notification is accurate, and, under penalty of perjury, that you are authorized to act on behalf of the copyright owner.</li>
+        </ul>
+        <p>Upon receipt of a valid DMCA notice, we will promptly investigate and remove the infringing link(s) from our index.</p>
         <p>
-          The most effective way to report an issue is by creating an issue on our <a href="https://github.com/mosesy5688-cell/ai-nexus/issues" target="_blank" rel="noopener noreferrer">official GitHub repository</a>. Please provide a link to the content in question and a brief description of why you believe it should be reviewed. We take all reports seriously and will act promptly to investigate and, if necessary, remove the content.
-        </p>
+          For other safety concerns, the most effective way to report an issue is by creating an issue on our <a href="https://github.com/mosesy5688-cell/ai-nexus/issues" target="_blank" rel="noopener noreferrer">official GitHub repository</a>.
+        </p>        
+        
       </section>
 
       <section>

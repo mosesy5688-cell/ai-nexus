@@ -280,44 +280,6 @@ function discoverAndSaveKeywords(models) {
     writeDataToFile(KEYWORDS_OUTPUT_PATH, sortedTags);
 }
 
-async function updateReportsFile(newReport) {
-    let reports = [];
-    if (fs.existsSync(REPORTS_OUTPUT_PATH)) {
-        try {
-            reports = JSON.parse(fs.readFileSync(REPORTS_OUTPUT_PATH, 'utf-8'));
-        } catch (e) {
-            console.warn('Could not parse existing reports.json. Starting fresh.');
-        }
-    } else if (!newReport) {
-        // CRITICAL FIX: If the report file doesn't exist and there's no new report,
-        // create an empty file to prevent build errors.
-        writeDataToFile(REPORTS_OUTPUT_PATH, []);
-        return;
-    }
-    if (!newReport) return;
-    reports.unshift(newReport); // Add new report to the beginning
-    writeDataToFile(REPORTS_OUTPUT_PATH, reports.slice(0, 52)); // Keep latest 52 reports
-}
-
-async function updateReportsFile(newReport) {
-    let reports = [];
-    if (fs.existsSync(REPORTS_OUTPUT_PATH)) {
-        try {
-            reports = JSON.parse(fs.readFileSync(REPORTS_OUTPUT_PATH, 'utf-8'));
-        } catch (e) {
-            console.warn('Could not parse existing reports.json. Starting fresh.');
-        }
-    } else if (!newReport) {
-        // CRITICAL FIX: If the report file doesn't exist and there's no new report,
-        // create an empty file to prevent build errors.
-        writeDataToFile(REPORTS_OUTPUT_PATH, []);
-        return;
-    }
-    if (!newReport) return;
-    reports.unshift(newReport); // Add new report to the beginning
-    writeDataToFile(REPORTS_OUTPUT_PATH, reports.slice(0, 52)); // Keep latest 52 reports
-}
-
 /**
  * Reads existing reports, adds a new one, and writes back to the file.
  * Ensures the file exists to prevent build errors.
