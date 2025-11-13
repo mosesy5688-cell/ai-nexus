@@ -49,10 +49,7 @@ async function handleGetRequest(kv, modelId) {
   const list = await kv.list({ prefix: `${RATING_KEY_PREFIX}${modelId}:` });
 
   if (list.keys.length === 0) {
-    return Response.json({ average_rating: 0, total_ratings: 0, comments: [] }, {
-      status: 200,
-      headers: CORS_HEADERS,
-    }); // Always return valid JSON
+    return Response.json({ average_rating: 0, total_ratings: 0, comments: [] }, { status: 200, headers: CORS_HEADERS });
   }
 
   const ratingPromises = list.keys.map(key => kv.get(key.name, 'json'));

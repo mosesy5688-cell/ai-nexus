@@ -3,7 +3,7 @@ import react from "@astrojs/react";
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// 获取当前文件的目录
+// Get the directory of the current file
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://astro.build/config
@@ -13,7 +13,7 @@ export default defineConfig({
   vite: {
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
+        '@': path.resolve(__dirname, './src')
       }
     }
   }
