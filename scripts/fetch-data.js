@@ -91,6 +91,48 @@ async function getAISummary(readmeText, modelId, currentModelData) {
 /**
  * Generates a weekly AI report using the Groq API based on the latest models.
  * @param {Array<object>} models The list of recently fetched models.
+ * @returns {Promise<object|null>} A report object or null on failure.
+ */
+async function generateAIWeeklyReport(models) {
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    if (!GROQ_API_KEY) {
+        console.warn('- GROQ_API_KEY not found. Skipping AI weekly report generation.');
+        return null;
+    }
+
+    console.log('- Generating AI weekly report...');
+    const latestModels = models.slice(0, 10).map(m => `- **${m.name}**: A popular model for ${m.task} with ${m.likes.toLocaleString()} likes.`).join('\n');
+
+    try {
+        const response = await axios.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            {
+                model: 'llama-3.1-70b-versatile',
+                messages: [
+                    {
+                        role: 'system',
+                        content: "You are an AI industry analyst. Your task is to write a concise, insightful weekly report on trends in the open-source AI model landscape, formatted in Markdown. The report should be engaging and around 250-350 words."
+                    },
+                    {
+                        role: 'user',
+                        content: `Based on the following list of trending open-source AI models, write a weekly report in Markdown format. Analyze any noticeable trends (e.g., a rise in specific model types, new popular tasks), mention one or two standout models with their key details, and conclude with a brief forward-looking statement.\n\n**Trending Models This Week:**\n${latestModels}`
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 500,
+            },
+            { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' } }
+        );
+        const reportContent = response.data.choices[0]?.message?.content.trim() || '';
+        return { title: `AI Model Trends: Week of ${new Date().toLocaleDateString()}`, content: reportContent, date: new Date().toISOString() };
+    } catch (error) {
+        console.error(`❌ Failed to generate AI weekly report:`, error.response?.data?.error?.message || error.message);
+        return null;
+    }
+}
+/**
+ * Generates a weekly AI report using the Groq API based on the latest models.
+ * @param {Array<object>} models The list of recently fetched models.
  * @returns {Promise<void>}
  */
 async function generateAIWeeklyReport(models) {
@@ -387,6 +429,23 @@ async function updateReportsFile(newReport) {
     writeDataToFile(REPORTS_OUTPUT_PATH, reports.slice(0, 52)); // Keep latest 52 reports
 }
 
+/**
+ * Reads existing reports, adds a new one, and writes back to the file.
+ * Ensures the file exists to prevent build errors.
+ * @param {object | null} newReport The new report to add.
+ */
+async function updateReportsFile(newReport) {
+    let reports = [];
+    if (fs.existsSync(REPORTS_OUTPUT_PATH)) {
+        try {
+            reports = JSON.parse(fs.readFileSync(REPORTS_OUTPUT_PATH, 'utf-8'));
+        } catch (e) {
+            console.warn('Could not parse existing reports.json. Starting fresh.');
+        }
+    }
+    if (newReport) reports.unshift(newReport); // Add new report to the beginning
+    writeDataToFile(REPORTS_OUTPUT_PATH, reports.slice(0, 52)); // Keep latest 52 reports
+}
 async function main() {
     console.log('--- Starting AI-Nexus Data Fetching Script ---');
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -401,6 +460,9 @@ async function main() {
             console.warn('Could not parse existing models.json. Proceeding without cache.');
         }
     }
+    
+    // CRITICAL: Ensure reports.json exists before the build starts.
+    if (!fs.existsSync(REPORTS_OUTPUT_PATH)) writeDataToFile(REPORTS_OUTPUT_PATH, []);
 
     // 1. Fetch data from all sources
     const sourcesData = await Promise.all([
@@ -456,10 +518,10 @@ async function main() {
 
         // 6. Generate and save the AI weekly report
         const newReport = await generateAIWeeklyReport(combinedData);
-        await updateReportsFile(newReport);
+        if (newReport) await updateReportsFile(newReport);
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
-        // Ensure reports file exists even if no data is fetched
+        // Still ensure the reports file exists to prevent build errors on subsequent runs.
         await updateReportsFile(null);
     }
     console.log('--- ✅ Data fetching script finished successfully! ---');

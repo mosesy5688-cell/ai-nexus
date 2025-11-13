@@ -1,22 +1,17 @@
 // /functions/api/rating/[modelId].js
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
-
 /**
  * Main request handler for Cloudflare Pages Functions.
- * This function is deprecated and now only returns a 200 OK response
- * to prevent 500 errors from old clients.
+ * This feature is deprecated. This function now only returns a 200 OK response
+ * to prevent 500 errors from any clients that might still be calling it.
  * @param {EventContext} context - The context object provided by Cloudflare.
  */
 export async function onRequest(context) {
-  // The rating feature is deprecated. Return a simple OK response
-  // to any request to this endpoint to avoid causing errors.
-  return new Response(JSON.stringify({ status: 'deprecated' }), {
+  return new Response(JSON.stringify({ status: 'deprecated', message: 'This feature has been removed.' }), {
     status: 200,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*', // Keep CORS header for any old clients
+    },
   });
 }

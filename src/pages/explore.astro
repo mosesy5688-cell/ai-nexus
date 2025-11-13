@@ -1,8 +1,10 @@
 ---
 import ModelCard from '@/components/ModelCard.astro';
 import Layout from '@/layouts/Layout.astro';
-import AdSlot from '@/components/AdSlot.astro';
 import ExploreFilters from '@/components/ExploreFilters.astro';
+import allModels from '@/data/models.json';
+
+const models = allModels;
 ---
 
 <Layout 
@@ -29,112 +31,75 @@ import ExploreFilters from '@/components/ExploreFilters.astro';
       <!-- Filter Component -->
       <ExploreFilters />
 
-      <!-- Ad Slot -->
-      <div class="my-16 text-center text-xs text-gray-400 dark:text-gray-600">
-        [ Explore Page Ad Slot ]
+      <div class="my-12 text-center text-xs text-gray-400 dark:text-gray-600">
+        [ Ad Slot ]
       </div>
 
-      <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
-      <div id="loading-indicator" class="text-center text-xl text-gray-500 mt-12">Loading models...</div>
+      <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {models.map(model => (
+          <div class="model-card-wrapper" data-model-name={model.name.toLowerCase()} data-model-desc={(model.description || '').toLowerCase()} data-model-task={(model.task || '').toLowerCase()} data-model-tags={(model.tags || []).join(' ').toLowerCase()}>
+            <ModelCard model={model} />
+          </div>
+        ))}
+      </div>
       <p id="no-results" class="text-center text-xl text-gray-500 mt-12 hidden">No models found matching your search.</p>
     </div>
   </section>
 </Layout>
 
-  <script>
-    let allModels = [];
-    const exploreSearchInput = document.getElementById('explore-search-input');
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('explore-search-input');
     const modelsGrid = document.getElementById('models-grid');
     const noResults = document.getElementById('no-results');
-    const loadingIndicator = document.getElementById('loading-indicator');
+    const allModelCards = Array.from(document.querySelectorAll('.model-card-wrapper'));
 
-    // This function creates the HTML for a single model card.
-    // It's defined here to be reused by the filtering logic.
-    window.renderModelCard = (model) => {
-        const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
-        const platforms = model.sources ? model.sources.map(s => s.platform).join(', ') : 'N/A';
-        const likes = model.likes?.toLocaleString() || '0';
-        const downloads = model.downloads?.toLocaleString() || '0';
-        const thumbnail = model.thumbnail ? `<img src="${model.thumbnail}" alt="${model.name} thumbnail" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" width="400" height="225" />` : `<div class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-500">No Image</div>`;
-
-        return `
-            <a href="${modelUrl}" class="group block border rounded-lg p-4 shadow-md hover:shadow-xl transition-all duration-300 bg-card-background hover:border-primary/50 flex flex-col h-full">
-                <div class="w-full h-40 bg-input-background rounded-md mb-4 overflow-hidden">
-                    ${thumbnail}
-                </div>
-                <h3 class="text-xl font-bold mb-2 text-foreground group-hover:text-primary transition-colors">${model.name || 'Untitled Model'}</h3>
-                <p class="text-sm text-muted-foreground mb-1">Platform(s): ${platforms}</p>
-                <p class="text-sm text-muted-foreground mb-3">Task: ${model.task || 'N/A'}</p>
-                <p class="text-foreground/80 mb-4 line-clamp-3 flex-grow">${model.description || 'No description available.'}</p>
-                <div class="flex items-center justify-between text-sm text-muted-foreground border-t border-card-border pt-3 mt-auto">
-                    <span class="flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" /></svg>
-                        ${likes}
-                    </span>
-                    <span class="flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                        ${downloads}
-                    </span>
-                </div>
-            </a>
-        `;
-    };
-
-    // This function performs the actual filtering and updates the DOM.
-    // It's exposed globally so ExploreFilters.astro can call it.
+    // This function performs the filtering and updates the DOM.
     window.performSearch = (query, selectedTags = []) => {
-        const lowerCaseQuery = query.toLowerCase().trim();
-        
-        const filteredModels = allModels.filter(model => {
-            const queryMatch = !lowerCaseQuery || 
-                model.name.toLowerCase().includes(lowerCaseQuery) ||
-                (model.description && model.description.toLowerCase().includes(lowerCaseQuery)) ||
-                (model.task && model.task.toLowerCase().includes(lowerCaseQuery));
-            
-            const tagsMatch = selectedTags.length === 0 || 
-                selectedTags.every(tag => model.tags && model.tags.includes(tag));
-            
-            return queryMatch && tagsMatch;
-        });
-        
-        modelsGrid.innerHTML = filteredModels.map(window.renderModelCard).join('');
-        noResults.classList.toggle('hidden', filteredModels.length > 0);
+      const lowerCaseQuery = query.toLowerCase().trim();
+      let visibleCount = 0;
+
+      allModelCards.forEach(card => {
+        const name = card.dataset.modelName || '';
+        const desc = card.dataset.modelDesc || '';
+        const task = card.dataset.modelTask || '';
+        const tags = card.dataset.modelTags || '';
+
+        const queryMatch = !lowerCaseQuery || 
+          name.includes(lowerCaseQuery) ||
+          desc.includes(lowerCaseQuery) ||
+          task.includes(lowerCaseQuery);
+
+        const tagsMatch = selectedTags.length === 0 || 
+          selectedTags.every(tag => tags.includes(tag));
+
+        if (queryMatch && tagsMatch) {
+          card.style.display = 'block';
+          visibleCount++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      noResults.classList.toggle('hidden', visibleCount > 0);
     };
 
-    async function initializePage() {
-      try {
-        const response = await fetch('/data/models.json');
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        allModels = await response.json();
-        window.allModels = allModels; // Make it globally available for ExploreFilters.astro
-        
-        exploreSearchInput.addEventListener('input', (e) => {
-            const query = e.target.value;
-            window.performSearch(query, window.getSelectedTags ? window.getSelectedTags() : []);
-        });
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const query = urlParams.get('q');
-        if (query) {
-          exploreSearchInput.value = query;
-        } else {
-          // If there's a tag in the URL, let ExploreFilters handle the initial search
-          if (!urlParams.get('tag')) {
-            window.performSearch(''); // Render all models initially
-          }
-        }
-      } catch (error) {
-        loadingIndicator.textContent = 'Failed to load models.';
-        console.error('Failed to fetch models:', error);
-      }
+    // Initial setup
+    const urlParams = new URLSearchParams(window.location.search);
+    const query = urlParams.get('q');
+    if (query) {
+      searchInput.value = query;
     }
 
-    document.addEventListener('DOMContentLoaded', async () => {
-        await initializePage();
-        // Dispatch a custom event to let other components know the models are loaded
-        document.dispatchEvent(new CustomEvent('modelsLoaded'));
-        loadingIndicator.classList.add('hidden');
+    // Event listener for the search input
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value;
+      const selectedTags = window.getSelectedTags ? window.getSelectedTags() : [];
+      window.performSearch(query, selectedTags);
     });
-  </script>
+
+    // Dispatch a custom event to let ExploreFilters know it can initialize
+    // This replaces the need for fetching data, as it's now pre-rendered.
+    document.dispatchEvent(new CustomEvent('modelsLoaded'));
+  });
+</script>
