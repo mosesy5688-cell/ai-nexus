@@ -1,0 +1,45 @@
+---
+// src/pages/keyword/[...slug].astro
+import Layout from '@/layouts/Layout.astro';
+import allModels from '@/data/models.json';
+import allKeywords from '@/data/keywords.json';
+import ModelCard from '@/components/ModelCard.astro';
+
+export async function getStaticPaths() {
+  return allKeywords.map((keyword) => {
+    return {
+      params: { slug: keyword.slug },
+      props: { keyword },
+    };
+  });
+}
+
+const { keyword } = Astro.props;
+if (!keyword) {
+  return Astro.redirect('/404');
+}
+
+const { slug, title } = keyword;
+
+const relevantModels = allModels.filter(
+  (model) => model.tags && model.tags.map((tag) => tag.toLowerCase()).includes(slug.toLowerCase())
+);
+
+const pageTitle = `Top AI Models for ${title} | Free AI Tools`;
+const pageDescription = `Explore the best open-source AI models for ${title}. Browse our collection of ${relevantModels.length} models.`;
+
+<Layout title={pageTitle} description={pageDescription}>
+  <main class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+      <a href="/#categories" class="text-blue-500 hover:underline">&larr; Back to Categories</a>
+    </div>
+    <header class="prose dark:prose-invert max-w-none mb-12 text-center">
+      <h1 class="text-4xl font-bold">{`AI Models for ${title}`}</h1>
+      <p class="text-lg">{`Browse our collection of ${relevantModels.length} models related to ${title}.`}</p>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {relevantModels.map((model) => <ModelCard model={model} />)}
+    </div>
+  </main>
+</Layout>
