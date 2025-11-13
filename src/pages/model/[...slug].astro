@@ -1,178 +1,41 @@
 ---
-// src/pages/model/[...slug].astro
+// src/pages/keyword/[...slug].astro
 import Layout from '@/layouts/Layout.astro';
 import ModelCard from '@/components/ModelCard.astro';
 import allModels from '@/data/models.json';
-import { marked } from 'marked';
+import allKeywords from '@/data/keywords.json';
 
 export async function getStaticPaths() {
-  return allModels.map(model => {
-    // CRITICAL FIX: Create a URL-safe slug by replacing '/' with '--'.
-    // This prevents Astro from interpreting the ID as a nested path.
-    const slug = model.id.replace(/\//g, '--');
+  return allKeywords.map(keyword => {
     return {
-      params: { slug: slug },
-      props: { model },
+      params: { slug: keyword.slug },
+      props: { keyword },
     };
   });
 }
 
-const { model } = Astro.props;
+const { keyword } = Astro.props;
+const { slug, title } = keyword;
 
-if (!model) {
-  return Astro.redirect('/404');
-}
+const models = allModels.filter(model => 
+  model.tags && model.tags.includes(slug)
+);
 
-const readmeHtml = model.readme ? marked.parse(model.readme) : null;
-
-// Find related models (simple logic: same task, different model)
-const relatedModels = allModels
-  .filter(m => model.task && m.task && m.task === model.task && m.id !== model.id)
-  .sort((a, b) => b.likes - a.likes)
-  .slice(0, 4);
-
-const pageTitle = `${model.name} - Details | Free AI Tools`;
-const pageDescription = model.summary_ai || model.description || `Explore details, usage, and related models for the ${model.name} AI model.`;
+const pageTitle = `Explore ${title} Models | Free AI Tools`;
+const pageDescription = `Browse and discover ${models.length} AI models and tools tagged with '${title}'.`;
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
-  <div class="container mx-auto px-4 py-12">
-    <a href="javascript:history.back()" class="text-blue-500 hover:underline mb-8 block font-medium transition-colors">&larr; Back to previous page</a>
-
-    <article class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-xl">
-      <!-- Header -->
-      <header class="border-b border-gray-200 dark:border-gray-700 pb-6 mb-8">
-        <div class="flex flex-col sm:flex-row sm:items-start sm:gap-6">
-          {model.thumbnail && (
-            <div class="flex-shrink-0 w-24 h-24 mb-4 sm:mb-0">
-              <img
-                src={model.thumbnail}
-                alt={`${model.name} thumbnail`}
-                width={96}
-                height={96}
-                class="rounded-lg object-cover w-full h-full border-2 border-gray-200 dark:border-gray-700"
-                loading="lazy"
-              />
-            </div>
-          )}
-          <div class="flex-grow">
-            <h1 class="text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight">{model.name}</h1>
-            <p class="mt-2 text-lg text-gray-500 dark:text-gray-400">{model.author}</p>
-          </div>
-        </div>
-      </header>
-
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-12">
-        <!-- Main Content -->
-        <div class="lg:col-span-3">
-          <!-- AI Summary -->
-          {model.summary_ai && model.summary_ai.length > 10 && (
-            <section class="mb-10 p-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
-              <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-3">AI Summary</h2>
-              <p class="text-gray-700 dark:text-gray-300 leading-relaxed">{model.summary_ai}</p>
-            </section>
-          )}
-
-          <!-- Tabs -->
-          <div id="tabs-container" class="mb-10">
-            <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
-              <nav class="-mb-px flex space-x-6" aria-label="Tabs">
-                <button id="tab-btn-details" class="tab-button whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-lg focus:outline-none active-tab">Details</button>
-                {readmeHtml && <button id="tab-btn-readme" class="tab-button whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-lg focus:outline-none inactive-tab">Readme</button>}
-              </nav>
-            </div>
-
-            <div id="tab-content" class="mt-6">
-              <!-- Details Panel -->
-              <div id="tab-panel-details" class="tab-panel space-y-6">
-                <p class="text-lg text-gray-700 dark:text-gray-300">{model.description}</p>
-                <div>
-                  <h3 class="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200">Tags</h3>
-                  <div id="tags-container" class="flex flex-wrap gap-2">
-                    {model.tags.map(tag => <a href={`/explore?tag=${encodeURIComponent(tag)}`} class="bg-gray-200 text-gray-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-gray-700 dark:text-gray-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">{tag}</a>)}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Readme Panel -->
-              {readmeHtml && (
-                <div id="tab-panel-readme" class="tab-panel hidden">
-                    <div class="prose prose-lg dark:prose-invert max-w-none bg-gray-100 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-inner" set:html={readmeHtml} />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <!-- Sidebar -->
-        <aside class="lg:col-span-1">
-          <div class="bg-gray-100 dark:bg-gray-800/50 p-6 rounded-2xl sticky top-24 shadow-md border border-gray-200 dark:border-gray-700">
-            <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-600 pb-3">Model Info</h3>
-            <div class="space-y-4 text-gray-700 dark:text-gray-300">
-              <div class="flex items-center gap-3"><span class="text-xl">⚙️</span><div><span class="font-semibold">Task:</span> <span class="break-all">{model.task}</span></div></div>
-              <div class="flex items-center gap-3"><span class="text-xl">❤️</span><div><span class="font-semibold">Likes:</span> <span>{model.likes.toLocaleString()}</span></div></div>
-              <div class="flex items-center gap-3"><span class="text-xl">⬇️</span><div><span class="font-semibold">Downloads:</span> <span>{model.downloads.toLocaleString()}</span></div></div>
-              <div class="flex items-center gap-3"><span class="text-xl">📅</span><div><span class="font-semibold">Updated:</span> <span>{new Date(model.lastModified).toLocaleDateString()}</span></div></div>
-            </div>
-            <div class="mt-6 border-t border-gray-300 dark:border-gray-600 pt-6">
-              <h4 class="font-bold text-lg mb-3 text-gray-900 dark:text-white">Sources</h4>
-              <ul class="space-y-2">
-                {model.sources.map(source => (
-                  <li>
-                    <a href={source.url} target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline transition-colors break-all flex items-center gap-1.5">
-                      <span>{source.platform}</span>
-                      <span class="text-sm">&rarr;</span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <!-- Sidebar Ad Slot -->
-            <div id="sidebar-ad-slot" class="mt-8 text-center text-xs text-gray-400 dark:text-gray-600">
-              <!-- AdSense/Amazon ad code for sidebar can be placed here -->
-              [ Sidebar Ad Slot ]
-            </div>
-          </div>
-        </aside>
-      </div>
-    </article>
-
-    <!-- Related Models Section -->
-    {relatedModels.length > 0 && <>
-      {/* Content Area Ad Slot */}
-      <div id="content-ad-slot-bottom" class="my-12 text-center text-xs text-gray-400 dark:text-gray-600">
-        <!-- AdSense/Amazon ad code for bottom of content can be placed here -->
-        [ Content Ad Slot ]
+  <section id="keyword-page" class="py-20">
+    <div class="container max-w-7xl mx-auto px-4">
+      <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-900 dark:text-white">Models tagged with "{title}"</h1>
+        <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">{pageDescription}</p>
       </div>
 
-      <section class="mt-20">
-        <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Related Models</h2>
-        {/** The ModelCard component is now correctly imported and used here **/}
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {relatedModels.map(related => <ModelCard model={related} />)}
-        </div>
-      </section>
-    </>}
-  </div>
-
-  <script>
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const tabPanels = document.querySelectorAll('.tab-panel');
-
-    const tabMap = {
-      'tab-btn-details': 'tab-panel-details',
-      'tab-btn-readme': 'tab-panel-readme',
-    };
-
-    tabButtons.forEach(button => {
-      button.addEventListener('click', () => {
-        // Deactivate all buttons and hide all panels
-        tabButtons.forEach(btn => btn.classList.replace('active-tab', 'inactive-tab'));
-        tabPanels.forEach(panel => panel.classList.add('hidden'));
-
-        button.classList.replace('inactive-tab', 'active-tab');
-        document.getElementById(tabMap[button.id])?.classList.remove('hidden');
-      });
-    });
-  </script>
+      <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {models.map(model => <ModelCard model={model} />)}
+      </div>
+    </div>
+  </section>
 </Layout>
