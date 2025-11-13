@@ -32,7 +32,7 @@ const relatedModels = allModels
   .slice(0, 4);
 
 const pageTitle = `${model.name} - Details | Free AI Tools`;
-const pageDescription = model.description || `Explore details, usage, and related models for the ${model.name} AI model.`;
+const pageDescription = model.description ? model.description.substring(0, 160) : `Explore details, usage, and related models for the ${model.name} AI model.`;
 ---
 <Layout title={pageTitle} description={pageDescription}>
   <div class="container mx-auto px-4 py-12">
@@ -64,23 +64,25 @@ const pageDescription = model.description || `Explore details, usage, and relate
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-12">
         <!-- Main Content -->
         <div class="lg:col-span-3">
-          <!-- Tabs -->
-          <div id="tabs-container" class="mb-10">
+          <!-- Tabs for Details and Readme -->
+          <div id="tabs-container" class="mb-10 w-full">
             <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
-              <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+              <nav class="-mb-px flex space-x-8" aria-label="Tabs">
                 <button id="tab-btn-details" class="tab-button whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-lg focus:outline-none active-tab">Details</button>
                 {readmeHtml && <button id="tab-btn-readme" class="tab-button whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-lg focus:outline-none inactive-tab">Readme</button>}
               </nav>
             </div>
 
-            <div id="tab-content" class="mt-6">
+            <div id="tab-content-container" class="mt-6">
               <!-- Details Panel -->
               <div id="tab-panel-details" class="tab-panel space-y-6">
                 <p class="text-lg text-gray-700 dark:text-gray-300">{model.description}</p>
                 <div>
                   <h3 class="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200">Tags</h3>
-                  <div id="tags-container" class="flex flex-wrap gap-2">
-                    {model.tags.map(tag => <a href={`/explore?tag=${encodeURIComponent(tag)}`} class="bg-gray-200 text-gray-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-gray-700 dark:text-gray-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">{tag}</a>)}
+                  <div class="flex flex-wrap gap-2">
+                    {model.tags.map(tag => (
+                      <a href={`/explore?q=${encodeURIComponent(tag)}`} class="bg-gray-200 text-gray-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-gray-700 dark:text-gray-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">{tag}</a>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -88,7 +90,7 @@ const pageDescription = model.description || `Explore details, usage, and relate
               <!-- Readme Panel -->
               {readmeHtml && (
                 <div id="tab-panel-readme" class="tab-panel hidden">
-                    <div class="prose prose-lg dark:prose-invert max-w-none bg-gray-100 dark:bg-gray-900 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-inner" set:html={readmeHtml} />
+                  <div class="prose prose-lg dark:prose-invert max-w-none bg-gray-50 dark:bg-gray-900/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-inner" set:html={readmeHtml} />
                 </div>
               )}
             </div>
@@ -96,8 +98,8 @@ const pageDescription = model.description || `Explore details, usage, and relate
         </div>
 
         <!-- Sidebar -->
-        <aside class="lg:col-span-1">
-          <div class="bg-gray-100 dark:bg-gray-800/50 p-6 rounded-2xl sticky top-24 shadow-md border border-gray-200 dark:border-gray-700">
+        <aside class="lg:col-span-1 space-y-8">
+          <div class="bg-gray-100 dark:bg-gray-800/50 p-6 rounded-2xl sticky top-28 shadow-md border border-gray-200 dark:border-gray-700">
             <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-600 pb-3">Model Info</h3>
             <div class="space-y-4 text-gray-700 dark:text-gray-300">
               <div class="flex items-center gap-3"><span class="text-xl">⚙️</span><div><span class="font-semibold">Task:</span> <span class="break-all">{model.task}</span></div></div>
@@ -110,7 +112,7 @@ const pageDescription = model.description || `Explore details, usage, and relate
               <ul class="space-y-2">
                 {model.sources.map(source => (
                   <li>
-                    <a href={source.url} target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline transition-colors break-all flex items-center gap-1.5">
+                    <a href={source.url} target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors break-all flex items-center gap-1.5">
                       <span>{source.platform}</span>
                       <span class="text-sm">&rarr;</span>
                     </a>
@@ -118,10 +120,11 @@ const pageDescription = model.description || `Explore details, usage, and relate
                 ))}
               </ul>
             </div>
-            <!-- Sidebar Ad Slot -->
-            <div id="sidebar-ad-slot" class="mt-8 text-center text-xs text-gray-400 dark:text-gray-600">
-              <!-- AdSense/Amazon ad code for sidebar can be placed here -->
-              [ Sidebar Ad Slot ]
+          </div>
+
+          <div class="ad-container sticky top-[calc(24rem+100px)]">
+            <div id="amazon-ad-YOUR_AMAZON_DETAIL_SIDEBAR_AD_ID" style="width:100%; min-height: 250px;">
+              <!-- Sidebar Ad -->
             </div>
           </div>
         </aside>
@@ -130,15 +133,14 @@ const pageDescription = model.description || `Explore details, usage, and relate
 
     <!-- Related Models Section -->
     {relatedModels.length > 0 && <>
-      {/* Content Area Ad Slot */}
-      <div id="content-ad-slot-bottom" class="my-12 text-center text-xs text-gray-400 dark:text-gray-600">
-        <!-- AdSense/Amazon ad code for bottom of content can be placed here -->
-        [ Content Ad Slot ]
+      <div class="ad-container my-12 text-center">
+        <div id="amazon-ad-YOUR_AMAZON_DETAIL_BOTTOM_AD_ID" style="width:100%;height:90px">
+          <!-- Bottom Ad -->
+        </div>
       </div>
 
       <section class="mt-20">
         <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Related Models</h2>
-        {/** The ModelCard component is now correctly imported and used here **/}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {relatedModels.map(related => <ModelCard model={related} />)}
         </div>
@@ -146,7 +148,7 @@ const pageDescription = model.description || `Explore details, usage, and relate
     </>}
   </div>
 
-  <script>
+  <script is:inline>
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabPanels = document.querySelectorAll('.tab-panel');
 
@@ -154,15 +156,18 @@ const pageDescription = model.description || `Explore details, usage, and relate
       'tab-btn-details': 'tab-panel-details',
       'tab-btn-readme': 'tab-panel-readme',
     };
-
+    
     tabButtons.forEach(button => {
       button.addEventListener('click', () => {
         // Deactivate all buttons and hide all panels
         tabButtons.forEach(btn => btn.classList.replace('active-tab', 'inactive-tab'));
         tabPanels.forEach(panel => panel.classList.add('hidden'));
-
+        
         button.classList.replace('inactive-tab', 'active-tab');
-        document.getElementById(tabMap[button.id])?.classList.remove('hidden');
+        const targetPanel = document.getElementById(tabMap[button.id]);
+        if (targetPanel) {
+          targetPanel.classList.remove('hidden');
+        }
       });
     });
   </script>

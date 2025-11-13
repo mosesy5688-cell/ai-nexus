@@ -1,5 +1,6 @@
 const axios = require('axios');
 const fs = require('fs');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
 
 // --- Configuration ---
@@ -21,48 +22,80 @@ const NSFW_KEYWORDS = [
     'adult'
 ];
 
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
+
 /**
  * Generates a weekly AI report using the Groq API based on the latest models.
  * @param {Array<object>} models The list of recently fetched models.
  * @returns {Promise<void>}
  */
 async function generateAIWeeklyReport(models) {
-    const GROQ_API_KEY = process.env.GROQ_API_KEY;
-    if (!GROQ_API_KEY) {
-        console.warn('- GROQ_API_KEY not found. Skipping AI weekly report generation.');
+    if (!geminiModel) {
+        console.warn('- GEMINI_API_KEY not found. Skipping AI weekly report generation.');
         return;
     }
 
     console.log('- Generating AI weekly report...');
-    const latestModels = models.slice(0, 10).map(m => `- ${m.name} (Task: ${m.task}, Likes: ${m.likes})`).join('\n');
+    const latestModels = models.slice(0, 15).map(m => ({ id: m.id, name: m.name, task: m.task, likes: m.likes, description: m.description.substring(0, 100) }));
+    const featuredModelIds = latestModels.slice(0, 2).map(m => m.id);
+    const today = new Date();
+    const reportId = today.toISOString().split('T')[0];
+    const dateString = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const prompt = `
+    As an AI industry analyst, generate a weekly report on trends in the open-source AI model landscape based on the provided list of trending models.
+    Your output MUST be a single, valid, parsable JSON string. Do not include any text or markdown formatting before or after the JSON block.
+
+    The JSON object must follow this exact structure:
+    {
+      "reportId": "YYYY-MM-DD",
+      "title": "Weekly AI Large Model Technology and Product Progress Report [Date]",
+      "date": "YYYY-MM-DD",
+      "summary": "A brief summary of this week's key AI developments (around 50 words).",
+      "sections": [
+        {
+          "heading": "Core Technology Breakthroughs (e.g., New Transformer Architecture)",
+          "content": "A long-form text in Markdown format, detailing breakthroughs, their impact, and citing key papers. Analyze trends from the model list.",
+          "keywords": ["Keyword1", "Keyword2"]
+        },
+        {
+          "heading": "Popular Product Applications & Market Trends (e.g., Gemini 1.5 Pro New Features)",
+          "content": "A long-form text in Markdown format, analyzing popular product updates, commercial dynamics, and market reactions based on the model list.",
+          "keywords": ["Keyword3", "Keyword4"]
+        }
+      ],
+      "featuredModelIds": ["model-id-1", "model-id-2"]
+    }
+
+    Instructions:
+    1.  Use '${reportId}' for "reportId" and "date".
+    2.  Use '${dateString}' in the "title".
+    3.  The 'content' for each section must be detailed, insightful, and written in English using Markdown for formatting (e.g., **bold**, *italic*, links).
+    4.  The 'featuredModelIds' array must contain exactly these two IDs: ["${featuredModelIds[0]}", "${featuredModelIds[1]}"].
+    5.  Analyze the following trending models to inform your report: ${JSON.stringify(latestModels, null, 2)}
+    `;
 
     try {
-        const response = await axios.post(
-            'https://api.groq.com/openai/v1/chat/completions',
-            {
-                model: 'llama-3.1-70b-versatile',
-                messages: [
-                    {
-                        role: 'system',
-                        content: "You are an AI industry analyst. Your task is to write a concise, insightful weekly report on trends in the open-source AI model landscape. The report should be engaging and around 200-300 words."
-                    },
-                    {
-                        role: 'user',
-                        content: `Based on the following list of trending open-source AI models, write a weekly report. Analyze any noticeable trends (e.g., a rise in specific model types, new popular tasks, etc.), mention one or two standout models, and conclude with a brief forward-looking statement.
-
-Trending Models This Week:
-${latestModels}`
-                    }
-                ],
-                temperature: 0.7,
-                max_tokens: 400,
-            },
-            { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' } }
-        );
-        const reportContent = response.data.choices[0]?.message?.content.trim() || '';
-        return { title: `AI Model Trends: Week of ${new Date().toLocaleDateString()}`, content: reportContent, date: new Date().toISOString() };
+        const result = await geminiModel.generateContent(prompt);
+        const responseText = result.response.text().trim();
+        
+        // Clean the response to ensure it's a valid JSON string
+        const jsonString = responseText.replace(/^```json\s*|```\s*$/g, '');
+        
+        // Validate and parse the JSON
+        const report = JSON.parse(jsonString);
+        
+        // Final check for required fields
+        if (report.reportId && report.title && report.sections) {
+            console.log(`✅ AI weekly report generated successfully for ${reportId}.`);
+            return report;
+        } else {
+            throw new Error("Generated JSON is missing required fields.");
+        }
     } catch (error) {
-        console.error(`❌ Failed to generate AI weekly report:`, error.response?.data?.error?.message || error.message);
+        console.error(`❌ Failed to generate AI weekly report:`, error.message);
         return null;
     }
 }

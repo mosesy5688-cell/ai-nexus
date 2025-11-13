@@ -1,15 +1,16 @@
 ---
 // src/layouts/Layout.astro
+import Header from '@/components/Header.astro';
+import Footer from '@/components/Footer.astro';
+import '@/styles/globals.css';
+
 interface Props {
 	title: string;
 	description?: string;
 }
 
-const { title, description = 'An authoritative index of open-source AI models, tools, and resources, curated for developers and researchers.' } = Astro.props;
-
-import Header from '@/components/Header.astro'; // This was likely a copy-paste error in the original file, but let's assume it should be Header.
-import Footer from '@/components/Footer.astro';
-import '@/styles/base.css';
+const { title, description = 'A premier, free directory of open-source AI models, tools, and resources, curated for developers, researchers, and enthusiasts.' } = Astro.props;
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 ---
 
 <!doctype html>
@@ -18,27 +19,28 @@ import '@/styles/base.css';
     <meta charset="UTF-8">
     <meta name="description" content={description}>
     <meta name="viewport" content="width=device-width">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-    <link rel="canonical" href={Astro.url.href} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+    <link rel="canonical" href={canonicalURL} />
+    <meta name="generator" content={Astro.generator} />
 
     <!-- 
       GOOGLE ADSENSE & ANALYTICS VERIFICATION
       Paste the script provided by Google AdSense or Google Analytics here.
     -->
 
-    <!-- Open Graph / Facebook -->
+    <!-- Open Graph Meta Tags -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content={Astro.url.href}>
+    <meta property="og:url" content={canonicalURL}>
     <meta property="og:title" content={title}>
     <meta property="og:description" content={description}>
-    <meta property="og:image" content={new URL('/og-image.png', Astro.site)}>
+    <meta property="og:image" content={new URL('/og-image.jpg', Astro.site)}>
 
-    <!-- Twitter -->
+    <!-- Twitter Card Meta Tags -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content={Astro.url.href}>
+    <meta property="twitter:url" content={canonicalURL}>
     <meta property="twitter:title" content={title}>
     <meta property="twitter:description" content={description}>
-    <meta property="twitter:image" content={new URL('/og-image.png', Astro.site)}>
+    <meta property="twitter:image" content={new URL('/og-image.jpg', Astro.site)}>
 
     <title>{title}</title>
 
@@ -46,27 +48,15 @@ import '@/styles/base.css';
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ID" crossorigin="anonymous"></script>
 </head>
-<body class="bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200 font-sans antialiased flex flex-col min-h-screen selection:bg-primary/20">
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans antialiased flex flex-col min-h-screen">
 
     <Header />
 
-    <!-- Main Content -->
-    <div class="flex-grow">
-        <!-- Global Ad Slot - Top of Content -->
-        <div id="global-ad-slot-top" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-6 text-center text-xs text-gray-400 dark:text-gray-600">
-            <!-- AdSense/Amazon ad code can be placed here -->
-            [ Global Ad Slot - Top ]
-        </div>
-
-        <slot />
-
-        <!-- Global Ad Slot - Bottom of Content -->
-        <div id="global-ad-slot-bottom" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-6 text-center text-xs text-gray-400 dark:text-gray-600">
-            <!-- AdSense/Amazon ad code can be placed here -->
-            [ Global Ad Slot - Bottom ]
-        </div>
-    </div>
+    <slot />
 
     <Footer />
 </body>
