@@ -1,49 +1,50 @@
 ---
-// src/pages/reports/[...slug].astro
 import Layout from '@/layouts/Layout.astro';
-import { marked } from 'marked';
-
-// This uses Astro's glob import to get all archived report files.
-const allArchivedReports = await Astro.glob('../../data/report-archives/*.json');
+import { Markdown } from 'astro/components';
+import ModelCard from '@/components/ModelCard.astro';
 
 export async function getStaticPaths() {
-  if (!allArchivedReports || allArchivedReports.length === 0) {
-    return [];
-  }
+    // Import all reports from both the main file and the archives
+    const reports = await Astro.glob('../../data/reports.json').then(res => res[0].default);
+    const archivedReportModules = await Astro.glob('../../data/report-archives/*.json');
+    const archivedReports = archivedReportModules.map(module => module.default);
 
-  return allArchivedReports.map((reportModule) => {
-    const report = reportModule.default;
-    return {
-      params: { slug: report.reportId },
-      props: { report },
-    };
-  });
+    // Combine and deduplicate reports
+    const allReports = [...reports, ...archivedReports];
+    const uniqueReports = Array.from(new Map(allReports.map(report => [report.reportId, report])).values());
+
+    return uniqueReports.map(report => ({
+        params: { slug: report.reportId },
+        props: { report },
+    }));
 }
 
 const { report } = Astro.props;
-const pageTitle = report.title;
-const pageDescription = report.summary;
+const allModels = await Astro.glob('../../data/models.json').then(res => res[0].default);
+
+const featuredModels = report.featuredModelIds
+    ? report.featuredModelIds.map(id => allModels.find(m => m.id === id)).filter(Boolean)
+    : [];
 ---
 
-<Layout title={pageTitle} description={pageDescription}>
-  <div class="container mx-auto px-4 py-12">
-    <article class="max-w-4xl mx-auto report-article bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
-      <h1 class="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">{report.title}</h1>
-      <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-        Published on: {new Date(report.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-      </p>
-      <div class="prose dark:prose-invert max-w-none space-y-6">
-        <p class="lead text-lg italic text-gray-600 dark:text-gray-300">{report.summary}</p>
-        {report.sections.map(section => (
-          <section>
-            <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-100 mt-8 mb-4">{section.heading}</h2>
-            <div class="prose-p:my-4 prose-a:text-blue-500 hover:prose-a:underline" set:html={marked.parse(section.content)} />
-            <div class="mt-4 flex flex-wrap gap-2">
-              {section.keywords.map(keyword => <span class="bg-gray-100 dark:bg-gray-700 text-xs font-medium px-2.5 py-1 rounded-full">{keyword}</span>)}
+<Layout title={report.title} description={report.summary}>
+    <main class="container mx-auto px-4 py-12">
+        <article class="max-w-4xl mx-auto">
+            <header class="mb-8 text-center">
+                <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">{report.title}</h1>
+                <p class="mt-2 text-lg text-gray-500 dark:text-gray-400">
+                    {new Date(report.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
+                </p>
+            </header>
+
+            <div class="prose prose-lg dark:prose-invert max-w-none mx-auto">
+                {report.sections.map(section => (
+                    <section class="mb-12">
+                        <h2 class="text-2xl font-bold border-b border-gray-300 dark:border-gray-700 pb-2 mb-4">{section.heading}</h2>
+                        <Markdown content={section.content} />
+                    </section>
+                ))}
             </div>
-          </section>
-        ))}
-      </div>
-    </article>
-  </div>
+        </article>
+    </main>
 </Layout>
