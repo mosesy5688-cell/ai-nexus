@@ -1,9 +1,13 @@
-const axios = require('axios');
-const fs = require('fs');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const path = require('path');
+import axios from 'axios';
+import fs from 'fs';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // --- Configuration ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const CIVITAI_DATA_PATH = path.join(__dirname, '../src/data/civitai.json');
 const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100';
 const OUTPUT_FILE_PATH = path.join(__dirname, '../src/data/models.json');
