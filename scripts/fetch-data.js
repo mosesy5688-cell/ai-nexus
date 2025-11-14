@@ -10,6 +10,7 @@ const OUTPUT_FILE_PATH = path.join(__dirname, '../src/data/models.json');
 const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../src/data/keywords.json');
 const REPORTS_OUTPUT_PATH = path.join(__dirname, '../src/data/reports.json');
 const ARCHIVE_DIR = path.join(__dirname, '../src/data/archives');
+const REPORT_ARCHIVE_DIR = path.join(__dirname, '../src/data/report-archives');
 const NSFW_KEYWORDS = [
     'nsfw', 
     'porn', 
@@ -25,6 +26,7 @@ const NSFW_KEYWORDS = [
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
 
 /**
  * Generates a weekly AI report using the Groq API based on the latest models.
@@ -46,6 +48,8 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
             }],
             featuredModelIds: []
         };
+        // Return null to indicate failure, preventing a placeholder from being saved.
+        return null;
     }
 
     console.log('- Generating AI weekly report...');
@@ -103,6 +107,32 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
             return report;
         } else {
             throw new Error("Generated JSON is missing required fields.");
+    const MAX_RETRIES = 3;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const result = await geminiModel.generateContent(prompt);
+            const responseText = result.response.text().trim();
+            
+            // Clean the response to ensure it's a valid JSON string, removing markdown code blocks
+            const jsonString = responseText.replace(/^```json\s*|```\s*$/g, '');
+            
+            // Validate and parse the JSON
+            const report = JSON.parse(jsonString);
+            
+            // Final check for required fields
+            if (report.reportId && report.title && report.sections) {
+                console.log(`✅ AI weekly report generated successfully for ${reportId} on attempt ${attempt}.`);
+                return report;
+            } else {
+                throw new Error("Generated JSON is missing required fields.");
+            }
+        } catch (error) {
+            console.error(`❌ Attempt ${attempt} failed to generate AI weekly report:`, error.message);
+            if (attempt < MAX_RETRIES) {
+                const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+                console.log(`- Retrying in ${delay / 1000} seconds...`);
+                await sleep(delay);
+            }
         }
     } catch (error) {
         console.error(`❌ Failed to generate AI weekly report:`, error.message);
@@ -120,6 +150,10 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
             featuredModelIds: []
         };
     }
+
+    console.error('❌ AI report generation failed after all retries.');
+    // Return null after all retries have failed.
+    return null;
 }
 
 function sleep(ms) {
@@ -377,9 +411,16 @@ async function updateReportsFile(newReport) {
   }
 
   if (newReport) {
+    // Long-term archival: Save the new report as a separate file
+    const reportArchivePath = path.join(REPORT_ARCHIVE_DIR, `${newReport.reportId}.json`);
+    writeDataToFile(reportArchivePath, newReport);
+
+    // Main reports file: Add new report to the beginning
     reports.unshift(newReport); // Add new report to the beginning
   }
-  writeDataToFile(REPORTS_OUTPUT_PATH, reports.slice(0, 52)); // Keep latest 52 reports
+
+  // Keep only the latest 52 reports for the main page to ensure performance
+  writeDataToFile(REPORTS_OUTPUT_PATH, reports.slice(0, 52)); 
 }
 async function main() {
     console.log('--- Starting AI-Nexus Data Fetching Script ---');
@@ -454,6 +495,10 @@ async function main() {
         // 6. Generate and save the AI weekly report
         const newReport = await generateAIWeeklyReport(combinedData);
         if (newReport) await updateReportsFile(newReport);
+        // Only update the reports file if a new report was successfully generated.
+        if (newReport) {
+            await updateReportsFile(newReport);
+        }
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
         // Still ensure the reports file exists to prevent build errors.

@@ -1,0 +1,45 @@
+---
+// src/pages/reports/archive.astro
+import Layout from '@/layouts/Layout.astro';
+
+// This uses Astro's glob import to get all archived report files.
+// It ensures that even if the build runs on a different system, the files are found.
+const allArchivedReports = await Astro.glob('../../data/report-archives/*.json');
+
+// Sort reports by date, newest first. The filename is the date (YYYY-MM-DD.json).
+const sortedReports = allArchivedReports.sort((a, b) => {
+  const dateA = new Date(a.url.split('/').pop().replace('.json', ''));
+  const dateB = new Date(b.url.split('/').pop().replace('.json', ''));
+  return dateB.getTime() - dateA.getTime();
+});
+
+const pageTitle = "Full AI Report Archive";
+const pageDescription = "A complete archive of all AI Industry Weekly Reports, providing a historical overview of trends and breakthroughs.";
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <div class="container mx-auto px-4 py-12">
+    <header class="text-center mb-12">
+      <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">Full Report Archive</h1>
+      <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">
+        Browse all previously generated weekly reports.
+      </p>
+    </header>
+
+    <div class="max-w-3xl mx-auto">
+      <ul class="space-y-2">
+        {sortedReports.map(reportModule => {
+          const report = reportModule.default; // The actual JSON content
+          return (
+            <li>
+              <a href={`/reports/${report.reportId}`} class="block p-4 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <span class="text-blue-600 dark:text-blue-400 font-semibold">{report.title}</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400 ml-4">{new Date(report.date).toLocaleDateString()}</span>
+              </a>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  </div>
+</Layout>
