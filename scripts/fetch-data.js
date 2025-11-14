@@ -25,7 +25,7 @@ const NSFW_KEYWORDS = [
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-pro' }) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' }) : null;
 
 /**
  * Generates a weekly AI report using the Groq API based on the latest models.
@@ -394,6 +394,11 @@ async function main() {
     }
     
     // CRITICAL: Ensure reports.json exists before the build starts.
+    // Also ensure the report archives directory exists to prevent Astro.glob from failing.
+    if (!fs.existsSync(REPORT_ARCHIVE_DIR)) {
+        fs.mkdirSync(REPORT_ARCHIVE_DIR, { recursive: true });
+        console.log(`- Created report archive directory: ${REPORT_ARCHIVE_DIR}`);
+    }
     if (!fs.existsSync(REPORTS_OUTPUT_PATH)) writeDataToFile(REPORTS_OUTPUT_PATH, []);
 
     // 1. Fetch data from all sources
