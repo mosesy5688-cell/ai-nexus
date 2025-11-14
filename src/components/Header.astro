@@ -1,5 +1,6 @@
 ---
 // src/components/Header.astro
+import Search from './Search.astro';
 const navLinks = [
   { href: "/explore", text: "Explore Models" },
   { href: "/reports", text: "Reports" },
@@ -15,6 +16,11 @@ const navLinks = [
 
         <span>Free AI Tools</span>
       </a>
+
+      <!-- Search Bar - Centered -->
+      <div class="hidden md:flex flex-1 justify-center px-8">
+        <Search />
+      </div>
 
       <!-- Desktop Navigation -->
       <nav class="hidden md:flex items-center space-x-8">
