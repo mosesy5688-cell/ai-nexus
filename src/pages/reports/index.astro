@@ -20,7 +20,7 @@ const reports = Array.isArray(allReports) ? allReports : [];
       </p>
     </header>
 
-    <div id="reports-list" class="max-w-4xl mx-auto space-y-12">
+    <div class="max-w-4xl mx-auto space-y-12">
       {reports.length > 0 ? (
         reports.map((report) => (
           <article class="report-article bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
@@ -43,7 +43,7 @@ const reports = Array.isArray(allReports) ? allReports : [];
           </article>
         ))
       ) : (
-        <p id="no-reports-message" class="text-center text-gray-500 dark:text-gray-400">No reports have been generated yet. Please run the data fetching script.</p>
+        <p class="text-center text-gray-500 dark:text-gray-400">No reports have been generated yet. Please run the data fetching script.</p>
       )}
     </div>
   </div>
