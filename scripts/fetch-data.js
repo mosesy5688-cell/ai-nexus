@@ -24,7 +24,7 @@ const NSFW_KEYWORDS = [
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' }) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
 
 /**
  * Generates a weekly AI report using the Groq API based on the latest models.
@@ -113,8 +113,8 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
             date: new Date().toISOString().split('T')[0],
             summary: "Could not generate the AI weekly report at this time. This may be due to an issue with the AI model provider or a missing API key. The service will attempt to generate it on the next cycle.",
             sections: [{
-                heading: "API Error",
-                content: `An error occurred while trying to generate the report: **${error.message}**. Please check the build logs and ensure the Gemini API is operational.`,
+                heading: "Generation Error",
+                content: `An error occurred while trying to generate the report: **${error.message}**. Please check the build logs and ensure the \`GEMINI_API_KEY\` is configured correctly in the deployment environment.`,
                 keywords: ["error", "generation-failed"]
             }],
             featuredModelIds: []
