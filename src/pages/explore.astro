@@ -2,101 +2,66 @@
 import ModelCard from '@/components/ModelCard.astro';
 import Layout from '@/layouts/Layout.astro';
 import allModels from '@/data/models.json';
-import ExploreFilters from '@/components/ExploreFilters.astro';
+import Search from '@/components/Search.astro';
 
-const models = allModels;
+const url = new URL(Astro.request.url);
+const query = url.searchParams.get('q')?.toLowerCase().trim() || '';
+const tagQuery = url.searchParams.get('tag')?.toLowerCase().trim() || '';
+
+let filteredModels = allModels;
+
+if (query) {
+  filteredModels = allModels.filter(model => {
+    const name = model.name.toLowerCase();
+    const desc = (model.description || '').toLowerCase();
+    const task = (model.task || '').toLowerCase();
+    const tags = (model.tags || []).join(' ').toLowerCase();
+    return name.includes(query) || desc.includes(query) || task.includes(query) || tags.includes(query);
+  });
+} else if (tagQuery) {
+    filteredModels = allModels.filter(model => 
+        (model.tags || []).map(t => t.toLowerCase()).includes(tagQuery)
+    );
+}
+
+const pageTitle = query ? `Search Results for "${query}"` : tagQuery ? `Models tagged with "${tagQuery}"` : "Explore All AI Models";
+const pageDescription = `Browse and discover open-source AI models. Search results for: ${query || tagQuery}`;
 ---
 
 <Layout 
-  title="Explore All AI Models | Free AI Tools"
-  description="Search and browse our entire collection of open-source AI models and tools.">
+  title={pageTitle + " | Free AI Tools"}
+  description={pageDescription}>
 
-  <section id="explore" class="py-20">
+  <section id="explore" class="py-12 sm:py-20">
     <div class="container max-w-7xl mx-auto px-4">
       <div class="text-center mb-12">
-        <h1 class="text-4xl font-bold text-gray-900 dark:text-white">Explore All Models</h1>
-        <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">Search our comprehensive index of open-source AI.</p>
+        <h1 class="text-4xl font-bold text-gray-900 dark:text-white">
+            {query ? `Results for "${query}"` : (tagQuery ? `Models tagged with "${tagQuery}"` : "Explore All Models")}
+        </h1>
+        <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">
+            {filteredModels.length} model(s) found.
+        </p>
       </div>
 
-      <!-- Search Bar -->
+      <!-- Search Bar is in the header, but you could place one here if needed -->
       <div class="max-w-2xl mx-auto mb-16">
-        <input 
-          type="search" 
-          id="explore-search-input"
-          placeholder="Search for models, tasks, or keywords (e.g., 'Llama 3', 'text-to-image')..."
-          class="w-full px-5 py-3 text-lg bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-700 rounded-full focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
-        />
+        <Search />
       </div>
 
-      <!-- Filter Component -->
-      <ExploreFilters />
-
-      <div class="my-16 text-center text-xs text-gray-400 dark:text-gray-600">
-        [ Ad Slot ]
-      </div>
-
-      <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {models.map(model => (
-          <div class="model-card-wrapper" data-model-name={model.name.toLowerCase()} data-model-desc={(model.description || '').toLowerCase()} data-model-task={(model.task || '').toLowerCase()} data-model-tags={(model.tags || []).join(' ')}>
+      {filteredModels.length > 0 ? (
+        <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {filteredModels.map(model => (
             <ModelCard model={model} />
-          </div>
-        ))}
-      </div>
-      <p id="no-results" class="text-center text-xl text-gray-500 mt-12 hidden">No models found matching your search.</p>
+          ))}
+        </div>
+      ) : (
+        <div id="no-results" class="text-center py-16">
+            <p class="text-xl text-gray-500">No models found matching your criteria.</p>
+            <a href="/explore" class="mt-4 inline-block text-blue-500 hover:underline">
+                &larr; Back to Explore All
+            </a>
+        </div>
+      )}
     </div>
   </section>
 </Layout>
-
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const exploreSearchInput = document.getElementById('explore-search-input');
-    const noResults = document.getElementById('no-results');
-    const allModelCards = Array.from(document.querySelectorAll('.model-card-wrapper'));
-
-    // This function performs the filtering and updates the DOM.
-    window.performSearch = (query, selectedTags = []) => {
-      const lowerCaseQuery = query.toLowerCase().trim();
-      let visibleCount = 0;
-
-      allModelCards.forEach(card => {
-        const name = card.dataset.modelName;
-        const desc = card.dataset.modelDesc;
-        const task = card.dataset.modelTask;
-        const cardTags = card.dataset.modelTags;
-
-        const queryMatch = !lowerCaseQuery || 
-          name.includes(lowerCaseQuery) ||
-          desc.includes(lowerCaseQuery) ||
-          task.includes(lowerCaseQuery);
-
-        const tagsMatch = selectedTags.length === 0 || selectedTags.every(tag => cardTags.includes(tag));
-
-        if (queryMatch && tagsMatch) {
-          card.style.display = 'block';
-          visibleCount++;
-        } else {
-          card.style.display = 'none';
-        }
-      });
-
-      noResults.classList.toggle('hidden', visibleCount > 0);
-    };
-
-    // Initial setup from URL params
-    const urlParams = new URLSearchParams(window.location.search);
-    const query = urlParams.get('q');
-    if (query) {
-      exploreSearchInput.value = query;
-    }
-
-    // Event listener for the search input
-    exploreSearchInput.addEventListener('input', (e) => {
-      const query = e.target.value;
-      const selectedTags = window.getSelectedTags ? window.getSelectedTags() : [];
-      window.performSearch(query, selectedTags);
-    });
-
-    // Dispatch a custom event to let ExploreFilters know it can initialize
-    document.dispatchEvent(new CustomEvent('modelsLoaded'));
-  });
-</script>
