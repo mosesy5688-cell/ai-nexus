@@ -28,25 +28,15 @@ const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' }) : null;
 
 /**
- * Generates a weekly AI report using the Groq API based on the latest models.
- * @param {Array<object>} models The list of recently fetched models.
- * @returns {Promise<void>}
+ * Builds the prompt for the AI weekly report generation.
+ * @param {string} reportId - The ID for the report (YYYY-MM-DD).
+ * @param {string} dateString - The formatted date string for the title.
+ * @param {Array<string>} featuredModelIds - An array of featured model IDs.
+ * @param {Array<object>} latestModels - A list of the latest models for context.
+ * @returns {string} The complete prompt string.
  */
-async function generateAIWeeklyReport(models) { // <-- This function is being modified
-    if (!geminiModel) {
-        console.warn('- GEMINI_API_KEY not found. Skipping AI report generation and returning a placeholder.');
-        // Return null to indicate failure, preventing a placeholder from being saved.
-        return null;
-    }
-
-    console.log('- Generating AI weekly report...');
-    const latestModels = models.slice(0, 15).map(m => ({ id: m.id, name: m.name, task: m.task, likes: m.likes, description: m.description.substring(0, 100) }));
-    const featuredModelIds = latestModels.slice(0, 2).map(m => m.id);
-    const today = new Date();
-    const reportId = today.toISOString().split('T')[0];
-    const dateString = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-    const prompt = `
+function buildReportPrompt(reportId, dateString, featuredModelIds, latestModels) {
+    return `
     As an AI industry analyst, generate a weekly report on trends in the open-source AI model landscape based on the provided list of trending models. Your output MUST be a single, valid, parsable JSON string. Do not include any text or markdown formatting before or after the JSON block. The entire response should be only the JSON object.
 
     The JSON object must follow this exact structure:
@@ -55,18 +45,7 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
       "title": "Weekly AI Model & Tech Report [Date]",
       "date": "YYYY-MM-DD",
       "summary": "A brief summary of this week's key AI advancements.",
-      "sections": [
-        {
-          "heading": "Key Technology Breakthoughs (e.g., New Transformer Architecture)",
-          "content": "Markdown-formatted long-text content about the breakthroughs, their impact, and links to papers.",
-          "keywords": ["Transformer", "Scaling Law"]
-        },
-        {
-          "heading": "Popular Product Applications & Market Trends (e.g., Gemini 1.5 Pro Updates)",
-          "content": "Markdown-formatted long-text content analyzing product updates, commercialization, and market response.",
-          "keywords": ["Gemini", "Llama", "Commercialization"]
-        }
-      ],
+      "sections": [{"heading": "Key Technology Breakthoughs", "content": "Markdown-formatted content...", "keywords": []}, {"heading": "Popular Product Applications & Market Trends", "content": "Markdown-formatted content...", "keywords": []}],
       "featuredModelIds": ["model-id-1", "model-id-2"]
     }
 
@@ -74,9 +53,30 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
     1.  Use '${reportId}' for "reportId" and "date".
     2.  The title must be "Weekly AI Model & Tech Report [Date]", where [Date] is replaced with "${dateString}".
     3.  The 'content' for each section must be detailed, insightful, and written in English using Markdown for formatting (e.g., **bold**, *italic*, links).
-    4.  The 'featuredModelIds' array must contain exactly these two IDs: ["${featuredModelIds[0]}", "${featuredModelIds[1]}"].
+    4.  The 'featuredModelIds' array must contain exactly these two IDs: ${JSON.stringify(featuredModelIds)}.
     5.  Analyze the following trending models to inform your report: ${JSON.stringify(latestModels, null, 2)}
     `;
+}
+
+/**
+ * Generates a weekly AI report using the Groq API based on the latest models.
+ * @param {Array<object>} models The list of recently fetched models.
+ * @returns {Promise<void>}
+ */
+async function generateAIWeeklyReport(models) { // <-- This function is being modified
+    if (!geminiModel) {
+        console.warn('- GEMINI_API_KEY not found. Skipping AI report generation.');
+        return null;
+    }
+
+    console.log('- Generating AI weekly report...');
+    const latestModels = models.slice(0, 15).map(m => ({ id: m.id, name: m.name, task: m.task, likes: m.likes, description: m.description.substring(0, 100) }));
+    const featuredModelIds = latestModels.length >= 2 ? latestModels.slice(0, 2).map(m => m.id) : [];
+    const today = new Date();
+    const reportId = today.toISOString().split('T')[0];
+    const dateString = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const prompt = buildReportPrompt(reportId, dateString, featuredModelIds, latestModels);
 
     const MAX_RETRIES = 3;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -85,7 +85,7 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
             const responseText = result.response.text().trim();
 
             // Clean the response to ensure it's a valid JSON string, removing markdown code blocks
-            const jsonString = responseText.replace(/^```json\s*|```\s*$/g, '');
+            const jsonString = responseText.replace(/^```(?:json)?\s*|\s*```$/g, '');
 
             // Validate and parse the JSON
             const report = JSON.parse(jsonString);
@@ -98,7 +98,7 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
                 throw new Error("Generated JSON is missing required fields.");
             }
         } catch (error) {
-            console.error(`❌ Attempt ${attempt} failed to generate AI weekly report:`, error.message);
+            console.error(`❌ Attempt ${attempt} failed to generate AI weekly report: ${error.message}`);
             if (attempt < MAX_RETRIES) {
                 const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
                 console.log(`- Retrying in ${delay / 1000} seconds...`);
@@ -108,7 +108,6 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
     }
 
     console.error('❌ AI report generation failed after all retries.');
-    // Return null after all retries have failed.
     return null;
 }
 
@@ -120,57 +119,60 @@ function getModelKey(name) {
     return name.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-async function fetchHuggingFaceData(existingModels) {
-    console.log('📦 Fetching data from HuggingFace API...');
-    const existingModelsMap = new Map(existingModels.map(m => [m.id, m]));
+/**
+ * Fetches a README from a given URL. Returns null if it fails.
+ * @param {string} url - The URL of the README file.
+ * @param {object} [config] - Optional axios config.
+ * @returns {Promise<string|null>}
+ */
+async function fetchReadme(url, config = {}) {
+    try {
+        const response = await axios.get(url, config);
+        return response.data;
+    } catch (error) {
+        // It's okay if a README doesn't exist.
+        return null;
+    }
+}
 
+async function fetchHuggingFaceData() {
+    console.log('📦 Fetching data from HuggingFace API...');
     try {
         const { data } = await axios.get(HUGGINGFACE_API_URL);
-        const transformedData = [];
-        for (const model of data) {
-            let readmeContent = null, downloadUrl = null;
-            const currentModelData = existingModelsMap.get(model.modelId) || {};
 
-            try {
-                if (currentModelData.readme) {
-                    readmeContent = currentModelData.readme;
-                } else {
-                    const readmeUrl = `https://huggingface.co/${model.modelId}/raw/main/README.md`;
-                    const readmeResponse = await axios.get(readmeUrl);
-                    readmeContent = readmeResponse.data;
-                    await sleep(50); // Small delay
-                }
+        const transformedData = await Promise.all(data.map(async (model) => {
+            const readmeUrl = `https://huggingface.co/${model.modelId}/raw/main/README.md`;
+            const readmeContent = await fetchReadme(readmeUrl);
 
-                // Attempt to find a direct download URL
-                const files = model.siblings?.map(s => s.rfilename) || [];
-                const safetensorFile = files.find(f => f.endsWith('.safetensors'));
-                if (safetensorFile) {
-                    downloadUrl = `https://huggingface.co/${model.modelId}/resolve/main/${safetensorFile}`;
-                }
+            // Attempt to find a direct download URL
+            const files = model.siblings?.map(s => s.rfilename) || [];
+            const safetensorFile = files.find(f => f.endsWith('.safetensors'));
+            const downloadUrl = safetensorFile
+                ? `https://huggingface.co/${model.modelId}/resolve/main/${safetensorFile}`
+                : null;
 
-            } catch (e) {
-                // It's okay if a README or other assets don't exist.
-            }
-
-            transformedData.push({
+            return {
                 id: model.modelId,
                 name: model.modelId.split('/')[1] || model.modelId,
                 author: model.author,
                 description: model.cardData?.description || `A model for ${model.pipeline_tag || 'various tasks'}.`,
                 task: model.pipeline_tag || 'N/A',
                 tags: model.tags || [],
-                likes: model.likes,
-                downloads: model.downloads,
+                likes: model.likes || 0,
+                downloads: model.downloads || 0,
                 lastModified: model.lastModified,
                 readme: readmeContent,
                 thumbnail: null, // Images are disabled
                 downloadUrl: downloadUrl,
-                sources: [{ platform: 'Hugging Face', url: `https://huggingface.co/${model.modelId}` }],
-            });
+                sources: [{
+                    platform: 'Hugging Face',
+                    url: `https://huggingface.co/${model.modelId}`,
+                    author: model.author,
+                    modelId: model.modelId,
+                }],
+            };
+        }));
 
-            // Add a small delay to avoid hitting rate limits so aggressively
-            await sleep(200); // 200ms delay between each summary generation
-        }
         console.log(`✅ Successfully fetched and transformed ${transformedData.length} models.`);
         return transformedData;
     } catch (error) {
@@ -188,22 +190,12 @@ async function fetchGitHubData() {
         });
 
         const transformedData = await Promise.all(data.items.map(async (repo) => {
-            let readmeContent = null, downloadUrl = null;
-            try {
-                // Fetch README content
-                const readmeUrl = `https://api.github.com/repos/${repo.full_name}/readme`;
-                const readmeResponse = await axios.get(readmeUrl, {
-                    headers: { 'Accept': 'application/vnd.github.raw' }
-                });
-                readmeContent = readmeResponse.data;
+            const readmeUrl = `https://api.github.com/repos/${repo.full_name}/readme`;
+            const readmeContent = await fetchReadme(readmeUrl, { headers: { 'Accept': 'application/vnd.github.raw' } });
 
-                // Use the releases URL as a proxy for downloads
-                downloadUrl = `${repo.html_url}/releases`; // <-- This line is being modified
-            } catch (e) {
-                // It's okay if a README doesn't exist or fetch fails
+            if (!readmeContent) {
                 console.warn(`- Could not fetch README for ${repo.full_name}`);
             }
-
             return {
                 id: `github-${repo.full_name.replace('/', '-')}`,
                 name: repo.name,
@@ -211,12 +203,17 @@ async function fetchGitHubData() {
                 description: repo.description || 'An AI tool from GitHub.',
                 task: 'tool', // Assign a default task for GitHub repos
                 tags: repo.topics || [],
-                likes: repo.stargazers_count,
-                downloads: repo.watchers_count, // Using watchers as a proxy for downloads
+                likes: repo.stargazers_count || 0,
+                downloads: repo.watchers_count || 0, // Using watchers as a proxy for downloads
                 lastModified: repo.updated_at,
                 readme: readmeContent,
-                downloadUrl: downloadUrl,
-                sources: [{ platform: 'GitHub', url: repo.html_url }], // <-- This line is being modified
+                downloadUrl: null, // GitHub repos don't have a standard direct download URL
+                sources: [{
+                    platform: 'GitHub',
+                    url: repo.html_url,
+                    owner: repo.owner.login,
+                    repo: repo.name
+                }],
                 thumbnail: null, // Images are disabled
             };
         }));
@@ -254,7 +251,12 @@ function readCivitaiData() {
             readme: null, // Civitai READMEs are not fetched
             thumbnail: null, // Images are disabled
             downloadUrl: model.downloadUrl, // Assuming the JSON has this field
-            sources: [{ platform: 'Civitai', url: `https://civitai.com/models/${model.id}` }],
+            sources: [{
+                platform: 'Civitai',
+                url: `https://civitai.com/models/${model.id}`,
+                modelId: model.id,
+                creator: model.creator?.username,
+            }],
         }));
         console.log(`✅ Successfully read and transformed ${transformedData.length} models from Civitai.`);
         return transformedData;
@@ -383,16 +385,6 @@ async function main() {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const archiveFilePath = path.join(ARCHIVE_DIR, `${today}.json`);
 
-    // Read existing models to enable caching for AI summaries
-    let existingModels = [];
-    if (fs.existsSync(OUTPUT_FILE_PATH)) {
-        try {
-            existingModels = JSON.parse(fs.readFileSync(OUTPUT_FILE_PATH, 'utf-8'));
-        } catch (e) {
-            console.warn('Could not parse existing models.json. Proceeding without cache.');
-        }
-    }
-    
     // CRITICAL: Ensure reports.json exists before the build starts.
     // Also ensure the report archives directory exists to prevent Astro.glob from failing.
     if (!fs.existsSync(REPORT_ARCHIVE_DIR)) {
@@ -403,7 +395,7 @@ async function main() {
 
     // 1. Fetch data from all sources
     const sourcesData = await Promise.all([
-        fetchHuggingFaceData(existingModels),
+        fetchHuggingFaceData(),
         readCivitaiData(),
         fetchGitHubData(),
     ]);
