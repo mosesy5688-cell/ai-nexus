@@ -25,7 +25,7 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
         <!-- Latest Report -->
         <section class="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
           <h2 class="text-3xl font-bold mb-2">{latestReport.title}</h2>
-          <p class="text-gray-500 dark:text-gray-400 mb-6">{new Date(latestReport.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <p class="text-gray-500 dark:text-gray-400 mb-6">{new Date(latestReport.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</p>
           <p class="mb-8">{latestReport.summary}</p>
           <a href={`/reports/${latestReport.reportId}`} class="inline-block bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
             Read Full Report
@@ -49,7 +49,7 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
       </div>
     ) : (
       <p class="text-center text-gray-500 dark:text-gray-400 py-16">
-        No weekly reports have been generated yet. Please check back later.
+        Weekly reports are being generated. Please check back later.
       </p>
     )}
   </div>

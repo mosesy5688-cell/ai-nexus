@@ -1,0 +1,11 @@
+---
+const { report } = Astro.props;
+---
+
+<a href={`/reports/${report.reportId}`} class="block p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
+  <h4 class="font-bold text-xl text-blue-600 dark:text-blue-400 group-hover:underline">{report.title}</h4>
+  <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+    {new Date(report.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+  </p>
+  <p class="text-gray-600 dark:text-gray-300 mt-3 text-sm line-clamp-2">{report.summary}</p>
+</a>
