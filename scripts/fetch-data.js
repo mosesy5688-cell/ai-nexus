@@ -69,6 +69,12 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
         return null;
     }
 
+    // Pre-condition check: Ensure there are enough models to generate a meaningful report.
+    if (models.length < 2) {
+        console.warn('- Not enough models (< 2) to generate a weekly report. Skipping.');
+        return null;
+    }
+
     console.log('- Generating AI weekly report...');
     const latestModels = models.slice(0, 15).map(m => ({ id: m.id, name: m.name, task: m.task, likes: m.likes, description: m.description.substring(0, 100) }));
     const featuredModelIds = latestModels.length >= 2 ? latestModels.slice(0, 2).map(m => m.id) : [];
@@ -98,7 +104,7 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
                 throw new Error("Generated JSON is missing required fields.");
             }
         } catch (error) {
-            console.error(`❌ Attempt ${attempt} failed to generate AI weekly report: ${error.message}`);
+            console.error(`❌ Attempt ${attempt} failed to generate AI weekly report:`, error.message);
             if (attempt < MAX_RETRIES) {
                 const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
                 console.log(`- Retrying in ${delay / 1000} seconds...`);
@@ -222,7 +228,9 @@ async function fetchGitHubData() {
         return transformedData;
     } catch (error) {
         console.error('❌ Failed to fetch data from GitHub:', error.message);
-        if (error.response) {
+        // Specifically check for rate limit errors, which are common in CI
+        if (error.response && error.response.status === 403) {
+            console.error('    - This might be a GitHub API rate limit issue. Check your GITHUB_TOKEN permissions.');
             console.error(`    - Status: ${error.response.status}`);
             console.error(`    - Data: ${JSON.stringify(error.response.data)}`);
         }
@@ -380,18 +388,23 @@ async function updateReportsFile(newReport) {
   // Keep only the latest 52 reports for the main page to ensure performance
   writeDataToFile(REPORTS_OUTPUT_PATH, reports.slice(0, 52)); 
 }
+
+/**
+ * Initializes necessary directories and empty data files to prevent build errors.
+ */
+function initializeDirectories() {
+    console.log('- Initializing required directories and files...');
+    // Ensure data directories exist
+    if (!fs.existsSync(ARCHIVE_DIR)) fs.mkdirSync(ARCHIVE_DIR, { recursive: true });
+    if (!fs.existsSync(REPORT_ARCHIVE_DIR)) fs.mkdirSync(REPORT_ARCHIVE_DIR, { recursive: true });
+
+    // Ensure essential JSON files exist to prevent Astro.glob or fs.readFileSync from failing
+    if (!fs.existsSync(REPORTS_OUTPUT_PATH)) writeDataToFile(REPORTS_OUTPUT_PATH, []);
+    if (!fs.existsSync(OUTPUT_FILE_PATH)) writeDataToFile(OUTPUT_FILE_PATH, []);
+}
 async function main() {
     console.log('--- Starting AI-Nexus Data Fetching Script ---');
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    const archiveFilePath = path.join(ARCHIVE_DIR, `${today}.json`);
-
-    // CRITICAL: Ensure reports.json exists before the build starts.
-    // Also ensure the report archives directory exists to prevent Astro.glob from failing.
-    if (!fs.existsSync(REPORT_ARCHIVE_DIR)) {
-        fs.mkdirSync(REPORT_ARCHIVE_DIR, { recursive: true });
-        console.log(`- Created report archive directory: ${REPORT_ARCHIVE_DIR}`);
-    }
-    if (!fs.existsSync(REPORTS_OUTPUT_PATH)) writeDataToFile(REPORTS_OUTPUT_PATH, []);
+    initializeDirectories();
 
     // 1. Fetch data from all sources
     const sourcesData = await Promise.all([
@@ -433,6 +446,9 @@ async function main() {
     console.log(`- Merged models down to ${finalModels.length} unique entries.`);
 
     if (finalModels.length > 0) {
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const archiveFilePath = path.join(ARCHIVE_DIR, `${today}.json`);
+
         const combinedData = finalModels; // Use the final merged and sorted data
         
         // 1. Write to dated archive file
@@ -447,13 +463,10 @@ async function main() {
 
         // 6. Generate and save the AI weekly report
         const newReport = await generateAIWeeklyReport(combinedData);
-        // Only update the reports file if a new report was successfully generated.
-        if (newReport) {
-            await updateReportsFile(newReport);
-        }
+        await updateReportsFile(newReport);
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
-        // Still ensure the reports file exists to prevent build errors.
+        // Still run updateReportsFile with null to ensure the file is present for the build.
         await updateReportsFile(null);
     }
     console.log('--- ✅ Data fetching script finished successfully! ---');
