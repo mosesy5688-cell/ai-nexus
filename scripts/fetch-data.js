@@ -25,7 +25,7 @@ const NSFW_KEYWORDS = [
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' }) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-pro' }) : null;
 
 /**
  * Builds the prompt for the AI weekly report generation.

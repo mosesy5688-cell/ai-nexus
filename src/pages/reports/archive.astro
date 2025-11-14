@@ -4,16 +4,13 @@ import Layout from '@/layouts/Layout.astro';
 
 // This uses Astro's glob import to get all archived report files.
 // It ensures that even if the build runs on a different system, the files are found.
-const allArchivedReports = await Astro.glob('../../data/report-archives/*.json');
+const reportModules = await Astro.glob('../../data/report-archives/*.json');
 
 // Sort reports by date, newest first, only if reports exist.
-const sortedReports = allArchivedReports.length > 0
-  ? allArchivedReports.sort((a, b) => {
-      const dateA = new Date(a.url.split('/').pop().replace('.json', ''));
-      const dateB = new Date(b.url.split('/').pop().replace('.json', ''));
-      return dateB.getTime() - a.getTime();
-    })
-  : [];
+const sortedReports = reportModules
+  .map(module => module.default)
+  .filter(report => report && report.reportId) // Ensure report content is valid
+  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 const pageTitle = "Full AI Report Archive";
 const pageDescription = "A complete archive of all AI Industry Weekly Reports, providing a historical overview of trends and breakthroughs.";
@@ -31,10 +28,8 @@ const pageDescription = "A complete archive of all AI Industry Weekly Reports, p
     <div class="max-w-3xl mx-auto">
       {sortedReports.length > 0 ? (
         <ul class="space-y-2">
-          {sortedReports.map(reportModule => {
-            const report = reportModule.default;
-            if (!report) return null;
-            return (
+          {sortedReports.map(report => (
+              
               <li>
                 <a href={`/reports/${report.reportId}`} class="block p-4 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   <span class="text-blue-600 dark:text-blue-400 font-semibold">{report.title}</span>
@@ -42,7 +37,7 @@ const pageDescription = "A complete archive of all AI Industry Weekly Reports, p
                 </a>
               </li>
             );
-          })}
+          ))}
         </ul>
       ) : (
         <p class="text-center text-gray-500 dark:text-gray-400">No archived reports found.</p>
