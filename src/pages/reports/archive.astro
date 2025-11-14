@@ -6,12 +6,14 @@ import Layout from '@/layouts/Layout.astro';
 // It ensures that even if the build runs on a different system, the files are found.
 const allArchivedReports = await Astro.glob('../../data/report-archives/*.json');
 
-// Sort reports by date, newest first. The filename is the date (YYYY-MM-DD.json).
-const sortedReports = allArchivedReports.sort((a, b) => {
-  const dateA = new Date(a.url.split('/').pop().replace('.json', ''));
-  const dateB = new Date(b.url.split('/').pop().replace('.json', ''));
-  return dateB.getTime() - dateA.getTime();
-});
+// Sort reports by date, newest first, only if reports exist.
+const sortedReports = allArchivedReports.length > 0
+  ? allArchivedReports.sort((a, b) => {
+      const dateA = new Date(a.url.split('/').pop().replace('.json', ''));
+      const dateB = new Date(b.url.split('/').pop().replace('.json', ''));
+      return dateB.getTime() - a.getTime();
+    })
+  : [];
 
 const pageTitle = "Full AI Report Archive";
 const pageDescription = "A complete archive of all AI Industry Weekly Reports, providing a historical overview of trends and breakthroughs.";
@@ -27,7 +29,7 @@ const pageDescription = "A complete archive of all AI Industry Weekly Reports, p
     </header>
 
     <div class="max-w-3xl mx-auto">
-      {allArchivedReports && allArchivedReports.length > 0 ? (
+      {sortedReports.length > 0 ? (
         <ul class="space-y-2">
           {sortedReports.map(reportModule => {
             const report = reportModule.default;
