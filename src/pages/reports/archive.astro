@@ -28,15 +28,13 @@ const pageDescription = "A complete archive of all AI Industry Weekly Reports, p
     <div class="max-w-3xl mx-auto">
       {sortedReports.length > 0 ? (
         <ul class="space-y-2">
-          {sortedReports.map(report => (
-              
+          {sortedReports.map((report) => (
               <li>
                 <a href={`/reports/${report.reportId}`} class="block p-4 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                   <span class="text-blue-600 dark:text-blue-400 font-semibold">{report.title}</span>
                   <span class="text-sm text-gray-500 dark:text-gray-400 ml-4">{new Date(report.date).toLocaleDateString()}</span>
                 </a>
               </li>
-            );
           ))}
         </ul>
       ) : (
