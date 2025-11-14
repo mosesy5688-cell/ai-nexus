@@ -114,7 +114,23 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
     }
 
     console.error('❌ AI report generation failed after all retries.');
-    return null;
+
+    // Fallback to a placeholder report if AI generation fails
+    console.log('- Creating a fallback report...');
+    return {
+      reportId: reportId,
+      title: `Weekly AI Model & Tech Report ${dateString}`,
+      date: reportId,
+      summary: "This week's report is currently unavailable due to a temporary issue with the AI generation service. Please check back later for updates. We are still tracking the latest models.",
+      sections: [
+        {
+          heading: "Featured Models",
+          content: "The AI analyst report is unavailable, but you can still check out this week's top featured models.",
+          keywords: ["fallback", "unavailable"]
+        }
+      ],
+      featuredModelIds: featuredModelIds,
+    };
 }
 
 function sleep(ms) {
