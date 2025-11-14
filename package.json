@@ -9,22 +9,17 @@
     "fetch-data": "node scripts/fetch-data.js"
   },
   "dependencies": {
-    "@astrojs/mdx": "^3.1.2",
-    "@astrojs/react": "^3.6.0",
-    "@astrojs/sitemap": "^3.1.6",
-    "@astrojs/tailwind": "^5.1.0",
+    "@astrojs/mdx": "^4.4.0",
+    "@astrojs/react": "^4.5.0",
+    "@astrojs/sitemap": "^3.7.0",
+    "@astrojs/tailwind": "^6.0.0",
     "@google/generative-ai": "^0.16.0",
-    "astro": "^4.13.0",
+    "astro": "^5.17.0",
     "axios": "^1.7.2",
     "cheerio": "1.0.0-rc.12",
     "marked": "^13.0.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwindcss": "^3.4.4"
-  },
-  "overrides": {
-    "postcss": "^8.4.38",
-    "vite": "^5.4.2",
-    "esbuild": "^0.21.5"
   }
 }
