@@ -96,7 +96,19 @@ async function generateAIWeeklyReport(models) {
         }
     } catch (error) {
         console.error(`❌ Failed to generate AI weekly report:`, error.message);
-        return null;
+        // Return a placeholder/error report to ensure the file is not empty
+        return {
+            reportId: new Date().toISOString().split('T')[0],
+            title: "AI Report Generation Failed",
+            date: new Date().toISOString().split('T')[0],
+            summary: "Could not generate the AI weekly report at this time. This may be due to an issue with the AI model provider or a missing API key. The service will attempt to generate it on the next cycle.",
+            sections: [{
+                heading: "Generation Error",
+                content: `An error occurred while trying to generate the report: **${error.message}**. Please check the build logs and ensure the \`GEMINI_API_KEY\` is configured correctly in the deployment environment.`,
+                keywords: ["error", "generation-failed"]
+            }],
+            featuredModelIds: []
+        };
     }
 }
 /**
@@ -170,20 +182,37 @@ async function fetchGitHubData() {
         const { data } = await axios.get(GITHUB_API_URL, {
             headers: { 'Accept': 'application/vnd.github.v3+json' }
         });
-        const transformedData = data.items.map(repo => ({
-            id: `github-${repo.full_name.replace('/', '-')}`,
-            name: repo.name,
-            author: repo.owner.login,
-            description: repo.description || 'An AI tool from GitHub.',
-            task: 'tool', // Assign a default task for GitHub repos
-            tags: repo.topics || [],
-            likes: repo.stargazers_count,
-            downloads: repo.watchers_count, // Using watchers as a proxy for downloads
-            lastModified: repo.updated_at,
-            readme: null, // GitHub READMEs are not fetched in this version
-            sources: [{ platform: 'GitHub', url: repo.html_url }],
-            thumbnail: repo.owner.avatar_url,
+
+        const transformedData = await Promise.all(data.items.map(async (repo) => {
+            let readmeContent = null;
+            try {
+                // Fetch README content
+                const readmeUrl = `https://api.github.com/repos/${repo.full_name}/readme`;
+                const readmeResponse = await axios.get(readmeUrl, {
+                    headers: { 'Accept': 'application/vnd.github.raw' }
+                });
+                readmeContent = readmeResponse.data;
+            } catch (e) {
+                // It's okay if a README doesn't exist or fetch fails
+                console.warn(`- Could not fetch README for ${repo.full_name}`);
+            }
+
+            return {
+                id: `github-${repo.full_name.replace('/', '-')}`,
+                name: repo.name,
+                author: repo.owner.login,
+                description: repo.description || 'An AI tool from GitHub.',
+                task: 'tool', // Assign a default task for GitHub repos
+                tags: repo.topics || [],
+                likes: repo.stargazers_count,
+                downloads: repo.watchers_count, // Using watchers as a proxy for downloads
+                lastModified: repo.updated_at,
+                readme: readmeContent,
+                sources: [{ platform: 'GitHub', url: repo.html_url }],
+                thumbnail: repo.owner.avatar_url,
+            };
         }));
+
         console.log(`✅ Successfully fetched and transformed ${transformedData.length} models from GitHub.`);
         return transformedData;
     } catch (error) {
