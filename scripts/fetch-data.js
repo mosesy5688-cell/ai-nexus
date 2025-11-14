@@ -25,7 +25,6 @@ const NSFW_KEYWORDS = [
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }) : null;
 const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
 
 /**
@@ -36,18 +35,6 @@ const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash'
 async function generateAIWeeklyReport(models) { // <-- This function is being modified
     if (!geminiModel) {
         console.warn('- GEMINI_API_KEY not found. Skipping AI report generation and returning a placeholder.');
-        return {
-            reportId: new Date().toISOString().split('T')[0],
-            title: "AI Report Generation Skipped",
-            date: new Date().toISOString().split('T')[0],
-            summary: "AI report generation was skipped because the GEMINI_API_KEY was not provided in the environment.",
-            sections: [{
-                heading: "Configuration Notice",
-                content: "To enable AI-generated weekly reports, please add the `GEMINI_API_KEY` as an environment variable in your deployment settings.",
-                keywords: ["configuration", "api-key-missing"]
-            }],
-            featuredModelIds: []
-        };
         // Return null to indicate failure, preventing a placeholder from being saved.
         return null;
     }
@@ -91,34 +78,18 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
     5.  Analyze the following trending models to inform your report: ${JSON.stringify(latestModels, null, 2)}
     `;
 
-    try {
-        const result = await geminiModel.generateContent(prompt);
-        const responseText = result.response.text().trim();
-        
-        // Clean the response to ensure it's a valid JSON string, removing markdown code blocks
-        const jsonString = responseText.replace(/^```json\s*|```\s*$/g, '');
-        
-        // Validate and parse the JSON
-        const report = JSON.parse(jsonString);
-        
-        // Final check for required fields
-        if (report.reportId && report.title && report.sections) {
-            console.log(`✅ AI weekly report generated successfully for ${reportId}.`);
-            return report;
-        } else {
-            throw new Error("Generated JSON is missing required fields.");
     const MAX_RETRIES = 3;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             const result = await geminiModel.generateContent(prompt);
             const responseText = result.response.text().trim();
-            
+
             // Clean the response to ensure it's a valid JSON string, removing markdown code blocks
             const jsonString = responseText.replace(/^```json\s*|```\s*$/g, '');
-            
+
             // Validate and parse the JSON
             const report = JSON.parse(jsonString);
-            
+
             // Final check for required fields
             if (report.reportId && report.title && report.sections) {
                 console.log(`✅ AI weekly report generated successfully for ${reportId} on attempt ${attempt}.`);
@@ -134,21 +105,6 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
                 await sleep(delay);
             }
         }
-    } catch (error) {
-        console.error(`❌ Failed to generate AI weekly report:`, error.message);
-        // Return a placeholder/error report to ensure the file is not empty
-        return {
-            reportId: new Date().toISOString().split('T')[0],
-            title: "AI Report Generation Failed",
-            date: new Date().toISOString().split('T')[0],
-            summary: "Could not generate the AI weekly report at this time. This may be due to an issue with the AI model provider or a missing API key. The service will attempt to generate it on the next cycle.",
-            sections: [{
-                heading: "API Error",
-                content: `An error occurred while trying to generate the report: **${error.message}**. Please check the build logs and ensure the Gemini API is operational.`,
-                keywords: ["error", "generation-failed"]
-            }],
-            featuredModelIds: []
-        };
     }
 
     console.error('❌ AI report generation failed after all retries.');
@@ -494,7 +450,6 @@ async function main() {
 
         // 6. Generate and save the AI weekly report
         const newReport = await generateAIWeeklyReport(combinedData);
-        if (newReport) await updateReportsFile(newReport);
         // Only update the reports file if a new report was successfully generated.
         if (newReport) {
             await updateReportsFile(newReport);
