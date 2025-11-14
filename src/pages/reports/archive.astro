@@ -27,7 +27,7 @@ const pageDescription = "A complete archive of all AI Industry Weekly Reports, p
     </header>
 
     <div class="max-w-3xl mx-auto">
-      {sortedReports && sortedReports.length > 0 ? (
+      {allArchivedReports && allArchivedReports.length > 0 ? (
         <ul class="space-y-2">
           {sortedReports.map(reportModule => {
             const report = reportModule.default;
