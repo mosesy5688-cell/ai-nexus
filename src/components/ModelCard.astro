@@ -3,18 +3,15 @@ import type { Model } from '@/types';
 
 const { model }: { model: Model } = Astro.props;
 const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
-const platforms = model.sources ? model.sources.map(s => s.platform).join(', ') : 'N/A';
 const likes = model.likes?.toLocaleString() || '0';
 const downloads = model.downloads?.toLocaleString() || '0';
 ---
 <a href={modelUrl} class="group block border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-800 hover:border-blue-500/50 flex flex-col h-full">
     <div class="mb-4">
-        <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{model.name || 'Untitled Model'}</h3>
+        <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{model.name}</h3>
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">by {model.author || 'Unknown'}</p>
     </div>
-    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Platform(s): {platforms}</p>
-    <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">Task: {model.task || 'N/A'}</p>
-    <p class="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3 flex-grow">{model.description || 'No description available.'}</p>
+    <p class="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3 flex-grow">{model.description}</p>
     <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-4 mt-auto">
         <span class="flex items-center gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" /></svg>

@@ -1,7 +1,6 @@
 ---
 // src/layouts/Layout.astro
 import Header from '@/components/Header.astro';
-import '@/styles/globals.css';
 
 interface Props {
 	title: string;
@@ -9,7 +8,6 @@ interface Props {
 }
 
 const { title, description = 'A premier, free directory of open-source AI models, tools, and resources, curated for developers, researchers, and enthusiasts.' } = Astro.props;
-const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 ---
 
 <!doctype html>
@@ -18,18 +16,17 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width">
     <link rel="icon" type="image/svg+xml" href="/favicon.ico">
-    <meta name="generator" content={Astro.generator} />
 
     <!-- Open Graph Meta Tags -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content={canonicalURL}>
+    <meta property="og:url" content={Astro.url.href}>
     <meta property="og:title" content={title}>
     <meta property="og:description" content={description}>
     <meta property="og:image" content={new URL('/og-image.jpg', Astro.site)}>
 
     <!-- Twitter Card Meta Tags -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content={canonicalURL}>
+    <meta property="twitter:url" content={Astro.url.href}>
     <meta property="twitter:title" content={title}>
     <meta property="twitter:description" content={description}>
     <meta property="twitter:image" content={new URL('/og-image.jpg', Astro.site)}>
@@ -42,7 +39,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
 
-    <link rel="canonical" href={canonicalURL} />
+    <link rel="canonical" href={Astro.url.href} />
 
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ID" crossorigin="anonymous"></script>

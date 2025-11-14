@@ -1,7 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
-import allModels from '@/data/models.json';
-import ModelCard from '@/components/ModelCard.astro';
+import allModels from '../../data/models.json';
+import ModelCard from '../../components/ModelCard.astro';
 import { marked } from 'marked';
 
 export async function getStaticPaths() {
@@ -84,7 +84,7 @@ const pageDescription = model.description || `Technical details, documentation, 
         <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
           <h3 class="text-xl font-bold mb-4">Tags</h3>
           <div class="flex flex-wrap gap-2">
-            {model.tags.map(tag => (
+            {model.tags && model.tags.map(tag => (
               <a href={`/explore?tag=${encodeURIComponent(tag)}`} class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 text-sm font-medium px-3 py-1 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
                 {tag}
               </a>

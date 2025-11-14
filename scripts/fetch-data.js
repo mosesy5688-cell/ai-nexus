@@ -24,7 +24,7 @@ const NSFW_KEYWORDS = [
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' }) : null;
 
 /**
  * Generates a weekly AI report using the Groq API based on the latest models.
@@ -33,8 +33,19 @@ const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash'
  */
 async function generateAIWeeklyReport(models) { // <-- This function is being modified
     if (!geminiModel) {
-        console.warn('- GEMINI_API_KEY not found. Skipping AI weekly report generation.');
-        return;
+        console.warn('- GEMINI_API_KEY not found. Skipping AI weekly report generation and returning a placeholder.');
+        return {
+            reportId: new Date().toISOString().split('T')[0],
+            title: "AI Report Generation Skipped",
+            date: new Date().toISOString().split('T')[0],
+            summary: "AI report generation was skipped because the GEMINI_API_KEY was not provided in the environment.",
+            sections: [{
+                heading: "Configuration Notice",
+                content: "To enable AI-generated weekly reports, please add the `GEMINI_API_KEY` as an environment variable in your deployment settings.",
+                keywords: ["configuration", "api-key-missing"]
+            }],
+            featuredModelIds: []
+        };
     }
 
     console.log('- Generating AI weekly report...');
@@ -45,7 +56,7 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
     const dateString = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     const prompt = `
-    As an AI industry analyst, generate a weekly report on trends in the open-source AI model landscape based on the provided list of trending models. Your output MUST be a single, valid, parsable JSON string. Do not include any text or markdown formatting before or after the JSON block.
+    As an AI industry analyst, generate a weekly report on trends in the open-source AI model landscape based on the provided list of trending models. Your output MUST be a single, valid, parsable JSON string. Do not include any text or markdown formatting before or after the JSON block. The entire response should be only the JSON object.
 
     The JSON object must follow this exact structure:
     {
@@ -70,7 +81,7 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
 
     Instructions:
     1.  Use '${reportId}' for "reportId" and "date".
-    2.  The title must be exactly "Weekly AI Model & Tech Report [${dateString}]".
+    2.  The title must be "Weekly AI Model & Tech Report [Date]", where [Date] is replaced with "${dateString}".
     3.  The 'content' for each section must be detailed, insightful, and written in English using Markdown for formatting (e.g., **bold**, *italic*, links).
     4.  The 'featuredModelIds' array must contain exactly these two IDs: ["${featuredModelIds[0]}", "${featuredModelIds[1]}"].
     5.  Analyze the following trending models to inform your report: ${JSON.stringify(latestModels, null, 2)}
@@ -80,7 +91,7 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
         const result = await geminiModel.generateContent(prompt);
         const responseText = result.response.text().trim();
         
-        // Clean the response to ensure it's a valid JSON string
+        // Clean the response to ensure it's a valid JSON string, removing markdown code blocks
         const jsonString = responseText.replace(/^```json\s*|```\s*$/g, '');
         
         // Validate and parse the JSON
@@ -110,11 +121,6 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
         };
     }
 }
-/**
- * Normalizes a model name to create a consistent key for deduplication.
- * @param {string} name The name of the model.
- * @returns {string} A normalized string.
- */
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -447,7 +453,7 @@ async function main() {
 
         // 6. Generate and save the AI weekly report
         const newReport = await generateAIWeeklyReport(combinedData);
-        await updateReportsFile(newReport);
+        if (newReport) await updateReportsFile(newReport);
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
         // Still ensure the reports file exists to prevent build errors.
