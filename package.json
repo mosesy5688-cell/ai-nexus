@@ -3,8 +3,9 @@
   "version": "2.0.0",
   "private": true,
   "scripts": {
+    "prebuild": "mkdir -p src/data/report-archives",
     "dev": "astro dev",
-    "build": "node scripts/fetch-data.js && astro build",
+    "build": "npm run prebuild && node scripts/fetch-data.js && astro build",
     "preview": "astro preview",
     "fetch-data": "node scripts/fetch-data.js"
   },
