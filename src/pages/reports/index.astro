@@ -18,6 +18,366 @@ const reports = Array.isArray(allReports) ? allReports : [];
       <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">
         Generated insights on the evolving world of open-source AI.
       </p>
+---
+import Header from '@/components/Header.astro';
+import Footer from '@/components/Footer.astro';
+
+export interface Props {
+  title: string;
+  description: string;
+  canonicalURL?: string;
+}
+
+const { 
+  title, 
+  description,
+  canonicalURL = new URL(Astro.url.pathname, Astro.site).href
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+
+    <!-- SEO Meta Tags -->
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL} />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+  </head>
+  <body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans antialiased">
+    <Header />
+    <slot />
+    <Footer />
+  </body>
+</html>
+---
+import { Markdown } from 'astro/components';
+import Layout from '@/layouts/Layout.astro';
+import ModelCard from '@/components/ModelCard.astro';
+import { Icon } from 'astro-icon/components';
+
+const allModels = await Astro.glob('../../data/models.json').then(res => res[0].default);
+
+export async function getStaticPaths() {
+    const models = await Astro.glob('../../data/models.json').then(res => res[0].default);
+    return models.map(model => ({
+        params: { slug: model.id.replace(/\//g, '--') },
+        props: { model },
+    }));
+}
+
+const { model } = Astro.props;
+
+// Find related models based on shared tags (excluding generic tags)
+const getRelatedModels = () => {
+    const modelTags = new Set(model.tags.filter(t => t.length > 2 && !['model', 'text'].includes(t)));
+    if (modelTags.size === 0) return [];
+
+    return allModels
+        .filter(m => m.id !== model.id)
+        .map(m => {
+            const relatedTags = m.tags.filter(t => modelTags.has(t));
+            return { ...m, matchCount: relatedTags.length };
+        })
+        .filter(m => m.matchCount > 0)
+        .sort((a, b) => b.matchCount - a.matchCount || b.likes - a.likes)
+        .slice(0, 3);
+};
+
+const relatedModels = getRelatedModels();
+---
+
+<Layout title={model.name} description={model.description}>
+    <main class="container mx-auto px-4 py-12">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main Content -->
+            <div class="lg:col-span-2">
+                <header class="mb-8">
+                    <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white mb-2">{model.name}</h1>
+                    <p class="text-lg text-gray-500 dark:text-gray-400">{model.description}</p>
+                    <p class="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                        By: <span class="font-medium">{model.author}</span>
+                    </p>
+                </header>
+
+                <!-- README Content -->
+                <article class="prose prose-lg dark:prose-invert max-w-none bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm">
+                    {model.readme ? (
+                        <Markdown content={model.readme} />
+                    ) : (
+                        <p>No detailed documentation (README) is available for this model.</p>
+                    )}
+                </article>
+            </div>
+
+            <!-- Sidebar -->
+            <aside>
+                <div class="sticky top-24 space-y-6">
+                    <!-- Action Buttons -->
+                    <div class="space-y-3">
+                        {model.downloadUrl && (
+                            <a href={model.downloadUrl} target="_blank" rel="noopener noreferrer" class="w-full flex items-center justify-center px-4 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                <Icon name="mdi:download" class="w-5 h-5 mr-2" />
+                                Download Model
+                            </a>
+                        )}
+                        {model.sources[0]?.url && (
+                            <a href={model.sources[0].url} target="_blank" rel="noopener noreferrer" class="w-full flex items-center justify-center px-4 py-3 border border-gray-300 dark:border-gray-600 text-base font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                <Icon name="mdi:github" class="w-5 h-5 mr-2" />
+                                View Source
+                            </a>
+                        )}
+                    </div>
+
+                    <!-- Metadata -->
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+                        <h3 class="text-lg font-semibold mb-3">Details</h3>
+                        <ul class="space-y-2 text-sm">
+                            <li class="flex justify-between">
+                                <span class="text-gray-500 dark:text-gray-400">Likes</span>
+                                <span class="font-medium">{model.likes.toLocaleString()}</span>
+                            </li>
+                            <li class="flex justify-between">
+                                <span class="text-gray-500 dark:text-gray-400">Downloads</span>
+                                <span class="font-medium">{model.downloads.toLocaleString()}</span>
+                            </li>
+                            <li class="flex justify-between">
+                                <span class="text-gray-500 dark:text-gray-400">Task</span>
+                                <span class="font-medium capitalize">{model.task}</span>
+                            </li>
+                            <li class="flex justify-between">
+                                <span class="text-gray-500 dark:text-gray-400">Last Updated</span>
+                                <span class="font-medium">{new Date(model.lastModified).toLocaleDateString()}</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Tags -->
+                    {model.tags && model.tags.length > 0 && (
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm">
+                            <h3 class="text-lg font-semibold mb-3">Tags</h3>
+                            <div class="flex flex-wrap gap-2">
+                                {model.tags.map(tag => (
+                                    <a href={`/explore?tag=${encodeURIComponent(tag)}`} class="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 py-1 px-2 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800">
+                                        {tag}
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <!-- Related Models -->
+                    {relatedModels.length > 0 && (
+                        <div>
+                            <h3 class="text-xl font-bold mb-4">Related Models</h3>
+                            <div class="space-y-4">
+                                {relatedModels.map(related => (
+                                    <ModelCard model={related} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </aside>
+        </div>
+    </main>
+</Layout>
+---
+import Layout from '@/layouts/Layout.astro';
+import { Markdown } from 'astro/components';
+
+const reports = await Astro.glob('../../data/reports.json').then(res => res[0].default);
+
+const latestReport = reports.length > 0 ? reports[0] : null;
+const olderReports = reports.length > 1 ? reports.slice(1, 5) : [];
+
+const pageTitle = "AI Industry Weekly Reports";
+const pageDescription = "Stay updated with the latest trends, breakthroughs, and popular models in the open-source AI landscape with our weekly reports.";
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <div class="container mx-auto px-4 py-12">
+    <header class="text-center mb-12">
+      <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">AI Industry Weekly Reports</h1>
+      <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">
+        Your weekly digest of breakthroughs and trends in the open-source AI world.
+      </p>
+    </header>
+
+    {latestReport ? (
+      <div class="space-y-12">
+        <!-- Latest Report -->
+        <section class="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
+          <h2 class="text-3xl font-bold mb-2">{latestReport.title}</h2>
+          <p class="text-gray-500 dark:text-gray-400 mb-6">{new Date(latestReport.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <p class="mb-8">{latestReport.summary}</p>
+          <a href={`/reports/${latestReport.reportId}`} class="inline-block bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+            Read Full Report
+          </a>
+        </section>
+
+        <!-- Older Reports -->
+        {olderReports.length > 0 && (
+          <section>
+            <h3 class="text-2xl font-bold mb-6 text-center">Recent Reports</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {olderReports.map(report => (
+                <a href={`/reports/${report.reportId}`} class="block p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow">
+                  <h4 class="font-bold text-xl text-blue-600 dark:text-blue-400">{report.title}</h4>
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{new Date(report.date).toLocaleDateString()}</p>
+                  <p class="text-gray-600 dark:text-gray-300 mt-3 text-sm">{report.summary.substring(0, 100)}...</p>
+                </a>
+              ))}
+            </div>
+            <div class="text-center mt-8">
+              <a href="/reports/archive" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">
+                View Full Archive &rarr;
+              </a>
+            </div>
+          </section>
+        )}
+      </div>
+    ) : (
+      <p class="text-center text-gray-500 dark:text-gray-400 py-16">
+        No weekly reports have been generated yet. Please check back later.
+      </p>
+    )}
+  </div>
+</Layout>
+---
+import { Icon } from 'astro-icon/components';
+const { model } = Astro.props;
+const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
+---
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 p-4 flex flex-col justify-between">
+    <div>
+        <a href={modelUrl} class="block mb-2">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 leading-tight">
+                {model.name}
+            </h3>
+        </a>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2" title={model.description}>
+            {model.description}
+        </p>
+    </div>
+    <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2 border-t border-gray-200 dark:border-gray-700 pt-2">
+        <div class="flex items-center gap-3">
+            <span class="flex items-center"><Icon name="mdi:heart" class="w-4 h-4 mr-1 text-red-500"/> {model.likes.toLocaleString()}</span>
+            <span class="flex items-center"><Icon name="mdi:download" class="w-4 h-4 mr-1"/> {model.downloads.toLocaleString()}</span>
+        </div>
+        <span class="font-mono bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{model.task}</span>
+    </div>
+</div>
+---
+// src/pages/reports/archive.astro
+import Layout from '@/layouts/Layout.astro';
+
+// This uses Astro's glob import to get all archived report files.
+// It ensures that even if the build runs on a different system, the files are found.
+const reportModules = await Astro.glob('../../data/report-archives/*.json');
+
+// Sort reports by date, newest first, only if reports exist.
+const sortedReports = reportModules
+  .map(module => module.default)
+  .filter(report => report && report.reportId) // Ensure report content is valid
+  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+const pageTitle = "Full AI Report Archive";
+const pageDescription = "A complete archive of all AI Industry Weekly Reports, providing a historical overview of trends and breakthroughs.";
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <div class="container mx-auto px-4 py-12">
+    <header class="text-center mb-12">
+      <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">Full Report Archive</h1>
+      <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">
+        Browse all previously generated weekly reports.
+      </p>
+    </header>
+
+    <div class="max-w-3xl mx-auto">
+      {sortedReports.length > 0 ? (
+        <ul class="space-y-2">
+          {sortedReports.map((report) => (
+              <li>
+                <a href={`/reports/${report.reportId}`} class="block p-4 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <span class="text-blue-600 dark:text-blue-400 font-semibold">{report.title}</span>
+                  <span class="text-sm text-gray-500 dark:text-gray-400 ml-4">{new Date(report.date).toLocaleDateString()}</span>
+                </a>
+              </li>
+          ))}
+        </ul>
+      ) : (
+        <p class="text-center text-gray-500 dark:text-gray-400">No archived reports found.</p>
+      )}
+    </div>
+  </div>
+</Layout>
+---
+// src/pages/reports/index.astro
+import Layout from '@/layouts/Layout.astro';
+import allReports from '../../data/reports.json';
+import { marked } from 'marked'; // Using a robust markdown parser
+
+const pageTitle = "AI Industry Weekly Reports";
+const pageDescription = "Stay updated with the latest trends, insights, and analyses on the open-source AI model landscape, generated weekly.";
+
+// Safety check in case the JSON file is empty or malformed.
+const reports = Array.isArray(allReports) ? allReports : [];
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <div class="container mx-auto px-4 py-12">
+    <header class="text-center mb-12">
+      <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">AI Industry Weekly Reports</h1>
+      <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">
+        Generated insights on the evolving world of open-source AI.
+      </p>
+      <div class="mt-6">
+        <a href="/reports/archive" class="text-blue-500 hover:underline">
+          View Full Report Archive &rarr;
+        </a>
+      </div>
+    </header>
+
+    <div id="reports-list" class="max-w-4xl mx-auto space-y-12">
+      {reports.length > 0 ? (
+        reports.map((report) => (
+          <article class="report-article bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700">
+            <h2 class="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">{report.title}</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+              Published on: {new Date(report.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+            <div class="prose dark:prose-invert max-w-none space-y-6">
+              <p class="lead text-lg italic text-gray-600 dark:text-gray-300">{report.summary}</p>
+              {report.sections.map(section => (
+                <section>
+                  <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mt-8 mb-4">{section.heading}</h3>
+                  <div class="prose-p:my-4 prose-a:text-blue-500 hover:prose-a:underline" set:html={marked.parse(section.content)} />
+                  <div class="mt-4 flex flex-wrap gap-2">
+                    {section.keywords.map(keyword => <span class="bg-gray-100 dark:bg-gray-700 text-xs font-medium px-2.5 py-1 rounded-full">{keyword}</span>)}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </article>
+        ))
+      ) : (
+        <p id="no-reports-message" class="text-center text-gray-500 dark:text-gray-400">No reports have been generated yet. Please run the data fetching script.</p>
+      )}
+    </div>
+  </div>
+</Layout>
       <div class="mt-6">
         <a href="/reports/archive" class="text-blue-500 hover:underline">
           View Full Report Archive &rarr;

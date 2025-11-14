@@ -25,7 +25,7 @@ const NSFW_KEYWORDS = [
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' }) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }) : null;
 
 /**
  * Builds the prompt for the AI weekly report generation.
@@ -39,7 +39,7 @@ function buildReportPrompt(reportId, dateString, featuredModelIds, latestModels)
     return `
     As an AI industry analyst, generate a weekly report on trends in the open-source AI model landscape based on the provided list of trending models. Your output MUST be a single, valid, parsable JSON string. Do not include any text or markdown formatting before or after the JSON block. The entire response should be only the JSON object.
 
-    The JSON object must follow this exact structure:
+    The JSON object must strictly adhere to this exact structure:
     {
       "reportId": "YYYY-MM-DD",
       "title": "Weekly AI Model & Tech Report [Date]",
@@ -51,7 +51,7 @@ function buildReportPrompt(reportId, dateString, featuredModelIds, latestModels)
 
     Instructions:
     1.  Use '${reportId}' for "reportId" and "date".
-    2.  The title must be "Weekly AI Model & Tech Report [Date]", where [Date] is replaced with "${dateString}".
+    2.  The title must be exactly "Weekly AI Model & Tech Report [Date]", where [Date] is replaced with "${dateString}".
     3.  The 'content' for each section must be detailed, insightful, and written in English using Markdown for formatting (e.g., **bold**, *italic*, links).
     4.  The 'featuredModelIds' array must contain exactly these two IDs: ${JSON.stringify(featuredModelIds)}.
     5.  Analyze the following trending models to inform your report: ${JSON.stringify(latestModels, null, 2)}
@@ -153,6 +153,8 @@ async function fetchHuggingFaceData() {
             // Attempt to find a direct download URL
             const files = model.siblings?.map(s => s.rfilename) || [];
             const safetensorFile = files.find(f => f.endsWith('.safetensors'));
+            // Use the main model URL as a fallback if no direct link is found
+            const modelUrl = `https://huggingface.co/${model.modelId}`;
             const downloadUrl = safetensorFile
                 ? `https://huggingface.co/${model.modelId}/resolve/main/${safetensorFile}`
                 : null;
@@ -172,7 +174,7 @@ async function fetchHuggingFaceData() {
                 downloadUrl: downloadUrl,
                 sources: [{
                     platform: 'Hugging Face',
-                    url: `https://huggingface.co/${model.modelId}`,
+                    url: modelUrl,
                     author: model.author,
                     modelId: model.modelId,
                 }],
@@ -259,7 +261,7 @@ function readCivitaiData() {
             readme: null, // Civitai READMEs are not fetched
             thumbnail: null, // Images are disabled
             downloadUrl: model.downloadUrl, // Assuming the JSON has this field
-            sources: [{
+            sources: [{ // Standardize source object
                 platform: 'Civitai',
                 url: `https://civitai.com/models/${model.id}`,
                 modelId: model.id,
