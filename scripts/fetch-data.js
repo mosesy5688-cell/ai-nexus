@@ -24,7 +24,7 @@ const NSFW_KEYWORDS = [
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' }) : null;
 
 /**
  * Generates a weekly AI report using the Groq API based on the latest models.
@@ -56,7 +56,7 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
     const dateString = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     const prompt = `
-    As an AI industry analyst, generate a weekly report on trends in the open-source AI model landscape based on the provided list of trending models. Your output MUST be a single, valid, parsable JSON string. Do not include any text or markdown formatting before or after the JSON block.
+    As an AI industry analyst, generate a weekly report on trends in the open-source AI model landscape based on the provided list of trending models. Your output MUST be a single, valid, parsable JSON string. Do not include any text or markdown formatting before or after the JSON block. The entire response should be only the JSON object.
 
     The JSON object must follow this exact structure:
     {
@@ -81,7 +81,7 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
 
     Instructions:
     1.  Use '${reportId}' for "reportId" and "date".
-    2.  The title must be exactly "Weekly AI Model & Tech Report [${dateString}]".
+    2.  The title must be "Weekly AI Model & Tech Report [Date]", where [Date] is replaced with "${dateString}".
     3.  The 'content' for each section must be detailed, insightful, and written in English using Markdown for formatting (e.g., **bold**, *italic*, links).
     4.  The 'featuredModelIds' array must contain exactly these two IDs: ["${featuredModelIds[0]}", "${featuredModelIds[1]}"].
     5.  Analyze the following trending models to inform your report: ${JSON.stringify(latestModels, null, 2)}
@@ -91,7 +91,7 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
         const result = await geminiModel.generateContent(prompt);
         const responseText = result.response.text().trim();
         
-        // Clean the response to ensure it's a valid JSON string
+        // Clean the response to ensure it's a valid JSON string, removing markdown code blocks
         const jsonString = responseText.replace(/^```json\s*|```\s*$/g, '');
         
         // Validate and parse the JSON
@@ -113,8 +113,8 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
             date: new Date().toISOString().split('T')[0],
             summary: "Could not generate the AI weekly report at this time. This may be due to an issue with the AI model provider or a missing API key. The service will attempt to generate it on the next cycle.",
             sections: [{
-                heading: "Generation Error",
-                content: `An error occurred while trying to generate the report: **${error.message}**. Please check the build logs and ensure the \`GEMINI_API_KEY\` is configured correctly in the deployment environment.`,
+                heading: "API Error",
+                content: `An error occurred while trying to generate the report: **${error.message}**. Please check the build logs and ensure the Gemini API is operational.`,
                 keywords: ["error", "generation-failed"]
             }],
             featuredModelIds: []
@@ -138,7 +138,7 @@ async function fetchHuggingFaceData(existingModels) {
         const { data } = await axios.get(HUGGINGFACE_API_URL);
         const transformedData = [];
         for (const model of data) {
-            let readmeContent = null, downloadUrl = null; // <-- This line is being modified
+            let readmeContent = null, downloadUrl = null;
             const currentModelData = existingModelsMap.get(model.modelId) || {};
 
             try {
@@ -148,18 +148,18 @@ async function fetchHuggingFaceData(existingModels) {
                     const readmeUrl = `https://huggingface.co/${model.modelId}/raw/main/README.md`;
                     const readmeResponse = await axios.get(readmeUrl);
                     readmeContent = readmeResponse.data;
-                    await sleep(50); 
+                    await sleep(50); // Small delay
                 }
 
                 // Attempt to find a direct download URL
                 const files = model.siblings?.map(s => s.rfilename) || [];
                 const safetensorFile = files.find(f => f.endsWith('.safetensors'));
                 if (safetensorFile) {
-                    downloadUrl = `https://huggingface.co/${model.modelId}/resolve/main/${safetensorFile}`; // <-- This line is being modified
+                    downloadUrl = `https://huggingface.co/${model.modelId}/resolve/main/${safetensorFile}`;
                 }
 
             } catch (e) {
-                // It's okay if a README or other assets don't exist
+                // It's okay if a README or other assets don't exist.
             }
 
             transformedData.push({
@@ -173,12 +173,12 @@ async function fetchHuggingFaceData(existingModels) {
                 downloads: model.downloads,
                 lastModified: model.lastModified,
                 readme: readmeContent,
-                thumbnail: null, 
+                thumbnail: null, // Images are disabled
                 downloadUrl: downloadUrl,
                 sources: [{ platform: 'Hugging Face', url: `https://huggingface.co/${model.modelId}` }],
             });
 
-            // Add a small delay to avoid hitting rate limits
+            // Add a small delay to avoid hitting rate limits so aggressively
             await sleep(200); // 200ms delay between each summary generation
         }
         console.log(`✅ Successfully fetched and transformed ${transformedData.length} models.`);
@@ -198,7 +198,7 @@ async function fetchGitHubData() {
         });
 
         const transformedData = await Promise.all(data.items.map(async (repo) => {
-            let readmeContent = null, downloadUrl = null; // <-- This line is being modified
+            let readmeContent = null, downloadUrl = null;
             try {
                 // Fetch README content
                 const readmeUrl = `https://api.github.com/repos/${repo.full_name}/readme`;
@@ -208,7 +208,7 @@ async function fetchGitHubData() {
                 readmeContent = readmeResponse.data;
 
                 // Use the releases URL as a proxy for downloads
-                downloadUrl = `${repo.html_url}/releases`; // <-- This line is being modified
+                downloadUrl = `${repo.html_url}/releases`;
             } catch (e) {
                 // It's okay if a README doesn't exist or fetch fails
                 console.warn(`- Could not fetch README for ${repo.full_name}`);
@@ -226,7 +226,7 @@ async function fetchGitHubData() {
                 lastModified: repo.updated_at,
                 readme: readmeContent,
                 downloadUrl: downloadUrl,
-                sources: [{ platform: 'GitHub', url: repo.html_url }], // <-- This line is being modified
+                sources: [{ platform: 'GitHub', url: repo.html_url }],
                 thumbnail: null, // Images are disabled
             };
         }));
@@ -262,7 +262,7 @@ function readCivitaiData() {
             downloads: model.stats?.downloadCount || 0,
             lastModified: model.lastUpdate || new Date().toISOString(),
             readme: null, // Civitai READMEs are not fetched
-            thumbnail: null, 
+            thumbnail: null, // Images are disabled
             downloadUrl: model.downloadUrl, // Assuming the JSON has this field
             sources: [{ platform: 'Civitai', url: `https://civitai.com/models/${model.id}` }],
         }));
@@ -453,7 +453,7 @@ async function main() {
 
         // 6. Generate and save the AI weekly report
         const newReport = await generateAIWeeklyReport(combinedData);
-        await updateReportsFile(newReport);
+        if (newReport) await updateReportsFile(newReport);
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
         // Still ensure the reports file exists to prevent build errors.
