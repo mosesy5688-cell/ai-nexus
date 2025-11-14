@@ -14,13 +14,16 @@
     "@astrojs/sitemap": "^3.6.0",
     "@astrojs/tailwind": "^6.0.2",
     "astro": "^5.15.3",
-    "axios": "^1.13.1",
-    "cheerio": "^1.1.2",
-    "@google/generative-ai": "^0.15.0",
+    "axios": "^1.7.2",
+    "cheerio": "^1.0.0-rc.12",
+    "@google/generative-ai": "^0.16.0",
     "crypto-js": "^4.2.0",
+    "marked": "^13.0.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tailwindcss": "^3.4.18",
-    "marked": "^13.0.2"
+    "tailwindcss": "^3.4.18"
+  },
+  "overrides": {
+    "follow-redirects": "^1.15.6"
   }
 }
