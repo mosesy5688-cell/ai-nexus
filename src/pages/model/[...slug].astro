@@ -25,7 +25,7 @@ const relatedModels = allModels.filter(m =>
 ).slice(0, 3); // Show up to 3 related models
 
 const pageTitle = `${model.name} | AI-Nexus Model Details`;
-const pageDescription = model.description || `Technical details, documentation, and resources for the ${model.name} AI model.`;
+const pageDescription = model.description || `Technical details, documentation, and resources for the ${model.name} AI model.`; // <-- This line is being modified
 ---
 
 <Layout title={pageTitle} description={pageDescription}>

@@ -24,7 +24,7 @@ const NSFW_KEYWORDS = [
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' }) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : null;
 
 /**
  * Generates a weekly AI report using the Groq API based on the latest models.
@@ -208,7 +208,7 @@ async function fetchGitHubData() {
                 readmeContent = readmeResponse.data;
 
                 // Use the releases URL as a proxy for downloads
-                downloadUrl = `${repo.html_url}/releases`;
+                downloadUrl = `${repo.html_url}/releases`; // <-- This line is being modified
             } catch (e) {
                 // It's okay if a README doesn't exist or fetch fails
                 console.warn(`- Could not fetch README for ${repo.full_name}`);
@@ -226,7 +226,7 @@ async function fetchGitHubData() {
                 lastModified: repo.updated_at,
                 readme: readmeContent,
                 downloadUrl: downloadUrl,
-                sources: [{ platform: 'GitHub', url: repo.html_url }],
+                sources: [{ platform: 'GitHub', url: repo.html_url }], // <-- This line is being modified
                 thumbnail: null, // Images are disabled
             };
         }));

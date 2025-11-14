@@ -1,6 +1,7 @@
 ---
 // src/layouts/Layout.astro
 import Header from '@/components/Header.astro';
+import Footer from '@/components/Footer.astro';
 interface Props {
 	title: string;
 	description?: string;
@@ -48,5 +49,6 @@ const { title, description = 'A premier, free directory of open-source AI models
     <main class="flex-grow">
         <slot />
     </main>
+    <Footer />
 </body>
 </html>
