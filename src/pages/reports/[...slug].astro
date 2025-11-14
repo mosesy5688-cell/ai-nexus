@@ -7,6 +7,10 @@ import { marked } from 'marked';
 const allArchivedReports = await Astro.glob('../../data/report-archives/*.json');
 
 export async function getStaticPaths() {
+  if (!allArchivedReports || allArchivedReports.length === 0) {
+    return [];
+  }
+
   return allArchivedReports.map((reportModule) => {
     const report = reportModule.default;
     return {

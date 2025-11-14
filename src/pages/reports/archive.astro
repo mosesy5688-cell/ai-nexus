@@ -27,10 +27,11 @@ const pageDescription = "A complete archive of all AI Industry Weekly Reports, p
     </header>
 
     <div class="max-w-3xl mx-auto">
-      {sortedReports.length > 0 ? (
+      {sortedReports && sortedReports.length > 0 ? (
         <ul class="space-y-2">
           {sortedReports.map(reportModule => {
-            const report = reportModule.default; // The actual JSON content
+            const report = reportModule.default;
+            if (!report) return null;
             return (
               <li>
                 <a href={`/reports/${report.reportId}`} class="block p-4 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
@@ -38,7 +39,7 @@ const pageDescription = "A complete archive of all AI Industry Weekly Reports, p
                   <span class="text-sm text-gray-500 dark:text-gray-400 ml-4">{new Date(report.date).toLocaleDateString()}</span>
                 </a>
               </li>
-            )
+            );
           })}
         </ul>
       ) : (
