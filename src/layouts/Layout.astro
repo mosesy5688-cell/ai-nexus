@@ -1,7 +1,6 @@
 ---
 // src/layouts/Layout.astro
 import Header from '@/components/Header.astro';
-import Footer from '@/components/Footer.astro';
 import '@/styles/globals.css';
 
 interface Props {
@@ -17,16 +16,9 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 <html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="description" content={description}>
     <meta name="viewport" content="width=device-width">
     <link rel="icon" type="image/svg+xml" href="/favicon.ico">
-    <link rel="canonical" href={canonicalURL} />
     <meta name="generator" content={Astro.generator} />
-
-    <!-- 
-      GOOGLE ADSENSE & ANALYTICS VERIFICATION
-      Paste the script provided by Google AdSense or Google Analytics here.
-    -->
 
     <!-- Open Graph Meta Tags -->
     <meta property="og:type" content="website">
@@ -42,6 +34,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <meta property="twitter:description" content={description}>
     <meta property="twitter:image" content={new URL('/og-image.jpg', Astro.site)}>
 
+    <meta name="description" content={description}>
     <title>{title}</title>
 
     <!-- Google Fonts: Inter -->
@@ -49,15 +42,16 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
 
+    <link rel="canonical" href={canonicalURL} />
+
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_ID" crossorigin="anonymous"></script>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans antialiased flex flex-col min-h-screen">
 
     <Header />
-
-    <slot />
-
-    <Footer />
+    <main class="flex-grow">
+        <slot />
+    </main>
 </body>
 </html>

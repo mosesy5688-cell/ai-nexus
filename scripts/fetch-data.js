@@ -31,7 +31,7 @@ const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash'
  * @param {Array<object>} models The list of recently fetched models.
  * @returns {Promise<void>}
  */
-async function generateAIWeeklyReport(models) {
+async function generateAIWeeklyReport(models) { // <-- This function is being modified
     if (!geminiModel) {
         console.warn('- GEMINI_API_KEY not found. Skipping AI weekly report generation.');
         return;
@@ -45,25 +45,24 @@ async function generateAIWeeklyReport(models) {
     const dateString = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     const prompt = `
-    As an AI industry analyst, generate a weekly report on trends in the open-source AI model landscape based on the provided list of trending models.
-    Your output MUST be a single, valid, parsable JSON string. Do not include any text or markdown formatting before or after the JSON block.
+    As an AI industry analyst, generate a weekly report on trends in the open-source AI model landscape based on the provided list of trending models. Your output MUST be a single, valid, parsable JSON string. Do not include any text or markdown formatting before or after the JSON block.
 
     The JSON object must follow this exact structure:
     {
       "reportId": "YYYY-MM-DD",
-      "title": "Weekly AI Large Model Technology and Product Progress Report [Date]",
+      "title": "Weekly AI Model & Tech Report [Date]",
       "date": "YYYY-MM-DD",
-      "summary": "A brief summary of this week's key AI developments (around 50 words).",
+      "summary": "A brief summary of this week's key AI advancements.",
       "sections": [
         {
-          "heading": "Core Technology Breakthroughs (e.g., New Transformer Architecture)",
-          "content": "A long-form text in Markdown format, detailing breakthroughs, their impact, and citing key papers. Analyze trends from the model list.",
-          "keywords": ["Keyword1", "Keyword2"]
+          "heading": "Key Technology Breakthoughs (e.g., New Transformer Architecture)",
+          "content": "Markdown-formatted long-text content about the breakthroughs, their impact, and links to papers.",
+          "keywords": ["Transformer", "Scaling Law"]
         },
         {
-          "heading": "Popular Product Applications & Market Trends (e.g., Gemini 1.5 Pro New Features)",
-          "content": "A long-form text in Markdown format, analyzing popular product updates, commercial dynamics, and market reactions based on the model list.",
-          "keywords": ["Keyword3", "Keyword4"]
+          "heading": "Popular Product Applications & Market Trends (e.g., Gemini 1.5 Pro Updates)",
+          "content": "Markdown-formatted long-text content analyzing product updates, commercialization, and market response.",
+          "keywords": ["Gemini", "Llama", "Commercialization"]
         }
       ],
       "featuredModelIds": ["model-id-1", "model-id-2"]
@@ -71,7 +70,7 @@ async function generateAIWeeklyReport(models) {
 
     Instructions:
     1.  Use '${reportId}' for "reportId" and "date".
-    2.  Use '${dateString}' in the "title".
+    2.  The title must be exactly "Weekly AI Model & Tech Report [${dateString}]".
     3.  The 'content' for each section must be detailed, insightful, and written in English using Markdown for formatting (e.g., **bold**, *italic*, links).
     4.  The 'featuredModelIds' array must contain exactly these two IDs: ["${featuredModelIds[0]}", "${featuredModelIds[1]}"].
     5.  Analyze the following trending models to inform your report: ${JSON.stringify(latestModels, null, 2)}
@@ -133,20 +132,28 @@ async function fetchHuggingFaceData(existingModels) {
         const { data } = await axios.get(HUGGINGFACE_API_URL);
         const transformedData = [];
         for (const model of data) {
-            let readmeContent = null;
+            let readmeContent = null, downloadUrl = null;
             const currentModelData = existingModelsMap.get(model.modelId) || {};
 
             try {
-                // Reuse existing readme if available to reduce fetches
                 if (currentModelData.readme) {
                     readmeContent = currentModelData.readme;
                 } else {
                     const readmeUrl = `https://huggingface.co/${model.modelId}/raw/main/README.md`;
                     const readmeResponse = await axios.get(readmeUrl);
                     readmeContent = readmeResponse.data;
+                    await sleep(50); // Small delay
                 }
+
+                // Attempt to find a direct download URL
+                const files = model.siblings?.map(s => s.rfilename) || [];
+                const safetensorFile = files.find(f => f.endsWith('.safetensors'));
+                if (safetensorFile) {
+                    downloadUrl = `https://huggingface.co/${model.modelId}/resolve/main/${safetensorFile}`;
+                }
+
             } catch (e) {
-                // It's okay if a README doesn't exist, we'll just skip it.
+                // It's okay if a README or other assets don't exist.
             }
 
             transformedData.push({
@@ -160,11 +167,12 @@ async function fetchHuggingFaceData(existingModels) {
                 downloads: model.downloads,
                 lastModified: model.lastModified,
                 readme: readmeContent,
-                thumbnail: model.cardData?.image, // Add thumbnail from cardData
+                thumbnail: null, // Images are disabled
+                downloadUrl: downloadUrl,
                 sources: [{ platform: 'Hugging Face', url: `https://huggingface.co/${model.modelId}` }],
             });
 
-            // Add a small delay to avoid hitting the rate limit so aggressively
+            // Add a small delay to avoid hitting rate limits so aggressively
             await sleep(200); // 200ms delay between each summary generation
         }
         console.log(`✅ Successfully fetched and transformed ${transformedData.length} models.`);
@@ -184,7 +192,7 @@ async function fetchGitHubData() {
         });
 
         const transformedData = await Promise.all(data.items.map(async (repo) => {
-            let readmeContent = null;
+            let readmeContent = null, downloadUrl = null;
             try {
                 // Fetch README content
                 const readmeUrl = `https://api.github.com/repos/${repo.full_name}/readme`;
@@ -192,6 +200,9 @@ async function fetchGitHubData() {
                     headers: { 'Accept': 'application/vnd.github.raw' }
                 });
                 readmeContent = readmeResponse.data;
+
+                // Use the releases URL as a proxy for downloads
+                downloadUrl = `${repo.html_url}/releases`;
             } catch (e) {
                 // It's okay if a README doesn't exist or fetch fails
                 console.warn(`- Could not fetch README for ${repo.full_name}`);
@@ -208,8 +219,9 @@ async function fetchGitHubData() {
                 downloads: repo.watchers_count, // Using watchers as a proxy for downloads
                 lastModified: repo.updated_at,
                 readme: readmeContent,
+                downloadUrl: downloadUrl,
                 sources: [{ platform: 'GitHub', url: repo.html_url }],
-                thumbnail: repo.owner.avatar_url,
+                thumbnail: null, // Images are disabled
             };
         }));
 
@@ -244,7 +256,8 @@ function readCivitaiData() {
             downloads: model.stats?.downloadCount || 0,
             lastModified: model.lastUpdate || new Date().toISOString(),
             readme: null, // Civitai READMEs are not fetched
-            thumbnail: model.images?.[0]?.url, // Use the first image as a thumbnail
+            thumbnail: null, // Images are disabled
+            downloadUrl: model.downloadUrl, // Assuming the JSON has this field
             sources: [{ platform: 'Civitai', url: `https://civitai.com/models/${model.id}` }],
         }));
         console.log(`✅ Successfully read and transformed ${transformedData.length} models from Civitai.`);

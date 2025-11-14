@@ -1,17 +1,16 @@
 ---
-// src/pages/model/[...slug].astro
 import Layout from '@/layouts/Layout.astro';
-import ModelCard from '@/components/ModelCard.astro';
 import allModels from '@/data/models.json';
+import ModelCard from '@/components/ModelCard.astro';
 import { marked } from 'marked';
 
 export async function getStaticPaths() {
-  return allModels.map(model => {
-    // CRITICAL FIX: Create a URL-safe slug by replacing '/' with '--'.
-    // This prevents Astro from interpreting the ID as a nested path.
+  return allModels.map((model) => {
+    // CRITICAL: Slug generation must be consistent across the app.
+    // We replace '/' with '--' to create a valid URL segment.
     const slug = model.id.replace(/\//g, '--');
     return {
-      params: { slug: slug },
+      params: { slug },
       props: { model },
     };
   });
@@ -19,156 +18,89 @@ export async function getStaticPaths() {
 
 const { model } = Astro.props;
 
-if (!model) {
-  return Astro.redirect('/404');
-}
+// Find related models based on tags (excluding the current model)
+const relatedModels = allModels.filter(m => 
+  m.id !== model.id && 
+  m.tags.some(tag => model.tags.includes(tag))
+).slice(0, 3); // Show up to 3 related models
 
-const readmeHtml = model.readme ? marked.parse(model.readme) : null;
-
-// Find related models (simple logic: same task, different model)
-const relatedModels = allModels
-  .filter(m => model.task && m.task && m.task === model.task && m.id !== model.id)
-  .sort((a, b) => b.likes - a.likes)
-  .slice(0, 4);
-
-const pageTitle = `${model.name} - Details | Free AI Tools`;
-const pageDescription = model.description ? model.description.substring(0, 160) : `Explore details, usage, and related models for the ${model.name} AI model.`;
+const pageTitle = `${model.name} | AI-Nexus Model Details`;
+const pageDescription = model.description || `Technical details, documentation, and resources for the ${model.name} AI model.`;
 ---
+
 <Layout title={pageTitle} description={pageDescription}>
-  <div class="container mx-auto px-4 py-12">
-    <a href="javascript:history.back()" class="text-blue-500 hover:underline mb-8 block font-medium transition-colors">&larr; Back to previous page</a>
+  <div class="container mx-auto max-w-6xl px-4 py-12">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      
+      <!-- Main Content: README -->
+      <main class="lg:col-span-2">
+        <header class="mb-8 border-b border-gray-200 dark:border-gray-700 pb-6">
+          <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">{model.name}</h1>
+          <p class="mt-3 text-lg text-gray-500 dark:text-gray-400">{model.description}</p>
+        </header>
 
-    <article class="bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-xl">
-      <!-- Header -->
-      <header class="border-b border-gray-200 dark:border-gray-700 pb-6 mb-8">
-        <div class="flex flex-col sm:flex-row sm:items-start sm:gap-6">
-          {model.thumbnail && (
-            <div class="flex-shrink-0 w-24 h-24 mb-4 sm:mb-0">
-              <img
-                src={model.thumbnail}
-                alt={`${model.name} thumbnail`}
-                width={96}
-                height={96}
-                class="rounded-lg object-cover w-full h-full border-2 border-gray-200 dark:border-gray-700"
-                loading="lazy"
-              />
-            </div>
-          )}
-          <div class="flex-grow">
-            <h1 class="text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white leading-tight">{model.name}</h1>
-            <p class="mt-2 text-lg text-gray-500 dark:text-gray-400">{model.author}</p>
+        {model.readme ? (
+          <article class="prose prose-lg dark:prose-invert max-w-none">
+            <Fragment set:html={marked.parse(model.readme)} />
+          </article>
+        ) : (
+          <div class="text-center py-16 bg-gray-100 dark:bg-gray-800 rounded-lg">
+            <p class="text-gray-500 dark:text-gray-400">No detailed documentation (README) available for this model.</p>
           </div>
+        )}
+      </main>
+
+      <!-- Sidebar: Info & Links -->
+      <aside class="lg:col-span-1 space-y-8">
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+          <h3 class="text-xl font-bold mb-4">Model Details</h3>
+          <ul class="space-y-3 text-gray-600 dark:text-gray-300">
+            <li class="flex justify-between"><strong>Author:</strong> <span>{model.author || 'N/A'}</span></li>
+            <li class="flex justify-between"><strong>Task:</strong> <span class="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-xs font-medium px-2.5 py-1 rounded-full">{model.task || 'N/A'}</span></li>
+            <li class="flex justify-between"><strong>Likes:</strong> <span>{model.likes.toLocaleString()}</span></li>
+            <li class="flex justify-between"><strong>Downloads:</strong> <span>{model.downloads.toLocaleString()}</span></li>
+            <li class="flex justify-between"><strong>Last Updated:</strong> <span>{new Date(model.lastModified).toLocaleDateString()}</span></li>
+          </ul>
         </div>
-      </header>
 
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-12">
-        <!-- Main Content -->
-        <div class="lg:col-span-3">
-          <!-- Tabs for Details and Readme -->
-          <div id="tabs-container" class="mb-10 w-full">
-            <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
-              <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                <button id="tab-btn-details" class="tab-button whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-lg focus:outline-none active-tab">Details</button>
-                {readmeHtml && <button id="tab-btn-readme" class="tab-button whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-lg focus:outline-none inactive-tab">Readme</button>}
-              </nav>
-            </div>
-
-            <div id="tab-content-container" class="mt-6">
-              <!-- Details Panel -->
-              <div id="tab-panel-details" class="tab-panel space-y-6">
-                <p class="text-lg text-gray-700 dark:text-gray-300">{model.description}</p>
-                <div>
-                  <h3 class="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200">Tags</h3>
-                  <div class="flex flex-wrap gap-2">
-                    {model.tags.map(tag => (
-                      <a href={`/explore?q=${encodeURIComponent(tag)}`} class="bg-gray-200 text-gray-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-gray-700 dark:text-gray-300 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">{tag}</a>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Readme Panel -->
-              {readmeHtml && (
-                <div id="tab-panel-readme" class="tab-panel hidden">
-                  <div class="prose prose-lg dark:prose-invert max-w-none bg-gray-50 dark:bg-gray-900/50 p-6 rounded-lg border border-gray-200 dark:border-gray-700 shadow-inner" set:html={readmeHtml} />
-                </div>
-              )}
-            </div>
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+          <h3 class="text-xl font-bold mb-4">Links & Sources</h3>
+          <div class="space-y-3">
+            {model.sources.map(source => (
+              <a href={source.url} target="_blank" rel="noopener noreferrer" class="flex items-center justify-between w-full text-left p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <span>View on {source.platform}</span>
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+              </a>
+            ))}
+            {model.downloadUrl && (
+              <a href={model.downloadUrl} target="_blank" rel="noopener noreferrer" class="flex items-center justify-between w-full text-left p-3 bg-green-50 dark:bg-green-900/50 rounded-md hover:bg-green-100 dark:hover:bg-green-800 transition-colors font-semibold text-green-700 dark:text-green-300">
+                <span>Download Model</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              </a>
+            )}
           </div>
         </div>
 
-        <!-- Sidebar -->
-        <aside class="lg:col-span-1 space-y-8">
-          <div class="bg-gray-100 dark:bg-gray-800/50 p-6 rounded-2xl sticky top-28 shadow-md border border-gray-200 dark:border-gray-700">
-            <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-600 pb-3">Model Info</h3>
-            <div class="space-y-4 text-gray-700 dark:text-gray-300">
-              <div class="flex items-center gap-3"><span class="text-xl">⚙️</span><div><span class="font-semibold">Task:</span> <span class="break-all">{model.task}</span></div></div>
-              <div class="flex items-center gap-3"><span class="text-xl">❤️</span><div><span class="font-semibold">Likes:</span> <span>{model.likes.toLocaleString()}</span></div></div>
-              <div class="flex items-center gap-3"><span class="text-xl">⬇️</span><div><span class="font-semibold">Downloads:</span> <span>{model.downloads.toLocaleString()}</span></div></div>
-              <div class="flex items-center gap-3"><span class="text-xl">📅</span><div><span class="font-semibold">Updated:</span> <span>{new Date(model.lastModified).toLocaleDateString()}</span></div></div>
-            </div>
-            <div class="mt-6 border-t border-gray-300 dark:border-gray-600 pt-6">
-              <h4 class="font-bold text-lg mb-3 text-gray-900 dark:text-white">Sources</h4>
-              <ul class="space-y-2">
-                {model.sources.map(source => (
-                  <li>
-                    <a href={source.url} target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors break-all flex items-center gap-1.5">
-                      <span>{source.platform}</span>
-                      <span class="text-sm">&rarr;</span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
+          <h3 class="text-xl font-bold mb-4">Tags</h3>
+          <div class="flex flex-wrap gap-2">
+            {model.tags.map(tag => (
+              <a href={`/explore?tag=${encodeURIComponent(tag)}`} class="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 text-sm font-medium px-3 py-1 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
+                {tag}
+              </a>
+            ))}
           </div>
-
-          <div class="ad-container sticky top-[calc(24rem+100px)]">
-            <div id="amazon-ad-YOUR_AMAZON_DETAIL_SIDEBAR_AD_ID" style="width:100%; min-height: 250px;">
-              <!-- Sidebar Ad -->
-            </div>
-          </div>
-        </aside>
-      </div>
-    </article>
-
-    <!-- Related Models Section -->
-    {relatedModels.length > 0 && <>
-      <div class="ad-container my-12 text-center">
-        <div id="amazon-ad-YOUR_AMAZON_DETAIL_BOTTOM_AD_ID" style="width:100%;height:90px">
-          <!-- Bottom Ad -->
         </div>
-      </div>
+      </aside>
+    </div>
 
-      <section class="mt-20">
-        <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Related Models</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    {relatedModels.length > 0 && (
+      <section class="mt-20 pt-10 border-t border-gray-200 dark:border-gray-700">
+        <h2 class="text-3xl font-bold text-center mb-8">Related Models</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {relatedModels.map(related => <ModelCard model={related} />)}
         </div>
       </section>
-    </>}
+    )}
   </div>
-
-  <script is:inline>
-    const tabButtons = document.querySelectorAll('.tab-button');
-    const tabPanels = document.querySelectorAll('.tab-panel');
-
-    const tabMap = {
-      'tab-btn-details': 'tab-panel-details',
-      'tab-btn-readme': 'tab-panel-readme',
-    };
-    
-    tabButtons.forEach(button => {
-      button.addEventListener('click', () => {
-        // Deactivate all buttons and hide all panels
-        tabButtons.forEach(btn => btn.classList.replace('active-tab', 'inactive-tab'));
-        tabPanels.forEach(panel => panel.classList.add('hidden'));
-        
-        button.classList.replace('inactive-tab', 'active-tab');
-        const targetPanel = document.getElementById(tabMap[button.id]);
-        if (targetPanel) {
-          targetPanel.classList.remove('hidden');
-        }
-      });
-    });
-  </script>
 </Layout>
