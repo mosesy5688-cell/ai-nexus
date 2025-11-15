@@ -11,9 +11,9 @@
     "fetch-data": "node scripts/fetch-data.js"
   },
   "dependencies": {
-    "@astrojs/check": "^0.8.3",
+    "@astrojs/check": "^0.9.1",
     "@astrojs/markdown-component": "^1.0.5",
-    "@astrojs/mdx": "^4.1.0",
+    "@astrojs/mdx": "^4.3.0",
     "@astrojs/react": "^4.0.0",
     "@astrojs/rss": "^4.0.7",
     "@astrojs/sitemap": "^3.1.6",
@@ -25,8 +25,8 @@
     "axios": "^1.7.2",
     "cheerio": "1.0.0-rc.12",
     "marked": "13.0.2",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.0.0-rc-f994737d14-20240522",
+    "react-dom": "^19.0.0-rc-f994737d14-20240522",
     "tailwindcss": "^3.4.18"
   }
 }
