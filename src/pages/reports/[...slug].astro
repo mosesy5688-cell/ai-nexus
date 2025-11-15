@@ -1,26 +1,17 @@
 ---
 import Layout from '@/layouts/Layout.astro';
-import ModelCard from '@/components/ModelCard.astro';
-import { marked } from 'marked';
+import { Markdown } from 'astro/components';
+import allReports from '@/data/reports.json';
+import allModels from '@/data/models.json';
 
-export async function getStaticPaths() {
-    // Import all reports from both the main file and the archives
-    const mainReports = await Astro.glob('../../data/reports.json').then(res => res[0].default || []);
-    const archivedReportModules = await Astro.glob('../../data/report-archives/*.json');
-    const archivedReports = archivedReportModules.map(module => module.default);
-
-    // Combine and deduplicate reports to create a comprehensive list
-    const allReports = [...mainReports, ...archivedReports];
-    const uniqueReports = Array.from(new Map(allReports.map(report => [report.reportId, report])).values());
-
-    return uniqueReports.map(report => ({
+export function getStaticPaths() {
+    return allReports.map(report => ({
         params: { slug: report.reportId },
         props: { report },
     }));
 }
 
 const { report } = Astro.props;
-const allModels = await Astro.glob('../../data/models.json').then(res => res[0].default || []);
 
 const featuredModels = report.featuredModelIds
     ? report.featuredModelIds.map(id => allModels.find(m => m.id === id)).filter(Boolean)
@@ -41,7 +32,7 @@ const featuredModels = report.featuredModelIds
                 {report.sections.map(section => (
                     <section class="mb-12">
                         <h2 class="text-2xl font-bold border-b border-gray-300 dark:border-gray-700 pb-2 mb-4">{section.heading}</h2>
-                        <div set:html={marked.parse(section.content)} />
+                        <Markdown content={section.content} />
                     </section>
                 ))}
             </div>
