@@ -5,7 +5,7 @@ import { marked } from 'marked';
 
 export async function getStaticPaths() {
     // Import all reports from both the main file and the archives
-    const mainReports = await Astro.glob('../../data/reports.json').then(res => res[0].default);
+    const mainReports = await Astro.glob('../../data/reports.json').then(res => res[0].default || []);
     const archivedReportModules = await Astro.glob('../../data/report-archives/*.json');
     const archivedReports = archivedReportModules.map(module => module.default);
 
@@ -20,7 +20,7 @@ export async function getStaticPaths() {
 }
 
 const { report } = Astro.props;
-const allModels = await Astro.glob('../../data/models.json').then(res => res[0].default);
+const allModels = await Astro.glob('../../data/models.json').then(res => res[0].default || []);
 
 const featuredModels = report.featuredModelIds
     ? report.featuredModelIds.map(id => allModels.find(m => m.id === id)).filter(Boolean)

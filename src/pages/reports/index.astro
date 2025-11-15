@@ -1,7 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import ReportCard from '@/components/ReportCard.astro';
-const reports = await Astro.glob('../data/reports.json').then(res => res[0].default);
+const reports = await Astro.glob('../../data/reports.json').then(res => res[0].default);
 
 const latestReport = reports.length > 0 ? reports[0] : null;
 const olderReports = reports.length > 1 ? reports.slice(1, 5) : [];
