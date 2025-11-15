@@ -42,7 +42,7 @@ const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-2.5-flash'
  * @returns {string} The complete prompt string.
  */
 function buildReportPrompt(reportId, dateString, featuredModelIds, latestModels) {
-    return `
+    const prompt = `
     As an AI industry analyst, generate a weekly report on trends in the open-source AI model landscape based on the provided list of trending models. Your output MUST be a single, valid, parsable JSON string. Do not include any text or markdown formatting before or after the JSON block. The entire response should be only the JSON object.
 
     The JSON object must strictly adhere to this exact structure:
@@ -50,18 +50,28 @@ function buildReportPrompt(reportId, dateString, featuredModelIds, latestModels)
       "reportId": "YYYY-MM-DD",
       "title": "Weekly AI Model & Tech Report [Date]",
       "date": "YYYY-MM-DD",
-      "summary": "A brief summary of this week's key AI advancements.",
-      "sections": [{"heading": "Key Technology Breakthoughs", "content": "Markdown-formatted content...", "keywords": []}, {"heading": "Popular Product Applications & Market Trends", "content": "Markdown-formatted content...", "keywords": []}],
-      "featuredModelIds": ["model-id-1", "model-id-2"]
+      "summary": "A concise, engaging summary of this week's key AI advancements, suitable for a preview card. Max 2-3 sentences.",
+      "sections": [
+        {"heading": "Key Technology Breakthroughs", "content": "Detailed analysis of significant technical innovations and new model architectures. Use Markdown for formatting.", "keywords": ["technical-innovation", "new-architecture", "performance-gains"]},
+        {"heading": "Popular Product Applications & Market Trends", "content": "Analysis of how new models are being applied in products and emerging market trends. Use Markdown for formatting.", "keywords": ["market-trends", "use-cases", "application-spotlight"]},
+        {"heading": "Community Spotlight & Rising Stars", "content": "Highlight interesting or rapidly growing models from the community that might not be at the top of the leaderboards yet. Use Markdown for formatting.", "keywords": ["community-highlight", "rising-star", "innovative-tools"]}
+      ],
+      "featuredModelIds": ["model-id-1", "model-id-2"],
+      "tags": ["weekly-report", "ai-trends", "llm-analysis"]
     }
 
     Instructions:
     1.  Use '${reportId}' for "reportId" and "date".
     2.  The title must be exactly "Weekly AI Model & Tech Report [Date]", where [Date] is replaced with "${dateString}".
-    3.  The 'content' for each section must be detailed, insightful, and written in English using Markdown for formatting (e.g., **bold**, *italic*, links).
-    4.  The 'featuredModelIds' array must contain exactly these two IDs: ${JSON.stringify(featuredModelIds)}.
-    5.  Analyze the following trending models to inform your report: ${JSON.stringify(latestModels, null, 2)}
+    3.  The 'summary' must be brief and compelling.
+    4.  The 'content' for each section must be detailed, insightful, and written in English using Markdown for formatting (e.g., **bold**, *italic*, links).
+    5.  The 'keywords' for each section should be relevant lowercase strings.
+    6.  The 'featuredModelIds' array must contain exactly these two IDs: ${JSON.stringify(featuredModelIds)}.
+    7.  The 'tags' array should contain general tags for the report itself.
+    8.  Analyze the following trending models to inform your report: ${JSON.stringify(latestModels, null, 2)}
     `;
+
+    return prompt.trim();
 }
 
 /**
@@ -69,7 +79,7 @@ function buildReportPrompt(reportId, dateString, featuredModelIds, latestModels)
  * @param {Array<object>} models The list of recently fetched models.
  * @returns {Promise<void>}
  */
-async function generateAIWeeklyReport(models) { // <-- This function is being modified
+async function generateAIWeeklyReport(models) {
     if (!geminiModel) {
         console.warn('- GEMINI_API_KEY not found. Skipping AI report generation.');
         return null;
@@ -123,20 +133,22 @@ async function generateAIWeeklyReport(models) { // <-- This function is being mo
 
     // Fallback to a placeholder report if AI generation fails
     console.log('- Creating a fallback report...');
-    return {
+    const fallbackReport = {
       reportId: reportId,
       title: `Weekly AI Model & Tech Report ${dateString}`,
       date: reportId,
-      summary: "This week's report is currently unavailable due to a temporary issue with the AI generation service. Please check back later for updates. We are still tracking the latest models.",
+      summary: "This week's AI-generated analysis is temporarily unavailable. In the meantime, explore the top models that have been trending in the community.",
       sections: [
         {
-          heading: "Featured Models",
-          content: "The AI analyst report is unavailable, but you can still check out this week's top featured models.",
-          keywords: ["fallback", "unavailable"]
+          heading: "This Week's Hot Models",
+          content: "While our AI analyst is taking a short break, here are the models that captured the community's attention this week. Dive into their details to discover the latest innovations.",
+          keywords: ["trending-now", "top-models"]
         }
       ],
       featuredModelIds: featuredModelIds,
+      tags: ["fallback-report", "weekly-highlights"]
     };
+    return fallbackReport;
 }
 
 function sleep(ms) {
