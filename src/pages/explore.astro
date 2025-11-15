@@ -8,10 +8,10 @@ const url = new URL(Astro.request.url);
 const query = url.searchParams.get('q')?.toLowerCase().trim() || '';
 const tagQuery = url.searchParams.get('tag')?.toLowerCase().trim() || '';
 
-let filteredModels = [...allModels]; // Create a mutable copy
+let filteredModels = allModels;
 
 if (query) {
-  filteredModels = filteredModels.filter(model => {
+  filteredModels = allModels.filter(model => {
     const name = model.name.toLowerCase();
     const desc = (model.description || '').toLowerCase();
     const task = (model.task || '').toLowerCase();
@@ -19,8 +19,8 @@ if (query) {
     return name.includes(query) || desc.includes(query) || task.includes(query) || tags.includes(query);
   });
 }
-if (tagQuery) {
-    filteredModels = filteredModels.filter(model =>
+if (tagQuery) { // Changed else if to if to allow chaining
+    filteredModels = filteredModels.filter(model => 
         (model.tags || []).map(t => t.toLowerCase()).includes(tagQuery)
     );
 }
