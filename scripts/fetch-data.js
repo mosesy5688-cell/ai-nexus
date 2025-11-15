@@ -2,8 +2,8 @@ import axios from 'axios';
 import fs from 'fs';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import cheerio from 'cheerio';
+import { fileURLToPath } from 'url';
 
 // --- Configuration ---
 const __filename = fileURLToPath(import.meta.url);
@@ -16,7 +16,6 @@ const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../src/data/keywords.json');
 const REPORTS_OUTPUT_PATH = path.join(__dirname, '../src/data/reports.json');
 const ARCHIVE_DIR = path.join(__dirname, '../src/data/archives');
 const REPORT_ARCHIVE_DIR = path.join(__dirname, '../src/data/report-archives');
-const REPLICATE_EXPLORE_URL = 'https://replicate.com/explore';
 const NSFW_KEYWORDS = [
     'nsfw', 
     'porn', 
