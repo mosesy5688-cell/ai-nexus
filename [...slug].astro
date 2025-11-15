@@ -1,5 +1,5 @@
 ---
-import { Markdown } from 'astro/components';
+import Markdown from '@astrojs/markdown-component';
 import Layout from '@/layouts/Layout.astro';
 import ModelCard from '@/components/ModelCard.astro';
 import { Icon } from 'astro-icon/components';
@@ -8,7 +8,7 @@ const allModels = await Astro.glob('../../data/models.json').then(res => res[0].
 
 export async function getStaticPaths() {
     const models = await Astro.glob('../../data/models.json').then(res => res[0].default);
-    return allModels.map(model => ({
+    return models.map(model => ({
         params: { slug: model.id.replace(/\//g, '--') },
         props: { model },
     }));
