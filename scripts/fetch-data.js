@@ -16,6 +16,7 @@ const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../src/data/keywords.json');
 const REPORTS_OUTPUT_PATH = path.join(__dirname, '../src/data/reports.json');
 const ARCHIVE_DIR = path.join(__dirname, '../src/data/archives');
 const REPORT_ARCHIVE_DIR = path.join(__dirname, '../src/data/report-archives');
+const REPLICATE_EXPLORE_URL = 'https://replicate.com/explore';
 const NSFW_KEYWORDS = [
     'nsfw', 
     'porn', 
