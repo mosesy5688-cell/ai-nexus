@@ -14,12 +14,12 @@ export async function getStaticPaths() {
 
 const { model, allModels } = Astro.props;
 
-const getRelatedModels = () => {
-    const modelTags = new Set(model.tags.filter(t => t.length > 2 && !['model', 'text'].includes(t)));
+const getRelatedModels = (currentModel, allModelsList) => {
+    const modelTags = new Set(currentModel.tags.filter(t => t.length > 2 && !['model', 'text'].includes(t)));
     if (modelTags.size === 0) return [];
 
-    return allModels
-        .filter(m => m.id !== model.id)
+    return allModelsList
+        .filter(m => m.id !== currentModel.id)
         .map(m => {
             const relatedTags = m.tags.filter(t => modelTags.has(t));
             return { ...m, matchCount: relatedTags.length };
@@ -28,7 +28,7 @@ const getRelatedModels = () => {
         .sort((a, b) => b.matchCount - a.matchCount || b.likes - a.likes)
         .slice(0, 3);
 };
-const relatedModels = getRelatedModels();
+const relatedModels = getRelatedModels(model, allModels);
 ---
 
 <Layout title={model.name} description={model.description}>
@@ -102,7 +102,7 @@ const relatedModels = getRelatedModels();
                             <h3 class="text-lg font-semibold mb-3">Tags</h3>
                             <div class="flex flex-wrap gap-2">
                                 {model.tags.map(tag => (
-                                    <a href={`/explore?tag=${encodeURIComponent(tag)}`} class="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 py-1 px-2 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800">
+                                    <a href={`/keyword/${encodeURIComponent(tag.toLowerCase())}`} class="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 py-1 px-2 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800">
                                         {tag}
                                     </a>
                                 ))}
