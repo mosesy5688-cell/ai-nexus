@@ -415,31 +415,100 @@ function isNsfw(model) {
     return false;
 }
 
-function discoverAndSaveKeywords(models) {
-    console.log('Discovering hot keywords...');
-    const tagFrequency = new Map();
-    const excludedTags = new Set(['transformers', 'safetensors', 'pytorch', 'diffusers', 'en', 'license:mit', 'region:us', 'custom_code']);
+/**
+ * Cleans and normalizes a keyword string.
+ * @param {string} keyword - The keyword to clean.
+ * @returns {string} The cleaned keyword.
+ */
+function cleanKeyword(keyword) {
+    return keyword.toLowerCase().trim().replace(/[\s_]+/g, '-');
+}
 
-    for (const model of models) {
-        if (model.tags) {
-            for (const tag of model.tags) {
-                if (!excludedTags.has(tag) && !tag.includes(':') && tag.length > 2 && tag.length < 25) {
-                    tagFrequency.set(tag, (tagFrequency.get(tag) || 0) + 1);
+/**
+ * Extracts keywords from a given text string (name or description).
+ * @param {string} text - The text to extract keywords from.
+ * @returns {string[]} An array of potential keywords.
+ */
+function extractKeywordsFromText(text) {
+    if (!text) return [];
+    // This regex splits by spaces, hyphens, and slashes, and removes common punctuation.
+    return text.toLowerCase().split(/[\s\-/]+/)
+        .map(word => word.replace(/[^a-z0-9-]/g, ''))
+        .filter(word => word.length > 2 && word.length < 20 && !/^\d+$/.test(word));
+}
+
+/**
+ * Discovers, scores, and saves keywords based on their frequency, source, and associated model popularity.
+ * @param {Array<object>} models - The list of all models.
+ */
+function discoverAndSaveKeywords(models) {
+    console.log('- Discovering and scoring keywords...');
+    const keywordScores = new Map();
+    const excludedTags = new Set(['transformers', 'safetensors', 'pytorch', 'diffusers', 'en', 'license:mit', 'region:us', 'custom_code', 'gguf', 'model-index']);
+
+    const WEIGHTS = {
+        TAG: 5,
+        NAME: 3,
+        DESCRIPTION: 1,
+        LIKE_MULTIPLIER: 0.0001 // Add a small score fraction based on model likes
+    };
+
+    models.forEach(model => {
+        const seenKeywords = new Set(); // To ensure a keyword is counted only once per model
+
+        // Process tags (highest weight)
+        (model.tags || []).forEach(tag => {
+            const cleaned = cleanKeyword(tag);
+            if (cleaned && !excludedTags.has(cleaned) && !cleaned.includes(':') && cleaned.length > 2 && cleaned.length < 25) {
+                if (!seenKeywords.has(cleaned)) {
+                    const score = (keywordScores.get(cleaned)?.score || 0) + WEIGHTS.TAG + (model.likes * WEIGHTS.LIKE_MULTIPLIER);
+                    const count = (keywordScores.get(cleaned)?.count || 0) + 1;
+                    keywordScores.set(cleaned, { score, count });
+                    seenKeywords.add(cleaned);
                 }
             }
-        }
-    }
+        });
 
-    const sortedTags = Array.from(tagFrequency.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 12) // Get the top 12 hot keywords
-        .map(entry => ({
-            slug: entry[0],
-            title: entry[0].replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()), // Format title
-            count: entry[1]
+        // Process model name (medium weight)
+        extractKeywordsFromText(model.name).forEach(keyword => {
+            if (!excludedTags.has(keyword) && !seenKeywords.has(keyword)) {
+                const score = (keywordScores.get(keyword)?.score || 0) + WEIGHTS.NAME + (model.likes * WEIGHTS.LIKE_MULTIPLIER);
+                const count = (keywordScores.get(keyword)?.count || 0) + 1;
+                keywordScores.set(keyword, { score, count });
+                seenKeywords.add(keyword);
+            }
+        });
+
+        // Process description (lowest weight)
+        extractKeywordsFromText(model.description).forEach(keyword => {
+            if (!excludedTags.has(keyword) && !seenKeywords.has(keyword)) {
+                const score = (keywordScores.get(keyword)?.score || 0) + WEIGHTS.DESCRIPTION;
+                // We don't add like multiplier here to avoid over-inflating common words from popular model descriptions
+                const count = (keywordScores.get(keyword)?.count || 0) + 1;
+                keywordScores.set(keyword, { score, count });
+                seenKeywords.add(keyword);
+            }
+        });
+    });
+
+    // Filter out keywords that appear only once, as they are likely noise
+    const filteredKeywords = Array.from(keywordScores.entries()).filter(([, data]) => data.count > 1);
+
+    // Sort by score and take the top keywords
+    const sortedKeywords = filteredKeywords
+        .sort(([, a], [, b]) => b.score - a.score)
+        .slice(0, 50) // Increase the number of hot keywords to 50 for better coverage
+        .map(([slug, data]) => ({
+            slug: slug,
+            title: slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            count: data.count
         }));
 
-    writeDataToFile(KEYWORDS_OUTPUT_PATH, sortedTags);
+    // Final sort by count to display the most frequent ones first on the UI if needed
+    sortedKeywords.sort((a, b) => b.count - a.count);
+
+    writeDataToFile(KEYWORDS_OUTPUT_PATH, sortedKeywords);
+    console.log(`✅ Discovered and saved ${sortedKeywords.length} hot keywords.`);
 }
 
 /**
@@ -541,7 +610,7 @@ async function main() {
         await writeToKV('models', JSON.stringify(combinedData));
 
         // 5. Discover and save hot keywords based on the final model list
-        discoverAndSaveKeywords(combinedData);
+        discoverAndSaveKeywords(combinedData); // <-- This now uses the new, improved logic
 
         // 6. Generate and save the AI weekly report
         const newReport = await generateAIWeeklyReport(combinedData);
