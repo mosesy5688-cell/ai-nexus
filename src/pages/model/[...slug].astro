@@ -44,8 +44,10 @@ function findRelatedModels(currentModel, allModels, count = 3) {
 }
 
 const relatedModels = findRelatedModels(model, allModels);
+
 const pageTitle = `${model.name} - AI Model Details`;
 const pageDescription = model.description || `Details, README, and related models for ${model.name}.`;
+
 const readmeHtml = model.readme ? marked.parse(model.readme) : '<p>No README file available for this model.</p>';
 ---
 
