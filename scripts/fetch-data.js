@@ -504,11 +504,18 @@ function discoverAndSaveKeywords(models) {
             count: data.count
         }));
 
-    // Final sort by count to display the most frequent ones first on the UI if needed
-    sortedKeywords.sort((a, b) => b.count - a.count);
+    // --- VALIDATION STEP ---
+    // Ensure every keyword in the list corresponds to at least one model's tag.
+    // This prevents showing tags on the frontend that lead to zero results.
+    const allModelTags = new Set(models.flatMap(m => m.tags || []));
+    const validatedKeywords = sortedKeywords.filter(keyword => allModelTags.has(keyword.slug));
 
-    writeDataToFile(KEYWORDS_OUTPUT_PATH, sortedKeywords);
-    console.log(`✅ Discovered and saved ${sortedKeywords.length} hot keywords.`);
+    // Final sort by count to display the most frequent ones first on the UI if needed.
+    // This is applied after validation to ensure the final list is both relevant and popular.
+    validatedKeywords.sort((a, b) => b.count - a.count);
+
+    writeDataToFile(KEYWORDS_OUTPUT_PATH, validatedKeywords);
+    console.log(`✅ Discovered ${sortedKeywords.length} potential keywords, saved ${validatedKeywords.length} validated hot keywords.`);
 }
 
 /**
