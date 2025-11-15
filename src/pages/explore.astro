@@ -1,7 +1,7 @@
 ---
 import ModelCard from '@/components/ModelCard.astro';
 import Layout from '@/layouts/Layout.astro';
-import allModels from '@/data/models.json';
+const allModels = await Astro.glob('../data/models.json').then(res => res[0].default);
 import Search from '@/components/Search.astro';
 
 const url = new URL(Astro.request.url);

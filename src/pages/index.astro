@@ -2,7 +2,7 @@
 import Layout from '@/layouts/Layout.astro';
 import ModelCard from '@/components/ModelCard.astro';
 
-const allModels = await Astro.glob('../../data/models.json').then(res => res[0].default);
+const allModels = await Astro.glob('../data/models.json').then(res => res[0].default);
 const featuredModels = allModels.slice(0, 6); // Show top 6 models on the homepage
 
 const pageTitle = "AI-Nexus: Your Hub for Open-Source AI";
