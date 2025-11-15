@@ -7,14 +7,14 @@ import { Icon } from 'astro-icon/components';
 const allModels = await Astro.glob('../../data/models.json').then(res => res[0].default);
 
 export async function getStaticPaths() {
-    const models = await Astro.glob('../../data/models.json').then(res => res[0].default);
-    return Models.map(model => ({
+    const allmodels = await Astro.glob('../../data/models.json').then(res => res[0].default);
+    return Models.map((model) => ({
         params: { slug: model.id.replace(/\//g, '--') },
-        props: { model },
+        props: { model, allModels }, // Pass all models to each page
     }));
 }
 
-const { model } = Astro.props;
+const { model, allModels } = Astro.props;
 
 // Find related models based on shared tags (excluding generic tags)
 const getRelatedModels = () => {
