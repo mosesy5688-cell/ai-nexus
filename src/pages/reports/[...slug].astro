@@ -1,41 +1,127 @@
 ---
 import Layout from '@/layouts/Layout.astro';
-import { Markdown } from '@astrojs/markdown-component';
-import allReports from '@/data/reports.json';
 import allModels from '@/data/models.json';
+import Markdown from '@astrojs/markdown-component';
+import Icon from 'astro-icon';
 
 export function getStaticPaths() {
-    return allReports.map(report => ({
-        params: { slug: report.reportId },
-        props: { report },
-    }));
+  return allModels.map(model => {
+    // Astro needs a URL-safe slug. We replace '/' with '--'.
+    const slug = model.id.replace(/\//g, '--');
+    return {
+      params: { slug },
+      props: { model },
+    };
+  });
 }
 
-const { report } = Astro.props;
+const { model } = Astro.props;
 
-const featuredModels = report.featuredModelIds
-    ? report.featuredModelIds.map(id => allModels.find(m => m.id === id)).filter(Boolean)
-    : [];
+// --- Find Related Models ---
+function findRelatedModels(currentModel, allModels, count = 3) {
+  if (!currentModel.tags || currentModel.tags.length === 0) {
+    return [];
+  }
+
+  const currentModelTags = new Set(currentModel.tags);
+
+  const scoredModels = allModels
+    .filter(m => m.id !== currentModel.id) // Exclude the current model
+    .map(m => {
+      if (!m.tags || m.tags.length === 0) {
+        return { model: m, score: 0 };
+      }
+      const otherModelTags = new Set(m.tags);
+      const intersection = new Set([...currentModelTags].filter(tag => otherModelTags.has(tag)));
+      const score = intersection.size;
+      return { model: m, score };
+    })
+    .filter(item => item.score > 0) // Only include models with at least one common tag
+    .sort((a, b) => b.score - a.score || b.model.likes - a.model.likes); // Sort by score, then by likes
+
+  return scoredModels.slice(0, count).map(item => item.model);
+}
+
+const relatedModels = findRelatedModels(model, allModels);
+
+const pageTitle = `${model.name} - AI Model Details`;
+const pageDescription = model.description || `Details, README, and related models for ${model.name}.`;
+
 ---
 
-<Layout title={report.title} description={report.summary}>
-    <main class="container mx-auto px-4 py-12">
-        <article class="max-w-4xl mx-auto">
-            <header class="mb-8 text-center">
-                <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">{report.title}</h1>
-                <p class="mt-2 text-lg text-gray-500 dark:text-gray-400">
-                    {new Date(report.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
-                </p>
-            </header>
-
-            <div class="prose prose-lg dark:prose-invert max-w-none mx-auto">
-                {report.sections.map(section => (
-                    <section class="mb-12">
-                        <h2 class="text-2xl font-bold border-b border-gray-300 dark:border-gray-700 pb-2 mb-4">{section.heading}</h2>
-                        <div class="prose prose-lg dark:prose-invert max-w-none mx-auto"><Markdown content={section.content} /></div>
-                    </section>
-                ))}
-            </div>
+<Layout title={pageTitle} description={pageDescription}>
+  <div class="container mx-auto px-4 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Main Content: README -->
+      <div class="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+        <h1 class="text-3xl font-bold mb-2 text-gray-900 dark:text-white">{model.name}</h1>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">{model.description}</p>
+        
+        <article class="prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert max-w-none">
+          {model.readme ? (
+            <Markdown content={model.readme} />
+          ) : (
+            <p>No README file available for this model.</p>
+          )}
         </article>
-    </main>
+      </div>
+
+      <!-- Sidebar: Metadata -->
+      <div class="lg:col-span-1 space-y-6">
+        <!-- Stats Card -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+          <h3 class="text-xl font-semibold mb-4 border-b pb-2 dark:border-gray-700">Stats</h3>
+          <div class="flex justify-around text-center">
+            <div class="flex flex-col items-center">
+              <Icon name="mdi:heart" class="w-6 h-6 text-red-500 mb-1" />
+              <span class="font-bold text-lg">{model.likes.toLocaleString()}</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">Likes</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <Icon name="mdi:download" class="w-6 h-6 text-blue-500 mb-1" />
+              <span class="font-bold text-lg">{model.downloads.toLocaleString()}</span>
+              <span class="text-xs text-gray-500 dark:text-gray-400">Downloads</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tags Card -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+          <h3 class="text-xl font-semibold mb-4 border-b pb-2 dark:border-gray-700">Tags</h3>
+          <div class="flex flex-wrap gap-2">
+            {model.tags && model.tags.length > 0 ? model.tags.slice(0, 15).map(tag => (
+              <a href={`/explore?tag=${tag}`} class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-medium px-2.5 py-1 rounded-full hover:bg-blue-500 hover:text-white transition-colors">
+                {tag}
+              </a>
+            )) : <p class="text-sm text-gray-500">No tags available.</p>}
+          </div>
+        </div>
+
+        <!-- Sources Card -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+          <h3 class="text-xl font-semibold mb-4 border-b pb-2 dark:border-gray-700">Sources</h3>
+          <ul class="space-y-3">
+            {model.sources.map(source => (
+              <li>
+                <a href={source.url} target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline">
+                  <Icon name={`mdi:${source.platform.toLowerCase().replace(' ', '-')}`} class="w-5 h-5" />
+                  <span>{source.platform}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Related Models Section -->
+    {relatedModels.length > 0 && (
+      <div class="mt-12">
+        <h2 class="text-2xl font-bold text-center mb-6">Related Models</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {relatedModels.map(related => <ModelCard model={related} />)}
+        </div>
+      </div>
+    )}
+  </div>
 </Layout>
