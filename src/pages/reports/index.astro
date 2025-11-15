@@ -1,13 +1,12 @@
 ---
 import Layout from '@/layouts/Layout.astro';
-import ReportCard from '@/components/ReportCard.astro';
 
 const reports = await Astro.glob('../../data/reports.json').then(res => res[0].default);
 
 const latestReport = reports.length > 0 ? reports[0] : null;
 const olderReports = reports.length > 1 ? reports.slice(1, 5) : [];
 
-const pageTitle = 'AI Industry Weekly Reports';
+const pageTitle = "AI Industry Weekly Reports";
 const pageDescription = "Stay updated with the latest trends, breakthroughs, and popular models in the open-source AI landscape with our weekly reports.";
 ---
 
@@ -25,7 +24,7 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
         <!-- Latest Report -->
         <section class="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
           <h2 class="text-3xl font-bold mb-2">{latestReport.title}</h2>
-          <p class="text-gray-500 dark:text-gray-400 mb-6">{new Date(latestReport.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</p>
+          <p class="text-gray-500 dark:text-gray-400 mb-6">{new Date(latestReport.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
           <p class="mb-8">{latestReport.summary}</p>
           <a href={`/reports/${latestReport.reportId}`} class="inline-block bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
             Read Full Report
@@ -36,8 +35,14 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
         {olderReports.length > 0 && (
           <section>
             <h3 class="text-2xl font-bold mb-6 text-center">Recent Reports</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {olderReports.map(report => <ReportCard report={report} />)}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {olderReports.map(report => (
+                <a href={`/reports/${report.reportId}`} class="block p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow">
+                  <h4 class="font-bold text-xl text-blue-600 dark:text-blue-400">{report.title}</h4>
+                  <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{new Date(report.date).toLocaleDateString()}</p>
+                  <p class="text-gray-600 dark:text-gray-300 mt-3 text-sm">{report.summary.substring(0, 100)}...</p>
+                </a>
+              ))}
             </div>
             <div class="text-center mt-8">
               <a href="/reports/archive" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">
@@ -49,7 +54,7 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
       </div>
     ) : (
       <p class="text-center text-gray-500 dark:text-gray-400 py-16">
-        Weekly reports are being generated. Please check back later.
+        No weekly reports have been generated yet. Please check back later.
       </p>
     )}
   </div>
