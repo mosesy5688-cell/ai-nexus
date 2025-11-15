@@ -4,11 +4,9 @@ import Layout from '@/layouts/Layout.astro';
 import ModelCard from '@/components/ModelCard.astro';
 import { Icon } from 'astro-icon/components';
 
-const allModels = await Astro.glob('../../data/models.json').then(res => res[0].default);
-
 export async function getStaticPaths() {
-    const allmodels = await Astro.glob('../../data/models.json').then(res => res[0].default);
-    return Models.map((model) => ({
+    const allModels = await Astro.glob('../../data/models.json').then(res => res[0].default);
+    return allModels.map((model) => ({
         params: { slug: model.id.replace(/\//g, '--') },
         props: { model, allModels }, // Pass all models to each page
     }));
@@ -16,6 +14,21 @@ export async function getStaticPaths() {
 
 const { model, allModels } = Astro.props;
 
+const getRelatedModels = () => {
+    const modelTags = new Set(model.tags.filter(t => t.length > 2 && !['model', 'text'].includes(t)));
+    if (modelTags.size === 0) return [];
+
+    return allModels
+        .filter(m => m.id !== model.id)
+        .map(m => {
+            const relatedTags = m.tags.filter(t => modelTags.has(t));
+            return { ...m, matchCount: relatedTags.length };
+        })
+        .filter(m => m.matchCount > 0)
+        .sort((a, b) => b.matchCount - a.matchCount || b.likes - a.likes)
+        .slice(0, 3);
+};
+const relatedModels = getRelatedModels();
 ---
 
 <Layout title={model.name} description={model.description}>
