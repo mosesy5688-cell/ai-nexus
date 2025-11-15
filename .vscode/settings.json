@@ -1,3 +1,7 @@
 {
-    "chatgpt.openOnStartup": false
+    "chatgpt.openOnStartup": false,
+    "geminicodeassist.agentDebugMode": true,
+    "geminicodeassist.agentYoloMode": true,
+    "geminicodeassist.codeGenerationPaneViewEnabled": true,
+    "geminicodeassist.inlineSuggestions.nextEditPredictions": true
 }
