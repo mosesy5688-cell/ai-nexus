@@ -15,6 +15,7 @@ const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../src/data/keywords.json');
 const REPORTS_OUTPUT_PATH = path.join(__dirname, '../src/data/reports.json');
 const ARCHIVE_DIR = path.join(__dirname, '../src/data/archives');
 const REPORT_ARCHIVE_DIR = path.join(__dirname, '../src/data/report-archives');
+const REPLICATE_EXPLORE_URL = 'https://replicate.com/explore';
 const NSFW_KEYWORDS = [
     'nsfw', 
     'porn', 
@@ -158,6 +159,51 @@ async function fetchReadme(url, config = {}) {
     } catch (error) {
         // It's okay if a README doesn't exist.
         return null;
+    }
+}
+
+/**
+ * Fetches and transforms data from Replicate by scraping the explore page.
+ * @returns {Promise<Array<object>>} A promise that resolves to an array of transformed model data.
+ */
+async function fetchReplicateData() {
+    console.log('📦 Fetching data from Replicate...');
+    try {
+        const { data } = await axios.get(REPLICATE_EXPLORE_URL);
+        const $ = cheerio.load(data);
+        const models = [];
+
+        $('a[href^="/"][class*="flex-col"]').each((i, el) => {
+            if (models.length >= 30) return false; // Limit to top 30 models
+
+            const href = $(el).attr('href');
+            const name = $(el).find('h3').text().trim();
+            const author = href.split('/')[1];
+            const description = $(el).find('p').first().text().trim();
+
+            if (href && name && author) {
+                models.push({
+                    id: `replicate-${author}/${name.toLowerCase().replace(/\s+/g, '-')}`,
+                    name: name,
+                    author: author,
+                    description: description || 'A model from Replicate.',
+                    task: 'N/A', // Replicate doesn't provide a standard task tag on the explore page
+                    tags: ['replicate'],
+                    likes: 0, // Likes are not available on the explore page
+                    downloads: 0, // Downloads are not available
+                    lastModified: new Date().toISOString(),
+                    readme: null,
+                    downloadUrl: null,
+                    sources: [{ platform: 'Replicate', url: `https://replicate.com${href}` }],
+                    thumbnail: null,
+                });
+            }
+        });
+        console.log(`✅ Successfully fetched and transformed ${models.length} models from Replicate.`);
+        return models;
+    } catch (error) {
+        console.error('❌ Failed to fetch data from Replicate:', error.message);
+        return [];
     }
 }
 
@@ -433,6 +479,7 @@ async function main() {
         fetchHuggingFaceData(),
         readCivitaiData(),
         fetchGitHubData(),
+        fetchReplicateData(),
     ]);
 
     const allRawModels = sourcesData.flat();
