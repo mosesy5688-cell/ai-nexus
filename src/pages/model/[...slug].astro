@@ -1,7 +1,6 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import allModels from '@/data/models.json';
-import { marked } from 'marked';
 import ModelCard from '@/components/ModelCard.astro';
 import Icon from 'astro-icon';
 
@@ -48,7 +47,10 @@ const relatedModels = findRelatedModels(model, allModels);
 const pageTitle = `${model.name} - AI Model Details`;
 const pageDescription = model.description || `Details, README, and related models for ${model.name}.`;
 
-const readmeHtml = model.readme ? marked.parse(model.readme) : '<p>No README file available for this model.</p>';
+// Use Astro's built-in Markdown processor for compatibility with Astro 5.
+const readmeContent = model.readme 
+  ? (await Astro.markdown(model.readme)).code 
+  : '<p>No README file available for this model.</p>';
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -60,7 +62,7 @@ const readmeHtml = model.readme ? marked.parse(model.readme) : '<p>No README fil
         <p class="text-gray-600 dark:text-gray-400 mb-6">{model.description}</p>
         
         <article class="prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert max-w-none">
-          <Fragment set:html={readmeHtml} />
+          <Fragment set:html={readmeContent} />
         </article>
       </div>
 
