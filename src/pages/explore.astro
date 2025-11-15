@@ -8,18 +8,19 @@ const url = new URL(Astro.request.url);
 const query = url.searchParams.get('q')?.toLowerCase().trim() || '';
 const tagQuery = url.searchParams.get('tag')?.toLowerCase().trim() || '';
 
-let filteredModels = allModels;
+let filteredModels = [...allModels]; // Create a mutable copy
 
 if (query) {
-  filteredModels = allModels.filter(model => {
+  filteredModels = filteredModels.filter(model => {
     const name = model.name.toLowerCase();
     const desc = (model.description || '').toLowerCase();
     const task = (model.task || '').toLowerCase();
     const tags = (model.tags || []).join(' ').toLowerCase();
     return name.includes(query) || desc.includes(query) || task.includes(query) || tags.includes(query);
   });
-} else if (tagQuery) {
-    filteredModels = allModels.filter(model => 
+}
+if (tagQuery) {
+    filteredModels = filteredModels.filter(model => 
         (model.tags || []).map(t => t.toLowerCase()).includes(tagQuery)
     );
 }

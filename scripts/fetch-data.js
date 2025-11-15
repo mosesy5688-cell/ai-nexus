@@ -3,6 +3,7 @@ import fs from 'fs';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import cheerio from 'cheerio';
 
 // --- Configuration ---
 const __filename = fileURLToPath(import.meta.url);
