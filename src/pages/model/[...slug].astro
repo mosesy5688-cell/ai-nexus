@@ -5,16 +5,18 @@ import { marked } from 'marked';
 import ModelCard from '@/components/ModelCard.astro';
 import Icon from 'astro-icon';
 
-const { slug } = Astro.params;
-const modelId = slug?.replace(/--/g, '/');
-const model = allModels.find(m => m.id === modelId);
-
-if (!model) {
-  return new Response(null, {
-    status: 404,
-    statusText: 'Not Found'
+export function getStaticPaths() {
+  return allModels.map(model => {
+    // Astro needs a URL-safe slug. We replace '/' with '--'.
+    const slug = model.id.replace(/\//g, '--');
+    return {
+      params: { slug },
+      props: { model },
+    };
   });
 }
+
+const { model } = Astro.props;
 
 // --- Find Related Models ---
 function findRelatedModels(currentModel, allModels, count = 3) {
