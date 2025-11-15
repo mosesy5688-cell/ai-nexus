@@ -1,78 +1,185 @@
 ---
-import ModelCard from '@/components/ModelCard.astro';
-import Layout from '@/layouts/Layout.astro';
-const allModels = await Astro.glob('../data/models.json').then(res => res[0].default);
-import Search from '@/components/Search.astro';
+import Layout from '../layouts/Layout.astro';
+import ModelCard from '../components/ModelCard.astro';
+import allModels from '../data/models.json';
+import allKeywords from '../data/keywords.json';
 
-const url = new URL(Astro.request.url);
-const query = url.searchParams.get('q')?.toLowerCase().trim() || '';
-const tagQuery = url.searchParams.get('tag')?.toLowerCase().trim() || '';
+const url = Astro.url;
+const initialTag = url.searchParams.get('tag');
+const initialQuery = url.searchParams.get('q') || '';
 
-let filteredModels = allModels;
+let pageTitle = "Explore AI Models & Tools";
+let pageDescription = "Search and filter through a comprehensive list of open-source AI models and tools.";
 
-if (query) {
-  filteredModels = allModels.filter(model => {
-    const name = model.name.toLowerCase();
-    const desc = (model.description || '').toLowerCase();
-    const task = (model.task || '').toLowerCase();
-    const tags = (model.tags || []).join(' ').toLowerCase();
-    return name.includes(query) || desc.includes(query) || task.includes(query) || tags.includes(query);
-  });
+if (initialTag) {
+    pageTitle = `Models tagged with '${initialTag}'`;
+    pageDescription = `Find AI models and tools related to ${initialTag}.`;
 }
-if (tagQuery) { // Changed else if to if to allow chaining
-    filteredModels = filteredModels.filter(model => 
-        (model.tags || []).map(t => t.toLowerCase()).includes(tagQuery)
-    );
+if (initialQuery) {
+    pageTitle = `Search results for '${initialQuery}'`;
 }
-
-const pageTitle = query ? `Search Results for "${query}"` : tagQuery ? `Models tagged with "${tagQuery}"` : "Explore All AI Models";
-const pageDescription = `Browse and discover open-source AI models. Search results for: ${query || tagQuery}`;
 ---
 
-<Layout 
-  title={pageTitle + " | Free AI Tools"}
-  description={pageDescription}>
-
-  <section id="explore" class="py-12 sm:py-20">
-    <div class="container max-w-7xl mx-auto px-4">
-      <div class="text-center mb-12">
-        <h1 class="text-4xl font-bold text-gray-900 dark:text-white">
-            {query ? `Results for "${query}"` : (tagQuery ? `Models tagged with "${tagQuery}"` : "Explore All Models")}
-        </h1>
-        <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">
-            {filteredModels.length} model(s) found.
-        </p>
-      </div>
-
-      <!-- Search Bar is in the header, but you could place one here if needed -->
-      <div class="max-w-2xl mx-auto mb-16">
-        <Search />
-      </div>
-
-      <!-- Ad Slot 1: Above the grid -->
-      <div class="my-8 text-center">
-          <!-- Your Google AdSense ad unit code here. Example: <ins class="adsbygoogle" ...></ins> -->
-      </div>
-
-      {filteredModels.length > 0 ? (
-        <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredModels.map(model => (
-            <ModelCard model={model} />
-          ))}
+<Layout title={pageTitle} description={pageDescription}>
+    <div class="container mx-auto px-4 py-8">
+        <div class="mb-8 text-center">
+            <h1 class="text-4xl font-bold mb-2" id="page-title">{pageTitle}</h1>
+            <p class="text-lg text-gray-600 dark:text-gray-400" id="page-description">{pageDescription}</p>
         </div>
-      ) : (
-        <div id="no-results" class="text-center py-16">
-            <p class="text-xl text-gray-500">No models found matching your criteria.</p>
-            <a href="/explore" class="mt-4 inline-block text-blue-500 hover:underline">
-                &larr; Back to Explore All
-            </a>
-        </div>
-      )}
 
-      <!-- Ad Slot 2: Below the grid -->
-      <div class="my-8 text-center">
-          <!-- Your Google AdSense ad unit code here. -->
-      </div>
+        <!-- Search and Filter Section -->
+        <div class="mb-8 flex flex-col md:flex-row gap-4 items-center sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-4 z-10">
+            <div class="relative flex-grow w-full">
+                <input
+                    type="search"
+                    id="search-box"
+                    placeholder="Search by name, author, description, or tags..."
+                    value={initialQuery}
+                    class="w-full p-3 pl-10 text-lg border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Keywords/Tags Cloud -->
+        <div class="mb-10 text-center" id="tags-container">
+            <h3 class="text-xl font-semibold mb-4">Popular Tags</h3>
+            <div class="flex flex-wrap justify-center gap-2">
+                {allKeywords.slice(0, 24).map(keyword => (
+                    <a href={`/explore?tag=${keyword.slug}`} data-tag={keyword.slug} class:list={[
+                        "tag-link px-4 py-2 text-sm font-medium rounded-full transition-colors cursor-pointer",
+                        initialTag === keyword.slug
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-blue-500 hover:text-white"
+                    ]}>
+                        {keyword.title}
+                    </a>
+                ))}
+            </div>
+        </div>
+
+        <!-- Models Grid -->
+        <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Client-side rendering will populate this -->
+        </div>
+        <div id="no-results" class="text-center py-16 hidden">
+            <p class="text-2xl font-semibold text-gray-700 dark:text-gray-300">No models found.</p>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Try adjusting your search or filter criteria.</p>
+        </div>
     </div>
-  </section>
+
+    <script define:vars={{ allModels, initialQuery, initialTag }}>
+        const searchBox = document.getElementById('search-box');
+        const modelsGrid = document.getElementById('models-grid');
+        const noResults = document.getElementById('no-results');
+        const tagsContainer = document.getElementById('tags-container');
+
+        let currentQuery = initialQuery;
+        let currentTag = initialTag;
+
+        function normalizeText(text) {
+            return text.toLowerCase().trim();
+        }
+
+        function renderModels(models) {
+            modelsGrid.innerHTML = '';
+            if (models.length === 0) {
+                noResults.classList.remove('hidden');
+            } else {
+                noResults.classList.add('hidden');
+                const fragment = document.createDocumentFragment();
+                models.forEach(model => {
+                    const card = document.createElement('div');
+                    // This is a simplified card. In a real scenario, you'd use a template literal
+                    // or a more robust templating solution to create the full ModelCard component HTML.
+                    card.innerHTML = `
+                        <a href="/model/${model.id.replace('/', '--')}" class="block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full">
+                            <div class="p-5">
+                                <h3 class="text-xl font-bold text-gray-900 dark:text-white truncate">${model.name}</h3>
+                                <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">by ${model.author}</p>
+                                <p class="text-gray-700 dark:text-gray-300 text-sm h-20 overflow-hidden text-ellipsis">${model.description}</p>
+                            </div>
+                        </a>
+                    `;
+                    fragment.appendChild(card);
+                });
+                modelsGrid.appendChild(fragment);
+            }
+        }
+
+        function filterAndRender() {
+            const normalizedQuery = normalizeText(currentQuery);
+
+            const filtered = allModels.filter(model => {
+                const tagMatch = !currentTag || (model.tags && model.tags.includes(currentTag));
+                if (!tagMatch) return false;
+
+                if (!normalizedQuery) return true;
+
+                return (
+                    (model.name && normalizeText(model.name).includes(normalizedQuery)) ||
+                    (model.description && normalizeText(model.description).includes(normalizedQuery)) ||
+                    (model.author && normalizeText(model.author).includes(normalizedQuery)) ||
+                    (model.tags && model.tags.some(t => normalizeText(t).includes(normalizedQuery)))
+                );
+            });
+
+            renderModels(filtered);
+        }
+
+        function updateURL() {
+            const url = new URL(window.location);
+            if (currentQuery) {
+                url.searchParams.set('q', currentQuery);
+            } else {
+                url.searchParams.delete('q');
+            }
+            if (currentTag) {
+                url.searchParams.set('tag', currentTag);
+            } else {
+                url.searchParams.delete('tag');
+            }
+            window.history.pushState({}, '', url);
+        }
+
+        searchBox.addEventListener('input', (e) => {
+            currentQuery = e.target.value;
+            updateURL();
+            filterAndRender();
+        });
+
+        tagsContainer.addEventListener('click', (e) => {
+            e.preventDefault();
+            const target = e.target.closest('.tag-link');
+            if (!target) return;
+
+            const clickedTag = target.dataset.tag;
+
+            // Toggle tag selection
+            if (currentTag === clickedTag) {
+                currentTag = null; // Deselect if clicking the active tag
+            } else {
+                currentTag = clickedTag;
+            }
+
+            // Update UI for all tags
+            document.querySelectorAll('.tag-link').forEach(link => {
+                if (link.dataset.tag === currentTag) {
+                    link.classList.add('bg-blue-600', 'text-white');
+                    link.classList.remove('bg-gray-200', 'dark:bg-gray-700');
+                } else {
+                    link.classList.remove('bg-blue-600', 'text-white');
+                    link.classList.add('bg-gray-200', 'dark:bg-gray-700');
+                }
+            });
+
+            updateURL();
+            filterAndRender();
+        });
+
+        // Initial render on page load
+        filterAndRender();
+    </script>
 </Layout>
