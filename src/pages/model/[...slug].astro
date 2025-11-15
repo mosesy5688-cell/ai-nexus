@@ -16,23 +16,6 @@ export async function getStaticPaths() {
 
 const { model, allModels } = Astro.props;
 
-// Find related models based on shared tags (excluding generic tags)
-const getRelatedModels = () => {
-    const modelTags = new Set(model.tags.filter(t => t.length > 2 && !['model', 'text'].includes(t)));
-    if (modelTags.size === 0) return [];
-
-    return allModels
-        .filter(m => m.id !== model.id)
-        .map(m => {
-            const relatedTags = m.tags.filter(t => modelTags.has(t));
-            return { ...m, matchCount: relatedTags.length };
-        })
-        .filter(m => m.matchCount > 0)
-        .sort((a, b) => b.matchCount - a.matchCount || b.likes - a.likes)
-        .slice(0, 3);
-};
-
-const relatedModels = getRelatedModels();
 ---
 
 <Layout title={model.name} description={model.description}>
