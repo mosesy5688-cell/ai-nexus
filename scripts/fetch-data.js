@@ -6,11 +6,11 @@ import cheerio from 'cheerio';
 import { fileURLToPath } from 'url';
 import { fetchPwCData } from './fetch-pwc.js';
 
-// --- Configuration ---
+// --- Configuration ---_
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=200&filter=text-generation,multimodal,text-to-image,automatic-speech-recognition,image-to-text,text-to-speech,image-to-3d,any-to-any';
+const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=500&filter=text-generation,multimodal,text-to-image,automatic-speech-recognition,image-to-text,text-to-speech,image-to-3d,any-to-any';
 const OUTPUT_FILE_PATH = path.join(__dirname, '../src/data/models.json');
 const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../src/data/keywords.json');
 const REPORTS_OUTPUT_PATH = path.join(__dirname, '../src/data/reports.json');
@@ -187,15 +187,14 @@ async function fetchReplicateData() {
         const $ = cheerio.load(data);
         const models = [];
 
-        // Updated selector to match Replicate's current HTML structure for model cards
-        $('div[class*="ExploreCard_root"]').each((i, el) => {
+        // The selector needs to be updated to match the current Replicate explore page structure.
+        $('a[href^="/explore/"]').each((i, el) => {
             if (models.length >= 30) return false; // Limit to top 30 models
 
-            const linkElement = $(el).find('a[href^="/p/"]');
-            const href = linkElement.attr('href');
-            const name = linkElement.find('h3').text().trim();
-            const author = linkElement.find('h4').text().trim().replace(/^by\s+/, '');
-            const description = linkElement.find('p').text().trim();
+            const href = $(el).attr('href');
+            const name = $(el).find('h3').text().trim();
+            const author = $(el).find('div[class*="owner"]').text().trim();
+            const description = $(el).find('p[class*="description"]').text().trim();
 
             if (href && name && author) {
                 models.push({
@@ -226,41 +225,9 @@ async function fetchReplicateData() {
 }
 
 /**
- * Fetches and transforms data from a local civitai.json file.
+ * Fetches and transforms data from the HuggingFace API.
  * @returns {Promise<Array<object>>} A promise that resolves to an array of transformed model data.
- */
-async function fetchCivitaiData() {
-    console.log('📦 Fetching data from Civitai file...');
-    if (!fs.existsSync(CIVITAI_DATA_PATH)) {
-        console.warn('- civitai.json not found, skipping Civitai data fetch.');
-        return [];
-    }
-
-    try {
-        const civitaiData = JSON.parse(fs.readFileSync(CIVITAI_DATA_PATH, 'utf-8'));
-        const models = civitaiData.map(item => ({
-            id: `civitai-${item.name.toLowerCase().replace(/\s+/g, '-')}`,
-            name: item.name,
-            author: 'Civitai Community',
-            description: item.description.replace(/<[^>]*>?/gm, '').substring(0, 500) || 'An image generation model from Civitai.',
-            task: 'image-generation',
-            tags: item.tags || ['civitai', 'image-generation'],
-            likes: 0, // Not available in the provided JSON
-            downloads: 0, // Not available
-            lastModified: new Date().toISOString(),
-            readme: item.description,
-            sources: [{ platform: 'Civitai', url: item.source }],
-            thumbnail: null,
-        }));
-        console.log(`✅ Successfully fetched and transformed ${models.length} models from Civitai.`);
-        return models;
-    } catch (error) {
-        console.error('❌ Failed to fetch or parse data from Civitai:', error.message);
-        return [];
-    }
-}
-
-async function fetchHuggingFaceData() {
+ */async function fetchHuggingFaceData() {
     console.log('📦 Fetching data from HuggingFace API...');
     try {
         const { data } = await axios.get(HUGGINGFACE_API_URL, { timeout: 20000 });
@@ -319,7 +286,7 @@ async function fetchHuggingFaceData() {
 async function fetchGitHubData(additionalRepoUrls = []) {
     console.log('📦 Fetching data from GitHub API...');
     // Correctly formatted and URL-encoded query to focus on high-quality technical repositories.
-    const GITHUB_SEARCH_QUERY = 'topic:generative-ai OR topic:llm OR topic:ai-agent OR "large language model" in:description,topics';
+    const GITHUB_SEARCH_QUERY = '("generative ai" OR "large language model" OR "ai tool" OR "ai agent") in:description,topics sort:stars';
 
     const fetchedRepos = new Set();
     const allTransformedData = [];
@@ -658,7 +625,6 @@ async function main() {
         fetchHuggingFaceData(),
         fetchGitHubData(pwcRepoUrls),
         fetchReplicateData(),
-        fetchCivitaiData(),
     ]);
 
     const allRawModels = sourcesData.flat();
