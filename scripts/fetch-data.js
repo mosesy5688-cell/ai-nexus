@@ -6,11 +6,11 @@ import cheerio from 'cheerio';
 import { fileURLToPath } from 'url';
 import { fetchPwCData } from './fetch-pwc.js';
 
-// --- Configuration ---_
+// --- Configuration ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=500&filter=text-generation,multimodal,text-to-image,automatic-speech-recognition,image-to-text,text-to-speech,image-to-3d,any-to-any';
+const HUGGINGFACE_API_BASE_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100&filter=text-generation,multimodal,text-to-image,automatic-speech-recognition,image-to-text,text-to-speech,image-to-3d,any-to-any';
 const OUTPUT_FILE_PATH = path.join(__dirname, '../src/data/models.json');
 const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../src/data/keywords.json');
 const REPORTS_OUTPUT_PATH = path.join(__dirname, '../src/data/reports.json');
@@ -187,14 +187,15 @@ async function fetchReplicateData() {
         const $ = cheerio.load(data);
         const models = [];
 
-        // The selector needs to be updated to match the current Replicate explore page structure.
-        $('a[href^="/explore/"]').each((i, el) => {
+        // Updated selector to match Replicate's current HTML structure for model cards
+        $('div[class*="ExploreCard_root"]').each((i, el) => {
             if (models.length >= 30) return false; // Limit to top 30 models
 
-            const href = $(el).attr('href');
-            const name = $(el).find('h3').text().trim();
-            const author = $(el).find('div[class*="owner"]').text().trim();
-            const description = $(el).find('p[class*="description"]').text().trim();
+            const linkElement = $(el).find('a[href^="/p/"]');
+            const href = linkElement.attr('href');
+            const name = linkElement.find('h3').text().trim();
+            const author = linkElement.find('h4').text().trim().replace(/^by\s+/, '');
+            const description = linkElement.find('p').text().trim();
 
             if (href && name && author) {
                 models.push({
@@ -228,43 +229,25 @@ async function fetchReplicateData() {
  * Fetches and transforms data from the HuggingFace API.
  * @returns {Promise<Array<object>>} A promise that resolves to an array of transformed model data.
  */async function fetchHuggingFaceData() {
-    console.log('📦 Fetching data from HuggingFace API...');
+    console.log('📦 Fetching data from HuggingFace API (up to 5 pages)...');
+    const allModels = [];
     try {
-        const { data } = await axios.get(HUGGINGFACE_API_URL, { timeout: 20000 });
+        for (let page = 0; page < 5; page++) {
+            try {
+                const { data } = await axios.get(`${HUGGINGFACE_API_BASE_URL}&p=${page}`, { timeout: 20000 });
+                if (data && data.length > 0) {
+                    allModels.push(...data);
+                } else {
+                    console.log(`- HuggingFace API: No more models found on page ${page + 1}. Stopping.`);
+                    break; // No more models, stop paginating
+                }
+            } catch (pageError) {
+                console.error(`- Failed to fetch page ${page + 1} from HuggingFace:`, pageError.message);
+                break; // Stop on error
+            }
+        }
 
-        const transformedData = await Promise.all(data.map(async (model) => {
-            const readmeUrl = `https://huggingface.co/${model.modelId}/raw/main/README.md`;
-            const readmeContent = await fetchReadme(readmeUrl);
-
-            // Attempt to find a direct download URL
-            const files = model.siblings?.map(s => s.rfilename) || [];
-            const safetensorFile = files.find(f => f.endsWith('.safetensors'));
-            // Use the main model URL as a fallback if no direct link is found
-            const modelUrl = `https://huggingface.co/${model.modelId}`;
-            const downloadUrl = safetensorFile
-                ? `https://huggingface.co/${model.modelId}/resolve/main/${safetensorFile}` : null;
-
-            return {
-                id: model.modelId,
-                name: model.modelId.split('/')[1] || model.modelId,
-                author: model.author,
-                description: model.cardData?.description || `A model for ${model.pipeline_tag || 'various tasks'}.`,
-                task: model.pipeline_tag || 'N/A',
-                tags: model.tags || [],
-                likes: model.likes || 0,
-                downloads: model.downloads || 0,
-                lastModified: model.lastModified,
-                readme: readmeContent,
-                downloadUrl: downloadUrl,
-                sources: [{
-                    platform: 'Hugging Face',
-                    url: modelUrl,
-                    author: model.author,
-                    modelId: model.modelId,
-                }],
-                thumbnail: null, // Images are disabled
-            };
-        }));
+        const transformedData = await Promise.all(allModels.map(model => transformHuggingFaceModel(model)));
 
         console.log(`✅ Successfully fetched and transformed ${transformedData.length} models.`);
         return transformedData;
@@ -275,6 +258,42 @@ async function fetchReplicateData() {
         }
         return []; // Return empty on error to avoid breaking the build
     }
+}
+
+/**
+ * Transforms a single HuggingFace model item into our standard format.
+ * @param {object} model - The HuggingFace model item.
+ * @returns {Promise<object>}
+ */
+async function transformHuggingFaceModel(model) {
+    const readmeUrl = `https://huggingface.co/${model.modelId}/raw/main/README.md`;
+    const readmeContent = await fetchReadme(readmeUrl);
+
+    const files = model.siblings?.map(s => s.rfilename) || [];
+    const safetensorFile = files.find(f => f.endsWith('.safetensors'));
+    const modelUrl = `https://huggingface.co/${model.modelId}`;
+    const downloadUrl = safetensorFile ? `https://huggingface.co/${model.modelId}/resolve/main/${safetensorFile}` : null;
+
+    return {
+        id: model.modelId,
+        name: model.modelId.split('/')[1] || model.modelId,
+        author: model.author,
+        description: model.cardData?.description || `A model for ${model.pipeline_tag || 'various tasks'}.`,
+        task: model.pipeline_tag || 'N/A',
+        tags: model.tags || [],
+        likes: model.likes || 0,
+        downloads: model.downloads || 0,
+        lastModified: model.lastModified,
+        readme: readmeContent,
+        downloadUrl: downloadUrl,
+        sources: [{
+            platform: 'Hugging Face',
+            url: modelUrl,
+            author: model.author,
+            modelId: model.modelId,
+        }],
+        thumbnail: null,
+    };
 }
 
 /**
