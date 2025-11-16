@@ -1,7 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import allModels from '@/data/models.json';
-import { renderMarkdown } from '@/components/markdown.js';
+import { renderMarkdownToHTML } from '@/components/markdown.js';
 import ModelCard from '@/components/ModelCard.astro';
 import Icon from 'astro-icon';
 
@@ -48,9 +48,9 @@ const relatedModels = findRelatedModels(model, allModels);
 const pageTitle = `${model.name} - AI Model Details`;
 const pageDescription = model.description || `Details, README, and related models for ${model.name}.`;
 
-const { Content } = model.readme
-  ? await renderMarkdown(model.readme)
-  : { Content: null };
+const readmeHtml = model.readme
+  ? await renderMarkdownToHTML(model.readme)
+  : null;
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -62,8 +62,8 @@ const { Content } = model.readme
         <p class="text-gray-600 dark:text-gray-400 mb-6">{model.description}</p>
         
         <article class="prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert max-w-none">
-          {Content ? (
-            <Content />
+          {readmeHtml ? (
+            <div set:html={readmeHtml} />
           ) : (
             <p>No README file available for this model.</p>
           )}
