@@ -276,10 +276,9 @@ async function fetchHuggingFaceData() {
  */
 async function fetchGitHubData(additionalRepoUrls = []) {
     console.log('📦 Fetching data from GitHub API...');
-    // Optimized query to focus on high-quality technical repositories and authoritative organizations
-    const GITHUB_SEARCH_URL = 'https://api.github.com/search/repositories?q=' + 
-        'topic:ai-tool OR topic:generative-ai OR topic:llm OR topic:ai-agent ' +
-        'sort:stars order:desc&per_page=100';
+    // Correctly formatted and URL-encoded query to focus on high-quality technical repositories.
+    const query = encodeURIComponent('topic:generative-ai OR topic:llm OR topic:ai-agent OR "large language model" in:description,topics');
+    const GITHUB_SEARCH_URL = `https://api.github.com/search/repositories?q=${query}&sort=stars&order=desc&per_page=100`;
 
     const fetchedRepos = new Set();
     const allTransformedData = [];
