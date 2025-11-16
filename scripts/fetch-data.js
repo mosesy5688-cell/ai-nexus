@@ -241,6 +241,8 @@ async function transformHuggingFaceModel(model) {
     const modelUrl = `https://huggingface.co/${model.modelId}`;
     const downloadUrl = safetensorFile ? `https://huggingface.co/${model.modelId}/resolve/main/${safetensorFile}` : null;
 
+    const fileDetails = (model.siblings || []).map(s => ({ name: s.rfilename, size: s.sizeInBytes })).filter(f => !f.name.startsWith('.'));
+
     return {
         id: model.modelId,
         name: model.modelId.split('/')[1] || model.modelId,
@@ -256,6 +258,7 @@ async function transformHuggingFaceModel(model) {
         sources: [{
             platform: 'Hugging Face',
             url: modelUrl,
+            files: fileDetails, // Add file list
             author: model.author,
             modelId: model.modelId,
         }],
@@ -380,6 +383,12 @@ async function transformGitHubRepo(repo) {
         sources: [{
             platform: 'GitHub',
             url: repo.html_url,
+            // Add more GitHub specific details
+            homepage: repo.homepage,
+            language: repo.language,
+            forks: repo.forks_count,
+            open_issues: repo.open_issues_count,
+            license: repo.license ? repo.license.name : 'No license',
         }],
         thumbnail: repo.owner.avatar_url || null,
     };

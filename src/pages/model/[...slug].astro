@@ -1,6 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import allModels from '@/data/models.json';
+import ModelCard from '@/components/ModelCard.astro';
 import { marked } from 'marked';
 
 export async function getStaticPaths() {
@@ -39,6 +40,15 @@ const getSourcePlatformIcon = (platform) => {
     if (platform.toLowerCase().includes('replicate')) return '⚙️';
     return '🔗';
 };
+
+const formatBytes = (bytes, decimals = 2) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+};
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -46,8 +56,17 @@ const getSourcePlatformIcon = (platform) => {
         <div class="max-w-4xl mx-auto">
             <!-- Header Section -->
             <header class="mb-8">
-                <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-2">{model.name}</h1>
-                <p class="text-lg text-gray-500 dark:text-gray-400">by {model.author}</p>
+                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div>
+                        <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-2">{model.name}</h1>
+                        <p class="text-lg text-gray-500 dark:text-gray-400">by {model.author}</p>
+                    </div>
+                    {model.downloadUrl && (
+                        <a href={model.downloadUrl} target="_blank" rel="noopener noreferrer" class="flex-shrink-0 inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform hover:scale-105">
+                            Download Resource
+                        </a>
+                    )}
+                </div>
             </header>
 
             <!-- Metadata Section -->
@@ -96,6 +115,33 @@ const getSourcePlatformIcon = (platform) => {
                 </div>
             </div>
 
+            <!-- Source Specific Details -->
+            {model.sources.map(source => (
+                <div class="mb-8 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    <h3 class="text-2xl font-bold mb-4 flex items-center gap-2">
+                        {getSourcePlatformIcon(source.platform)} {source.platform} Details
+                    </h3>
+                    {source.platform === 'GitHub' && (
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                            <div><strong>Language:</strong> {source.language || 'N/A'}</div>
+                            <div><strong>Stars:</strong> {model.likes.toLocaleString()}</div>
+                            <div><strong>Forks:</strong> {(source.forks || 0).toLocaleString()}</div>
+                            <div><strong>Open Issues:</strong> {(source.open_issues || 0).toLocaleString()}</div>
+                            <div><strong>License:</strong> {source.license || 'N/A'}</div>
+                            {source.homepage && <div><a href={source.homepage} target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline"><strong>Project Homepage ↗</strong></a></div>}
+                        </div>
+                    )}
+                    {source.platform === 'Hugging Face' && source.files && source.files.length > 0 && (
+                        <div>
+                            <h4 class="font-semibold mb-2">Files:</h4>
+                            <ul class="text-sm space-y-1 max-h-60 overflow-y-auto">
+                                {source.files.map(file => <li class="flex justify-between"><span>{file.name}</span> <span class="text-gray-500">{formatBytes(file.size)}</span></li>)}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+            ))}
+
             <!-- README Content -->
             <article class="model-readme-content py-8 border-t border-gray-200 dark:border-gray-700">
                 <div class="prose prose-lg dark:prose-invert max-w-none">
@@ -103,6 +149,20 @@ const getSourcePlatformIcon = (platform) => {
                 </div>
             </article>
 
+            <!-- Related Models Section -->
+            {relatedModels.length > 0 && (
+                <section class="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700">
+                    <h2 class="text-3xl font-bold text-center mb-8">Related Models</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {relatedModels.map(related => (
+                            <ModelCard 
+                                model={related}
+                                isRisingStar={related.is_rising_star}
+                            />
+                        ))}
+                    </div>
+                </section>
+            )}
         </div>
     </div>
 </Layout>
