@@ -1,4 +1,4 @@
-// File: src/components/markdown.js (Must match this exactly)
+// File: src/components/markdown.js 
 
 import { createMarkdownProcessor } from '@astrojs/markdown-remark'; 
 
