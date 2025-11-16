@@ -50,16 +50,28 @@ const { title, description = 'A premier, free directory of open-source AI models
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2292826803755214"
      crossorigin="anonymous"></script>
-
+    
     <style is:global>
-        /* Fix for README content overflowing */
+        /* README Content Overflow Fix & Enhancement */
+        .readme-content {
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
         .readme-content pre {
-            white-space: pre-wrap;       /* Allow preformatted text to wrap */
-            word-break: break-word;      /* Break long words */
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #f6f8fa; /* Light background for code blocks */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto; /* Add horizontal scroll for very long lines */
+        }
+        .dark .readme-content pre {
+            background-color: #1e293b; /* Dark mode background */
         }
         .readme-content table {
-            display: block;
-            overflow-x: auto;            /* Allow tables to scroll horizontally */
+            display: block; /* Force table to behave like a block element */
+            overflow-x: auto; /* Allow tables to scroll horizontally */
             max-width: 100%;
         }
     </style>
