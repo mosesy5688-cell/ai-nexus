@@ -1,12 +1,11 @@
-// File: src/components/markdown.js
+// File Path: src/components/markdown.js
 
-// FIX: Change the import path to the stable, supported utility for raw Markdown rendering.
-import { compile } from '@astrojs/markdown-remark'; 
+// FIX: Import the official public function createMarkdownProcessor
+import { createMarkdownProcessor } from '@astrojs/markdown-remark'; 
 
 /**
- * Compiles a raw Markdown string into a renderable Astro component factory.
- * This is used for dynamically loaded README content.
- * @param {string} markdownString - The raw Markdown content to compile.
+ * Uses Astro's Markdown engine to compile a raw Markdown string into a renderable Astro component.
+ * @param {string} markdownString - The raw Markdown string (i.e., model.readme).
  * @returns {Promise<{ Content: import('astro').AstroComponentFactory }>}
  */
 export async function renderMarkdown(markdownString) {
@@ -14,11 +13,16 @@ export async function renderMarkdown(markdownString) {
     return { Content: () => null }; 
   }
 
-  // Use the correct compile function
-  const result = await compile({
-    content: markdownString,
-  });
+  // 1. Create the Markdown processor. We pass an empty object {} to use default configuration.
+  const processor = await createMarkdownProcessor({});
 
-  // The compile function returns the result object { Content, ... }
-  return result; 
+  // 2. Use the processor to render the Markdown string.
+  // The .render() method returns the complete result object, including Content (the component).
+  const result = await processor.render(markdownString);
+
+  // 3. Return the object containing the Content component, matching the structure expected by your Astro file.
+  // If result.Content is missing, we safely return an empty component.
+  const Content = result.Content || (() => null);
+  
+  return { Content }; 
 }
