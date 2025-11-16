@@ -2,10 +2,10 @@
 import Layout from '@/layouts/Layout.astro';
 import { marked } from 'marked';
 
-// Using import.meta.glob is the modern, recommended way to import multiple files.
-const reportModules = await import.meta.glob('../../data/report-archives/*.json');
-
 export async function getStaticPaths() {
+  // Using import.meta.glob is the modern, recommended way to import multiple files.
+  const reportModules = await import.meta.glob('../../data/report-archives/*.json');
+
   const reports = await Promise.all(
     Object.values(reportModules).map(async (module) => {
       const report = await module();
