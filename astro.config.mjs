@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import react from "@astrojs/react";
 import tailwind from "@astrojs/tailwind";
+import sitemap from "@astrojs/sitemap";
 // import rss from "@astrojs/rss"; // REMOVED
 import path from 'path';
 import { fileURLToPath } from 'url';
