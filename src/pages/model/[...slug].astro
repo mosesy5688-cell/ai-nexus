@@ -20,8 +20,17 @@ const { model } = Astro.props;
 const pageTitle = `${model.name} - AI Model Details`;
 const pageDescription = model.description?.substring(0, 160) || `Details for the AI model ${model.name}.`;
 
-// Convert Markdown to HTML if readme is not already HTML
-const readmeHtml = model.readme ? marked.parse(model.readme) : '<p>No README content available.</p>';
+let readmeContent = model.readme || '';
+
+// Remove YAML front matter from Hugging Face READMEs, which is often enclosed in '---'
+if (readmeContent.trim().startsWith('---')) {
+    const endOfFrontMatter = readmeContent.indexOf('---', 3);
+    if (endOfFrontMatter !== -1) {
+        readmeContent = readmeContent.substring(endOfFrontMatter + 3).trim();
+    }
+}
+
+const readmeHtml = readmeContent ? marked.parse(readmeContent) : '<p>No README content available.</p>';
 
 // Find related models based on tag similarity
 const relatedModels = allModels
