@@ -134,6 +134,10 @@ const { title, description = 'A premier, free directory of open-source AI models
             margin-top: 1rem;
             margin-bottom: 1rem;
         }
+        /* Ensure images inside paragraphs are also responsive */
+        .readme-content p > img {
+            display: inline-block; /* Allow centering via text-align on parent if needed */
+        }
         .readme-content blockquote {
             border-left: 4px solid #d1d5db;
             padding-left: 1rem;

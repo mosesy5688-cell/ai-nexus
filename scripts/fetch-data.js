@@ -356,6 +356,27 @@ async function fetchGitHubData(additionalRepoUrls = []) {
 }
 
 /**
+ * Calculates a velocity score for a model to identify "rising stars".
+ * @param {object} model - The model data.
+ * @returns {number} The velocity score.
+ */
+function calculateVelocity(model) {
+    const now = new Date();
+    const createdAt = new Date(model.lastModified); // Using lastModified as a proxy for creation/update time
+    const ageInDays = Math.max((now - createdAt) / (1000 * 60 * 60 * 24), 1); // Avoid division by zero, minimum 1 day
+
+    const likes = model.likes || 0;
+    const downloads = model.downloads || 0;
+
+    // Simple velocity score: likes per day. Add a small weight for downloads.
+    // This prioritizes recent, high-traction projects.
+    const velocity = (likes / ageInDays) + (downloads / ageInDays / 10); // Downloads are weighted less
+
+    return velocity;
+}
+
+
+/**
  * Writes data to a local file and ensures the directory exists.
  * @param {string} filePath - The path to the file.
  * @param {any} data - The data to write.
@@ -596,6 +617,21 @@ async function main() {
     // 4. Convert map back to array and sort
     const finalModels = Array.from(mergedModels.values());
     finalModels.sort((a, b) => b.likes - a.likes);
+
+    // 5. Calculate velocity and identify rising stars
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    finalModels.forEach(model => {
+        model.velocity = calculateVelocity(model);
+        const createdAt = new Date(model.lastModified);
+        // A project is a "rising star" if it's new and has gained significant traction.
+        const isNewAndPopular = createdAt > thirtyDaysAgo && model.likes > 50;
+        // Or if it shows high velocity regardless of age.
+        const hasHighVelocity = model.velocity > 100; // Threshold for high daily likes
+
+        model.is_rising_star = isNewAndPopular || hasHighVelocity;
+    });
 
     console.log(`- Merged models down to ${finalModels.length} unique entries.`);
 
