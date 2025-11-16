@@ -33,6 +33,14 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
 const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }) : null;
 
+// NEW: Load the GitHub Token
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+
+const GITHUB_HEADERS = {
+    'Accept': 'application/vnd.github.v3+json',
+    ...(GITHUB_TOKEN && { 'Authorization': `Bearer ${GITHUB_TOKEN}` })
+};
+
 /**
  * Builds the prompt for the AI weekly report generation.
  * @param {string} reportId - The ID for the report (YYYY-MM-DD).
@@ -167,7 +175,16 @@ function getModelKey(name) {
  */
 async function fetchReadme(url, config = {}) {
     try {
-        const response = await axios.get(url, config);
+        // NEW: Merge default config with GITHUB_HEADERS for READMEs
+        const fetchConfig = {
+            ...config,
+            headers: {
+                ...config.headers,
+                // Apply GitHub token headers (especially for vnd.github.raw)
+                ...(GITHUB_TOKEN && { 'Authorization': `Bearer ${GITHUB_TOKEN}` })
+            }
+        };
+        const response = await axios.get(url, fetchConfig);
         return response.data;
     } catch (error) {
         // It's okay if a README doesn't exist.
@@ -270,7 +287,7 @@ async function fetchGitHubData(additionalRepoUrls = []) {
             try {
                 const { data } = await axios.get(`${GITHUB_API_BASE_URL}&page=${page}`, {
                     timeout: 20000,
-                    headers: { 'Accept': 'application/vnd.github.v3+json' }
+                    headers: GITHUB_HEADERS // Use the defined headers
                 });
                 if (data.items && data.items.length > 0) {
                     reposToProcess.push(...data.items);
@@ -291,7 +308,7 @@ async function fetchGitHubData(additionalRepoUrls = []) {
                 try {
                     const response = await axios.get(`https://api.github.com/repos/${repoFullName}`, {
                         timeout: 5000,
-                        headers: { 'Accept': 'application/vnd.github.v3+json' }
+                        headers: GITHUB_HEADERS // Use the defined headers
                     });
                     return response.data;
                 } catch (err) {

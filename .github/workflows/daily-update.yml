@@ -1,60 +1,43 @@
-name: Daily Data Refresh and Deploy
+name: Daily Data Fetch and Build
 
 on:
-  # 1. Trigger on pushes to the main branch
-  push:
-    branches:
-      - main
-    # Optimization: Ignore pushes that only change documentation or gitignore files
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
-  # 2. Trigger on a daily schedule (at 8:00 UTC)
   schedule:
-    - cron: '0 8 * * *' # Runs once daily at 8:00 UTC
-  # 3. Allow manual triggering from the GitHub Actions UI
-  workflow_dispatch:
+    # Runs every day at midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allows manual triggering
 
 jobs:
-  build-and-deploy:
+  fetch_build_and_deploy:
     runs-on: ubuntu-latest
-    # FIX: The 'permissions' block is correctly placed here, at the JOB level.
-    permissions:
-      contents: read # Required for Checkout action
-      deployments: write # Required for Cloudflare Pages action
     name: Fetch Data, Build, and Deploy
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          # Use npm caching for faster dependency installation
+          node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
-        # Use 'npm ci' for faster, more reliable installs in CI environments
+      - name: Install Dependencies
         run: npm ci
 
-      - name: Fetch Data and Build Application
+      - name: Fetch Data and Build
         run: npm run build
         env:
-          # Ensures the script runs in a non-interactive CI environment
-          CI: true
-          # Secrets required for AI report generation and KV store updates
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Add Cloudflare secrets if you are using KV store
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID }}
 
-      - name: Publish to Cloudflare Pages
-        # permissions block REMOVED from this step
+      - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
-          # The directory containing the static build output
-          directory: ./dist
+          projectName: 'ai-nexus' # Replace with your Cloudflare Pages project name
+          directory: 'dist'
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
