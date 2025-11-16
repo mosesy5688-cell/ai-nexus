@@ -544,6 +544,7 @@ function extractKeywordsFromText(text) {
 /**
  * Discovers, scores, and saves keywords based on their frequency, source, and associated model popularity.
  * @param {Array<object>} models - The list of all models.
+ * @returns {Array<object>} The array of validated keywords.
  */
 function discoverAndSaveKeywords(models) {
     console.log('- Discovering and scoring keywords...');
@@ -620,6 +621,7 @@ function discoverAndSaveKeywords(models) {
 
     writeDataToFile(KEYWORDS_OUTPUT_PATH, validatedKeywords);
     console.log(`✅ Discovered ${sortedKeywords.length} potential keywords, saved ${validatedKeywords.length} validated hot keywords.`);
+    return validatedKeywords;
 }
 
 /**
@@ -737,7 +739,7 @@ async function main() {
         await writeToKV('models', JSON.stringify(combinedData));
 
         // 5. Discover and save hot keywords based on the final model list
-        discoverAndSaveKeywords(combinedData); // <-- This now uses the new, improved logic
+        const validatedKeywords = discoverAndSaveKeywords(combinedData); // <-- This now uses the new, improved logic
 
         // 6. Generate and save the AI weekly report
         const newReport = await generateBiWeeklyReport(combinedData, validatedKeywords);
