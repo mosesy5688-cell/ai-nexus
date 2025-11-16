@@ -50,6 +50,19 @@ const { title, description = 'A premier, free directory of open-source AI models
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2292826803755214"
      crossorigin="anonymous"></script>
+
+    <style is:global>
+        /* Fix for README content overflowing */
+        .readme-content pre {
+            white-space: pre-wrap;       /* Allow preformatted text to wrap */
+            word-break: break-word;      /* Break long words */
+        }
+        .readme-content table {
+            display: block;
+            overflow-x: auto;            /* Allow tables to scroll horizontally */
+            max-width: 100%;
+        }
+    </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans antialiased flex flex-col min-h-screen">
     <!-- Google Tag Manager (noscript) -->

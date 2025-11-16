@@ -327,17 +327,19 @@ function readCivitaiData() {
             return [];
         }
         const civitaiData = JSON.parse(fs.readFileSync(CIVITAI_DATA_PATH, 'utf-8'));
-        const transformedData = civitaiData.map(model => ({
+        const transformedData = civitaiData.map(model => {
+            const description = model.description || `An image generation model named '${model.name}' from Civitai, created by ${model.creator?.username || 'Unknown'}.`;
+            return {
             id: `civitai-${model.name.toLowerCase().replace(/\s+/g, '-')}`,
             name: model.name,
             author: model.creator?.username || 'Civitai Community',
-            description: model.description || 'An image generation model from Civitai.',
+            description: description,
             task: 'image-generation', // Assume all are image generation for now
             tags: model.tags || [],
             likes: model.stats?.favoriteCount || 0,
             downloads: model.stats?.downloadCount || 0,
             lastModified: model.lastUpdate || new Date().toISOString(),
-            readme: null, // Civitai READMEs are not fetched
+            readme: model.description ? `<p>${model.description.replace(/\n/g, '<br>')}</p>` : null, // Use description as readme, converting newlines to <br>
             thumbnail: null, // Images are disabled
             downloadUrl: model.downloadUrl, // Assuming the JSON has this field
             sources: [{ // Standardize source object
@@ -346,7 +348,8 @@ function readCivitaiData() {
                 modelId: model.id,
                 creator: model.creator?.username,
             }],
-        }));
+        }
+    });
         console.log(`✅ Successfully read and transformed ${transformedData.length} models from Civitai.`);
         return transformedData;
     } catch (error) {
