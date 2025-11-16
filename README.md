@@ -1,4 +1,4 @@
-AI-Nexus (free2aitools.com) is a full-featured, open-source platform for discovering AI models and tools. Its core mission is to automatically aggregate, process, and display the latest models and tools from major global AI communities. It also leverages AI to generate insightful weekly industry reports, providing a comprehensive and efficient information portal for developers, researchers, and AI enthusiasts.
+Free AI Tools (free2aitools.com) is a full-featured, open-source platform for discovering AI models and tools. Its core mission is to automatically aggregate, process, and display the latest models and tools from major global AI communities. It also leverages AI to generate insightful weekly industry reports, providing a comprehensive and efficient information portal for developers, researchers, and AI enthusiasts.
 
 ## 2. Core Features
 

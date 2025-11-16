@@ -49,83 +49,140 @@ const GITHUB_HEADERS = {
  * @param {Array<object>} latestModels - A list of the latest models for context.
  * @returns {string} The complete prompt string.
  */
-function buildReportPrompt(reportId, dateString, featuredModelIds, latestModels) {
-    const prompt = `
-    As an AI industry analyst, generate a weekly report on trends in the open-source AI model landscape based on the provided list of trending models. Your output MUST be a single, valid, parsable JSON string. Do not include any text or markdown formatting before or after the JSON block. The entire response should be only the JSON object.
+function buildReportPrompt(reportId, dateString, latestModels, keywords) {
+    const reportPrompt = `
+**[PERSONA DEFINITION & TONE]**
+You are a Senior AI Industry Analyst working for Free AI Tools, a high-authority platform tracking the open-source AI sector. Your tone must be strictly objective, professional, analytical, and forward-looking.
 
-    The JSON object must strictly adhere to this exact structure:
-    {
-      "reportId": "YYYY-MM-DD",
-      "title": "Weekly AI Model & Tech Report [Date]",
-      "date": "YYYY-MM-DD",
-      "summary": "A concise, engaging summary of this week's key AI advancements, suitable for a preview card. Max 2-3 sentences.",
-      "sections": [
-        {"heading": "Key Technology Breakthroughs", "content": "Detailed analysis of significant technical innovations and new model architectures. Use Markdown for formatting.", "keywords": ["technical-innovation", "new-architecture", "performance-gains"]},
-        {"heading": "Popular Product Applications & Market Trends", "content": "Analysis of how new models are being applied in products and emerging market trends. Use Markdown for formatting.", "keywords": ["market-trends", "use-cases", "application-spotlight"]},
-        {"heading": "Community Spotlight & Rising Stars", "content": "Highlight interesting or rapidly growing models from the community that might not be at the top of the leaderboards yet. Use Markdown for formatting.", "keywords": ["community-highlight", "rising-star", "innovative-tools"]}
-      ],
-      "featuredModelIds": ["model-id-1", "model-id-2"],
-      "tags": ["weekly-report", "ai-trends", "llm-analysis"]
-    }
+**[DATA INTEGRITY CONSTRAINTS - STRICTLY MANDATORY]**
+1. **NO FABRICATION:** You **MUST NOT** invent or fabricate any model names, statistics, market trends, policy news, or industry events. All data and cases must be grounded ONLY in the provided internal data (from our platform) or verified external search results obtained via your tool.
+2. **CITATION MANDATE:** You **MUST** output a final, separate section titled "**References and Source Notes**" at the absolute end of the report content.
+3. **SOURCE VETTING:** When citing external data, you MUST prioritize information from high-reputation, professional sources (e.g., Bloomberg, Reuters, official AI lab announcements, peer-reviewed papers).
 
-    Instructions:
-    1.  Use '${reportId}' for "reportId" and "date".
-    2.  The title must be exactly "Weekly AI Model & Tech Report [Date]", where [Date] is replaced with "${dateString}".
-    3.  The 'summary' must be brief and compelling.
-    4.  The 'content' for each section must be detailed, insightful, and written in English using Markdown for formatting (e.g., **bold**, *italic*, links).
-    5.  The 'keywords' for each section should be relevant lowercase strings.
-    6.  The 'featuredModelIds' array must contain exactly these two IDs: ${JSON.stringify(featuredModelIds)}.
-    7.  The 'tags' array should contain general tags for the report itself.
-    8.  Analyze the following trending models to inform your report: ${JSON.stringify(latestModels, null, 2)}
-    `;
+**[OUTPUT FORMAT & STRUCTURE CONSTRAINT]**
+The entire report MUST be structured using the following five Markdown headings, in this exact order. The analysis period covers the last **two weeks**.
 
-    return prompt.trim();
+# Free AI Tools Bi-Weekly Industry Analysis Report - [Date Range]
+
+## 1. Executive Summary
+(1-2 concise paragraphs summarizing the two-week period's key takeaways, focusing on the convergence of open-source activity with macro trends.)
+
+## 2. Model Performance Movers: The Top Gainers (Internal Data Analysis)
+Analyze the 10 models with the highest **bi-weekly** growth rate (BIG_MOVERS). Explain *why* these projects are surging, linking the spike to new features or external adoption.
+**[NEW INSTRUCTION for Structured Data]** The analysis MUST conclude with a **"Key Growth Data"** section, presented as a clear Markdown table or bulleted list, detailing the Top 5 models by percentage growth and their absolute composite score increase this bi-weekly period.
+
+## 3. New Tech Breakthroughs & Rising Stars (Internal Data Analysis)
+Analyze the 10 most influential new models (NEW_STARS) that entered the list this bi-weekly period, filtered by the Composite Quality Score. Identify the new technology, application, or architecture (e.g., MoE, new RAG technique, novel quantization) they introduce.
+**[NEW INSTRUCTION for Structured Data]** Conclude this section with a **"Technology Adoption Summary"**, presented as a Markdown list, identifying the top 3 emerging technologies and listing the models associated with each.
+
+## 4. Market Trend Analysis (Internal & External Data Fusion)
+**[INSTRUCTION]** Analyze the significance of the Top Keywords. Connect these open-source keywords to **recent macro market announcements, venture capital trends, or major closed-source model updates**. Use external search results to substantiate your claims, and briefly mention the source in the text.
+
+## 5. Analyst Commentary & Outlook (External Data Grounding)
+**[INSTRUCTION]** Provide a forward-looking outlook for the next two weeks. This commentary MUST be grounded in **observed policy changes, major upcoming industry events, or confirmed funding rounds/acquisitions**. Conclude with a clear statement on the *market direction* for developers and investors.
+
+---
+# References and Source Notes
+(A final, mandatory section containing all external sources.)
+
+**[FORMAT REQUIREMENT]:** For every piece of external information, provide a full, hyperlinked Markdown citation.
+* **General External Source Format:** `[Title of Article/Source (Platform/Outlet)] (Full URL of Source)`
+* **Academic Paper Source Format:** For any papers, you MUST include the DOI or a direct, full link. `[Paper Title (ArXiv/Journal)] (Full URL) DOI: xxx`
+`;
+    // Inject dynamic data into the prompt
+    const risingStars = latestModels.filter(m => m.is_rising_star).slice(0, 10);
+    const bigMovers = latestModels.sort((a, b) => b.velocity - a.velocity).slice(0, 10);
+
+    const dataSection = `
+**[INPUT DATA - PROVIDED BY Free AI Tools PLATFORM]**
+* **BIG_MOVERS (Top 10 by Velocity Score):** ${JSON.stringify(bigMovers, null, 2)}
+* **NEW_STARS (Top 10 Rising Stars):** ${JSON.stringify(risingStars, null, 2)}
+* **Top Keywords:** ${JSON.stringify(keywords.slice(0, 10), null, 2)}
+`;
+    return (reportPrompt + dataSection).replace('[Date Range]', dateString);
 }
 
 /**
- * Generates a weekly AI report using the Groq API based on the latest models.
+ * Generates a weekly AI report using the Gemini API based on the latest models.
+ * This function now checks if 14 days have passed since the last report.
  * @param {Array<object>} models The list of recently fetched models.
- * @returns {Promise<void>}
+ * @returns {Promise<object|null>} The new report object if generated, otherwise null.
  */
-async function generateAIWeeklyReport(models) {
+async function generateBiWeeklyReport(models, keywords) {
+    const BI_WEEKLY_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
+    console.log("- Checking if a bi-weekly report is due...");
+
+    // 1. Load the reports metadata file
+    let lastReportDate = null;
+    if (fs.existsSync(REPORTS_OUTPUT_PATH)) {
+        try {
+            const existingReports = JSON.parse(fs.readFileSync(REPORTS_OUTPUT_PATH, 'utf-8'));
+            if (existingReports.length > 0) {
+                lastReportDate = new Date(existingReports[0].date);
+            }
+        } catch (e) {
+            console.warn('- Could not parse existing reports.json. Proceeding to generate a new report.');
+        }
+    }
+
+    const now = new Date();
+    if (lastReportDate) {
+        const timeSinceLastReport = now.getTime() - lastReportDate.getTime();
+        if (timeSinceLastReport < BI_WEEKLY_INTERVAL_MS) {
+            const daysRemaining = Math.ceil((BI_WEEKLY_INTERVAL_MS - timeSinceLastReport) / (1000 * 60 * 60 * 24));
+            console.log(`✅ Bi-weekly report skipped. Next report due in approximately ${daysRemaining} days.`);
+            return null; // Indicate that no report was generated
+        }
+    }
+
+    console.log("📦 14 days elapsed or no previous report found. Generating new bi-weekly report...");
+
     if (!geminiModel) {
         console.warn('- GEMINI_API_KEY not found. Skipping AI report generation.');
         return null;
     }
 
-    // Pre-condition check: Ensure there are enough models to generate a meaningful report.
     if (models.length < 2) {
         console.warn('- Not enough models (< 2) to generate a weekly report. Skipping.');
         return null;
     }
 
-    console.log('- Generating AI weekly report...');
     const latestModels = models.slice(0, 15).map(m => ({ id: m.id, name: m.name, task: m.task, likes: m.likes, description: m.description.substring(0, 100) }));
-    const featuredModelIds = latestModels.length >= 2 ? latestModels.slice(0, 2).map(m => m.id) : [];
     const today = new Date();
-    const reportId = today.toISOString().split('T')[0];
-    const dateString = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(today.getDate() - 14);
 
-    const prompt = buildReportPrompt(reportId, dateString, featuredModelIds, latestModels);
+    const reportId = today.toISOString().split('T')[0];
+    const dateRange = `${twoWeeksAgo.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
+
+    const prompt = buildReportPrompt(reportId, dateRange, latestModels, keywords);
 
     const MAX_RETRIES = 3;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             const result = await geminiModel.generateContent(prompt);
             const responseText = result.response.text().trim();
-
-            // Clean the response to ensure it's a valid JSON string, removing markdown code blocks
-            const jsonString = responseText.replace(/^```(?:json)?\s*|\s*```$/g, '');
-
-            // Validate and parse the JSON
-            const report = JSON.parse(jsonString);
-
-            // Final check for required fields
-            if (report.reportId && report.title && report.sections) {
+            
+            // Simple validation for the new Markdown format
+            if (responseText.includes('# Free AI Tools Bi-Weekly Industry Analysis Report') && responseText.includes('## 1. Executive Summary')) {
                 console.log(`✅ AI weekly report generated successfully for ${reportId} on attempt ${attempt}.`);
+                
+                // Extract title and summary from the markdown content
+                const titleMatch = responseText.match(/^#\s*(.*)/m);
+                const summaryMatch = responseText.match(/##\s*1\.\s*Executive Summary\s*\n+([\s\S]*?)\n##/);
+
+                const report = {
+                    reportId: reportId,
+                    title: titleMatch ? titleMatch[1].trim().replace('[Date Range]', dateRange) : `Free AI Tools Bi-Weekly Report - ${dateRange}`,
+                    date: reportId,
+                    summary: summaryMatch ? summaryMatch[1].trim().substring(0, 300) + '...' : "A bi-weekly analysis of the open-source AI landscape.",
+                    content: responseText, // Store the full markdown content
+                    featuredModelIds: [], // This can be populated later if needed
+                    tags: ["bi-weekly-report", "ai-trends", "industry-analysis"]
+                };
                 return report;
             } else {
-                throw new Error("Generated JSON is missing required fields.");
+                throw new Error("Generated report is missing required structure.");
             }
         } catch (error) {
             console.error(`❌ Attempt ${attempt} failed to generate AI weekly report:`, error.message);
@@ -143,17 +200,11 @@ async function generateAIWeeklyReport(models) {
     console.log('- Creating a fallback report...');
     const fallbackReport = {
       reportId: reportId,
-      title: `Weekly AI Model & Tech Report ${dateString}`,
+      title: `Free AI Tools Bi-Weekly Report - ${dateRange}`,
       date: reportId,
       summary: "This week's AI-generated analysis is temporarily unavailable. In the meantime, explore the top models that have been trending in the community.",
-      sections: [
-        {
-          heading: "This Week's Hot Models",
-          content: "While our AI analyst is taking a short break, here are the models that captured the community's attention this week. Dive into their details to discover the latest innovations.",
-          keywords: ["trending-now", "top-models"]
-        }
-      ],
-      featuredModelIds: featuredModelIds,
+      content: `# Fallback Report\n\nOur AI analyst is currently unavailable. Here are this week's top models:\n\n${latestModels.map(m => `- **${m.name}**: ${m.description}`).join('\n')}`,
+      featuredModelIds: [],
       tags: ["fallback-report", "weekly-highlights"]
     };
     return fallbackReport;
@@ -613,7 +664,7 @@ function initializeDirectories() {
     if (!fs.existsSync(OUTPUT_FILE_PATH)) writeDataToFile(OUTPUT_FILE_PATH, []);
 }
 async function main() {
-    console.log('--- Starting AI-Nexus Data Fetching Script ---');
+    console.log('--- Starting Free AI Tools Data Fetching Script ---');
     initializeDirectories();
 
     // 1. Fetch SOTA repo URLs from Papers with Code first
@@ -689,8 +740,8 @@ async function main() {
         discoverAndSaveKeywords(combinedData); // <-- This now uses the new, improved logic
 
         // 6. Generate and save the AI weekly report
-        const newReport = await generateAIWeeklyReport(combinedData);
-        await updateReportsFile(newReport);
+        const newReport = await generateBiWeeklyReport(combinedData, validatedKeywords);
+        if (newReport) await updateReportsFile(newReport);
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
         // Still run updateReportsFile with null to ensure the file is present for the build.
