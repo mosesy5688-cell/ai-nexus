@@ -6,18 +6,17 @@ import cheerio from 'cheerio';
 import { fileURLToPath } from 'url';
 import { fetchPwCData } from './fetch-pwc.js';
 
-// --- Configuration ---
+// --- Configuration ---_
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const HUGGINGFACE_API_BASE_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100&filter=text-generation,multimodal,text-to-image,automatic-speech-recognition,image-to-text,text-to-speech,image-to-3d,any-to-any';
+const HUGGINGFACE_API_BASE_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100&filter=llm,agent,text-generation,multimodal,text-to-image,automatic-speech-recognition,image-to-text,text-to-speech,image-to-3d,any-to-any&modelType=model';
 const OUTPUT_FILE_PATH = path.join(__dirname, '../src/data/models.json');
 const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../src/data/keywords.json');
 const REPORTS_OUTPUT_PATH = path.join(__dirname, '../src/data/reports.json');
 const ARCHIVE_DIR = path.join(__dirname, '../src/data/archives');
 const REPORT_ARCHIVE_DIR = path.join(__dirname, '../src/data/report-archives');
 const REPLICATE_EXPLORE_URL = 'https://replicate.com/explore';
-const CIVITAI_DATA_PATH = path.join(__dirname, '../src/data/civitai.json');
 const NSFW_KEYWORDS = [
     'nsfw', 
     'porn', 
@@ -187,15 +186,17 @@ async function fetchReplicateData() {
         const $ = cheerio.load(data);
         const models = [];
 
-        // Updated selector to match Replicate's current HTML structure for model cards
-        $('div[class*="ExploreCard_root"]').each((i, el) => {
+        // Updated selectors to better match modern SPA structures
+        $('a[href^="/explore/"], a[class*="model-card-link"], div[data-testid*="model-card"]').each((i, el) => {
             if (models.length >= 30) return false; // Limit to top 30 models
 
-            const linkElement = $(el).find('a[href^="/p/"]');
-            const href = linkElement.attr('href');
-            const name = linkElement.find('h3').text().trim();
-            const author = linkElement.find('h4').text().trim().replace(/^by\s+/, '');
-            const description = linkElement.find('p').text().trim();
+            const $el = $(el);
+            const href = $el.attr('href');
+            
+            // Use broader selectors for the content elements
+            const name = $el.find('h3, h4').first().text().trim(); 
+            const author = $el.find('div[class*="owner"], span[class*="author"], a[class*="owner-link"]').text().trim();
+            const description = $el.find('p[class*="description"], p').first().text().trim(); // Prioritize description classes, fall back to <p>
 
             if (href && name && author) {
                 models.push({
@@ -234,11 +235,11 @@ async function fetchReplicateData() {
     try {
         for (let page = 0; page < 5; page++) {
             try {
-                const { data } = await axios.get(`${HUGGINGFACE_API_BASE_URL}&p=${page}`, { timeout: 20000 });
+                const { data } = await axios.get(`${HUGGINGFACE_API_BASE_URL}&page=${page}`, { timeout: 20000 });
                 if (data && data.length > 0) {
                     allModels.push(...data);
                 } else {
-                    console.log(`- HuggingFace API: No more models found on page ${page + 1}. Stopping.`);
+                    console.log(`- HuggingFace API: No more models found on page ${page}. Stopping.`);
                     break; // No more models, stop paginating
                 }
             } catch (pageError) {
@@ -305,7 +306,7 @@ async function transformHuggingFaceModel(model) {
 async function fetchGitHubData(additionalRepoUrls = []) {
     console.log('📦 Fetching data from GitHub API...');
     // Correctly formatted and URL-encoded query to focus on high-quality technical repositories.
-    const GITHUB_SEARCH_QUERY = '("generative ai" OR "large language model" OR "ai tool" OR "ai agent") in:description,topics sort:stars';
+    const GITHUB_SEARCH_QUERY = '("generative ai" OR "large language model" OR "llm code" OR "ai tool" OR "ai agent" OR "transformer" OR "multimodal-ai") in:description,topics';
 
     const fetchedRepos = new Set();
     const allTransformedData = [];
@@ -370,14 +371,18 @@ async function fetchGitHubData(additionalRepoUrls = []) {
         console.log(`✅ Successfully fetched and transformed ${allTransformedData.length} unique models from GitHub.`);
         return allTransformedData;
     } catch (error) {
-        console.error('❌ Failed to fetch data from GitHub:', error.message);
-        // Specifically check for rate limit errors, which are common in CI
-        if (error.response && error.response.status === 403) {
-            console.error('    - This might be a GitHub API rate limit issue. Check your GITHUB_TOKEN permissions.');
-            console.error(`    - Status: ${error.response.status}`);
-            console.error(`    - Data: ${JSON.stringify(error.response.data)}`);
+        console.error('❌ An error occurred during GitHub data fetch:', error.message);
+        // NEW: Specifically check for rate limit errors (403 or 429) and return collected data
+        if (error.response && (error.response.status === 403 || error.response.status === 429)) {
+            const remaining = error.response.headers['x-ratelimit-remaining'];
+            const resetTime = new Date(error.response.headers['x-ratelimit-reset'] * 1000).toLocaleTimeString();
+            console.error(`    - CRITICAL: GitHub API rate limit reached! Remaining: ${remaining}, Resets at: ${resetTime}`);
+            console.log(`- Returning ${allTransformedData.length} models fetched before rate limit.`);
+            // Return the partially collected data to avoid losing progress
+            return allTransformedData;
         }
-        return []; // Return empty on error to avoid breaking the build
+        // For all other errors, return empty array
+        return []; 
     }
 }
 
