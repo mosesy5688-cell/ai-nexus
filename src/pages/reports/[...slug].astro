@@ -1,57 +1,36 @@
 ---
 import Layout from '@/layouts/Layout.astro';
-import allReports from '@/data/reports.json';
-import ModelCard from '@/components/ModelCard.astro';
-import { renderMarkdown } from '@/components/markdown.js';
-import allModels from '@/data/models.json';
+import { marked } from 'marked';
 
-export function getStaticPaths() {
-    // reports.json already contains the list of all reports to be generated.
-    return allReports.map(report => ({
-        params: { slug: report.reportId },
-        props: { report },
-    }));
+// Using import.meta.glob is the modern, recommended way to import multiple files.
+const reportModules = await import.meta.glob('../../data/report-archives/*.json');
+
+export async function getStaticPaths() {
+  const reports = await Promise.all(
+    Object.values(reportModules).map(async (module) => {
+      const report = await module();
+      return report.default;
+    })
+  );
+
+  return reports.map(report => ({
+    params: { slug: report.reportId },
+    props: { report },
+  }));
 }
 
 const { report } = Astro.props;
 
-// Find the full model objects for the featured models in the report.
-const featuredModels = report.featuredModelIds
-    ? report.featuredModelIds.map(id => allModels.find(m => m.id === id)).filter(Boolean)
-    : [];
+const pageTitle = report.title;
+const pageDescription = report.summary.substring(0, 160);
+
+const contentHtml = marked.parse(report.content);
 ---
 
-<Layout title={report.title} description={report.summary}>
-    <main class="container mx-auto px-4 py-12">
-        <article class="max-w-4xl mx-auto">
-            <header class="mb-8 text-center">
-                <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">{report.title}</h1>
-                <p class="mt-2 text-lg text-gray-500 dark:text-gray-400">
-                    {new Date(report.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}
-                </p>
-            </header>
-
-            <div class="prose prose-lg dark:prose-invert max-w-none mx-auto">
-              {report.sections.map((section) => {
-                const sectionHtml = renderMarkdown(section.content);
-                    return (
-                      <section class="mb-12">
-                        <h2 class="text-2xl font-bold border-b border-gray-300 dark:border-gray-700 pb-2 mb-4">{section.heading}</h2>
-                        <div class="prose prose-lg dark:prose-invert max-w-none mx-auto" set:html={sectionHtml} />
-                      </section>
-                    );
-                })}
-            </div>
-        </article>
-
-        <!-- Featured Models Section -->
-        {featuredModels.length > 0 && (
-            <div class="max-w-4xl mx-auto mt-16">
-                <h2 class="text-2xl font-bold text-center mb-6">Featured Models in this Report</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {featuredModels.map(featured => <ModelCard model={featured} />)}
-                </div>
-            </div>
-        )}
-    </main>
+<Layout title={pageTitle} description={pageDescription}>
+  <div class="container mx-auto px-4 py-12">
+    <article class="prose dark:prose-invert max-w-4xl mx-auto">
+      <Fragment set:html={contentHtml} />
+    </article>
+  </div>
 </Layout>
