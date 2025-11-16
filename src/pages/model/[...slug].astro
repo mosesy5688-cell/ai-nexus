@@ -48,18 +48,31 @@ const pageTitle = `${model.name} - AI Model Details`;
 const pageDescription = model.description || `Details, README, and related models for ${model.name}.`;
 
 const readmeHtml = model.readme ? renderMarkdown(model.readme) : null;
+const isLongReadme = readmeHtml && readmeHtml.length > 4000;
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
   <div class="container mx-auto px-4 py-8">
     <div class:list={["grid grid-cols-1 gap-8", { "lg:grid-cols-3": !!readmeHtml }]}>
       <!-- Main Content: README -->
-      <div class="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+      <div class:list={["lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md", { "lg:col-span-3": !readmeHtml }]}>
         <h1 class="text-3xl font-bold mb-2 text-gray-900 dark:text-white">{model.name}</h1>
         <p class="text-gray-600 dark:text-gray-400 mb-6">{model.description}</p>
         
         {readmeHtml ? (
-            <article class="prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert max-w-none" set:html={readmeHtml}></article>
+            <div id="readme-container" class:list={["relative", { 'max-h-[1000px] overflow-hidden': isLongReadme }]}>
+              <article class="prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert max-w-none" set:html={readmeHtml}></article>
+              {isLongReadme && (
+                <div id="readme-fade" class="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-white dark:from-gray-800 to-transparent"></div>
+              )}
+            </div>
+        ) : (
+            <p class="text-gray-500 dark:text-gray-400">No detailed README available for this model. Check the source links for more information.</p>
+        )}
+        {isLongReadme && (
+          <button id="read-more-btn" class="mt-4 text-blue-600 dark:text-blue-400 hover:underline">
+            Read More
+          </button>
         ) : (
             <p class="text-gray-500 dark:text-gray-400">No detailed README available for this model. Check the source links for more information.</p>
           )}
@@ -130,4 +143,19 @@ const readmeHtml = model.readme ? renderMarkdown(model.readme) : null;
       </div>
     )}
   </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const readMoreBtn = document.getElementById('read-more-btn');
+      const readmeContainer = document.getElementById('readme-container');
+      const readmeFade = document.getElementById('readme-fade');
+
+      if (readMoreBtn && readmeContainer && readmeFade) {
+        readMoreBtn.addEventListener('click', () => {
+          readmeContainer.classList.remove('max-h-[1000px]', 'overflow-hidden');
+          readmeFade.style.display = 'none';
+          readMoreBtn.style.display = 'none';
+        });
+      }
+    });
+  </script>
 </Layout>
