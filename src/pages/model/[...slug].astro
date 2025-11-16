@@ -1,7 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import allModels from '@/data/models.json';
-import { renderMarkdownToHTML } from '@/components/markdown.js';
+import { renderMarkdown } from '@/components/markdown.js';
 import ModelCard from '@/components/ModelCard.astro';
 import Icon from 'astro-icon';
 
@@ -49,7 +49,7 @@ const pageTitle = `${model.name} - AI Model Details`;
 const pageDescription = model.description || `Details, README, and related models for ${model.name}.`;
 
 const readmeHtml = model.readme
-  ? await renderMarkdownToHTML(model.readme)
+  ? await renderMarkdown(model.readme)
   : null;
 ---
 
