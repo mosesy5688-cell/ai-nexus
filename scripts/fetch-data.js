@@ -86,8 +86,8 @@ Analyze the 10 most influential new models (NEW_STARS) that entered the list thi
 (A final, mandatory section containing all external sources.)
 
 **[FORMAT REQUIREMENT]:** For every piece of external information, provide a full, hyperlinked Markdown citation.
-* **General External Source Format:** `[Title of Article/Source (Platform/Outlet)] (Full URL of Source)`
-* **Academic Paper Source Format:** For any papers, you MUST include the DOI or a direct, full link. `[Paper Title (ArXiv/Journal)] (Full URL) DOI: xxx`
+* **General External Source Format:** \`[Title of Article/Source (Platform/Outlet)] (Full URL of Source)\`
+* **Academic Paper Source Format:** For any papers, you MUST include the DOI or a direct, full link. \`[Paper Title (ArXiv/Journal)] (Full URL) DOI: xxx\`
 `;
     // Inject dynamic data into the prompt
     const risingStars = latestModels.filter(m => m.is_rising_star).slice(0, 10);
