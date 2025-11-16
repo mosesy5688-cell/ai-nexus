@@ -182,31 +182,32 @@ async function fetchReadme(url, config = {}) {
 async function fetchReplicateData() {
     console.log('📦 Fetching data from Replicate...');
     try {
-        const { data } = await axios.get(REPLICATE_EXPLORE_URL);
+        const { data } = await axios.get(REPLICATE_EXPLORE_URL, { timeout: 15000 });
         const $ = cheerio.load(data);
         const models = [];
 
-        $('a[href^="/p/"]').each((i, el) => {
+        // Updated selector to match Replicate's current HTML structure for model cards
+        $('div[class*="ExploreCard_root"]').each((i, el) => {
             if (models.length >= 30) return false; // Limit to top 30 models
 
-            const href = $(el).attr('href');
-            const name = $(el).find('h4').text().trim();
-            const author = $(el).find('h5').text().trim().replace(/^by\s+/, '');
-            const description = $(el).find('p[class*="text-sm"]').text().trim();
+            const linkElement = $(el).find('a[href^="/p/"]');
+            const href = linkElement.attr('href');
+            const name = linkElement.find('h3').text().trim();
+            const author = linkElement.find('h4').text().trim().replace(/^by\s+/, '');
+            const description = linkElement.find('p').text().trim();
 
             if (href && name && author) {
                 models.push({
                     id: `replicate-${author}/${name.toLowerCase().replace(/\s+/g, '-')}`,
                     name: name,
                     author: author,
-                    description: description || 'A model from Replicate.',
+                    description: description || `A model from Replicate by ${author}.`,
                     task: 'N/A', // Replicate doesn't provide a standard task tag on the explore page
                     tags: ['replicate'],
                     likes: 0, // Likes are not available on the explore page
                     downloads: 0, // Downloads are not available
                     lastModified: new Date().toISOString(),
                     readme: null,
-                    downloadUrl: null,
                     sources: [{ platform: 'Replicate', url: `https://replicate.com${href}` }],
                     thumbnail: null,
                 });
@@ -215,7 +216,10 @@ async function fetchReplicateData() {
         console.log(`✅ Successfully fetched and transformed ${models.length} models from Replicate.`);
         return models;
     } catch (error) {
-        console.error('❌ Failed to fetch data from Replicate:', error.message);
+        console.error('❌ Failed to fetch or parse data from Replicate:', error.message);
+        if (error.response) {
+            console.error(`    - Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data).substring(0, 100)}...`);
+        }
         return [];
     }
 }
@@ -223,7 +227,7 @@ async function fetchReplicateData() {
 async function fetchHuggingFaceData() {
     console.log('📦 Fetching data from HuggingFace API...');
     try {
-        const { data } = await axios.get(HUGGINGFACE_API_URL);
+        const { data } = await axios.get(HUGGINGFACE_API_URL, { timeout: 15000 });
 
         const transformedData = await Promise.all(data.map(async (model) => {
             const readmeUrl = `https://huggingface.co/${model.modelId}/raw/main/README.md`;
@@ -235,8 +239,7 @@ async function fetchHuggingFaceData() {
             // Use the main model URL as a fallback if no direct link is found
             const modelUrl = `https://huggingface.co/${model.modelId}`;
             const downloadUrl = safetensorFile
-                ? `https://huggingface.co/${model.modelId}/resolve/main/${safetensorFile}`
-                : null;
+                ? `https://huggingface.co/${model.modelId}/resolve/main/${safetensorFile}` : null;
 
             return {
                 id: model.modelId,
@@ -249,7 +252,6 @@ async function fetchHuggingFaceData() {
                 downloads: model.downloads || 0,
                 lastModified: model.lastModified,
                 readme: readmeContent,
-                thumbnail: null, // Images are disabled
                 downloadUrl: downloadUrl,
                 sources: [{
                     platform: 'Hugging Face',
@@ -257,13 +259,17 @@ async function fetchHuggingFaceData() {
                     author: model.author,
                     modelId: model.modelId,
                 }],
+                thumbnail: null, // Images are disabled
             };
         }));
 
         console.log(`✅ Successfully fetched and transformed ${transformedData.length} models.`);
         return transformedData;
     } catch (error) {
-        console.error('❌ Failed to fetch data from HuggingFace:', error.message);
+        console.error('❌ Failed to fetch data from HuggingFace API:', error.message);
+        if (error.response) {
+            console.error(`    - Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data).substring(0, 100)}...`);
+        }
         return []; // Return empty on error to avoid breaking the build
     }
 }
@@ -277,15 +283,16 @@ async function fetchHuggingFaceData() {
 async function fetchGitHubData(additionalRepoUrls = []) {
     console.log('📦 Fetching data from GitHub API...');
     // Correctly formatted and URL-encoded query to focus on high-quality technical repositories.
-    const query = encodeURIComponent('topic:generative-ai OR topic:llm OR topic:ai-agent OR "large language model" in:description,topics');
-    const GITHUB_SEARCH_URL = `https://api.github.com/search/repositories?q=${query}&sort=stars&order=desc&per_page=100`;
+    const GITHUB_SEARCH_QUERY = 'topic:generative-ai OR topic:llm OR topic:ai-agent OR "large language model" in:description,topics';
+    const encodedQuery = encodeURIComponent(GITHUB_SEARCH_QUERY);
+    const GITHUB_SEARCH_URL = `https://api.github.com/search/repositories?q=${encodedQuery}&sort=stars&order=desc&per_page=150`;
 
     const fetchedRepos = new Set();
     const allTransformedData = [];
 
     try {
         // 1. Fetch from the general search query
-        const { data } = await axios.get(GITHUB_SEARCH_URL, {
+        const { data } = await axios.get(GITHUB_SEARCH_URL, { timeout: 20000,
             headers: { 'Accept': 'application/vnd.github.v3+json' }
         });
         let reposToProcess = data.items || [];
@@ -295,7 +302,7 @@ async function fetchGitHubData(additionalRepoUrls = []) {
             console.log(`- Fetching details for ${additionalRepoUrls.length} repos from Papers with Code...`);
             const pwcRepoPromises = additionalRepoUrls.map(url => {
                 const repoFullName = url.replace('https://github.com/', '');
-                return axios.get(`https://api.github.com/repos/${repoFullName}`, {
+                return axios.get(`https://api.github.com/repos/${repoFullName}`, { timeout: 5000,
                     headers: { 'Accept': 'application/vnd.github.v3+json' }
                 }).catch(err => console.error(`- Failed to fetch ${repoFullName}: ${err.message}`));
             });
