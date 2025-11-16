@@ -14,11 +14,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   site: 'https://free2aitools.com',
   integrations: [
-    react(),
-    tailwind(),
+    react(), tailwind(),
     // rss(), // REMOVED
-    sitemap(),
-    icon()
+    sitemap(), icon()
   ],
   vite: {
     resolve: {
