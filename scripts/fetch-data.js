@@ -209,7 +209,7 @@ async function fetchReadme(url, config = {}) {
                     break; // No more models, stop paginating
                 }
             } catch (pageError) {
-                console.error(`- Failed to fetch page ${page + 1} from HuggingFace:`, pageError.message);
+                console.error(`- Failed to fetch page ${page} from HuggingFace:`, pageError.message);
                 break; // Stop on error
             }
         }
