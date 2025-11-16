@@ -6,7 +6,7 @@ import cheerio from 'cheerio';
 import { fileURLToPath } from 'url';
 import { fetchPwCData } from './fetch-pwc.js';
 
-// --- Configuration ---
+// --- Configuration ---_
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -186,17 +186,22 @@ async function fetchReplicateData() {
         const $ = cheerio.load(data);
         const models = [];
 
-        // Highly generic attempt: We will look for an element that contains an <a> tag linking to a user/model page.
-        $('a[href^="/"], div:has(a[href^="/"])').each((i, el) => {
+        // Attempt a highly targeted, modern selector fix for model cards
+        $('div[data-component*="model"], article[role="listitem"], a[href^="/explore/"], div[class*="ModelCard"]').each((i, el) => {
             if (models.length >= 30) return false; // Limit to top 30 models
 
             const $el = $(el);
-            const href = $el.attr('href');
+            
+            // Look for the actual link inside the card if we hit a container
+            let linkEl = $el.is('a') ? $el : $el.find('a[href*="/explore/"]').first();
+            if (!linkEl.length) return;
+
+            const href = linkEl.attr('href');
             
             // Use broader selectors for the content elements
-            const name = $el.find('h3, h4').first().text().trim();
-            const author = $el.find('div[class*="owner"], span[class*="author"], a[class*="owner-link"]').text().trim();
-            const description = $el.find('p[class*="description"], p').first().text().trim(); // Prioritize description classes, fall back to <p>
+            const name = $el.find('h2, h3').first().text().trim(); 
+            const author = $el.find('span[class*="username"], span[class*="owner"]').first().text().trim();
+            const description = $el.find('p[class*="description"], p').first().text().trim();
 
             if (href && name && author) {
                 models.push({
@@ -306,7 +311,7 @@ async function transformHuggingFaceModel(model) {
 async function fetchGitHubData(additionalRepoUrls = []) {
     console.log('📦 Fetching data from GitHub API...');
     // Correctly formatted and URL-encoded query to focus on high-quality technical repositories.
-    const GITHUB_SEARCH_QUERY = '("generative ai" OR "large language model") language:python';
+    const GITHUB_SEARCH_QUERY = '"llm" OR "agent" OR "generative-ai"';
 
     const fetchedRepos = new Set();
     const allTransformedData = [];
