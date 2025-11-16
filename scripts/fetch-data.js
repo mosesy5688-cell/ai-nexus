@@ -4,13 +4,13 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import path from 'path';
 import cheerio from 'cheerio';
 import { fileURLToPath } from 'url';
+import { fetchPwCData } from './fetch-pwc.js';
 
 // --- Configuration ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const CIVITAI_DATA_PATH = path.join(__dirname, '../src/data/civitai.json');
-const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100';
+const HUGGINGFACE_API_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=200&filter=text-generation,multimodal,text-to-image,automatic-speech-recognition,image-to-text,text-to-speech,image-to-3d,any-to-any';
 const OUTPUT_FILE_PATH = path.join(__dirname, '../src/data/models.json');
 const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../src/data/keywords.json');
 const REPORTS_OUTPUT_PATH = path.join(__dirname, '../src/data/reports.json');
@@ -268,15 +268,46 @@ async function fetchHuggingFaceData() {
     }
 }
 
-async function fetchGitHubData() {
+/**
+ * Fetches and transforms data from GitHub API.
+ * Can be augmented with a list of specific repository URLs to fetch.
+ * @param {string[]} [additionalRepoUrls=[]] - An array of specific GitHub repo URLs to fetch.
+ * @returns {Promise<Array<object>>}
+ */
+async function fetchGitHubData(additionalRepoUrls = []) {
     console.log('📦 Fetching data from GitHub API...');
-    const GITHUB_API_URL = 'https://api.github.com/search/repositories?q=topic:ai-tool&sort=stars&order=desc&per_page=50';
+    // Optimized query to focus on high-quality technical repositories and authoritative organizations
+    const GITHUB_SEARCH_URL = 'https://api.github.com/search/repositories?q=' +
+        '("large language model" OR "LLM implementation" OR "multimodal transformer" OR "generative-ai") ' +
+        'OR org:Meta-AI OR org:MistralAI OR org:Stability-AI OR org:google-research OR org:openai ' +
+        'OR topic:ai-agent ' +
+        'in:name,description,topics&sort=stars&order=desc&per_page=100';
+
+    const fetchedRepos = new Set();
+    const allTransformedData = [];
+
     try {
-        const { data } = await axios.get(GITHUB_API_URL, {
+        // 1. Fetch from the general search query
+        const { data } = await axios.get(GITHUB_SEARCH_URL, {
             headers: { 'Accept': 'application/vnd.github.v3+json' }
         });
+        let reposToProcess = data.items || [];
 
-        const transformedData = await Promise.all(data.items.map(async (repo) => {
+        // 2. Fetch specific repos from PapersWithCode
+        if (additionalRepoUrls.length > 0) {
+            console.log(`- Fetching details for ${additionalRepoUrls.length} repos from Papers with Code...`);
+            const pwcRepoPromises = additionalRepoUrls.map(url => {
+                const repoFullName = url.replace('https://github.com/', '');
+                return axios.get(`https://api.github.com/repos/${repoFullName}`, {
+                    headers: { 'Accept': 'application/vnd.github.v3+json' }
+                }).catch(err => console.error(`- Failed to fetch ${repoFullName}: ${err.message}`));
+            });
+            const pwcRepoResponses = await Promise.all(pwcRepoPromises);
+            const pwcRepos = pwcRepoResponses.map(res => res?.data).filter(Boolean);
+            reposToProcess = [...pwcRepos, ...reposToProcess]; // Prioritize PwC repos
+        }
+
+        const processingPromises = reposToProcess.map(async(repo) => {
             const readmeUrl = `https://api.github.com/repos/${repo.full_name}/readme`;
             const readmeContent = await fetchReadme(readmeUrl, { headers: { 'Accept': 'application/vnd.github.raw' } });
 
@@ -303,10 +334,18 @@ async function fetchGitHubData() {
                 }],
                 thumbnail: null, // Images are disabled
             };
-        }));
+        });
 
-        console.log(`✅ Successfully fetched and transformed ${transformedData.length} models from GitHub.`);
-        return transformedData;
+        const results = await Promise.all(processingPromises);
+        results.forEach((repoData) => {
+            if (repoData && !fetchedRepos.has(repoData.id)) {
+                allTransformedData.push(repoData);
+                fetchedRepos.add(repoData.id);
+            }
+        });
+
+        console.log(`✅ Successfully fetched and transformed ${allTransformedData.length} unique models from GitHub.`);
+        return allTransformedData;
     } catch (error) {
         console.error('❌ Failed to fetch data from GitHub:', error.message);
         // Specifically check for rate limit errors, which are common in CI
@@ -319,51 +358,11 @@ async function fetchGitHubData() {
     }
 }
 
-function readCivitaiData() {
-    console.log('📦 Reading data from Civitai JSON file...');
-    try {
-        if (!fs.existsSync(CIVITAI_DATA_PATH)) {
-            console.warn(`- Civitai data file not found at ${CIVITAI_DATA_PATH}. Skipping.`);
-            return [];
-        }
-        const civitaiData = JSON.parse(fs.readFileSync(CIVITAI_DATA_PATH, 'utf-8'));
-        const transformedData = civitaiData.map(model => {
-            const description = model.description || `An image generation model named '${model.name}' from Civitai, created by ${model.creator?.username || 'Unknown'}.`;
-            
-            // Fix for Civitai tags which can be an array of objects {name: 'tag'}
-            const tags = Array.isArray(model.tags) 
-                ? model.tags.map(tag => typeof tag === 'object' && tag.name ? tag.name : tag).filter(t => typeof t === 'string') 
-                : [];
-
-            return {
-            id: `civitai-${model.name.toLowerCase().replace(/\s+/g, '-')}`,
-            name: model.name,
-            author: model.creator?.username || 'Civitai Community',
-            description: description,
-            task: 'image-generation', // Assume all are image generation for now
-            tags: tags,
-            likes: model.stats?.favoriteCount || 0,
-            downloads: model.stats?.downloadCount || 0,
-            lastModified: model.lastUpdate || new Date().toISOString(),
-            readme: model.description || null, // Use the raw HTML description directly as readme
-            thumbnail: null, // Images are disabled
-            downloadUrl: model.downloadUrl, // Assuming the JSON has this field
-            sources: [{ // Standardize source object
-                platform: 'Civitai',
-                url: `https://civitai.com/models/${model.id}`,
-                modelId: model.id,
-                creator: model.creator?.username,
-            }],
-        }
-    });
-        console.log(`✅ Successfully read and transformed ${transformedData.length} models from Civitai.`);
-        return transformedData;
-    } catch (error) {
-        console.error('❌ Failed to read or parse Civitai data:', error.message);
-        return []; // Return empty array on error to not break the build
-    }
-}
-
+/**
+ * Writes data to a local file and ensures the directory exists.
+ * @param {string} filePath - The path to the file.
+ * @param {any} data - The data to write.
+ */
 function writeDataToFile(filePath, data) {
     console.log(`- Writing data to static file: ${filePath}`);
     try {
@@ -392,25 +391,14 @@ async function writeToKV(key, value) {
         const url = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/storage/kv/namespaces/${KV_NAMESPACE_ID}/values/${key}`;
 
         try {
-            await axios.put(url, value, {
-                headers: {
-                    'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            await axios.put(url, value, { headers: { 'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`, 'Content-Type': 'application/json' } });
             console.log(`✅ Successfully wrote data for key: "${key}" to Cloudflare KV.`);
         } catch (error) {
-            console.error('❌ Failed to write data to Cloudflare KV:', error.message);
-            if (error.response) {
-                console.error('    - Error details:', error.response.data);
-            }
+            console.error('❌ Failed to write data to Cloudflare KV:', error.response ? error.response.data : error.message);
             process.exit(1);
         }
-    } else {
-        console.log('Not in CI environment, skipping KV write.');
     }
 }
-
 function isNsfw(model) {
     const name = model.name.toLowerCase();
     const description = (model.description || '').toLowerCase();
@@ -572,11 +560,13 @@ async function main() {
     console.log('--- Starting AI-Nexus Data Fetching Script ---');
     initializeDirectories();
 
-    // 1. Fetch data from all sources
+    // 1. Fetch SOTA repo URLs from Papers with Code first
+    const pwcRepoUrls = await fetchPwCData();
+
+    // 2. Fetch data from all other sources, passing PwC URLs to the GitHub fetcher
     const sourcesData = await Promise.all([
         fetchHuggingFaceData(),
-        readCivitaiData(),
-        fetchGitHubData(),
+        fetchGitHubData(pwcRepoUrls),
         fetchReplicateData(),
     ]);
 
