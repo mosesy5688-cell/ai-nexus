@@ -7,16 +7,17 @@ import { createMarkdownProcessor } from '@astrojs/markdown-remark';
  * @param {string} markdownString - The raw Markdown content to compile.
  * @returns {Promise<string>} The compiled HTML string.
  */
-export async function renderMarkdown(markdownString) { // Exported name is 'renderMarkdown'
+export async function renderMarkdown(markdownString) {
   if (!markdownString) {
     return ''; 
   }
 
-  // Use createMarkdownProcessor for the official and stable way to render
+  // 1. Create the processor
   const processor = await createMarkdownProcessor({});
   
+  // 2. Render the markdown
   const result = await processor.render(markdownString);
 
-  // Return the raw HTML string
+  // 3. CRITICAL: Return ONLY the raw HTML string, not the whole result object
   return result.html || ''; 
 }
