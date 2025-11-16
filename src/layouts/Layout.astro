@@ -57,6 +57,51 @@ const { title, description = 'A premier, free directory of open-source AI models
             overflow-wrap: break-word;
             word-wrap: break-word;
             word-break: break-word;
+            line-height: 1.7; /* Improve readability */
+            color: #374151; /* Slightly softer black for text */
+        }
+        .dark .readme-content {
+            color: #d1d5db; /* Lighter gray for dark mode text */
+        }
+
+        /* --- Typography & Spacing --- */
+        .readme-content h1, .readme-content h2, .readme-content h3, .readme-content h4, .readme-content h5 {
+            font-weight: 700;
+            margin-top: 2em;
+            margin-bottom: 1em;
+            line-height: 1.3;
+        }
+        .readme-content h1 { font-size: 2.25em; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.3em; }
+        .readme-content h2 { font-size: 1.75em; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.3em; }
+        .readme-content h3 { font-size: 1.5em; }
+        .readme-content h4 { font-size: 1.25em; }
+        .dark .readme-content h1, .dark .readme-content h2 { border-color: #374151; }
+
+        .readme-content p, .readme-content ul, .readme-content ol, .readme-content blockquote, .readme-content pre {
+            margin-bottom: 1rem;
+        }
+
+        .readme-content ul, .readme-content ol {
+            padding-left: 2rem;
+        }
+        .readme-content li > p { margin-bottom: 0.5rem; }
+
+        .readme-content a {
+            color: #2563eb;
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 2px;
+        }
+        .dark .readme-content a { color: #60a5fa; }
+        .readme-content a:hover { text-decoration: none; }
+
+        .readme-content hr {
+            border-top: 1px solid #e2e8f0;
+            margin: 2rem 0;
+        }
+        .dark .readme-content hr { border-color: #374151; }
+
+        /* --- Code, Tables, Images --- */
         }
         .readme-content pre {
             white-space: pre-wrap;
@@ -69,6 +114,15 @@ const { title, description = 'A premier, free directory of open-source AI models
         .dark .readme-content pre {
             background-color: #1e293b; /* Dark mode background */
         }
+        .readme-content code {
+            background-color: rgba(209, 213, 219, 0.4);
+            padding: 0.2em 0.4em;
+            margin: 0;
+            font-size: 85%;
+            border-radius: 6px;
+        }
+        .dark .readme-content code { background-color: rgba(55, 65, 81, 0.7); }
+        .readme-content pre > code { all: unset; } /* Reset inline code style inside pre blocks */
         .readme-content table {
             display: block; /* Force table to behave like a block element */
             overflow-x: auto; /* Allow tables to scroll horizontally */
@@ -78,6 +132,13 @@ const { title, description = 'A premier, free directory of open-source AI models
             max-width: 100%;
             height: auto;
             border-radius: 0.5rem; /* Add a slight rounding to image corners */
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        .readme-content blockquote {
+            border-left: 4px solid #d1d5db;
+            padding-left: 1rem;
+            color: #6b7280;
         }
         .readme-content th, .readme-content td {
             border: 1px solid #e2e8f0;
@@ -86,6 +147,7 @@ const { title, description = 'A premier, free directory of open-source AI models
         .dark .readme-content th, .dark .readme-content td {
             border-color: #374151;
         }
+        .dark .readme-content blockquote { border-color: #4b5563; color: #9ca3af; }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans antialiased flex flex-col min-h-screen">
