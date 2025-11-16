@@ -14,7 +14,7 @@
     "@astrojs/react": "^4.0.0",
     "@astrojs/sitemap": "^3.1.6",
     "@astrojs/tailwind": "^5.1.0",
-    "@google/generative-ai": "^0.16.0",
+    "@google/generative-ai": "^0.18.0",
     "@iconify-json/mdi": "^1.1.67",
     "@tailwindcss/typography": "^0.5.19",
     "astro": "^5.15.7",

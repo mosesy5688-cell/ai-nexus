@@ -1,6 +1,9 @@
 name: Daily Data Fetch and Build
 
 on:
+  push:
+    branches:
+      - main # Also trigger on pushes to the main branch
   schedule:
     # Runs every day at midnight UTC
     - cron: '0 0 * * *'
@@ -17,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20.x' # Use '20.x' for broader compatibility
           cache: 'npm'
 
       - name: Install Dependencies
@@ -40,4 +43,5 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: 'ai-nexus' # Replace with your Cloudflare Pages project name
           directory: 'dist'
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          # The gitHubToken is not needed for production deployments via API token
+          # gitHubToken: ${{ secrets.GITHUB_TOKEN }}
