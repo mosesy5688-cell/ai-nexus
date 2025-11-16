@@ -84,6 +84,9 @@ const { title, description = 'A premier, free directory of open-source AI models
         .readme-content ul, .readme-content ol {
             padding-left: 2rem;
         }
+        .readme-content ul { list-style-type: disc; }
+        .readme-content ol { list-style-type: decimal; }
+        .readme-content li { margin-bottom: 0.5rem; }
         .readme-content li > p { margin-bottom: 0.5rem; }
 
         .readme-content a {
@@ -137,6 +140,11 @@ const { title, description = 'A premier, free directory of open-source AI models
         /* Ensure images inside paragraphs are also responsive */
         .readme-content p > img {
             display: inline-block; /* Allow centering via text-align on parent if needed */
+        }
+        /* Center images that are the only element in a paragraph */
+        .readme-content p:has(> img:only-child) {
+            display: flex;
+            justify-content: center;
         }
         .readme-content blockquote {
             border-left: 4px solid #d1d5db;
