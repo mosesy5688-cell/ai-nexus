@@ -1,10 +1,16 @@
 ---
 // src/pages/reports/archive.astro
 import Layout from '@/layouts/Layout.astro';
+import fs from 'fs';
+import path from 'path';
 
-// This uses Astro's glob import to get all archived report files.
-// It ensures that even if the build runs on a different system, the files are found.
-const reportModules = await Astro.glob('../../data/report-archives/*.json');
+const reportArchivesDir = path.resolve(process.cwd(), 'src/data/report-archives');
+let reportModules = [];
+
+// Check if the directory exists and is not empty before using glob
+if (fs.existsSync(reportArchivesDir) && fs.readdirSync(reportArchivesDir).length > 0) {
+    reportModules = await Astro.glob('../../data/report-archives/*.json');
+}
 
 // Sort reports by date, newest first, only if reports exist.
 const sortedReports = reportModules
