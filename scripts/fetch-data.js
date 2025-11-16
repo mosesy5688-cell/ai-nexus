@@ -186,13 +186,13 @@ async function fetchReplicateData() {
         const $ = cheerio.load(data);
         const models = [];
 
-        $('a[href^="/"][class*="flex-col"]').each((i, el) => {
+        $('a[href^="/p/"]').each((i, el) => {
             if (models.length >= 30) return false; // Limit to top 30 models
 
             const href = $(el).attr('href');
-            const name = $(el).find('h3').text().trim();
-            const author = href.split('/')[1];
-            const description = $(el).find('p').first().text().trim();
+            const name = $(el).find('h4').text().trim();
+            const author = $(el).find('h5').text().trim().replace(/^by\s+/, '');
+            const description = $(el).find('p[class*="text-sm"]').text().trim();
 
             if (href && name && author) {
                 models.push({

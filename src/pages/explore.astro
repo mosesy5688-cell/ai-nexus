@@ -138,9 +138,9 @@ if (initialQuery) {
                 noResults.classList.add('hidden');
                 const fragment = document.createDocumentFragment();
                 models.forEach(model => {
-                    const cardWrapper = document.createElement('div');
-                    cardWrapper.innerHTML = createModelCardHTML(model);
-                    fragment.appendChild(cardWrapper.firstElementChild);
+                    const cardContainer = document.createElement('div');
+                    cardContainer.innerHTML = createModelCardHTML(model);
+                    fragment.appendChild(cardContainer.firstElementChild);
                 });
                 modelsGrid.appendChild(fragment);
             }
