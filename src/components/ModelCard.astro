@@ -3,21 +3,33 @@ import type { Model } from '@/types';
 
 const { model }: { model: Model } = Astro.props;
 const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
+
+function formatNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num;
+}
 ---
-<a href={modelUrl} class="group block border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-800 hover:border-blue-500/50 flex flex-col h-full">
-    <div class="mb-4">
-        <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{model.name || 'Untitled Model'}</h3>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">by {model.author || 'Unknown'}</p>
-    </div>
-    <p class="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3 flex-grow">{model.description}</p>
-    <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-4 mt-auto">
-        <span class="flex items-center gap-1.5">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" /></svg>
-            {model.likes.toLocaleString()}
-        </span>
-        <span class="flex items-center gap-1.5">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-            {model.downloads.toLocaleString()}
-        </span>
+<a href={modelUrl} class="group block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full">
+    <div class="p-5 flex flex-col h-full justify-between">
+        <div>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" title={model.name}>
+                {model.name}
+            </h3>
+            <p class="text-gray-500 dark:text-gray-400 text-xs mb-3">by {model.author}</p>
+            <p class="text-gray-600 dark:text-gray-300 text-sm h-20 overflow-hidden text-ellipsis leading-relaxed">
+                {model.description?.replace(/<[^>]*>?/gm, '') || 'No description available.'}
+            </p>
+        </div>
+        <div class="mt-4 flex items-center justify-end gap-4 text-xs text-gray-500 dark:text-gray-400">
+            <div class="flex items-center gap-1" title={`${model.likes.toLocaleString()} likes`}>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                <span>{formatNumber(model.likes)}</span>
+            </div>
+            <div class="flex items-center gap-1" title={`${model.downloads.toLocaleString()} downloads`}>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                <span>{formatNumber(model.downloads)}</span>
+            </div>
+        </div>
     </div>
 </a>

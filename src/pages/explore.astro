@@ -28,18 +28,25 @@ if (initialQuery) {
         </div>
 
         <!-- Search and Filter Section -->
-        <div class="mb-8 flex flex-col md:flex-row gap-4 items-center sticky top-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-4 z-10">
+        <div class="mb-8 flex flex-col md:flex-row gap-4 items-center sticky top-[65px] md:top-16 bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm py-4 z-30">
             <div class="relative flex-grow w-full">
                 <input
                     type="search"
                     id="search-box"
                     placeholder="Search by name, author, description, or tags..."
                     value={initialQuery}
-                    class="w-full p-3 pl-10 text-lg border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
+                    class="w-full p-3 pl-10 text-base border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                 </div>
+            </div>
+            <div class="flex-shrink-0">
+                <select id="sort-by" class="p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="likes">Sort by Likes</option>
+                    <option value="downloads">Sort by Downloads</option>
+                    <option value="recent">Sort by Recent</option>
+                </select>
             </div>
         </div>
 
@@ -70,11 +77,12 @@ if (initialQuery) {
         </div>
     </div>
 
-    <script define:vars={{ allModels, initialQuery, initialTag }}>
+    <script define:vars={{ allModels, initialQuery, initialTag, ModelCard }}>
         const searchBox = document.getElementById('search-box');
         const modelsGrid = document.getElementById('models-grid');
         const noResults = document.getElementById('no-results');
         const tagsContainer = document.getElementById('tags-container');
+        const sortBySelect = document.getElementById('sort-by');
 
         let currentQuery = initialQuery;
         let currentTag = initialTag;
@@ -91,18 +99,7 @@ if (initialQuery) {
                 noResults.classList.add('hidden');
                 const fragment = document.createDocumentFragment();
                 models.forEach(model => {
-                    const card = document.createElement('div');
-                    // This is a simplified card. In a real scenario, you'd use a template literal
-                    // or a more robust templating solution to create the full ModelCard component HTML.
-                    card.innerHTML = `
-                        <a href="/model/${model.id.replace('/', '--')}" class="block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full">
-                            <div class="p-5">
-                                <h3 class="text-xl font-bold text-gray-900 dark:text-white truncate">${model.name}</h3>
-                                <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">by ${model.author}</p>
-                                <p class="text-gray-700 dark:text-gray-300 text-sm h-20 overflow-hidden text-ellipsis">${model.description}</p>
-                            </div>
-                        </a>
-                    `;
+                    const card = ModelCard.render({ model }).html;
                     fragment.appendChild(card);
                 });
                 modelsGrid.appendChild(fragment);
@@ -112,7 +109,7 @@ if (initialQuery) {
         function filterAndRender() {
             const normalizedQuery = normalizeText(currentQuery);
 
-            const filtered = allModels.filter(model => {
+            let filtered = allModels.filter(model => {
                 const tagMatch = !currentTag || (model.tags && model.tags.includes(currentTag));
                 if (!tagMatch) return false;
 
@@ -126,6 +123,18 @@ if (initialQuery) {
                 );
             });
 
+            const sortBy = sortBySelect.value;
+            if (sortBy === 'likes') {
+                filtered.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+            } else if (sortBy === 'downloads') {
+                filtered.sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
+            } else if (sortBy === 'recent') {
+                filtered.sort((a, b) => {
+                    const dateA = a.lastModified ? new Date(a.lastModified) : 0;
+                    const dateB = b.lastModified ? new Date(b.lastModified) : 0;
+                    return dateB - dateA;
+                });
+            }
             renderModels(filtered);
         }
 
@@ -147,6 +156,11 @@ if (initialQuery) {
         searchBox.addEventListener('input', (e) => {
             currentQuery = e.target.value;
             updateURL();
+            filterAndRender();
+        });
+
+        sortBySelect.addEventListener('change', () => {
+            // No need to update URL for sorting, just re-render
             filterAndRender();
         });
 
