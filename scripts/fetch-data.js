@@ -17,6 +17,7 @@ const REPORTS_OUTPUT_PATH = path.join(__dirname, '../src/data/reports.json');
 const ARCHIVE_DIR = path.join(__dirname, '../src/data/archives');
 const REPORT_ARCHIVE_DIR = path.join(__dirname, '../src/data/report-archives');
 const REPLICATE_EXPLORE_URL = 'https://replicate.com/explore';
+const CIVITAI_DATA_PATH = path.join(__dirname, '../src/data/civitai.json');
 const NSFW_KEYWORDS = [
     'nsfw', 
     'porn', 
@@ -224,10 +225,45 @@ async function fetchReplicateData() {
     }
 }
 
+/**
+ * Fetches and transforms data from a local civitai.json file.
+ * @returns {Promise<Array<object>>} A promise that resolves to an array of transformed model data.
+ */
+async function fetchCivitaiData() {
+    console.log('📦 Fetching data from Civitai file...');
+    if (!fs.existsSync(CIVITAI_DATA_PATH)) {
+        console.warn('- civitai.json not found, skipping Civitai data fetch.');
+        return [];
+    }
+
+    try {
+        const civitaiData = JSON.parse(fs.readFileSync(CIVITAI_DATA_PATH, 'utf-8'));
+        const models = civitaiData.map(item => ({
+            id: `civitai-${item.name.toLowerCase().replace(/\s+/g, '-')}`,
+            name: item.name,
+            author: 'Civitai Community',
+            description: item.description.replace(/<[^>]*>?/gm, '').substring(0, 500) || 'An image generation model from Civitai.',
+            task: 'image-generation',
+            tags: item.tags || ['civitai', 'image-generation'],
+            likes: 0, // Not available in the provided JSON
+            downloads: 0, // Not available
+            lastModified: new Date().toISOString(),
+            readme: item.description,
+            sources: [{ platform: 'Civitai', url: item.source }],
+            thumbnail: null,
+        }));
+        console.log(`✅ Successfully fetched and transformed ${models.length} models from Civitai.`);
+        return models;
+    } catch (error) {
+        console.error('❌ Failed to fetch or parse data from Civitai:', error.message);
+        return [];
+    }
+}
+
 async function fetchHuggingFaceData() {
     console.log('📦 Fetching data from HuggingFace API...');
     try {
-        const { data } = await axios.get(HUGGINGFACE_API_URL, { timeout: 15000 });
+        const { data } = await axios.get(HUGGINGFACE_API_URL, { timeout: 20000 });
 
         const transformedData = await Promise.all(data.map(async (model) => {
             const readmeUrl = `https://huggingface.co/${model.modelId}/raw/main/README.md`;
@@ -284,64 +320,61 @@ async function fetchGitHubData(additionalRepoUrls = []) {
     console.log('📦 Fetching data from GitHub API...');
     // Correctly formatted and URL-encoded query to focus on high-quality technical repositories.
     const GITHUB_SEARCH_QUERY = 'topic:generative-ai OR topic:llm OR topic:ai-agent OR "large language model" in:description,topics';
-    const encodedQuery = encodeURIComponent(GITHUB_SEARCH_QUERY);
-    const GITHUB_SEARCH_URL = `https://api.github.com/search/repositories?q=${encodedQuery}&sort=stars&order=desc&per_page=150`;
 
     const fetchedRepos = new Set();
     const allTransformedData = [];
+    const reposToProcess = [];
 
     try {
-        // 1. Fetch from the general search query
-        const { data } = await axios.get(GITHUB_SEARCH_URL, { timeout: 20000,
-            headers: { 'Accept': 'application/vnd.github.v3+json' }
-        });
-        let reposToProcess = data.items || [];
+        // 1. Fetch from the general search query with pagination
+        const encodedQuery = encodeURIComponent(GITHUB_SEARCH_QUERY);
+        const GITHUB_API_BASE_URL = `https://api.github.com/search/repositories?q=${encodedQuery}&sort=stars&order=desc&per_page=100`;
+
+        for (let page = 1; page <= 5; page++) {
+            try {
+                const { data } = await axios.get(`${GITHUB_API_BASE_URL}&page=${page}`, {
+                    timeout: 20000,
+                    headers: { 'Accept': 'application/vnd.github.v3+json' }
+                });
+                if (data.items && data.items.length > 0) {
+                    reposToProcess.push(...data.items);
+                } else {
+                    break; // No more items, stop paginating
+                }
+            } catch (pageError) {
+                console.error(`- Failed to fetch page ${page} from GitHub:`, pageError.message);
+                break; // Stop on error
+            }
+        }
 
         // 2. Fetch specific repos from PapersWithCode
         if (additionalRepoUrls.length > 0) {
             console.log(`- Fetching details for ${additionalRepoUrls.length} repos from Papers with Code...`);
-            const pwcRepoPromises = additionalRepoUrls.map(url => {
+            const pwcRepoPromises = additionalRepoUrls.map(async (url) => {
                 const repoFullName = url.replace('https://github.com/', '');
-                return axios.get(`https://api.github.com/repos/${repoFullName}`, { timeout: 5000,
-                    headers: { 'Accept': 'application/vnd.github.v3+json' }
-                }).catch(err => console.error(`- Failed to fetch ${repoFullName}: ${err.message}`));
+                try {
+                    const response = await axios.get(`https://api.github.com/repos/${repoFullName}`, {
+                        timeout: 5000,
+                        headers: { 'Accept': 'application/vnd.github.v3+json' }
+                    });
+                    return response.data;
+                } catch (err) {
+                    console.error(`- Failed to fetch ${repoFullName}: ${err.message}`);
+                    return null;
+                }
             });
-            const pwcRepoResponses = await Promise.all(pwcRepoPromises);
-            const pwcRepos = pwcRepoResponses.map(res => res?.data).filter(Boolean);
-            reposToProcess = [...pwcRepos, ...reposToProcess]; // Prioritize PwC repos
+            const pwcRepos = (await Promise.all(pwcRepoPromises)).filter(Boolean);
+            reposToProcess.unshift(...pwcRepos); // Prioritize PwC repos
         }
 
-        const processingPromises = reposToProcess.map(async(repo) => {
-            const readmeUrl = `https://api.github.com/repos/${repo.full_name}/readme`;
-            const readmeContent = await fetchReadme(readmeUrl, { headers: { 'Accept': 'application/vnd.github.raw' } });
+        // Deduplicate repos before processing details
+        const uniqueRepos = Array.from(new Map(reposToProcess.map(repo => [repo.id, repo])).values());
 
-            if (!readmeContent) {
-                console.warn(`- Could not fetch README for ${repo.full_name}`);
-            }
-            return {
-                id: `github-${repo.full_name.replace('/', '-')}`,
-                name: repo.name,
-                author: repo.owner.login,
-                description: repo.description || 'An AI tool from GitHub.',
-                task: 'tool', // Assign a default task for GitHub repos
-                tags: repo.topics || [],
-                likes: repo.stargazers_count || 0,
-                downloads: repo.watchers_count || 0, // Using watchers as a proxy for downloads
-                lastModified: repo.updated_at,
-                readme: readmeContent,
-                downloadUrl: null, // GitHub repos don't have a standard direct download URL
-                sources: [{
-                    platform: 'GitHub',
-                    url: repo.html_url,
-                    owner: repo.owner.login,
-                    repo: repo.name
-                }],
-                thumbnail: null, // Images are disabled
-            };
-        });
+        const processingPromises = uniqueRepos.map(repo => transformGitHubRepo(repo));
 
-        const results = await Promise.all(processingPromises);
-        results.forEach((repoData) => {
+        const transformedRepos = await Promise.all(processingPromises);
+
+        transformedRepos.forEach((repoData) => {
             if (repoData && !fetchedRepos.has(repoData.id)) {
                 allTransformedData.push(repoData);
                 fetchedRepos.add(repoData.id);
@@ -362,6 +395,38 @@ async function fetchGitHubData(additionalRepoUrls = []) {
     }
 }
 
+/**
+ * Transforms a single GitHub repository item into our standard model format.
+ * @param {object} repo - The GitHub repository item.
+ * @returns {Promise<object|null>}
+ */
+async function transformGitHubRepo(repo) {
+    const readmeUrl = `https://api.github.com/repos/${repo.full_name}/readme`;
+    const readmeContent = await fetchReadme(readmeUrl, { headers: { 'Accept': 'application/vnd.github.raw' } });
+
+    if (!readmeContent) {
+        console.warn(`- Could not fetch README for ${repo.full_name}`);
+    }
+
+    return {
+        id: `github-${repo.full_name.replace('/', '-')}`,
+        name: repo.name,
+        author: repo.owner.login,
+        description: repo.description || 'An AI tool from GitHub.',
+        task: 'tool', // Assign a default task for GitHub repos
+        tags: repo.topics || [],
+        likes: repo.stargazers_count || 0,
+        downloads: repo.watchers_count || 0, // Using watchers as a proxy for downloads
+        lastModified: repo.updated_at,
+        readme: readmeContent,
+        downloadUrl: null,
+        sources: [{
+            platform: 'GitHub',
+            url: repo.html_url,
+        }],
+        thumbnail: repo.owner.avatar_url || null,
+    };
+}
 /**
  * Calculates a velocity score for a model to identify "rising stars".
  * @param {object} model - The model data.
@@ -593,6 +658,7 @@ async function main() {
         fetchHuggingFaceData(),
         fetchGitHubData(pwcRepoUrls),
         fetchReplicateData(),
+        fetchCivitaiData(),
     ]);
 
     const allRawModels = sourcesData.flat();
