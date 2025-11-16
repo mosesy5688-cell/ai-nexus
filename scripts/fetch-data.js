@@ -176,62 +176,6 @@ async function fetchReadme(url, config = {}) {
 }
 
 /**
- * Fetches and transforms data from Replicate by scraping the explore page.
- * @returns {Promise<Array<object>>} A promise that resolves to an array of transformed model data.
- */
-async function fetchReplicateData() {
-    console.log('📦 Fetching data from Replicate...');
-    try {
-        const { data } = await axios.get(REPLICATE_EXPLORE_URL, { timeout: 15000 });
-        const $ = cheerio.load(data);
-        const models = [];
-
-        // Attempt a highly targeted, modern selector fix for model cards
-        $('div[data-component*="model"], article[role="listitem"], a[href^="/explore/"], div[class*="ModelCard"]').each((i, el) => {
-            if (models.length >= 30) return false; // Limit to top 30 models
-
-            const $el = $(el);
-            
-            // Look for the actual link inside the card if we hit a container
-            let linkEl = $el.is('a') ? $el : $el.find('a[href*="/explore/"]').first();
-            if (!linkEl.length) return;
-
-            const href = linkEl.attr('href');
-            
-            // Use broader selectors for the content elements
-            const name = $el.find('h2, h3').first().text().trim(); 
-            const author = $el.find('span[class*="username"], span[class*="owner"]').first().text().trim();
-            const description = $el.find('p[class*="description"], p').first().text().trim();
-
-            if (href && name && author) {
-                models.push({
-                    id: `replicate-${author}/${name.toLowerCase().replace(/\s+/g, '-')}`,
-                    name: name,
-                    author: author,
-                    description: description || `A model from Replicate by ${author}.`,
-                    task: 'N/A', // Replicate doesn't provide a standard task tag on the explore page
-                    tags: ['replicate'],
-                    likes: 0, // Likes are not available on the explore page
-                    downloads: 0, // Downloads are not available
-                    lastModified: new Date().toISOString(),
-                    readme: null,
-                    sources: [{ platform: 'Replicate', url: `https://replicate.com${href}` }],
-                    thumbnail: null,
-                });
-            }
-        });
-        console.log(`✅ Successfully fetched and transformed ${models.length} models from Replicate.`);
-        return models;
-    } catch (error) {
-        console.error('❌ Failed to fetch or parse data from Replicate:', error.message);
-        if (error.response) {
-            console.error(`    - Status: ${error.response.status}, Data: ${JSON.stringify(error.response.data).substring(0, 100)}...`);
-        }
-        return [];
-    }
-}
-
-/**
  * Fetches and transforms data from the HuggingFace API.
  * @returns {Promise<Array<object>>} A promise that resolves to an array of transformed model data.
  */async function fetchHuggingFaceData() {
@@ -653,7 +597,6 @@ async function main() {
     const sourcesData = await Promise.all([
         fetchHuggingFaceData(),
         fetchGitHubData(pwcRepoUrls),
-        fetchReplicateData(),
     ]);
 
     const allRawModels = sourcesData.flat();
