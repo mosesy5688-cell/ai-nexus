@@ -6,11 +6,11 @@ import cheerio from 'cheerio';
 import { fileURLToPath } from 'url';
 import { fetchPwCData } from './fetch-pwc.js';
 
-// --- Configuration ---_
+// --- Configuration ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const HUGGINGFACE_API_BASE_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100&filter=llm,agent,text-generation,multimodal,text-to-image,automatic-speech-recognition,image-to-text,text-to-speech,image-to-3d,any-to-any&modelType=model';
+const HUGGINGFACE_API_BASE_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100&filter=text-generation,llm&modelType=model';
 const OUTPUT_FILE_PATH = path.join(__dirname, '../src/data/models.json');
 const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../src/data/keywords.json');
 const REPORTS_OUTPUT_PATH = path.join(__dirname, '../src/data/reports.json');
@@ -186,15 +186,15 @@ async function fetchReplicateData() {
         const $ = cheerio.load(data);
         const models = [];
 
-        // Updated selectors to better match modern SPA structures
-        $('a[href^="/explore/"], a[class*="model-card-link"], div[data-testid*="model-card"]').each((i, el) => {
+        // Highly generic attempt: We will look for an element that contains an <a> tag linking to a user/model page.
+        $('a[href^="/"], div:has(a[href^="/"])').each((i, el) => {
             if (models.length >= 30) return false; // Limit to top 30 models
 
             const $el = $(el);
             const href = $el.attr('href');
             
             // Use broader selectors for the content elements
-            const name = $el.find('h3, h4').first().text().trim(); 
+            const name = $el.find('h3, h4').first().text().trim();
             const author = $el.find('div[class*="owner"], span[class*="author"], a[class*="owner-link"]').text().trim();
             const description = $el.find('p[class*="description"], p').first().text().trim(); // Prioritize description classes, fall back to <p>
 
@@ -306,7 +306,7 @@ async function transformHuggingFaceModel(model) {
 async function fetchGitHubData(additionalRepoUrls = []) {
     console.log('📦 Fetching data from GitHub API...');
     // Correctly formatted and URL-encoded query to focus on high-quality technical repositories.
-    const GITHUB_SEARCH_QUERY = '("generative ai" OR "large language model" OR "llm code" OR "ai tool" OR "ai agent" OR "transformer" OR "multimodal-ai") in:description,topics';
+    const GITHUB_SEARCH_QUERY = '("generative ai" OR "large language model") language:python';
 
     const fetchedRepos = new Set();
     const allTransformedData = [];
