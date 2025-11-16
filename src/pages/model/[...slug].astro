@@ -1,6 +1,8 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import allModels from '@/data/models.json';
+import { renderMarkdown } from '@/components/markdown.js';
+import ModelCard from '@/components/ModelCard.astro';
 
 export function getStaticPaths() {
   return allModels.map(model => {
@@ -15,27 +17,51 @@ export function getStaticPaths() {
 
 const { model } = Astro.props;
 
+// --- Find Related Models ---
+function findRelatedModels(currentModel, allModels, count = 3) {
+  if (!currentModel.tags || currentModel.tags.length === 0) {
+    return [];
+  }
+
+  const currentModelTags = new Set(currentModel.tags);
+
+  const scoredModels = allModels
+    .filter(m => m.id !== currentModel.id) // Exclude the current model
+    .map(m => {
+      if (!m.tags || m.tags.length === 0) {
+        return { model: m, score: 0 };
+      }
+      const otherModelTags = new Set(m.tags);
+      const intersection = new Set([...currentModelTags].filter(tag => otherModelTags.has(tag)));
+      const score = intersection.size;
+      return { model: m, score };
+    })
+    .filter(item => item.score > 0) // Only include models with at least one common tag
+    .sort((a, b) => b.score - a.score || (b.model.likes || 0) - (a.model.likes || 0)); // Sort by score, then by likes
+
+  return scoredModels.slice(0, count).map(item => item.model);
+}
+
+const relatedModels = findRelatedModels(model, allModels);
+
 
 const pageTitle = `${model.name} - AI Model Details`;
 const pageDescription = model.description || `Details, README, and related models for ${model.name}.`;
 
-// The markdown utility is no longer needed as we are not using it.
-// The build process will handle markdown rendering if we were using .md files.
-// For raw strings, we will rely on a different approach if needed, but for now, we simplify.
-const readmeHtml = null; // This is now handled differently or removed.
+const readmeHtml = model.readme ? renderMarkdown(model.readme) : null;
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
   <div class="container mx-auto px-4 py-8">
-    <div class:list={["grid grid-cols-1 gap-8", { "lg:grid-cols-3": !!model.readme }]}>
+    <div class:list={["grid grid-cols-1 gap-8", { "lg:grid-cols-3": !!readmeHtml }]}>
       <!-- Main Content: README -->
       <div class="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
         <h1 class="text-3xl font-bold mb-2 text-gray-900 dark:text-white">{model.name}</h1>
         <p class="text-gray-600 dark:text-gray-400 mb-6">{model.description}</p>
         
-        {model.readme ? (
+        {readmeHtml ? (
             <article class="prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert max-w-none">
-                <div set:html={model.readme} />
+                <div set:html={readmeHtml} />
             </article>
           ) : (
             <p class="text-gray-500 dark:text-gray-400">No detailed README available for this model. Check the source links for more information.</p>
@@ -96,6 +122,14 @@ const readmeHtml = null; // This is now handled differently or removed.
         </div>
       </div>
     </div>
-
+        <!-- Related Models Section -->
+    {relatedModels.length > 0 && (
+      <div class="mt-12">
+        <h2 class="text-2xl font-bold text-center mb-6">Related Models</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {relatedModels.map(related => <ModelCard model={related} />)}
+        </div>
+      </div>
+    )}
   </div>
 </Layout>

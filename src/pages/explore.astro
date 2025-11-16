@@ -77,7 +77,7 @@ if (initialQuery) {
         </div>
     </div>
 
-    <script define:vars={{ allModels, initialQuery, initialTag }}>
+    <script define:vars={{ allModels, initialQuery, initialTag, allKeywords }}>
         const searchBox = document.getElementById('search-box');
         const modelsGrid = document.getElementById('models-grid');
         const noResults = document.getElementById('no-results');
@@ -86,6 +86,9 @@ if (initialQuery) {
 
         let currentQuery = initialQuery;
         let currentTag = initialTag;
+
+        const pageTitleEl = document.getElementById('page-title');
+        const pageDescriptionEl = document.getElementById('page-description');
 
         function normalizeText(text) {
             return text ? text.toLowerCase().trim() : '';
@@ -175,6 +178,24 @@ if (initialQuery) {
             renderModels(filtered);
         }
 
+        function updatePageHeadings() {
+            let title = "Explore AI Models & Tools";
+            let description = "Search and filter through a comprehensive list of open-source AI models and tools.";
+
+            if (currentTag) {
+                const keyword = allKeywords.find(k => k.slug === currentTag);
+                title = `Models tagged with '${keyword ? keyword.title : currentTag}'`;
+                description = `Find AI models and tools related to ${keyword ? keyword.title : currentTag}.`;
+            }
+
+            if (currentQuery) {
+                title = `Search results for '${currentQuery}'`;
+            }
+
+            pageTitleEl.textContent = title;
+            pageDescriptionEl.textContent = description;
+        }
+
         function updateURL() {
             const url = new URL(window.location);
             if (currentQuery) {
@@ -193,6 +214,7 @@ if (initialQuery) {
         searchBox.addEventListener('input', (e) => {
             currentQuery = e.target.value;
             updateURL();
+            updatePageHeadings();
             filterAndRender();
         });
 
@@ -227,6 +249,7 @@ if (initialQuery) {
             });
 
             updateURL();
+            updatePageHeadings();
             filterAndRender();
         });
 
