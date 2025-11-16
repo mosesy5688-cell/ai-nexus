@@ -329,17 +329,23 @@ function readCivitaiData() {
         const civitaiData = JSON.parse(fs.readFileSync(CIVITAI_DATA_PATH, 'utf-8'));
         const transformedData = civitaiData.map(model => {
             const description = model.description || `An image generation model named '${model.name}' from Civitai, created by ${model.creator?.username || 'Unknown'}.`;
+            
+            // Fix for Civitai tags which can be an array of objects {name: 'tag'}
+            const tags = Array.isArray(model.tags) 
+                ? model.tags.map(tag => typeof tag === 'object' && tag.name ? tag.name : tag).filter(t => typeof t === 'string') 
+                : [];
+
             return {
             id: `civitai-${model.name.toLowerCase().replace(/\s+/g, '-')}`,
             name: model.name,
             author: model.creator?.username || 'Civitai Community',
             description: description,
             task: 'image-generation', // Assume all are image generation for now
-            tags: model.tags || [],
+            tags: tags,
             likes: model.stats?.favoriteCount || 0,
             downloads: model.stats?.downloadCount || 0,
             lastModified: model.lastUpdate || new Date().toISOString(),
-            readme: model.description ? `<p>${model.description.replace(/\n/g, '<br>')}</p>` : null, // Use description as readme, converting newlines to <br>
+            readme: model.description || null, // Use the raw HTML description directly as readme
             thumbnail: null, // Images are disabled
             downloadUrl: model.downloadUrl, // Assuming the JSON has this field
             sources: [{ // Standardize source object
