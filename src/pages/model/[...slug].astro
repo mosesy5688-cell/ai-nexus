@@ -48,7 +48,7 @@ const relatedModels = findRelatedModels(model, allModels);
 const pageTitle = `${model.name} - AI Model Details`;
 const pageDescription = model.description || `Details, README, and related models for ${model.name}.`;
 
-const readmeHtml = await renderMarkdown(model.readme);
+const readmeHtml = renderMarkdown(model.readme);
 ---
 
 <Layout title={pageTitle} description={pageDescription}>

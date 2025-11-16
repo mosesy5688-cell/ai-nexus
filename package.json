@@ -11,9 +11,7 @@
     "fetch-data": "node scripts/fetch-data.js"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.1",
     "@astrojs/react": "^4.0.0",
-    "@astrojs/rss": "^4.0.7",
     "@astrojs/sitemap": "^3.1.6",
     "@astrojs/tailwind": "^5.1.0",
     "@google/generative-ai": "^0.16.0",
@@ -22,6 +20,7 @@
     "astro-icon": "^1.1.0",
     "axios": "^1.7.2",
     "cheerio": "1.0.0-rc.12",
+    "marked": "^13.0.2",
     "react": "^19.0.0-rc-f994737d14-20240522",
     "react-dom": "^19.0.0-rc-f994737d14-20240522",
     "tailwindcss": "^3.4.18"
