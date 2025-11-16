@@ -74,6 +74,18 @@ const { title, description = 'A premier, free directory of open-source AI models
             overflow-x: auto; /* Allow tables to scroll horizontally */
             max-width: 100%;
         }
+        .readme-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem; /* Add a slight rounding to image corners */
+        }
+        .readme-content th, .readme-content td {
+            border: 1px solid #e2e8f0;
+            padding: 0.5rem 1rem;
+        }
+        .dark .readme-content th, .dark .readme-content td {
+            border-color: #374151;
+        }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans antialiased flex flex-col min-h-screen">
