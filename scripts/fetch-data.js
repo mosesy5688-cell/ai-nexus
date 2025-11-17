@@ -474,8 +474,12 @@ async function fetchGitHubData(additionalRepoUrls = []) {
  * @returns {Promise<object|null>}
  */
 async function transformGitHubRepo(repo) {
-    const readmeUrl = `https://api.github.com/repos/${repo.full_name}/readme`;
-    const readmeContent = await fetchReadme(readmeUrl, { headers: { 'Accept': 'application/vnd.github.raw' } });
+    let readmeContent = null;
+    try {
+        readmeContent = await fetchReadme(`https://api.github.com/repos/${repo.full_name}/contents/README.md`, { headers: { 'Accept': 'application/vnd.github.raw' } });
+    } catch (e) {
+        readmeContent = await fetchReadme(`https://api.github.com/repos/${repo.full_name}/contents/readme.md`, { headers: { 'Accept': 'application/vnd.github.raw' } });
+    }
 
     if (!readmeContent) {
         console.warn(`- Could not fetch README for ${repo.full_name}`);
