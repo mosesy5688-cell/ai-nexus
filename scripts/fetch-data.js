@@ -731,6 +731,18 @@ async function main() {
     console.log('--- Starting Free AI Tools Data Fetching Script ---');
     initializeDirectories();
 
+    // --- NEW: Load existing models for stability check ---
+    let existingModels = [];
+    if (fs.existsSync(OUTPUT_FILE_PATH)) {
+        try {
+            existingModels = JSON.parse(fs.readFileSync(OUTPUT_FILE_PATH, 'utf-8'));
+            console.log(`- Found ${existingModels.length} existing models. This will be used as a baseline for stability.`);
+        } catch (e) {
+            console.warn(`- Could not parse existing models.json. Will proceed without a stability baseline.`);
+        }
+    }
+    // --- END NEW ---
+
     // 1. Fetch SOTA repo URLs from Papers with Code first
     const pwcRepoUrls = await fetchPwCData();
 
@@ -742,11 +754,11 @@ async function main() {
 
     const allRawModels = sourcesData.flat();
 
-    // 2. Filter out NSFW content
+    // 3. Filter out NSFW content
     const sfwModels = allRawModels.filter(model => !isNsfw(model));
     console.log(`- Filtered down to ${sfwModels.length} SFW models.`);
 
-    // 3. Deduplicate and merge models
+    // 4. Deduplicate and merge models
     const mergedModels = new Map();
     for (const model of sfwModels) {
         const key = getModelKey(model.name);
@@ -766,11 +778,11 @@ async function main() {
         }
     }
 
-    // 4. Convert map back to array and sort
+    // 5. Convert map back to array and sort
     const finalModels = Array.from(mergedModels.values());
     finalModels.sort((a, b) => b.likes - a.likes);
 
-    // 5. Calculate velocity and identify rising stars
+    // 6. Calculate velocity and identify rising stars
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -787,23 +799,34 @@ async function main() {
 
     console.log(`- Merged models down to ${finalModels.length} unique entries.`);
 
-    if (finalModels.length > 0) {
+    // --- NEW: Stability and Sanity Check ---
+    // Set a threshold. If the new model count is drastically lower than the old one (e.g., less than 80%),
+    // it indicates a fetching error. In that case, we abort the update to maintain site stability.
+    const MINIMUM_MODEL_THRESHOLD_PERCENTAGE = 0.8;
+    const minimumModelCount = Math.floor(existingModels.length * MINIMUM_MODEL_THRESHOLD_PERCENTAGE);
+
+    if (finalModels.length < minimumModelCount && existingModels.length > 100) { // Add a check to ensure this doesn't trigger on the very first run
+        console.error(`❌ ABORTING UPDATE: New model count (${finalModels.length}) is less than 80% of the existing count (${existingModels.length}).`);
+        console.error('   This likely indicates a data source failure. Preserving existing models.json to ensure site stability.');
+        // We exit with a success code so the build doesn't fail, but the data isn't updated.
+        // The rest of the script (report generation) will also be skipped.
+        process.exit(0);
+    }
+    // --- END NEW ---
+
+    if (finalModels.length > 0) { // This check is now a secondary safeguard
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         const archiveFilePath = path.join(ARCHIVE_DIR, `${today}.json`);
 
         const combinedData = finalModels; // Use the final merged and sorted data
         
-        // 1. Write to dated archive file
+        // Write to dated archive file and the main models.json
         writeDataToFile(archiveFilePath, combinedData);
-
-        // 2. Write to the main models.json for the build process
         writeDataToFile(OUTPUT_FILE_PATH, combinedData);
         await writeToKV('models', JSON.stringify(combinedData));
 
-        // 5. Discover and save hot keywords based on the final model list
+        // Discover keywords and generate report based on the new, validated data
         const validatedKeywords = discoverAndSaveKeywords(combinedData); // <-- This now uses the new, improved logic
-
-        // 6. Generate and save the AI weekly report
         const newReport = await generateBiWeeklyReport(combinedData, validatedKeywords);
         if (newReport) await updateReportsFile(newReport);
     } else {
