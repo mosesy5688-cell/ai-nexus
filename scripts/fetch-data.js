@@ -111,6 +111,52 @@ Analyze the 10 most influential new models (NEW_STARS) that entered the list thi
 }
 
 /**
+ * Post-processes the AI-generated report to link model names and keywords to internal pages.
+ * @param {string} reportContent - The raw markdown content of the report.
+ * @param {Array<object>} allModels - The list of all models.
+ * @param {Array<object>} allKeywords - The list of all validated keywords.
+ * @returns {string} The report content with entities linked.
+ */
+function linkEntitiesInReport(reportContent, allModels, allKeywords) {
+    console.log('- Linking entities within the report...');
+    let linkedContent = reportContent;
+
+    // Sort models by name length, descending, to avoid partial matches (e.g., "Llama-3" before "Llama-3-8B")
+    const sortedModels = [...allModels].sort((a, b) => b.name.length - a.name.length);
+
+    // Link models
+    sortedModels.forEach(model => {
+        const slug = model.id.replace(/\//g, '--');
+        const modelLink = `${model.name}`;
+        // Use a regex to replace the model name only if it's not already part of a link.
+        // This looks for the model name as a whole word (\b) and ensures it's not followed by "](/model/"
+        // which would indicate it's already linked to a model page.
+        const regex = new RegExp(`\\b${escapeRegExp(model.name)}\\b(?!(\\]\\(\\/model\\/)|(\\s*\\-))`, 'gi');
+        linkedContent = linkedContent.replace(regex, modelLink);
+    });
+
+    // Link keywords
+    allKeywords.forEach(keyword => {
+        const keywordLink = `${keyword.title}`;
+        // Use a regex to replace the keyword title (case-insensitive) as a whole word,
+        // and ensure it's not already part of a link.
+        const regex = new RegExp(`\\b${escapeRegExp(keyword.title)}\\b(?!(\\]\\(\\/explore\\?tag=))`, 'gi');
+        linkedContent = linkedContent.replace(regex, keywordLink);
+    });
+
+    return linkedContent;
+}
+
+/**
+ * Escapes special characters in a string for use in a regular expression.
+ * @param {string} str The string to escape.
+ * @returns {string} The escaped string.
+ */
+function escapeRegExp(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+}
+
+/**
  * Generates a weekly AI report using the Gemini API based on the latest models.
  * This function now checks if 14 days have passed since the last report.
  * @param {Array<object>} models The list of recently fetched models.
@@ -179,16 +225,20 @@ async function generateBiWeeklyReport(models, keywords) {
             if (responseText.includes('# Free AI Tools Bi-Weekly Industry Analysis Report') && responseText.includes('## 1. Executive Summary')) {
                 console.log(`✅ AI weekly report generated successfully for ${reportId} on attempt ${attempt}.`);
                 
+                // --- NEW: Link entities in the report content ---
+                const linkedContent = linkEntitiesInReport(responseText, models, keywords);
+                // --- END NEW ---
+
                 // Extract title and summary from the markdown content
-                const titleMatch = responseText.match(/^#\s*(.*)/m);
-                const summaryMatch = responseText.match(/##\s*1\.\s*Executive Summary\s*\n+([\s\S]*?)\n##/);
+                const titleMatch = linkedContent.match(/^#\s*(.*)/m);
+                const summaryMatch = linkedContent.match(/##\s*1\.\s*Executive Summary\s*\n+([\s\S]*?)\n##/);
 
                 const report = {
                     reportId: reportId,
                     title: titleMatch ? titleMatch[1].trim().replace('[Date Range]', dateRange) : `Free AI Tools Bi-Weekly Report - ${dateRange}`,
                     date: reportId,
                     summary: summaryMatch ? summaryMatch[1].trim().substring(0, 300) + '...' : "A bi-weekly analysis of the open-source AI landscape.",
-                    content: responseText, // Store the full markdown content
+                    content: linkedContent, // Store the new, linked markdown content
                     featuredModelIds: [], // This can be populated later if needed
                     tags: ["bi-weekly-report", "ai-trends", "industry-analysis"]
                 };
