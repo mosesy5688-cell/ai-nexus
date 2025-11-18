@@ -1,6 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import ModelCard from '@/components/ModelCard.astro';
+import HomeSearch from '@/components/HomeSearch.astro';
 
 const allModels = await Astro.glob('../data/models.json').then(res => res[0].default);
 const featuredModels = allModels.slice(0, 6); // Show top 6 models on the homepage
@@ -11,12 +12,15 @@ const pageDescription = "Discover, explore, and stay updated with the latest ope
 
 <Layout title={pageTitle} description={pageDescription}>
     <div class="container mx-auto px-4 py-12">
-        <header class="text-center mb-12">
-            <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">Welcome to Free AI Tools</h1>
-            <p class="mt-4 text-xl text-gray-500 dark:text-gray-400">
+        <header class="text-center mb-16">
+            <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">Discover the World of Open Source AI</h1>
+            <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-3xl mx-auto">
                 Your gateway to the world of open-source AI.
             </p>
-            <div class="mt-8 flex justify-center gap-4">
+            <div class="mt-12">
+                <HomeSearch />
+            </div>
+            <div class="mt-12 flex justify-center gap-4">
                 <a href="/explore" class="bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">Explore All Models</a>
                 <a href="/reports" class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-semibold px-6 py-3 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Read Weekly Reports</a>
             </div>
@@ -24,7 +28,7 @@ const pageDescription = "Discover, explore, and stay updated with the latest ope
 
         <section>
             <h2 class="text-3xl font-bold mb-8 text-center">Featured Models</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {featuredModels.map(model => <ModelCard model={model} />)}
             </div>
         </section>

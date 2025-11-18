@@ -166,25 +166,26 @@ if (initialQuery) {
 
         async function filterAndRender() {
             const sortBy = sortBySelect.value;
-
-            // --- NEW: Select the correct index based on the sorting preference ---
-            let activeIndex = index; // Default index (sorts by relevance)
+            
+            // Select the correct Algolia index based on the sorting preference.
+            // This relies on replica indices being configured in your Algolia dashboard.
+            let activeIndexName = algoliaIndexName;
             if (sortBy === 'likes') {
-                activeIndex = searchClient.initIndex(`${algoliaIndexName}_likes_desc`);
+                activeIndexName = `${algoliaIndexName}_likes_desc`;
             } else if (sortBy === 'downloads') {
-                activeIndex = searchClient.initIndex(`${algoliaIndexName}_downloads_desc`);
+                activeIndexName = `${algoliaIndexName}_downloads_desc`;
             } else if (sortBy === 'recent') {
-                activeIndex = searchClient.initIndex(`${algoliaIndexName}_recent_desc`);
+                activeIndexName = `${algoliaIndexName}_recent_desc`;
             }
-            // --- END NEW ---
+            const activeIndex = searchClient.initIndex(activeIndexName);
 
             const searchOptions = {
-                query: currentQuery,
                 hitsPerPage: 50,
             };
 
             if (currentTag) {
-                searchOptions.filters = `tags:"${currentTag}"`;
+                // Use facetFilters for more robust filtering
+                searchOptions.facetFilters = [`tags:${currentTag}`];
             }
 
             try {
