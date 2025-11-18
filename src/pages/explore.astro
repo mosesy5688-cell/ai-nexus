@@ -100,6 +100,7 @@ if (initialQuery) {
         const sortBySelect = document.getElementById('sort-by');
 
         let currentQuery = initialQuery;
+        let currentSortBy = sortBySelect.value;
         let currentTag = activeTag;
 
         const pageTitleEl = document.getElementById('page-title');
@@ -164,17 +165,20 @@ if (initialQuery) {
             }
         }
 
+        let debounceTimer;
         async function filterAndRender() {
-            const sortBy = sortBySelect.value;
+            // Show a loading state
+            modelsGrid.innerHTML = `<p class="col-span-full text-center py-16">Loading...</p>`;
+            noResults.classList.add('hidden');
             
             // Select the correct Algolia index based on the sorting preference.
             // This relies on replica indices being configured in your Algolia dashboard.
             let activeIndexName = algoliaIndexName;
-            if (sortBy === 'likes') {
+            if (currentSortBy === 'likes') {
                 activeIndexName = `${algoliaIndexName}_likes_desc`;
-            } else if (sortBy === 'downloads') {
+            } else if (currentSortBy === 'downloads') {
                 activeIndexName = `${algoliaIndexName}_downloads_desc`;
-            } else if (sortBy === 'recent') {
+            } else if (currentSortBy === 'recent') {
                 activeIndexName = `${algoliaIndexName}_recent_desc`;
             }
             const activeIndex = searchClient.initIndex(activeIndexName);
@@ -184,8 +188,9 @@ if (initialQuery) {
             };
 
             if (currentTag) {
-                // Use facetFilters for more robust filtering
-                searchOptions.facetFilters = [`tags:${currentTag}`];
+                // For Algolia, filters are specified as a string.
+                // Ensure your 'tags' attribute is set for faceting in your Algolia dashboard.
+                searchOptions.filters = `tags:"${currentTag}"`;
             }
 
             try {
@@ -232,22 +237,26 @@ if (initialQuery) {
         }
 
         searchBox.addEventListener('input', (e) => {
-            currentQuery = e.target.value;
-            updateURL();
-            updatePageHeadings();
-            filterAndRender();
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                currentQuery = e.target.value;
+                updateURL();
+                updatePageHeadings();
+                filterAndRender();
+            }, 300); // Debounce for 300ms to avoid excessive API calls while typing
         });
 
         sortBySelect.addEventListener('change', () => {
+            currentSortBy = sortBySelect.value;
             // No need to update URL for sorting, just re-render
             filterAndRender();
         });
 
         tagsContainer.addEventListener('click', (e) => {
-            e.preventDefault();
             const target = e.target.closest('.tag-link');
             if (!target) return;
 
+            e.preventDefault(); // Prevent default link navigation only if a tag link is clicked
             const clickedTag = target.dataset.tag;
 
             // Toggle tag selection
