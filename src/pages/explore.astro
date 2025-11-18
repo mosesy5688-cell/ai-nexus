@@ -89,201 +89,191 @@ if (initialQuery) {
         algoliaSearchKey: import.meta.env.PUBLIC_ALGOLIA_SEARCH_KEY,
         algoliaIndexName: import.meta.env.PUBLIC_ALGOLIA_INDEX_NAME,
     }}>
-        // Initialize Algolia client
-        const searchClient = algoliasearch(algoliaAppId, algoliaSearchKey);
-        const index = searchClient.initIndex(algoliaIndexName);
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- 1. INITIALIZATION ---
+            if (!algoliaAppId || !algoliaSearchKey) {
+                console.error("Algolia credentials are not configured. Please check your environment variables.");
+                document.getElementById('models-grid').innerHTML = `<p class="col-span-full text-center text-red-500">Search is not configured.</p>`;
+                return;
+            }
 
-        const searchBox = document.getElementById('search-box');
-        const modelsGrid = document.getElementById('models-grid');
-        const noResults = document.getElementById('no-results');
-        const tagsContainer = document.getElementById('tags-container');
-        const sortBySelect = document.getElementById('sort-by');
+            const searchClient = algoliasearch(algoliaAppId, algoliaSearchKey);
 
-        let currentQuery = initialQuery;
-        let currentSortBy = sortBySelect.value;
-        let currentTag = activeTag;
+            const searchBox = document.getElementById('search-box');
+            const modelsGrid = document.getElementById('models-grid');
+            const noResults = document.getElementById('no-results');
+            const tagsContainer = document.getElementById('tags-container');
+            const sortBySelect = document.getElementById('sort-by');
+            const pageTitleEl = document.getElementById('page-title');
+            const pageDescriptionEl = document.getElementById('page-description');
 
-        const pageTitleEl = document.getElementById('page-title');
-        const pageDescriptionEl = document.getElementById('page-description');
+            let currentQuery = initialQuery;
+            let currentTag = activeTag;
+            let debounceTimer;
 
-        function normalizeText(text) {
-            return text ? text.toLowerCase().trim() : '';
-        }
+            // --- 2. CORE RENDERING & SEARCH LOGIC ---
 
-        function formatNumber(num) {
-            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-            return num;
-        }
+            function createModelCardHTML(model) {
+                const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
+                const description = (model.description?.replace(/<[^>]*>?/gm, '') || 'No description available.').substring(0, 120);
+                const isRisingStarHTML = model.is_rising_star 
+                    ? `<div class="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full animate-pulse" title="Rising Star">🔥</div>`
+                    : '';
+                
+                const formatNumber = (num) => {
+                    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+                    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+                    return num || 0;
+                };
 
-        function createModelCardHTML(model) {
-            const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
-            const description = (model.description?.replace(/<[^>]*>?/gm, '') || 'No description available.').substring(0, 120);
-            const isRisingStarHTML = model.is_rising_star 
-                ? `<div class="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full animate-pulse" title="Rising Star">🔥</div>`
-                : '';
-
-            return `
-                <a href="${modelUrl}" class="group relative block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full">
-                    ${isRisingStarHTML}
-                    <div class="p-5 flex flex-col h-full justify-between">
-                        <div>
-                            <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" title="${model.name}">
-                                ${model.name}
-                            </h3>
-                            <p class="text-gray-500 dark:text-gray-400 text-xs mb-3">by ${model.author}</p>
-                            <p class="text-gray-600 dark:text-gray-300 text-sm h-20 overflow-hidden text-ellipsis leading-relaxed">
-                                ${description}...
-                            </p>
-                        </div>
-                        <div class="mt-4 flex items-center justify-end gap-4 text-xs text-gray-500 dark:text-gray-400">
-                            <div class="flex items-center gap-1" title="${(model.likes || 0).toLocaleString()} likes">❤️
-                                <span>${formatNumber(model.likes || 0)}</span>
+                return `
+                    <a href="${modelUrl}" class="group relative block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full">
+                        ${isRisingStarHTML}
+                        <div class="p-5 flex flex-col h-full justify-between">
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" title="${model.name}">
+                                    ${model.name}
+                                </h3>
+                                <p class="text-gray-500 dark:text-gray-400 text-xs mb-3">by ${model.author}</p>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm h-20 overflow-hidden text-ellipsis leading-relaxed">
+                                    ${description}...
+                                </p>
                             </div>
-                            <div class="flex items-center gap-1" title="${(model.downloads || 0).toLocaleString()} downloads">📥
-                                <span>${formatNumber(model.downloads || 0)}</span>
+                            <div class="mt-4 flex items-center justify-end gap-4 text-xs text-gray-500 dark:text-gray-400">
+                                <div class="flex items-center gap-1" title="${(model.likes || 0).toLocaleString()} likes">❤️
+                                    <span>${formatNumber(model.likes)}</span>
+                                </div>
+                                <div class="flex items-center gap-1" title="${(model.downloads || 0).toLocaleString()} downloads">📥
+                                    <span>${formatNumber(model.downloads)}</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </a>
-            `;
-        }
-
-        function renderModels(models) {
-            modelsGrid.innerHTML = '';
-            if (models.length === 0) {
-                noResults.classList.remove('hidden');
-            } else {
-                noResults.classList.add('hidden');
-                const fragment = document.createDocumentFragment();
-                models.forEach(model => {
-                    const cardContainer = document.createElement('div');
-                    cardContainer.innerHTML = createModelCardHTML(model);
-                    fragment.appendChild(cardContainer.firstElementChild);
-                });
-                modelsGrid.appendChild(fragment);
-            }
-        }
-
-        let debounceTimer;
-        async function filterAndRender() {
-            // Show a loading state
-            modelsGrid.innerHTML = `<p class="col-span-full text-center py-16">Loading...</p>`;
-            noResults.classList.add('hidden');
-            
-            // Select the correct Algolia index based on the sorting preference.
-            // This relies on replica indices being configured in your Algolia dashboard.
-            let activeIndexName = algoliaIndexName;
-            if (currentSortBy === 'likes') {
-                activeIndexName = `${algoliaIndexName}_likes_desc`;
-            } else if (currentSortBy === 'downloads') {
-                activeIndexName = `${algoliaIndexName}_downloads_desc`;
-            } else if (currentSortBy === 'recent') {
-                activeIndexName = `${algoliaIndexName}_recent_desc`;
-            }
-            const activeIndex = searchClient.initIndex(activeIndexName);
-
-            const searchOptions = {
-                hitsPerPage: 50,
-            };
-
-            if (currentTag) {
-                // For Algolia, filters are specified as a string.
-                // Ensure your 'tags' attribute is set for faceting in your Algolia dashboard.
-                searchOptions.filters = `tags:"${currentTag}"`;
+                    </a>
+                `;
             }
 
-            try {
-                // Use the activeIndex which corresponds to the selected sort order
-                const { hits } = await activeIndex.search(currentQuery, searchOptions);
-                renderModels(hits);
-            } catch (error) {
-                console.error("Algolia search error:", error);
-                modelsGrid.innerHTML = `<p class="text-red-500">Error fetching search results.</p>`;
-            }
-        }
-
-        function updatePageHeadings() {
-            let title = "Explore AI Models & Tools";
-            let description = "Search and filter through a comprehensive list of open-source AI models and tools.";
-
-            if (currentTag) {
-                const keyword = allKeywords.find(k => k.slug === currentTag);
-                title = `Models tagged with '${keyword ? keyword.title : currentTag}'`;
-                description = `Find AI models and tools related to ${keyword ? keyword.title : currentTag}.`;
-            }
-
-            if (currentQuery) {
-                title = `Search results for '${currentQuery}'`;
-            }
-
-            pageTitleEl.textContent = title;
-            pageDescriptionEl.textContent = description;
-        }
-
-        function updateURL() {
-            const url = new URL(window.location);
-            if (currentQuery) {
-                url.searchParams.set('q', currentQuery);
-            } else {
-                url.searchParams.delete('q');
-            }
-            if (currentTag) {
-                url.searchParams.set('tag', currentTag);
-            } else {
-                url.searchParams.delete('tag');
-            }
-            window.history.pushState({}, '', url);
-        }
-
-        searchBox.addEventListener('input', (e) => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                currentQuery = e.target.value;
-                updateURL();
-                updatePageHeadings();
-                filterAndRender();
-            }, 300); // Debounce for 300ms to avoid excessive API calls while typing
-        });
-
-        sortBySelect.addEventListener('change', () => {
-            currentSortBy = sortBySelect.value;
-            // No need to update URL for sorting, just re-render
-            filterAndRender();
-        });
-
-        tagsContainer.addEventListener('click', (e) => {
-            const target = e.target.closest('.tag-link');
-            if (!target) return;
-
-            e.preventDefault(); // Prevent default link navigation only if a tag link is clicked
-            const clickedTag = target.dataset.tag;
-
-            // Toggle tag selection
-            if (currentTag === clickedTag) {
-                currentTag = null; // Deselect if clicking the active tag
-            } else {
-                currentTag = clickedTag;
-            }
-
-            // Update UI for all tags
-            document.querySelectorAll('.tag-link').forEach(link => {
-                if (link.dataset.tag === currentTag) {
-                    link.classList.add('bg-blue-600', 'text-white');
-                    link.classList.remove('bg-gray-200', 'dark:bg-gray-700');
+            function renderModels(models) {
+                modelsGrid.innerHTML = '';
+                if (models.length === 0) {
+                    noResults.classList.remove('hidden');
                 } else {
-                    link.classList.remove('bg-blue-600', 'text-white');
-                    link.classList.add('bg-gray-200', 'dark:bg-gray-700');
+                    noResults.classList.add('hidden');
+                    const fragment = document.createDocumentFragment();
+                    models.forEach(model => {
+                        const cardContainer = document.createElement('div');
+                        cardContainer.innerHTML = createModelCardHTML(model);
+                        fragment.appendChild(cardContainer.firstElementChild);
+                    });
+                    modelsGrid.appendChild(fragment);
                 }
+            }
+
+            async function performSearch() {
+                modelsGrid.innerHTML = `<p class="col-span-full text-center py-16 text-gray-500">Loading...</p>`;
+                noResults.classList.add('hidden');
+
+                const sortBy = sortBySelect.value;
+                let activeIndexName = algoliaIndexName;
+                if (sortBy === 'likes') activeIndexName = `${algoliaIndexName}_likes_desc`;
+                if (sortBy === 'downloads') activeIndexName = `${algoliaIndexName}_downloads_desc`;
+                if (sortBy === 'recent') activeIndexName = `${algoliaIndexName}_recent_desc`;
+                
+                const index = searchClient.initIndex(activeIndexName);
+
+                const searchOptions = { hitsPerPage: 50 };
+                if (currentTag) {
+                    searchOptions.filters = `tags:"${currentTag}"`;
+                }
+
+                try {
+                    const { hits } = await index.search(currentQuery, searchOptions);
+                    renderModels(hits);
+                } catch (error) {
+                    console.error("Algolia search error:", error);
+                    modelsGrid.innerHTML = `<p class="col-span-full text-center text-red-500">Error fetching search results. Please try again later.</p>`;
+                }
+            }
+
+            // --- 3. UI & URL MANAGEMENT ---
+
+            function updatePageHeadings() {
+                let title = "Explore AI Models & Tools";
+                let description = "Search and filter through a comprehensive list of open-source AI models and tools.";
+
+                if (currentTag) {
+                    const keyword = allKeywords.find(k => k.slug === currentTag);
+                    title = `Models tagged with '${keyword ? keyword.title : currentTag}'`;
+                    description = `Find AI models and tools related to ${keyword ? keyword.title : currentTag}.`;
+                }
+
+                if (currentQuery) {
+                    title = `Search results for '${currentQuery}'`;
+                }
+
+                pageTitleEl.textContent = title;
+                pageDescriptionEl.textContent = description;
+                document.title = title;
+            }
+
+            function updateURL() {
+                const url = new URL(window.location);
+                if (currentQuery) url.searchParams.set('q', currentQuery);
+                else url.searchParams.delete('q');
+                if (currentTag) url.searchParams.set('tag', currentTag);
+                else url.searchParams.delete('tag');
+                window.history.pushState({}, '', url);
+            }
+
+            // --- 4. EVENT LISTENERS ---
+
+            searchBox.addEventListener('input', (e) => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    currentQuery = e.target.value;
+                    currentTag = null; // Clear tag filter when typing a new search
+                    updateActiveTagUI();
+                    updateURL();
+                    updatePageHeadings();
+                    performSearch();
+                }, 300); // Debounce for 300ms
             });
 
-            updateURL();
-            updatePageHeadings();
-            filterAndRender();
-        });
+            sortBySelect.addEventListener('change', () => {
+                performSearch();
+            });
 
-        // Initial render on page load. This will respect the URL parameters
-        // because `currentTag` and `currentQuery` are initialized from them.
-        filterAndRender();
+            tagsContainer.addEventListener('click', (e) => {
+                const target = e.target.closest('.tag-link');
+                if (!target) return;
+                e.preventDefault();
+
+                const clickedTag = target.dataset.tag;
+                currentTag = (currentTag === clickedTag) ? null : clickedTag;
+                
+                // Clear search box when a tag is selected/deselected
+                currentQuery = '';
+                searchBox.value = '';
+
+                updateActiveTagUI();
+                updateURL();
+                updatePageHeadings();
+                performSearch();
+            });
+
+            function updateActiveTagUI() {
+                document.querySelectorAll('.tag-link').forEach(link => {
+                    if (link.dataset.tag === currentTag) {
+                        link.classList.add('bg-blue-600', 'text-white');
+                        link.classList.remove('bg-gray-200', 'dark:bg-gray-700', 'text-gray-800', 'dark:text-gray-200');
+                    } else {
+                        link.classList.remove('bg-blue-600', 'text-white');
+                        link.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-800', 'dark:text-gray-200');
+                    }
+                });
+            }
+
+            // --- 5. INITIAL LOAD ---
+            performSearch();
+        });
     </script>
 </Layout>
