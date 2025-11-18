@@ -481,15 +481,20 @@ async function transformGitHubRepo(repo) {
         readmeContent = await fetchReadme(`https://api.github.com/repos/${repo.full_name}/contents/readme.md`, { headers: { 'Accept': 'application/vnd.github.raw' } });
     }
 
-    if (!readmeContent) {
-        console.warn(`- Could not fetch README for ${repo.full_name}`);
+    let description = repo.description || 'An AI tool from GitHub.';
+    // If description is generic or empty, try to extract one from the README
+    if ((!repo.description || repo.description.length < 20) && readmeContent) {
+        const firstLines = readmeContent.split('\n').filter(line => line.trim().length > 10 && !line.trim().startsWith('#')).slice(0, 2).join(' ');
+        if (firstLines.length > 20) {
+            description = firstLines.substring(0, 250) + '...';
+        }
     }
 
     return {
         id: `github-${repo.full_name.replace('/', '-')}`,
         name: repo.name,
         author: repo.owner.login,
-        description: repo.description || 'An AI tool from GitHub.',
+        description: description,
         task: 'tool', // Assign a default task for GitHub repos
         tags: repo.topics || [],
         likes: repo.stargazers_count || 0,

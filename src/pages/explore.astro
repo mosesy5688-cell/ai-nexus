@@ -1,6 +1,5 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import allModels from '../data/models.json';
 import allKeywords from '../data/keywords.json';
 
 const url = Astro.url;
@@ -78,7 +77,22 @@ if (initialQuery) {
         </div>
     </div>
 
-    <script define:vars={{ allModels, initialQuery, activeTag, allKeywords }}>
+    <!-- Algolia Search Client -->
+    <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
+    <script define:vars={{ 
+        initialQuery, 
+        activeTag, 
+        allKeywords,
+        // IMPORTANT: These must be set as Environment Variables in your deployment platform (e.g., Cloudflare Pages)
+        // These are PUBLIC keys, safe to expose on the client-side.
+        algoliaAppId: import.meta.env.PUBLIC_ALGOLIA_APP_ID,
+        algoliaSearchKey: import.meta.env.PUBLIC_ALGOLIA_SEARCH_KEY,
+        algoliaIndexName: import.meta.env.PUBLIC_ALGOLIA_INDEX_NAME,
+    }}>
+        // Initialize Algolia client
+        const searchClient = algoliasearch(algoliaAppId, algoliaSearchKey);
+        const index = searchClient.initIndex(algoliaIndexName);
+
         const searchBox = document.getElementById('search-box');
         const modelsGrid = document.getElementById('models-grid');
         const noResults = document.getElementById('no-results');
@@ -150,36 +164,37 @@ if (initialQuery) {
             }
         }
 
-        function filterAndRender() {
-            const normalizedQuery = normalizeText(currentQuery);
-
-            let filtered = allModels.filter(model => {
-                const tagMatch = !currentTag || (model.tags && model.tags.includes(currentTag));
-                if (!tagMatch) return false;
-
-                if (!normalizedQuery) return true;
-
-                return (
-                    (model.name && normalizeText(model.name).includes(normalizedQuery)) ||
-                    (model.description && normalizeText(model.description).includes(normalizedQuery)) ||
-                    (model.author && normalizeText(model.author).includes(normalizedQuery)) ||
-                    (model.tags && model.tags.some(t => normalizeText(t).includes(normalizedQuery)))
-                );
-            });
-
+        async function filterAndRender() {
             const sortBy = sortBySelect.value;
+
+            // --- NEW: Select the correct index based on the sorting preference ---
+            let activeIndex = index; // Default index (sorts by relevance)
             if (sortBy === 'likes') {
-                filtered.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+                activeIndex = searchClient.initIndex(`${algoliaIndexName}_likes_desc`);
             } else if (sortBy === 'downloads') {
-                filtered.sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
+                activeIndex = searchClient.initIndex(`${algoliaIndexName}_downloads_desc`);
             } else if (sortBy === 'recent') {
-                filtered.sort((a, b) => {
-                    const dateA = a.lastModified ? new Date(a.lastModified) : 0;
-                    const dateB = b.lastModified ? new Date(b.lastModified) : 0;
-                    return dateB - dateA;
-                });
+                activeIndex = searchClient.initIndex(`${algoliaIndexName}_recent_desc`);
             }
-            renderModels(filtered);
+            // --- END NEW ---
+
+            const searchOptions = {
+                query: currentQuery,
+                hitsPerPage: 50,
+            };
+
+            if (currentTag) {
+                searchOptions.filters = `tags:"${currentTag}"`;
+            }
+
+            try {
+                // Use the activeIndex which corresponds to the selected sort order
+                const { hits } = await activeIndex.search(currentQuery, searchOptions);
+                renderModels(hits);
+            } catch (error) {
+                console.error("Algolia search error:", error);
+                modelsGrid.innerHTML = `<p class="text-red-500">Error fetching search results.</p>`;
+            }
         }
 
         function updatePageHeadings() {
