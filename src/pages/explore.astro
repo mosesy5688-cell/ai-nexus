@@ -128,12 +128,18 @@ if (initialQuery) {
             const sortBySelect = document.getElementById('sort-by');
             const pageTitleEl = document.getElementById('page-title');
             const pageDescriptionEl = document.getElementById('page-description');
+            const loadingMoreEl = document.getElementById('loading-more');
+            const backToTopButton = document.getElementById('back-to-top');
 
             let currentQuery = initialQuery;
             let currentTag = activeTag;
             let debounceTimer;
 
-            // --- 2. GET STATICALLY RENDERED SEARCH BOX ---
+            let currentPage = 0;
+            let isLoading = false;
+            let hasMore = true;
+
+            // --- 2. GET STATICALLY RENDERED UI ELEMENTS ---
             const searchBox = document.getElementById('search-box');
 
             function formatNumber(num) {
@@ -177,10 +183,12 @@ if (initialQuery) {
                 `;
             }
 
-            function renderModels(models) {
-                modelsGrid.innerHTML = '';
+            function renderModels(models, isNewSearch = true) {
+                if (isNewSearch) {
+                    modelsGrid.innerHTML = '';
+                }
                 if (models.length === 0) {
-                    noResults.classList.remove('hidden');
+                    if (isNewSearch) noResults.classList.remove('hidden');
                 } else {
                     noResults.classList.add('hidden');
                     const fragment = document.createDocumentFragment();
@@ -193,13 +201,26 @@ if (initialQuery) {
                 }
             }
 
-            async function performSearch() {
-                const gridHasContent = modelsGrid.children.length > 0;
-                if (!gridHasContent) {
-                    modelsGrid.innerHTML = `<p class="col-span-full text-center py-16 text-gray-500">Loading...</p>`;
+            async function performSearch(page = 0) {
+                if (isLoading) return;
+                isLoading = true;
+
+                const isNewSearch = page === 0;
+
+                if (isNewSearch) {
+                    const gridHasContent = modelsGrid.children.length > 0;
+                    if (!gridHasContent) {
+                        modelsGrid.innerHTML = `<p class="col-span-full text-center py-16 text-gray-500">Loading...</p>`;
+                    }
+                    currentPage = 0;
+                    hasMore = true;
+                } else {
+                    loadingMoreEl.classList.remove('hidden');
                 }
+
                 noResults.classList.add('hidden');
 
+                // Determine which Algolia index to use based on sorting
                 const sortBy = sortBySelect.value;
                 let activeIndexName = algoliaIndexName;
                 if (sortBy === 'likes') activeIndexName = `${algoliaIndexName}_likes_desc`;
@@ -208,17 +229,27 @@ if (initialQuery) {
                 
                 const index = searchClient.initIndex(activeIndexName);
 
-                const searchOptions = { hitsPerPage: 50 };
+                const searchOptions = { 
+                    hitsPerPage: 24,
+                    page: page
+                };
                 if (currentTag) {
                     searchOptions.filters = `tags:"${currentTag}"`;
                 }
 
                 try {
-                    const { hits } = await index.search(currentQuery, searchOptions);
-                    renderModels(hits);
+                    const { hits, nbPages } = await index.search(currentQuery, searchOptions);
+                    renderModels(hits, isNewSearch);
+                    currentPage = page;
+                    if (currentPage + 1 >= nbPages) {
+                        hasMore = false;
+                    }
                 } catch (error) {
                     console.error("Algolia search error:", error);
                     modelsGrid.innerHTML = `<p class="col-span-full text-center text-red-500">Error fetching search results. Please try again later.</p>`;
+                } finally {
+                    isLoading = false;
+                    loadingMoreEl.classList.add('hidden');
                 }
             }
 
@@ -261,7 +292,7 @@ if (initialQuery) {
                 updateActiveTagUI();
                 updateURL();
                 updatePageHeadings();
-                performSearch();
+                performSearch(0);
             });
 
             searchBox.addEventListener('input', (e) => {
@@ -270,14 +301,14 @@ if (initialQuery) {
                     currentQuery = e.target.value;
                     if (currentQuery === '') {
                         updateURL();
-                        updatePageHeadings();
-                        performSearch();
                     }
+                    updatePageHeadings();
+                    performSearch(0);
                 }, 300); // Debounce for 300ms
             });
 
             sortBySelect.addEventListener('change', () => {
-                performSearch();
+                performSearch(0);
             });
 
             tagsContainer.addEventListener('click', (e) => {
@@ -294,7 +325,7 @@ if (initialQuery) {
                 updateActiveTagUI();
                 updateURL();
                 updatePageHeadings();
-                performSearch();
+                performSearch(0);
             });
 
             function updateActiveTagUI() {
@@ -309,9 +340,29 @@ if (initialQuery) {
                 });
             }
 
+            // --- 6. INFINITE SCROLL & BACK-TO-TOP ---
+            window.addEventListener('scroll', () => {
+                // Infinite scroll
+                if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 500 && !isLoading && hasMore) {
+                    performSearch(currentPage + 1);
+                }
+
+                // Back to top button visibility
+                if (window.scrollY > 300) {
+                    backToTopButton.classList.remove('opacity-0', 'pointer-events-none');
+                } else {
+                    backToTopButton.classList.add('opacity-0', 'pointer-events-none');
+                }
+            });
+
+            backToTopButton.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+
+
             // --- 6. INITIAL LOAD ---
             if (initialQuery || activeTag) {
-                performSearch();
+                performSearch(0);
             }
         });
     </script>
