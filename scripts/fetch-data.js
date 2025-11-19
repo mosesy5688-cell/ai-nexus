@@ -767,16 +767,12 @@ async function main() {
     const sfwModels = allRawModels.filter(model => !isNsfw(model));
     console.log(`- Filtered down to ${sfwModels.length} SFW models.`);
 
-    // 4. Deduplicate and merge models
-    const mergedModels = new Map();
     // 4. Create a map of new models for quick lookup
     const newModelsMap = new Map();
     for (const model of sfwModels) {
         const key = getModelKey(model.name);
-        if (mergedModels.has(key)) {
         if (newModelsMap.has(key)) {
             // Merge logic
-            const existing = mergedModels.get(key);
             const existing = newModelsMap.get(key);
             existing.likes += model.likes;
             existing.downloads += model.downloads;
@@ -787,18 +783,11 @@ async function main() {
             }
             existing.tags = [...new Set([...existing.tags, ...model.tags])]; // Merge and deduplicate tags
             existing.sources.push(...model.sources);
-            // Prioritize description from Hugging Face or GitHub over others
-            if (!existing.description.includes('from GitHub') && (model.description.includes('from GitHub') || model.sources.some(s => s.platform === 'Hugging Face'))) {
-                existing.description = model.description;
-            }
         } else {
-            mergedModels.set(key, model);
             newModelsMap.set(key, model);
         }
     }
 
-    // 5. Convert map back to array and sort
-    const finalModels = Array.from(mergedModels.values());
     // 5. Implement "Soft Delete" / Archiving Logic
     const finalModelsMap = new Map(newModelsMap); // Start with all new models
 
