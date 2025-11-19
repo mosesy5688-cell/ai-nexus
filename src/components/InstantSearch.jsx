@@ -47,9 +47,16 @@ export default function InstantSearch() {
 
   const showResults = isFocused && results.length > 0;
 
+  const handleFormSubmit = (e) => {
+    e.preventDefault(); // 阻止表单的默认跳转行为
+    if (query) {
+      window.location.href = `/explore?q=${encodeURIComponent(query)}`;
+    }
+  };
+
   return (
     <div className="relative max-w-2xl mx-auto" ref={searchContainerRef}>
-      <form action="/explore" method="get" className="relative">
+      <form onSubmit={handleFormSubmit} className="relative">
         <input
           type="search"
           name="q"
