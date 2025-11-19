@@ -29,10 +29,13 @@ async function main() {
     const index = client.initIndex(ALGOLIA_INDEX_NAME);
 
     const modelsJson = await fs.readFile(MODELS_FILE_PATH, 'utf-8');
-    const models = JSON.parse(modelsJson).map(model => ({
-      objectID: model.id,
-      ...model
-    }));
+    const models = JSON.parse(modelsJson).map(model => {
+      // Exclude the large 'readme' field to keep records small for Algolia.
+      // The full readme is still available in models.json for the detail pages.
+      const { readme, ...searchableModel } = model;
+      searchableModel.objectID = model.id; // Algolia requires a unique objectID
+      return searchableModel;
+    });
 
     console.log(`- Clearing existing index "${ALGOLIA_INDEX_NAME}"...`);
     await index.clearObjects();
