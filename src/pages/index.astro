@@ -1,7 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import ModelCard from '@/components/ModelCard.astro';
-import HomeSearch from '@/components/HomeSearch.astro';
+import InstantSearch from '@/components/InstantSearch.jsx';
 
 const allModels = await Astro.glob('../data/models.json').then(res => res[0].default);
 const featuredModels = allModels.slice(0, 6); // Show top 6 models on the homepage
@@ -18,7 +18,7 @@ const pageDescription = "Discover, explore, and stay updated with the latest ope
                 Your gateway to the world of open-source AI.
             </p>
             <div class="mt-12">
-                <HomeSearch />
+                <InstantSearch client:load />
             </div>
             <div class="mt-12 flex justify-center gap-4">
                 <a href="/explore" class="bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">Explore All Models</a>
