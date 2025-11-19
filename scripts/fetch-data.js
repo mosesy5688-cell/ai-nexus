@@ -701,28 +701,28 @@ function discoverAndSaveKeywords(models) {
  * @param {object | null} newReport The new report to add.
  */
 async function updateReportsFile(newReport) {
-	if (newReport) {
-		console.log('- New report generated, updating reports file...');
-		let reports = [];
-		if (fs.existsSync(REPORTS_OUTPUT_PATH)) {
-			try {
-				reports = JSON.parse(fs.readFileSync(REPORTS_OUTPUT_PATH, 'utf-8'));
-			} catch (e) {
-				console.warn('Could not parse existing reports.json. Starting fresh.');
-			}
-		}
+  if (newReport) {
+    console.log('- New report generated, updating reports file...');
+    let reports = [];
+    if (fs.existsSync(REPORTS_OUTPUT_PATH)) {
+      try {
+        reports = JSON.parse(fs.readFileSync(REPORTS_OUTPUT_PATH, 'utf-8'));
+      } catch (e) {
+        console.warn('Could not parse existing reports.json. Starting fresh.');
+      }
+    }
 
-		// Long-term archival: Save the new report as a separate file
-		const reportArchivePath = path.join(REPORT_ARCHIVE_DIR, `${newReport.reportId}.json`);
-		writeDataToFile(reportArchivePath, newReport);
+    // Long-term archival: Save the new report as a separate file
+    const reportArchivePath = path.join(REPORT_ARCHIVE_DIR, `${newReport.reportId}.json`);
+    writeDataToFile(reportArchivePath, newReport);
 
-		// Main reports file: Add new report to the beginning
-		reports.unshift(newReport); // Add new report to the beginning
-		// Keep only the latest 52 reports for the main page to ensure performance
-		writeDataToFile(REPORTS_OUTPUT_PATH, reports.slice(0, 52));
-	} else {
-		console.log('✅ No new report generated. Skipping reports file update.');
-	}
+    // Main reports file: Add new report to the beginning
+    reports.unshift(newReport); // Add new report to the beginning
+    // Keep only the latest 52 reports for the main page to ensure performance
+    writeDataToFile(REPORTS_OUTPUT_PATH, reports.slice(0, 52));
+  } else {
+    console.log('✅ No new report generated. Skipping reports file update.');
+  }
 }
 
 /**

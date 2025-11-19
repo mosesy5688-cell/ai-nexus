@@ -1,5 +1,4 @@
 ---
-import Search from './Search.astro';
 const navLinks = [
   { href: "/explore", text: "Explore Models" },
   { href: "/reports", text: "Reports" },
@@ -24,8 +23,7 @@ const navLinks = [
                             {link.text}
                         </a>
                     ))}
-                </div>
-                
+                </div>                
                 <!-- Mobile Search & Menu Toggle -->
                 <button data-collapse-toggle="navbar-default" type="button" class="inline-flex items-center p-2 w-10 h-10 justify-center text-sm text-gray-500 rounded-lg md:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600" aria-controls="navbar-default" aria-expanded="false">
                     <span class="sr-only">Open main menu</span>
@@ -35,8 +33,7 @@ const navLinks = [
         </div>
         <!-- Mobile Collapsible Menu -->
         <div class="hidden w-full md:hidden" id="navbar-default">
-            <ul class="font-medium flex flex-col p-4 md:p-0 mt-4 border border-gray-100 rounded-lg bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
-                <li class="mb-4"><Search /></li>
+            <ul class="font-medium flex flex-col p-4 md:p-0 mt-4 border border-gray-100 rounded-lg bg-gray-50">
                 {navLinks.map(link => (
                     <li>
                         <a href={link.href} class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent">{link.text}</a>
