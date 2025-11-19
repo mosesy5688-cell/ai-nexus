@@ -6,3 +6,6 @@ pages_build_output_dir = "dist"
 PUBLIC_ALGOLIA_APP_ID = "W80GPIV5TH"
 PUBLIC_ALGOLIA_SEARCH_KEY = "f0c6bd9b1745175054c7ce4869508630"
 PUBLIC_ALGOLIA_INDEX_NAME = "ai_models"
+
+[ai]
+binding = "AI"
