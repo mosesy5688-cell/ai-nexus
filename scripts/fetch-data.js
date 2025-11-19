@@ -19,7 +19,6 @@ const REPLICATE_EXPLORE_URL = 'https://replicate.com/explore';
 const NSFW_KEYWORDS = [
     'nsfw', 
     'porn', 
-    'hentai', 
     'sexy', 
     'explicit', 
     'erotic', 
@@ -365,6 +364,7 @@ async function transformHuggingFaceModel(model) {
         likes: model.likes || 0,
         downloads: model.downloads || 0,
         lastModified: model.lastModified,
+        lastModifiedTimestamp: new Date(model.lastModified).getTime(),
         readme: readmeContent,
         downloadUrl: downloadUrl,
         sources: [{
@@ -499,6 +499,7 @@ async function transformGitHubRepo(repo) {
         likes: repo.stargazers_count || 0,
         downloads: repo.watchers_count || 0, // Using watchers as a proxy for downloads
         lastModified: repo.updated_at,
+        lastModifiedTimestamp: new Date(repo.updated_at).getTime(),
         readme: readmeContent,
         downloadUrl: null,
         sources: [{
@@ -768,13 +769,22 @@ async function main() {
 
     // 4. Deduplicate and merge models
     const mergedModels = new Map();
+    // 4. Create a map of new models for quick lookup
+    const newModelsMap = new Map();
     for (const model of sfwModels) {
         const key = getModelKey(model.name);
         if (mergedModels.has(key)) {
+        if (newModelsMap.has(key)) {
             // Merge logic
             const existing = mergedModels.get(key);
+            const existing = newModelsMap.get(key);
             existing.likes += model.likes;
             existing.downloads += model.downloads;
+            // If the model was previously archived, "resurrect" it by removing the flag
+            if (existing.is_archived) {
+                delete existing.is_archived;
+                console.log(`- Resurrecting model: ${existing.name}`);
+            }
             existing.tags = [...new Set([...existing.tags, ...model.tags])]; // Merge and deduplicate tags
             existing.sources.push(...model.sources);
             // Prioritize description from Hugging Face or GitHub over others
@@ -783,11 +793,34 @@ async function main() {
             }
         } else {
             mergedModels.set(key, model);
+            newModelsMap.set(key, model);
         }
     }
 
     // 5. Convert map back to array and sort
     const finalModels = Array.from(mergedModels.values());
+    // 5. Implement "Soft Delete" / Archiving Logic
+    const finalModelsMap = new Map(newModelsMap); // Start with all new models
+
+    // Iterate through existing models to find ones that are no longer present
+    if (existingModels.length > 0) {
+        for (const oldModel of existingModels) {
+            const key = getModelKey(oldModel.name);
+            // If an old model is not in the new list, mark it as archived and add it back
+            if (!newModelsMap.has(key)) {
+                console.log(`- Archiving model: ${oldModel.name}`);
+                oldModel.is_archived = true;
+                // To prevent archived models from dominating, we can optionally reduce their scores
+                oldModel.likes = 0; 
+                oldModel.downloads = 0;
+                finalModelsMap.set(key, oldModel);
+            }
+        }
+    }
+
+
+    // 6. Convert map back to array and sort
+    const finalModels = Array.from(finalModelsMap.values());
     finalModels.sort((a, b) => b.likes - a.likes);
 
     // 6. Calculate velocity and identify rising stars
@@ -813,12 +846,32 @@ async function main() {
     const MINIMUM_MODEL_THRESHOLD_PERCENTAGE = 0.8;
     const minimumModelCount = Math.floor(existingModels.length * MINIMUM_MODEL_THRESHOLD_PERCENTAGE);
 
-    if (finalModels.length < minimumModelCount && existingModels.length > 100) { // Add a check to ensure this doesn't trigger on the very first run
-        console.error(`❌ ABORTING UPDATE: New model count (${finalModels.length}) is less than 80% of the existing count (${existingModels.length}).`);
-        console.error('   This likely indicates a data source failure. Preserving existing models.json to ensure site stability.');
-        // We exit with a success code so the build doesn't fail, but the data isn't updated.
-        // The rest of the script (report generation) will also be skipped.
-        process.exit(0);
+    // Check against the count of *newly fetched* models, not the final count which includes archives.
+    if (newModelsMap.size < minimumModelCount && existingModels.length > 100) { 
+        console.warn(`⚠️ STABILITY CHECK FAILED: New model count (${newModelsMap.size}) is less than 80% of the existing count (${existingModels.length}).`);
+        console.warn('   This may indicate a data source failure. Switching to partial update mode.');
+
+        // --- PARTIAL UPDATE LOGIC ---
+        let updatedCount = 0;
+        const existingModelsMap = new Map(existingModels.map(m => [getModelKey(m.name), m]));
+
+        for (const [key, newModel] of newModelsMap.entries()) {
+            if (existingModelsMap.has(key)) {
+                const oldModel = existingModelsMap.get(key);
+                // Merge new info into the old model object
+                oldModel.likes = (oldModel.likes || 0) + newModel.likes;
+                oldModel.downloads = (oldModel.downloads || 0) + newModel.downloads;
+                oldModel.lastModified = newModel.lastModified;
+                oldModel.lastModifiedTimestamp = newModel.lastModifiedTimestamp;
+                // You can add more fields to update here, e.g., readme
+                updatedCount++;
+            }
+        }
+        console.log(`- Partially updated ${updatedCount} existing models.`);
+        // Overwrite finalModels with the partially updated list
+        finalModels = Array.from(existingModelsMap.values());
+    } else {
+        console.log('✅ Stability check passed. Proceeding with full update.');
     }
     // --- END NEW ---
 

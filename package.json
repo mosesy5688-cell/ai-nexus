@@ -6,9 +6,9 @@
   "scripts": {
     "prebuild": "mkdir -p src/data/report-archives",
     "dev": "astro dev",
-    "build": "npm run prebuild && node scripts/fetch-data.js && astro build",
+    "build": "npm run prebuild && node scripts/fetch-data.js && node scripts/index-to-algolia.js && node scripts/generate-keyword-pages.js && astro build",
     "preview": "astro preview",
-    "fetch-data": "node scripts/fetch-data.js"
+    "fetch-data": "node scripts/fetch-data.js && node scripts/index-to-algolia.js"
   },
   "dependencies": {
     "@astrojs/react": "^4.0.0",
