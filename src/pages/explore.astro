@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import allKeywords from '../data/keywords.json';
 import allModels from '../data/models.json';
 import ModelCard from '../components/ModelCard.astro';
+import { algoliaConfig } from '../config';
 
 const url = Astro.url;
 const activeTag = url.searchParams.get('tag');
@@ -105,11 +106,10 @@ if (initialQuery) {
         initialQuery, 
         activeTag, 
         allKeywords,
-        // IMPORTANT: These must be set as Environment Variables in your deployment platform (e.g., Cloudflare Pages)
-        // These are PUBLIC keys, safe to expose on the client-side.
-        algoliaAppId: import.meta.env.PUBLIC_ALGOLIA_APP_ID,
-        algoliaSearchKey: import.meta.env.PUBLIC_ALGOLIA_SEARCH_KEY,
-        algoliaIndexName: import.meta.env.PUBLIC_ALGOLIA_INDEX_NAME,
+        // Use the imported config object directly
+        algoliaAppId: algoliaConfig.appId,
+        algoliaSearchKey: algoliaConfig.searchKey,
+        algoliaIndexName: algoliaConfig.indexName,
     }}>
         document.addEventListener('DOMContentLoaded', () => {
             // --- 1. INITIALIZATION ---
