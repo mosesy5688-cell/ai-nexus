@@ -106,7 +106,7 @@ if (initialQuery) {
         initialQuery, 
         activeTag, 
         allKeywords,
-        // These keys are now hardcoded in `src/config.ts` for reliability
+        // Use the imported config object directly for reliability
         algoliaAppId: algoliaConfig.appId,
         algoliaSearchKey: algoliaConfig.searchKey,
         algoliaIndexName: algoliaConfig.indexName,
