@@ -1,227 +1,58 @@
 [
   {
-    "slug": "llm",
-    "title": "Llm",
-    "count": 422
+    "id": 1,
+    "title": "General Dialogue & Q&A",
+    "slug": "general-dialogue-qa",
+    "description": "Models for open-ended conversations and answering various questions.",
+    "count": 143
   },
   {
-    "slug": "model",
-    "title": "Model",
-    "count": 227
+    "id": 6,
+    "title": "Code Generation & Assistance",
+    "slug": "code-generation-assistance",
+    "description": "Generate, complete, and explain code.",
+    "count": 92
   },
   {
-    "slug": "agent",
-    "title": "Agent",
-    "count": 168
+    "id": 7,
+    "title": "RAG & Knowledge Base Q&A",
+    "slug": "rag-knowledge-base-qa",
+    "description": "Retrieval-Augmented Generation for Q&A with external knowledge bases.",
+    "count": 89
   },
   {
-    "slug": "text-generation",
-    "title": "Text Generation",
-    "count": 142
+    "id": 12,
+    "title": "Image Generation",
+    "slug": "image-generation",
+    "description": "Generate images from text descriptions.",
+    "count": 27
   },
   {
-    "slug": "agents",
-    "title": "Agents",
-    "count": 140
+    "id": 3,
+    "title": "Summarization & Extraction",
+    "slug": "summarization-extraction",
+    "description": "Extract key information or generate summaries from long texts.",
+    "count": 5
   },
   {
-    "slug": "llms",
-    "title": "Llms",
-    "count": 124
+    "id": 17,
+    "title": "Workflow Automation",
+    "slug": "workflow-automation",
+    "description": "Automate repetitive tasks and business processes.",
+    "count": 4
   },
   {
-    "slug": "gpt",
-    "title": "Gpt",
-    "count": 108
+    "id": 4,
+    "title": "Translation & Localization",
+    "slug": "translation-localization",
+    "description": "Translate text between multiple languages.",
+    "count": 3
   },
   {
-    "slug": "python",
-    "title": "Python",
-    "count": 103
-  },
-  {
-    "slug": "openai",
-    "title": "Openai",
-    "count": 98
-  },
-  {
-    "slug": "llama",
-    "title": "Llama",
-    "count": 93
-  },
-  {
-    "slug": "rag",
-    "title": "Rag",
-    "count": 79
-  },
-  {
-    "slug": "conversational",
-    "title": "Conversational",
-    "count": 75
-  },
-  {
-    "slug": "framework",
-    "title": "Framework",
-    "count": 68
-  },
-  {
-    "slug": "code",
-    "title": "Code",
-    "count": 59
-  },
-  {
-    "slug": "chatgpt",
-    "title": "Chatgpt",
-    "count": 58
-  },
-  {
-    "slug": "mcp",
-    "title": "Mcp",
-    "count": 54
-  },
-  {
-    "slug": "large-language-models",
-    "title": "Large Language Models",
-    "count": 51
-  },
-  {
-    "slug": "generative-ai",
-    "title": "Generative Ai",
-    "count": 48
-  },
-  {
-    "slug": "ai-tool",
-    "title": "Ai Tool",
-    "count": 48
-  },
-  {
-    "slug": "machine-learning",
-    "title": "Machine Learning",
-    "count": 45
-  },
-  {
-    "slug": "large-language-model",
-    "title": "Large Language Model",
-    "count": 45
-  },
-  {
-    "slug": "ai-agents",
-    "title": "Ai Agents",
-    "count": 43
-  },
-  {
-    "slug": "claude",
-    "title": "Claude",
-    "count": 43
-  },
-  {
-    "slug": "deepseek",
-    "title": "Deepseek",
-    "count": 40
-  },
-  {
-    "slug": "artificial-intelligence",
-    "title": "Artificial Intelligence",
-    "count": 40
-  },
-  {
-    "slug": "nlp",
-    "title": "Nlp",
-    "count": 40
-  },
-  {
-    "slug": "gemini",
-    "title": "Gemini",
-    "count": 39
-  },
-  {
-    "slug": "langchain",
-    "title": "Langchain",
-    "count": 35
-  },
-  {
-    "slug": "mistral",
-    "title": "Mistral",
-    "count": 34
-  },
-  {
-    "slug": "chatbot",
-    "title": "Chatbot",
-    "count": 33
-  },
-  {
-    "slug": "hacktoberfest",
-    "title": "Hacktoberfest",
-    "count": 33
-  },
-  {
-    "slug": "deep-learning",
-    "title": "Deep Learning",
-    "count": 31
-  },
-  {
-    "slug": "qwen",
-    "title": "Qwen",
-    "count": 31
-  },
-  {
-    "slug": "automation",
-    "title": "Automation",
-    "count": 31
-  },
-  {
-    "slug": "agentic-ai",
-    "title": "Agentic Ai",
-    "count": 29
-  },
-  {
-    "slug": "ollama",
-    "title": "Ollama",
-    "count": 26
-  },
-  {
-    "slug": "open-source",
-    "title": "Open Source",
-    "count": 26
-  },
-  {
-    "slug": "typescript",
-    "title": "Typescript",
-    "count": 25
-  },
-  {
-    "slug": "anthropic",
-    "title": "Anthropic",
-    "count": 24
-  },
-  {
-    "slug": "llmops",
-    "title": "Llmops",
-    "count": 22
-  },
-  {
-    "slug": "gpt-4",
-    "title": "Gpt 4",
-    "count": 21
-  },
-  {
-    "slug": "awesome",
-    "title": "Awesome",
-    "count": 21
-  },
-  {
-    "slug": "nextjs",
-    "title": "Nextjs",
-    "count": 19
-  },
-  {
-    "slug": "llama3",
-    "title": "Llama3",
-    "count": 16
-  },
-  {
-    "slug": "gemma",
-    "title": "Gemma",
-    "count": 14
+    "id": 14,
+    "title": "Video Generation & Editing",
+    "slug": "video-generation-editing",
+    "description": "Generate or edit video content.",
+    "count": 3
   }
 ]

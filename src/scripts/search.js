@@ -8,10 +8,10 @@ let currentTag = '';
 let isExplorePage = false;
 let isLoading = false;
 
-const modelsGrid = document.getElementById('models-grid');
-const noResults = document.getElementById('no-results');
-const staticContentContainer = document.getElementById('static-content-container');
-const searchBox = document.getElementById('search-box');
+let modelsGrid;
+let noResults;
+let staticContentContainer;
+let searchBox;
 
 function formatNumber(num) {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -82,7 +82,7 @@ function updateURL() {
 
 function performSearch() {
     if (isLoading) return;
-    
+
     // On the homepage, if there's no query and no tag, show static content and hide results.
     if (!isExplorePage && !currentQuery && !currentTag) {
         modelsGrid.innerHTML = '';
@@ -118,10 +118,15 @@ function performSearch() {
 }
 
 async function initializeSearch({ initialQuery, activeTag, isExplorePage: onExplorePage = false }) {
+    modelsGrid = document.getElementById('models-grid');
+    noResults = document.getElementById('no-results');
+    staticContentContainer = document.getElementById('static-content-container');
+    searchBox = document.getElementById('search-box');
+
     currentQuery = initialQuery || '';
     currentTag = activeTag || '';
     isExplorePage = onExplorePage;
-    if(searchBox) searchBox.value = currentQuery;
+    if (searchBox) searchBox.value = currentQuery;
 
     try {
         const response = await fetch('/data/search-index.json');
@@ -129,7 +134,7 @@ async function initializeSearch({ initialQuery, activeTag, isExplorePage: onExpl
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         allModels = await response.json();
-        
+
         const options = {
             keys: ['name', 'description', 'tags', 'author'],
             includeScore: true,
@@ -162,7 +167,7 @@ async function initializeSearch({ initialQuery, activeTag, isExplorePage: onExpl
     if (searchBox) {
         searchBox.addEventListener('input', () => {
             clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => { 
+            debounceTimer = setTimeout(() => {
                 currentQuery = searchBox.value.trim();
                 updateURL();
                 performSearch();

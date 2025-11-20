@@ -208,7 +208,7 @@ async function generateBiWeeklyReport(models, keywords) {
     }
 
     const latestModels = models.slice(0, 15).map(m => ({ id: m.id, name: m.name, task: m.task, likes: m.likes, description: m.description.substring(0, 100) }));
-    
+
     // --- Dynamic Date Calculation for Prompt (CRITICAL) ---
     const endDateObj = new Date();
     const startDateObj = new Date(endDateObj.getTime() - 14 * 24 * 60 * 60 * 1000);
@@ -226,11 +226,11 @@ async function generateBiWeeklyReport(models, keywords) {
         try {
             const result = await geminiModel.generateContent(prompt);
             const responseText = result.response.text().trim();
-            
+
             // Simple validation for the new Markdown format
             if (responseText.includes('# Free AI Tools Bi-Weekly Industry Analysis Report') && responseText.includes('## 1. Executive Summary')) {
                 console.log(`✅ AI weekly report generated successfully for ${reportId} on attempt ${attempt}.`);
-                
+
                 // --- NEW: Link entities in the report content ---
                 const linkedContent = linkEntitiesInReport(responseText, models, keywords);
                 // --- END NEW ---
@@ -267,13 +267,13 @@ async function generateBiWeeklyReport(models, keywords) {
     // Fallback to a placeholder report if AI generation fails
     console.log('- Creating a fallback report...');
     const fallbackReport = {
-      reportId: reportId,
-      title: `Free AI Tools Bi-Weekly Report - ${dateRange}`,
-      date: reportId,
-      summary: "This week's AI-generated analysis is temporarily unavailable. In the meantime, explore the top models that have been trending in the community.",
-      content: `# Fallback Report\n\nOur AI analyst is currently unavailable. Here are this week's top models:\n\n${latestModels.map(m => `- **${m.name}**: ${m.description}`).join('\n')}`,
-      featuredModelIds: [],
-      tags: ["fallback-report", "weekly-highlights"]
+        reportId: reportId,
+        title: `Free AI Tools Bi-Weekly Report - ${dateRange}`,
+        date: reportId,
+        summary: "This week's AI-generated analysis is temporarily unavailable. In the meantime, explore the top models that have been trending in the community.",
+        content: `# Fallback Report\n\nOur AI analyst is currently unavailable. Here are this week's top models:\n\n${latestModels.map(m => `- **${m.name}**: ${m.description}`).join('\n')}`,
+        featuredModelIds: [],
+        tags: ["fallback-report", "weekly-highlights"]
     };
     return fallbackReport;
 }
@@ -470,7 +470,7 @@ async function fetchGitHubData(additionalRepoUrls = []) {
             return allTransformedData;
         }
         // For all other errors, return empty array
-        return []; 
+        return [];
     }
 }
 
@@ -672,6 +672,18 @@ function assignTagsToModel(models, categories) {
         categoryKeywords.set(cat.title.toLowerCase(), cat.slug);
     });
 
+    // Incorporate KEYWORD_MERGE_MAP
+    for (const [key, value] of Object.entries(CONFIG.KEYWORD_MERGE_MAP)) {
+        // If the target value is a valid category slug, add the mapping
+        // We check if the value exists as a key (which it should, from the loop above)
+        // or if it's a known slug.
+        // Since we just populated categoryKeywords with slugs, we can check if 'value' is in it.
+        // However, categoryKeywords keys are lowercased slugs.
+        if (categoryKeywords.has(value.toLowerCase())) {
+            categoryKeywords.set(key.toLowerCase(), value);
+        }
+    }
+
     models.forEach(model => {
         const modelTags = new Set(model.tags || []);
         const description = (model.description || '').toLowerCase();
@@ -701,31 +713,31 @@ function assignTagsToModel(models, categories) {
  * @param {object | null} newReport The new report to add.
  */
 async function updateReportsFile(newReport) {
-  if (newReport) {
-    console.log(`- New report generated for ${newReport.reportId}. Updating report files...`);
-    let reports = [];
-    if (fs.existsSync(CONFIG.REPORTS_OUTPUT_PATH)) {
-      try {
-        reports = JSON.parse(fs.readFileSync(CONFIG.REPORTS_OUTPUT_PATH, 'utf-8'));
-      } catch (e) {
-        console.warn('Could not parse existing reports.json. Starting fresh.');
-      }
+    if (newReport) {
+        console.log(`- New report generated for ${newReport.reportId}. Updating report files...`);
+        let reports = [];
+        if (fs.existsSync(CONFIG.REPORTS_OUTPUT_PATH)) {
+            try {
+                reports = JSON.parse(fs.readFileSync(CONFIG.REPORTS_OUTPUT_PATH, 'utf-8'));
+            } catch (e) {
+                console.warn('Could not parse existing reports.json. Starting fresh.');
+            }
+        }
+
+        // Long-term archival: Save the new report as a separate file
+        const reportArchivePath = path.join(CONFIG.REPORT_ARCHIVE_DIR, `${newReport.reportId}.json`);
+        console.log(`- Saving report to long-term archive: ${reportArchivePath}`);
+        writeDataToFile(reportArchivePath, newReport);
+
+        // Main reports file: Add new report to the beginning
+        reports.unshift(newReport); // Add new report to the beginning
+        const slicedReports = reports.slice(0, 52);
+        console.log(`- Updating main reports file with ${slicedReports.length} most recent reports.`);
+        // Keep only the latest 52 reports for the main page to ensure performance
+        writeDataToFile(CONFIG.REPORTS_OUTPUT_PATH, slicedReports);
+    } else {
+        console.log('✅ No new report generated. Skipping reports file update.');
     }
-
-    // Long-term archival: Save the new report as a separate file
-    const reportArchivePath = path.join(CONFIG.REPORT_ARCHIVE_DIR, `${newReport.reportId}.json`);
-    console.log(`- Saving report to long-term archive: ${reportArchivePath}`);
-    writeDataToFile(reportArchivePath, newReport);
-
-    // Main reports file: Add new report to the beginning
-    reports.unshift(newReport); // Add new report to the beginning
-    const slicedReports = reports.slice(0, 52);
-    console.log(`- Updating main reports file with ${slicedReports.length} most recent reports.`);
-    // Keep only the latest 52 reports for the main page to ensure performance
-    writeDataToFile(CONFIG.REPORTS_OUTPUT_PATH, slicedReports);
-  } else {
-    console.log('✅ No new report generated. Skipping reports file update.');
-  }
 }
 
 /**
@@ -776,47 +788,47 @@ function generateAndSaveRankings(models, keywords) {
     // --- START: Generate Rankings ---
     // Hot Ranking (by likes)
     const hotRanking = [...activeModels]
-      .sort((a, b) => (b.likes || 0) - (a.likes || 0))
-      .slice(0, 100);
+        .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+        .slice(0, 100);
 
     // Trending Ranking (by downloads)
     const trendingRanking = [...activeModels]
-      .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
-      .slice(0, 100);
+        .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
+        .slice(0, 100);
 
     // Newest Ranking (by creation date)
     const newestRanking = [...activeModels]
-      .sort((a, b) => (b.lastModifiedTimestamp || 0) - (a.lastModifiedTimestamp || 0))
-      .slice(0, 100);
+        .sort((a, b) => (b.lastModifiedTimestamp || 0) - (a.lastModifiedTimestamp || 0))
+        .slice(0, 100);
 
     // Rising Star Ranking (by velocity)
     const risingStarRanking = activeModels
-      .filter(m => m.is_rising_star)
-      .sort((a, b) => (b.velocity || 0) - (a.velocity || 0))
-      .slice(0, 100);
+        .filter(m => m.is_rising_star)
+        .sort((a, b) => (b.velocity || 0) - (a.velocity || 0))
+        .slice(0, 100);
 
     // --- START: Generate Category Rankings ---
     const categoryRankings = {};
     // Use top 20 keywords for category rankings
-    const topKeywordsForRanking = keywords.slice(0, 20); 
+    const topKeywordsForRanking = keywords.slice(0, 20);
     for (const keyword of topKeywordsForRanking) {
         const categoryModels = activeModels
             .filter(m => m.tags && m.tags.includes(keyword.slug))
             .sort((a, b) => (b.popularityScore || 0) - (a.popularityScore || 0))
             .slice(0, 10); // Top 10 for each category
-        
+
         if (categoryModels.length > 0) {
             categoryRankings[keyword.slug] = categoryModels;
         }
     }
 
     const allRankings = {
-      hot: hotRanking,
-      trending: trendingRanking,
-      newest: newestRanking,
-      rising: risingStarRanking,
-      categories: categoryRankings,
-      generatedAt: new Date().toISOString(),
+        hot: hotRanking,
+        trending: trendingRanking,
+        newest: newestRanking,
+        rising: risingStarRanking,
+        categories: categoryRankings,
+        generatedAt: new Date().toISOString(),
     };
 
     writeDataToFile(CONFIG.RANKINGS_PATH, allRankings);
@@ -887,7 +899,7 @@ async function main() {
                 console.log(`- Archiving model: ${oldModel.name}`);
                 oldModel.is_archived = true;
                 // To prevent archived models from dominating, we can optionally reduce their scores
-                oldModel.likes = 0; 
+                oldModel.likes = 0;
                 oldModel.downloads = 0;
                 finalModelsMap.set(key, oldModel);
             }
@@ -934,7 +946,7 @@ async function main() {
     const minimumModelCount = Math.floor(existingModels.length * CONFIG.MINIMUM_MODEL_THRESHOLD_PERCENTAGE);
 
     // Check against the count of *newly fetched* models, not the final count which includes archives.
-    if (newModelsMap.size < minimumModelCount && existingModels.length > 100) { 
+    if (newModelsMap.size < minimumModelCount && existingModels.length > 100) {
         console.warn(`⚠️ STABILITY CHECK FAILED: New model count (${newModelsMap.size}) is less than 80% of the existing count (${existingModels.length}).`);
         console.warn('   This may indicate a data source failure. Switching to partial update mode.');
 
@@ -967,29 +979,30 @@ async function main() {
         const archiveFilePath = path.join(CONFIG.ARCHIVE_DIR, `${today}.json`);
 
         const combinedData = finalModels; // Use the final merged and sorted data
-        
+
+        // --- NEW: Assign category tags to all models ---
+        const categories = JSON.parse(fs.readFileSync(CONFIG.CATEGORIES_PATH, 'utf-8'));
+        let taggedModels = assignTagsToModel(combinedData, categories);
+        // --- END NEW ---
+
         // Write to dated archive file and the main models.json
-        writeDataToFile(archiveFilePath, combinedData);
-        writeDataToFile(CONFIG.OUTPUT_FILE_PATH, combinedData);
-        await writeToKV('models', JSON.stringify(combinedData));
+        // IMPORTANT: Write the TAGGED models to the file so the frontend has tags!
+        writeDataToFile(archiveFilePath, taggedModels);
+        writeDataToFile(CONFIG.OUTPUT_FILE_PATH, taggedModels);
+        await writeToKV('models', JSON.stringify(taggedModels));
 
         // Discover keywords based on the new category system
-        const validatedKeywords = discoverAndSaveKeywords(combinedData);
-
-    // --- NEW: Assign category tags to all models ---
-    const categories = JSON.parse(fs.readFileSync(CONFIG.CATEGORIES_PATH, 'utf-8'));
-    let taggedModels = assignTagsToModel(combinedData, categories);
-    // --- END NEW ---
+        const validatedKeywords = discoverAndSaveKeywords(taggedModels);
 
         // Generate and save all rankings
-        generateAndSaveRankings(combinedData, validatedKeywords);
+        generateAndSaveRankings(taggedModels, validatedKeywords);
 
         // Generate AI report
-        const newReport = await generateBiWeeklyReport(combinedData, validatedKeywords);
+        const newReport = await generateBiWeeklyReport(taggedModels, validatedKeywords);
         if (newReport) await updateReportsFile(newReport);
 
         // Create search index from the final combined data
-    createSearchIndex(taggedModels); // Use taggedModels to ensure search index has tags
+        createSearchIndex(taggedModels); // Use taggedModels to ensure search index has tags
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
         // Still run updateReportsFile with null to ensure the file is present for the build.
