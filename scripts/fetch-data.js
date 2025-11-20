@@ -919,6 +919,24 @@ async function main() {
     console.log(`✅ Rankings data saved to ${rankingsPath}`);
     // --- END: Generate Rankings ---
 
+    // --- START: Generate Category Rankings ---
+    console.log('Generating category-specific rankings...');
+    const categoryRankings = {};
+    const topKeywords = discoverAndSaveKeywords(activeModels).slice(0, 5); // Use top 5 keywords as categories
+
+    for (const keyword of topKeywords) {
+        const categoryModels = activeModels
+            .filter(m => m.tags && m.tags.includes(keyword.slug))
+            .sort((a, b) => (b.popularityScore || 0) - (a.popularityScore || 0))
+            .slice(0, 50);
+        
+        if (categoryModels.length > 0) {
+            categoryRankings[keyword.slug] = categoryModels;
+        }
+    }
+    console.log(`✅ Generated rankings for ${Object.keys(categoryRankings).length} categories.`);
+    // --- END: Generate Category Rankings ---
+
     if (finalModels.length > 0) { // This check is now a secondary safeguard
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         const archiveFilePath = path.join(ARCHIVE_DIR, `${today}.json`);
@@ -929,6 +947,10 @@ async function main() {
         writeDataToFile(archiveFilePath, combinedData);
         writeDataToFile(OUTPUT_FILE_PATH, combinedData);
         await writeToKV('models', JSON.stringify(combinedData));
+
+        // Combine all rankings and save
+        const allRankings = { ...rankings, categories: categoryRankings };
+        writeDataToFile(rankingsPath, allRankings);
 
         // Discover keywords and generate report based on the new, validated data
         const validatedKeywords = discoverAndSaveKeywords(combinedData); // <-- This now uses the new, improved logic

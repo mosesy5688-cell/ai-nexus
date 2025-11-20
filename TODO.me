@@ -1,38 +1,18 @@
-# Project Progress & TODO
+# Project TODO
 
-This document tracks the major features implemented and the remaining tasks.
+This document tracks the remaining tasks and potential optimizations for the project.
 
-## Completed Features (as of 2025-11-20)
-
-### ✅ 1. Homepage and Explore Page Merge
-- **Status:** Complete
-- **Summary:** The `/explore` page functionality has been merged directly into the homepage (`/`). The homepage now serves as the primary interface for searching, filtering, and discovering models.
-- **Details:**
-    - Replaced the basic `InstantSearch.jsx` component with a full-featured Algolia search implementation on the main page.
-    - The `/explore` URL now issues a permanent (301) redirect to the homepage for SEO continuity.
-    - The main navigation has been updated to reflect this change.
-
-### ✅ 2. AI Model Leaderboard Implementation
-- **Status:** Complete
-- **Summary:** A new "Rankings" page has been created at `/ranking` to display various leaderboards.
-- **Details:**
-    - Implemented a tabbed view for "Hot," "Trending," "Newest," and "Rising Star" models.
-    - Added new "Category Leaderboards" for specific tasks like Text Generation, Image Generation, etc., ranked by community likes.
-    - The `fetch-data.js` script was enhanced to generate the necessary `rankings.json` data file required by this page.
-
-### ✅ 3. Industry Reports Feature Enhancement
-- **Status:** Complete
-- **Summary:** The industry reports feature has been made more robust and a full archival system has been implemented.
-- **Details:**
-    - The `fetch-data.js` script now archives every new report into a unique file in `/data/report-archives/`, preventing data loss.
-    - A new archive page has been created at `/reports/archive` that lists all reports ever generated.
-    - The main `/reports` page and the individual report detail pages (`/reports/[slug]`) have been verified to work with the new archival system.
-
-## Future Work & Potential Optimizations
+## High Priority
 
 - **[ ] User Feedback/Comment System:** Increase user engagement by allowing comments or ratings on model pages.
 - **[ ] Enhanced Filtering:** Add more filter dimensions to the main search page (e.g., by license type, language).
+
+## Medium Priority
+
 - **[ ] Performance Monitoring:** Integrate analytics to monitor site performance and user behavior.
+
+## Low Priority / Opportunities
+
 - **[ ] SEO & Advertising:**
     - Continue to monitor Google Search Console and Analytics.
     - Strategically place ad slots (e.g., `Adsense.astro`) in high-traffic areas.
