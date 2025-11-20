@@ -1,0 +1,48 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import ModelCard from '@/components/ModelCard.astro';
+import rankings from '@/data/rankings.json';
+
+const pageTitle = "AI Model Leaderboards";
+const pageDescription = "Discover the top-performing and trending open-source AI models across various categories.";
+
+const { hot, trending, newest, rising } = rankings;
+
+const leaderboardSections = [
+    { title: "🔥 Hot Models", description: "Most liked models by the community.", models: hot.slice(0, 12) },
+    { title: "🚀 Trending Models", description: "Models with the highest download counts.", models: trending.slice(0, 12) },
+    { title: "✨ New & Noteworthy", description: "The latest models added to the hub.", models: newest.slice(0, 12) },
+    { title: "🌟 Rising Stars", description: "Models showing rapid growth in popularity.", models: rising.slice(0, 12) }
+];
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+    <div class="container mx-auto px-4 py-12">
+        <!-- Main Page Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">AI Model Leaderboards</h1>
+            <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-3xl mx-auto">
+                Stay updated with the most popular, trending, and newest models in the open-source AI ecosystem.
+            </p>
+        </header>
+
+        {leaderboardSections.map(section => (
+            <section class="mb-16">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-900 dark:text-white">{section.title}</h2>
+                    <p class="mt-2 text-lg text-gray-500 dark:text-gray-400">{section.description}</p>
+                </div>
+                {section.models && section.models.length > 0 ? (
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {section.models.map(model => (
+                            <ModelCard model={model} isRisingStar={model.is_rising_star} />
+                        ))}
+                    </div>
+                ) : (
+                    <p class="text-center text-gray-500 dark:text-gray-400">No models to display in this category yet.</p>
+                )}
+            </section>
+        ))}
+    </div>
+</Layout>
+

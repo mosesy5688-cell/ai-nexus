@@ -1,46 +1,66 @@
 ---
-// src/pages/keyword/[...slug].astro
 import Layout from '@/layouts/Layout.astro';
+import rankings from '@/data/rankings.json';
 import allModels from '@/data/models.json';
 import allKeywords from '@/data/keywords.json';
 import ModelCard from '@/components/ModelCard.astro';
+import { getEntryBySlug } from 'astro:content';
 
 export async function getStaticPaths() {
-  return allKeywords.map((keyword) => {
-    return {
-      params: { slug: keyword.slug },
-      props: { keyword },
-    };
-  });
+    return allKeywords.map(keyword => ({
+        params: { slug: keyword.slug },
+    }));
 }
 
-const { keyword } = Astro.props;
+const { slug: keywordSlug } = Astro.params;
+const keyword = allKeywords.find(k => k.slug === keywordSlug);
+
 if (!keyword) {
-  return Astro.redirect('/404');
+    return new Response(null, { status: 404, statusText: 'Not Found' });
 }
 
-const { slug, title } = keyword;
+const modelsInKeyword = allModels.filter(model => !model.is_archived && model.tags?.includes(keywordSlug));
 
-const relevantModels = allModels.filter(
-  (model) => model.tags && model.tags.map((tag) => tag.toLowerCase()).includes(slug.toLowerCase())
-);
+// Get top models for this category from pre-calculated rankings
+const topModels = rankings.categories[keywordSlug] || [];
 
-const pageTitle = `Top AI Models for ${title} | Free AI Tools`;
-const pageDescription = `Explore the best open-source AI models for ${title}. Browse our collection of ${relevantModels.length} models.`;
+const pageTitle = `AI Models for ${keyword.title}`;
+const pageDescription = `Discover open-source AI models and tools for ${keyword.title}. Explore projects related to ${keyword.tags.join(', ')}.`;
 ---
-
 <Layout title={pageTitle} description={pageDescription}>
-  <main class="container mx-auto px-4 py-8">
-    <div class="mb-8">
-      <a href="/#categories" class="text-blue-500 hover:underline">&larr; Back to Categories</a>
-    </div>
-    <header class="prose dark:prose-invert max-w-none mb-12 text-center">
-      <h1 class="text-4xl font-bold">{`AI Models for ${title}`}</h1>
-      <p class="text-lg">{`Browse our collection of ${relevantModels.length} models related to ${title}.`}</p>
-    </header>
+    <div class="container mx-auto px-4 py-12">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white">
+                AI Models for '{keyword.title}'
+            </h1>
+            <p class="mt-4 text-lg text-gray-500 dark:text-gray-400 max-w-3xl mx-auto">
+                {pageDescription}
+            </p>
+        </header>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      {relevantModels.map((model) => <ModelCard model={model} />)}
+        <!-- Top Models in this Category Section -->
+        {topModels.length > 0 && (
+            <section class="mb-12">
+                <h2 class="text-2xl font-bold text-center mb-6 text-gray-800 dark:text-gray-100">
+                    🏆 Top Models for '{keyword.title}'
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {topModels.map(model => (
+                        <ModelCard model={model} isRisingStar={model.is_rising_star} />
+                    ))}
+                </div>
+                <hr class="my-12 border-gray-200 dark:border-gray-700" />
+            </section>
+        )}
+
+        <!-- All Models Grid -->
+        <h2 class="text-2xl font-bold text-center mb-8 text-gray-800 dark:text-gray-100">
+            All Models for '{keyword.title}' ({modelsInKeyword.length})
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {modelsInKeyword.map(model => (
+                <ModelCard model={model} isRisingStar={model.is_rising_star} />
+            ))}
+        </div>
     </div>
-  </main>
 </Layout>

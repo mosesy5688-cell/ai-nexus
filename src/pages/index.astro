@@ -1,8 +1,6 @@
 ---
 import Layout from '@/layouts/Layout.astro';
-import allModels from '../data/models.json';
-import { initializeSearch } from '../scripts/search.js';
-import ModelCard from '@/components/ModelCard.astro';
+import ModelCard from '@/components/ModelCard.astro'; // Keep for potential use in other pages
 import { algoliaConfig } from '../config';
 
 const url = Astro.url;
@@ -15,14 +13,6 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
 // Fetch keywords dynamically. In a real app, this might come from an API or a more robust data source.
 // For now, we'll derive it from the models data for simplicity, or use a dedicated keywords file.
 import allKeywords from '../data/keywords.json';
-
-// For server-side rendering (SSR) of initial models
-const ITEMS_PER_PAGE = 24;
-let initialModels = [];
-// Only show initial models if there's no search query or tag filter
-if (!activeTag && !initialQuery) {
-    initialModels = allModels.slice(0, ITEMS_PER_PAGE);
-}
 
 // Dynamically update page title for SEO if there's a filter or query
 if (activeTag) {
@@ -93,27 +83,20 @@ if (initialQuery) {
 
         <!-- Models Grid -->
         <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {initialModels.map(model => (
-                <ModelCard model={model} isRisingStar={model.is_rising_star} />
-            ))}
+            <!-- This grid will be populated by search.js -->
         </div>
         <div id="no-results" class="text-center py-16 hidden">
             <p class="text-2xl font-semibold text-gray-700 dark:text-gray-200">No models found.</p>
             <p class="text-gray-500 dark:text-gray-400 mt-2">Try adjusting your search or filter criteria.</p>
         </div>
-        <div id="loading-more" class="text-center py-8 hidden col-span-full">
-            <p class="text-gray-500">Loading more models...</p>
-        </div>
     </div>
 
     <!-- Algolia Search Client -->
     <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
-    <script define:vars={{ algoliaConfig, initialQuery, activeTag, initializeSearch: initializeSearch.toString() }}>
+    <script type="module" define:vars={{ initialQuery, activeTag }}>
+        import { initializeSearch } from '@/scripts/search.js';
         document.addEventListener('DOMContentLoaded', () => {
-            initializeSearch({
-                algoliaAppId: algoliaConfig.appId,
-                algoliaSearchKey: algoliaConfig.searchKey,
-                algoliaIndices: algoliaConfig.indices,
+            initializeSearch({ // We can remove algoliaConfig from here now
                 initialQuery,
                 activeTag
             });

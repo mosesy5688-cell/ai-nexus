@@ -768,6 +768,90 @@ function initializeDirectories() {
     if (!fs.existsSync(REPORTS_OUTPUT_PATH)) writeDataToFile(REPORTS_OUTPUT_PATH, []);
     if (!fs.existsSync(OUTPUT_FILE_PATH)) writeDataToFile(OUTPUT_FILE_PATH, []);
 }
+
+/**
+ * Creates a lightweight search index from the final models data.
+ * This index is used by the client-side search (Fuse.js) for better performance.
+ * @param {Array<object>} models - The array of all model objects.
+ */
+function createSearchIndex(models) {
+    console.log('- Creating search index...');
+    const searchIndex = models.map(model => ({
+        id: model.id,
+        name: model.name,
+        author: model.author,
+        description: model.description,
+        tags: model.tags || [],
+        likes: model.likes || 0,
+        downloads: model.downloads || 0,
+        is_rising_star: model.is_rising_star || false,
+    }));
+    // The index file must be in `public` to be fetchable by the client-side script.
+    const searchIndexPath = path.join(__dirname, '../public/data/search-index.json');
+    writeDataToFile(searchIndexPath, searchIndex);
+    console.log(`✅ Search index created with ${searchIndex.length} models at ${searchIndexPath}`);
+}
+
+/**
+ * Generates and saves various rankings based on model data.
+ * @param {Array<object>} models - The array of all model objects.
+ * @param {Array<object>} keywords - The array of top keywords.
+ */
+function generateAndSaveRankings(models, keywords) {
+    console.log('- Generating model rankings...');
+    const activeModels = models.filter(m => !m.is_archived);
+
+    // --- START: Generate Rankings ---
+    // Hot Ranking (by likes)
+    const hotRanking = [...activeModels]
+      .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+      .slice(0, 100);
+
+    // Trending Ranking (by downloads)
+    const trendingRanking = [...activeModels]
+      .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
+      .slice(0, 100);
+
+    // Newest Ranking (by creation date)
+    const newestRanking = [...activeModels]
+      .sort((a, b) => (b.lastModifiedTimestamp || 0) - (a.lastModifiedTimestamp || 0))
+      .slice(0, 100);
+
+    // Rising Star Ranking (by velocity)
+    const risingStarRanking = activeModels
+      .filter(m => m.is_rising_star)
+      .sort((a, b) => (b.velocity || 0) - (a.velocity || 0))
+      .slice(0, 100);
+
+    // --- START: Generate Category Rankings ---
+    const categoryRankings = {};
+    // Use top 20 keywords for category rankings
+    const topKeywordsForRanking = keywords.slice(0, 20); 
+    for (const keyword of topKeywordsForRanking) {
+        const categoryModels = activeModels
+            .filter(m => m.tags && m.tags.includes(keyword.slug))
+            .sort((a, b) => (b.popularityScore || 0) - (a.popularityScore || 0))
+            .slice(0, 10); // Top 10 for each category
+        
+        if (categoryModels.length > 0) {
+            categoryRankings[keyword.slug] = categoryModels;
+        }
+    }
+
+    const allRankings = {
+      hot: hotRanking,
+      trending: trendingRanking,
+      newest: newestRanking,
+      rising: risingStarRanking,
+      categories: categoryRankings,
+      generatedAt: new Date().toISOString(),
+    };
+
+    const rankingsPath = path.join(__dirname, '../public/data/rankings.json');
+    writeDataToFile(rankingsPath, allRankings);
+    console.log(`✅ Rankings data saved to ${rankingsPath}`);
+}
+
 async function main() {
     console.log('--- Starting Free AI Tools Data Fetching Script ---');
     initializeDirectories();
@@ -981,7 +1065,11 @@ async function main() {
 
         // Discover keywords and generate report based on the new, validated data
         const validatedKeywords = discoverAndSaveKeywords(combinedData); // <-- This now uses the new, improved logic
+        
         const newReport = await generateBiWeeklyReport(combinedData, validatedKeywords);
+
+        // Create search index from the final combined data
+        createSearchIndex(combinedData);        
         if (newReport) await updateReportsFile(newReport);
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
