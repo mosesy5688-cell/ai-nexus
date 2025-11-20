@@ -63,7 +63,7 @@ if (activeTag) {
     </div>
 
     <script type="module" define:vars={{ initialQuery, activeTag }}>
-        import { initializeSearch } from '../scripts/search.js';
+        import { initializeSearch } from '@/scripts/search.js';
         document.addEventListener('DOMContentLoaded', () => {
             // On the explore page, we always want to perform a search,
             // even if the query and tag are empty, to show all models.
