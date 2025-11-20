@@ -31,7 +31,10 @@ const CONFIG = {
         'llms': 'llm', 'agent': 'agents', 'ai-agents': 'agents', 'large-language-model': 'large-language-models',
         'prompts': 'prompt', 'tools': 'tool', 'image-generation': 'image-generation', 'text-to-image': 'image-generation',
         'video-generation': 'video-generation-editing', 'text-to-video': 'video-generation-editing',
-        'rag': 'rag-knowledge-base-qa', 'retrieval-augmented-generation': 'rag-knowledge-base-qa'
+        'rag': 'rag-knowledge-base-qa', 'retrieval-augmented-generation': 'rag-knowledge-base-qa',
+        'data-analysis': 'data-analysis-insights', 'analytics': 'data-analysis-insights',
+        'visualization': 'data-analysis-insights', 'statistics': 'data-analysis-insights',
+        'sql': 'data-analysis-insights', 'pandas': 'data-analysis-insights'
     },
     MINIMUM_MODEL_THRESHOLD_PERCENTAGE: 0.8,
 };

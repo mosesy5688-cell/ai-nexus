@@ -28,6 +28,13 @@
     "count": 27
   },
   {
+    "id": 8,
+    "title": "Data Analysis & Insights",
+    "slug": "data-analysis-insights",
+    "description": "Analyze structured data and provide business insights.",
+    "count": 22
+  },
+  {
     "id": 3,
     "title": "Summarization & Extraction",
     "slug": "summarization-extraction",
@@ -42,17 +49,17 @@
     "count": 4
   },
   {
-    "id": 4,
-    "title": "Translation & Localization",
-    "slug": "translation-localization",
-    "description": "Translate text between multiple languages.",
-    "count": 3
-  },
-  {
     "id": 14,
     "title": "Video Generation & Editing",
     "slug": "video-generation-editing",
     "description": "Generate or edit video content.",
     "count": 3
+  },
+  {
+    "id": 4,
+    "title": "Translation & Localization",
+    "slug": "translation-localization",
+    "description": "Translate text between multiple languages.",
+    "count": 2
   }
 ]
