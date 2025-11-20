@@ -3,8 +3,8 @@ import Layout from '@/layouts/Layout.astro';
 import ReportCard from '@/components/ReportCard.astro';
 
 // Load all reports from the main file and archives using import.meta.glob for resilience
-const mainReports = (await import('../../../data/reports.json')).default;
-const archivedReportModules = await import.meta.glob('../../../data/report-archives/*.json');
+const mainReports = (await import('../../data/reports.json')).default;
+const archivedReportModules = await import.meta.glob('../../data/report-archives/*.json');
 
 const archivedReports = await Promise.all(
     Object.values(archivedReportModules).map(async (importer) => {
