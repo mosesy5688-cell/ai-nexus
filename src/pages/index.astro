@@ -100,7 +100,7 @@ if (activeTag) {
     <script type="module" define:vars={{ initialQuery, activeTag }}>
         import { initializeSearch } from '@/scripts/search.js';
         document.addEventListener('DOMContentLoaded', () => {
-            initializeSearch({ // We can remove algoliaConfig from here now
+            initializeSearch({
                 initialQuery,
                 activeTag
             });

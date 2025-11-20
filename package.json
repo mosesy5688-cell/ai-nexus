@@ -5,9 +5,9 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "build": "node scripts/fetch-data.js && node scripts/index-to-algolia.js && node scripts/generate-keyword-pages.js && astro build",
+    "build": "node scripts/fetch-data.js && astro build",
     "preview": "astro preview",
-    "fetch-data": "node scripts/fetch-data.js && node scripts/index-to-algolia.js"
+    "fetch-data": "node scripts/fetch-data.js"
   },
   "dependencies": {
     "@astrojs/react": "^4.0.0",
@@ -16,7 +16,6 @@
     "@google/generative-ai": "^0.18.0",
     "@iconify-json/mdi": "^1.1.67",
     "@tailwindcss/typography": "^0.5.19",
-    "algoliasearch": "^4.24.0",
     "astro": "^5.15.7",
     "axios": "^1.7.2",
     "cheerio": "1.0.0-rc.12",
