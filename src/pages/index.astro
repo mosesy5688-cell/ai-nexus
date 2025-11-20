@@ -1,27 +1,31 @@
 ---
 import Layout from '@/layouts/Layout.astro';
-import ModelCard from '@/components/ModelCard.astro'; // Keep for potential use in other pages
-import { algoliaConfig } from '../config';
+import ModelCard from '@/components/ModelCard.astro';
+import KeywordCard from '@/components/KeywordCard.astro';
+import allKeywords from '@/data/keywords.json';
+import rankings from '@/data/rankings.json';
 
 const url = Astro.url;
 const activeTag = url.searchParams.get('tag');
 const initialQuery = url.searchParams.get('q') || '';
 
+// Get top 12 hot models for the featured section
+const hotModels = rankings.hot.slice(0, 12);
+
 let pageTitle = "Free AI Tools: Your Hub for Open-Source AI";
 let pageDescription = "Discover, explore, and stay updated with the latest open-source AI models, tools, and research. Your gateway to the world of open AI.";
-
-// Fetch keywords dynamically. In a real app, this might come from an API or a more robust data source.
-// For now, we'll derive it from the models data for simplicity, or use a dedicated keywords file.
-import allKeywords from '../data/keywords.json';
 
 // Dynamically update page title for SEO if there's a filter or query
 if (activeTag) {
     const keyword = allKeywords.find(k => k.slug === activeTag);
     pageTitle = `Models tagged with '${keyword ? keyword.title : activeTag}'`;
     pageDescription = `Find AI models and tools related to ${keyword ? keyword.title : activeTag}.`;
-}
-if (initialQuery) {
+} else if (initialQuery) {
     pageTitle = `Search results for '${initialQuery}'`;
+} else {
+    // Default homepage SEO
+    pageTitle = "AI Nexus: Discover Top Open-Source AI Models";
+    pageDescription = "Explore a curated directory of the best open-source AI models. Search, filter, and find tools for text generation, image analysis, and more.";
 }
 ---
 
@@ -30,7 +34,7 @@ if (initialQuery) {
         <!-- Main Page Header -->
         <header class="text-center mb-12">
             <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">Discover the World of Open Source AI</h1>
-            <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-3xl mx-auto">
+            <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-4xl mx-auto">
                 Your single destination to search, filter, and explore the latest open-source AI models.
             </p>
         </header>
@@ -55,44 +59,44 @@ if (initialQuery) {
                     </div>
                 </form>
             </div>
-            <div class="flex-shrink-0">
-                <select id="sort-by" class="p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="default">Sort by Relevance</option>
-                    <option value="likes">Sort by Likes</option>
-                    <option value="downloads">Sort by Downloads</option>
-                    <option value="recent">Sort by Recent</option>
-                </select>
-            </div>
         </div>
 
-        <!-- Keywords/Tags Cloud -->
-        <div class="mb-10 text-center" id="tags-container">
-            <div class="flex flex-wrap justify-center gap-2">
-                {allKeywords.slice(0, 24).map(keyword => (
-                    <button data-tag={keyword.slug} class:list={[
-                        "tag-link px-4 py-2 text-sm font-medium rounded-full transition-colors cursor-pointer",
-                        activeTag === keyword.slug
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-blue-500 hover:text-white"
-                    ]}>
-                        {keyword.title}
-                    </button>
-                ))}
-            </div>
+        <!-- This container will be hidden when a search is active -->
+        <div id="static-content-container">
+            <!-- Hot Models Section -->
+            <section class="mb-16">
+                <h2 class="text-3xl font-bold text-center mb-8">🔥 Hot Models</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {hotModels.map(model => (
+                        <ModelCard model={model} isRisingStar={model.is_rising_star} />
+                    ))}
+                </div>
+            </section>
+
+            <!-- Divider -->
+            <hr class="my-16 border-gray-200 dark:border-gray-700" />
+
+            <!-- Explore by Category Section -->
+            <section class="mb-16">
+                <h2 class="text-3xl font-bold text-center mb-8">Explore by Category</h2>
+                <div id="keyword-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {allKeywords.slice(0, 16).map(keyword => (
+                        <KeywordCard keyword={keyword} />
+                    ))}
+                </div>
+            </section>
         </div>
 
-        <!-- Models Grid -->
+        <!-- Search Results Grid (initially hidden) -->
         <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <!-- This grid will be populated by search.js -->
         </div>
         <div id="no-results" class="text-center py-16 hidden">
             <p class="text-2xl font-semibold text-gray-700 dark:text-gray-200">No models found.</p>
-            <p class="text-gray-500 dark:text-gray-400 mt-2">Try adjusting your search or filter criteria.</p>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Try adjusting your search criteria.</p>
         </div>
     </div>
 
-    <!-- Algolia Search Client -->
-    <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
     <script type="module" define:vars={{ initialQuery, activeTag }}>
         import { initializeSearch } from '@/scripts/search.js';
         document.addEventListener('DOMContentLoaded', () => {

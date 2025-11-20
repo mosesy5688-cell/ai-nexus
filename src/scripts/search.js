@@ -9,9 +9,8 @@ let isLoading = false;
 
 const modelsGrid = document.getElementById('models-grid');
 const noResults = document.getElementById('no-results');
+const staticContentContainer = document.getElementById('static-content-container');
 const searchBox = document.getElementById('search-box');
-const tagsContainer = document.getElementById('tags-container');
-const keywordCardsContainer = document.getElementById('keyword-cards-container'); // Assuming you have this container for keyword cards
 
 function formatNumber(num) {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -49,11 +48,11 @@ function createModelCardHTML(model) {
 function renderModels(models) {
     modelsGrid.innerHTML = '';
     if (models.length === 0) {
+        modelsGrid.classList.add('hidden');
         noResults.classList.remove('hidden');
-        if (keywordCardsContainer) keywordCardsContainer.classList.add('hidden');
     } else {
+        modelsGrid.classList.remove('hidden');
         noResults.classList.add('hidden');
-        if (keywordCardsContainer) keywordCardsContainer.classList.add('hidden');
         const fragment = document.createDocumentFragment();
         models.forEach(model => {
             const cardContainer = document.createElement('div');
@@ -83,11 +82,12 @@ function updateURL() {
 function performSearch() {
     if (isLoading) return;
     
-    // If no query and no tag, show keyword cards and hide results
-    if (!currentQuery && !currentTag) {
+    // If no query, show static content and hide results
+    if (!currentQuery) {
         modelsGrid.innerHTML = '';
+        modelsGrid.classList.add('hidden');
         noResults.classList.add('hidden');
-        if (keywordCardsContainer) keywordCardsContainer.classList.remove('hidden');
+        if (staticContentContainer) staticContentContainer.classList.remove('hidden');
         return;
     }
 
@@ -108,20 +108,9 @@ function performSearch() {
     // Simple sort for now, can be expanded
     results.sort((a, b) => (b.likes + b.downloads) - (a.likes + a.downloads));
 
+    if (staticContentContainer) staticContentContainer.classList.add('hidden');
     renderModels(results);
     isLoading = false;
-}
-
-function updateActiveTagUI() {
-    document.querySelectorAll('.tag-link').forEach(link => {
-        const isSelected = link.dataset.tag === currentTag;
-        link.classList.toggle('bg-blue-600', isSelected);
-        link.classList.toggle('text-white', isSelected);
-        link.classList.toggle('bg-gray-200', !isSelected);
-        link.classList.toggle('dark:bg-gray-700', !isSelected);
-        link.classList.toggle('text-gray-800', !isSelected);
-        link.classList.toggle('dark:text-gray-200', !isSelected);
-    });
 }
 
 async function initializeSearch({ initialQuery, activeTag }) {
@@ -146,10 +135,8 @@ async function initializeSearch({ initialQuery, activeTag }) {
         if (currentQuery || currentTag) {
             performSearch();
         } else {
-            if (keywordCardsContainer) keywordCardsContainer.classList.remove('hidden');
+            if (staticContentContainer) staticContentContainer.classList.remove('hidden');
         }
-        updateActiveTagUI();
-
     } catch (error) {
         console.error('Failed to load search index:', error);
         modelsGrid.innerHTML = `<p class="col-span-full text-center text-red-500">Failed to load model data. Please try again later.</p>`;
@@ -160,9 +147,7 @@ async function initializeSearch({ initialQuery, activeTag }) {
     if (searchForm) {
         searchForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            currentQuery = searchBox.value;
-            currentTag = null; // New search clears tag
-            updateActiveTagUI();
+            currentQuery = searchBox.value.trim();
             updateURL();
             performSearch();
         });
@@ -172,32 +157,11 @@ async function initializeSearch({ initialQuery, activeTag }) {
     if (searchBox) {
         searchBox.addEventListener('input', () => {
             clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                currentQuery = searchBox.value;
+            debounceTimer = setTimeout(() => { 
+                currentQuery = searchBox.value.trim();
                 updateURL();
                 performSearch();
             }, 300);
-        });
-    }
-
-    if (tagsContainer) {
-        tagsContainer.addEventListener('click', (e) => {
-            const target = e.target.closest('.tag-link');
-            if (!target) return;
-
-            const clickedTag = target.dataset.tag;
-            if (currentTag === clickedTag) {
-                currentTag = null; // Toggle off
-            } else {
-                currentTag = clickedTag;
-            }
-            
-            currentQuery = ''; // Clicking a tag clears the search query
-            if(searchBox) searchBox.value = '';
-            
-            updateActiveTagUI();
-            updateURL();
-            performSearch();
         });
     }
 }
