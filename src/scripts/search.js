@@ -180,9 +180,4 @@ export function initializeSearch({
         performSearch(0);
     }
 
-    // If there's an active tag or query from the URL on page load, perform the search.
-    if (currentQuery || currentTag) {
-        performSearch(0);
-    }
-
 }
