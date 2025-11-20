@@ -4,9 +4,8 @@
   "version": "2.0.0",
   "private": true,
   "scripts": {
-    "prebuild": "mkdir -p src/data/report-archives",
     "dev": "astro dev",
-    "build": "npm run prebuild && node scripts/fetch-data.js && node scripts/index-to-algolia.js && node scripts/generate-keyword-pages.js && astro build",
+    "build": "node scripts/fetch-data.js && node scripts/index-to-algolia.js && node scripts/generate-keyword-pages.js && astro build",
     "preview": "astro preview",
     "fetch-data": "node scripts/fetch-data.js && node scripts/index-to-algolia.js"
   },

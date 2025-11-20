@@ -702,7 +702,7 @@ function discoverAndSaveKeywords(models) {
  */
 async function updateReportsFile(newReport) {
   if (newReport) {
-    console.log('- New report generated, updating reports file...');
+    console.log(`- New report generated for ${newReport.reportId}. Updating report files...`);
     let reports = [];
     if (fs.existsSync(REPORTS_OUTPUT_PATH)) {
       try {
@@ -714,12 +714,15 @@ async function updateReportsFile(newReport) {
 
     // Long-term archival: Save the new report as a separate file
     const reportArchivePath = path.join(REPORT_ARCHIVE_DIR, `${newReport.reportId}.json`);
+    console.log(`- Saving report to long-term archive: ${reportArchivePath}`);
     writeDataToFile(reportArchivePath, newReport);
 
     // Main reports file: Add new report to the beginning
     reports.unshift(newReport); // Add new report to the beginning
+    const slicedReports = reports.slice(0, 52);
+    console.log(`- Updating main reports file with ${slicedReports.length} most recent reports.`);
     // Keep only the latest 52 reports for the main page to ensure performance
-    writeDataToFile(REPORTS_OUTPUT_PATH, reports.slice(0, 52));
+    writeDataToFile(REPORTS_OUTPUT_PATH, slicedReports);
   } else {
     console.log('✅ No new report generated. Skipping reports file update.');
   }
@@ -811,7 +814,7 @@ async function main() {
 
 
     // 6. Convert map back to array and sort
-    const finalModels = Array.from(finalModelsMap.values());
+    let finalModels = Array.from(finalModelsMap.values());
     finalModels.sort((a, b) => b.likes - a.likes);
 
     // 6. Calculate velocity and identify rising stars
@@ -827,6 +830,17 @@ async function main() {
         const hasHighVelocity = model.velocity > 100; // Threshold for high daily likes
 
         model.is_rising_star = isNewAndPopular || hasHighVelocity;
+
+        // --- NEW: Calculate Ranking Scores ---
+        const logLikes = Math.log10(model.likes + 1); // +1 to avoid log(0)
+        const logDownloads = Math.log10(model.downloads + 1);
+
+        // Comprehensive "Heat Score"
+        model.heatScore = (logLikes * 0.4) + (logDownloads * 0.3) + (model.velocity * 0.3);
+
+        // Simpler "Popularity Score"
+        model.popularityScore = (model.likes * 0.6) + (model.downloads * 0.4);
+        // --- END NEW ---
     });
 
     console.log(`- Merged models down to ${finalModels.length} unique entries.`);
@@ -865,6 +879,45 @@ async function main() {
         console.log('✅ Stability check passed. Proceeding with full update.');
     }
     // --- END NEW ---
+
+    // --- START: Generate Rankings ---
+    console.log('Generating model rankings...');
+
+    const activeModels = finalModels.filter(m => !m.is_archived);
+
+    // Hot Ranking (by likes)
+    const hotRanking = [...activeModels]
+      .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+      .slice(0, 100);
+
+    // Trending Ranking (by downloads)
+    const trendingRanking = [...activeModels]
+      .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
+      .slice(0, 100);
+
+    // Newest Ranking (by creation date)
+    const newestRanking = [...activeModels]
+      .sort((a, b) => (b.lastModifiedTimestamp || 0) - (a.lastModifiedTimestamp || 0))
+      .slice(0, 100);
+
+    // Rising Star Ranking (by velocity)
+    const risingStarRanking = activeModels
+      .filter(m => m.is_rising_star)
+      .sort((a, b) => (b.velocity || 0) - (a.velocity || 0))
+      .slice(0, 100);
+
+    const rankings = {
+      hot: hotRanking,
+      trending: trendingRanking,
+      newest: newestRanking,
+      rising: risingStarRanking,
+      generatedAt: new Date().toISOString(),
+    };
+
+    const rankingsPath = path.join(__dirname, '../src/data/rankings.json');
+    writeDataToFile(rankingsPath, rankings);
+    console.log(`✅ Rankings data saved to ${rankingsPath}`);
+    // --- END: Generate Rankings ---
 
     if (finalModels.length > 0) { // This check is now a secondary safeguard
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD

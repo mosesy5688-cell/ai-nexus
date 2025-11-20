@@ -115,11 +115,6 @@
     "count": 43
   },
   {
-    "slug": "chat",
-    "title": "Chat",
-    "count": 43
-  },
-  {
     "slug": "deepseek",
     "title": "Deepseek",
     "count": 40
@@ -208,5 +203,25 @@
     "slug": "gpt-4",
     "title": "Gpt 4",
     "count": 21
+  },
+  {
+    "slug": "awesome",
+    "title": "Awesome",
+    "count": 21
+  },
+  {
+    "slug": "nextjs",
+    "title": "Nextjs",
+    "count": 19
+  },
+  {
+    "slug": "llama3",
+    "title": "Llama3",
+    "count": 16
+  },
+  {
+    "slug": "gemma",
+    "title": "Gemma",
+    "count": 14
   }
 ]
