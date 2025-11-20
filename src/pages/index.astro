@@ -2,7 +2,6 @@
 import Layout from '@/layouts/Layout.astro';
 import allModels from '../data/models.json';
 import ModelCard from '@/components/ModelCard.astro';
-import { initializeSearch } from '../scripts/search.js';
 import { algoliaConfig } from '../config';
 
 const url = Astro.url;
@@ -108,7 +107,8 @@ if (initialQuery) {
 
     <!-- Algolia Search Client -->
     <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
-    <script define:vars={{ algoliaConfig, initialQuery, activeTag, initializeSearch }}>
+    <script type="module" define:vars={{ algoliaConfig, initialQuery, activeTag }}>
+        import { initializeSearch } from '../scripts/search.js';
         document.addEventListener('DOMContentLoaded', () => {
             initializeSearch({
                 algoliaAppId: algoliaConfig.appId,
