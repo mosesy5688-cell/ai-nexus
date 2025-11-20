@@ -618,6 +618,20 @@ function extractKeywordsFromText(text) {
  * @returns {Array<object>} The array of validated keywords.
  */
 function discoverAndSaveKeywords(models) {
+    // Keyword normalization map
+    const keywordMergeMap = {
+        'gpt-4': 'gpt',
+        'chatgpt': 'gpt',
+        'chat': 'chatbot',
+        'llms': 'llm',
+        'agent': 'agents',
+        'ai-agents': 'agents',
+        'large-language-model': 'large-language-models',
+        // Add plural to singular normalization
+        'prompts': 'prompt',
+        'tools': 'tool'
+    };
+
     console.log('- Discovering and scoring keywords...');
     const keywordScores = new Map();
     const excludedTags = new Set(['transformers', 'safetensors', 'pytorch', 'diffusers', 'en', 'license:mit', 'region:us', 'custom_code', 'gguf', 'model-index']);
@@ -631,10 +645,15 @@ function discoverAndSaveKeywords(models) {
 
     models.forEach(model => {
         const seenKeywords = new Set(); // To ensure a keyword is counted only once per model
+        const normalizedTags = new Set(); // To store normalized tags for the model
 
         // Process tags (highest weight)
         (model.tags || []).forEach(tag => {
-            const cleaned = cleanKeyword(tag);
+            let cleaned = cleanKeyword(tag);
+            // Normalize the keyword
+            cleaned = keywordMergeMap[cleaned] || cleaned;
+            normalizedTags.add(cleaned);
+
             if (cleaned && !excludedTags.has(cleaned) && !cleaned.includes(':') && cleaned.length > 2 && cleaned.length < 25) {
                 if (!seenKeywords.has(cleaned)) {
                     const score = (keywordScores.get(cleaned)?.score || 0) + WEIGHTS.TAG + (model.likes * WEIGHTS.LIKE_MULTIPLIER);
@@ -647,7 +666,10 @@ function discoverAndSaveKeywords(models) {
 
         // Process model name (medium weight)
         extractKeywordsFromText(model.name).forEach(keyword => {
-            if (!excludedTags.has(keyword) && !seenKeywords.has(keyword)) {
+            // Normalize the keyword
+            keyword = keywordMergeMap[keyword] || keyword;
+            normalizedTags.add(keyword);
+            if (!excludedTags.has(keyword) && !seenKeywords.has(keyword) && keyword.length > 2 && keyword.length < 25) {
                 const score = (keywordScores.get(keyword)?.score || 0) + WEIGHTS.NAME + (model.likes * WEIGHTS.LIKE_MULTIPLIER);
                 const count = (keywordScores.get(keyword)?.count || 0) + 1;
                 keywordScores.set(keyword, { score, count });
@@ -657,7 +679,10 @@ function discoverAndSaveKeywords(models) {
 
         // Process description (lowest weight)
         extractKeywordsFromText(model.description).forEach(keyword => {
-            if (!excludedTags.has(keyword) && !seenKeywords.has(keyword)) {
+            // Normalize the keyword
+            keyword = keywordMergeMap[keyword] || keyword;
+            normalizedTags.add(keyword);
+            if (!excludedTags.has(keyword) && !seenKeywords.has(keyword) && keyword.length > 2 && keyword.length < 25) {
                 const score = (keywordScores.get(keyword)?.score || 0) + WEIGHTS.DESCRIPTION;
                 // We don't add like multiplier here to avoid over-inflating common words from popular model descriptions
                 const count = (keywordScores.get(keyword)?.count || 0) + 1;
@@ -665,6 +690,8 @@ function discoverAndSaveKeywords(models) {
                 seenKeywords.add(keyword);
             }
         });
+        // Update model tags with the normalized set
+        model.tags = Array.from(normalizedTags);
     });
 
     // Filter out keywords that appear only once, as they are likely noise

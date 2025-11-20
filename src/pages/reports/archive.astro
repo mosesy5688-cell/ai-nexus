@@ -2,19 +2,18 @@
 import Layout from '@/layouts/Layout.astro';
 import ReportCard from '@/components/ReportCard.astro';
 
-// Load all reports from the main file and archives
-const allReports = [];
+// Load all reports from the main file and archives using import.meta.glob for resilience
+const mainReports = (await import('../../../data/reports.json')).default;
+const archivedReportModules = await import.meta.glob('../../../data/report-archives/*.json');
 
-// Load main reports
-const mainReportsGlob = await Astro.glob('../../../data/reports.json');
-if (mainReportsGlob.length > 0 && mainReportsGlob[0].default) {
-    allReports.push(...mainReportsGlob[0].default);
-}
+const archivedReports = await Promise.all(
+    Object.values(archivedReportModules).map(async (importer) => {
+        const module = await importer();
+        return module.default;
+    })
+);
 
-// Load archived reports
-const archivedReportsGlob = await Astro.glob('../../../data/report-archives/*.json');
-const archivedReports = archivedReportsGlob.map(file => file.default).filter(Boolean);
-allReports.push(...archivedReports);
+const allReports = [...mainReports, ...archivedReports];
 
 // Deduplicate reports based on reportId and sort by date
 const uniqueReports = Array.from(new Map(allReports.map(report => [report.reportId, report])).values())
