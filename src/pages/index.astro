@@ -79,14 +79,14 @@ if (initialQuery) {
         <div class="mb-10 text-center" id="tags-container">
             <div class="flex flex-wrap justify-center gap-2">
                 {allKeywords.slice(0, 24).map(keyword => (
-                    <a href="javascript:void(0)" data-tag={keyword.slug} class:list={[
+                    <button data-tag={keyword.slug} class:list={[
                         "tag-link px-4 py-2 text-sm font-medium rounded-full transition-colors cursor-pointer",
                         activeTag === keyword.slug
                             ? "bg-blue-600 text-white"
                             : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-blue-500 hover:text-white"
                     ]}>
                         {keyword.title}
-                    </a>
+                    </button>
                 ))}
             </div>
         </div>

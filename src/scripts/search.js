@@ -75,6 +75,16 @@ export function initializeSearch({
         }
     }
 
+    function updateURL() {
+        const url = new URL(window.location);
+        if (currentQuery) url.searchParams.set('q', currentQuery);
+        else url.searchParams.delete('q');
+        if (currentTag) url.searchParams.set('tag', currentTag);
+        else url.searchParams.delete('tag');
+        // Use pushState to update the URL without reloading the page
+        window.history.pushState({}, '', url);
+    }
+
     async function performSearch(page = 0) {
         if (isLoading) return;
         isLoading = true;
@@ -113,15 +123,6 @@ export function initializeSearch({
             isLoading = false;
             loadingMoreEl.classList.add('hidden');
         }
-    }
-
-    function updateURL() {
-        const url = new URL(window.location);
-        if (currentQuery) url.searchParams.set('q', currentQuery);
-        else url.searchParams.delete('q');
-        if (currentTag) url.searchParams.set('tag', currentTag);
-        else url.searchParams.delete('tag');
-        window.history.pushState({}, '', url);
     }
 
     document.getElementById('search-form').addEventListener('submit', (e) => {
