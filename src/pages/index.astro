@@ -104,7 +104,8 @@ if (initialQuery) {
         document.addEventListener('DOMContentLoaded', () => {
             initializeSearch({
                 initialQuery,
-                activeTag
+                activeTag,
+                isExplorePage: false // Explicitly set to false for the homepage
             });
         });
     </script>

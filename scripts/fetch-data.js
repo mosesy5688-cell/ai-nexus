@@ -659,6 +659,43 @@ function discoverAndSaveKeywords(models) {
 }
 
 /**
+ * Assigns predefined category tags to models based on their existing tags and description.
+ * @param {Array<object>} models - The list of all models.
+ * @param {Array<object>} categories - The list of all categories from categories.json.
+ * @returns {Array<object>} The models array with assigned category tags.
+ */
+function assignTagsToModel(models, categories) {
+    console.log('- Assigning category tags to models...');
+    const categoryKeywords = new Map();
+    categories.flatMap(g => g.items).forEach(cat => {
+        categoryKeywords.set(cat.slug.toLowerCase(), cat.slug);
+        categoryKeywords.set(cat.title.toLowerCase(), cat.slug);
+    });
+
+    models.forEach(model => {
+        const modelTags = new Set(model.tags || []);
+        const description = (model.description || '').toLowerCase();
+
+        // Match model's existing tags with category slugs/titles
+        modelTags.forEach(tag => {
+            if (categoryKeywords.has(tag.toLowerCase())) {
+                modelTags.add(categoryKeywords.get(tag.toLowerCase()));
+            }
+        });
+
+        // Match description with category titles
+        for (const [title, slug] of categoryKeywords.entries()) {
+            if (description.includes(title)) {
+                modelTags.add(slug);
+            }
+        }
+        model.tags = Array.from(modelTags);
+    });
+    console.log('✅ Finished assigning category tags.');
+    return models;
+}
+
+/**
  * Reads existing reports, adds a new one, and writes back to the file.
  * Ensures the file exists to prevent build errors.
  * @param {object | null} newReport The new report to add.
@@ -939,6 +976,11 @@ async function main() {
         // Discover keywords based on the new category system
         const validatedKeywords = discoverAndSaveKeywords(combinedData);
 
+    // --- NEW: Assign category tags to all models ---
+    const categories = JSON.parse(fs.readFileSync(CONFIG.CATEGORIES_PATH, 'utf-8'));
+    let taggedModels = assignTagsToModel(combinedData, categories);
+    // --- END NEW ---
+
         // Generate and save all rankings
         generateAndSaveRankings(combinedData, validatedKeywords);
 
@@ -947,7 +989,7 @@ async function main() {
         if (newReport) await updateReportsFile(newReport);
 
         // Create search index from the final combined data
-        createSearchIndex(combinedData);        
+    createSearchIndex(taggedModels); // Use taggedModels to ensure search index has tags
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
         // Still run updateReportsFile with null to ensure the file is present for the build.
