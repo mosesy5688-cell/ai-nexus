@@ -1,11 +1,11 @@
 export function initializeSearch({
     algoliaAppId,
     algoliaSearchKey,
-    algoliaIndexName,
+    algoliaIndices,
     initialQuery,
     activeTag
 }) {
-    if (!algoliaAppId || !algoliaSearchKey) {
+    if (!algoliaAppId || !algoliaSearchKey || !algoliaIndices) {
         console.error("Algolia credentials are not configured.");
         document.getElementById('models-grid').innerHTML = `<p class="col-span-full text-center text-red-500">Search is not configured.</p>`;
         return;
@@ -92,10 +92,10 @@ export function initializeSearch({
         noResults.classList.add('hidden');
 
         const sortBy = sortBySelect.value;
-        let activeIndexName = algoliaIndexName;
-        if (sortBy === 'likes') activeIndexName = `${algoliaIndexName}_likes_desc`;
-        if (sortBy === 'downloads') activeIndexName = `${algoliaIndexName}_downloads_desc`;
-        if (sortBy === 'recent') activeIndexName = `${algoliaIndexName}_recent_desc`;
+        let activeIndexName = algoliaIndices.default;
+        if (sortBy === 'likes') activeIndexName = algoliaIndices.likes_desc;
+        if (sortBy === 'downloads') activeIndexName = algoliaIndices.downloads_desc;
+        if (sortBy === 'recent') activeIndexName = algoliaIndices.recent_desc;
 
         const index = searchClient.initIndex(activeIndexName);
         const searchOptions = { hitsPerPage: 24, page };
@@ -179,4 +179,3 @@ export function initializeSearch({
         performSearch(0);
     }
 }
-

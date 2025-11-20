@@ -5,17 +5,20 @@ import ModelCard from '@/components/ModelCard.astro';
 import { marked } from 'marked';
 
 export async function getStaticPaths() {
-  const paths = allModels.map(model => {
-    const slug = model.id.replace(/\//g, '--');
-    return {
-      params: { slug },
-      props: { model },
-    };
-  });
-  return paths;
+    return allModels
+        .filter(model => !model.is_archived)
+        .map(model => ({
+            params: { slug: model.id.replace(/\//g, '--') },
+        }));
 }
 
-const { model } = Astro.props;
+const { slug } = Astro.params;
+const modelId = slug.replace(/--/g, '/');
+const model = allModels.find(m => m.id === modelId && !m.is_archived);
+
+if (!model) {
+    return new Response(null, { status: 404, statusText: 'Not Found' });
+}
 
 const pageTitle = `${model.name} - AI Model Details`;
 const pageDescription = model.description?.substring(0, 160) || `Details for the AI model ${model.name}.`;
@@ -34,7 +37,7 @@ const readmeHtml = readmeContent ? marked.parse(readmeContent) : '<p>No README c
 
 // Find related models based on tag similarity
 const relatedModels = allModels
-    .filter(m => m.id !== model.id)
+    .filter(m => m.id !== model.id && !m.is_archived)
     .map(m => {
         const commonTags = (m.tags || []).filter(tag => (model.tags || []).includes(tag));
         return { ...m, score: commonTags.length };
