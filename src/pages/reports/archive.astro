@@ -1,54 +1,51 @@
 ---
-// src/pages/reports/archive.astro
 import Layout from '@/layouts/Layout.astro';
-import fs from 'fs';
-import path from 'path';
+import ReportCard from '@/components/ReportCard.astro';
 
-const reportArchivesDir = path.resolve(process.cwd(), 'src/data/report-archives');
-let reportModules = [];
+// Load all reports from the main file and archives
+const allReports = [];
 
-// Check if the directory exists and is not empty before using glob
-if (fs.existsSync(reportArchivesDir) && fs.readdirSync(reportArchivesDir).length > 0) {
-    reportModules = await Astro.glob('../../data/report-archives/*.json');
+// Load main reports
+const mainReportsGlob = await Astro.glob('../../../data/reports.json');
+if (mainReportsGlob.length > 0 && mainReportsGlob[0].default) {
+    allReports.push(...mainReportsGlob[0].default);
 }
 
-// Sort reports by date, newest first, only if reports exist.
-const sortedReports = reportModules
-  .map(module => module.default)
-  .filter(report => report && report.reportId) // Ensure report content is valid
-  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+// Load archived reports
+const archivedReportsGlob = await Astro.glob('../../../data/report-archives/*.json');
+const archivedReports = archivedReportsGlob.map(file => file.default).filter(Boolean);
+allReports.push(...archivedReports);
 
-const pageTitle = "Full AI Report Archive";
-const pageDescription = "A complete archive of all AI Industry Weekly Reports, providing a historical overview of trends and breakthroughs.";
+// Deduplicate reports based on reportId and sort by date
+const uniqueReports = Array.from(new Map(allReports.map(report => [report.reportId, report])).values())
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+const pageTitle = "Full Report Archive";
+const pageDescription = "Browse the complete archive of all AI Industry Analysis reports.";
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
   <div class="container mx-auto px-4 py-12">
     <header class="text-center mb-12">
-      <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">Full Report Archive</h1>
+      <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">Report Archive</h1>
       <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">
-        Browse all previously generated weekly reports.
+        Browse the complete archive of all AI Industry Analysis reports.
       </p>
     </header>
 
-    <div class="max-w-3xl mx-auto">
-      {sortedReports.length > 0 ? (
-        <ul class="space-y-2">
-          {sortedReports.map((report) => (
-              <li>
-                <a href={`/reports/${report.reportId}`} class="block p-4 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                  <div class="flex justify-between items-baseline">
-                    <span class="text-blue-600 dark:text-blue-400 font-semibold">{report.title}</span>
-                    <span class="text-sm text-gray-500 dark:text-gray-400">{new Date(report.date).toLocaleDateString()}</span>
-                  </div>
-                  <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{report.summary}</p>
-                </a>
-              </li>
-          ))}
-        </ul>
-      ) : (
-        <p class="text-center text-gray-500 dark:text-gray-400">No archived reports found.</p>
-      )}
-    </div>
+    {uniqueReports.length > 0 ? (
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {uniqueReports.map(report => (
+          <ReportCard report={report} />
+        ))}
+      </div>
+    ) : (
+      <div class="text-center py-16">
+        <p class="text-xl text-gray-500 dark:text-gray-400">The report archive is currently empty.</p>
+        <p class="mt-4">
+          <a href="/reports" class="text-blue-600 dark:text-blue-400 hover:underline">&larr; Back to Main Reports</a>
+        </p>
+      </div>
+    )}
   </div>
 </Layout>
