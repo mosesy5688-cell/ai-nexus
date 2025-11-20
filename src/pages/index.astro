@@ -75,7 +75,7 @@ if (initialQuery) {
         <div class="mb-10 text-center" id="tags-container">
             <div class="flex flex-wrap justify-center gap-2">
                 {allKeywords.slice(0, 24).map(keyword => (
-                    <a href={activeTag === keyword.slug ? "/" : `/?tag=${keyword.slug}`} data-tag={keyword.slug} class:list={[
+                    <a href="javascript:void(0)" data-tag={keyword.slug} class:list={[
                         "tag-link px-4 py-2 text-sm font-medium rounded-full transition-colors cursor-pointer",
                         activeTag === keyword.slug
                             ? "bg-blue-600 text-white"
