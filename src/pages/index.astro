@@ -1,8 +1,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import ModelCard from '@/components/ModelCard.astro';
-import KeywordCard from '@/components/KeywordCard.astro';
-import allKeywords from '@/data/keywords.json';
+import allCategories from '@/data/categories.json';
 import rankings from '@/data/rankings.json';
 
 const url = Astro.url;
@@ -15,16 +14,11 @@ const hotModels = rankings.hot.slice(0, 12);
 let pageTitle = "Free AI Tools: Your Hub for Open-Source AI";
 let pageDescription = "Discover, explore, and stay updated with the latest open-source AI models, tools, and research. Your gateway to the world of open AI.";
 
-// Dynamically update page title for SEO if there's a filter or query
-if (activeTag) {
-    const keyword = allKeywords.find(k => k.slug === activeTag);
-    pageTitle = `Models tagged with '${keyword ? keyword.title : activeTag}'`;
-    pageDescription = `Find AI models and tools related to ${keyword ? keyword.title : activeTag}.`;
-} else if (initialQuery) {
+if (initialQuery) {
     pageTitle = `Search results for '${initialQuery}'`;
 } else {
-    // Default homepage SEO
-    pageTitle = "AI Nexus: Discover Top Open-Source AI Models";
+    // Default homepage SEO, use the website name
+    pageTitle = "Free AI Tools: Discover Top Open-Source AI Models";
     pageDescription = "Explore a curated directory of the best open-source AI models. Search, filter, and find tools for text generation, image analysis, and more.";
 }
 ---
@@ -78,12 +72,20 @@ if (activeTag) {
 
             <!-- Explore by Category Section -->
             <section class="mb-16">
-                <h2 class="text-3xl font-bold text-center mb-8">Explore by Category</h2>
-                <div id="keyword-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {allKeywords.slice(0, 16).map(keyword => (
-                        <KeywordCard keyword={keyword} />
-                    ))}
-                </div>
+                <h2 class="text-3xl font-bold text-center mb-10">Explore by Category</h2>
+                {allCategories.map(categoryGroup => (
+                    <div class="mb-8">
+                        <h3 class="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-6 border-l-4 border-blue-500 pl-4">{categoryGroup.group}</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                            {categoryGroup.items.map(category => (
+                                <a href={`/explore?tag=${category.slug}`} class="group block p-5 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400">
+                                    <h4 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{category.title}</h4>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">{category.description}</p>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                ))}
             </section>
         </div>
 

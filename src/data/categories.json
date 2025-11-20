@@ -1,0 +1,153 @@
+[
+  {
+    "group": "Text Generation & Content Creation",
+    "items": [
+      {
+        "id": 1,
+        "title": "General Dialogue & Q&A",
+        "slug": "general-dialogue-qa",
+        "description": "Models for open-ended conversations and answering various questions."
+      },
+      {
+        "id": 2,
+        "title": "Content Generation",
+        "slug": "content-generation",
+        "description": "Create articles, stories, marketing copy, and other text content."
+      },
+      {
+        "id": 3,
+        "title": "Summarization & Extraction",
+        "slug": "summarization-extraction",
+        "description": "Extract key information or generate summaries from long texts."
+      },
+      {
+        "id": 4,
+        "title": "Translation & Localization",
+        "slug": "translation-localization",
+        "description": "Translate text between multiple languages."
+      },
+      {
+        "id": 5,
+        "title": "Rewriting & Polishing",
+        "slug": "rewriting-polishing",
+        "description": "Improve the grammar, style, and clarity of existing text."
+      },
+      {
+        "id": 6,
+        "title": "Code Generation & Assistance",
+        "slug": "code-generation-assistance",
+        "description": "Generate, complete, and explain code."
+      }
+    ]
+  },
+  {
+    "group": "Knowledge Retrieval & Data Analysis",
+    "items": [
+      {
+        "id": 7,
+        "title": "RAG & Knowledge Base Q&A",
+        "slug": "rag-knowledge-base-qa",
+        "description": "Retrieval-Augmented Generation for Q&A with external knowledge bases."
+      },
+      {
+        "id": 8,
+        "title": "Data Analysis & Insights",
+        "slug": "data-analysis-insights",
+        "description": "Analyze structured data and provide business insights."
+      },
+      {
+        "id": 9,
+        "title": "Entity & Relation Extraction",
+        "slug": "entity-relation-extraction",
+        "description": "Identify entities and extract relationships between them from text."
+      },
+      {
+        "id": 10,
+        "title": "Sentiment & Intent Analysis",
+        "slug": "sentiment-intent-analysis",
+        "description": "Analyze sentiment and user intent in text."
+      },
+      {
+        "id": 11,
+        "title": "Time Series Forecasting",
+        "slug": "time-series-forecasting",
+        "description": "Predict future trends based on historical data."
+      }
+    ]
+  },
+  {
+    "group": "Vision & Multimedia Processing",
+    "items": [
+      {
+        "id": 12,
+        "title": "Image Generation",
+        "slug": "image-generation",
+        "description": "Generate images from text descriptions."
+      },
+      {
+        "id": 13,
+        "title": "Image Editing & Restoration",
+        "slug": "image-editing-restoration",
+        "description": "Edit, restore, or enhance existing images."
+      },
+      {
+        "id": 14,
+        "title": "Video Generation & Editing",
+        "slug": "video-generation-editing",
+        "description": "Generate or edit video content."
+      },
+      {
+        "id": 15,
+        "title": "Speech Recognition & Synthesis",
+        "slug": "speech-recognition-synthesis",
+        "description": "Convert speech to text or text to speech."
+      },
+      {
+        "id": 16,
+        "title": "Music & Sound Generation",
+        "slug": "music-sound-generation",
+        "description": "Create music or generate various sound effects."
+      }
+    ]
+  },
+  {
+    "group": "Automation & Workflow Integration",
+    "items": [
+      {
+        "id": 17,
+        "title": "Workflow Automation",
+        "slug": "workflow-automation",
+        "description": "Automate repetitive tasks and business processes."
+      },
+      {
+        "id": 18,
+        "title": "Enterprise Document Management",
+        "slug": "enterprise-document-management",
+        "description": "Intelligently process and manage internal enterprise documents."
+      },
+      {
+        "id": 19,
+        "title": "Intelligent Recommendation",
+        "slug": "intelligent-recommendation",
+        "description": "Provide personalized recommendations based on user preferences."
+      }
+    ]
+  },
+  {
+    "group": "Infrastructure & Optimization",
+    "items": [
+      {
+        "id": 26,
+        "title": "Model Fine-tuning",
+        "slug": "model-fine-tuning",
+        "description": "Fine-tune models on specific tasks or datasets."
+      },
+      {
+        "id": 29,
+        "title": "Model Deployment & Inference",
+        "slug": "model-deployment-inference",
+        "description": "Efficiently deploy models and provide inference services."
+      }
+    ]
+  }
+]

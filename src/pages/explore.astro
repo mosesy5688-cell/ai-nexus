@@ -1,0 +1,78 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import allCategories from '@/data/categories.json';
+
+const url = Astro.url;
+const activeTag = url.searchParams.get('tag');
+const initialQuery = url.searchParams.get('q') || '';
+
+let pageTitle = "Explore AI Models";
+let pageDescription = "Search and filter through a comprehensive directory of open-source AI models.";
+
+if (activeTag) {
+    const category = allCategories.flatMap(g => g.items).find(item => item.slug === activeTag);
+    if (category) {
+        pageTitle = `Models for: ${category.title}`;
+        pageDescription = `Find open-source AI models related to ${category.title}. ${category.description}`;
+    }
+} else if (initialQuery) {
+    pageTitle = `Search results for '${initialQuery}'`;
+}
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+    <div class="container mx-auto px-4 py-12">
+        <!-- Main Page Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">Explore Models</h1>
+            <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-4xl mx-auto">
+                Find the perfect open-source AI model for your needs.
+            </p>
+        </header>
+
+        <!-- Search and Filter Section -->
+        <div class="mb-8 flex flex-col md:flex-row gap-4 items-center sticky top-[65px] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-4 z-30 max-w-4xl mx-auto w-full">
+            <div id="search-container" class="w-full">
+                <form id="search-form" class="w-full" onsubmit="return false;">
+                    <div class="relative">
+                        <input
+                            type="search"
+                            id="search-box"
+                            name="q"
+                            placeholder="Search for models, e.g., 'llama', 'image generation'..."
+                            class="w-full p-4 pl-12 text-lg border border-gray-300 dark:border-gray-600 rounded-full bg-white dark:bg-gray-800 focus:ring-blue-500 focus:border-blue-500 shadow-lg"
+                            aria-label="Search AI Models"
+                            value={initialQuery}
+                        />
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Search Results Grid -->
+        <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- This grid will be populated by search.js -->
+        </div>
+        <div id="no-results" class="text-center py-16 hidden">
+            <p class="text-2xl font-semibold text-gray-700 dark:text-gray-200">No models found.</p>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Try adjusting your search criteria.</p>
+        </div>
+    </div>
+
+    <script type="module" define:vars={{ initialQuery, activeTag }}>
+        import { initializeSearch } from '@/scripts/search.js';
+        document.addEventListener('DOMContentLoaded', () => {
+            // On the explore page, we always want to perform a search,
+            // even if the query and tag are empty, to show all models.
+            // The search script needs a slight adjustment to handle this.
+            initializeSearch({
+                initialQuery,
+                activeTag,
+                isExplorePage: true // Pass a flag to indicate this is the explore page
+            });
+        });
+    </script>
+</Layout>

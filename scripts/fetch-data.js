@@ -9,27 +9,32 @@ import { fetchPwCData } from './fetch-pwc.js';
 // --- Configuration ---_
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const HUGGINGFACE_API_BASE_URL = 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100&filter=text-generation,llm&modelType=model';
-const OUTPUT_FILE_PATH = path.join(__dirname, '../src/data/models.json');
-const KEYWORDS_OUTPUT_PATH = path.join(__dirname, '../src/data/keywords.json');
-const REPORTS_OUTPUT_PATH = path.join(__dirname, '../src/data/reports.json');
-const ARCHIVE_DIR = path.join(__dirname, '../src/data/archives');
-const REPORT_ARCHIVE_DIR = path.join(__dirname, '../src/data/report-archives');
-const REPLICATE_EXPLORE_URL = 'https://replicate.com/explore';
-const NSFW_KEYWORDS = [
-    'nsfw', 
-    'porn', 
-    'sexy', 
-    'explicit', 
-    'erotic', 
-    'nude', 
-    'naked',
-    'adult'
-];
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }) : null;
+const CONFIG = {
+    HUGGINGFACE_API_BASE_URL: 'https://huggingface.co/api/models?sort=likes&direction=-1&limit=100&filter=text-generation,llm&modelType=model',
+    GITHUB_SEARCH_QUERY: '"llm" OR "agent" OR "generative-ai"',
+    OUTPUT_FILE_PATH: path.join(__dirname, '../src/data/models.json'),
+    CATEGORIES_PATH: path.join(__dirname, '../src/data/categories.json'),
+    KEYWORDS_OUTPUT_PATH: path.join(__dirname, '../src/data/keywords.json'),
+    REPORTS_OUTPUT_PATH: path.join(__dirname, '../src/data/reports.json'),
+    SEARCH_INDEX_PATH: path.join(__dirname, '../public/data/search-index.json'),
+    RANKINGS_PATH: path.join(__dirname, '../public/data/rankings.json'),
+    ARCHIVE_DIR: path.join(__dirname, '../src/data/archives'),
+    REPORT_ARCHIVE_DIR: path.join(__dirname, '../src/data/report-archives'),
+    NSFW_KEYWORDS: [
+        'nsfw', 'porn', 'sexy', 'explicit', 'erotic', 'nude', 'naked', 'adult'
+    ],
+    KEYWORD_MERGE_MAP: {
+        'gpt-4': 'gpt', 'chatgpt': 'gpt', 'chat': 'general-dialogue-qa', 'chatbot': 'general-dialogue-qa',
+        'conversational': 'general-dialogue-qa', 'summarization': 'summarization-extraction',
+        'translation': 'translation-localization', 'code': 'code-generation-assistance', 'coding': 'code-generation-assistance',
+        'llms': 'llm', 'agent': 'agents', 'ai-agents': 'agents', 'large-language-model': 'large-language-models',
+        'prompts': 'prompt', 'tools': 'tool', 'image-generation': 'image-generation', 'text-to-image': 'image-generation',
+        'video-generation': 'video-generation-editing', 'text-to-video': 'video-generation-editing',
+        'rag': 'rag-knowledge-base-qa', 'retrieval-augmented-generation': 'rag-knowledge-base-qa'
+    },
+    MINIMUM_MODEL_THRESHOLD_PERCENTAGE: 0.8,
+};
 
 // NEW: Load the GitHub Token
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -39,6 +44,9 @@ const GITHUB_HEADERS = {
     ...(GITHUB_TOKEN && { 'Authorization': `Bearer ${GITHUB_TOKEN}` })
 };
 
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-2.5-flash' }) : null;
 /**
  * Builds the prompt for the AI weekly report generation.
  * @param {string} reportId - The ID for the report (YYYY-MM-DD).
@@ -166,9 +174,9 @@ async function generateBiWeeklyReport(models, keywords) {
 
     // 1. Load the reports metadata file
     let lastReportDate = null;
-    if (fs.existsSync(REPORTS_OUTPUT_PATH)) {
+    if (fs.existsSync(CONFIG.REPORTS_OUTPUT_PATH)) {
         try {
-            const existingReports = JSON.parse(fs.readFileSync(REPORTS_OUTPUT_PATH, 'utf-8'));
+            const existingReports = JSON.parse(fs.readFileSync(CONFIG.REPORTS_OUTPUT_PATH, 'utf-8'));
             if (existingReports.length > 0) {
                 lastReportDate = new Date(existingReports[0].date);
             }
@@ -309,19 +317,19 @@ async function fetchReadme(url, config = {}) {
  */async function fetchHuggingFaceData() {
     console.log('📦 Fetching data from HuggingFace API (up to 5 pages)...');
     const allModels = [];
+    const MAX_PAGES = 5;
     try {
-        for (let page = 0; page < 5; page++) {
-            try {
-                const { data } = await axios.get(`${HUGGINGFACE_API_BASE_URL}&page=${page}`, { timeout: 20000 });
-                if (data && data.length > 0) {
-                    allModels.push(...data);
-                } else {
-                    console.log(`- HuggingFace API: No more models found on page ${page}. Stopping.`);
-                    break; // No more models, stop paginating
-                }
-            } catch (pageError) {
-                console.error(`- Failed to fetch page ${page} from HuggingFace:`, pageError.message);
-                break; // Stop on error
+        const pagePromises = Array.from({ length: MAX_PAGES }, (_, i) =>
+            axios.get(`${CONFIG.HUGGINGFACE_API_BASE_URL}&page=${i}`, { timeout: 20000 }).catch(e => {
+                console.error(`- Failed to fetch page ${i} from HuggingFace:`, e.message);
+                return { data: [] }; // Return empty data on error to not break Promise.all
+            })
+        );
+
+        const responses = await Promise.all(pagePromises);
+        for (const response of responses) {
+            if (response.data && response.data.length > 0) {
+                allModels.push(...response.data);
             }
         }
 
@@ -386,19 +394,18 @@ async function transformHuggingFaceModel(model) {
  */
 async function fetchGitHubData(additionalRepoUrls = []) {
     console.log('📦 Fetching data from GitHub API...');
-    // Correctly formatted and URL-encoded query to focus on high-quality technical repositories.
-    const GITHUB_SEARCH_QUERY = '"llm" OR "agent" OR "generative-ai"';
 
     const fetchedRepos = new Set();
     const allTransformedData = [];
     const reposToProcess = [];
+    const MAX_PAGES = 5;
 
     try {
         // 1. Fetch from the general search query with pagination
-        const encodedQuery = encodeURIComponent(GITHUB_SEARCH_QUERY);
+        const encodedQuery = encodeURIComponent(CONFIG.GITHUB_SEARCH_QUERY);
         const GITHUB_API_BASE_URL = `https://api.github.com/search/repositories?q=${encodedQuery}&sort=stars&order=desc&per_page=100`;
 
-        for (let page = 1; page <= 5; page++) {
+        for (let page = 1; page <= MAX_PAGES; page++) {
             try {
                 const { data } = await axios.get(`${GITHUB_API_BASE_URL}&page=${page}`, {
                     timeout: 20000,
@@ -542,14 +549,13 @@ function calculateVelocity(model) {
  * @param {any} data - The data to write.
  */
 function writeDataToFile(filePath, data) {
-    console.log(`- Writing data to static file: ${filePath}`);
+    console.log(`- Writing data to: ${path.basename(filePath)}`);
     try {
         const dir = path.dirname(filePath);
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
         fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-        console.log('✅ Successfully wrote data to file.');
     } catch (error) {
         console.error('❌ Failed to write data to file:', error.message);
         process.exit(1);
@@ -582,7 +588,7 @@ function isNsfw(model) {
     const description = (model.description || '').toLowerCase();
     const tags = (model.tags || []).map(t => t.toLowerCase());
 
-    for (const keyword of NSFW_KEYWORDS) {
+    for (const keyword of CONFIG.NSFW_KEYWORDS) {
         if (name.includes(keyword) || description.includes(keyword) || tags.includes(keyword)) {
             return true;
         }
@@ -618,107 +624,37 @@ function extractKeywordsFromText(text) {
  * @returns {Array<object>} The array of validated keywords.
  */
 function discoverAndSaveKeywords(models) {
-    // Keyword normalization map
-    const keywordMergeMap = {
-        'gpt-4': 'gpt',
-        'chatgpt': 'gpt',
-        'chat': 'chatbot',
-        'llms': 'llm',
-        'agent': 'agents',
-        'ai-agents': 'agents',
-        'large-language-model': 'large-language-models',
-        // Add plural to singular normalization
-        'prompts': 'prompt',
-        'tools': 'tool'
-    };
+    console.log('- Counting models for predefined categories...');
 
-    console.log('- Discovering and scoring keywords...');
-    const keywordScores = new Map();
-    const excludedTags = new Set(['transformers', 'safetensors', 'pytorch', 'diffusers', 'en', 'license:mit', 'region:us', 'custom_code', 'gguf', 'model-index']);
-
-    const WEIGHTS = {
-        TAG: 5,
-        NAME: 3,
-        DESCRIPTION: 1,
-        LIKE_MULTIPLIER: 0.0001 // Add a small score fraction based on model likes
-    };
-
-    models.forEach(model => {
-        const seenKeywords = new Set(); // To ensure a keyword is counted only once per model
-        const normalizedTags = new Set(); // To store normalized tags for the model
-
-        // Process tags (highest weight)
-        (model.tags || []).forEach(tag => {
-            let cleaned = cleanKeyword(tag);
-            // Normalize the keyword
-            cleaned = keywordMergeMap[cleaned] || cleaned;
-            normalizedTags.add(cleaned);
-
-            if (cleaned && !excludedTags.has(cleaned) && !cleaned.includes(':') && cleaned.length > 2 && cleaned.length < 25) {
-                if (!seenKeywords.has(cleaned)) {
-                    const score = (keywordScores.get(cleaned)?.score || 0) + WEIGHTS.TAG + (model.likes * WEIGHTS.LIKE_MULTIPLIER);
-                    const count = (keywordScores.get(cleaned)?.count || 0) + 1;
-                    keywordScores.set(cleaned, { score, count });
-                    seenKeywords.add(cleaned);
-                }
-            }
+    // 1. Load the new categories as the source of truth for keywords.
+    const categories = JSON.parse(fs.readFileSync(CONFIG.CATEGORIES_PATH, 'utf-8'));
+    const categoryKeywords = {};
+    categories.forEach(group => {
+        group.items.forEach(item => {
+            categoryKeywords[item.slug] = { ...item, count: 0 };
         });
-
-        // Process model name (medium weight)
-        extractKeywordsFromText(model.name).forEach(keyword => {
-            // Normalize the keyword
-            keyword = keywordMergeMap[keyword] || keyword;
-            normalizedTags.add(keyword);
-            if (!excludedTags.has(keyword) && !seenKeywords.has(keyword) && keyword.length > 2 && keyword.length < 25) {
-                const score = (keywordScores.get(keyword)?.score || 0) + WEIGHTS.NAME + (model.likes * WEIGHTS.LIKE_MULTIPLIER);
-                const count = (keywordScores.get(keyword)?.count || 0) + 1;
-                keywordScores.set(keyword, { score, count });
-                seenKeywords.add(keyword);
-            }
-        });
-
-        // Process description (lowest weight)
-        extractKeywordsFromText(model.description).forEach(keyword => {
-            // Normalize the keyword
-            keyword = keywordMergeMap[keyword] || keyword;
-            normalizedTags.add(keyword);
-            if (!excludedTags.has(keyword) && !seenKeywords.has(keyword) && keyword.length > 2 && keyword.length < 25) {
-                const score = (keywordScores.get(keyword)?.score || 0) + WEIGHTS.DESCRIPTION;
-                // We don't add like multiplier here to avoid over-inflating common words from popular model descriptions
-                const count = (keywordScores.get(keyword)?.count || 0) + 1;
-                keywordScores.set(keyword, { score, count });
-                seenKeywords.add(keyword);
-            }
-        });
-        // Update model tags with the normalized set
-        model.tags = Array.from(normalizedTags);
     });
 
-    // Filter out keywords that appear only once, as they are likely noise
-    const filteredKeywords = Array.from(keywordScores.entries()).filter(([, data]) => data.count > 1);
+    const keywordMergeMap = CONFIG.KEYWORD_MERGE_MAP;
 
-    // Sort by score and take the top keywords
-    const sortedKeywords = filteredKeywords
-        .sort(([, a], [, b]) => b.score - a.score)
-        .slice(0, 50) // Increase the number of hot keywords to 50 for better coverage
-        .map(([slug, data]) => ({
-            slug: slug,
-            title: slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-            count: data.count
-        }));
+    // 2. Normalize model tags and count models for each category.
+    models.forEach(model => {
+        const modelTags = new Set((model.tags || []).map(tag => keywordMergeMap[tag] || tag));
+        for (const tag of modelTags) {
+            if (categoryKeywords[tag]) {
+                categoryKeywords[tag].count++;
+            }
+        }
+    });
 
-    // --- VALIDATION STEP ---
-    // Ensure every keyword in the list corresponds to at least one model's tag.
-    // This prevents showing tags on the frontend that lead to zero results.
-    const allModelTags = new Set(models.flatMap(m => m.tags || []));
-    const validatedKeywords = sortedKeywords.filter(keyword => allModelTags.has(keyword.slug));
+    // 3. Filter out categories with no models and sort by count.
+    const validatedKeywords = Object.values(categoryKeywords).filter(cat => cat.count > 0);
 
     // Final sort by count to display the most frequent ones first on the UI if needed.
-    // This is applied after validation to ensure the final list is both relevant and popular.
     validatedKeywords.sort((a, b) => b.count - a.count);
 
-    writeDataToFile(KEYWORDS_OUTPUT_PATH, validatedKeywords);
-    console.log(`✅ Discovered ${sortedKeywords.length} potential keywords, saved ${validatedKeywords.length} validated hot keywords.`);
+    writeDataToFile(CONFIG.KEYWORDS_OUTPUT_PATH, validatedKeywords);
+    console.log(`✅ Counted models for ${validatedKeywords.length} categories.`);
     return validatedKeywords;
 }
 
@@ -731,16 +667,16 @@ async function updateReportsFile(newReport) {
   if (newReport) {
     console.log(`- New report generated for ${newReport.reportId}. Updating report files...`);
     let reports = [];
-    if (fs.existsSync(REPORTS_OUTPUT_PATH)) {
+    if (fs.existsSync(CONFIG.REPORTS_OUTPUT_PATH)) {
       try {
-        reports = JSON.parse(fs.readFileSync(REPORTS_OUTPUT_PATH, 'utf-8'));
+        reports = JSON.parse(fs.readFileSync(CONFIG.REPORTS_OUTPUT_PATH, 'utf-8'));
       } catch (e) {
         console.warn('Could not parse existing reports.json. Starting fresh.');
       }
     }
 
     // Long-term archival: Save the new report as a separate file
-    const reportArchivePath = path.join(REPORT_ARCHIVE_DIR, `${newReport.reportId}.json`);
+    const reportArchivePath = path.join(CONFIG.REPORT_ARCHIVE_DIR, `${newReport.reportId}.json`);
     console.log(`- Saving report to long-term archive: ${reportArchivePath}`);
     writeDataToFile(reportArchivePath, newReport);
 
@@ -749,7 +685,7 @@ async function updateReportsFile(newReport) {
     const slicedReports = reports.slice(0, 52);
     console.log(`- Updating main reports file with ${slicedReports.length} most recent reports.`);
     // Keep only the latest 52 reports for the main page to ensure performance
-    writeDataToFile(REPORTS_OUTPUT_PATH, slicedReports);
+    writeDataToFile(CONFIG.REPORTS_OUTPUT_PATH, slicedReports);
   } else {
     console.log('✅ No new report generated. Skipping reports file update.');
   }
@@ -761,12 +697,12 @@ async function updateReportsFile(newReport) {
 function initializeDirectories() {
     console.log('- Initializing required directories and files...');
     // Ensure data directories exist
-    if (!fs.existsSync(ARCHIVE_DIR)) fs.mkdirSync(ARCHIVE_DIR, { recursive: true });
-    if (!fs.existsSync(REPORT_ARCHIVE_DIR)) fs.mkdirSync(REPORT_ARCHIVE_DIR, { recursive: true });
+    if (!fs.existsSync(CONFIG.ARCHIVE_DIR)) fs.mkdirSync(CONFIG.ARCHIVE_DIR, { recursive: true });
+    if (!fs.existsSync(CONFIG.REPORT_ARCHIVE_DIR)) fs.mkdirSync(CONFIG.REPORT_ARCHIVE_DIR, { recursive: true });
 
     // Ensure essential JSON files exist to prevent Astro.glob or fs.readFileSync from failing
-    if (!fs.existsSync(REPORTS_OUTPUT_PATH)) writeDataToFile(REPORTS_OUTPUT_PATH, []);
-    if (!fs.existsSync(OUTPUT_FILE_PATH)) writeDataToFile(OUTPUT_FILE_PATH, []);
+    if (!fs.existsSync(CONFIG.REPORTS_OUTPUT_PATH)) writeDataToFile(CONFIG.REPORTS_OUTPUT_PATH, []);
+    if (!fs.existsSync(CONFIG.OUTPUT_FILE_PATH)) writeDataToFile(CONFIG.OUTPUT_FILE_PATH, []);
 }
 
 /**
@@ -786,10 +722,9 @@ function createSearchIndex(models) {
         downloads: model.downloads || 0,
         is_rising_star: model.is_rising_star || false,
     }));
-    // The index file must be in `public` to be fetchable by the client-side script.
-    const searchIndexPath = path.join(__dirname, '../public/data/search-index.json');
-    writeDataToFile(searchIndexPath, searchIndex);
-    console.log(`✅ Search index created with ${searchIndex.length} models at ${searchIndexPath}`);
+
+    writeDataToFile(CONFIG.SEARCH_INDEX_PATH, searchIndex);
+    console.log(`✅ Search index created with ${searchIndex.length} models.`);
 }
 
 /**
@@ -847,9 +782,8 @@ function generateAndSaveRankings(models, keywords) {
       generatedAt: new Date().toISOString(),
     };
 
-    const rankingsPath = path.join(__dirname, '../public/data/rankings.json');
-    writeDataToFile(rankingsPath, allRankings);
-    console.log(`✅ Rankings data saved to ${rankingsPath}`);
+    writeDataToFile(CONFIG.RANKINGS_PATH, allRankings);
+    console.log(`✅ Rankings data saved.`);
 }
 
 async function main() {
@@ -858,9 +792,9 @@ async function main() {
 
     // --- NEW: Load existing models for stability check ---
     let existingModels = [];
-    if (fs.existsSync(OUTPUT_FILE_PATH)) {
+    if (fs.existsSync(CONFIG.OUTPUT_FILE_PATH)) {
         try {
-            existingModels = JSON.parse(fs.readFileSync(OUTPUT_FILE_PATH, 'utf-8'));
+            existingModels = JSON.parse(fs.readFileSync(CONFIG.OUTPUT_FILE_PATH, 'utf-8'));
             console.log(`- Found ${existingModels.length} existing models. This will be used as a baseline for stability.`);
         } catch (e) {
             console.warn(`- Could not parse existing models.json. Will proceed without a stability baseline.`);
@@ -959,8 +893,8 @@ async function main() {
     // --- NEW: Stability and Sanity Check ---
     // Set a threshold. If the new model count is drastically lower than the old one (e.g., less than 80%),
     // it indicates a fetching error. In that case, we abort the update to maintain site stability.
-    const MINIMUM_MODEL_THRESHOLD_PERCENTAGE = 0.8;
-    const minimumModelCount = Math.floor(existingModels.length * MINIMUM_MODEL_THRESHOLD_PERCENTAGE);
+
+    const minimumModelCount = Math.floor(existingModels.length * CONFIG.MINIMUM_MODEL_THRESHOLD_PERCENTAGE);
 
     // Check against the count of *newly fetched* models, not the final count which includes archives.
     if (newModelsMap.size < minimumModelCount && existingModels.length > 100) { 
@@ -991,86 +925,29 @@ async function main() {
     }
     // --- END NEW ---
 
-    // --- START: Generate Rankings ---
-    console.log('Generating model rankings...');
-
-    const activeModels = finalModels.filter(m => !m.is_archived);
-
-    // Hot Ranking (by likes)
-    const hotRanking = [...activeModels]
-      .sort((a, b) => (b.likes || 0) - (a.likes || 0))
-      .slice(0, 100);
-
-    // Trending Ranking (by downloads)
-    const trendingRanking = [...activeModels]
-      .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
-      .slice(0, 100);
-
-    // Newest Ranking (by creation date)
-    const newestRanking = [...activeModels]
-      .sort((a, b) => (b.lastModifiedTimestamp || 0) - (a.lastModifiedTimestamp || 0))
-      .slice(0, 100);
-
-    // Rising Star Ranking (by velocity)
-    const risingStarRanking = activeModels
-      .filter(m => m.is_rising_star)
-      .sort((a, b) => (b.velocity || 0) - (a.velocity || 0))
-      .slice(0, 100);
-
-    const rankings = {
-      hot: hotRanking,
-      trending: trendingRanking,
-      newest: newestRanking,
-      rising: risingStarRanking,
-      generatedAt: new Date().toISOString(),
-    };
-
-    const rankingsPath = path.join(__dirname, '../src/data/rankings.json');
-    writeDataToFile(rankingsPath, rankings);
-    console.log(`✅ Rankings data saved to ${rankingsPath}`);
-    // --- END: Generate Rankings ---
-
-    // --- START: Generate Category Rankings ---
-    console.log('Generating category-specific rankings...');
-    const categoryRankings = {};
-    const topKeywords = discoverAndSaveKeywords(activeModels).slice(0, 5); // Use top 5 keywords as categories
-
-    for (const keyword of topKeywords) {
-        const categoryModels = activeModels
-            .filter(m => m.tags && m.tags.includes(keyword.slug))
-            .sort((a, b) => (b.popularityScore || 0) - (a.popularityScore || 0))
-            .slice(0, 50);
-        
-        if (categoryModels.length > 0) {
-            categoryRankings[keyword.slug] = categoryModels;
-        }
-    }
-    console.log(`✅ Generated rankings for ${Object.keys(categoryRankings).length} categories.`);
-    // --- END: Generate Category Rankings ---
-
     if (finalModels.length > 0) { // This check is now a secondary safeguard
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        const archiveFilePath = path.join(ARCHIVE_DIR, `${today}.json`);
+        const archiveFilePath = path.join(CONFIG.ARCHIVE_DIR, `${today}.json`);
 
         const combinedData = finalModels; // Use the final merged and sorted data
         
         // Write to dated archive file and the main models.json
         writeDataToFile(archiveFilePath, combinedData);
-        writeDataToFile(OUTPUT_FILE_PATH, combinedData);
+        writeDataToFile(CONFIG.OUTPUT_FILE_PATH, combinedData);
         await writeToKV('models', JSON.stringify(combinedData));
 
-        // Combine all rankings and save
-        const allRankings = { ...rankings, categories: categoryRankings };
-        writeDataToFile(rankingsPath, allRankings);
+        // Discover keywords based on the new category system
+        const validatedKeywords = discoverAndSaveKeywords(combinedData);
 
-        // Discover keywords and generate report based on the new, validated data
-        const validatedKeywords = discoverAndSaveKeywords(combinedData); // <-- This now uses the new, improved logic
-        
+        // Generate and save all rankings
+        generateAndSaveRankings(combinedData, validatedKeywords);
+
+        // Generate AI report
         const newReport = await generateBiWeeklyReport(combinedData, validatedKeywords);
+        if (newReport) await updateReportsFile(newReport);
 
         // Create search index from the final combined data
         createSearchIndex(combinedData);        
-        if (newReport) await updateReportsFile(newReport);
     } else {
         console.log('🔥 No data was fetched, skipping file write and KV update.');
         // Still run updateReportsFile with null to ensure the file is present for the build.

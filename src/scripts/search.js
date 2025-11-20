@@ -5,6 +5,7 @@ let allModels = [];
 let fuse;
 let currentQuery = '';
 let currentTag = '';
+let isExplorePage = false;
 let isLoading = false;
 
 const modelsGrid = document.getElementById('models-grid');
@@ -82,8 +83,8 @@ function updateURL() {
 function performSearch() {
     if (isLoading) return;
     
-    // If no query, show static content and hide results
-    if (!currentQuery) {
+    // On the homepage, if there's no query and no tag, show static content and hide results.
+    if (!isExplorePage && !currentQuery && !currentTag) {
         modelsGrid.innerHTML = '';
         modelsGrid.classList.add('hidden');
         noResults.classList.add('hidden');
@@ -93,16 +94,19 @@ function performSearch() {
 
     isLoading = true;
 
-    let results = [];
+    let results = allModels;
 
-    if (currentQuery) {
-        results = fuse.search(currentQuery).map(result => result.item);
-    } else {
-        results = allModels;
-    }
-
+    // 1. Filter by tag first if a tag is active
     if (currentTag) {
         results = results.filter(model => model.tags && model.tags.includes(currentTag));
+    }
+
+    // 2. Then, if there's a search query, search within the (potentially filtered) results
+    if (currentQuery) {
+        // If we have already filtered by tag, we need to search on the subset, not all models.
+        // Fuse.js can take the actual objects to search on.
+        const fuseInstance = currentTag ? new Fuse(results, fuse.options) : fuse;
+        results = fuseInstance.search(currentQuery).map(result => result.item);
     }
 
     // Simple sort for now, can be expanded
@@ -113,9 +117,10 @@ function performSearch() {
     isLoading = false;
 }
 
-async function initializeSearch({ initialQuery, activeTag }) {
+async function initializeSearch({ initialQuery, activeTag, isExplorePage: onExplorePage = false }) {
     currentQuery = initialQuery || '';
     currentTag = activeTag || '';
+    isExplorePage = onExplorePage;
     if(searchBox) searchBox.value = currentQuery;
 
     try {
@@ -132,7 +137,7 @@ async function initializeSearch({ initialQuery, activeTag }) {
         };
         fuse = new Fuse(allModels, options);
 
-        if (currentQuery || currentTag) {
+        if (currentQuery || currentTag || isExplorePage) {
             performSearch();
         } else {
             if (staticContentContainer) staticContentContainer.classList.remove('hidden');
