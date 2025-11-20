@@ -109,7 +109,7 @@ if (initialQuery) {
     <!-- Algolia Search Client -->
     <script src="https://cdn.jsdelivr.net/npm/algoliasearch@4/dist/algoliasearch-lite.umd.js"></script>
     <script type="module" define:vars={{ algoliaConfig, initialQuery, activeTag }}>
-        import { initializeSearch } from '../scripts/search.js';
+        import { initializeSearch } from '@/scripts/search.js';
 
         document.addEventListener('DOMContentLoaded', () => {
             initializeSearch({
