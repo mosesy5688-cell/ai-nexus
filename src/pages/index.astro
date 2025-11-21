@@ -1,3 +1,4 @@
+```astro
 ---
 export const prerender = true; // Force static generation
 
@@ -6,41 +7,14 @@ import ModelCard from '../components/ModelCard.astro';
 import allCategories from '../data/categories.json';
 
 const url = Astro.url;
-const activeTag = url.searchParams.get('tag');
 const initialQuery = url.searchParams.get('q') || '';
-
-// Mock data for static build
-let hotModels = [];
-let dbError = null;
-
-// Server-side fetching disabled for static build debugging
-/*
-const db = Astro.locals.runtime?.env?.DB;
-if (!db) {
-    console.error("CRITICAL: DB binding not found");
-} else {
-    try {
-        const { results } = await db.prepare("SELECT * FROM models ORDER BY likes DESC LIMIT 12").all();
-        hotModels = results;
-    } catch (e) {
-        console.error("D1 Fetch Error:", e);
-        dbError = e.message;
-    }
-}
-*/
 
 let pageTitle = "Free AI Tools: Your Hub for Open-Source AI";
 let pageDescription = "Discover, explore, and stay updated with the latest open-source AI models, tools, and research. Your gateway to the world of open AI.";
 ---
-{dbError && (
-    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-        <strong class="font-bold">Database Error:</strong>
-        <span class="block sm:inline">{dbError}</span>
-    </div>
-)}
 
 <Layout title={pageTitle} description={pageDescription}>
-    <div class="container mx-auto px-4 py-12" id="home-container" data-initial-query={initialQuery} data-active-tag={activeTag}>
+    <div class="container mx-auto px-4 py-12" id="home-container" data-initial-query={initialQuery}>
         <!-- Main Page Header -->
         <header class="text-center mb-12">
             <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">Discover the World of Open Source AI</h1>
@@ -76,10 +50,19 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
             <!-- Hot Models Section -->
             <section class="mb-16">
                 <h2 class="text-3xl font-bold text-center mb-8">🔥 Hot Models</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {hotModels.map(model => (
-                        <ModelCard model={model} isRisingStar={model.is_rising_star} />
-                    ))}
+                <!-- Loading State -->
+                <div id="hot-models-loading" class="text-center py-8">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    <p class="mt-2 text-gray-500">Loading hot models...</p>
+                </div>
+                <!-- Error State -->
+                <div id="hot-models-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+                    <strong class="font-bold">Error:</strong>
+                    <span class="block sm:inline" id="hot-models-error-msg"></span>
+                </div>
+                <!-- Grid -->
+                <div id="hot-models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
+                    <!-- Populated by client-side JS -->
                 </div>
             </section>
 
@@ -106,7 +89,7 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
         </div>
 
         <!-- Search Results Grid (initially hidden) -->
-        <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
             <!-- This grid will be populated by search.js -->
         </div>
         <div id="no-results" class="text-center py-16 hidden">
@@ -118,16 +101,108 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
     <script>
         import { initializeSearch } from '../scripts/search.js';
         
+        // Function to fetch and render hot models
+        async function loadHotModels() {
+            const loadingEl = document.getElementById('hot-models-loading');
+            const gridEl = document.getElementById('hot-models-grid');
+            const errorEl = document.getElementById('hot-models-error');
+            const errorMsgEl = document.getElementById('hot-models-error-msg');
+
+            try {
+                // Use the search API to get top models
+                // We'll assume the search API returns hot models if no query is provided, 
+                // or we can create a specific endpoint. For now, let's try hitting the search API with an empty query which usually returns top results.
+                // Or better, let's use a specific flag or just fetch from the same endpoint.
+                // Let's try fetching from /api/search?limit=12
+                const response = await fetch('/api/search?limit=12');
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                
+                const data = await response.json();
+                const models = data.results || [];
+
+                if (models.length === 0) {
+                    loadingEl.innerHTML = '<p class="text-gray-500">No hot models found.</p>';
+                    return;
+                }
+
+                // Render models
+                // Note: We need to replicate the ModelCard HTML structure here since we are in client-side JS
+                // This is a trade-off of moving to client-side rendering for this section.
+                const html = models.map(model => `
+                    <article class="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 dark:border-gray-700 flex flex-col h-full overflow-hidden group">
+                        <div class="p-5 flex-grow flex flex-col">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="flex items-center space-x-2">
+                                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 font-bold text-xs">
+                                        ${model.author ? model.author[0].toUpperCase() : '?'}
+                                    </span>
+                                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400 truncate max-w-[100px]" title="${model.author}">
+                                        ${model.author}
+                                    </span>
+                                </div>
+                                ${model.is_rising_star ? `
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" title="Rising Star">
+                                    <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                                    Rising
+                                </span>` : ''}
+                            </div>
+
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                <a href="/model/${model.slug}" class="hover:underline focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded">
+                                    ${model.name}
+                                </a>
+                            </h3>
+
+                            <p class="text-sm text-gray-600 dark:text-gray-300 mb-4 line-clamp-2 flex-grow" title="${model.description || ''}">
+                                ${model.description || 'No description available.'}
+                            </p>
+
+                            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-auto pt-3 border-t border-gray-100 dark:border-gray-700">
+                                <div class="flex items-center space-x-3">
+                                    <span class="flex items-center" title="Likes">
+                                        <svg class="w-4 h-4 mr-1 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"/></svg>
+                                        ${model.likes || 0}
+                                    </span>
+                                    <span class="flex items-center" title="Downloads">
+                                        <svg class="w-4 h-4 mr-1 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                        ${model.downloads || 0}
+                                    </span>
+                                </div>
+                                <span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-300">
+                                    ${model.task || 'Other'}
+                                </span>
+                            </div>
+                        </div>
+                    </article>
+                `).join('');
+
+                gridEl.innerHTML = html;
+                loadingEl.classList.add('hidden');
+                gridEl.classList.remove('hidden');
+
+            } catch (e) {
+                console.error("Failed to load hot models:", e);
+                loadingEl.classList.add('hidden');
+                errorEl.classList.remove('hidden');
+                errorMsgEl.textContent = e.message || "Failed to fetch data";
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const container = document.getElementById('home-container');
             const initialQuery = container?.dataset.initialQuery || '';
-            const activeTag = container?.dataset.activeTag || '';
-
+            
             initializeSearch({
                 initialQuery,
-                activeTag,
+                activeTag: '',
                 isExplorePage: false
             });
+
+            // Load hot models if no search query
+            if (!initialQuery) {
+                loadHotModels();
+            }
         });
     </script>
 </Layout>
+```
