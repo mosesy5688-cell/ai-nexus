@@ -1,37 +1,32 @@
-            } catch (e) {
-                model.tags = [];
-            }
+---
+export const prerender = false;
 
-            // Fetch related models (simple tag matching)
-            let firstTag = null;
-            if (model.tags && model.tags.length > 0) {
-                firstTag = model.tags[0];
-            }
+import Layout from '../../layouts/Layout.astro';
+import ModelCard from '../../components/ModelCard.astro';
+import { marked } from 'marked';
 
-            if (firstTag) {
-                // Simple related query: same tag, not self
-                const { results } = await db.prepare("SELECT * FROM models WHERE tags LIKE ? AND id != ? LIMIT 3")
-                    .bind(`%${firstTag}%`, modelId)
-                    .all();
-                relatedModels = results;
-            }
-        }
+const { slug } = Astro.params;
 
-    } catch (e) {
-        console.error("D1 Fetch Error:", e);
-    }
-}
+// Mock data for debugging SSR
+// In a real scenario, we would fetch this from D1
+const model = {
+    id: slug || 'unknown',
+    name: "Debug Model: " + (slug || 'Unknown'),
+    description: "This is a debug model description to verify SSR is working correctly without D1 dependencies.",
+    author: "Debug Author",
+    likes: 1234,
+    downloads: 5678,
+    pipeline_tag: "text-generation",
+    last_updated: new Date().toISOString(),
+    tags: ["debug", "test"],
+    use_cases: ["testing", "debugging"]
+};
 
-if (!model) {
-    return new Response(null, { status: 404, statusText: 'Not Found' });
-}
+const relatedModels = [];
 
 const pageTitle = `${model.name} - AI Model Details`;
-const pageDescription = model.description?.substring(0, 160) || `Details for the AI model ${model.name}.`;
-
-// README handling: In V3 MVP, we don't store full README in D1. 
-// We display the description. Future: Fetch from R2 or HF API on client side.
-const readmeHtml = marked.parse(model.description || 'No description available.');
+const pageDescription = model.description;
+const readmeHtml = marked.parse(model.description);
 
 const formatNumber = (num) => num != null ? num.toLocaleString() : 0;
 ---
