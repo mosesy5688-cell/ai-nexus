@@ -1,33 +1,3 @@
----
-export const prerender = false; // Enable SSR
-
-import Layout from '../../layouts/Layout.astro';
-import ModelCard from '../../components/ModelCard.astro';
-import { marked } from 'marked';
-
-const { slug } = Astro.params;
-if (!slug) {
-    return Astro.redirect('/404');
-}
-
-const modelId = slug.replace(/--/g, '/');
-const db = Astro.locals.runtime?.env?.DB;
-
-let model = null;
-let relatedModels = [];
-
-if (db) {
-    try {
-        // Fetch model details
-        // Note: We use 'first' to get a single object
-        model = await db.prepare("SELECT * FROM models WHERE id = ?").bind(modelId).first();
-        
-        if (model) {
-            // Parse tags if they are stored as JSON string
-            try {
-                if (typeof model.tags === 'string') {
-                    model.tags = JSON.parse(model.tags);
-                }
             } catch (e) {
                 model.tags = [];
             }
