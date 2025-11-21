@@ -38,7 +38,7 @@ export async function GET({ request, locals }) {
 
         const { results } = await db.prepare(sql).bind(...params).all();
 
-        return new Response(JSON.stringify(results), {
+        return new Response(JSON.stringify({ results }), {
             status: 200,
             headers: {
                 'Content-Type': 'application/json',
