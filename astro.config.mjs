@@ -14,12 +14,7 @@ export default defineConfig({
   site: 'https://free2aitools.com',
   output: 'server',
   adapter: cloudflare({
-    imageService: 'compile',
-    platformProxy: {
-      enabled: true
-    },
-    // Disable sessions since we don't have a SESSION KV binding
-    sessions: false
+    imageService: 'compile'
   }),
   integrations: [react(), tailwind(), sitemap()],
   vite: {
