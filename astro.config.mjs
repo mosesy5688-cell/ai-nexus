@@ -11,7 +11,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   site: 'https://free2aitools.com',
   output: 'server',
-  adapter: cloudflare(),
+  adapter: cloudflare({
+    mode: 'directory'
+  }),
   integrations: [react(), tailwind(), sitemap()],
   vite: {
     resolve: {

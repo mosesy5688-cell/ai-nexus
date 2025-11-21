@@ -11,18 +11,22 @@ const initialQuery = url.searchParams.get('q') || '';
 
 // Fetch top 12 hot models from D1
 let hotModels = [];
+let dbError = null;
 const db = Astro.locals.runtime?.env?.DB;
 
-if (db) {
+if (!db) {
+    console.error("CRITICAL: DB binding not found on Astro.locals.runtime.env");
+    // If we are in production (implied by missing DB but running SSR), we might want to show a friendly error or fallback
+    // For now, we let it proceed but hotModels will be empty.
+} else {
     try {
         // Fetch top 12 models by likes
         const { results } = await db.prepare("SELECT * FROM models ORDER BY likes DESC LIMIT 12").all();
         hotModels = results;
     } catch (e) {
         console.error("D1 Fetch Error:", e);
+        dbError = e.message;
     }
-} else {
-    console.warn("D1 database not available in this environment.");
 }
 
 let pageTitle = "Free AI Tools: Your Hub for Open-Source AI";
@@ -36,6 +40,12 @@ if (initialQuery) {
     pageDescription = "Explore a curated directory of the best open-source AI models. Search, filter, and find tools for text generation, image analysis, and more.";
 }
 ---
+{dbError && (
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+        <strong class="font-bold">Database Error:</strong>
+        <span class="block sm:inline">{dbError}</span>
+    </div>
+)}
 
 <Layout title={pageTitle} description={pageDescription}>
     <div class="container mx-auto px-4 py-12" id="home-container" data-initial-query={initialQuery} data-active-tag={activeTag}>
