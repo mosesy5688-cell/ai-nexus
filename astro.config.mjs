@@ -17,7 +17,9 @@ export default defineConfig({
     imageService: 'compile',
     platformProxy: {
       enabled: true
-    }
+    },
+    // Disable sessions since we don't have a SESSION KV binding
+    sessions: false
   }),
   integrations: [react(), tailwind(), sitemap()],
   vite: {
