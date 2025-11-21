@@ -1,0 +1,14 @@
+---
+const { group } = Astro.props;
+---
+<div class="mb-8">
+    <h3 class="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-6 border-l-4 border-blue-500 pl-4">{group.group}</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+        {group.items.map(item => (
+            <a href={`/explore?tag=${item.slug}`} class="group block p-5 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400">
+                <h4 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{item.title}</h4>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">{item.description}</p>
+            </a>
+        ))}
+    </div>
+</div>

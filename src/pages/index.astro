@@ -1,9 +1,6 @@
-```astro
 ---
-export const prerender = true; // Force static generation
-
 import Layout from '../layouts/Layout.astro';
-import ModelCard from '../components/ModelCard.astro';
+import CategoryGroup from '../components/CategoryGroup.astro';
 import allCategories from '../data/categories.json';
 
 const url = Astro.url;
@@ -45,7 +42,6 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
             </div>
         </div>
 
-        <!-- This container will be hidden when a search is active -->
         <div id="static-content-container">
             <!-- Hot Models Section -->
             <section class="mb-16">
@@ -73,17 +69,7 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
             <section class="mb-16">
                 <h2 class="text-3xl font-bold text-center mb-10">Explore by Category</h2>
                 {allCategories.map(categoryGroup => (
-                    <div class="mb-8">
-                        <h3 class="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-6 border-l-4 border-blue-500 pl-4">{categoryGroup.group}</h3>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                            {categoryGroup.items.map(category => (
-                                <a href={`/explore?tag=${category.slug}`} class="group block p-5 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400">
-                                    <h4 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{category.title}</h4>
-                                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">{category.description}</p>
-                                </a>
-                            ))}
-                        </div>
-                    </div>
+                    <CategoryGroup group={categoryGroup} />
                 ))}
             </section>
         </div>
@@ -109,11 +95,6 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
             const errorMsgEl = document.getElementById('hot-models-error-msg');
 
             try {
-                // Use the search API to get top models
-                // We'll assume the search API returns hot models if no query is provided, 
-                // or we can create a specific endpoint. For now, let's try hitting the search API with an empty query which usually returns top results.
-                // Or better, let's use a specific flag or just fetch from the same endpoint.
-                // Let's try fetching from /api/search?limit=12
                 const response = await fetch('/api/search?limit=12');
                 if (!response.ok) throw new Error(`API Error: ${response.status}`);
                 
@@ -126,8 +107,6 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
                 }
 
                 // Render models
-                // Note: We need to replicate the ModelCard HTML structure here since we are in client-side JS
-                // This is a trade-off of moving to client-side rendering for this section.
                 const html = models.map(model => `
                     <article class="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 dark:border-gray-700 flex flex-col h-full overflow-hidden group">
                         <div class="p-5 flex-grow flex flex-col">
@@ -205,4 +184,3 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
         });
     </script>
 </Layout>
-```
