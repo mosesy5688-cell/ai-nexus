@@ -6,27 +6,70 @@ import ModelCard from '../../components/ModelCard.astro';
 import { marked } from 'marked';
 
 const { slug } = Astro.params;
+const db = Astro.locals.runtime?.env?.DB;
 
-// Mock data for debugging SSR
-// In a real scenario, we would fetch this from D1
-const model = {
-    id: slug || 'unknown',
-    name: "Debug Model: " + (slug || 'Unknown'),
-    description: "This is a debug model description to verify SSR is working correctly without D1 dependencies.",
-    author: "Debug Author",
-    likes: 1234,
-    downloads: 5678,
-    pipeline_tag: "text-generation",
-    last_updated: new Date().toISOString(),
-    tags: ["debug", "test"],
-    use_cases: ["testing", "debugging"]
-};
+let model = null;
+let relatedModels = [];
+let error = null;
 
-const relatedModels = [];
+if (!slug) {
+    return Astro.redirect('/404');
+}
+
+// Handle both /model/slug and /model/author/slug formats if necessary
+// But usually slug is unique. Let's assume slug is the ID or slug field.
+const modelId = slug; 
+
+if (db) {
+    try {
+        // Try to find by slug first, then ID
+        // Assuming 'slug' column exists and is unique
+        let result = await db.prepare("SELECT * FROM models WHERE slug = ?").bind(modelId).first();
+        
+        if (!result) {
+             // Fallback to ID if slug lookup fails
+             result = await db.prepare("SELECT * FROM models WHERE id = ?").bind(modelId).first();
+        }
+        
+        model = result;
+
+        if (model) {
+            // Parse JSON fields safely
+            try {
+                if (typeof model.tags === 'string') model.tags = JSON.parse(model.tags);
+                if (typeof model.use_cases === 'string') model.use_cases = JSON.parse(model.use_cases);
+            } catch (e) {
+                console.warn("Failed to parse JSON fields", e);
+                // Keep as is or empty array
+                if (!Array.isArray(model.tags)) model.tags = [];
+            }
+
+            // Fetch related models
+            if (model.tags && model.tags.length > 0) {
+                const firstTag = model.tags[0];
+                const { results } = await db.prepare("SELECT * FROM models WHERE tags LIKE ? AND id != ? LIMIT 3")
+                    .bind(`%${firstTag}%`, model.id)
+                    .all();
+                relatedModels = results || [];
+            }
+        }
+    } catch (e) {
+        console.error("D1 Fetch Error:", e);
+        error = e.message;
+    }
+}
+
+if (!model) {
+    // If D1 fails or model not found, show 404 or error
+    if (error) {
+         return new Response(`Database Error: ${error}`, { status: 500 });
+    }
+    return new Response(null, { status: 404, statusText: 'Not Found' });
+}
 
 const pageTitle = `${model.name} - AI Model Details`;
-const pageDescription = model.description;
-const readmeHtml = marked.parse(model.description);
+const pageDescription = model.description?.substring(0, 160) || `Details for the AI model ${model.name}.`;
+const readmeHtml = marked.parse(model.description || 'No description available.');
 
 const formatNumber = (num) => num != null ? num.toLocaleString() : 0;
 ---
