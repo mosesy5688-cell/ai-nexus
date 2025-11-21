@@ -19,7 +19,7 @@
     "@google/generative-ai": "^0.18.0",
     "@iconify-json/mdi": "^1.1.67",
     "@tailwindcss/typography": "^0.5.19",
-    "astro": "^5.15.7",
+    "astro": "^4.15.0",
     "axios": "^1.13.2",
     "cheerio": "1.0.0-rc.12",
     "dotenv": "^17.2.3",
