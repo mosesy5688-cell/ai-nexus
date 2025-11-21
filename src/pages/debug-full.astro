@@ -1,0 +1,85 @@
+---
+export const prerender = false;
+
+let debugInfo = {
+  hasRuntime: false,
+  hasEnv: false,
+  hasDB: false,
+  dbError: null,
+  dbResult: null,
+  envKeys: []
+};
+
+try {
+  debugInfo.hasRuntime = !!Astro.locals.runtime;
+  
+  if (Astro.locals.runtime) {
+    debugInfo.hasEnv = !!Astro.locals.runtime.env;
+    
+    if (Astro.locals.runtime.env) {
+      debugInfo.envKeys = Object.keys(Astro.locals.runtime.env);
+      debugInfo.hasDB = !!Astro.locals.runtime.env.DB;
+      
+      if (Astro.locals.runtime.env.DB) {
+        try {
+          const result = await Astro.locals.runtime.env.DB.prepare("SELECT 1 as test").all();
+          debugInfo.dbResult = result;
+        } catch (e) {
+          debugInfo.dbError = {
+            message: e.message,
+            name: e.name,
+            stack: e.stack
+          };
+        }
+      }
+    }
+  }
+} catch (e) {
+  debugInfo.error = {
+    message: e.message,
+    name: e.name,
+    stack: e.stack
+  };
+}
+---
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Info</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Cloudflare Runtime Debug Info</h1>
+    
+    <h2>Runtime Status</h2>
+    <p>Has Runtime: <span class={debugInfo.hasRuntime ? 'success' : 'error'}>{debugInfo.hasRuntime ? 'YES' : 'NO'}</span></p>
+    <p>Has Env: <span class={debugInfo.hasEnv ? 'success' : 'error'}>{debugInfo.hasEnv ? 'YES' : 'NO'}</span></p>
+    <p>Has DB: <span class={debugInfo.hasDB ? 'success' : 'error'}>{debugInfo.hasDB ? 'YES' : 'NO'}</span></p>
+    
+    <h2>Environment Keys</h2>
+    <pre>{JSON.stringify(debugInfo.envKeys, null, 2)}</pre>
+    
+    <h2>DB Test Result</h2>
+    {debugInfo.dbError ? (
+        <div class="error">
+            <h3>Error:</h3>
+            <pre>{JSON.stringify(debugInfo.dbError, null, 2)}</pre>
+        </div>
+    ) : debugInfo.dbResult ? (
+        <div class="success">
+            <h3>Success:</h3>
+            <pre>{JSON.stringify(debugInfo.dbResult, null, 2)}</pre>
+        </div>
+    ) : (
+        <p>No DB test performed</p>
+    )}
+    
+    <h2>Full Debug Object</h2>
+    <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+</body>
+</html>
