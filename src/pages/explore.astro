@@ -1,9 +1,11 @@
 ---
+export const prerender = false;
+
 import Layout from '@/layouts/Layout.astro';
 import allCategories from '@/data/categories.json';
 
 const url = Astro.url;
-const activeTag = url.searchParams.get('tag');
+const activeTag = url.searchParams.get('tag') || '';
 const initialQuery = url.searchParams.get('q') || '';
 
 let pageTitle = "Explore AI Models";
@@ -21,7 +23,7 @@ if (activeTag) {
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
-    <div class="container mx-auto px-4 py-12">
+    <div class="container mx-auto px-4 py-12" id="explore-container" data-initial-query={initialQuery} data-active-tag={activeTag}>
         <!-- Main Page Header -->
         <header class="text-center mb-12">
             <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">Explore Models</h1>
@@ -62,16 +64,18 @@ if (activeTag) {
         </div>
     </div>
 
-    <script type="module" define:vars={{ initialQuery, activeTag }}>
-        import { initializeSearch } from '@/scripts/search.js';
+    <script>
+        import { initializeSearch } from '../scripts/search.js';
+        
         document.addEventListener('DOMContentLoaded', () => {
-            // On the explore page, we always want to perform a search,
-            // even if the query and tag are empty, to show all models.
-            // The search script needs a slight adjustment to handle this.
+            const container = document.getElementById('explore-container');
+            const initialQuery = container?.dataset.initialQuery || '';
+            const activeTag = container?.dataset.activeTag || '';
+
             initializeSearch({
                 initialQuery,
                 activeTag,
-                isExplorePage: true // Pass a flag to indicate this is the explore page
+                isExplorePage: true
             });
         });
     </script>

@@ -1,10 +1,18 @@
 name = "ai-nexus"
 pages_build_output_dir = "dist"
+compatibility_date = "2025-11-21"
+compatibility_flags = ["nodejs_compat"]
 
 [vars]
 PUBLIC_ALGOLIA_APP_ID = "W80GPIV5TH"
 PUBLIC_ALGOLIA_SEARCH_KEY = "f0c6bd9b1745175054c7ce4869508630"
 PUBLIC_ALGOLIA_INDEX_NAME = "ai_models"
- 
+
 # [ai]
 # binding = "AI"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-nexus-db"
+database_id = "adac7bc9-46a9-40b4-b609-28479221a17d"
+migrations_dir = "migrations"

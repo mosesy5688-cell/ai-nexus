@@ -1,8 +1,5 @@
-// g:\ai-nexus\src\scripts\search.js (NEW VERSION)
-import Fuse from 'fuse.js';
+// g:\ai-nexus\src\scripts\search.js (V3 API VERSION)
 
-let allModels = [];
-let fuse;
 let currentQuery = '';
 let currentTag = '';
 let isExplorePage = false;
@@ -21,18 +18,37 @@ function formatNumber(num) {
 
 function createModelCardHTML(model) {
     const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
-    const description = (model.description?.replace(/<[^>]*>?/gm, '') || 'No description available.').substring(0, 120);
+    // Handle description: could be null or contain HTML
+    const rawDesc = model.description || 'No description available.';
+    const cleanDesc = rawDesc.replace(/<[^>]*>?/gm, '');
+    const description = cleanDesc.substring(0, 120);
+
+    // Rising Star logic (optional, if API returns it)
     const isRisingStarHTML = model.is_rising_star ? `<div class="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full animate-pulse" title="Rising Star">🔥</div>` : '';
 
+    // Tags HTML (optional)
+    let tagsHtml = '';
+    if (model.tags) {
+        try {
+            const tags = typeof model.tags === 'string' ? JSON.parse(model.tags) : model.tags;
+            if (Array.isArray(tags)) {
+                tagsHtml = tags.slice(0, 2).map(t => `<span class="text-[10px] bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300">${t}</span>`).join('');
+            }
+        } catch (e) { }
+    }
+
     return `
-        <a href="${modelUrl}" class="group relative block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full flex flex-col">
+        <a href="${modelUrl}" class="group relative block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full flex flex-col border border-gray-100 dark:border-gray-700">
             ${isRisingStarHTML}
             <div class="p-5 flex flex-col h-full justify-between">
                 <div>
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" title="${model.name}">
                         ${model.name}
                     </h3>
-                    <p class="text-gray-500 dark:text-gray-400 text-xs mb-3">by ${model.author}</p>
+                    <p class="text-gray-500 dark:text-gray-400 text-xs mb-3 flex items-center gap-2">
+                        <span>by ${model.author}</span>
+                        ${tagsHtml ? `<span class="flex gap-1">${tagsHtml}</span>` : ''}
+                    </p>
                     <p class="text-gray-600 dark:text-gray-300 text-sm h-20 overflow-hidden text-ellipsis leading-relaxed">
                         ${description}...
                     </p>
@@ -47,13 +63,16 @@ function createModelCardHTML(model) {
 }
 
 function renderModels(models) {
+    if (!modelsGrid) return;
+
     modelsGrid.innerHTML = '';
-    if (models.length === 0) {
+    if (!models || models.length === 0) {
         modelsGrid.classList.add('hidden');
-        noResults.classList.remove('hidden');
+        if (noResults) noResults.classList.remove('hidden');
     } else {
         modelsGrid.classList.remove('hidden');
-        noResults.classList.add('hidden');
+        if (noResults) noResults.classList.add('hidden');
+
         const fragment = document.createDocumentFragment();
         models.forEach(model => {
             const cardContainer = document.createElement('div');
@@ -76,45 +95,46 @@ function updateURL() {
     } else {
         url.searchParams.delete('tag');
     }
-    // Use pushState to update the URL without reloading the page
     window.history.pushState({}, '', url.toString());
 }
 
-function performSearch() {
+async function performSearch() {
     if (isLoading) return;
 
-    // On the homepage, if there's no query and no tag, show static content and hide results.
+    // On homepage, if empty query/tag, show static content
     if (!isExplorePage && !currentQuery && !currentTag) {
-        modelsGrid.innerHTML = '';
-        modelsGrid.classList.add('hidden');
-        noResults.classList.add('hidden');
+        if (modelsGrid) {
+            modelsGrid.innerHTML = '';
+            modelsGrid.classList.add('hidden');
+        }
+        if (noResults) noResults.classList.add('hidden');
         if (staticContentContainer) staticContentContainer.classList.remove('hidden');
         return;
     }
 
     isLoading = true;
-
-    let results = allModels;
-
-    // 1. Filter by tag first if a tag is active
-    if (currentTag) {
-        results = results.filter(model => model.tags && model.tags.includes(currentTag));
-    }
-
-    // 2. Then, if there's a search query, search within the (potentially filtered) results
-    if (currentQuery) {
-        // If we have already filtered by tag, we need to search on the subset, not all models.
-        // Fuse.js can take the actual objects to search on.
-        const fuseInstance = currentTag ? new Fuse(results, fuse.options) : fuse;
-        results = fuseInstance.search(currentQuery).map(result => result.item);
-    }
-
-    // Simple sort for now, can be expanded
-    results.sort((a, b) => (b.likes + b.downloads) - (a.likes + a.downloads));
-
     if (staticContentContainer) staticContentContainer.classList.add('hidden');
-    renderModels(results);
-    isLoading = false;
+
+    // Show loading state (optional: add a spinner here)
+    if (modelsGrid) modelsGrid.classList.remove('hidden'); // Keep visible to show skeleton or old results? Better to clear or show spinner.
+
+    try {
+        const params = new URLSearchParams();
+        if (currentQuery) params.set('q', currentQuery);
+        if (currentTag) params.set('tag', currentTag);
+        params.set('limit', '50'); // Fetch more results
+
+        const response = await fetch(`/api/search?${params.toString()}`);
+        if (!response.ok) throw new Error('API Error');
+
+        const results = await response.json();
+        renderModels(results);
+    } catch (error) {
+        console.error('Search failed:', error);
+        if (modelsGrid) modelsGrid.innerHTML = `<p class="col-span-full text-center text-red-500">Error loading results. Please try again.</p>`;
+    } finally {
+        isLoading = false;
+    }
 }
 
 async function initializeSearch({ initialQuery, activeTag, isExplorePage: onExplorePage = false }) {
@@ -126,30 +146,14 @@ async function initializeSearch({ initialQuery, activeTag, isExplorePage: onExpl
     currentQuery = initialQuery || '';
     currentTag = activeTag || '';
     isExplorePage = onExplorePage;
+
     if (searchBox) searchBox.value = currentQuery;
 
-    try {
-        const response = await fetch('/data/search-index.json');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        allModels = await response.json();
-
-        const options = {
-            keys: ['name', 'description', 'tags', 'author'],
-            includeScore: true,
-            threshold: 0.4,
-        };
-        fuse = new Fuse(allModels, options);
-
-        if (currentQuery || currentTag || isExplorePage) {
-            performSearch();
-        } else {
-            if (staticContentContainer) staticContentContainer.classList.remove('hidden');
-        }
-    } catch (error) {
-        console.error('Failed to load search index:', error);
-        modelsGrid.innerHTML = `<p class="col-span-full text-center text-red-500">Failed to load model data. Please try again later.</p>`;
+    // Initial load
+    if (currentQuery || currentTag || isExplorePage) {
+        performSearch();
+    } else {
+        if (staticContentContainer) staticContentContainer.classList.remove('hidden');
     }
 
     // Event Listeners
@@ -157,7 +161,7 @@ async function initializeSearch({ initialQuery, activeTag, isExplorePage: onExpl
     if (searchForm) {
         searchForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            currentQuery = searchBox.value.trim();
+            if (searchBox) currentQuery = searchBox.value.trim();
             updateURL();
             performSearch();
         });
@@ -171,7 +175,7 @@ async function initializeSearch({ initialQuery, activeTag, isExplorePage: onExpl
                 currentQuery = searchBox.value.trim();
                 updateURL();
                 performSearch();
-            }, 300);
+            }, 400); // Slightly longer debounce for API calls
         });
     }
 }

@@ -5,24 +5,30 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "build": "node scripts/fetch-data.js && astro build",
+    "build": "astro build",
     "preview": "astro preview",
-    "fetch-data": "node scripts/fetch-data.js"
+    "fetch-data": "node scripts/fetch-data.js",
+    "fetch-data:v3": "node scripts/fetch-data-v3.js"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "^12.6.11",
     "@astrojs/react": "^4.0.0",
     "@astrojs/sitemap": "^3.1.6",
     "@astrojs/tailwind": "^5.1.0",
+    "@aws-sdk/client-s3": "^3.937.0",
     "@google/generative-ai": "^0.18.0",
     "@iconify-json/mdi": "^1.1.67",
     "@tailwindcss/typography": "^0.5.19",
     "astro": "^5.15.7",
-    "axios": "^1.7.2",
+    "axios": "^1.13.2",
     "cheerio": "1.0.0-rc.12",
+    "dotenv": "^17.2.3",
+    "form-data": "^4.0.5",
     "fuse.js": "^7.1.0",
     "marked": "^13.0.2",
     "react": "^19.0.0-rc-f994737d14-20240522",
     "react-dom": "^19.0.0-rc-f994737d14-20240522",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.18"
   }
 }

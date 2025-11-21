@@ -1,15 +1,29 @@
 ---
+export const prerender = false; // Enable SSR
+
 import Layout from '@/layouts/Layout.astro';
 import ModelCard from '@/components/ModelCard.astro';
 import allCategories from '@/data/categories.json';
-import rankings from '@/data/rankings.json';
 
 const url = Astro.url;
 const activeTag = url.searchParams.get('tag');
 const initialQuery = url.searchParams.get('q') || '';
 
-// Get top 12 hot models for the featured section
-const hotModels = rankings.hot.slice(0, 12);
+// Fetch top 12 hot models from D1
+let hotModels = [];
+const db = Astro.locals.runtime?.env?.DB;
+
+if (db) {
+    try {
+        // Fetch top 12 models by likes
+        const { results } = await db.prepare("SELECT * FROM models ORDER BY likes DESC LIMIT 12").all();
+        hotModels = results;
+    } catch (e) {
+        console.error("D1 Fetch Error:", e);
+    }
+} else {
+    console.warn("D1 database not available in this environment.");
+}
 
 let pageTitle = "Free AI Tools: Your Hub for Open-Source AI";
 let pageDescription = "Discover, explore, and stay updated with the latest open-source AI models, tools, and research. Your gateway to the world of open AI.";
@@ -24,7 +38,7 @@ if (initialQuery) {
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
-    <div class="container mx-auto px-4 py-12">
+    <div class="container mx-auto px-4 py-12" id="home-container" data-initial-query={initialQuery} data-active-tag={activeTag}>
         <!-- Main Page Header -->
         <header class="text-center mb-12">
             <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">Discover the World of Open Source AI</h1>
@@ -99,13 +113,18 @@ if (initialQuery) {
         </div>
     </div>
 
-    <script type="module" define:vars={{ initialQuery, activeTag }}>
-        import { initializeSearch } from '@/scripts/search.js';
+    <script>
+        import { initializeSearch } from '../scripts/search.js';
+        
         document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('home-container');
+            const initialQuery = container?.dataset.initialQuery || '';
+            const activeTag = container?.dataset.activeTag || '';
+
             initializeSearch({
                 initialQuery,
                 activeTag,
-                isExplorePage: false // Explicitly set to false for the homepage
+                isExplorePage: false
             });
         });
     </script>
