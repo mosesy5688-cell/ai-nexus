@@ -1,14 +1,3 @@
----
-export const prerender = false;
-
-import Layout from '@/layouts/Layout.astro';
-import allCategories from '@/data/categories.json';
-
-const url = Astro.url;
-const activeTag = url.searchParams.get('tag') || '';
-const initialQuery = url.searchParams.get('q') || '';
-
-let pageTitle = "Explore AI Models";
 let pageDescription = "Search and filter through a comprehensive directory of open-source AI models.";
 
 if (activeTag) {

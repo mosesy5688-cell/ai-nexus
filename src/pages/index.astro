@@ -1,9 +1,9 @@
 ---
 export const prerender = false; // Enable SSR
 
-import Layout from '@/layouts/Layout.astro';
-import ModelCard from '@/components/ModelCard.astro';
-import allCategories from '@/data/categories.json';
+import Layout from '../layouts/Layout.astro';
+import ModelCard from '../components/ModelCard.astro';
+import allCategories from '../data/categories.json';
 
 const url = Astro.url;
 const activeTag = url.searchParams.get('tag');
