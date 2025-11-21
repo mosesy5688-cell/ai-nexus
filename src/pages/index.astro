@@ -1,5 +1,5 @@
 ---
-export const prerender = false; // Enable SSR
+export const prerender = true; // Force static generation
 
 import Layout from '../layouts/Layout.astro';
 import ModelCard from '../components/ModelCard.astro';
@@ -9,18 +9,17 @@ const url = Astro.url;
 const activeTag = url.searchParams.get('tag');
 const initialQuery = url.searchParams.get('q') || '';
 
-// Fetch top 12 hot models from D1
+// Mock data for static build
 let hotModels = [];
 let dbError = null;
-const db = Astro.locals.runtime?.env?.DB;
 
+// Server-side fetching disabled for static build debugging
+/*
+const db = Astro.locals.runtime?.env?.DB;
 if (!db) {
-    console.error("CRITICAL: DB binding not found on Astro.locals.runtime.env");
-    // If we are in production (implied by missing DB but running SSR), we might want to show a friendly error or fallback
-    // For now, we let it proceed but hotModels will be empty.
+    console.error("CRITICAL: DB binding not found");
 } else {
     try {
-        // Fetch top 12 models by likes
         const { results } = await db.prepare("SELECT * FROM models ORDER BY likes DESC LIMIT 12").all();
         hotModels = results;
     } catch (e) {
@@ -28,17 +27,10 @@ if (!db) {
         dbError = e.message;
     }
 }
+*/
 
 let pageTitle = "Free AI Tools: Your Hub for Open-Source AI";
 let pageDescription = "Discover, explore, and stay updated with the latest open-source AI models, tools, and research. Your gateway to the world of open AI.";
-
-if (initialQuery) {
-    pageTitle = `Search results for '${initialQuery}'`;
-} else {
-    // Default homepage SEO, use the website name
-    pageTitle = "Free AI Tools: Discover Top Open-Source AI Models";
-    pageDescription = "Explore a curated directory of the best open-source AI models. Search, filter, and find tools for text generation, image analysis, and more.";
-}
 ---
 {dbError && (
     <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
