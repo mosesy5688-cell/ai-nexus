@@ -1,0 +1,10 @@
+---
+export const prerender = false;
+
+const html = `<!DOCTYPE html>
+<html>
+<head><title>Raw Test</title></head>
+<body><h1>Raw HTML Test</h1><p>Time: ${new Date().toISOString()}</p></body>
+</html>`;
+---
+<Fragment set:html={html} />
