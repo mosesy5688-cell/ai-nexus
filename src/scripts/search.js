@@ -17,6 +17,10 @@ function formatNumber(num) {
 }
 
 function createModelCardHTML(model) {
+    if (!model.id) {
+        console.warn('Model missing id:', model);
+        return ''; // Skip models without ID
+    }
     const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
     // Handle description: could be null or contain HTML
     const rawDesc = model.description || 'No description available.';

@@ -127,7 +127,7 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
                             </div>
 
                             <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                <a href="/model/${model.slug}" class="hover:underline focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded">
+                                <a href="/model/${model.id ? model.id.replace(/\//g, '--') : 'unknown'}" class="hover:underline focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded">
                                     ${model.name}
                                 </a>
                             </h3>
