@@ -1,6 +1,6 @@
 name = "ai-nexus"
 pages_build_output_dir = "dist"
-compatibility_date = "2025-11-21"
+compatibility_date = "2025-11-05"
 compatibility_flags = ["nodejs_compat"]
 
 # [vars]
