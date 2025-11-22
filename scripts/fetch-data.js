@@ -5,6 +5,7 @@ import path from 'path';
 import cheerio from 'cheerio';
 import { fileURLToPath } from 'url';
 import { fetchPwCData } from './fetch-pwc.js';
+import { calculateRelatedModels } from './calculate-related.js';
 
 // --- Configuration ---_
 const __filename = fileURLToPath(import.meta.url);
@@ -1003,6 +1004,9 @@ async function main() {
         // --- NEW: Assign category tags to all models ---
         const categories = JSON.parse(fs.readFileSync(CONFIG.CATEGORIES_PATH, 'utf-8'));
         let taggedModels = assignTagsToModel(combinedData, categories);
+
+        // --- NEW: Calculate related models using inverted index (O(N) complexity) ---
+        taggedModels = calculateRelatedModels(taggedModels);
         // --- END NEW ---
 
         // Write to dated archive file and the main models.json

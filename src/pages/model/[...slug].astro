@@ -52,27 +52,25 @@ try {
             model = await stmt.bind(modelId).first();
         }
 
-        // 2. Fetch Related Models (if main model found)
-        if (model && model.tags) {
+        // 2. Fetch Related Models (从预计算字段读取)
+        if (model && model.related_ids) {
             try {
-                const tags = typeof model.tags === 'string' ? JSON.parse(model.tags) : model.tags;
-                if (Array.isArray(tags) && tags.length > 0) {
-                    // Use the first tag to find related content
-                    const primaryTag = tags[0];
-                    // Simple LIKE query for related models (inefficient for huge DBs but fine here)
-                    // Exclude current model
-                    const relatedStmt = db.prepare(`
-                        SELECT id, name, author, description, likes, downloads, cover_image_url 
+                const relatedIds = JSON.parse(model.related_ids);
+                
+                // 只有当数组非空时才查询
+                if (Array.isArray(relatedIds) && relatedIds.length > 0) {
+                    const placeholders = relatedIds.map(() => '?').join(',');
+                    const stmt = db.prepare(`
+                        SELECT id, name, author, likes, downloads, cover_image_url 
                         FROM models 
-                        WHERE tags LIKE ? AND id != ? 
-                        ORDER BY likes DESC 
-                        LIMIT 3
+                        WHERE id IN (${placeholders})
                     `);
-                    const { results } = await relatedStmt.bind(`%${primaryTag}%`, model.id).all();
+                    const { results } = await stmt.bind(...relatedIds).all();
                     relatedModels = results || [];
                 }
-            } catch (err) {
-                console.warn("Error fetching related models:", err);
+            } catch (e) {
+                console.error(`Error loading related models for ${model.id}:`, e);
+                // 优雅降级：不影响页面渲染
             }
         }
 

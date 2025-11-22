@@ -58,9 +58,13 @@ try {
         const source_url = escape(model.source_url || `https://huggingface.co/${model.id}`);
         const created_at = escape(model.createdAt || new Date().toISOString());
 
-        // Use INSERT INTO ... ON CONFLICT to preserve seo_summary and other enriched fields
-        sql += `INSERT INTO models (id, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, source_url, created_at) 
-VALUES (${id}, ${name}, ${author}, ${description}, ${tags}, ${pipeline_tag}, ${likes}, ${downloads}, ${cover_image_url}, ${source_url}, ${created_at})
+        // 添加 related_ids 字段
+        const rawRelated = model.related_ids;
+        const safeRelated = (rawRelated && rawRelated.length > 2) ? rawRelated : '[]';
+        const related_ids = escape(safeRelated);
+
+        sql += `INSERT INTO models (id, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, source_url, created_at, related_ids) 
+VALUES (${id}, ${name}, ${author}, ${description}, ${tags}, ${pipeline_tag}, ${likes}, ${downloads}, ${cover_image_url}, ${source_url}, ${created_at}, ${related_ids})
 ON CONFLICT(id) DO UPDATE SET
     name=excluded.name,
     author=excluded.author,
