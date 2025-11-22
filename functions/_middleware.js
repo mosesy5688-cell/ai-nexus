@@ -1,10 +1,16 @@
-// Cloudflare Pages Function for /model/* routes
+// Middleware to handle /model/* routes
 export async function onRequest(context) {
     const url = new URL(context.request.url);
+
+    // Only handle /model/* paths
+    if (!url.pathname.startsWith('/model/')) {
+        return context.next();
+    }
+
     const pathParts = url.pathname.split('/').filter(p => p);
     const slug = pathParts[pathParts.length - 1];
 
-    if (!slug) {
+    if (!slug || slug === 'model') {
         return new Response('Model not specified', { status: 400 });
     }
 
@@ -21,7 +27,7 @@ export async function onRequest(context) {
         const model = await db.prepare("SELECT * FROM models WHERE id = ?").bind(modelId).first();
 
         if (!model) {
-            return new Response('Model not found', { status: 404 });
+            return context.next(); // Let it fall through to 404
         }
 
         // Return HTML page
@@ -34,6 +40,7 @@ export async function onRequest(context) {
             },
         });
     } catch (e) {
+        console.error('Model page error:', e);
         return new Response(`Error: ${e.message}`, { status: 500 });
     }
 }
@@ -41,6 +48,8 @@ export async function onRequest(context) {
 function generateModelPage(model) {
     const formatNumber = (num) => num != null ? num.toLocaleString() : 0;
     const lastUpdated = model.last_updated ? new Date(model.last_updated).toLocaleDateString() : 'N/A';
+    const description = (model.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const descriptionPreview = description.substring(0, 160);
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -48,7 +57,7 @@ function generateModelPage(model) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${model.name} - AI Model Details</title>
-    <meta name="description" content="${(model.description || '').substring(0, 160)}">
+    <meta name="description" content="${descriptionPreview}">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -62,7 +71,10 @@ function generateModelPage(model) {
         <nav class="container mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
                 <a href="/" class="text-2xl font-bold text-blue-600 dark:text-blue-400">AI Nexus</a>
-                <a href="/" class="text-gray-600 dark:text-gray-300 hover:text-blue-600">← Back to Home</a>
+                <div class="flex items-center gap-4">
+                    <a href="/explore" class="text-gray-600 dark:text-gray-300 hover:text-blue-600">Explore</a>
+                    <a href="/" class="text-gray-600 dark:text-gray-300 hover:text-blue-600">Home</a>
+                </div>
             </div>
         </nav>
     </header>
