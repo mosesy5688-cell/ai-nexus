@@ -5,13 +5,14 @@ import allCategories from '../data/categories.json';
 
 const url = Astro.url;
 const initialQuery = url.searchParams.get('q') || '';
+const initialTag = url.searchParams.get('tag') || '';
 
 let pageTitle = "Free AI Tools: Your Hub for Open-Source AI";
 let pageDescription = "Discover, explore, and stay updated with the latest open-source AI models, tools, and research. Your gateway to the world of open AI.";
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
-    <div class="container mx-auto px-4 py-12" id="home-container" data-initial-query={initialQuery}>
+    <div class="container mx-auto px-4 py-12" id="home-container" data-initial-query={initialQuery} data-initial-tag={initialTag}>
         <!-- Main Page Header -->
         <header class="text-center mb-12">
             <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">Discover the World of Open Source AI</h1>
@@ -42,7 +43,7 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
             </div>
         </div>
 
-        <div id="static-content-container">
+        <div id="static-content-container" class="hidden">
             <!-- Hot Models Section -->
             <section class="mb-16">
                 <h2 class="text-3xl font-bold text-center mb-8">🔥 Hot Models</h2>
@@ -170,15 +171,16 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
         document.addEventListener('DOMContentLoaded', () => {
             const container = document.getElementById('home-container');
             const initialQuery = container?.dataset.initialQuery || '';
+            const initialTag = container?.dataset.initialTag || '';
             
             initializeSearch({
                 initialQuery,
-                activeTag: '',
+                activeTag: initialTag,
                 isExplorePage: false
             });
 
-            // Load hot models if no search query
-            if (!initialQuery) {
+            // Load hot models if no search query or tag
+            if (!initialQuery && !initialTag) {
                 loadHotModels();
             }
         });
