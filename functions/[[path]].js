@@ -22,7 +22,9 @@ export async function onRequest(context) {
       const modelId = slug.replace(/--/g, '/');
 
       // 4. Query the D1 database for the model.
-      const db = env.DB;
+      // Use context.locals for Astro integration compatibility, with fallback to env for direct Pages environment.
+      const db = context.locals.runtime?.env?.DB || env.DB;
+
       const stmt = db.prepare('SELECT * FROM models WHERE id = ?');
       const model = await stmt.bind(modelId).first();
 
