@@ -53,9 +53,6 @@ jobs:
       - name: Deploy to Cloudflare Pages
         # Using Wrangler CLI is the correct way to deploy Pages Functions.
         run: npx wrangler pages deploy dist --project-name=ai-nexus --commit-dirty=true
-        with:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
