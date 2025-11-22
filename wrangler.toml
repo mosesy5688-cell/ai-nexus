@@ -1,5 +1,6 @@
 name = "ai-nexus"
 pages_build_output_dir = "dist"
+main = "dist/_worker.js" # This is the crucial line to activate the Astro SSR part
 compatibility_date = "2025-11-05"
 compatibility_flags = ["nodejs_compat"]
 
