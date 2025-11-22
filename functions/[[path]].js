@@ -1,9 +1,9 @@
-// Cloudflare Pages Function for /model/* routes
+// functions/[[path]].js
 export async function onRequest(context) {
     const { request, env } = context;
     const url = new URL(request.url);
 
-    // Only handle /model/* routes (this file is already under that path)
+    // Only handle /model/* routes
     const parts = url.pathname.split('/').filter(Boolean);
     const slug = parts[parts.length - 1];
 
