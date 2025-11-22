@@ -1,0 +1,36 @@
+name: Auto-Ingest (Rust Powered)
+on:
+  schedule:
+    - cron: '0 2 * * *' # 每天凌晨 2 点 (避开高峰)
+  workflow_dispatch:
+
+jobs:
+  ingest-and-process:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Step 1: 智能元数据抓取 (Smart Fetch)
+      # 如果直连失败，自动切换到 Secrets 中配置的 Worker 代理
+      - name: Fetch Metadata
+        run: node scripts/fetch-metadata.js
+        env:
+          CF_PROXY_URL: ${{ secrets.CF_PROXY_URL }}
+
+      # Step 2: Build and Run Rust Tool
+      # We build on the fly to ensure compatibility with the runner (Ubuntu)
+      - name: Build and Run Rust Tool
+        run: |
+          cd tools/rust-img-optimizer
+          cargo run --release -- --input ../../data/raw.json --upload
+        env:
+          R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
+          R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
+          R2_BUCKET: "ai-nexus-assets"
+
+      # Step 3: D1 增量同步 (Upsert)
+      - name: Sync to D1
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: d1 execute ai-nexus-db --file=./data/upsert.sql

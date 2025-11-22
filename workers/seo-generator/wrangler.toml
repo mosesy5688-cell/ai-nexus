@@ -1,0 +1,14 @@
+name = "ai-nexus-seo-worker"
+main = "src/index.ts"
+compatibility_date = "2025-11-05"
+
+[triggers]
+crons = ["0 * * * *"] # Hourly
+
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-nexus-db"
+database_id = "adac7bc9-46a9-40b4-b609-28479221a17d"

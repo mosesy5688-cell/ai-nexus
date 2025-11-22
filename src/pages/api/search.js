@@ -6,8 +6,6 @@ export async function GET({ request, locals }) {
     const tag = url.searchParams.get('tag');
     const limit = parseInt(url.searchParams.get('limit') || '20');
 
-    // Access D1 via locals (Cloudflare Adapter puts it there)
-    // Note: In local dev (npm run dev), this might need a proxy or mock if not using 'wrangler pages dev'
     const db = locals.runtime?.env?.DB;
 
     if (!db) {
@@ -18,37 +16,45 @@ export async function GET({ request, locals }) {
     }
 
     try {
-        let sql = `SELECT * FROM models WHERE 1=1`;
-        const params = [];
+        let results = [];
 
         if (query) {
-            sql += ` AND (name LIKE ? OR description LIKE ? OR author LIKE ?)`;
-            const likeQuery = `%${query}%`;
-            params.push(likeQuery, likeQuery, likeQuery);
+            // Use FTS5 for full-text search
+            // We join with models table using the rowid (which matches because of content_rowid='rowid')
+            const sql = `
+                SELECT m.* 
+                FROM models m 
+                JOIN models_fts f ON m.rowid = f.rowid 
+                WHERE models_fts MATCH ? 
+                ORDER BY f.rank 
+                LIMIT ?
+            `;
+            // FTS5 query syntax: simple words or "phrase"
+            const ftsQuery = `"${query}" OR ${query}*`;
+            const { results: ftsResults } = await db.prepare(sql).bind(ftsQuery, limit).all();
+            results = ftsResults;
+        } else if (tag) {
+            // Tag search
+            const sql = `SELECT * FROM models WHERE tags LIKE ? ORDER BY likes DESC LIMIT ?`;
+            const { results: tagResults } = await db.prepare(sql).bind(`%${tag}%`, limit).all();
+            results = tagResults;
+        } else {
+            // Default: Hot models (by likes/downloads)
+            const sql = `SELECT * FROM models ORDER BY likes DESC LIMIT ?`;
+            const { results: hotResults } = await db.prepare(sql).bind(limit).all();
+            results = hotResults;
         }
-
-        if (tag) {
-            // Simplified tag search to ensure matches. 
-            // This might match substrings (e.g. "cat" in "category"), but it guarantees we find the tag.
-            // Given the controlled vocabulary of categories, this risk is low.
-            sql += ` AND tags LIKE ?`;
-            params.push(`%${tag}%`);
-        }
-
-        sql += ` ORDER BY likes DESC LIMIT ?`;
-        params.push(limit);
-
-        const { results } = await db.prepare(sql).bind(...params).all();
 
         return new Response(JSON.stringify({ results }), {
             status: 200,
             headers: {
                 'Content-Type': 'application/json',
-                'Cache-Control': 'public, max-age=60' // Cache for 1 minute
+                'Cache-Control': 'public, max-age=60'
             }
         });
 
     } catch (error) {
+        console.error("Search API Error:", error);
         return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }

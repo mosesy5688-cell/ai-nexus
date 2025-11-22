@@ -898,20 +898,14 @@ async function main() {
         }
     }
 
-    // 5. Implement "Soft Delete" / Archiving Logic
-    const finalModelsMap = new Map(newModelsMap); // Start with all new models
-
-    // Iterate through existing models to find ones that are no longer present
+    // 5. Preserve all existing models (no archiving). Merge new models and keep any old ones unchanged.
+    const finalModelsMap = new Map(newModelsMap);
+    // Add any existing models that are not present in newModelsMap, keeping their original data.
     if (existingModels.length > 0) {
         for (const oldModel of existingModels) {
             const key = getModelKey(oldModel);
-            // If an old model is not in the new list, mark it as archived and add it back
-            if (!newModelsMap.has(key)) {
-                console.log(`- Archiving model: ${oldModel.name}`);
-                oldModel.is_archived = true;
-                // To prevent archived models from dominating, we can optionally reduce their scores
-                oldModel.likes = 0;
-                oldModel.downloads = 0;
+            if (!finalModelsMap.has(key)) {
+                // Keep the old model as‑is (do not mark archived or zero out scores)
                 finalModelsMap.set(key, oldModel);
             }
         }

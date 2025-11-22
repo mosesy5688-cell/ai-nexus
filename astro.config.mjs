@@ -12,6 +12,11 @@ export default defineConfig({
   site: 'https://free2aitools.com',
   output: 'hybrid',
   adapter: cloudflare(),
+  image: {
+    service: {
+      entrypoint: 'astro/assets/services/noop'
+    }
+  },
   integrations: [react(), tailwind(), sitemap()],
   vite: {
     resolve: {

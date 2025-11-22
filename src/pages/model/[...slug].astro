@@ -73,15 +73,94 @@ console.log(`Rendering model: ${model.name}, Author: ${model.author || '(no auth
     <div class="container mx-auto px-4 py-8">
         <header class="mb-8">
             <a href="/" class="text-blue-600 hover:underline">&larr; Back to Home</a>
-            <h1 class="text-4xl font-bold mt-4">{model.name}</h1>
-            {model.author && <p class="text-lg text-gray-600">by {model.author}</p>}
+            <div class="flex items-center justify-between mt-4">
+                <div>
+                    <h1 class="text-4xl font-bold">{model.name}</h1>
+                    <p class="text-lg text-gray-600">by {model.author}</p>
+                </div>
+                <div class="flex gap-4">
+                    <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                        ❤️ {model.likes || 0}
+                    </span>
+                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                        ⬇️ {model.downloads || 0}
+                    </span>
+                </div>
+            </div>
         </header>
-        <main>
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                <h2 class="text-2xl font-semibold mb-4">Description</h2>
-                <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{descriptionText || 'No description available.'}</p>
-                
-                <!-- You can add more model details here, similar to the old [[path]].js file -->
+
+        {model.link_status === 'broken' && (
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6" role="alert">
+                <strong class="font-bold">Warning:</strong>
+                <span class="block sm:inline"> The source link for this model appears to be broken.</span>
+            </div>
+        )}
+
+        <main class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="md:col-span-2 space-y-6">
+                {model.cover_image_url && (
+                    <img 
+                        src={model.cover_image_url} 
+                        alt={`Cover for ${model.name}`} 
+                        class="w-full h-auto rounded-lg shadow-lg object-cover max-h-96"
+                    />
+                )}
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4">About this Model</h2>
+                    
+                    {model.seo_summary ? (
+                        <div class="prose dark:prose-invert max-w-none mb-6">
+                            <h3 class="text-lg font-medium text-blue-600">AI Generated Overview</h3>
+                            <p class="text-gray-700 dark:text-gray-300">{model.seo_summary}</p>
+                        </div>
+                    ) : null}
+
+                    <h3 class="text-lg font-medium mt-4">Original Description</h3>
+                    <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap text-sm">
+                        {descriptionText || 'No description available.'}
+                    </p>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4">Comments</h2>
+                    <div id="comments-section">
+                        <!-- Comments will be loaded here via client-side JS or separate component -->
+                        <p class="text-gray-500 italic">Comments loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4">Tags</h3>
+                    <div class="flex flex-wrap gap-2">
+                        {model.tags && (() => {
+                            try {
+                                const tags = typeof model.tags === 'string' ? JSON.parse(model.tags) : model.tags;
+                                return Array.isArray(tags) ? tags.map(tag => (
+                                    <a href={`/?tag=${tag}`} class="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-sm hover:bg-gray-300 dark:hover:bg-gray-600">
+                                        {tag}
+                                    </a>
+                                )) : null;
+                            } catch (e) { return null; }
+                        })()}
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4">Metadata</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li><strong>Pipeline:</strong> {model.pipeline_tag || 'Unknown'}</li>
+                        <li><strong>Indexed:</strong> {new Date(model.first_indexed).toLocaleDateString()}</li>
+                        <li>
+                            <strong>Source:</strong> 
+                            <a href={model.source_url || `https://huggingface.co/${model.id}`} target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline ml-1">
+                                Visit Source
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </main>
     </div>

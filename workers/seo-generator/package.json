@@ -1,0 +1,17 @@
+{
+    "name": "ai-nexus-seo-worker",
+    "version": "1.0.0",
+    "description": "SEO Generator Worker for AI-Nexus",
+    "main": "src/index.ts",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "dependencies": {
+        "@cloudflare/ai": "^1.0.0"
+    },
+    "devDependencies": {
+        "@cloudflare/workers-types": "^4.20240529.0",
+        "typescript": "^5.0.0",
+        "wrangler": "^3.0.0"
+    }
+}
