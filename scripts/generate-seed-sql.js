@@ -25,7 +25,12 @@ try {
     for (const model of models) {
         const escape = (str) => {
             if (str === null || str === undefined) return 'NULL';
-            return "'" + String(str).replace(/'/g, "''") + "'";
+            let stringValue = str;
+            if (typeof str === 'object') {
+                // Handle case where description is an object (e.g. from some API responses)
+                stringValue = str.text || str.content || JSON.stringify(str);
+            }
+            return "'" + String(stringValue).replace(/'/g, "''") + "'";
         };
 
         const tagsJson = JSON.stringify(model.tags || []);
@@ -34,7 +39,14 @@ try {
         const id = escape(model.id);
         const name = escape(model.name || model.id.split('/').pop());
         const author = escape(model.author || 'Unknown');
-        const description = escape(model.description || '');
+
+        // Robust description handling
+        let desc = model.description || '';
+        if (typeof desc === 'object') {
+            desc = desc.text || desc.content || JSON.stringify(desc);
+        }
+        const description = escape(desc);
+
         const tags = escape(tagsJson);
         const pipeline_tag = escape(model.pipeline_tag || model.task || 'unknown');
         const likes = model.likes || 0;

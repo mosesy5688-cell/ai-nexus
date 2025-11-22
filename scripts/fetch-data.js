@@ -377,7 +377,7 @@ async function transformHuggingFaceModel(model) {
         id: model.modelId,
         name: name,
         author: author,
-        description: model.cardData?.description || `A model for ${model.pipeline_tag || 'various tasks'}.`,
+        description: (typeof model.cardData?.description === 'string' ? model.cardData.description : JSON.stringify(model.cardData?.description || '')) || `A model for ${model.pipeline_tag || 'various tasks'}.`,
         task: model.pipeline_tag || 'N/A',
         tags: model.tags || [],
         likes: model.likes || 0,
