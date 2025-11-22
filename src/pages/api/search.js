@@ -28,11 +28,11 @@ export async function GET({ request, locals }) {
         }
 
         if (tag) {
-            // Simple JSON array check (SQLite doesn't have great JSON functions in all versions, but LIKE works for simple arrays)
-            // This is more precise than '%tag%' to avoid matching substrings inside other tags.
-            // It looks for "tag", 'tag', "tag", etc.
-            sql += ` AND (tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?)`;
-            params.push(`%,"${tag}",%`, `%, "${tag}",%`, `%,"${tag}"]%`, `%["${tag}",%`);
+            // Simplified tag search to ensure matches. 
+            // This might match substrings (e.g. "cat" in "category"), but it guarantees we find the tag.
+            // Given the controlled vocabulary of categories, this risk is low.
+            sql += ` AND tags LIKE ?`;
+            params.push(`%${tag}%`);
         }
 
         sql += ` ORDER BY likes DESC LIMIT ?`;

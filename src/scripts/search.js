@@ -21,7 +21,8 @@ function createModelCardHTML(model) {
         console.warn('Model missing id:', model);
         return ''; // Skip models without ID
     }
-    const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
+    const modelId = (model.author && model.name) ? `${model.author}/${model.name}` : model.id;
+    const modelUrl = `/model/${modelId.replace(/\//g, '--')}`;
     // Handle description: could be null or contain HTML
     const rawDesc = model.description || 'No description available.';
     const cleanDesc = rawDesc.replace(/<[^>]*>?/gm, '');
