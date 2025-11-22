@@ -973,7 +973,17 @@ async function main() {
                 oldModel.downloads = (oldModel.downloads || 0) + newModel.downloads;
                 oldModel.lastModified = newModel.lastModified;
                 oldModel.lastModifiedTimestamp = newModel.lastModifiedTimestamp;
-                // You can add more fields to update here, e.g., readme
+                // Fix missing author and name fields
+                if (!oldModel.author && newModel.author) {
+                    oldModel.author = newModel.author;
+                }
+                if (!oldModel.name && newModel.name) {
+                    oldModel.name = newModel.name;
+                }
+                // Update tags if new ones are available
+                if (newModel.tags && newModel.tags.length > 0) {
+                    oldModel.tags = [...new Set([...(oldModel.tags || []), ...newModel.tags])];
+                }
                 updatedCount++;
             }
         }
