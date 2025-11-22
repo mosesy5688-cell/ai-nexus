@@ -63,7 +63,14 @@ if (!model) {
 }
 
 const pageTitle = `${model.name} - AI Model Details | Free AI Tools`;
-const descriptionText = typeof model.description === 'string' ? model.description : '';
+const descriptionText = (() => {
+    if (typeof model.description === 'string') {
+        return model.description;
+    } else if (model.description && typeof model.description === 'object') {
+        return model.description.text || JSON.stringify(model.description);
+    }
+    return '';
+})();
 const pageDescription = descriptionText ? descriptionText.substring(0, 160) : `Details for the AI model ${model.name} by ${model.author || 'Unknown'}.`;
 
 // Debug logging
