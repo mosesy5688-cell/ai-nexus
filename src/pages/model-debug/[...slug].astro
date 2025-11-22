@@ -1,0 +1,46 @@
+---
+export const prerender = false;
+
+const { slug } = Astro.params;
+const db = Astro.locals.runtime?.env?.DB;
+
+// Convert URL slug back to ID
+const modelId = slug?.replace(/--/g, '/') || 'unknown';
+
+let debugInfo = {
+    slug,
+    modelId,
+    hasDB: !!db,
+    model: null,
+    error: null
+};
+
+if (db) {
+    try {
+        const result = await db.prepare("SELECT * FROM models WHERE id = ?").bind(modelId).first();
+        debugInfo.model = result;
+    } catch (e) {
+        debugInfo.error = e.message;
+    }
+}
+---
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Model Page</title>
+</head>
+<body style="font-family: monospace; padding: 20px;">
+    <h1>Debug Model Page</h1>
+    <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+    
+    {debugInfo.model && (
+        <div>
+            <h2>Model Found:</h2>
+            <p><strong>Name:</strong> {debugInfo.model.name}</p>
+            <p><strong>Author:</strong> {debugInfo.model.author}</p>
+            <p><strong>Likes:</strong> {debugInfo.model.likes}</p>
+        </div>
+    )}
+</body>
+</html>

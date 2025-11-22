@@ -2,68 +2,41 @@
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
-import ModelCard from '../../components/ModelCard.astro';
-import { marked } from 'marked';
 
 const { slug } = Astro.params;
 const db = Astro.locals.runtime?.env?.DB;
-
-let model = null;
-let relatedModels = [];
-let error = null;
 
 if (!slug) {
     return Astro.redirect('/404');
 }
 
 // Convert URL slug (author--model) back to ID format (author/model)
-const modelId = slug.replace(/--/g, '/'); 
+const modelId = slug.replace(/--/g, '/');
 
-if (db) {
-    try {
-        // Query by ID (which is in format author/model)
-        const result = await db.prepare("SELECT * FROM models WHERE id = ?").bind(modelId).first();
-        
-        model = result;
+let model = null;
+let error = null;
 
-        if (model) {
-            // Parse JSON fields safely
-            try {
-                if (typeof model.tags === 'string') model.tags = JSON.parse(model.tags);
-                if (typeof model.use_cases === 'string') model.use_cases = JSON.parse(model.use_cases);
-            } catch (e) {
-                console.warn("Failed to parse JSON fields", e);
-                // Keep as is or empty array
-                if (!Array.isArray(model.tags)) model.tags = [];
-            }
+if (!db) {
+    return new Response('Database not available', { status: 500 });
+}
 
-            // Fetch related models
-            if (model.tags && model.tags.length > 0) {
-                const firstTag = model.tags[0];
-                const { results } = await db.prepare("SELECT * FROM models WHERE tags LIKE ? AND id != ? LIMIT 3")
-                    .bind(`%${firstTag}%`, model.id)
-                    .all();
-                relatedModels = results || [];
-            }
-        }
-    } catch (e) {
-        console.error("D1 Fetch Error:", e);
-        error = e.message;
-    }
+try {
+    // Query by ID (which is in format author/model)
+    model = await db.prepare("SELECT * FROM models WHERE id = ?").bind(modelId).first();
+} catch (e) {
+    console.error("D1 Fetch Error:", e);
+    error = e.message;
 }
 
 if (!model) {
-    // If D1 fails or model not found, show 404 or error
     if (error) {
-         return new Response(`Database Error: ${error}`, { status: 500 });
+        return new Response(`Database Error: ${error}`, { status: 500 });
     }
     return new Response(null, { status: 404, statusText: 'Not Found' });
 }
 
-const pageTitle = `${model.name} - AI Model Details`;
-const pageDescription = model.description?.substring(0, 160) || `Details for the AI model ${model.name}.`;
-const readmeHtml = marked.parse(model.description || 'No description available.');
-
+const pageTitle = `${model.name || 'Model'} - AI Model Details`;
+const pageDescription = model.description?.substring(0, 160) || `Details for ${model.name}`;
 const formatNumber = (num) => num != null ? num.toLocaleString() : 0;
 ---
 
@@ -100,33 +73,18 @@ const formatNumber = (num) => num != null ? num.toLocaleString() : 0;
                     </div>
                     <div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Last Updated</p>
-                        <p class="text-xl font-bold">{new Date(model.last_updated).toLocaleDateString()}</p>
+                        <p class="text-xl font-bold">{model.last_updated ? new Date(model.last_updated).toLocaleDateString() : 'N/A'}</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Description / README Content -->
+            <!-- Description Section -->
             <article class="model-readme-content py-8 border-t border-gray-200 dark:border-gray-700">
                 <h2 class="text-2xl font-bold mb-4">Model Description</h2>
                 <div class="prose prose-lg dark:prose-invert max-w-none">
-                    <Fragment set:html={readmeHtml} />
+                    <p class="text-gray-700 dark:text-gray-300">{model.description || 'No description available.'}</p>
                 </div>
             </article>
-
-            <!-- Related Models Section -->
-            {relatedModels.length > 0 && (
-                <section class="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700">
-                    <h2 class="text-3xl font-bold text-center mb-8">Related Models</h2>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {relatedModels.map(related => (
-                            <ModelCard 
-                                model={related}
-                                isRisingStar={false} 
-                            />
-                        ))}
-                    </div>
-                </section>
-            )}
         </div>
     </div>
 </Layout>
