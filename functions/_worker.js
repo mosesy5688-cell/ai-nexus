@@ -1,54 +1,59 @@
-// Middleware to handle /model/* routes
-export async function onRequest(context) {
-    const url = new URL(context.request.url);
+// Advanced Mode Worker for Cloudflare Pages
+export default {
+    async fetch(request, env) {
+        const url = new URL(request.url);
 
-    // Only handle /model/* paths
-    if (!url.pathname.startsWith('/model/')) {
-        return context.next();
-    }
+        // Handle /model/* routes
+        if (url.pathname.startsWith('/model/')) {
+            const pathParts = url.pathname.split('/').filter(p => p);
+            const slug = pathParts[pathParts.length - 1];
 
-    const pathParts = url.pathname.split('/').filter(p => p);
-    const slug = pathParts[pathParts.length - 1];
+            if (!slug || slug === 'model') {
+                return new Response('Model not specified', { status: 400 });
+            }
 
-    if (!slug || slug === 'model') {
-        return new Response('Model not specified', { status: 400 });
-    }
+            // Convert slug to model ID
+            const modelId = slug.replace(/--/g, '/');
 
-    // Convert slug to model ID
-    const modelId = slug.replace(/--/g, '/');
+            // Fetch model data
+            const db = env.DB;
+            if (!db) {
+                return new Response('Database not available', { status: 500 });
+            }
 
-    // Fetch model data
-    const db = context.env.DB;
-    if (!db) {
-        return new Response('Database not available', { status: 500 });
-    }
+            try {
+                const model = await db.prepare("SELECT * FROM models WHERE id = ?").bind(modelId).first();
 
-    try {
-        const model = await db.prepare("SELECT * FROM models WHERE id = ?").bind(modelId).first();
+                if (!model) {
+                    // Return 404 page
+                    return env.ASSETS.fetch(new URL('/404', url.origin));
+                }
 
-        if (!model) {
-            return context.next(); // Let it fall through to 404
+                // Return HTML page
+                const html = generateModelPage(model);
+
+                return new Response(html, {
+                    status: 200,
+                    headers: {
+                        'Content-Type': 'text/html; charset=utf-8',
+                    },
+                });
+            } catch (e) {
+                console.error('Model page error:', e);
+                return new Response(`Error: ${e.message}`, { status: 500 });
+            }
         }
 
-        // Return HTML page
-        const html = generateModelPage(model);
-
-        return new Response(html, {
-            status: 200,
-            headers: {
-                'Content-Type': 'text/html; charset=utf-8',
-            },
-        });
-    } catch (e) {
-        console.error('Model page error:', e);
-        return new Response(`Error: ${e.message}`, { status: 500 });
+        // For all other routes, use the static assets
+        return env.ASSETS.fetch(request);
     }
-}
+};
 
 function generateModelPage(model) {
     const formatNumber = (num) => num != null ? num.toLocaleString() : 0;
     const lastUpdated = model.last_updated ? new Date(model.last_updated).toLocaleDateString() : 'N/A';
-    const description = (model.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const escapeHtml = (str) => (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    const description = escapeHtml(model.description);
     const descriptionPreview = description.substring(0, 160);
 
     return `<!DOCTYPE html>
@@ -56,8 +61,8 @@ function generateModelPage(model) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${model.name} - AI Model Details</title>
-    <meta name="description" content="${descriptionPreview}">
+    <title>${escapeHtml(model.name)} - AI Model Details</title>
+    <meta name="description" content="${escapeHtml(descriptionPreview)}">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -84,10 +89,10 @@ function generateModelPage(model) {
             <header class="mb-8">
                 <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div class="flex-grow">
-                        <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-2 break-words">${model.name}</h1>
-                        <p class="text-lg text-gray-500 dark:text-gray-400">by ${model.author}</p>
+                        <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-2 break-words">${escapeHtml(model.name)}</h1>
+                        <p class="text-lg text-gray-500 dark:text-gray-400">by ${escapeHtml(model.author)}</p>
                     </div>
-                    <a href="https://huggingface.co/${model.id}" target="_blank" rel="noopener noreferrer" class="flex-shrink-0 inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform hover:scale-105">
+                    <a href="https://huggingface.co/${escapeHtml(model.id)}" target="_blank" rel="noopener noreferrer" class="flex-shrink-0 inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform hover:scale-105">
                         View on Hugging Face
                     </a>
                 </div>
@@ -105,7 +110,7 @@ function generateModelPage(model) {
                     </div>
                     <div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Task</p>
-                        <p class="text-xl font-bold capitalize">${model.pipeline_tag || 'N/A'}</p>
+                        <p class="text-xl font-bold capitalize">${escapeHtml(model.pipeline_tag) || 'N/A'}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Last Updated</p>
@@ -117,7 +122,7 @@ function generateModelPage(model) {
             <article class="py-8 border-t border-gray-200 dark:border-gray-700">
                 <h2 class="text-2xl font-bold mb-4">Model Description</h2>
                 <div class="prose prose-lg dark:prose-invert max-w-none">
-                    <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">${model.description || 'No description available.'}</p>
+                    <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">${description || 'No description available.'}</p>
                 </div>
             </article>
         </div>
