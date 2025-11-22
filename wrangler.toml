@@ -4,6 +4,7 @@ name = "ai-nexus"
 [pages_build_output]
 dir = "dist"
 entry-point = "_worker.js"
+
 compatibility_date = "2025-11-05"
 compatibility_flags = ["nodejs_compat"]
 
