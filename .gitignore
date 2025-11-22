@@ -7,3 +7,5 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+HANDOFF_REPORT.md
+OPTIMIZATION_BLUEPRINT_V3.md

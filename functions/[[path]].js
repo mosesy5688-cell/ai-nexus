@@ -1,115 +1,123 @@
-// functions/[[path]].js
+/**
+ * Cloudflare Pages Function to handle Server-Side Rendering (SSR) for model detail pages.
+ * This acts as a catch-all for any routes not handled by static files.
+ */
 export async function onRequest(context) {
-    const { request, env } = context;
-    const url = new URL(request.url);
+  const { request, env, next } = context;
+  const url = new URL(request.url);
+  const path = url.pathname;
 
-    // Only handle /model/* routes
-    const parts = url.pathname.split('/').filter(Boolean);
-    const slug = parts[parts.length - 1];
-
-    if (!slug) {
-        return new Response('Model not specified', { status: 400 });
-    }
-
-    // Convert slug back to DB id (author/model)
-    const modelId = slug.replace(/--/g, '/');
-
-    // Access D1 binding
-    const db = env.DB;
-    if (!db) {
-        return new Response('Database not available', { status: 500 });
-    }
-
+  // 1. Check if the request is for a model detail page.
+  if (path.startsWith('/model/')) {
     try {
-        const model = await db.prepare('SELECT * FROM models WHERE id = ?')
-            .bind(modelId)
-            .first();
+      // 2. Extract the model slug from the URL.
+      const slug = path.substring('/model/'.length);
+      if (!slug) {
+        // If slug is empty (e.g., /model/), redirect to home.
+        return Response.redirect(new URL('/', url).toString(), 301);
+      }
 
-        if (!model) {
-            // Return built‑in 404 page
-            return env.ASSETS.fetch(new URL('/404', url.origin));
-        }
+      // 3. Convert the URL-friendly slug back to the original model ID.
+      // e.g., 'meta-llama--Llama-3-8B' -> 'meta-llama/Llama-3-8B'
+      const modelId = slug.replace(/--/g, '/');
 
-        // Generate HTML page
-        const html = generateModelPage(model);
-        return new Response(html, {
-            status: 200,
-            headers: { 'Content-Type': 'text/html; charset=utf-8' },
-        });
-    } catch (e) {
-        console.error('Model page error:', e);
-        return new Response(`Error: ${e.message}`, { status: 500 });
+      // 4. Query the D1 database for the model.
+      const db = env.DB;
+      const stmt = db.prepare('SELECT * FROM models WHERE id = ?');
+      const model = await stmt.bind(modelId).first();
+
+      // 5. If model is not found, return a 404 response.
+      if (!model) {
+        return new Response(`Model with ID "${modelId}" not found.`, { status: 404 });
+      }
+
+      // 6. If model is found, render the HTML page dynamically.
+      const pageTitle = `${model.name} - AI Model Details | Free AI Tools`;
+      const pageDescription = model.description ? model.description.substring(0, 160) : `Details for the AI model ${model.name} by ${model.author}.`;
+
+      const html = `
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>${escapeHtml(pageTitle)}</title>
+                    <meta name="description" content="${escapeHtml(pageDescription)}">
+                    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+                    <meta property="og:title" content="${escapeHtml(pageTitle)}">
+                    <meta property="og:description" content="${escapeHtml(pageDescription)}">
+                    <meta property="og:type" content="article">
+                    <meta property="og:url" content="${url.href}">
+                    <meta property="og:image" content="/og-image.jpg">
+                    <meta name="twitter:card" content="summary_large_image">
+                    <meta name="twitter:title" content="${escapeHtml(pageTitle)}">
+                    <meta name="twitter:description" content="${escapeHtml(pageDescription)}">
+                    <meta name="twitter:image" content="/og-image.jpg">
+                    <link rel="canonical" href="${url.href}" />
+                    <script src="https://cdn.tailwindcss.com"></script>
+                    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2292826803755214" crossorigin="anonymous"></script>
+                </head>
+                <body class="bg-gray-50 text-gray-800 font-sans">
+                    <div class="container mx-auto px-4 py-8">
+                        <header class="mb-8">
+                            <a href="/" class="text-blue-600 hover:underline">&larr; Back to Home</a>
+                            <h1 class="text-4xl font-bold mt-4">${escapeHtml(model.name)}</h1>
+                            <p class="text-lg text-gray-600">by ${escapeHtml(model.author)}</p>
+                        </header>
+                        <main>
+                            <div class="bg-white p-6 rounded-lg shadow-md">
+                                <h2 class="text-2xl font-semibold mb-4">Description</h2>
+                                <p class="text-gray-700 whitespace-pre-wrap">${escapeHtml(model.description || 'No description available.')}</p>
+                                
+                                <div class="mt-6 pt-6 border-t">
+                                    <h3 class="text-xl font-semibold mb-3">Details</h3>
+                                    <div class="grid grid-cols-2 gap-4 text-sm">
+                                        <div><strong>Likes:</strong> ${model.likes || 0}</div>
+                                        <div><strong>Downloads:</strong> ${model.downloads || 0}</div>
+                                        <div><strong>Task:</strong> <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">${escapeHtml(model.pipeline_tag || 'N/A')}</span></div>
+                                        <div><strong>Last Updated:</strong> ${new Date(model.last_updated).toLocaleDateString()}</div>
+                                    </div>
+                                </div>
+
+                                ${model.tags && `
+                                <div class="mt-6 pt-6 border-t">
+                                    <h3 class="text-xl font-semibold mb-3">Tags</h3>
+                                    <div class="flex flex-wrap gap-2">
+                                        ${JSON.parse(model.tags).map(tag => `<a href="/?tag=${encodeURIComponent(tag)}" class="bg-gray-200 text-gray-800 px-3 py-1 rounded-full text-sm hover:bg-gray-300">${escapeHtml(tag)}</a>`).join('')}
+                                    </div>
+                                </div>
+                                `}
+                            </div>
+                        </main>
+                    </div>
+                </body>
+                </html>
+            `;
+
+      return new Response(html, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html;charset=UTF-8',
+          'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
+        },
+      });
+
+    } catch (error) {
+      console.error(`Error rendering model page: ${error}`);
+      return new Response('An internal error occurred.', { status: 500 });
     }
+  }
+
+  // 7. For any other path, let the default static asset handler take over.
+  return next();
 }
 
-function generateModelPage(model) {
-    const fmt = (n) => (n != null ? n.toLocaleString() : 0);
-    const last = model.last_updated ? new Date(model.last_updated).toLocaleDateString() : 'N/A';
-    const esc = (s) =>
-        (s || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${esc(model.name)} - AI Model Details</title>
-  <meta name="description" content="${esc((model.description || '').substring(0, 160))}">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config={darkMode:'class'}</script>
-</head>
-<body class="bg-gray-50 text-gray-800 font-sans antialiased">
-  <header class="bg-white dark:bg-gray-900 shadow-sm sticky top-0 z-50">
-    <nav class="container mx-auto px-4 py-4 flex justify-between items-center">
-      <a href="/" class="text-2xl font-bold text-blue-600 dark:text-blue-400">AI Nexus</a>
-      <a href="/explore" class="text-gray-600 dark:text-gray-300 hover:text-blue-600">Explore</a>
-    </nav>
-  </header>
-
-  <main class="container mx-auto px-4 py-12">
-    <div class="max-w-4xl mx-auto">
-      <header class="mb-8">
-        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-          <div class="flex-grow">
-            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-2 break-words">${esc(model.name)}</h1>
-            <p class="text-lg text-gray-500 dark:text-gray-400">by ${esc(model.author)}</p>
-          </div>
-          <a href="https://huggingface.co/${esc(model.id)}" target="_blank"
-            class="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-transform hover:scale-105">
-            View on Hugging Face
-          </a>
-        </div>
-      </header>
-
-      <div class="mb-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          <div><p class="text-sm text-gray-500 dark:text-gray-400">Likes</p><p class="text-xl font-bold">${fmt(model.likes)}</p></div>
-          <div><p class="text-sm text-gray-500 dark:text-gray-400">Downloads</p><p class="text-xl font-bold">${fmt(model.downloads)}</p></div>
-          <div><p class="text-sm text-gray-500 dark:text-gray-400">Task</p><p class="text-xl font-bold capitalize">${esc(model.pipeline_tag) || 'N/A'}</p></div>
-          <div><p class="text-sm text-gray-500 dark:text-gray-400">Last Updated</p><p class="text-xl font-bold">${last}</p></div>
-        </div>
-      </div>
-
-      <article class="py-8 border-t border-gray-200 dark:border-gray-700">
-        <h2 class="text-2xl font-bold mb-4">Model Description</h2>
-        <div class="prose prose-lg dark:prose-invert max-w-none">
-          <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">${esc(model.description)}</p>
-        </div>
-      </article>
-    </div>
-  </main>
-
-  <footer class="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 mt-16">
-    <div class="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400">
-      <p>&copy; 2025 AI Nexus. All rights reserved.</p>
-    </div>
-  </footer>
-</body>
-</html>`;
+function escapeHtml(unsafe) {
+  if (typeof unsafe !== 'string') return '';
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
