@@ -17,11 +17,10 @@ try {
     const models = JSON.parse(fs.readFileSync(MODELS_FILE, 'utf8'));
     console.log(`Generating SQL for ${models.length} models...`);
 
-    let sql = "BEGIN TRANSACTION;\n";
+    let sql = "";
 
-    // Batch size to prevent "statement too long" errors if we were doing multi-value inserts,
-    // but here we do individual statements for safety with ON CONFLICT.
-    // SQLite can handle many statements in a transaction.
+    // D1 doesn't support explicit BEGIN TRANSACTION/COMMIT in wrangler d1 execute
+    // Each statement is automatically wrapped in a transaction
 
     for (const model of models) {
         const escape = (str) => {
@@ -59,8 +58,6 @@ ON CONFLICT(id) DO UPDATE SET
     source_url=excluded.source_url,
     last_checked=CURRENT_TIMESTAMP;\n`;
     }
-
-    sql += "COMMIT;\n";
 
     fs.writeFileSync(OUTPUT_FILE, sql);
     console.log(`Successfully generated ${OUTPUT_FILE}`);
