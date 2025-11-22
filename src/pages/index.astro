@@ -69,9 +69,18 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
             <!-- Explore by Category Section -->
             <section class="mb-16">
                 <h2 class="text-3xl font-bold text-center mb-10">Explore by Category</h2>
-                {allCategories.map(categoryGroup => (
-                    <CategoryGroup group={categoryGroup} />
-                ))}
+                <div class="space-y-8">
+                    {allCategories.map(group => (
+                        <div>
+                            <h3 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">{group.groupName}</h3>
+                            <div class="flex flex-wrap gap-3">
+                                {group.items.map(item => (
+                                    <a href={`/?tag=${item.slug}`} class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-full text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 transition-colors">{item.title}</a>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </section>
         </div>
 

@@ -1,5 +1,9 @@
 name = "ai-nexus"
-pages_build_output_dir = "dist"
+# The `pages_build_output_dir` key is deprecated in favor of the `[pages_build_output]` table.
+# This new configuration is essential for Astro's hybrid/server mode to work correctly.
+[pages_build_output]
+dir = "dist"
+entry-point = "_worker.js"
 compatibility_date = "2025-11-05"
 compatibility_flags = ["nodejs_compat"]
 
