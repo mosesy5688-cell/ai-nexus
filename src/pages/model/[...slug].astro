@@ -19,12 +19,15 @@ try {
     // This logic is the exact reverse of the link creation in the frontend.
     const modelId = slug.replace(/--/g, '/');
     
-    // Split into author and name
-    const parts = modelId.split('/');
-    if (parts.length !== 2) {
-        throw new Error("Invalid model slug format");
+    // Split into author and name (name might contain slashes)
+    // Only split on the FIRST slash to get author, rest is name
+    const firstSlashIndex = modelId.indexOf('/');
+    if (firstSlashIndex === -1) {
+        throw new Error("Invalid model slug format - no author/name separator");
     }
-    const [author, name] = parts;
+    
+    const author = modelId.substring(0, firstSlashIndex);
+    const name = modelId.substring(firstSlashIndex + 1);
     
     // Access the D1 database via locals.runtime
     const db = locals.runtime?.env?.DB;
