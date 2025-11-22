@@ -2,7 +2,8 @@
 // src/components/ModelCard.astro
 const { model, isRisingStar } = Astro.props;
 
-const modelUrl = `/model/${model.id.replace(/\//g, '--')}`;
+const modelId = (model.author && model.name) ? `${model.author}/${model.name}` : model.id;
+const modelUrl = `/model/${modelId.replace(/\//g, '--')}`;
 const description = model.description?.replace(/<[^>]*>?/gm, '') || 'No description available.';
 
 function formatNumber(num) {

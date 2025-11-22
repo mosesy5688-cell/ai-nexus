@@ -40,7 +40,11 @@ if (!model) {
 }
 
 const pageTitle = `${model.name} - AI Model Details | Free AI Tools`;
-const pageDescription = model.description ? model.description.substring(0, 160) : `Details for the AI model ${model.name} by ${model.author}.`;
+const descriptionText = typeof model.description === 'string' ? model.description : '';
+const pageDescription = descriptionText ? descriptionText.substring(0, 160) : `Details for the AI model ${model.name} by ${model.author}.`;
+
+// Debug logging
+console.log(`Rendering model: ${model.name}, Author: ${model.author}, Description type: ${typeof model.description}`);
 ---
 <Layout title={pageTitle} description={pageDescription}>
     <div class="container mx-auto px-4 py-8">
@@ -52,7 +56,7 @@ const pageDescription = model.description ? model.description.substring(0, 160) 
         <main>
             <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
                 <h2 class="text-2xl font-semibold mb-4">Description</h2>
-                <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{model.description || 'No description available.'}</p>
+                <p class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{descriptionText || 'No description available.'}</p>
                 
                 <!-- You can add more model details here, similar to the old [[path]].js file -->
             </div>
