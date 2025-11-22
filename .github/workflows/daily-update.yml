@@ -14,7 +14,9 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write # Allow the action to push commits to the repository
+  contents: write
+  pull-requests: write
+  deployments: write
 
 jobs:
   fetch_build_and_deploy:
