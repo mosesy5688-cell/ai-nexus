@@ -368,10 +368,15 @@ async function transformHuggingFaceModel(model) {
 
     const fileDetails = (model.siblings || []).map(s => ({ name: s.rfilename, size: s.sizeInBytes })).filter(f => !f.name.startsWith('.'));
 
+    // Ensure we always have author and name by extracting from modelId if missing
+    const modelIdParts = model.modelId.split('/');
+    const author = model.author || (modelIdParts.length > 1 ? modelIdParts[0] : 'unknown');
+    const name = modelIdParts.length > 1 ? modelIdParts[1] : model.modelId;
+
     return {
         id: model.modelId,
-        name: model.modelId.split('/')[1] || model.modelId,
-        author: model.author,
+        name: name,
+        author: author,
         description: model.cardData?.description || `A model for ${model.pipeline_tag || 'various tasks'}.`,
         task: model.pipeline_tag || 'N/A',
         tags: model.tags || [],
@@ -385,7 +390,7 @@ async function transformHuggingFaceModel(model) {
             platform: 'Hugging Face',
             url: modelUrl,
             files: fileDetails, // Add file list
-            author: model.author,
+            author: author,
             modelId: model.modelId,
         }],
         thumbnail: null,
