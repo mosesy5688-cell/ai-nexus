@@ -18,8 +18,15 @@ export async function onRequest(context) {
       }
 
       // 3. Convert the URL-friendly slug back to the original model ID.
-      // e.g., 'meta-llama--Llama-3-8B' -> 'meta-llama/Llama-3-8B'
-      const modelId = slug.replace(/--/g, '/');
+      // This logic must be the reverse of how links are created in the frontend.
+      let modelId;
+      if (slug.startsWith('github-')) {
+        // For GitHub models, the slug is the ID. e.g., 'github-google-gemma.cpp'
+        modelId = slug;
+      } else {
+        // For Hugging Face models, convert '--' back to '/'. e.g., 'meta-llama--Llama-3-8B' -> 'meta-llama/Llama-3-8B'
+        modelId = slug.replace(/--/g, '/');
+      }
 
       // 4. Query the D1 database for the model.
       // Use context.locals for Astro integration compatibility, with fallback to env for direct Pages environment.
