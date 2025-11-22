@@ -1,52 +1,46 @@
-// Cloudflare Pages Advanced Mode Worker – renders model detail pages server‑side
-export default {
-    async fetch(request, env) {
-        const url = new URL(request.url);
+// Cloudflare Pages Function for /model/* routes
+export async function onRequest(context) {
+    const { request, env } = context;
+    const url = new URL(request.url);
 
-        // Only handle /model/* routes
-        if (url.pathname.startsWith('/model/')) {
-            const parts = url.pathname.split('/').filter(Boolean);
-            const slug = parts[parts.length - 1];
+    // Only handle /model/* routes (this file is already under that path)
+    const parts = url.pathname.split('/').filter(Boolean);
+    const slug = parts[parts.length - 1];
 
-            if (!slug) {
-                return new Response('Model not specified', { status: 400 });
-            }
+    if (!slug) {
+        return new Response('Model not specified', { status: 400 });
+    }
 
-            // Convert slug back to DB id (author/model)
-            const modelId = slug.replace(/--/g, '/');
+    // Convert slug back to DB id (author/model)
+    const modelId = slug.replace(/--/g, '/');
 
-            // Access D1 binding
-            const db = env.DB;
-            if (!db) {
-                return new Response('Database not available', { status: 500 });
-            }
+    // Access D1 binding
+    const db = env.DB;
+    if (!db) {
+        return new Response('Database not available', { status: 500 });
+    }
 
-            try {
-                const model = await db.prepare('SELECT * FROM models WHERE id = ?')
-                    .bind(modelId)
-                    .first();
+    try {
+        const model = await db.prepare('SELECT * FROM models WHERE id = ?')
+            .bind(modelId)
+            .first();
 
-                if (!model) {
-                    // Forward to built‑in 404 page
-                    return env.ASSETS.fetch(new URL('/404', url.origin));
-                }
-
-                // Generate HTML page
-                const html = generateModelPage(model);
-                return new Response(html, {
-                    status: 200,
-                    headers: { 'Content-Type': 'text/html; charset=utf-8' },
-                });
-            } catch (e) {
-                console.error('Model page error:', e);
-                return new Response(`Error: ${e.message}`, { status: 500 });
-            }
+        if (!model) {
+            // Return built‑in 404 page
+            return env.ASSETS.fetch(new URL('/404', url.origin));
         }
 
-        // All other routes → static assets
-        return env.ASSETS.fetch(request);
-    },
-};
+        // Generate HTML page
+        const html = generateModelPage(model);
+        return new Response(html, {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        });
+    } catch (e) {
+        console.error('Model page error:', e);
+        return new Response(`Error: ${e.message}`, { status: 500 });
+    }
+}
 
 function generateModelPage(model) {
     const fmt = (n) => (n != null ? n.toLocaleString() : 0);
