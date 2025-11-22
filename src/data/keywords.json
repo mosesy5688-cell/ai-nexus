@@ -11,7 +11,7 @@
     "title": "Code Generation & Assistance",
     "slug": "code-generation-assistance",
     "description": "Generate, complete, and explain code.",
-    "count": 93
+    "count": 94
   },
   {
     "id": 7,
@@ -25,7 +25,7 @@
     "title": "Image Generation",
     "slug": "image-generation",
     "description": "Generate images from text descriptions.",
-    "count": 27
+    "count": 28
   },
   {
     "id": 8,
