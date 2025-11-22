@@ -4,14 +4,14 @@
     "title": "General Dialogue & Q&A",
     "slug": "general-dialogue-qa",
     "description": "Models for open-ended conversations and answering various questions.",
-    "count": 143
+    "count": 144
   },
   {
     "id": 6,
     "title": "Code Generation & Assistance",
     "slug": "code-generation-assistance",
     "description": "Generate, complete, and explain code.",
-    "count": 92
+    "count": 93
   },
   {
     "id": 7,
@@ -49,17 +49,17 @@
     "count": 4
   },
   {
+    "id": 4,
+    "title": "Translation & Localization",
+    "slug": "translation-localization",
+    "description": "Translate text between multiple languages.",
+    "count": 3
+  },
+  {
     "id": 14,
     "title": "Video Generation & Editing",
     "slug": "video-generation-editing",
     "description": "Generate or edit video content.",
     "count": 3
-  },
-  {
-    "id": 4,
-    "title": "Translation & Localization",
-    "slug": "translation-localization",
-    "description": "Translate text between multiple languages.",
-    "count": 2
   }
 ]
