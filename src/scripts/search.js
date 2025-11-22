@@ -127,8 +127,8 @@ async function performSearch() {
         const response = await fetch(`/api/search?${params.toString()}`);
         if (!response.ok) throw new Error('API Error');
 
-        const results = await response.json();
-        renderModels(results);
+        const data = await response.json();
+        renderModels(data.results || []);
     } catch (error) {
         console.error('Search failed:', error);
         if (modelsGrid) modelsGrid.innerHTML = `<p class="col-span-full text-center text-red-500">Error loading results. Please try again.</p>`;

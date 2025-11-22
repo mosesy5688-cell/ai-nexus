@@ -16,20 +16,13 @@ if (!slug) {
     return Astro.redirect('/404');
 }
 
-// Handle both /model/slug and /model/author/slug formats if necessary
-// But usually slug is unique. Let's assume slug is the ID or slug field.
-const modelId = slug; 
+// Convert URL slug (author--model) back to ID format (author/model)
+const modelId = slug.replace(/--/g, '/'); 
 
 if (db) {
     try {
-        // Try to find by slug first, then ID
-        // Assuming 'slug' column exists and is unique
-        let result = await db.prepare("SELECT * FROM models WHERE slug = ?").bind(modelId).first();
-        
-        if (!result) {
-             // Fallback to ID if slug lookup fails
-             result = await db.prepare("SELECT * FROM models WHERE id = ?").bind(modelId).first();
-        }
+        // Query by ID (which is in format author/model)
+        const result = await db.prepare("SELECT * FROM models WHERE id = ?").bind(modelId).first();
         
         model = result;
 
