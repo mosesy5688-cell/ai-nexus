@@ -12,3 +12,7 @@ pnpm-debug.log*
 target/
 **/*.pdb
 **/*.exe
+
+# Documentation to exclude
+OPTIMIZATION_BLUEPRINT_V3.md
+HANDOFF_REPORT.md

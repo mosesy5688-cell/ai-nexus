@@ -174,9 +174,10 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const container = document.getElementById('home-container');
-            const initialQuery = container?.dataset.initialQuery || '';
-            const initialTag = container?.dataset.initialTag || '';
+            // Parse URL parameters from the client side to handle SSG/static hosting correctly
+            const urlParams = new URLSearchParams(window.location.search);
+            const initialQuery = urlParams.get('q') || '';
+            const initialTag = urlParams.get('tag') || '';
             
             initializeSearch({
                 initialQuery,
