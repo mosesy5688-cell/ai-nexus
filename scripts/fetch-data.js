@@ -372,12 +372,17 @@ async function transformHuggingFaceModel(model) {
     const modelIdParts = model.modelId.split('/');
     const author = model.author || (modelIdParts.length > 1 ? modelIdParts[0] : 'unknown');
     const name = modelIdParts.length > 1 ? modelIdParts[1] : model.modelId;
+    let cleanDescription = (typeof model.cardData?.description === 'string' ? model.cardData.description : JSON.stringify(model.cardData?.description || '')) || `A model for ${model.pipeline_tag || 'various tasks'}.`;
+
+    if (cleanDescription === '[object Object]' || cleanDescription === '"[object Object]"') {
+        cleanDescription = `A model for ${model.pipeline_tag || 'various tasks'}.`;
+    }
 
     return {
         id: model.modelId,
         name: name,
         author: author,
-        description: (typeof model.cardData?.description === 'string' ? model.cardData.description : JSON.stringify(model.cardData?.description || '')) || `A model for ${model.pipeline_tag || 'various tasks'}.`,
+        description: cleanDescription,
         task: model.pipeline_tag || 'N/A',
         tags: model.tags || [],
         likes: model.likes || 0,
@@ -400,8 +405,8 @@ async function transformHuggingFaceModel(model) {
 /**
  * Fetches and transforms data from GitHub API.
  * Can be augmented with a list of specific repository URLs to fetch.
- * @param {string[]} [additionalRepoUrls=[]] - An array of specific GitHub repo URLs to fetch.
- * @returns {Promise<Array<object>>}
+ * @param { string[] } [additionalRepoUrls = []] - An array of specific GitHub repo URLs to fetch.
+ * @returns { Promise < Array < object >>}
  */
 async function fetchGitHubData(additionalRepoUrls = []) {
     console.log('📦 Fetching data from GitHub API...');

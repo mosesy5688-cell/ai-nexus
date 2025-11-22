@@ -45,6 +45,9 @@ try {
         if (typeof desc === 'object') {
             desc = desc.text || desc.content || JSON.stringify(desc);
         }
+        if (desc === '[object Object]' || desc === '"[object Object]"') {
+            desc = '';
+        }
         const description = escape(desc);
 
         const tags = escape(tagsJson);
