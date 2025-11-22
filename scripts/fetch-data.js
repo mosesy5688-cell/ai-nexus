@@ -285,8 +285,11 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function getModelKey(name) {
-    return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+function getModelKey(model) {
+    // Use the unique model ID for the key to prevent collisions between models with the same name but different authors.
+    // This is the critical fix for the data loss issue.
+    if (!model || !model.id) return null;
+    return model.id.toLowerCase().replace(/[^a-z0-9-]/g, '');
 }
 
 /**
@@ -872,7 +875,7 @@ async function main() {
     // 4. Create a map of new models for quick lookup
     const newModelsMap = new Map();
     for (const model of sfwModels) {
-        const key = getModelKey(model.name);
+        const key = getModelKey(model);
         if (newModelsMap.has(key)) {
             // Merge logic
             const existing = newModelsMap.get(key);
@@ -896,7 +899,7 @@ async function main() {
     // Iterate through existing models to find ones that are no longer present
     if (existingModels.length > 0) {
         for (const oldModel of existingModels) {
-            const key = getModelKey(oldModel.name);
+            const key = getModelKey(oldModel);
             // If an old model is not in the new list, mark it as archived and add it back
             if (!newModelsMap.has(key)) {
                 console.log(`- Archiving model: ${oldModel.name}`);
@@ -955,7 +958,7 @@ async function main() {
 
         // --- PARTIAL UPDATE LOGIC ---
         let updatedCount = 0;
-        const existingModelsMap = new Map(existingModels.map(m => [getModelKey(m.name), m]));
+        const existingModelsMap = new Map(existingModels.map(m => [getModelKey(m), m]));
 
         for (const [key, newModel] of newModelsMap.entries()) {
             if (existingModelsMap.has(key)) {
