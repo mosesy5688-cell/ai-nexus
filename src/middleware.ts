@@ -5,7 +5,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const isCacheable = url.pathname.startsWith('/model/') || url.pathname.startsWith('/topic/');
 
     if (isCacheable && context.locals.runtime?.env?.KV_CACHE) {
-        const cacheKey = url.pathname;
+        // Append version to cache key to force invalidation of old/stale cache
+        const CACHE_VERSION = 'v3.0.1';
+        const cacheKey = `${url.pathname}:${CACHE_VERSION}`;
         const cached = await context.locals.runtime.env.KV_CACHE.get(cacheKey);
 
         if (cached) {
@@ -21,7 +23,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
         const html = await response.clone().text();
         // Cache for 24 hours (86400 seconds)
         context.locals.runtime.ctx.waitUntil(
-            context.locals.runtime.env.KV_CACHE.put(url.pathname, html, { expirationTtl: 86400 })
+            context.locals.runtime.env.KV_CACHE.put(`${url.pathname}:v3.0.1`, html, { expirationTtl: 86400 })
         );
         response.headers.set('X-KV-Cache', 'MISS');
     }
