@@ -5,116 +5,14 @@ import Layout from '../layouts/Layout.astro';
 <Layout title="Page Not Found" description="The page you're looking for doesn't exist.">
     <div class="container mx-auto px-4 py-12">
         <div class="max-w-4xl mx-auto text-center">
-            <!-- Check if this is a model page -->
-            <div id="model-loader" class="hidden">
-                <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-                <p class="mt-4 text-gray-500">Loading model details...</p>
-            </div>
-
-            <!-- Default 404 content -->
-            <div id="default-404">
-                <h1 class="text-6xl font-bold text-gray-900 dark:text-white mb-4">404</h1>
-                <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-6">Page Not Found</h2>
-                <p class="text-gray-600 dark:text-gray-400 mb-8">
-                    The page you're looking for doesn't exist or has been moved.
-                </p>
-                <a href="/" class="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    Go Home
-                </a>
-            </div>
-
-            <!-- Model content (populated by JS) -->
-            <div id="model-content" class="hidden text-left">
-                <header class="mb-8">
-                    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                        <div class="flex-grow">
-                            <h1 id="model-name" class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-2 break-words"></h1>
-                            <p id="model-author" class="text-lg text-gray-500 dark:text-gray-400"></p>
-                        </div>
-                        <a id="hf-link" href="#" target="_blank" rel="noopener noreferrer" class="flex-shrink-0 inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700">
-                            View on Hugging Face
-                        </a>
-                    </div>
-                </header>
-
-                <div class="mb-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                        <div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Likes</p>
-                            <p id="model-likes" class="text-xl font-bold">0</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Downloads</p>
-                            <p id="model-downloads" class="text-xl font-bold">0</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Task</p>
-                            <p id="model-task" class="text-xl font-bold capitalize">N/A</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">Last Updated</p>
-                            <p id="model-updated" class="text-xl font-bold">N/A</p>
-                        </div>
-                    </div>
-                </div>
-
-                <article class="py-8 border-t border-gray-200 dark:border-gray-700">
-                    <h2 class="text-2xl font-bold mb-4">Model Description</h2>
-                    <div class="prose prose-lg dark:prose-invert max-w-none">
-                        <p id="model-description" class="text-gray-700 dark:text-gray-300 whitespace-pre-wrap"></p>
-                    </div>
-                </article>
-            </div>
+            <h1 class="text-6xl font-bold text-gray-900 dark:text-white mb-4">404</h1>
+            <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-6">Page Not Found</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-8">
+                The page you're looking for doesn't exist or has been moved.
+            </p>
+            <a href="/" class="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Go Home
+            </a>
         </div>
     </div>
-
-    <script>
-        async function checkIfModelPage() {
-            const path = window.location.pathname;
-            const modelMatch = path.match(/^\/model\/(.+)$/);
-            
-            if (!modelMatch) {
-                // Not a model page, show default 404
-                return;
-            }
-
-            const slug = modelMatch[1];
-            const modelId = slug.replace(/--/g, '/');
-
-            // Show loading
-            document.getElementById('default-404').classList.add('hidden');
-            document.getElementById('model-loader').classList.remove('hidden');
-
-            try {
-                const response = await fetch(`/api/model-detail?id=${encodeURIComponent(modelId)}`);
-                if (!response.ok) throw new Error('Model not found');
-
-                const model = await response.json();
-
-                // Update page
-                document.title = `${model.name} - AI Model Details`;
-                document.getElementById('model-name').textContent = model.name || 'Unknown';
-                document.getElementById('model-author').textContent = `by ${model.author || 'Unknown'}`;
-                document.getElementById('hf-link').href = `https://huggingface.co/${model.id}`;
-                document.getElementById('model-likes').textContent = (model.likes || 0).toLocaleString();
-                document.getElementById('model-downloads').textContent = (model.downloads || 0).toLocaleString();
-                document.getElementById('model-task').textContent = model.pipeline_tag || 'N/A';
-                document.getElementById('model-updated').textContent = model.last_updated 
-                    ? new Date(model.last_updated).toLocaleDateString() 
-                    : 'N/A';
-                document.getElementById('model-description').textContent = model.description || 'No description available.';
-
-                // Show model content
-                document.getElementById('model-loader').classList.add('hidden');
-                document.getElementById('model-content').classList.remove('hidden');
-
-            } catch (e) {
-                // Failed to load model, show default 404
-                document.getElementById('model-loader').classList.add('hidden');
-                document.getElementById('default-404').classList.remove('hidden');
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', checkIfModelPage);
-    </script>
 </Layout>
