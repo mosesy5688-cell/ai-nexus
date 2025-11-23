@@ -1,317 +1,142 @@
-
 ---
-// This is an Astro dynamic route page for server-side rendering (SSR).
-// It replaces the logic from the manual `functions/[[path]].js`.
-import Layout from '@/layouts/Layout.astro';
-
-export const prerender = false; // This page must be SSR.
+import Layout from '../../layouts/Layout.astro';
+import RelatedModels from '../../components/RelatedModels.astro';
+import { getModelBySlug } from '../../utils/db'; // 假设这是您的DB工具函数引用
 
 const { slug } = Astro.params;
-const { locals } = Astro; // Access runtime context provided by the Cloudflare adapter
 
+// 初始化变量，防止 undefined 错误
 let model = null;
 let relatedModels = [];
 let error = null;
+let pageTitle = "AI Model Details";
+let pageDescription = "View details for this AI model.";
 
-if (!slug) {
-    return Astro.redirect('/', 301);
-}
-
+// --- 阶段 1: 数据获取与防御性解析 ---
 try {
-    // This logic is the exact reverse of the link creation in the frontend.
-    const modelId = slug.replace(/--/g, '/');
+  if (!slug) {
+    throw new Error("No slug provided");
+  }
+
+  // 获取原始数据
+  const result = await getModelBySlug(slug);
+  
+  if (result) {
+    model = result;
     
-    // Access the D1 database via locals.runtime
-    const db = locals.runtime?.env?.DB;
-
-    if (db) {
-        // 1. Fetch the main model
-        // Try two queries:
-        // a. First, try to find by splitting author/name (most common case)
-        // b. If not found, try to find by id directly
-        
-        // Split into author and name (name might contain slashes)
-        const firstSlashIndex = modelId.indexOf('/');
-        
-        if (firstSlashIndex !== -1) {
-            const author = modelId.substring(0, firstSlashIndex);
-            const name = modelId.substring(firstSlashIndex + 1);
-            
-            // Try query by author and name
-            let stmt = db.prepare('SELECT * FROM models WHERE author = ? AND name = ?');
-            model = await stmt.bind(author, name).first();
-            
-            // If not found, try by id (for models without separate author field)
-            if (!model) {
-                stmt = db.prepare('SELECT * FROM models WHERE id = ?');
-                model = await stmt.bind(modelId).first();
-            }
-        } else {
-            // No slash, just query by id
-            const stmt = db.prepare('SELECT * FROM models WHERE id = ?');
-            model = await stmt.bind(modelId).first();
-        }
-
-        // 2. Fetch Related Models (从预计算字段读取)
-        if (model && model.related_ids) {
-            try {
-                const relatedIds = JSON.parse(model.related_ids);
-                
-                // 只有当数组非空时才查询
-                if (Array.isArray(relatedIds) && relatedIds.length > 0) {
-                    const placeholders = relatedIds.map(() => '?').join(',');
-                    const stmt = db.prepare(`
-                        SELECT id, name, author, likes, downloads, cover_image_url 
-                        FROM models 
-                        WHERE id IN (${placeholders})
-                    `);
-                    const { results } = await stmt.bind(...relatedIds).all();
-                    relatedModels = results || [];
-                }
-            } catch (e) {
-                console.error(`Error loading related models for ${model.id}:`, e);
-                // 优雅降级：不影响页面渲染
-            }
-        }
-
+    // [防御性检查 1] 确保 model 是对象
+    if (typeof model !== 'object') {
+       console.error("Critical: Model is not an object:", model);
+       model = null;
     } else {
-        throw new Error("Database connection is not available.");
-    }
+        // [防御性检查 2] 处理 description (防止它是对象)
+        if (typeof model.description !== 'string') {
+            // 如果是对象则转字符串，如果是 null 则给空串
+            model.description = model.description ? String(model.description) : ""; 
+        }
 
-} catch (e) {
-    console.error(`Error fetching model with slug "${slug}":`, e);
-    error = e.message;
-}
-
-// If model is not found, Astro will automatically render the 404 page.
-if (!model) {
-    return new Response(null, { status: 404, statusText: 'Not Found' });
-}
-
-const pageTitle = `${model.name} - AI Model Details | Free AI Tools`;
-const descriptionText = (() => {
-    if (typeof model.description === 'string') {
-        return model.description;
-    } else if (model.description && typeof model.description === 'object') {
-        return model.description.text || JSON.stringify(model.description);
-    }
-    return '';
-})();
-const pageDescription = descriptionText ? descriptionText.substring(0, 160) : `Details for the AI model ${model.name} by ${model.author || 'Unknown'}.`;
-
-// Helper to format numbers
-const formatNumber = (num) => {
-    if (!num) return '0';
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
-    return num.toString();
-};
-
-// Determine platform icon/name
-const isGithub = model.id.startsWith('github-');
-const platformName = isGithub ? 'GitHub' : 'Hugging Face';
-const platformIcon = isGithub ? 'github' : 'huggingface'; // You'd typically use an SVG here
-
-// Debug logging
-console.log(`Rendering model: ${model.name}, Author: ${model.author || '(no author field)'}, Description type: ${typeof model.description}`);
----
-<Layout title={pageTitle} description={pageDescription}>
-    <div class="bg-gray-50 dark:bg-gray-900 min-h-screen pb-12">
-        {/* Hero Section */}
-        <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <div class="container mx-auto px-4 py-8">
-                <a href="/" class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6 transition-colors">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                    Back to Explore
-                </a>
+        // [防御性检查 3] 处理 related_ids (从 JSON 字符串转为数组)
+        if (model.related_ids) {
+            try {
+                const parsed = typeof model.related_ids === 'string' 
+                    ? JSON.parse(model.related_ids) 
+                    : model.related_ids;
                 
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div>
-                        <div class="flex items-center gap-3 mb-2">
-                            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">{model.name}</h1>
-                            {model.is_rising_star && (
-                                <span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full border border-yellow-200 font-semibold flex items-center">
-                                    ⭐ Rising Star
-                                </span>
-                            )}
-                        </div>
-                        <p class="text-lg text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                            by <span class="font-semibold text-gray-800 dark:text-gray-200">{model.author}</span>
-                        </p>
-                    </div>
+                if (Array.isArray(parsed)) {
+                    // 这里假设您有逻辑将 ID 列表转换为模型对象列表
+                    // 如果 relatedModels 已经在 getModelBySlug 中处理好，则直接赋值
+                    // 这里的核心是确保它是一个数组
+                    relatedModels = parsed; 
+                }
+            } catch (jsonErr) {
+                console.warn("Failed to parse related_ids:", jsonErr);
+                relatedModels = [];
+            }
+        }
+    }
+  }
+} catch (e) {
+  console.error("SSR Error fetching model:", e);
+  error = e.message;
+  // 注意：这里不 return error 对象，而是允许页面继续渲染（显示错误提示或404）
+}
 
-                    <div class="flex gap-3">
-                        <a href={model.source_url || `https://huggingface.co/${model.id}`} 
-                           target="_blank" 
-                           rel="noopener noreferrer"
-                           class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                            <span>View on {platformName}</span>
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                        </a>
-                    </div>
-                </div>
+// --- 阶段 2: 路由控制 (唯一的 return 点) ---
+if (!model) {
+  console.log(`Model not found for slug: ${slug}, returning 404.`);
+  return new Response(null, {
+    status: 404,
+    statusText: 'Not Found'
+  });
+}
 
-                {/* Stats Bar */}
-                <div class="flex flex-wrap gap-6 mt-8 pt-6 border-t border-gray-100 dark:border-gray-700">
-                    <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                        <span class="bg-red-100 text-red-600 p-1.5 rounded-md">❤️</span>
-                        <span class="font-bold text-gray-900 dark:text-white text-lg">{formatNumber(model.likes)}</span>
-                        <span class="text-sm">Likes</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                        <span class="bg-green-100 text-green-600 p-1.5 rounded-md">⬇️</span>
-                        <span class="font-bold text-gray-900 dark:text-white text-lg">{formatNumber(model.downloads)}</span>
-                        <span class="text-sm">Downloads</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                        <span class="bg-purple-100 text-purple-600 p-1.5 rounded-md">🏷️</span>
-                        <span class="font-bold text-gray-900 dark:text-white text-lg">{model.pipeline_tag || 'Tool'}</span>
-                        <span class="text-sm">Task</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                        <span class="bg-gray-100 text-gray-600 p-1.5 rounded-md">📅</span>
-                        <span class="font-bold text-gray-900 dark:text-white text-lg">{new Date(model.created_at || Date.now()).toLocaleDateString()}</span>
-                        <span class="text-sm">Updated</span>
-                    </div>
-                </div>
-            </div>
+// --- 阶段 3: 布局参数安全生成 ---
+// 确保传入 Layout 的绝对是字符串，杜绝 [object Object]
+pageTitle = typeof model.name === 'string' && model.name.trim() !== ''
+    ? `${model.name} - AI Nexus`
+    : "AI Model Details - AI Nexus";
+
+pageDescription = typeof model.description === 'string' 
+    ? model.description.substring(0, 160).replace(/[\n\r]/g, ' ') + "..."
+    : "Explore this AI model on AI Nexus.";
+
+// [调试探针] 输出最终传给模板的数据类型
+console.log('RENDER CHECK:', {
+    slug,
+    modelNameType: typeof model.name,
+    descType: typeof model.description,
+    pageTitle,
+    relatedCount: Array.isArray(relatedModels) ? relatedModels.length : 'Not Array'
+});
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <main class="container mx-auto px-4 py-8">
+    
+    {/* 错误展示区 */}
+    {error && (
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <p>System Error: {error}</p>
         </div>
+    )}
 
-        <div class="container mx-auto px-4 py-8">
-            {model.link_status === 'broken' && (
-                <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-8 rounded-r shadow-sm" role="alert">
-                    <div class="flex">
-                        <div class="py-1"><svg class="fill-current h-6 w-6 text-red-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zm12.73-1.41A8 8 0 1 0 4.34 4.34a8 8 0 0 0 11.32 11.32zM9 11V9h2v6H9v-4zm0-6h2v2H9V5z"/></svg></div>
-                        <div>
-                            <p class="font-bold">Source Link Warning</p>
-                            <p class="text-sm">The official source link for this model appears to be broken or inaccessible. Proceed with caution.</p>
-                        </div>
-                    </div>
-                </div>
-            )}
+    <article class="prose lg:prose-xl mx-auto">
+      {/* 标题区 */}
+      <h1 class="text-3xl font-bold mb-4">{model.name}</h1>
+      
+      {/* 元数据区 */}
+      <div class="flex flex-wrap gap-2 mb-6 text-sm text-gray-600">
+        {model.author && <span class="bg-gray-100 px-2 py-1 rounded">Author: {String(model.author)}</span>}
+        {model.pipeline_tag && <span class="bg-blue-100 px-2 py-1 rounded">Task: {String(model.pipeline_tag)}</span>}
+        <span>Likes: {Number(model.likes || 0)}</span>
+        <span>Downloads: {Number(model.downloads || 0)}</span>
+      </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Main Content Column */}
-                <div class="lg:col-span-2 space-y-8">
-                    
-                    {/* About Section */}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        <div class="p-6 border-b border-gray-100 dark:border-gray-700">
-                            <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                📖 About this Model
-                            </h2>
-                        </div>
-                        
-                        <div class="p-6">
-                            {model.cover_image_url && (
-                                <img 
-                                    src={model.cover_image_url} 
-                                    alt={`Cover for ${model.name}`} 
-                                    class="w-full h-auto rounded-lg shadow-md object-cover max-h-96 mb-6"
-                                />
-                            )}
+      {/* 封面图 (如果有) */}
+      {model.cover_image_url && typeof model.cover_image_url === 'string' && (
+          <img 
+            src={model.cover_image_url} 
+            alt={`${model.name} cover`}
+            class="w-full h-auto rounded-lg shadow-md mb-8 object-cover max-h-[400px]"
+            loading="lazy"
+          />
+      )}
 
-                            {model.seo_summary ? (
-                                <div class="bg-blue-50 dark:bg-blue-900/20 p-5 rounded-lg mb-6 border border-blue-100 dark:border-blue-800">
-                                    <h3 class="text-sm font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-2 flex items-center gap-2">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                                        AI Summary
-                                    </h3>
-                                    <p class="text-gray-800 dark:text-gray-200 leading-relaxed">{model.seo_summary}</p>
-                                </div>
-                            ) : null}
-
-                            <div class="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
-                                <p class="whitespace-pre-wrap leading-relaxed">
-                                    {descriptionText || 'No description available.'}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Comments Section */}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        <div class="p-6 border-b border-gray-100 dark:border-gray-700">
-                            <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                💬 Community Discussion
-                            </h2>
-                        </div>
-                        <div class="p-6" id="comments-section">
-                            <div class="flex flex-col items-center justify-center py-8 text-center">
-                                <div class="bg-gray-100 dark:bg-gray-700 p-3 rounded-full mb-3">
-                                    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-                                </div>
-                                <p class="text-gray-500 dark:text-gray-400">Comments are loading...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Sidebar */}
-                <div class="space-y-8">
-                    {/* Tags Widget */}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Tags & Categories</h3>
-                        <div class="flex flex-wrap gap-2">
-                            {model.tags && (() => {
-                                try {
-                                    const tags = typeof model.tags === 'string' ? JSON.parse(model.tags) : model.tags;
-                                    return Array.isArray(tags) && tags.length > 0 ? tags.map(tag => (
-                                        <a href={`/?tag=${tag}`} class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900 dark:hover:text-blue-300 transition-colors">
-                                            #{tag}
-                                        </a>
-                                    )) : <span class="text-gray-500 text-sm">No tags available</span>;
-                                } catch (e) { return null; }
-                            })()}
-                        </div>
-                    </div>
-
-                    {/* Related Models Widget */}
-                    {relatedModels.length > 0 && (
-                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Related Models</h3>
-                            <div class="space-y-4">
-                                {relatedModels.map(related => (
-                                    <a href={`/model/${related.id.replace(/\//g, '--')}`} class="block group">
-                                        <div class="flex items-start gap-3">
-                                            <div class="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex-shrink-0 overflow-hidden">
-                                                {related.cover_image_url ? (
-                                                    <img src={related.cover_image_url} alt={related.name} class="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div class="w-full h-full flex items-center justify-center text-xl">🤖</div>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <h4 class="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors line-clamp-1">
-                                                    {related.name}
-                                                </h4>
-                                                <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">by {related.author}</p>
-                                                <div class="flex items-center gap-2 mt-1 text-xs text-gray-400">
-                                                    <span>❤️ {formatNumber(related.likes)}</span>
-                                                    <span>•</span>
-                                                    <span>⬇️ {formatNumber(related.downloads)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </a>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Share/Action Widget */}
-                    <div class="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl shadow-lg p-6 text-white">
-                        <h3 class="text-lg font-bold mb-2">Ready to build?</h3>
-                        <p class="text-blue-100 text-sm mb-4">Get started with {model.name} today.</p>
-                        <a href={model.source_url || `https://huggingface.co/${model.id}`} 
-                           target="_blank" 
-                           rel="noopener noreferrer"
-                           class="block w-full bg-white text-blue-700 text-center font-bold py-2 rounded-lg hover:bg-blue-50 transition-colors">
-                            Download Now
-                        </a>
-                    </div>
-                </div>
-            </div>
+      {/* 描述内容区 - 确保渲染的是 string */}
+      <div class="bg-white p-6 rounded-lg shadow-sm border mb-8">
+        <h2 class="text-xl font-semibold mb-4">Model Description</h2>
+        <div class="whitespace-pre-wrap font-sans text-gray-800">
+            {model.description || "No description available."}
         </div>
-    </div>
+      </div>
+
+      {/* 相关推荐区 */}
+      {Array.isArray(relatedModels) && relatedModels.length > 0 && (
+        <div class="mt-12">
+          <h2 class="text-2xl font-bold mb-6">Related Models</h2>
+          <RelatedModels models={relatedModels} />
+        </div>
+      )}
+    </article>
+  </main>
 </Layout>
