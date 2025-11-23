@@ -77,6 +77,19 @@ try {
     } else {
         throw new Error("Database connection is not available.");
     }
+
+} catch (e) {
+    console.error(`Error fetching model with slug "${slug}":`, e);
+    error = e.message;
+}
+
+// If model is not found, Astro will automatically render the 404 page.
+if (!model) {
+    return new Response(null, { status: 404, statusText: 'Not Found' });
+}
+
+const pageTitle = `${model.name} - AI Model Details | Free AI Tools`;
+const descriptionText = (() => {
     if (typeof model.description === 'string') {
         return model.description;
     } else if (model.description && typeof model.description === 'object') {
