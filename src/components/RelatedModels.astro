@@ -5,7 +5,7 @@ export interface Props {
 }
 ---
 <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-  {props.models.map((model) => (
+  {Astro.props.models.map((model) => (
     <ModelCard model={model} />
   ))}
 </div>
