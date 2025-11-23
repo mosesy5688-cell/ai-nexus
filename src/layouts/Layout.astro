@@ -2,7 +2,6 @@
 // src/layouts/Layout.astro
 import Header from '@/components/Header.astro';
 import Footer from '@/components/Footer.astro';
-import '@/styles/globals.css';
 
 interface Props {
 	title: string;
@@ -25,6 +24,14 @@ const { title, description = 'A premier, free directory of open-source AI models
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    
+    <!-- Tailwind CSS - Inline for SSR compatibility -->
+    <style is:global>
+        @tailwind base;
+        @tailwind components;
+        @tailwind utilities;
+    </style>
+    
     <!-- Open Graph Meta Tags -->
     <meta property="og:type" content="website">
     <meta property="og:url" content={Astro.url.href}>
