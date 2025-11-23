@@ -76,8 +76,16 @@ try {
 }
 
 // --- 阶段 2: 路由控制 (唯一的 return 点) ---
-if (!model) {
-  console.log(`Model not found for slug: ${slug}, returning 404.`);
+// CRITICAL: Validate model has required properties, not just truthy check
+// D1's .first() may return {} instead of null when no rows match
+if (!model || typeof model !== 'object' || !model.id || !model.name) {
+  console.error(`Model validation failed for slug: ${slug}`, {
+    hasModel: !!model,
+    modelType: typeof model,
+    hasId: !!(model?.id),
+    hasName: !!(model?.name),
+    modelKeys: model ? Object.keys(model) : []
+  });
   return new Response(null, {
     status: 404,
     statusText: 'Not Found'
