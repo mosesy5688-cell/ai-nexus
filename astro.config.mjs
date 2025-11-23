@@ -10,7 +10,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   site: 'https://free2aitools.com',
   output: 'hybrid',
-  adapter: cloudflare(),
+  adapter: cloudflare({
+    routes: {
+      strategy: 'exclude',
+      exclude: [
+        '/_astro/*',
+        '/favicon.svg',
+        '/robots.txt',
+        '/ads.txt',
+        '/models.json',
+        '/data/*',
+        '/archives/*'
+      ]
+    }
+  }),
   image: {
     service: {
       entrypoint: 'astro/assets/services/noop'
