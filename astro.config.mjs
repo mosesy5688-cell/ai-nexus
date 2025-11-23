@@ -11,7 +11,8 @@ export default defineConfig({
   site: 'https://free2aitools.com',
   output: 'hybrid',
   build: {
-    assets: 'assets'
+    assets: 'assets',
+    inlineStylesheets: 'never' // Force external CSS files
   },
   adapter: cloudflare(),
   image: {
@@ -21,6 +22,14 @@ export default defineConfig({
   },
   integrations: [tailwind(), sitemap()],
   vite: {
+    build: {
+      cssCodeSplit: false, // Bundle all CSS into one file
+      rollupOptions: {
+        output: {
+          assetFileNames: 'assets/[name].[hash][extname]'
+        }
+      }
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src')

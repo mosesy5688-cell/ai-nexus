@@ -1,256 +1,144 @@
 ---
-// Client-side rendering with catch-all static path
+export const prerender = false;
+
 import Layout from '../../layouts/Layout.astro';
 import ModelHero from '../../components/ModelHero.astro';
 import TabbedContent from '../../components/TabbedContent.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
-
-// Generate a single catch-all route for client-side rendering
-export function getStaticPaths() {
-  return [
-    { params: { slug: '_' } } // Placeholder path
-  ];
-}
+import { getModelBySlug } from '../../utils/db';
 
 const { slug } = Astro.params;
 
-// 基础页面元数据（静态）
-const pageTitle = "AI Model Details - AI Nexus";
-const pageDescription = "Explore this AI model on AI Nexus.";
+// 初始化变量，防止 undefined 错误
+let model = null;
+let relatedModels = [];
+let relatedIds = [];
+let error = null;
+let pageTitle = "AI Model Details";
+let pageDescription = "View details for this AI model.";
+
+// --- 阶段 1: 数据获取与防御性解析 ---
+try {
+  if (!slug) {
+    throw new Error("No slug provided");
+  }
+
+  // 获取原始数据
+  const result = await getModelBySlug(slug, Astro.locals);
+  
+  if (result) {
+    model = result;
+    
+    // [防御性检查 1] 确保 model 是对象
+    if (typeof model !== 'object') {
+       console.error("Critical: Model is not an object:", model);
+       model = null;
+    } else {
+        // [防御性检查 2] 处理 description (防止它是对象)
+        if (typeof model.description !== 'string') {
+            model.description = model.description ? String(model.description) : ""; 
+        }
+
+        // [防御性检查 3] 处理 related_ids
+        if (model.related_ids) {
+            try {
+                const parsed = JSON.parse(model.related_ids);
+                if (Array.isArray(parsed)) {
+                    relatedIds = parsed;
+                }
+            } catch (e) {
+                console.warn("Failed to parse related_ids JSON:", e);
+                relatedIds = [];
+            }
+        }
+    }
+        
+    // 🔥 SMART FALLBACK
+    if (relatedIds.length === 0 && model.pipeline_tag) {
+        try {
+            const db = Astro.locals?.runtime?.env?.DB;
+            if (db) {
+                const stmt = db.prepare(`
+                    SELECT id, name, author, likes, downloads, cover_image_url, description 
+                    FROM models 
+                    WHERE pipeline_tag = ? AND id != ?
+                    ORDER BY downloads DESC 
+                    LIMIT 6
+                `);
+                const { results } = await stmt.bind(model.pipeline_tag, model.id).all();
+                relatedModels = results || [];
+            }
+        } catch (fallbackErr) {
+            console.warn("Smart fallback failed:", fallbackErr);
+        }
+    }
+  }
+} catch (e) {
+  console.error("SSR Error fetching model:", e);
+  error = e.message;
+}
+
+// --- 阶段 2: 路由控制 ---
+if (!model || typeof model !== 'object' || !model.id || !model.name) {
+  return new Response(null, {
+    status: 404,
+    statusText: 'Not Found'
+  });
+}
+
+// --- 阶段 3: 布局参数安全生成 ---
+pageTitle = typeof model.name === 'string' && model.name.trim() !== ''
+    ? `${model.name} - AI Nexus`
+    : "AI Model Details - AI Nexus";
+
+pageDescription = typeof model.description === 'string' 
+    ? model.description.substring(0, 160).replace(/[\n\r]/g, ' ') + "..."
+    : "Explore this AI model on AI Nexus.";
+
+// --- 阶段 4: 生成 links_data ---
+const linksData = JSON.stringify({
+  source_url: model.source_url || `https://huggingface.co/${model.id}`,
+  docs_url: model.docs_url || (model.source_url ? `${model.source_url}#readme` : ''),
+  demo_url: model.demo_url || ''
+});
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
   <main class="container mx-auto px-4 py-8">
     
-    <!-- Alpine.js data container for client-side rendering -->
-    <div 
-      x-data="modelDetailPage" 
-      x-init="loadModelData()"
-    >
-      
-      <!-- Loading State -->
-      <div x-show="loading" class="flex justify-center items-center py-16">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        <span class="ml-3 text-gray-600">Loading model data...</span>
-      </div>
-
-      <!-- Error State -->
-      <div x-show="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" style="display: none;">
-        <p><strong>Error:</strong> <span x-text="error"></span></p>
-      </div>
-
-      <!-- 404 State -->
-      <template x-if="isNotFound">
-        <div class="text-center py-16">
-          <h1 class="text-4xl font-bold text-gray-900">404 - Model Not Found</h1>
-          <p class="mt-4 text-gray-600">The model you're looking for doesn't exist.</p>
-          <a href="/" class="mt-6 inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
-            Back to Home
-          </a>
+    {error && (
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <p>System Error: {error}</p>
         </div>
-      </template>
+    )}
 
-      <!-- Main Content - Only shown when data is loaded -->
-      <article class="lg:prose-xl mx-auto" x-show="model && !loading && !error" style="display: none;">
-        <!-- Hero Section -->
-        <template x-if="model">
-          <div id="model-hero-container"></div>
-        </template>
+    <article class="lg:prose-xl mx-auto">
+      <ModelHero 
+        name={model.name}
+        description={model.description}
+        author={model.author}
+        likes={Number(model.likes || 0)}
+        downloads={Number(model.downloads || 0)}
+        pipelineTag={model.pipeline_tag}
+        linksData={linksData}
+        lastUpdated={model.last_updated}
+        license={model.license}
+      />
 
-        <!-- Tabbed Content Section -->
-        <template x-if="model">
-          <div id="tabbed-content-container"></div>
-        </template>
+      <TabbedContent
+        overview={model.description || ""}
+        quickStart={model.quick_start || ""}
+        useCases={model.use_cases || ""}
+        resources={model.resources || ""}
+      />
 
-        <!-- Related Models Carousel -->
-        <div class="mt-12" x-show="model">
-          <h2 class="text-2xl font-bold mb-6">Related Models</h2>
-          <template x-if="model">
-            <div id="carousel-container"></div>
-          </template>
-        </div>
-      </article>
-    </div>
+      <div class="mt-12">
+        <h2 class="text-2xl font-bold mb-6">Related Models</h2>
+        <ModelCarousel 
+            ids={relatedIds} 
+            initialModels={relatedModels} 
+        />
+      </div>
+    </article>
   </main>
-
-  <script>
-    document.addEventListener('alpine:init', () => {
-      Alpine.data('modelDetailPage', () => ({
-        model: null,
-        relatedIds: [],
-        relatedModels: [],
-        loading: true,
-        error: null,
-        isNotFound: false,
-
-        async loadModelData() {
-          // Extract slug from URL path
-          const pathParts = window.location.pathname.split('/');
-          const slug = pathParts[pathParts.length - 1];
-          
-          if (!slug || slug === '_') {
-            this.error = 'No model slug provided';
-            this.loading = false;
-            return;
-          }
-
-          try {
-            const response = await fetch(`/api/model/${slug}`);
-            
-            if (response.status === 404) {
-              this.isNotFound = true;
-              this.loading = false;
-              return;
-            }
-
-            if (!response.ok) {
-              throw new Error(`Failed to load model: ${response.status}`);
-            }
-
-            const data = await response.json();
-            
-            if (data.error) {
-              throw new Error(data.error);
-            }
-
-            this.model = data.model;
-            this.relatedIds = data.relatedIds || [];
-            this.relatedModels = data.relatedModels || [];
-            
-            // Update page metadata
-            document.title = `${this.model.name} - AI Nexus`;
-            const metaDesc = document.querySelector('meta[name="description"]');
-            if (metaDesc && this.model.description) {
-              metaDesc.setAttribute('content', this.model.description.substring(0, 160));
-            }
-
-            this.loading = false;
-
-            // Render components after data is loaded
-            this.$nextTick(() => {
-              this.renderComponents();
-            });
-
-          } catch (e) {
-            console.error('Error loading model:', e);
-            this.error = e.message || 'Failed to load model data';
-            this.loading = false;
-          }
-        },
-
-        renderComponents() {
-          // Generate links_data
-          const linksData = JSON.stringify({
-            source_url: this.model.source_url || `https://huggingface.co/${this.model.id}`,
-            docs_url: this.model.docs_url || (this.model.source_url ? `${this.model.source_url}#readme` : ''),
-            demo_url: this.model.demo_url || ''
-          });
-
-          // Render ModelHero
-          const heroContainer = document.getElementById('model-hero-container');
-          if (heroContainer && this.model) {
-            heroContainer.innerHTML = this.generateHeroHTML();
-          }
-
-          // Render TabbedContent
-          const tabbedContainer = document.getElementById('tabbed-content-container');
-          if (tabbedContainer && this.model) {
-            tabbedContainer.innerHTML = this.generateTabbedContentHTML();
-          }
-
-          // Render Carousel
-          const carouselContainer = document.getElementById('carousel-container');
-          if (carouselContainer) {
-            carouselContainer.innerHTML = this.generateCarouselHTML();
-            // Reinitialize ModelCarousel Alpine component
-            Alpine.initTree(carouselContainer);
-          }
-        },
-
-        generateHeroHTML() {
-          return `
-            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-8 mb-8">
-              <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">${this.escapeHtml(this.model.name)}</h1>
-              <p class="text-gray-700 dark:text-gray-300 mb-4">${this.escapeHtml(this.model.description || '')}</p>
-              <div class="flex flex-wrap items-center gap-4 text-sm mb-4">
-                <span class="text-gray-600">by <strong>${this.escapeHtml(this.model.author)}</strong></span>
-                <span>❤️ ${this.formatNumber(this.model.likes)}</span>
-                <span>⬇️ ${this.formatNumber(this.model.downloads)}</span>
-                ${this.model.pipeline_tag ? `<span class="bg-blue-100 px-2 py-1 rounded">${this.escapeHtml(this.model.pipeline_tag)}</span>` : ''}
-              </div>
-              ${this.model.source_url ? `<a href="${this.escapeHtml(this.model.source_url)}" target="_blank" class="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">View on HuggingFace</a>` : ''}
-            </div>
-          `;
-        },
-
-        generateTabbedContentHTML() {
-          return `
-            <div class="mb-8" x-data="{ activeTab: 'overview' }">
-              <div class="border-b border-gray-200 mb-4">
-                <nav class="flex gap-4">
-                  <button @click="activeTab = 'overview'" :class="activeTab === 'overview' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'" class="py-2 px-4 border-b-2 font-medium transition-colors">Overview</button>
-                  <button @click="activeTab = 'quickStart'" :class="activeTab === 'quickStart' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'" class="py-2 px-4 border-b-2 font-medium transition-colors">Quick Start</button>
-                  <button @click="activeTab = 'useCases'" :class="activeTab === 'useCases' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'" class="py-2 px-4 border-b-2 font-medium transition-colors">Use Cases</button>
-                </nav>
-              </div>
-              <div class="bg-white p-6 rounded-lg shadow-sm border">
-                <div x-show="activeTab === 'overview'" class="prose max-w-none whitespace-pre-wrap">${this.escapeHtml(this.model.description || 'No overview available.')}</div>
-                <div x-show="activeTab === 'quickStart'" class="prose max-w-none whitespace-pre-wrap">${this.escapeHtml(this.model.quick_start || 'No quick start guide available.')}</div>
-                <div x-show="activeTab === 'useCases'" class="prose max-w-none whitespace-pre-wrap">${this.escapeHtml(this.model.use_cases || 'No use cases documented.')}</div>
-              </div>
-            </div>
-          `;
-        },
-
-        generateCarouselHTML() {
-          const ids = this.relatedIds.length > 0 ? this.relatedIds : [];
-          const initialModels = this.relatedModels.length > 0 ? this.relatedModels : [];
-          
-          return `
-            <div class="model-carousel" x-data="modelCarousel" data-ids='${JSON.stringify(ids)}' data-initial-models='${JSON.stringify(initialModels)}'>
-              <div x-show="loading" class="flex justify-center py-8">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-              <div x-show="error" class="text-red-500 text-center py-4" x-text="error" style="display: none;"></div>
-              <div x-show="!loading && models.length > 0" class="relative group" style="display: none;">
-                <div class="flex overflow-x-auto space-x-4 pb-4 snap-x snap-mandatory scrollbar-hide" x-ref="container">
-                  <template x-for="model in models" :key="model.id">
-                    <a :href="'/model/' + model.id.replace('/', '--')" class="flex-none w-72 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 snap-start border border-gray-100 dark:border-gray-700 block">
-                      <div class="h-40 bg-gray-200 dark:bg-gray-700 rounded-t-lg overflow-hidden relative">
-                        <template x-if="model.cover_image_url">
-                          <img :src="model.cover_image_url" :alt="model.name" class="w-full h-full object-cover" loading="lazy" />
-                        </template>
-                        <span class="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm" x-text="model.pipeline_tag"></span>
-                      </div>
-                      <div class="p-4">
-                        <h3 class="font-bold text-gray-900 dark:text-white truncate" x-text="model.name"></h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 truncate mt-1" x-text="'by ' + model.author"></p>
-                        <div class="flex items-center justify-between mt-4 text-xs text-gray-500 dark:text-gray-400">
-                          <span class="flex items-center" x-text="'❤️ ' + formatNumber(model.likes)"></span>
-                          <span class="flex items-center" x-text="'⬇️ ' + formatNumber(model.downloads)"></span>
-                        </div>
-                      </div>
-                    </a>
-                  </template>
-                </div>
-              </div>
-            </div>
-          `;
-        },
-
-        formatNumber(num) {
-          if (!num) return '0';
-          if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-          if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
-          return num.toString();
-        },
-
-        escapeHtml(text) {
-          const div = document.createElement('div');
-          div.textContent = text;
-          return div.innerHTML;
-        }
-      }));
-    });
-  </script>
 </Layout>
