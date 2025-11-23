@@ -68,6 +68,27 @@ try {
                 relatedModels = [];
             }
         }
+        
+        // 🔥 SMART FALLBACK: If no related_ids, get top models in same category
+        if ((!relatedModels || relatedModels.length === 0) && model.pipeline_tag) {
+            try {
+                const db = Astro.locals?.runtime?.env?.DB;
+                if (db) {
+                    const stmt = db.prepare(`
+                        SELECT id, name, author, likes, downloads, cover_image_url, description 
+                        FROM models 
+                        WHERE pipeline_tag = ? AND id != ?
+                        ORDER BY downloads DESC 
+                        LIMIT 6
+                    `);
+                    const { results } = await stmt.bind(model.pipeline_tag, model.id).all();
+                    relatedModels = results || [];
+                    console.log(`Smart fallback: Found ${relatedModels.length} related models for ${model.pipeline_tag}`);
+                }
+            } catch (fallbackErr) {
+                console.warn("Smart fallback failed:", fallbackErr);
+            }
+        }
     }
   }
 } catch (e) {
