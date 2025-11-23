@@ -10,6 +10,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   site: 'https://free2aitools.com',
   output: 'hybrid',
+  build: {
+    assets: 'assets'
+  },
   adapter: cloudflare(),
   image: {
     service: {
