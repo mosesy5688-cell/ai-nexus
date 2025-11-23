@@ -75,6 +75,7 @@ ON CONFLICT(id) DO UPDATE SET
     downloads=excluded.downloads,
     cover_image_url=excluded.cover_image_url,
     source_url=excluded.source_url,
+    related_ids=excluded.related_ids,
     last_checked=CURRENT_TIMESTAMP;\n`;
     }
 
