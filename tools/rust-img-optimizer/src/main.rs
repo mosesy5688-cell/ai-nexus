@@ -64,8 +64,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         sql.push_str(&stmt);
     }
 
-    // 3. Write SQL to file
-    let output_path = Path::new("data/upsert.sql");
+    // 3. Write SQL to file (at repo root)
+    let output_path = Path::new("../../data/upsert.sql");
     if let Some(parent) = output_path.parent() {
         fs::create_dir_all(parent)?;
     }
