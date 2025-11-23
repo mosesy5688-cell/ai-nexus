@@ -3,6 +3,9 @@ import Layout from '../../layouts/Layout.astro';
 import RelatedModels from '../../components/RelatedModels.astro';
 import { getModelBySlug } from '../../utils/db.js'; // DB helper
 
+export const prerender = false; // Enable SSR for dynamic routes
+
+
 const { slug } = Astro.params;
 
 // 初始化变量，防止 undefined 错误
