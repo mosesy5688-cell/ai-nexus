@@ -4,12 +4,11 @@ export async function GET({ request, locals }) {
         const url = new URL(request.url);
         const idsParam = url.searchParams.get('ids');
 
-        if (!idsParam) {
-            return new Response(JSON.stringify({ error: 'No IDs provided' }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
+        // If no IDs provided, return empty results (200 OK)
+        return new Response(JSON.stringify({ results: [] }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
 
         const ids = idsParam.split(',').map(id => id.trim()).filter(id => id.length > 0);
 
