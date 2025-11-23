@@ -25,12 +25,31 @@ const { title, description = 'A premier, free directory of open-source AI models
     <meta name="viewport" content="width=device-width">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     
-    <!-- Tailwind CSS - Inline for SSR compatibility -->
-    <style is:global>
-        @tailwind base;
-        @tailwind components;
-        @tailwind utilities;
-    </style>
+    <!-- Tailwind CSS via CDN (for SSR hybrid mode compatibility) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              border: 'hsl(var(--border))',
+              input: 'hsl(var(--input))',
+              ring: 'hsl(var(--ring))',
+              background: 'hsl(var(--background))',
+              foreground: 'hsl(var(--foreground))',
+              primary: {
+                DEFAULT: 'hsl(var(--primary))',
+                foreground: 'hsl(var(--primary-foreground))',
+              },
+              secondary: {
+                DEFAULT: 'hsl(var(--secondary))',
+                foreground: 'hsl(var(--secondary-foreground))',
+              },
+            },
+          },
+        },
+      }
+    </script>
     
     <!-- Open Graph Meta Tags -->
     <meta property="og:type" content="website">
