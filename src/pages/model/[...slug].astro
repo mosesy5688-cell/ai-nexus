@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import RelatedModels from '../../components/RelatedModels.astro';
+import ModelHero from '../../components/ModelHero.astro';
 import { getModelBySlug } from '../../utils/db.js'; // DB helper
 
 export const prerender = false; // Enable SSR for dynamic routes
@@ -110,6 +111,14 @@ console.log('RENDER CHECK:', {
     pageTitle,
     relatedCount: Array.isArray(relatedModels) ? relatedModels.length : 'Not Array'
 });
+
+// --- 阶段 4: 生成 links_data (临时方案，后续从DB获取) ---
+// Generate links JSON from available data
+const linksData = JSON.stringify({
+  source_url: model.source_url || `https://huggingface.co/${model.id}`,
+  docs_url: model.docs_url || (model.source_url ? `${model.source_url}#readme` : ''),
+  demo_url: model.demo_url || ''
+});
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -122,27 +131,17 @@ console.log('RENDER CHECK:', {
         </div>
     )}
 
-    <article class="prose lg:prose-xl mx-auto">
-      {/* 标题区 */}
-      <h1 class="text-3xl font-bold mb-4">{model.name}</h1>
-      
-      {/* 元数据区 */}
-      <div class="flex flex-wrap gap-2 mb-6 text-sm text-gray-600">
-        {model.author && <span class="bg-gray-100 px-2 py-1 rounded">Author: {String(model.author)}</span>}
-        {model.pipeline_tag && <span class="bg-blue-100 px-2 py-1 rounded">Task: {String(model.pipeline_tag)}</span>}
-        <span>Likes: {Number(model.likes || 0)}</span>
-        <span>Downloads: {Number(model.downloads || 0)}</span>
-      </div>
-
-      {/* 封面图 (如果有) */}
-      {model.cover_image_url && typeof model.cover_image_url === 'string' && (
-          <img 
-            src={model.cover_image_url} 
-            alt={`${model.name} cover`}
-            class="w-full h-auto rounded-lg shadow-md mb-8 object-cover max-h-[400px]"
-            loading="lazy"
-          />
-      )}
+    <article class="lg:prose-xl mx-auto">
+      {/* Hero Section with CTAs - Priority 🥇 */}
+      <ModelHero 
+        name={model.name}
+        description={model.description}
+        author={model.author}
+        likes={Number(model.likes || 0)}
+        downloads={Number(model.downloads || 0)}
+        pipelineTag={model.pipeline_tag}
+        linksData={linksData}
+      />
 
       {/* 描述内容区 - 确保渲染的是 string */}
       <div class="bg-white p-6 rounded-lg shadow-sm border mb-8">
