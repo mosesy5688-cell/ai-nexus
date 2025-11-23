@@ -1,0 +1,11 @@
+/* Debug CSS - This file should be deployed */
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+.test-deploy {
+    padding: 20px;
+    text-align: center;
+}

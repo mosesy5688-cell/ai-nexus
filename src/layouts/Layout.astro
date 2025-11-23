@@ -37,22 +37,6 @@ const { title, description = 'A premier, free directory of open-source AI models
     <meta property="twitter:description" content={description}>
     <meta property="twitter:image" content={new URL('/og-image.jpg', Astro.site || Astro.url.origin)}>
 
-    <meta name="description" content={description}>
-    <title>{title}</title>
-
-    <link rel="canonical" href={Astro.url.href} />
-
-    <!-- Google AdSense -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2292826803755214"
-     crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-</head>
-<body class="bg-gray-50 text-gray-800 font-sans antialiased flex flex-col min-h-screen">
-    <!-- Google Tag Manager (noscript) -->
-    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-58C2CQ8G"
-    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-    <!-- End Google Tag Manager (noscript) -->
-    <Header />
     <main class="flex-grow">
         <slot />
     </main>
