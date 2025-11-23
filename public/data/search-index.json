@@ -33,8 +33,8 @@
       "phi4",
       "qwen"
     ],
-    "likes": 3596967,
-    "downloads": 3596967,
+    "likes": 3753370,
+    "downloads": 3753370,
     "is_rising_star": true
   },
   {
@@ -63,8 +63,8 @@
       "transformer",
       "vlm"
     ],
-    "likes": 3515648,
-    "downloads": 3515648,
+    "likes": 3668508,
+    "downloads": 3668508,
     "is_rising_star": true
   },
   {
@@ -80,8 +80,8 @@
       "multiagent",
       "react-flow"
     ],
-    "likes": 3198351,
-    "downloads": 3198351,
+    "likes": 3337423,
+    "downloads": 3337423,
     "is_rising_star": true
   },
   {
@@ -97,8 +97,8 @@
       "language",
       "general-dialogue-qa"
     ],
-    "likes": 3145948,
-    "downloads": 3145948,
+    "likes": 3282735,
+    "downloads": 3282735,
     "is_rising_star": true
   },
   {
@@ -128,8 +128,8 @@
       "rag",
       "rag-knowledge-base-qa"
     ],
-    "likes": 2765967,
-    "downloads": 2765967,
+    "likes": 2886232,
+    "downloads": 2886232,
     "is_rising_star": true
   },
   {
@@ -160,8 +160,8 @@
       "workflow",
       "rag-knowledge-base-qa"
     ],
-    "likes": 2749634,
-    "downloads": 2749634,
+    "likes": 2869194,
+    "downloads": 2869194,
     "is_rising_star": true
   },
   {
@@ -187,8 +187,8 @@
       "webui",
       "rag-knowledge-base-qa"
     ],
-    "likes": 2667044,
-    "downloads": 2667044,
+    "likes": 2783016,
+    "downloads": 2783016,
     "is_rising_star": true
   },
   {
@@ -212,8 +212,8 @@
       "semantic-search",
       "transformers"
     ],
-    "likes": 2348533,
-    "downloads": 2348533,
+    "likes": 2450645,
+    "downloads": 2450645,
     "is_rising_star": true
   },
   {
@@ -244,8 +244,8 @@
       "windsurf-ai",
       "code-generation-assistance"
     ],
-    "likes": 2228987,
-    "downloads": 2228987,
+    "likes": 2325930,
+    "downloads": 2325930,
     "is_rising_star": true
   },
   {
@@ -263,8 +263,8 @@
       "python",
       "tensor"
     ],
-    "likes": 2191709,
-    "downloads": 2191709,
+    "likes": 2287004,
+    "downloads": 2287004,
     "is_rising_star": true
   },
   {
@@ -275,8 +275,8 @@
     "tags": [
       "ggml"
     ],
-    "likes": 2075792,
-    "downloads": 2075792,
+    "likes": 2166048,
+    "downloads": 2166048,
     "is_rising_star": true
   },
   {
@@ -288,8 +288,8 @@
       "gemini",
       "gemini-api"
     ],
-    "likes": 1933803,
-    "downloads": 1933803,
+    "likes": 2017907,
+    "downloads": 2017907,
     "is_rising_star": true
   },
   {
@@ -303,8 +303,8 @@
       "rag",
       "rag-knowledge-base-qa"
     ],
-    "likes": 1827284,
-    "downloads": 1827284,
+    "likes": 1906742,
+    "downloads": 1906742,
     "is_rising_star": true
   },
   {
@@ -331,8 +331,8 @@
       "transformers",
       "general-dialogue-qa"
     ],
-    "likes": 1823380,
-    "downloads": 1823380,
+    "likes": 1902676,
+    "downloads": 1902676,
     "is_rising_star": true
   },
   {
@@ -344,8 +344,8 @@
       "ai-chat",
       "llm-inference"
     ],
-    "likes": 1769488,
-    "downloads": 1769488,
+    "likes": 1846421,
+    "downloads": 1846421,
     "is_rising_star": true
   },
   {
@@ -362,8 +362,8 @@
       "playwright",
       "python"
     ],
-    "likes": 1675065,
-    "downloads": 1675065,
+    "likes": 1747897,
+    "downloads": 1747897,
     "is_rising_star": true
   },
   {
@@ -380,8 +380,8 @@
       "general-dialogue-qa",
       "code-generation-assistance"
     ],
-    "likes": 1603331,
-    "downloads": 1603331,
+    "likes": 1673043,
+    "downloads": 1673043,
     "is_rising_star": true
   },
   {
@@ -410,8 +410,8 @@
       "web-search",
       "webscraping"
     ],
-    "likes": 1571880,
-    "downloads": 1571880,
+    "likes": 1640232,
+    "downloads": 1640232,
     "is_rising_star": true
   },
   {
@@ -442,8 +442,8 @@
       "retrieval-augmented-generation",
       "rag-knowledge-base-qa"
     ],
-    "likes": 1567660,
-    "downloads": 1567660,
+    "likes": 1635827,
+    "downloads": 1635827,
     "is_rising_star": true
   },
   {
@@ -472,8 +472,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 1562910,
-    "downloads": 1562910,
+    "likes": 1630869,
+    "downloads": 1630869,
     "is_rising_star": true
   },
   {
@@ -488,8 +488,8 @@
       "machine-learning",
       "roadmap"
     ],
-    "likes": 1562892,
-    "downloads": 1562892,
+    "likes": 1630856,
+    "downloads": 1630856,
     "is_rising_star": true
   },
   {
@@ -502,8 +502,8 @@
       "python",
       "code-generation-assistance"
     ],
-    "likes": 1542917,
-    "downloads": 1542917,
+    "likes": 1610002,
+    "downloads": 1610002,
     "is_rising_star": true
   },
   {
@@ -525,8 +525,8 @@
       "rag",
       "rag-knowledge-base-qa"
     ],
-    "likes": 1533591,
-    "downloads": 1533591,
+    "likes": 1600274,
+    "downloads": 1600274,
     "is_rising_star": true
   },
   {
@@ -546,8 +546,8 @@
       "openai",
       "code-generation-assistance"
     ],
-    "likes": 1498632,
-    "downloads": 1498632,
+    "likes": 1563792,
+    "downloads": 1563792,
     "is_rising_star": true
   },
   {
@@ -571,8 +571,8 @@
       "rag",
       "rag-knowledge-base-qa"
     ],
-    "likes": 1485503,
-    "downloads": 1485503,
+    "likes": 1550106,
+    "downloads": 1550106,
     "is_rising_star": true
   },
   {
@@ -602,8 +602,8 @@
       "tpu",
       "transformer"
     ],
-    "likes": 1464802,
-    "downloads": 1464802,
+    "likes": 1528499,
+    "downloads": 1528499,
     "is_rising_star": true
   },
   {
@@ -633,8 +633,8 @@
       "rlhf",
       "transformers"
     ],
-    "likes": 1446580,
-    "downloads": 1446580,
+    "likes": 1509478,
+    "downloads": 1509478,
     "is_rising_star": true
   },
   {
@@ -649,8 +649,8 @@
       "metagpt",
       "multi-agent"
     ],
-    "likes": 1371121,
-    "downloads": 1371121,
+    "likes": 1430736,
+    "downloads": 1430736,
     "is_rising_star": true
   },
   {
@@ -659,8 +659,8 @@
     "author": "unclecode",
     "description": "🚀🤖 Crawl4AI: Open-source LLM Friendly Web Crawler & Scraper. Don't be shy, join here: https://discord.gg/jP8KfhDhyN",
     "tags": [],
-    "likes": 1293313,
-    "downloads": 1293313,
+    "likes": 1349548,
+    "downloads": 1349548,
     "is_rising_star": true
   },
   {
@@ -683,8 +683,8 @@
       "quantitative-finance",
       "stocks"
     ],
-    "likes": 1258483,
-    "downloads": 1258483,
+    "likes": 1313201,
+    "downloads": 1313201,
     "is_rising_star": true
   },
   {
@@ -695,8 +695,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 1209257,
-    "downloads": 1209257,
+    "likes": 1261838,
+    "downloads": 1261838,
     "is_rising_star": true
   },
   {
@@ -716,8 +716,8 @@
       "llm-agent",
       "llm-framework"
     ],
-    "likes": 1193214,
-    "downloads": 1193214,
+    "likes": 1245097,
+    "downloads": 1245097,
     "is_rising_star": true
   },
   {
@@ -748,8 +748,8 @@
       "rag-knowledge-base-qa",
       "code-generation-assistance"
     ],
-    "likes": 1181156,
-    "downloads": 1181156,
+    "likes": 1232519,
+    "downloads": 1232519,
     "is_rising_star": true
   },
   {
@@ -760,8 +760,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 1175074,
-    "downloads": 1175074,
+    "likes": 1226172,
+    "downloads": 1226172,
     "is_rising_star": true
   },
   {
@@ -790,8 +790,8 @@
       "rag-knowledge-base-qa",
       "data-analysis-insights"
     ],
-    "likes": 1157254,
-    "downloads": 1157254,
+    "likes": 1207573,
+    "downloads": 1207573,
     "is_rising_star": true
   },
   {
@@ -800,8 +800,8 @@
     "author": "karpathy",
     "description": "The simplest, fastest repository for training/finetuning medium-sized GPTs.",
     "tags": [],
-    "likes": 1148024,
-    "downloads": 1148024,
+    "likes": 1197951,
+    "downloads": 1197951,
     "is_rising_star": true
   },
   {
@@ -824,8 +824,8 @@
       "pdf-parser",
       "python"
     ],
-    "likes": 1132944,
-    "downloads": 1132944,
+    "likes": 1182207,
+    "downloads": 1182207,
     "is_rising_star": true
   },
   {
@@ -855,8 +855,8 @@
       "unsloth",
       "voice-cloning"
     ],
-    "likes": 1116818,
-    "downloads": 1116818,
+    "likes": 1165379,
+    "downloads": 1165379,
     "is_rising_star": true
   },
   {
@@ -878,8 +878,8 @@
       "twitter-streaming",
       "webscraping"
     ],
-    "likes": 1106899,
-    "downloads": 1106899,
+    "likes": 1155027,
+    "downloads": 1155027,
     "is_rising_star": true
   },
   {
@@ -896,8 +896,8 @@
       "shortvideo",
       "tiktok"
     ],
-    "likes": 1101172,
-    "downloads": 1101172,
+    "likes": 1149052,
+    "downloads": 1149052,
     "is_rising_star": true
   },
   {
@@ -925,8 +925,8 @@
       "rag-knowledge-base-qa",
       "data-analysis-insights"
     ],
-    "likes": 1091968,
-    "downloads": 1091968,
+    "likes": 1139448,
+    "downloads": 1139448,
     "is_rising_star": true
   },
   {
@@ -955,8 +955,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 1075384,
-    "downloads": 1075384,
+    "likes": 1122142,
+    "downloads": 1122142,
     "is_rising_star": true
   },
   {
@@ -977,8 +977,8 @@
       "vector-database",
       "rag-knowledge-base-qa"
     ],
-    "likes": 1043531,
-    "downloads": 1043531,
+    "likes": 1088903,
+    "downloads": 1088903,
     "is_rising_star": true
   },
   {
@@ -996,8 +996,8 @@
       "generative-ai",
       "semantic-kernel"
     ],
-    "likes": 1042037,
-    "downloads": 1042037,
+    "likes": 1087347,
+    "downloads": 1087347,
     "is_rising_star": true
   },
   {
@@ -1028,8 +1028,8 @@
       "vue3",
       "rag-knowledge-base-qa"
     ],
-    "likes": 1021932,
-    "downloads": 1021932,
+    "likes": 1066367,
+    "downloads": 1066367,
     "is_rising_star": true
   },
   {
@@ -1055,8 +1055,8 @@
       "state-management",
       "rag-knowledge-base-qa"
     ],
-    "likes": 998938,
-    "downloads": 998938,
+    "likes": 1042374,
+    "downloads": 1042374,
     "is_rising_star": true
   },
   {
@@ -1067,8 +1067,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 991712,
-    "downloads": 991712,
+    "likes": 1034841,
+    "downloads": 1034841,
     "is_rising_star": true
   },
   {
@@ -1083,8 +1083,8 @@
       "aiagentframework",
       "llms"
     ],
-    "likes": 935553,
-    "downloads": 935553,
+    "likes": 976235,
+    "downloads": 976235,
     "is_rising_star": true
   },
   {
@@ -1114,8 +1114,8 @@
       "serving",
       "tensorflow"
     ],
-    "likes": 919053,
-    "downloads": 919053,
+    "likes": 959012,
+    "downloads": 959012,
     "is_rising_star": true
   },
   {
@@ -1144,8 +1144,8 @@
       "vector-store",
       "rag-knowledge-base-qa"
     ],
-    "likes": 918747,
-    "downloads": 918747,
+    "likes": 958718,
+    "downloads": 958718,
     "is_rising_star": true
   },
   {
@@ -1177,8 +1177,8 @@
       "rag-knowledge-base-qa",
       "general-dialogue-qa"
     ],
-    "likes": 914868,
-    "downloads": 914868,
+    "likes": 954646,
+    "downloads": 954646,
     "is_rising_star": true
   },
   {
@@ -1197,8 +1197,8 @@
       "tauri",
       "general-dialogue-qa"
     ],
-    "likes": 906923,
-    "downloads": 906923,
+    "likes": 946359,
+    "downloads": 946359,
     "is_rising_star": true
   },
   {
@@ -1228,8 +1228,8 @@
       "text-generation",
       "tts"
     ],
-    "likes": 897222,
-    "downloads": 897222,
+    "likes": 936238,
+    "downloads": 936238,
     "is_rising_star": true
   },
   {
@@ -1261,8 +1261,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 888521,
-    "downloads": 888521,
+    "likes": 927153,
+    "downloads": 927153,
     "is_rising_star": true
   },
   {
@@ -1290,8 +1290,8 @@
       "tts",
       "general-dialogue-qa"
     ],
-    "likes": 878163,
-    "downloads": 878163,
+    "likes": 916344,
+    "downloads": 916344,
     "is_rising_star": true
   },
   {
@@ -1306,8 +1306,8 @@
       "vibe-coding",
       "code-generation-assistance"
     ],
-    "likes": 867553,
-    "downloads": 867553,
+    "likes": 905278,
+    "downloads": 905278,
     "is_rising_star": true
   },
   {
@@ -1329,8 +1329,8 @@
       "openai",
       "general-dialogue-qa"
     ],
-    "likes": 862509,
-    "downloads": 862509,
+    "likes": 900011,
+    "downloads": 900011,
     "is_rising_star": true
   },
   {
@@ -1359,8 +1359,8 @@
       "web-development-tools",
       "workflow-automation"
     ],
-    "likes": 849587,
-    "downloads": 849587,
+    "likes": 886526,
+    "downloads": 886526,
     "is_rising_star": true
   },
   {
@@ -1379,8 +1379,8 @@
       "trace",
       "trouble-shooting"
     ],
-    "likes": 847619,
-    "downloads": 847619,
+    "likes": 884472,
+    "downloads": 884472,
     "is_rising_star": true
   },
   {
@@ -1412,8 +1412,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 842049,
-    "downloads": 842049,
+    "likes": 878663,
+    "downloads": 878663,
     "is_rising_star": true
   },
   {
@@ -1433,8 +1433,8 @@
       "openai",
       "general-dialogue-qa"
     ],
-    "likes": 820667,
-    "downloads": 820667,
+    "likes": 856351,
+    "downloads": 856351,
     "is_rising_star": true
   },
   {
@@ -1443,8 +1443,8 @@
     "author": "karpathy",
     "description": "LLM101n: Let's build a Storyteller",
     "tags": [],
-    "likes": 819212,
-    "downloads": 819212,
+    "likes": 854832,
+    "downloads": 854832,
     "is_rising_star": true
   },
   {
@@ -1459,8 +1459,8 @@
       "developer-tools",
       "python"
     ],
-    "likes": 815404,
-    "downloads": 815404,
+    "likes": 850857,
+    "downloads": 850857,
     "is_rising_star": true
   },
   {
@@ -1481,8 +1481,8 @@
       "t3",
       "t3-stack"
     ],
-    "likes": 810983,
-    "downloads": 810983,
+    "likes": 846243,
+    "downloads": 846243,
     "is_rising_star": true
   },
   {
@@ -1510,8 +1510,8 @@
       "research-paper",
       "stock-data"
     ],
-    "likes": 780837,
-    "downloads": 780837,
+    "likes": 814791,
+    "downloads": 814791,
     "is_rising_star": true
   },
   {
@@ -1522,8 +1522,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 773647,
-    "downloads": 773647,
+    "likes": 807297,
+    "downloads": 807297,
     "is_rising_star": true
   },
   {
@@ -1542,8 +1542,8 @@
       "ollama",
       "webmin"
     ],
-    "likes": 738748,
-    "downloads": 738748,
+    "likes": 770869,
+    "downloads": 770869,
     "is_rising_star": true
   },
   {
@@ -1570,8 +1570,8 @@
       "stream-processing",
       "video-processing"
     ],
-    "likes": 737530,
-    "downloads": 737530,
+    "likes": 769598,
+    "downloads": 769598,
     "is_rising_star": true
   },
   {
@@ -1603,8 +1603,8 @@
       "general-dialogue-qa",
       "code-generation-assistance"
     ],
-    "likes": 732908,
-    "downloads": 732908,
+    "likes": 764781,
+    "downloads": 764781,
     "is_rising_star": true
   },
   {
@@ -1636,8 +1636,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 727862,
-    "downloads": 727862,
+    "likes": 759511,
+    "downloads": 759511,
     "is_rising_star": true
   },
   {
@@ -1661,8 +1661,8 @@
       "openai-proxy",
       "vertex-ai"
     ],
-    "likes": 723686,
-    "downloads": 723686,
+    "likes": 755157,
+    "downloads": 755157,
     "is_rising_star": true
   },
   {
@@ -1689,8 +1689,8 @@
       "workflows",
       "code-generation-assistance"
     ],
-    "likes": 688869,
-    "downloads": 688869,
+    "likes": 718822,
+    "downloads": 718822,
     "is_rising_star": true
   },
   {
@@ -1704,8 +1704,8 @@
       "gpt-4",
       "llm"
     ],
-    "likes": 682456,
-    "downloads": 682456,
+    "likes": 712128,
+    "downloads": 712128,
     "is_rising_star": true
   },
   {
@@ -1723,8 +1723,8 @@
       "rag",
       "rag-knowledge-base-qa"
     ],
-    "likes": 674065,
-    "downloads": 674065,
+    "likes": 703375,
+    "downloads": 703375,
     "is_rising_star": true
   },
   {
@@ -1754,8 +1754,8 @@
       "scraping",
       "selenium"
     ],
-    "likes": 669202,
-    "downloads": 669202,
+    "likes": 698297,
+    "downloads": 698297,
     "is_rising_star": true
   },
   {
@@ -1776,8 +1776,8 @@
       "sentiment-analysis",
       "data-analysis-insights"
     ],
-    "likes": 664936,
-    "downloads": 664936,
+    "likes": 693875,
+    "downloads": 693875,
     "is_rising_star": true
   },
   {
@@ -1786,8 +1786,8 @@
     "author": "karpathy",
     "description": "LLM training in simple, raw C/CUDA",
     "tags": [],
-    "likes": 648742,
-    "downloads": 648742,
+    "likes": 676952,
+    "downloads": 676952,
     "is_rising_star": true
   },
   {
@@ -1809,8 +1809,8 @@
       "proxy",
       "general-dialogue-qa"
     ],
-    "likes": 646361,
-    "downloads": 646361,
+    "likes": 674467,
+    "downloads": 674467,
     "is_rising_star": true
   },
   {
@@ -1819,8 +1819,8 @@
     "author": "OpenBMB",
     "description": "Create Customized Software using Natural Language Idea (through LLM-powered Multi-Agent Collaboration)",
     "tags": [],
-    "likes": 638494,
-    "downloads": 638494,
+    "likes": 666255,
+    "downloads": 666255,
     "is_rising_star": true
   },
   {
@@ -1840,8 +1840,8 @@
       "retrieval-augmented-generation",
       "rag-knowledge-base-qa"
     ],
-    "likes": 635416,
-    "downloads": 635416,
+    "likes": 663044,
+    "downloads": 663044,
     "is_rising_star": true
   },
   {
@@ -1863,8 +1863,8 @@
       "vscode",
       "vscode-extension"
     ],
-    "likes": 634186,
-    "downloads": 634186,
+    "likes": 661761,
+    "downloads": 661761,
     "is_rising_star": true
   },
   {
@@ -1891,8 +1891,8 @@
       "storybook",
       "typescript"
     ],
-    "likes": 633487,
-    "downloads": 633487,
+    "likes": 661031,
+    "downloads": 661031,
     "is_rising_star": true
   },
   {
@@ -1907,8 +1907,8 @@
       "openai",
       "sdk"
     ],
-    "likes": 614235,
-    "downloads": 614235,
+    "likes": 640942,
+    "downloads": 640942,
     "is_rising_star": true
   },
   {
@@ -1929,8 +1929,8 @@
       "workflow",
       "rag-knowledge-base-qa"
     ],
-    "likes": 605614,
-    "downloads": 605614,
+    "likes": 631946,
+    "downloads": 631946,
     "is_rising_star": true
   },
   {
@@ -1957,8 +1957,8 @@
       "sse",
       "typescript"
     ],
-    "likes": 602124,
-    "downloads": 602124,
+    "likes": 628304,
+    "downloads": 628304,
     "is_rising_star": true
   },
   {
@@ -1981,8 +1981,8 @@
       "qwen1-5",
       "qwen2"
     ],
-    "likes": 600567,
-    "downloads": 600567,
+    "likes": 626680,
+    "downloads": 626680,
     "is_rising_star": true
   },
   {
@@ -1991,8 +1991,8 @@
     "author": "Hannibal046",
     "description": "Awesome-LLM: a curated list of Large Language Model",
     "tags": [],
-    "likes": 588986,
-    "downloads": 588986,
+    "likes": 614595,
+    "downloads": 614595,
     "is_rising_star": true
   },
   {
@@ -2007,8 +2007,8 @@
       "multiagent",
       "trading"
     ],
-    "likes": 583101,
-    "downloads": 583101,
+    "likes": 608458,
+    "downloads": 608458,
     "is_rising_star": true
   },
   {
@@ -2027,8 +2027,8 @@
       "zsh",
       "code-generation-assistance"
     ],
-    "likes": 582395,
-    "downloads": 582395,
+    "likes": 607718,
+    "downloads": 607718,
     "is_rising_star": true
   },
   {
@@ -2057,8 +2057,8 @@
       "typescript",
       "general-dialogue-qa"
     ],
-    "likes": 576648,
-    "downloads": 576648,
+    "likes": 601722,
+    "downloads": 601722,
     "is_rising_star": true
   },
   {
@@ -2079,8 +2079,8 @@
       "vector-database",
       "rag-knowledge-base-qa"
     ],
-    "likes": 564555,
-    "downloads": 564555,
+    "likes": 589103,
+    "downloads": 589103,
     "is_rising_star": true
   },
   {
@@ -2093,8 +2093,8 @@
       "platform",
       "pytorch"
     ],
-    "likes": 562437,
-    "downloads": 562437,
+    "likes": 586891,
+    "downloads": 586891,
     "is_rising_star": true
   },
   {
@@ -2103,8 +2103,8 @@
     "author": "microsoft",
     "description": "Official inference framework for 1-bit LLMs",
     "tags": [],
-    "likes": 561563,
-    "downloads": 561563,
+    "likes": 585979,
+    "downloads": 585979,
     "is_rising_star": true
   },
   {
@@ -2127,8 +2127,8 @@
       "openai",
       "python"
     ],
-    "likes": 557581,
-    "downloads": 557581,
+    "likes": 581832,
+    "downloads": 581832,
     "is_rising_star": true
   },
   {
@@ -2149,8 +2149,8 @@
       "search",
       "webscraping"
     ],
-    "likes": 557466,
-    "downloads": 557466,
+    "likes": 581707,
+    "downloads": 581707,
     "is_rising_star": true
   },
   {
@@ -2161,8 +2161,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 553857,
-    "downloads": 553857,
+    "likes": 577938,
+    "downloads": 577938,
     "is_rising_star": true
   },
   {
@@ -2182,8 +2182,8 @@
       "retrieval-augmented-generation",
       "rag-knowledge-base-qa"
     ],
-    "likes": 554073,
-    "downloads": 554073,
+    "likes": 578177,
+    "downloads": 578177,
     "is_rising_star": true
   },
   {
@@ -2213,8 +2213,8 @@
       "security",
       "security-tools"
     ],
-    "likes": 551865,
-    "downloads": 551865,
+    "likes": 575861,
+    "downloads": 575861,
     "is_rising_star": true
   },
   {
@@ -2223,8 +2223,8 @@
     "author": "microsoft",
     "description": "A simple screen parsing tool towards pure vision based GUI agent",
     "tags": [],
-    "likes": 549631,
-    "downloads": 549631,
+    "likes": 573528,
+    "downloads": 573528,
     "is_rising_star": true
   },
   {
@@ -2249,8 +2249,8 @@
       "prompts",
       "general-dialogue-qa"
     ],
-    "likes": 547618,
-    "downloads": 547618,
+    "likes": 571430,
+    "downloads": 571430,
     "is_rising_star": true
   },
   {
@@ -2269,8 +2269,8 @@
       "voice-assistant",
       "code-generation-assistance"
     ],
-    "likes": 546152,
-    "downloads": 546152,
+    "likes": 569900,
+    "downloads": 569900,
     "is_rising_star": true
   },
   {
@@ -2287,8 +2287,8 @@
       "llamaindex",
       "smolagents"
     ],
-    "likes": 544002,
-    "downloads": 544002,
+    "likes": 567655,
+    "downloads": 567655,
     "is_rising_star": true
   },
   {
@@ -2321,8 +2321,8 @@
       "summarization-extraction",
       "general-dialogue-qa"
     ],
-    "likes": 539254,
-    "downloads": 539254,
+    "likes": 562701,
+    "downloads": 562701,
     "is_rising_star": true
   },
   {
@@ -2331,8 +2331,8 @@
     "author": "mozilla-ai",
     "description": "Distribute and run LLMs with a single file.",
     "tags": [],
-    "likes": 538563,
-    "downloads": 538563,
+    "likes": 561979,
+    "downloads": 561979,
     "is_rising_star": true
   },
   {
@@ -2352,8 +2352,8 @@
       "tutorials",
       "rag-knowledge-base-qa"
     ],
-    "likes": 531099,
-    "downloads": 531099,
+    "likes": 554193,
+    "downloads": 554193,
     "is_rising_star": true
   },
   {
@@ -2381,8 +2381,8 @@
       "openai",
       "prompt-engineering"
     ],
-    "likes": 529708,
-    "downloads": 529708,
+    "likes": 552739,
+    "downloads": 552739,
     "is_rising_star": true
   },
   {
@@ -2408,8 +2408,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 520463,
-    "downloads": 520463,
+    "likes": 543093,
+    "downloads": 543093,
     "is_rising_star": true
   },
   {
@@ -2422,8 +2422,8 @@
       "mcp",
       "code-generation-assistance"
     ],
-    "likes": 513751,
-    "downloads": 513751,
+    "likes": 536092,
+    "downloads": 536092,
     "is_rising_star": true
   },
   {
@@ -2435,8 +2435,8 @@
       "cookbook",
       "llm"
     ],
-    "likes": 511998,
-    "downloads": 511998,
+    "likes": 534269,
+    "downloads": 534269,
     "is_rising_star": true
   },
   {
@@ -2451,8 +2451,8 @@
       "llm-training",
       "llmops"
     ],
-    "likes": 505007,
-    "downloads": 505007,
+    "likes": 526965,
+    "downloads": 526965,
     "is_rising_star": true
   },
   {
@@ -2483,8 +2483,8 @@
       "webscraping",
       "rag-knowledge-base-qa"
     ],
-    "likes": 502471,
-    "downloads": 502471,
+    "likes": 524318,
+    "downloads": 524318,
     "is_rising_star": true
   },
   {
@@ -2514,8 +2514,8 @@
       "unilm",
       "xlm-e"
     ],
-    "likes": 502433,
-    "downloads": 502433,
+    "likes": 524278,
+    "downloads": 524278,
     "is_rising_star": true
   },
   {
@@ -2529,8 +2529,8 @@
       "html-css-javascript",
       "tailwindcss"
     ],
-    "likes": 501487,
-    "downloads": 501487,
+    "likes": 523291,
+    "downloads": 523291,
     "is_rising_star": true
   },
   {
@@ -2560,8 +2560,8 @@
       "pipeline",
       "prometheus"
     ],
-    "likes": 501262,
-    "downloads": 501262,
+    "likes": 523056,
+    "downloads": 523056,
     "is_rising_star": true
   },
   {
@@ -2577,8 +2577,8 @@
       "llm",
       "nlp"
     ],
-    "likes": 499923,
-    "downloads": 499923,
+    "likes": 521659,
+    "downloads": 521659,
     "is_rising_star": true
   },
   {
@@ -2592,8 +2592,8 @@
       "rag",
       "rag-knowledge-base-qa"
     ],
-    "likes": 499588,
-    "downloads": 499588,
+    "likes": 521313,
+    "downloads": 521313,
     "is_rising_star": true
   },
   {
@@ -2614,8 +2614,8 @@
       "data-analysis-insights",
       "general-dialogue-qa"
     ],
-    "likes": 499031,
-    "downloads": 499031,
+    "likes": 520728,
+    "downloads": 520728,
     "is_rising_star": true
   },
   {
@@ -2629,8 +2629,8 @@
       "machine-learning-compilation",
       "tvm"
     ],
-    "likes": 497692,
-    "downloads": 497692,
+    "likes": 519331,
+    "downloads": 519331,
     "is_rising_star": true
   },
   {
@@ -2648,8 +2648,8 @@
       "notebook-jupyter",
       "vision-and-language"
     ],
-    "likes": 497129,
-    "downloads": 497129,
+    "likes": 518757,
+    "downloads": 518757,
     "is_rising_star": true
   },
   {
@@ -2658,8 +2658,8 @@
     "author": "langchain-ai",
     "description": "Build resilient language agents as graphs.",
     "tags": [],
-    "likes": 489565,
-    "downloads": 489565,
+    "likes": 510852,
+    "downloads": 510852,
     "is_rising_star": true
   },
   {
@@ -2670,8 +2670,8 @@
     "tags": [
       "rust"
     ],
-    "likes": 487250,
-    "downloads": 487250,
+    "likes": 508435,
+    "downloads": 508435,
     "is_rising_star": true
   },
   {
@@ -2702,8 +2702,8 @@
       "workflows",
       "code-generation-assistance"
     ],
-    "likes": 486316,
-    "downloads": 486316,
+    "likes": 507466,
+    "downloads": 507466,
     "is_rising_star": true
   },
   {
@@ -2720,8 +2720,8 @@
       "rag",
       "rag-knowledge-base-qa"
     ],
-    "likes": 484212,
-    "downloads": 484212,
+    "likes": 505266,
+    "downloads": 505266,
     "is_rising_star": true
   },
   {
@@ -2732,8 +2732,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 480932,
-    "downloads": 480932,
+    "likes": 501842,
+    "downloads": 501842,
     "is_rising_star": true
   },
   {
@@ -2760,8 +2760,8 @@
       "tensorflow",
       "data-analysis-insights"
     ],
-    "likes": 480442,
-    "downloads": 480442,
+    "likes": 501331,
+    "downloads": 501331,
     "is_rising_star": true
   },
   {
@@ -2778,8 +2778,8 @@
       "generative-ai",
       "linux-foundation"
     ],
-    "likes": 478291,
-    "downloads": 478291,
+    "likes": 499087,
+    "downloads": 499087,
     "is_rising_star": true
   },
   {
@@ -2788,8 +2788,8 @@
     "author": "openai",
     "description": "Educational framework exploring ergonomic, lightweight multi-agent orchestration. Managed by OpenAI Solution team.",
     "tags": [],
-    "likes": 474393,
-    "downloads": 474393,
+    "likes": 495019,
+    "downloads": 495019,
     "is_rising_star": true
   },
   {
@@ -2817,8 +2817,8 @@
       "web-scraping",
       "rag-knowledge-base-qa"
     ],
-    "likes": 474043,
-    "downloads": 474043,
+    "likes": 494655,
+    "downloads": 494655,
     "is_rising_star": true
   },
   {
@@ -2838,8 +2838,8 @@
       "llm",
       "sora"
     ],
-    "likes": 473409,
-    "downloads": 473409,
+    "likes": 493992,
+    "downloads": 493992,
     "is_rising_star": true
   },
   {
@@ -2854,8 +2854,8 @@
       "rag",
       "rag-knowledge-base-qa"
     ],
-    "likes": 468604,
-    "downloads": 468604,
+    "likes": 488979,
+    "downloads": 488979,
     "is_rising_star": true
   },
   {
@@ -2885,8 +2885,8 @@
       "transformer",
       "vlm"
     ],
-    "likes": 467248,
-    "downloads": 467248,
+    "likes": 487568,
+    "downloads": 487568,
     "is_rising_star": true
   },
   {
@@ -2918,8 +2918,8 @@
       "general-dialogue-qa",
       "code-generation-assistance"
     ],
-    "likes": 467071,
-    "downloads": 467071,
+    "likes": 487380,
+    "downloads": 487380,
     "is_rising_star": true
   },
   {
@@ -2933,8 +2933,8 @@
       "llm",
       "general-dialogue-qa"
     ],
-    "likes": 464533,
-    "downloads": 464533,
+    "likes": 484734,
+    "downloads": 484734,
     "is_rising_star": true
   },
   {
@@ -2954,8 +2954,8 @@
       "pytorch",
       "transformers"
     ],
-    "likes": 462392,
-    "downloads": 462392,
+    "likes": 482496,
+    "downloads": 482496,
     "is_rising_star": true
   },
   {
@@ -2964,8 +2964,8 @@
     "author": "joonspk-research",
     "description": "Generative Agents: Interactive Simulacra of Human Behavior",
     "tags": [],
-    "likes": 460524,
-    "downloads": 460524,
+    "likes": 480547,
+    "downloads": 480547,
     "is_rising_star": true
   },
   {
@@ -2996,8 +2996,8 @@
       "xml",
       "data-analysis-insights"
     ],
-    "likes": 459180,
-    "downloads": 459180,
+    "likes": 479145,
+    "downloads": 479145,
     "is_rising_star": true
   },
   {
@@ -3014,8 +3014,8 @@
       "pretrained-models",
       "general-dialogue-qa"
     ],
-    "likes": 454871,
-    "downloads": 454871,
+    "likes": 474648,
+    "downloads": 474648,
     "is_rising_star": true
   },
   {
@@ -3028,8 +3028,8 @@
       "computer-vision",
       "radiance-field"
     ],
-    "likes": 450330,
-    "downloads": 450330,
+    "likes": 469910,
+    "downloads": 469910,
     "is_rising_star": true
   },
   {
@@ -3052,8 +3052,8 @@
       "vision",
       "vlm"
     ],
-    "likes": 449870,
-    "downloads": 449870,
+    "likes": 469430,
+    "downloads": 469430,
     "is_rising_star": true
   },
   {
@@ -3078,8 +3078,8 @@
       "vercel",
       "vue"
     ],
-    "likes": 448071,
-    "downloads": 448071,
+    "likes": 467558,
+    "downloads": 467558,
     "is_rising_star": true
   },
   {
@@ -3105,8 +3105,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 445397,
-    "downloads": 445397,
+    "likes": 464763,
+    "downloads": 464763,
     "is_rising_star": true
   },
   {
@@ -3129,8 +3129,8 @@
       "workflow-automation",
       "workflows"
     ],
-    "likes": 442958,
-    "downloads": 442958,
+    "likes": 462219,
+    "downloads": 462219,
     "is_rising_star": true
   },
   {
@@ -3144,8 +3144,8 @@
       "llm",
       "llm-agent"
     ],
-    "likes": 442665,
-    "downloads": 442665,
+    "likes": 461912,
+    "downloads": 461912,
     "is_rising_star": true
   },
   {
@@ -3159,8 +3159,8 @@
       "serialization",
       "tokenization"
     ],
-    "likes": 437817,
-    "downloads": 437817,
+    "likes": 456883,
+    "downloads": 456883,
     "is_rising_star": true
   },
   {
@@ -3181,8 +3181,8 @@
       "pre-trained-language-models",
       "quantization"
     ],
-    "likes": 435804,
-    "downloads": 435804,
+    "likes": 454752,
+    "downloads": 454752,
     "is_rising_star": true
   },
   {
@@ -3199,8 +3199,8 @@
       "unity",
       "unity3d"
     ],
-    "likes": 434202,
-    "downloads": 434202,
+    "likes": 453081,
+    "downloads": 453081,
     "is_rising_star": true
   },
   {
@@ -3226,8 +3226,8 @@
       "tauri",
       "code-generation-assistance"
     ],
-    "likes": 433522,
-    "downloads": 433522,
+    "likes": 452374,
+    "downloads": 452374,
     "is_rising_star": true
   },
   {
@@ -3253,8 +3253,8 @@
       "vision",
       "workflow"
     ],
-    "likes": 428855,
-    "downloads": 428855,
+    "likes": 447509,
+    "downloads": 447509,
     "is_rising_star": true
   },
   {
@@ -3267,8 +3267,8 @@
       "ai-agents",
       "llm"
     ],
-    "likes": 428534,
-    "downloads": 428534,
+    "likes": 447167,
+    "downloads": 447167,
     "is_rising_star": true
   },
   {
@@ -3297,8 +3297,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 428573,
-    "downloads": 428573,
+    "likes": 447208,
+    "downloads": 447208,
     "is_rising_star": true
   },
   {
@@ -3328,8 +3328,8 @@
       "ycombinator",
       "data-analysis-insights"
     ],
-    "likes": 426350,
-    "downloads": 426350,
+    "likes": 444889,
+    "downloads": 444889,
     "is_rising_star": true
   },
   {
@@ -3359,8 +3359,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 425725,
-    "downloads": 425725,
+    "likes": 444237,
+    "downloads": 444237,
     "is_rising_star": true
   },
   {
@@ -3384,8 +3384,8 @@
       "workflows",
       "rag-knowledge-base-qa"
     ],
-    "likes": 424020,
-    "downloads": 424020,
+    "likes": 442458,
+    "downloads": 442458,
     "is_rising_star": true
   },
   {
@@ -3400,8 +3400,8 @@
       "task-automation",
       "web-interaction"
     ],
-    "likes": 422022,
-    "downloads": 422022,
+    "likes": 440371,
+    "downloads": 440371,
     "is_rising_star": true
   },
   {
@@ -3428,8 +3428,8 @@
       "python",
       "typescript"
     ],
-    "likes": 418895,
-    "downloads": 418895,
+    "likes": 437110,
+    "downloads": 437110,
     "is_rising_star": true
   },
   {
@@ -3444,8 +3444,8 @@
       "o3-mini",
       "research"
     ],
-    "likes": 416398,
-    "downloads": 416398,
+    "likes": 434503,
+    "downloads": 434503,
     "is_rising_star": true
   },
   {
@@ -3466,8 +3466,8 @@
       "vllm",
       "rag-knowledge-base-qa"
     ],
-    "likes": 414966,
-    "downloads": 414966,
+    "likes": 433008,
+    "downloads": 433008,
     "is_rising_star": true
   },
   {
@@ -3481,8 +3481,8 @@
       "llms",
       "openai"
     ],
-    "likes": 414887,
-    "downloads": 414887,
+    "likes": 432925,
+    "downloads": 432925,
     "is_rising_star": true
   },
   {
@@ -3500,8 +3500,8 @@
       "oreilly-books",
       "code-generation-assistance"
     ],
-    "likes": 414385,
-    "downloads": 414385,
+    "likes": 432403,
+    "downloads": 432403,
     "is_rising_star": true
   },
   {
@@ -3519,8 +3519,8 @@
       "lms",
       "code-generation-assistance"
     ],
-    "likes": 410080,
-    "downloads": 410080,
+    "likes": 427911,
+    "downloads": 427911,
     "is_rising_star": true
   },
   {
@@ -3539,8 +3539,8 @@
       "openai",
       "tutorials"
     ],
-    "likes": 408844,
-    "downloads": 408844,
+    "likes": 426622,
+    "downloads": 426622,
     "is_rising_star": true
   },
   {
@@ -3570,8 +3570,8 @@
       "ssh",
       "wireguard"
     ],
-    "likes": 407268,
-    "downloads": 407268,
+    "likes": 424977,
+    "downloads": 424977,
     "is_rising_star": true
   },
   {
@@ -3601,8 +3601,8 @@
       "xray-install",
       "xtls-rprx-vision"
     ],
-    "likes": 406455,
-    "downloads": 406455,
+    "likes": 424130,
+    "downloads": 424130,
     "is_rising_star": true
   },
   {
@@ -3625,8 +3625,8 @@
       "vicuna",
       "rag-knowledge-base-qa"
     ],
-    "likes": 406198,
-    "downloads": 406198,
+    "likes": 423859,
+    "downloads": 423859,
     "is_rising_star": true
   },
   {
@@ -3655,8 +3655,8 @@
       "v0",
       "vercel"
     ],
-    "likes": 405717,
-    "downloads": 405717,
+    "likes": 423357,
+    "downloads": 423357,
     "is_rising_star": true
   },
   {
@@ -3672,8 +3672,8 @@
       "unified-model",
       "vision-language-pretraining"
     ],
-    "likes": 405237,
-    "downloads": 405237,
+    "likes": 422856,
+    "downloads": 422856,
     "is_rising_star": true
   },
   {
@@ -3689,8 +3689,8 @@
       "openai",
       "python"
     ],
-    "likes": 401549,
-    "downloads": 401549,
+    "likes": 419010,
+    "downloads": 419010,
     "is_rising_star": true
   },
   {
@@ -3720,8 +3720,8 @@
       "transformers",
       "rag-knowledge-base-qa"
     ],
-    "likes": 399923,
-    "downloads": 399923,
+    "likes": 417313,
+    "downloads": 417313,
     "is_rising_star": true
   },
   {
@@ -3733,8 +3733,8 @@
       "gemini",
       "gemini-api"
     ],
-    "likes": 399236,
-    "downloads": 399236,
+    "likes": 416594,
+    "downloads": 416594,
     "is_rising_star": true
   },
   {
@@ -3743,8 +3743,8 @@
     "author": "openai",
     "description": "Evals is a framework for evaluating LLMs and LLM systems, and an open-source registry of benchmarks.",
     "tags": [],
-    "likes": 398792,
-    "downloads": 398792,
+    "likes": 416131,
+    "downloads": 416131,
     "is_rising_star": true
   },
   {
@@ -3763,8 +3763,8 @@
       "tongyi",
       "web-agent"
     ],
-    "likes": 397466,
-    "downloads": 397466,
+    "likes": 414748,
+    "downloads": 414748,
     "is_rising_star": true
   },
   {
@@ -3780,8 +3780,8 @@
       "prompt-toolkit",
       "prompt-tuning"
     ],
-    "likes": 395197,
-    "downloads": 395197,
+    "likes": 412385,
+    "downloads": 412385,
     "is_rising_star": true
   },
   {
@@ -3808,8 +3808,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 393793,
-    "downloads": 393793,
+    "likes": 410917,
+    "downloads": 410917,
     "is_rising_star": true
   },
   {
@@ -3831,8 +3831,8 @@
       "structured-data",
       "data-analysis-insights"
     ],
-    "likes": 389703,
-    "downloads": 389703,
+    "likes": 406647,
+    "downloads": 406647,
     "is_rising_star": true
   },
   {
@@ -3858,8 +3858,8 @@
       "superagi",
       "rag-knowledge-base-qa"
     ],
-    "likes": 388513,
-    "downloads": 388513,
+    "likes": 405405,
+    "downloads": 405405,
     "is_rising_star": true
   },
   {
@@ -3876,8 +3876,8 @@
       "webgpu",
       "webml"
     ],
-    "likes": 387008,
-    "downloads": 387008,
+    "likes": 403837,
+    "downloads": 403837,
     "is_rising_star": true
   },
   {
@@ -3904,8 +3904,8 @@
       "observability",
       "servicemesh"
     ],
-    "likes": 384560,
-    "downloads": 384560,
+    "likes": 401280,
+    "downloads": 401280,
     "is_rising_star": true
   },
   {
@@ -3917,8 +3917,8 @@
       "ai-agents",
       "genai"
     ],
-    "likes": 381792,
-    "downloads": 381792,
+    "likes": 398412,
+    "downloads": 398412,
     "is_rising_star": true
   },
   {
@@ -3945,8 +3945,8 @@
       "windows-management-instrumentation",
       "xpath"
     ],
-    "likes": 379839,
-    "downloads": 379839,
+    "likes": 396357,
+    "downloads": 396357,
     "is_rising_star": true
   },
   {
@@ -3967,8 +3967,8 @@
       "openai",
       "python"
     ],
-    "likes": 376110,
-    "downloads": 376110,
+    "likes": 392466,
+    "downloads": 392466,
     "is_rising_star": true
   },
   {
@@ -3977,8 +3977,8 @@
     "author": "volcengine",
     "description": "verl: Volcano Engine Reinforcement Learning for LLMs",
     "tags": [],
-    "likes": 376237,
-    "downloads": 376237,
+    "likes": 392608,
+    "downloads": 392608,
     "is_rising_star": true
   },
   {
@@ -4000,8 +4000,8 @@
       "rag",
       "rag-knowledge-base-qa"
     ],
-    "likes": 375552,
-    "downloads": 375552,
+    "likes": 391883,
+    "downloads": 391883,
     "is_rising_star": true
   },
   {
@@ -4022,8 +4022,8 @@
       "vibe-coding",
       "code-generation-assistance"
     ],
-    "likes": 375005,
-    "downloads": 375005,
+    "likes": 391317,
+    "downloads": 391317,
     "is_rising_star": true
   },
   {
@@ -4043,8 +4043,8 @@
       "typescript",
       "general-dialogue-qa"
     ],
-    "likes": 372016,
-    "downloads": 372016,
+    "likes": 388191,
+    "downloads": 388191,
     "is_rising_star": true
   },
   {
@@ -4064,8 +4064,8 @@
       "speech-translation",
       "tts"
     ],
-    "likes": 371488,
-    "downloads": 371488,
+    "likes": 387642,
+    "downloads": 387642,
     "is_rising_star": true
   },
   {
@@ -4090,8 +4090,8 @@
       "windows",
       "general-dialogue-qa"
     ],
-    "likes": 371267,
-    "downloads": 371267,
+    "likes": 387410,
+    "downloads": 387410,
     "is_rising_star": true
   },
   {
@@ -4114,8 +4114,8 @@
       "llmops",
       "data-analysis-insights"
     ],
-    "likes": 369474,
-    "downloads": 369474,
+    "likes": 385539,
+    "downloads": 385539,
     "is_rising_star": true
   },
   {
@@ -4124,8 +4124,8 @@
     "author": "allenai",
     "description": "Toolkit for linearizing PDFs for LLM datasets/training",
     "tags": [],
-    "likes": 368783,
-    "downloads": 368783,
+    "likes": 384819,
+    "downloads": 384819,
     "is_rising_star": true
   },
   {
@@ -4144,8 +4144,8 @@
       "multimodal",
       "vision"
     ],
-    "likes": 367678,
-    "downloads": 367678,
+    "likes": 383664,
+    "downloads": 383664,
     "is_rising_star": true
   },
   {
@@ -4169,8 +4169,8 @@
       "prompt-engineering",
       "rag-knowledge-base-qa"
     ],
-    "likes": 367151,
-    "downloads": 367151,
+    "likes": 383120,
+    "downloads": 383120,
     "is_rising_star": true
   },
   {
@@ -4179,8 +4179,8 @@
     "author": "kvcache-ai",
     "description": "A Flexible Framework for Experiencing Cutting-edge LLM Inference Optimizations",
     "tags": [],
-    "likes": 364940,
-    "downloads": 364940,
+    "likes": 380811,
+    "downloads": 380811,
     "is_rising_star": true
   },
   {
@@ -4204,8 +4204,8 @@
       "rag-knowledge-base-qa",
       "general-dialogue-qa"
     ],
-    "likes": 364524,
-    "downloads": 364524,
+    "likes": 380374,
+    "downloads": 380374,
     "is_rising_star": true
   },
   {
@@ -4231,8 +4231,8 @@
       "training",
       "transformers"
     ],
-    "likes": 363768,
-    "downloads": 363768,
+    "likes": 379585,
+    "downloads": 379585,
     "is_rising_star": true
   },
   {
@@ -4248,8 +4248,8 @@
       "telegram",
       "general-dialogue-qa"
     ],
-    "likes": 363009,
-    "downloads": 363009,
+    "likes": 378792,
+    "downloads": 378792,
     "is_rising_star": true
   },
   {
@@ -4260,8 +4260,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 362516,
-    "downloads": 362516,
+    "likes": 378282,
+    "downloads": 378282,
     "is_rising_star": true
   },
   {
@@ -4278,8 +4278,8 @@
       "voice-clone",
       "zero-shot-tts"
     ],
-    "likes": 361016,
-    "downloads": 361016,
+    "likes": 376716,
+    "downloads": 376716,
     "is_rising_star": true
   },
   {
@@ -4294,8 +4294,8 @@
       "llm",
       "general-dialogue-qa"
     ],
-    "likes": 360754,
-    "downloads": 360754,
+    "likes": 376438,
+    "downloads": 376438,
     "is_rising_star": true
   },
   {
@@ -4322,8 +4322,8 @@
       "multi-agents-collaboration",
       "code-generation-assistance"
     ],
-    "likes": 356329,
-    "downloads": 356329,
+    "likes": 371827,
+    "downloads": 371827,
     "is_rising_star": true
   },
   {
@@ -4350,8 +4350,8 @@
       "roleplay",
       "scenario"
     ],
-    "likes": 355162,
-    "downloads": 355162,
+    "likes": 370610,
+    "downloads": 370610,
     "is_rising_star": true
   },
   {
@@ -4379,8 +4379,8 @@
       "stablelm",
       "general-dialogue-qa"
     ],
-    "likes": 354729,
-    "downloads": 354729,
+    "likes": 370152,
+    "downloads": 370152,
     "is_rising_star": true
   },
   {
@@ -4389,8 +4389,8 @@
     "author": "browser-use",
     "description": "🖥️ Run AI Agent in your browser.",
     "tags": [],
-    "likes": 350080,
-    "downloads": 350080,
+    "likes": 365301,
+    "downloads": 365301,
     "is_rising_star": true
   },
   {
@@ -4405,8 +4405,8 @@
       "ravishing",
       "code-generation-assistance"
     ],
-    "likes": 349737,
-    "downloads": 349737,
+    "likes": 364950,
+    "downloads": 364950,
     "is_rising_star": true
   },
   {
@@ -4425,8 +4425,8 @@
       "puppeteer",
       "code-generation-assistance"
     ],
-    "likes": 349335,
-    "downloads": 349335,
+    "likes": 364533,
+    "downloads": 364533,
     "is_rising_star": true
   },
   {
@@ -4450,8 +4450,8 @@
       "tutorials",
       "code-generation-assistance"
     ],
-    "likes": 349041,
-    "downloads": 349041,
+    "likes": 364221,
+    "downloads": 364221,
     "is_rising_star": true
   },
   {
@@ -4474,8 +4474,8 @@
       "graphql",
       "workflows"
     ],
-    "likes": 345060,
-    "downloads": 345060,
+    "likes": 360064,
+    "downloads": 360064,
     "is_rising_star": true
   },
   {
@@ -4494,8 +4494,8 @@
       "multi-agent-systems",
       "natural-language-processing"
     ],
-    "likes": 342108,
-    "downloads": 342108,
+    "likes": 356983,
+    "downloads": 356983,
     "is_rising_star": true
   },
   {
@@ -4511,8 +4511,8 @@
       "pretraining",
       "rl"
     ],
-    "likes": 339140,
-    "downloads": 339140,
+    "likes": 353885,
+    "downloads": 353885,
     "is_rising_star": true
   },
   {
@@ -4539,8 +4539,8 @@
       "terminal-ui",
       "code-generation-assistance"
     ],
-    "likes": 337709,
-    "downloads": 337709,
+    "likes": 352392,
+    "downloads": 352392,
     "is_rising_star": true
   },
   {
@@ -4569,8 +4569,8 @@
       "sql",
       "data-analysis-insights"
     ],
-    "likes": 336274,
-    "downloads": 336274,
+    "likes": 350895,
+    "downloads": 350895,
     "is_rising_star": true
   },
   {
@@ -4590,8 +4590,8 @@
       "small-specialized-models",
       "rag-knowledge-base-qa"
     ],
-    "likes": 332534,
-    "downloads": 332534,
+    "likes": 346992,
+    "downloads": 346992,
     "is_rising_star": true
   },
   {
@@ -4614,8 +4614,8 @@
       "prompt",
       "general-dialogue-qa"
     ],
-    "likes": 330666,
-    "downloads": 330666,
+    "likes": 345043,
+    "downloads": 345043,
     "is_rising_star": true
   },
   {
@@ -4629,8 +4629,8 @@
       "superagent",
       "supertest"
     ],
-    "likes": 327336,
-    "downloads": 327336,
+    "likes": 341568,
+    "downloads": 341568,
     "is_rising_star": true
   },
   {
@@ -4654,8 +4654,8 @@
       "transformer",
       "transformers"
     ],
-    "likes": 325543,
-    "downloads": 325543,
+    "likes": 339699,
+    "downloads": 339699,
     "is_rising_star": true
   },
   {
@@ -4687,8 +4687,8 @@
       "rag-knowledge-base-qa",
       "general-dialogue-qa"
     ],
-    "likes": 323444,
-    "downloads": 323444,
+    "likes": 337507,
+    "downloads": 337507,
     "is_rising_star": true
   },
   {
@@ -4708,8 +4708,8 @@
       "react-agent",
       "general-dialogue-qa"
     ],
-    "likes": 322239,
-    "downloads": 322239,
+    "likes": 336252,
+    "downloads": 336252,
     "is_rising_star": true
   },
   {
@@ -4725,8 +4725,8 @@
       "performance",
       "tracing"
     ],
-    "likes": 316250,
-    "downloads": 316250,
+    "likes": 330000,
+    "downloads": 330000,
     "is_rising_star": true
   },
   {
@@ -4737,8 +4737,8 @@
     "tags": [
       "general-dialogue-qa"
     ],
-    "likes": 315748,
-    "downloads": 315748,
+    "likes": 329476,
+    "downloads": 329476,
     "is_rising_star": true
   },
   {
@@ -4752,8 +4752,8 @@
       "llm",
       "prompt"
     ],
-    "likes": 311921,
-    "downloads": 311921,
+    "likes": 325483,
+    "downloads": 325483,
     "is_rising_star": true
   },
   {
@@ -4780,8 +4780,8 @@
       "telegram",
       "general-dialogue-qa"
     ],
-    "likes": 311920,
-    "downloads": 311920,
+    "likes": 325484,
+    "downloads": 325484,
     "is_rising_star": true
   },
   {
@@ -4803,8 +4803,8 @@
       "winograd-algorithm",
       "general-dialogue-qa"
     ],
-    "likes": 311604,
-    "downloads": 311604,
+    "likes": 325152,
+    "downloads": 325152,
     "is_rising_star": true
   },
   {
@@ -4819,8 +4819,8 @@
       "pydantic",
       "python"
     ],
-    "likes": 310379,
-    "downloads": 310379,
+    "likes": 323875,
+    "downloads": 323875,
     "is_rising_star": true
   },
   {
@@ -4850,8 +4850,8 @@
       "pdf-to-text",
       "preprocessing"
     ],
-    "likes": 304727,
-    "downloads": 304727,
+    "likes": 317976,
+    "downloads": 317976,
     "is_rising_star": true
   },
   {
@@ -4860,8 +4860,8 @@
     "author": "hsliuping",
     "description": "基于多智能体LLM的中文金融交易框架 - TradingAgents中文增强版",
     "tags": [],
-    "likes": 301806,
-    "downloads": 301806,
+    "likes": 314932,
+    "downloads": 314932,
     "is_rising_star": true
   },
   {
@@ -4877,8 +4877,8 @@
       "llm",
       "penetration-testing"
     ],
-    "likes": 301819,
-    "downloads": 301819,
+    "likes": 314960,
+    "downloads": 314960,
     "is_rising_star": true
   },
   {
@@ -4891,8 +4891,8 @@
       "llama",
       "llm"
     ],
-    "likes": 299814,
-    "downloads": 299814,
+    "likes": 312849,
+    "downloads": 312849,
     "is_rising_star": true
   },
   {
@@ -4923,8 +4923,8 @@
       "rag-knowledge-base-qa",
       "data-analysis-insights"
     ],
-    "likes": 299828,
-    "downloads": 299828,
+    "likes": 312865,
+    "downloads": 312865,
     "is_rising_star": true
   },
   {
@@ -4941,8 +4941,8 @@
       "llm-inference",
       "llms"
     ],
-    "likes": 298034,
-    "downloads": 298034,
+    "likes": 310992,
+    "downloads": 310992,
     "is_rising_star": true
   },
   {
@@ -4960,8 +4960,8 @@
       "structured-generation",
       "symbolic-ai"
     ],
-    "likes": 297306,
-    "downloads": 297306,
+    "likes": 310234,
+    "downloads": 310234,
     "is_rising_star": true
   },
   {
@@ -4985,8 +4985,8 @@
       "testing-tool",
       "testing-tools"
     ],
-    "likes": 296435,
-    "downloads": 296435,
+    "likes": 309327,
+    "downloads": 309327,
     "is_rising_star": true
   },
   {
@@ -5015,8 +5015,8 @@
       "transformers",
       "uie"
     ],
-    "likes": 295527,
-    "downloads": 295527,
+    "likes": 308376,
+    "downloads": 308376,
     "is_rising_star": true
   },
   {
@@ -5039,8 +5039,8 @@
       "workflow-automation",
       "workflows"
     ],
-    "likes": 295034,
-    "downloads": 295034,
+    "likes": 307862,
+    "downloads": 307862,
     "is_rising_star": true
   },
   {
@@ -5049,8 +5049,8 @@
     "author": "andrewyng",
     "description": "Simple, unified interface to multiple Generative AI providers ",
     "tags": [],
-    "likes": 294634,
-    "downloads": 294634,
+    "likes": 307444,
+    "downloads": 307444,
     "is_rising_star": true
   },
   {
@@ -5066,8 +5066,8 @@
       "openai",
       "rerank"
     ],
-    "likes": 290786,
-    "downloads": 290786,
+    "likes": 303431,
+    "downloads": 303431,
     "is_rising_star": true
   },
   {
@@ -5085,8 +5085,8 @@
       "openai-api",
       "openai-functions"
     ],
-    "likes": 289041,
-    "downloads": 289041,
+    "likes": 301608,
+    "downloads": 301608,
     "is_rising_star": true
   },
   {
@@ -5100,8 +5100,8 @@
       "llm",
       "llms"
     ],
-    "likes": 287937,
-    "downloads": 287937,
+    "likes": 300456,
+    "downloads": 300456,
     "is_rising_star": true
   },
   {
@@ -5113,8 +5113,8 @@
       "code-generation-assistance",
       "rag-knowledge-base-qa"
     ],
-    "likes": 285926,
-    "downloads": 285926,
+    "likes": 298359,
+    "downloads": 298359,
     "is_rising_star": true
   },
   {
@@ -5130,8 +5130,8 @@
       "linux",
       "zero"
     ],
-    "likes": 283995,
-    "downloads": 283995,
+    "likes": 296345,
+    "downloads": 296345,
     "is_rising_star": true
   },
   {
@@ -5161,8 +5161,8 @@
       "security-hardening",
       "security-tools"
     ],
-    "likes": 283752,
-    "downloads": 283752,
+    "likes": 296090,
+    "downloads": 296090,
     "is_rising_star": true
   },
   {
@@ -5179,8 +5179,8 @@
       "llm-evaluation-metrics",
       "python"
     ],
-    "likes": 282493,
-    "downloads": 282493,
+    "likes": 294776,
+    "downloads": 294776,
     "is_rising_star": true
   },
   {
@@ -5189,8 +5189,8 @@
     "author": "ZJU-LLMs",
     "description": "An AI tool from GitHub.",
     "tags": [],
-    "likes": 282396,
-    "downloads": 282396,
+    "likes": 294676,
+    "downloads": 294676,
     "is_rising_star": true
   },
   {
@@ -5205,8 +5205,8 @@
       "moe",
       "pytorch"
     ],
-    "likes": 280733,
-    "downloads": 280733,
+    "likes": 292940,
+    "downloads": 292940,
     "is_rising_star": true
   },
   {
@@ -5215,8 +5215,8 @@
     "author": "smol-ai",
     "description": "the first library to let you embed a developer agent in your own app!",
     "tags": [],
-    "likes": 280048,
-    "downloads": 280048,
+    "likes": 292224,
+    "downloads": 292224,
     "is_rising_star": true
   },
   {
@@ -5233,8 +5233,8 @@
       "video-generation",
       "video-generation-editing"
     ],
-    "likes": 279841,
-    "downloads": 279841,
+    "likes": 292008,
+    "downloads": 292008,
     "is_rising_star": true
   },
   {
@@ -5260,8 +5260,8 @@
       "vertexai",
       "code-generation-assistance"
     ],
-    "likes": 278020,
-    "downloads": 278020,
+    "likes": 290109,
+    "downloads": 290109,
     "is_rising_star": true
   },
   {
@@ -5286,8 +5286,8 @@
       "vectorstore",
       "general-dialogue-qa"
     ],
-    "likes": 275337,
-    "downloads": 275337,
+    "likes": 287308,
+    "downloads": 287308,
     "is_rising_star": true
   },
   {
@@ -5308,8 +5308,8 @@
       "pre-training",
       "rlhf"
     ],
-    "likes": 275333,
-    "downloads": 275333,
+    "likes": 287304,
+    "downloads": 287304,
     "is_rising_star": true
   },
   {
@@ -5322,8 +5322,8 @@
       "javascript",
       "llm"
     ],
-    "likes": 274666,
-    "downloads": 274666,
+    "likes": 286608,
+    "downloads": 286608,
     "is_rising_star": true
   },
   {
@@ -5351,8 +5351,8 @@
       "openllm",
       "vicuna"
     ],
-    "likes": 274625,
-    "downloads": 274625,
+    "likes": 286566,
+    "downloads": 286566,
     "is_rising_star": true
   },
   {
@@ -5368,8 +5368,8 @@
       "typescript",
       "code-generation-assistance"
     ],
-    "likes": 273577,
-    "downloads": 273577,
+    "likes": 285474,
+    "downloads": 285474,
     "is_rising_star": true
   },
   {
@@ -5385,8 +5385,8 @@
       "python",
       "validation"
     ],
-    "likes": 273013,
-    "downloads": 273013,
+    "likes": 284885,
+    "downloads": 284885,
     "is_rising_star": true
   },
   {
@@ -5417,8 +5417,8 @@
       "vector-search",
       "rag-knowledge-base-qa"
     ],
-    "likes": 272321,
-    "downloads": 272321,
+    "likes": 284162,
+    "downloads": 284162,
     "is_rising_star": true
   },
   {
@@ -5448,8 +5448,8 @@
       "vulnerability-scanners",
       "vuls"
     ],
-    "likes": 272108,
-    "downloads": 272108,
+    "likes": 283939,
+    "downloads": 283939,
     "is_rising_star": true
   },
   {
@@ -5473,8 +5473,8 @@
       "pocketflow",
       "code-generation-assistance"
     ],
-    "likes": 270644,
-    "downloads": 270644,
+    "likes": 282414,
+    "downloads": 282414,
     "is_rising_star": true
   },
   {
@@ -5488,8 +5488,8 @@
       "translate",
       "video-subtile"
     ],
-    "likes": 269533,
-    "downloads": 269533,
+    "likes": 281255,
+    "downloads": 281255,
     "is_rising_star": true
   },
   {
@@ -5520,8 +5520,8 @@
       "pytorch",
       "code-generation-assistance"
     ],
-    "likes": 267232,
-    "downloads": 267232,
+    "likes": 278851,
+    "downloads": 278851,
     "is_rising_star": true
   },
   {
@@ -5546,8 +5546,8 @@
       "shell",
       "terminal"
     ],
-    "likes": 265574,
-    "downloads": 265574,
+    "likes": 277121,
+    "downloads": 277121,
     "is_rising_star": true
   },
   {
@@ -5567,8 +5567,8 @@
       "terraform",
       "vscode"
     ],
-    "likes": 265404,
-    "downloads": 265404,
+    "likes": 276944,
+    "downloads": 276944,
     "is_rising_star": true
   },
   {
@@ -5581,8 +5581,8 @@
       "llm",
       "llmops"
     ],
-    "likes": 264361,
-    "downloads": 264361,
+    "likes": 275854,
+    "downloads": 275854,
     "is_rising_star": true
   },
   {
@@ -5612,8 +5612,8 @@
       "playwright",
       "web-automation"
     ],
-    "likes": 262013,
-    "downloads": 262013,
+    "likes": 273407,
+    "downloads": 273407,
     "is_rising_star": true
   },
   {
@@ -5624,8 +5624,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 261206,
-    "downloads": 261206,
+    "likes": 272564,
+    "downloads": 272564,
     "is_rising_star": true
   },
   {
@@ -5653,8 +5653,8 @@
       "windows",
       "windows-sandbox"
     ],
-    "likes": 260478,
-    "downloads": 260478,
+    "likes": 271803,
+    "downloads": 271803,
     "is_rising_star": true
   },
   {
@@ -5674,8 +5674,8 @@
       "ui-blocks",
       "vercel-deployment"
     ],
-    "likes": 258935,
-    "downloads": 258935,
+    "likes": 270194,
+    "downloads": 270194,
     "is_rising_star": true
   },
   {
@@ -5705,8 +5705,8 @@
       "reranker",
       "sft"
     ],
-    "likes": 257366,
-    "downloads": 257366,
+    "likes": 268562,
+    "downloads": 268562,
     "is_rising_star": true
   },
   {
@@ -5729,8 +5729,8 @@
       "openapi",
       "windsurf"
     ],
-    "likes": 255392,
-    "downloads": 255392,
+    "likes": 266498,
+    "downloads": 266498,
     "is_rising_star": true
   },
   {
@@ -5753,8 +5753,8 @@
       "weixin",
       "general-dialogue-qa"
     ],
-    "likes": 254191,
-    "downloads": 254191,
+    "likes": 265244,
+    "downloads": 265244,
     "is_rising_star": true
   },
   {
@@ -5772,8 +5772,8 @@
       "ui",
       "general-dialogue-qa"
     ],
-    "likes": 253734,
-    "downloads": 253734,
+    "likes": 264767,
+    "downloads": 264767,
     "is_rising_star": true
   },
   {
@@ -5801,8 +5801,8 @@
       "general-dialogue-qa",
       "code-generation-assistance"
     ],
-    "likes": 252793,
-    "downloads": 252793,
+    "likes": 263784,
+    "downloads": 263784,
     "is_rising_star": true
   },
   {
@@ -5816,8 +5816,8 @@
       "llm-interview",
       "llms"
     ],
-    "likes": 252207,
-    "downloads": 252207,
+    "likes": 263174,
+    "downloads": 263174,
     "is_rising_star": true
   },
   {
@@ -5834,8 +5834,8 @@
       "text-semantic-similarity",
       "rag-knowledge-base-qa"
     ],
-    "likes": 250424,
-    "downloads": 250424,
+    "likes": 261312,
+    "downloads": 261312,
     "is_rising_star": true
   },
   {
@@ -5853,8 +5853,8 @@
       "prompt",
       "prompt-engineering"
     ],
-    "likes": 250296,
-    "downloads": 250296,
+    "likes": 261179,
+    "downloads": 261179,
     "is_rising_star": true
   },
   {
@@ -5872,8 +5872,8 @@
       "open-policy-agent",
       "policy"
     ],
-    "likes": 250099,
-    "downloads": 250099,
+    "likes": 260974,
+    "downloads": 260974,
     "is_rising_star": true
   },
   {
@@ -5902,8 +5902,8 @@
       "webshell",
       "webssh"
     ],
-    "likes": 249619,
-    "downloads": 249619,
+    "likes": 260472,
+    "downloads": 260472,
     "is_rising_star": true
   },
   {
@@ -5921,8 +5921,8 @@
       "large-language-models",
       "llm"
     ],
-    "likes": 249436,
-    "downloads": 249436,
+    "likes": 260284,
+    "downloads": 260284,
     "is_rising_star": true
   },
   {
@@ -5934,8 +5934,8 @@
       "fine-tuning",
       "llm"
     ],
-    "likes": 249331,
-    "downloads": 249331,
+    "likes": 260172,
+    "downloads": 260172,
     "is_rising_star": true
   },
   {
@@ -5948,8 +5948,8 @@
       "rag",
       "rag-knowledge-base-qa"
     ],
-    "likes": 248609,
-    "downloads": 248609,
+    "likes": 259420,
+    "downloads": 259420,
     "is_rising_star": true
   },
   {
@@ -5958,8 +5958,8 @@
     "author": "artidoro",
     "description": "QLoRA: Efficient Finetuning of Quantized LLMs",
     "tags": [],
-    "likes": 247485,
-    "downloads": 247485,
+    "likes": 258245,
+    "downloads": 258245,
     "is_rising_star": true
   },
   {
@@ -5990,8 +5990,8 @@
       "typescript",
       "rag-knowledge-base-qa"
     ],
-    "likes": 246675,
-    "downloads": 246675,
+    "likes": 257400,
+    "downloads": 257400,
     "is_rising_star": true
   },
   {
@@ -6004,8 +6004,8 @@
       "gym",
       "reinforcement-learning"
     ],
-    "likes": 246290,
-    "downloads": 246290,
+    "likes": 257001,
+    "downloads": 257001,
     "is_rising_star": true
   },
   {
@@ -6020,8 +6020,8 @@
       "php",
       "user-agents"
     ],
-    "likes": 245387,
-    "downloads": 245387,
+    "likes": 256056,
+    "downloads": 256056,
     "is_rising_star": true
   },
   {
@@ -6034,8 +6034,8 @@
       "llm-agent",
       "code-generation-assistance"
     ],
-    "likes": 245101,
-    "downloads": 245101,
+    "likes": 255767,
+    "downloads": 255767,
     "is_rising_star": true
   },
   {
@@ -6065,8 +6065,8 @@
       "python",
       "rust"
     ],
-    "likes": 243435,
-    "downloads": 243435,
+    "likes": 254020,
+    "downloads": 254020,
     "is_rising_star": true
   },
   {
@@ -6079,8 +6079,8 @@
       "llm-inference",
       "mistralai"
     ],
-    "likes": 242535,
-    "downloads": 242535,
+    "likes": 253080,
+    "downloads": 253080,
     "is_rising_star": true
   },
   {
@@ -6093,8 +6093,8 @@
       "retrieval-augmented-generation",
       "rag-knowledge-base-qa"
     ],
-    "likes": 240133,
-    "downloads": 240133,
+    "likes": 250578,
+    "downloads": 250578,
     "is_rising_star": true
   },
   {
@@ -6123,8 +6123,8 @@
       "video-processing",
       "rag-knowledge-base-qa"
     ],
-    "likes": 239692,
-    "downloads": 239692,
+    "likes": 250114,
+    "downloads": 250114,
     "is_rising_star": true
   },
   {
@@ -6137,8 +6137,8 @@
       "llms",
       "openai"
     ],
-    "likes": 237313,
-    "downloads": 237313,
+    "likes": 247632,
+    "downloads": 247632,
     "is_rising_star": true
   },
   {
@@ -6159,8 +6159,8 @@
       "general-dialogue-qa",
       "code-generation-assistance"
     ],
-    "likes": 236762,
-    "downloads": 236762,
+    "likes": 247056,
+    "downloads": 247056,
     "is_rising_star": true
   },
   {
@@ -6182,8 +6182,8 @@
       "python",
       "ruby"
     ],
-    "likes": 236481,
-    "downloads": 236481,
+    "likes": 246774,
+    "downloads": 246774,
     "is_rising_star": true
   },
   {
@@ -6194,8 +6194,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 233553,
-    "downloads": 233553,
+    "likes": 243708,
+    "downloads": 243708,
     "is_rising_star": true
   },
   {
@@ -6209,8 +6209,8 @@
       "nlp",
       "survey"
     ],
-    "likes": 232370,
-    "downloads": 232370,
+    "likes": 242474,
+    "downloads": 242474,
     "is_rising_star": true
   },
   {
@@ -6223,8 +6223,8 @@
       "llm",
       "software-engineering"
     ],
-    "likes": 231652,
-    "downloads": 231652,
+    "likes": 241724,
+    "downloads": 241724,
     "is_rising_star": true
   },
   {
@@ -6233,8 +6233,8 @@
     "author": "contains-studio",
     "description": "sharing current agents in use",
     "tags": [],
-    "likes": 231393,
-    "downloads": 231393,
+    "likes": 241454,
+    "downloads": 241454,
     "is_rising_star": true
   },
   {
@@ -6266,8 +6266,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 230985,
-    "downloads": 230985,
+    "likes": 241029,
+    "downloads": 241029,
     "is_rising_star": true
   },
   {
@@ -6289,8 +6289,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 230562,
-    "downloads": 230562,
+    "likes": 240588,
+    "downloads": 240588,
     "is_rising_star": true
   },
   {
@@ -6323,8 +6323,8 @@
       "code-generation-assistance",
       "rag-knowledge-base-qa"
     ],
-    "likes": 230473,
-    "downloads": 230473,
+    "likes": 240497,
+    "downloads": 240497,
     "is_rising_star": true
   },
   {
@@ -6349,8 +6349,8 @@
       "model-router",
       "openai"
     ],
-    "likes": 228788,
-    "downloads": 228788,
+    "likes": 238738,
+    "downloads": 238738,
     "is_rising_star": true
   },
   {
@@ -6378,8 +6378,8 @@
       "software",
       "typescript"
     ],
-    "likes": 228582,
-    "downloads": 228582,
+    "likes": 238521,
+    "downloads": 238521,
     "is_rising_star": true
   },
   {
@@ -6394,8 +6394,8 @@
       "agentic-workflow",
       "ai-agents"
     ],
-    "likes": 227144,
-    "downloads": 227144,
+    "likes": 237022,
+    "downloads": 237022,
     "is_rising_star": true
   },
   {
@@ -6426,8 +6426,8 @@
       "volunteer-computing",
       "general-dialogue-qa"
     ],
-    "likes": 226327,
-    "downloads": 226327,
+    "likes": 236168,
+    "downloads": 236168,
     "is_rising_star": true
   },
   {
@@ -6436,8 +6436,8 @@
     "author": "Lordog",
     "description": "《动手学大模型Dive into LLMs》系列编程实践教程",
     "tags": [],
-    "likes": 226398,
-    "downloads": 226398,
+    "likes": 236249,
+    "downloads": 236249,
     "is_rising_star": true
   },
   {
@@ -6466,8 +6466,8 @@
       "mcp",
       "openai"
     ],
-    "likes": 223578,
-    "downloads": 223578,
+    "likes": 233301,
+    "downloads": 233301,
     "is_rising_star": true
   },
   {
@@ -6498,8 +6498,8 @@
       "vector-database",
       "rag-knowledge-base-qa"
     ],
-    "likes": 223149,
-    "downloads": 223149,
+    "likes": 232852,
+    "downloads": 232852,
     "is_rising_star": true
   },
   {
@@ -6529,8 +6529,8 @@
       "model-management",
       "python"
     ],
-    "likes": 221697,
-    "downloads": 221697,
+    "likes": 231336,
+    "downloads": 231336,
     "is_rising_star": true
   },
   {
@@ -6548,8 +6548,8 @@
       "llm",
       "research"
     ],
-    "likes": 219361,
-    "downloads": 219361,
+    "likes": 228899,
+    "downloads": 228899,
     "is_rising_star": true
   },
   {
@@ -6571,8 +6571,8 @@
       "vit-22b",
       "vit-6b"
     ],
-    "likes": 218776,
-    "downloads": 218776,
+    "likes": 228288,
+    "downloads": 228288,
     "is_rising_star": true
   },
   {
@@ -6590,8 +6590,8 @@
       "pull-request",
       "pull-requests"
     ],
-    "likes": 218674,
-    "downloads": 218674,
+    "likes": 228182,
+    "downloads": 228182,
     "is_rising_star": true
   },
   {
@@ -6607,8 +6607,8 @@
       "openai",
       "code-generation-assistance"
     ],
-    "likes": 218252,
-    "downloads": 218252,
+    "likes": 227741,
+    "downloads": 227741,
     "is_rising_star": true
   },
   {
@@ -6619,8 +6619,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 217580,
-    "downloads": 217580,
+    "likes": 227040,
+    "downloads": 227040,
     "is_rising_star": true
   },
   {
@@ -6632,8 +6632,8 @@
       "llm",
       "proxy"
     ],
-    "likes": 216499,
-    "downloads": 216499,
+    "likes": 225912,
+    "downloads": 225912,
     "is_rising_star": true
   },
   {
@@ -6650,8 +6650,8 @@
       "offloading",
       "opt"
     ],
-    "likes": 215740,
-    "downloads": 215740,
+    "likes": 225120,
+    "downloads": 225120,
     "is_rising_star": true
   },
   {
@@ -6664,8 +6664,8 @@
       "krita-plugin",
       "stable-diffusion"
     ],
-    "likes": 215625,
-    "downloads": 215625,
+    "likes": 225000,
+    "downloads": 225000,
     "is_rising_star": true
   },
   {
@@ -6682,8 +6682,8 @@
       "webview-agentweb-web",
       "wechat-pay"
     ],
-    "likes": 215579,
-    "downloads": 215579,
+    "likes": 224952,
+    "downloads": 224952,
     "is_rising_star": true
   },
   {
@@ -6712,8 +6712,8 @@
       "transformers",
       "yolo"
     ],
-    "likes": 212449,
-    "downloads": 212449,
+    "likes": 221686,
+    "downloads": 221686,
     "is_rising_star": true
   },
   {
@@ -6742,8 +6742,8 @@
       "vulnerability-scanners",
       "rag-knowledge-base-qa"
     ],
-    "likes": 210882,
-    "downloads": 210882,
+    "likes": 220051,
+    "downloads": 220051,
     "is_rising_star": true
   },
   {
@@ -6757,8 +6757,8 @@
       "penetration-testing",
       "python"
     ],
-    "likes": 210222,
-    "downloads": 210222,
+    "likes": 219363,
+    "downloads": 219363,
     "is_rising_star": true
   },
   {
@@ -6774,8 +6774,8 @@
       "pytorch",
       "transformer"
     ],
-    "likes": 210170,
-    "downloads": 210170,
+    "likes": 219309,
+    "downloads": 219309,
     "is_rising_star": true
   },
   {
@@ -6789,8 +6789,8 @@
       "stability-ai",
       "stable-diffusion"
     ],
-    "likes": 207759,
-    "downloads": 207759,
+    "likes": 216792,
+    "downloads": 216792,
     "is_rising_star": true
   },
   {
@@ -6822,8 +6822,8 @@
       "rag-knowledge-base-qa",
       "code-generation-assistance"
     ],
-    "likes": 207147,
-    "downloads": 207147,
+    "likes": 216159,
+    "downloads": 216159,
     "is_rising_star": true
   },
   {
@@ -6854,8 +6854,8 @@
       "workflow-orchestration",
       "rag-knowledge-base-qa"
     ],
-    "likes": 206049,
-    "downloads": 206049,
+    "likes": 215013,
+    "downloads": 215013,
     "is_rising_star": true
   },
   {
@@ -6870,8 +6870,8 @@
       "langchain",
       "llm"
     ],
-    "likes": 205874,
-    "downloads": 205874,
+    "likes": 214826,
+    "downloads": 214826,
     "is_rising_star": true
   },
   {
@@ -6901,8 +6901,8 @@
       "vector-database",
       "vector-search"
     ],
-    "likes": 204810,
-    "downloads": 204810,
+    "likes": 213715,
+    "downloads": 213715,
     "is_rising_star": true
   },
   {
@@ -6926,8 +6926,8 @@
       "real-time",
       "streaming"
     ],
-    "likes": 204798,
-    "downloads": 204798,
+    "likes": 213703,
+    "downloads": 213703,
     "is_rising_star": true
   },
   {
@@ -6943,8 +6943,8 @@
       "video-translation",
       "translation-localization"
     ],
-    "likes": 204766,
-    "downloads": 204766,
+    "likes": 213669,
+    "downloads": 213669,
     "is_rising_star": true
   },
   {
@@ -6975,8 +6975,8 @@
       "wizardlm",
       "code-generation-assistance"
     ],
-    "likes": 201728,
-    "downloads": 201728,
+    "likes": 210499,
+    "downloads": 210499,
     "is_rising_star": true
   },
   {
@@ -6991,8 +6991,8 @@
       "mlops",
       "reinforcement-learning"
     ],
-    "likes": 201278,
-    "downloads": 201278,
+    "likes": 210030,
+    "downloads": 210030,
     "is_rising_star": true
   },
   {
@@ -7001,8 +7001,8 @@
     "author": "nashsu",
     "description": "FreeAskInternet is a completely free, PRIVATE and LOCALLY running search aggregator & answer generate using MULTI LLMs, without GPU needed. The user can ask a question and the system will  make a multi engine search and combine the search result to LLM and generate the answer based on search results. It's all FREE to use. ",
     "tags": [],
-    "likes": 200698,
-    "downloads": 200698,
+    "likes": 209424,
+    "downloads": 209424,
     "is_rising_star": true
   },
   {
@@ -7024,8 +7024,8 @@
       "slms",
       "vlms"
     ],
-    "likes": 199702,
-    "downloads": 199702,
+    "likes": 208385,
+    "downloads": 208385,
     "is_rising_star": true
   },
   {
@@ -7051,8 +7051,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 199175,
-    "downloads": 199175,
+    "likes": 207835,
+    "downloads": 207835,
     "is_rising_star": true
   },
   {
@@ -7073,8 +7073,8 @@
       "vits2",
       "vocoder"
     ],
-    "likes": 198191,
-    "downloads": 198191,
+    "likes": 206808,
+    "downloads": 206808,
     "is_rising_star": true
   },
   {
@@ -7097,8 +7097,8 @@
       "generative-text",
       "software-development"
     ],
-    "likes": 198123,
-    "downloads": 198123,
+    "likes": 206738,
+    "downloads": 206738,
     "is_rising_star": true
   },
   {
@@ -7114,8 +7114,8 @@
       "voice",
       "general-dialogue-qa"
     ],
-    "likes": 198085,
-    "downloads": 198085,
+    "likes": 206700,
+    "downloads": 206700,
     "is_rising_star": true
   },
   {
@@ -7130,8 +7130,8 @@
       "types",
       "general-dialogue-qa"
     ],
-    "likes": 197462,
-    "downloads": 197462,
+    "likes": 206047,
+    "downloads": 206047,
     "is_rising_star": true
   },
   {
@@ -7154,8 +7154,8 @@
       "vision-transformer",
       "code-generation-assistance"
     ],
-    "likes": 195339,
-    "downloads": 195339,
+    "likes": 203832,
+    "downloads": 203832,
     "is_rising_star": true
   },
   {
@@ -7170,8 +7170,8 @@
       "transformers",
       "general-dialogue-qa"
     ],
-    "likes": 194971,
-    "downloads": 194971,
+    "likes": 203448,
+    "downloads": 203448,
     "is_rising_star": true
   },
   {
@@ -7180,8 +7180,8 @@
     "author": "OpenBMB",
     "description": "An Autonomous LLM Agent for Complex Task Solving",
     "tags": [],
-    "likes": 194649,
-    "downloads": 194649,
+    "likes": 203112,
+    "downloads": 203112,
     "is_rising_star": true
   },
   {
@@ -7190,8 +7190,8 @@
     "author": "facebookresearch",
     "description": "Reference PyTorch implementation and models for DINOv3",
     "tags": [],
-    "likes": 194435,
-    "downloads": 194435,
+    "likes": 202890,
+    "downloads": 202890,
     "is_rising_star": true
   },
   {
@@ -7202,8 +7202,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 194496,
-    "downloads": 194496,
+    "likes": 202954,
+    "downloads": 202954,
     "is_rising_star": true
   },
   {
@@ -7221,8 +7221,8 @@
       "transformers",
       "vllm"
     ],
-    "likes": 194104,
-    "downloads": 194104,
+    "likes": 202544,
+    "downloads": 202544,
     "is_rising_star": true
   },
   {
@@ -7231,8 +7231,8 @@
     "author": "OpenBMB",
     "description": "MiniCPM4 & MiniCPM4.1: Ultra-Efficient LLMs on End Devices, achieving 3+ generation speedup on reasoning tasks",
     "tags": [],
-    "likes": 193798,
-    "downloads": 193798,
+    "likes": 202224,
+    "downloads": 202224,
     "is_rising_star": true
   },
   {
@@ -7247,8 +7247,8 @@
       "llm-inference",
       "local-inference"
     ],
-    "likes": 193350,
-    "downloads": 193350,
+    "likes": 201757,
+    "downloads": 201757,
     "is_rising_star": true
   },
   {
@@ -7272,8 +7272,8 @@
       "upstash",
       "vercel-ai-sdk"
     ],
-    "likes": 192419,
-    "downloads": 192419,
+    "likes": 200786,
+    "downloads": 200786,
     "is_rising_star": true
   },
   {
@@ -7290,8 +7290,8 @@
       "llm",
       "data-analysis-insights"
     ],
-    "likes": 192349,
-    "downloads": 192349,
+    "likes": 200712,
+    "downloads": 200712,
     "is_rising_star": true
   },
   {
@@ -7318,8 +7318,8 @@
       "whisper-cpp",
       "windows"
     ],
-    "likes": 191815,
-    "downloads": 191815,
+    "likes": 200155,
+    "downloads": 200155,
     "is_rising_star": true
   },
   {
@@ -7338,8 +7338,8 @@
       "model-context-protocol-sdk",
       "python"
     ],
-    "likes": 191793,
-    "downloads": 191793,
+    "likes": 200133,
+    "downloads": 200133,
     "is_rising_star": true
   },
   {
@@ -7363,8 +7363,8 @@
       "retrieval-augmented-generation",
       "rag-knowledge-base-qa"
     ],
-    "likes": 191647,
-    "downloads": 191647,
+    "likes": 199980,
+    "downloads": 199980,
     "is_rising_star": true
   },
   {
@@ -7380,8 +7380,8 @@
       "video",
       "voice"
     ],
-    "likes": 190630,
-    "downloads": 190630,
+    "likes": 198921,
+    "downloads": 198921,
     "is_rising_star": true
   },
   {
@@ -7398,8 +7398,8 @@
       "langchaingo",
       "llm-application"
     ],
-    "likes": 190528,
-    "downloads": 190528,
+    "likes": 198813,
+    "downloads": 198813,
     "is_rising_star": true
   },
   {
@@ -7414,8 +7414,8 @@
       "llm-engineer",
       "llms"
     ],
-    "likes": 190494,
-    "downloads": 190494,
+    "likes": 198777,
+    "downloads": 198777,
     "is_rising_star": true
   },
   {
@@ -7431,8 +7431,8 @@
       "trustfulness",
       "rag-knowledge-base-qa"
     ],
-    "likes": 190164,
-    "downloads": 190164,
+    "likes": 198432,
+    "downloads": 198432,
     "is_rising_star": true
   },
   {
@@ -7457,8 +7457,8 @@
       "multimodal",
       "python"
     ],
-    "likes": 189745,
-    "downloads": 189745,
+    "likes": 197995,
+    "downloads": 197995,
     "is_rising_star": true
   },
   {
@@ -7472,8 +7472,8 @@
       "leptonai",
       "llm"
     ],
-    "likes": 187013,
-    "downloads": 187013,
+    "likes": 195144,
+    "downloads": 195144,
     "is_rising_star": true
   },
   {
@@ -7492,8 +7492,8 @@
       "self-hosted",
       "wiki"
     ],
-    "likes": 185609,
-    "downloads": 185609,
+    "likes": 193680,
+    "downloads": 193680,
     "is_rising_star": true
   },
   {
@@ -7507,8 +7507,8 @@
       "golang",
       "langchain"
     ],
-    "likes": 185330,
-    "downloads": 185330,
+    "likes": 193389,
+    "downloads": 193389,
     "is_rising_star": true
   },
   {
@@ -7523,8 +7523,8 @@
       "nlp",
       "survey"
     ],
-    "likes": 183471,
-    "downloads": 183471,
+    "likes": 191448,
+    "downloads": 191448,
     "is_rising_star": true
   },
   {
@@ -7542,8 +7542,8 @@
       "cua",
       "ui"
     ],
-    "likes": 182730,
-    "downloads": 182730,
+    "likes": 190675,
+    "downloads": 190675,
     "is_rising_star": true
   },
   {
@@ -7562,8 +7562,8 @@
       "reinforcement-learning",
       "rl"
     ],
-    "likes": 181273,
-    "downloads": 181273,
+    "likes": 189156,
+    "downloads": 189156,
     "is_rising_star": true
   },
   {
@@ -7580,8 +7580,8 @@
       "scraper",
       "website-tracking"
     ],
-    "likes": 181021,
-    "downloads": 181021,
+    "likes": 188892,
+    "downloads": 188892,
     "is_rising_star": true
   },
   {
@@ -7611,8 +7611,8 @@
       "vector-search",
       "general-dialogue-qa"
     ],
-    "likes": 180196,
-    "downloads": 180196,
+    "likes": 188032,
+    "downloads": 188032,
     "is_rising_star": true
   },
   {
@@ -7625,8 +7625,8 @@
       "llms",
       "code-generation-assistance"
     ],
-    "likes": 180062,
-    "downloads": 180062,
+    "likes": 187891,
+    "downloads": 187891,
     "is_rising_star": true
   },
   {
@@ -7644,8 +7644,8 @@
       "model-context-protocol",
       "python"
     ],
-    "likes": 178659,
-    "downloads": 178659,
+    "likes": 186427,
+    "downloads": 186427,
     "is_rising_star": true
   },
   {
@@ -7660,8 +7660,8 @@
       "qlora",
       "quantization"
     ],
-    "likes": 178618,
-    "downloads": 178618,
+    "likes": 186384,
+    "downloads": 186384,
     "is_rising_star": true
   },
   {
@@ -7670,8 +7670,8 @@
     "author": "EmpireProject",
     "description": "Empire is a PowerShell and Python post-exploitation agent.",
     "tags": [],
-    "likes": 177928,
-    "downloads": 177928,
+    "likes": 185664,
+    "downloads": 185664,
     "is_rising_star": true
   },
   {
@@ -7687,8 +7687,8 @@
       "llm",
       "windows"
     ],
-    "likes": 177836,
-    "downloads": 177836,
+    "likes": 185568,
+    "downloads": 185568,
     "is_rising_star": true
   },
   {
@@ -7706,8 +7706,8 @@
       "windows",
       "general-dialogue-qa"
     ],
-    "likes": 177166,
-    "downloads": 177166,
+    "likes": 184875,
+    "downloads": 184875,
     "is_rising_star": true
   },
   {
@@ -7728,8 +7728,8 @@
       "reliability",
       "rag-knowledge-base-qa"
     ],
-    "likes": 176742,
-    "downloads": 176742,
+    "likes": 184429,
+    "downloads": 184429,
     "is_rising_star": true
   },
   {
@@ -7738,8 +7738,8 @@
     "author": "mark3labs",
     "description": "A Go implementation of the Model Context Protocol (MCP), enabling seamless integration between LLM applications and external data sources and tools.",
     "tags": [],
-    "likes": 176546,
-    "downloads": 176546,
+    "likes": 184222,
+    "downloads": 184222,
     "is_rising_star": true
   },
   {
@@ -7755,8 +7755,8 @@
       "mcp",
       "rag-knowledge-base-qa"
     ],
-    "likes": 176020,
-    "downloads": 176020,
+    "likes": 183678,
+    "downloads": 183678,
     "is_rising_star": true
   },
   {
@@ -7788,8 +7788,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 175076,
-    "downloads": 175076,
+    "likes": 182688,
+    "downloads": 182688,
     "is_rising_star": true
   },
   {
@@ -7805,8 +7805,8 @@
       "llm",
       "vlm"
     ],
-    "likes": 174919,
-    "downloads": 174919,
+    "likes": 182525,
+    "downloads": 182525,
     "is_rising_star": true
   },
   {
@@ -7825,8 +7825,8 @@
       "search",
       "rag-knowledge-base-qa"
     ],
-    "likes": 171779,
-    "downloads": 171779,
+    "likes": 179249,
+    "downloads": 179249,
     "is_rising_star": true
   },
   {
@@ -7856,8 +7856,8 @@
       "workflow",
       "xposed"
     ],
-    "likes": 170655,
-    "downloads": 170655,
+    "likes": 178075,
+    "downloads": 178075,
     "is_rising_star": true
   },
   {
@@ -7868,8 +7868,8 @@
     "tags": [
       "general-dialogue-qa"
     ],
-    "likes": 169418,
-    "downloads": 169418,
+    "likes": 176784,
+    "downloads": 176784,
     "is_rising_star": true
   },
   {
@@ -7898,8 +7898,8 @@
       "video-interpolation",
       "video-super-resolution"
     ],
-    "likes": 168590,
-    "downloads": 168590,
+    "likes": 175920,
+    "downloads": 175920,
     "is_rising_star": true
   },
   {
@@ -7920,8 +7920,8 @@
       "llm-inference",
       "turbomind"
     ],
-    "likes": 167619,
-    "downloads": 167619,
+    "likes": 174908,
+    "downloads": 174908,
     "is_rising_star": true
   },
   {
@@ -7935,8 +7935,8 @@
       "machine-learning",
       "neural-networks"
     ],
-    "likes": 167511,
-    "downloads": 167511,
+    "likes": 174795,
+    "downloads": 174795,
     "is_rising_star": true
   },
   {
@@ -7952,8 +7952,8 @@
       "moviepy",
       "python"
     ],
-    "likes": 166452,
-    "downloads": 166452,
+    "likes": 173691,
+    "downloads": 173691,
     "is_rising_star": true
   },
   {
@@ -7968,8 +7968,8 @@
       "pdf",
       "powerpoint"
     ],
-    "likes": 166310,
-    "downloads": 166310,
+    "likes": 173541,
+    "downloads": 173541,
     "is_rising_star": true
   },
   {
@@ -7996,8 +7996,8 @@
       "web-scraping",
       "rag-knowledge-base-qa"
     ],
-    "likes": 165607,
-    "downloads": 165607,
+    "likes": 172807,
+    "downloads": 172807,
     "is_rising_star": true
   },
   {
@@ -8020,8 +8020,8 @@
       "rlhf",
       "yarn"
     ],
-    "likes": 165094,
-    "downloads": 165094,
+    "likes": 172272,
+    "downloads": 172272,
     "is_rising_star": true
   },
   {
@@ -8049,8 +8049,8 @@
       "zilliz",
       "rag-knowledge-base-qa"
     ],
-    "likes": 164799,
-    "downloads": 164799,
+    "likes": 171964,
+    "downloads": 171964,
     "is_rising_star": true
   },
   {
@@ -8059,8 +8059,8 @@
     "author": "microsoft",
     "description": "LLM-powered multiagent persona simulation for imagination enhancement and business insights.",
     "tags": [],
-    "likes": 163990,
-    "downloads": 163990,
+    "likes": 171120,
+    "downloads": 171120,
     "is_rising_star": true
   },
   {
@@ -8069,8 +8069,8 @@
     "author": "mit-han-lab",
     "description": "[ICLR 2024] Efficient Streaming Language Models with Attention Sinks",
     "tags": [],
-    "likes": 163944,
-    "downloads": 163944,
+    "likes": 171072,
+    "downloads": 171072,
     "is_rising_star": true
   },
   {
@@ -8091,8 +8091,8 @@
       "rlhf",
       "general-dialogue-qa"
     ],
-    "likes": 163660,
-    "downloads": 163660,
+    "likes": 170776,
+    "downloads": 170776,
     "is_rising_star": true
   },
   {
@@ -8123,8 +8123,8 @@
       "typescript",
       "general-dialogue-qa"
     ],
-    "likes": 163118,
-    "downloads": 163118,
+    "likes": 170210,
+    "downloads": 170210,
     "is_rising_star": true
   },
   {
@@ -8143,8 +8143,8 @@
       "spring-ai",
       "workflow"
     ],
-    "likes": 163188,
-    "downloads": 163188,
+    "likes": 170284,
+    "downloads": 170284,
     "is_rising_star": true
   },
   {
@@ -8162,8 +8162,8 @@
       "gpt",
       "productivity"
     ],
-    "likes": 161874,
-    "downloads": 161874,
+    "likes": 168912,
+    "downloads": 168912,
     "is_rising_star": true
   },
   {
@@ -8183,8 +8183,8 @@
       "mcp",
       "code-generation-assistance"
     ],
-    "likes": 161188,
-    "downloads": 161188,
+    "likes": 168198,
+    "downloads": 168198,
     "is_rising_star": true
   },
   {
@@ -8207,8 +8207,8 @@
       "speech-recognition",
       "speech-to-text"
     ],
-    "likes": 161168,
-    "downloads": 161168,
+    "likes": 168176,
+    "downloads": 168176,
     "is_rising_star": true
   },
   {
@@ -8219,8 +8219,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 160034,
-    "downloads": 160034,
+    "likes": 166998,
+    "downloads": 166998,
     "is_rising_star": true
   },
   {
@@ -8237,8 +8237,8 @@
       "python",
       "video-games"
     ],
-    "likes": 159712,
-    "downloads": 159712,
+    "likes": 166656,
+    "downloads": 166656,
     "is_rising_star": true
   },
   {
@@ -8247,8 +8247,8 @@
     "author": "snarktank",
     "description": "A simple task management system for managing AI dev agents",
     "tags": [],
-    "likes": 158327,
-    "downloads": 158327,
+    "likes": 165212,
+    "downloads": 165212,
     "is_rising_star": true
   },
   {
@@ -8267,8 +8267,8 @@
       "strawberry",
       "code-generation-assistance"
     ],
-    "likes": 157527,
-    "downloads": 157527,
+    "likes": 164376,
+    "downloads": 164376,
     "is_rising_star": true
   },
   {
@@ -8292,8 +8292,8 @@
       "model-monitoring",
       "pandas-dataframe"
     ],
-    "likes": 157527,
-    "downloads": 157527,
+    "likes": 164376,
+    "downloads": 164376,
     "is_rising_star": true
   },
   {
@@ -8314,8 +8314,8 @@
       "opencode",
       "code-generation-assistance"
     ],
-    "likes": 157558,
-    "downloads": 157558,
+    "likes": 164410,
+    "downloads": 164410,
     "is_rising_star": true
   },
   {
@@ -8338,8 +8338,8 @@
       "structured-output",
       "vscode"
     ],
-    "likes": 157162,
-    "downloads": 157162,
+    "likes": 163996,
+    "downloads": 163996,
     "is_rising_star": true
   },
   {
@@ -8369,8 +8369,8 @@
       "uptime",
       "zabbix"
     ],
-    "likes": 157021,
-    "downloads": 157021,
+    "likes": 163848,
+    "downloads": 163848,
     "is_rising_star": true
   },
   {
@@ -8389,8 +8389,8 @@
       "tutorials",
       "rag-knowledge-base-qa"
     ],
-    "likes": 156364,
-    "downloads": 156364,
+    "likes": 163164,
+    "downloads": 163164,
     "is_rising_star": true
   },
   {
@@ -8415,8 +8415,8 @@
       "static-analysis",
       "code-generation-assistance"
     ],
-    "likes": 156354,
-    "downloads": 156354,
+    "likes": 163152,
+    "downloads": 163152,
     "is_rising_star": true
   },
   {
@@ -8440,8 +8440,8 @@
       "rust",
       "code-generation-assistance"
     ],
-    "likes": 155733,
-    "downloads": 155733,
+    "likes": 162504,
+    "downloads": 162504,
     "is_rising_star": true
   },
   {
@@ -8464,8 +8464,8 @@
       "webui",
       "rag-knowledge-base-qa"
     ],
-    "likes": 155614,
-    "downloads": 155614,
+    "likes": 162381,
+    "downloads": 162381,
     "is_rising_star": true
   },
   {
@@ -8488,8 +8488,8 @@
       "wandb",
       "webui"
     ],
-    "likes": 155044,
-    "downloads": 155044,
+    "likes": 161786,
+    "downloads": 161786,
     "is_rising_star": true
   },
   {
@@ -8506,8 +8506,8 @@
       "nlp",
       "python"
     ],
-    "likes": 154974,
-    "downloads": 154974,
+    "likes": 161712,
+    "downloads": 161712,
     "is_rising_star": true
   },
   {
@@ -8527,8 +8527,8 @@
       "transformer",
       "web-search"
     ],
-    "likes": 153894,
-    "downloads": 153894,
+    "likes": 160586,
+    "downloads": 160586,
     "is_rising_star": true
   },
   {
@@ -8543,8 +8543,8 @@
       "xiaomi",
       "general-dialogue-qa"
     ],
-    "likes": 153801,
-    "downloads": 153801,
+    "likes": 160488,
+    "downloads": 160488,
     "is_rising_star": true
   },
   {
@@ -8560,8 +8560,8 @@
       "llm",
       "openai"
     ],
-    "likes": 153531,
-    "downloads": 153531,
+    "likes": 160210,
+    "downloads": 160210,
     "is_rising_star": true
   },
   {
@@ -8570,8 +8570,8 @@
     "author": "openai",
     "description": "This is a simple demonstration of more advanced, agentic patterns built on top of the Realtime API.",
     "tags": [],
-    "likes": 152515,
-    "downloads": 152515,
+    "likes": 159147,
+    "downloads": 159147,
     "is_rising_star": true
   },
   {
@@ -8600,8 +8600,8 @@
       "rag-knowledge-base-qa",
       "data-analysis-insights"
     ],
-    "likes": 152421,
-    "downloads": 152421,
+    "likes": 159048,
+    "downloads": 159048,
     "is_rising_star": true
   },
   {
@@ -8610,8 +8610,8 @@
     "author": "deepseek-ai",
     "description": "DeepSeek LLM: Let there be answers",
     "tags": [],
-    "likes": 152402,
-    "downloads": 152402,
+    "likes": 159029,
+    "downloads": 159029,
     "is_rising_star": true
   },
   {
@@ -8639,8 +8639,8 @@
       "opentelemetry-python",
       "python"
     ],
-    "likes": 151991,
-    "downloads": 151991,
+    "likes": 158601,
+    "downloads": 158601,
     "is_rising_star": true
   },
   {
@@ -8671,8 +8671,8 @@
       "workflow",
       "data-analysis-insights"
     ],
-    "likes": 151933,
-    "downloads": 151933,
+    "likes": 158539,
+    "downloads": 158539,
     "is_rising_star": true
   },
   {
@@ -8697,8 +8697,8 @@
       "nodejs",
       "python"
     ],
-    "likes": 151818,
-    "downloads": 151818,
+    "likes": 158419,
+    "downloads": 158419,
     "is_rising_star": true
   },
   {
@@ -8729,8 +8729,8 @@
       "zephyr",
       "general-dialogue-qa"
     ],
-    "likes": 151616,
-    "downloads": 151616,
+    "likes": 158208,
+    "downloads": 158208,
     "is_rising_star": true
   },
   {
@@ -8752,8 +8752,8 @@
       "react",
       "stock-market"
     ],
-    "likes": 150332,
-    "downloads": 150332,
+    "likes": 156876,
+    "downloads": 156876,
     "is_rising_star": true
   },
   {
@@ -8774,8 +8774,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 149967,
-    "downloads": 149967,
+    "likes": 156488,
+    "downloads": 156488,
     "is_rising_star": true
   },
   {
@@ -8784,8 +8784,8 @@
     "author": "linyiLYi",
     "description": "This is an AI agent for Street Fighter II Champion Edition.",
     "tags": [],
-    "likes": 149546,
-    "downloads": 149546,
+    "likes": 156048,
+    "downloads": 156048,
     "is_rising_star": true
   },
   {
@@ -8798,8 +8798,8 @@
       "llm",
       "model-merging"
     ],
-    "likes": 148897,
-    "downloads": 148897,
+    "likes": 155371,
+    "downloads": 155371,
     "is_rising_star": true
   },
   {
@@ -8813,8 +8813,8 @@
       "minecraft",
       "open-ended-learning"
     ],
-    "likes": 148672,
-    "downloads": 148672,
+    "likes": 155136,
+    "downloads": 155136,
     "is_rising_star": true
   },
   {
@@ -8829,8 +8829,8 @@
       "ifttt",
       "workflow"
     ],
-    "likes": 148603,
-    "downloads": 148603,
+    "likes": 155064,
+    "downloads": 155064,
     "is_rising_star": true
   },
   {
@@ -8849,8 +8849,8 @@
       "python",
       "web3"
     ],
-    "likes": 148391,
-    "downloads": 148391,
+    "likes": 154843,
+    "downloads": 154843,
     "is_rising_star": true
   },
   {
@@ -8865,8 +8865,8 @@
       "security-scanners",
       "vulnerability-assessment"
     ],
-    "likes": 147724,
-    "downloads": 147724,
+    "likes": 154147,
+    "downloads": 154147,
     "is_rising_star": true
   },
   {
@@ -8879,8 +8879,8 @@
       "agent-samples",
       "agents"
     ],
-    "likes": 147742,
-    "downloads": 147742,
+    "likes": 154169,
+    "downloads": 154169,
     "is_rising_star": true
   },
   {
@@ -8903,8 +8903,8 @@
       "open-source-models",
       "qlora"
     ],
-    "likes": 147650,
-    "downloads": 147650,
+    "likes": 154070,
+    "downloads": 154070,
     "is_rising_star": true
   },
   {
@@ -8923,8 +8923,8 @@
       "windsurf-extension",
       "code-generation-assistance"
     ],
-    "likes": 147000,
-    "downloads": 147000,
+    "likes": 153391,
+    "downloads": 153391,
     "is_rising_star": true
   },
   {
@@ -8948,8 +8948,8 @@
       "workflow",
       "rag-knowledge-base-qa"
     ],
-    "likes": 147149,
-    "downloads": 147149,
+    "likes": 153560,
+    "downloads": 153560,
     "is_rising_star": true
   },
   {
@@ -8958,8 +8958,8 @@
     "author": "nat",
     "description": "An LLM playground you can run on your laptop",
     "tags": [],
-    "likes": 146441,
-    "downloads": 146441,
+    "likes": 152808,
+    "downloads": 152808,
     "is_rising_star": true
   },
   {
@@ -8977,8 +8977,8 @@
       "llm",
       "openai"
     ],
-    "likes": 145603,
-    "downloads": 145603,
+    "likes": 151934,
+    "downloads": 151934,
     "is_rising_star": true
   },
   {
@@ -8987,8 +8987,8 @@
     "author": "wgwang",
     "description": "中国大模型大全，全面收集有明确来源的大模型情况，包括机构、来源信息和分类等，随时更新。 旨在记录中国大模型发展情况，欢迎在**Issues**中提供提供**线索**和**素材**...",
     "tags": [],
-    "likes": 145475,
-    "downloads": 145475,
+    "likes": 151800,
+    "downloads": 151800,
     "is_rising_star": true
   },
   {
@@ -9002,8 +9002,8 @@
       "infosec",
       "llm"
     ],
-    "likes": 145366,
-    "downloads": 145366,
+    "likes": 151687,
+    "downloads": 151687,
     "is_rising_star": true
   },
   {
@@ -9025,8 +9025,8 @@
       "multimodal-agent",
       "multimodal-large-language-models"
     ],
-    "likes": 145218,
-    "downloads": 145218,
+    "likes": 151533,
+    "downloads": 151533,
     "is_rising_star": true
   },
   {
@@ -9057,8 +9057,8 @@
       "wavelet",
       "data-analysis-insights"
     ],
-    "likes": 144900,
-    "downloads": 144900,
+    "likes": 151200,
+    "downloads": 151200,
     "is_rising_star": true
   },
   {
@@ -9073,8 +9073,8 @@
       "prompts",
       "prompts-template"
     ],
-    "likes": 144762,
-    "downloads": 144762,
+    "likes": 151056,
+    "downloads": 151056,
     "is_rising_star": true
   },
   {
@@ -9092,8 +9092,8 @@
       "security",
       "rag-knowledge-base-qa"
     ],
-    "likes": 144072,
-    "downloads": 144072,
+    "likes": 150336,
+    "downloads": 150336,
     "is_rising_star": true
   },
   {
@@ -9105,8 +9105,8 @@
       "llm",
       "rust"
     ],
-    "likes": 143514,
-    "downloads": 143514,
+    "likes": 149753,
+    "downloads": 149753,
     "is_rising_star": true
   },
   {
@@ -9119,8 +9119,8 @@
       "chatrwkv",
       "rwkv"
     ],
-    "likes": 143290,
-    "downloads": 143290,
+    "likes": 149520,
+    "downloads": 149520,
     "is_rising_star": true
   },
   {
@@ -9136,8 +9136,8 @@
       "gpt4v",
       "llm"
     ],
-    "likes": 143170,
-    "downloads": 143170,
+    "likes": 149395,
+    "downloads": 149395,
     "is_rising_star": true
   },
   {
@@ -9152,8 +9152,8 @@
       "hacktoberfest",
       "mobile-automation"
     ],
-    "likes": 143012,
-    "downloads": 143012,
+    "likes": 149235,
+    "downloads": 149235,
     "is_rising_star": true
   },
   {
@@ -9164,8 +9164,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 142772,
-    "downloads": 142772,
+    "likes": 148980,
+    "downloads": 148980,
     "is_rising_star": true
   },
   {
@@ -9182,8 +9182,8 @@
       "rag",
       "rag-knowledge-base-qa"
     ],
-    "likes": 142763,
-    "downloads": 142763,
+    "likes": 148971,
+    "downloads": 148971,
     "is_rising_star": true
   },
   {
@@ -9211,8 +9211,8 @@
       "streaming-data",
       "data-analysis-insights"
     ],
-    "likes": 141910,
-    "downloads": 141910,
+    "likes": 148080,
+    "downloads": 148080,
     "is_rising_star": true
   },
   {
@@ -9232,8 +9232,8 @@
       "speed",
       "vllm"
     ],
-    "likes": 141767,
-    "downloads": 141767,
+    "likes": 147931,
+    "downloads": 147931,
     "is_rising_star": true
   },
   {
@@ -9248,8 +9248,8 @@
       "ml",
       "rust"
     ],
-    "likes": 141174,
-    "downloads": 141174,
+    "likes": 147312,
+    "downloads": 147312,
     "is_rising_star": true
   },
   {
@@ -9264,8 +9264,8 @@
       "reverse-engineering",
       "code-generation-assistance"
     ],
-    "likes": 141169,
-    "downloads": 141169,
+    "likes": 147307,
+    "downloads": 147307,
     "is_rising_star": true
   },
   {
@@ -9274,8 +9274,8 @@
     "author": "langchain-ai",
     "description": "Deepagents is an agent harness built on langchain and langgraph. Deep agents are equipped with a planning tool, a filesystem backend, and the ability to spawn subagents - making them well-equipped to handle complex agentic tasks.",
     "tags": [],
-    "likes": 141093,
-    "downloads": 141093,
+    "likes": 147234,
+    "downloads": 147234,
     "is_rising_star": true
   },
   {
@@ -9298,8 +9298,8 @@
       "puppeteer",
       "scraper"
     ],
-    "likes": 140438,
-    "downloads": 140438,
+    "likes": 146544,
+    "downloads": 146544,
     "is_rising_star": true
   },
   {
@@ -9308,8 +9308,8 @@
     "author": "nickscamara",
     "description": "An open source deep research clone. AI Agent that reasons large amounts of web data extracted with Firecrawl",
     "tags": [],
-    "likes": 140369,
-    "downloads": 140369,
+    "likes": 146472,
+    "downloads": 146472,
     "is_rising_star": true
   },
   {
@@ -9326,8 +9326,8 @@
       "tool",
       "wails"
     ],
-    "likes": 140300,
-    "downloads": 140300,
+    "likes": 146400,
+    "downloads": 146400,
     "is_rising_star": true
   },
   {
@@ -9353,8 +9353,8 @@
       "state-management",
       "rag-knowledge-base-qa"
     ],
-    "likes": 140314,
-    "downloads": 140314,
+    "likes": 146463,
+    "downloads": 146463,
     "is_rising_star": true
   },
   {
@@ -9369,8 +9369,8 @@
       "llm",
       "openai"
     ],
-    "likes": 138685,
-    "downloads": 138685,
+    "likes": 144715,
+    "downloads": 144715,
     "is_rising_star": true
   },
   {
@@ -9393,8 +9393,8 @@
       "sandbox",
       "typescript"
     ],
-    "likes": 138179,
-    "downloads": 138179,
+    "likes": 144187,
+    "downloads": 144187,
     "is_rising_star": true
   },
   {
@@ -9410,8 +9410,8 @@
       "task-manager",
       "code-generation-assistance"
     ],
-    "likes": 138136,
-    "downloads": 138136,
+    "likes": 144143,
+    "downloads": 144143,
     "is_rising_star": true
   },
   {
@@ -9430,8 +9430,8 @@
       "data-analysis-insights",
       "code-generation-assistance"
     ],
-    "likes": 137972,
-    "downloads": 137972,
+    "likes": 143971,
+    "downloads": 143971,
     "is_rising_star": true
   },
   {
@@ -9450,8 +9450,8 @@
       "python",
       "structured-outputs"
     ],
-    "likes": 137908,
-    "downloads": 137908,
+    "likes": 143904,
+    "downloads": 143904,
     "is_rising_star": true
   },
   {
@@ -9468,8 +9468,8 @@
       "visualization",
       "data-analysis-insights"
     ],
-    "likes": 137816,
-    "downloads": 137816,
+    "likes": 143808,
+    "downloads": 143808,
     "is_rising_star": true
   },
   {
@@ -9484,8 +9484,8 @@
       "browser-automation",
       "llm"
     ],
-    "likes": 137713,
-    "downloads": 137713,
+    "likes": 143701,
+    "downloads": 143701,
     "is_rising_star": true
   },
   {
@@ -9509,8 +9509,8 @@
       "stable-diffusion",
       "vlm"
     ],
-    "likes": 137635,
-    "downloads": 137635,
+    "likes": 143621,
+    "downloads": 143621,
     "is_rising_star": true
   },
   {
@@ -9528,8 +9528,8 @@
       "prometheus",
       "prometheus-exporter"
     ],
-    "likes": 137535,
-    "downloads": 137535,
+    "likes": 143515,
+    "downloads": 143515,
     "is_rising_star": true
   },
   {
@@ -9540,8 +9540,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 137080,
-    "downloads": 137080,
+    "likes": 143040,
+    "downloads": 143040,
     "is_rising_star": true
   },
   {
@@ -9553,8 +9553,8 @@
       "llm",
       "search-engine"
     ],
-    "likes": 137034,
-    "downloads": 137034,
+    "likes": 142992,
+    "downloads": 142992,
     "is_rising_star": true
   },
   {
@@ -9568,8 +9568,8 @@
       "unstructured-data",
       "code-generation-assistance"
     ],
-    "likes": 136947,
-    "downloads": 136947,
+    "likes": 142901,
+    "downloads": 142901,
     "is_rising_star": true
   },
   {
@@ -9590,8 +9590,8 @@
       "triton",
       "triton-kernels"
     ],
-    "likes": 134818,
-    "downloads": 134818,
+    "likes": 140681,
+    "downloads": 140681,
     "is_rising_star": true
   },
   {
@@ -9600,8 +9600,8 @@
     "author": "openai",
     "description": "Demo of a customer service use case implemented with the OpenAI Agents SDK",
     "tags": [],
-    "likes": 134653,
-    "downloads": 134653,
+    "likes": 140508,
+    "downloads": 140508,
     "is_rising_star": true
   },
   {
@@ -9613,8 +9613,8 @@
       "concurrency",
       "ruby"
     ],
-    "likes": 133147,
-    "downloads": 133147,
+    "likes": 138936,
+    "downloads": 138936,
     "is_rising_star": true
   },
   {
@@ -9627,8 +9627,8 @@
       "language-model",
       "llm"
     ],
-    "likes": 132571,
-    "downloads": 132571,
+    "likes": 138334,
+    "downloads": 138334,
     "is_rising_star": true
   },
   {
@@ -9654,8 +9654,8 @@
       "ray",
       "space"
     ],
-    "likes": 132296,
-    "downloads": 132296,
+    "likes": 138048,
+    "downloads": 138048,
     "is_rising_star": true
   },
   {
@@ -9668,8 +9668,8 @@
       "realtime",
       "tts"
     ],
-    "likes": 132219,
-    "downloads": 132219,
+    "likes": 137968,
+    "downloads": 137968,
     "is_rising_star": true
   },
   {
@@ -9689,8 +9689,8 @@
       "swift",
       "general-dialogue-qa"
     ],
-    "likes": 131725,
-    "downloads": 131725,
+    "likes": 137452,
+    "downloads": 137452,
     "is_rising_star": true
   },
   {
@@ -9710,8 +9710,8 @@
       "vlm",
       "vlm-r1"
     ],
-    "likes": 131215,
-    "downloads": 131215,
+    "likes": 136920,
+    "downloads": 136920,
     "is_rising_star": true
   },
   {
@@ -9735,8 +9735,8 @@
       "mcp",
       "model-context-protocol"
     ],
-    "likes": 131049,
-    "downloads": 131049,
+    "likes": 136747,
+    "downloads": 136747,
     "is_rising_star": true
   },
   {
@@ -9752,8 +9752,8 @@
       "remote-control",
       "remote-desktop"
     ],
-    "likes": 131004,
-    "downloads": 131004,
+    "likes": 136700,
+    "downloads": 136700,
     "is_rising_star": true
   },
   {
@@ -9768,8 +9768,8 @@
       "tree-of-thoughts",
       "tree-search"
     ],
-    "likes": 130709,
-    "downloads": 130709,
+    "likes": 136392,
+    "downloads": 136392,
     "is_rising_star": true
   },
   {
@@ -9796,8 +9796,8 @@
       "vibe-coding",
       "code-generation-assistance"
     ],
-    "likes": 130338,
-    "downloads": 130338,
+    "likes": 136005,
+    "downloads": 136005,
     "is_rising_star": true
   },
   {
@@ -9806,8 +9806,8 @@
     "author": "tensortrade-org",
     "description": "An open source reinforcement learning framework for training, evaluating, and deploying robust trading agents.",
     "tags": [],
-    "likes": 129485,
-    "downloads": 129485,
+    "likes": 135115,
+    "downloads": 135115,
     "is_rising_star": true
   },
   {
@@ -9816,8 +9816,8 @@
     "author": "microsoft",
     "description": "[EMNLP'23, ACL'24] To speed up LLMs' inference and enhance LLM's perceive of key information, compress the prompt and KV-Cache, which achieves up to 20x compression with minimal performance loss. ",
     "tags": [],
-    "likes": 128949,
-    "downloads": 128949,
+    "likes": 134556,
+    "downloads": 134556,
     "is_rising_star": true
   },
   {
@@ -9848,8 +9848,8 @@
       "workflow",
       "rag-knowledge-base-qa"
     ],
-    "likes": 128731,
-    "downloads": 128731,
+    "likes": 134328,
+    "downloads": 134328,
     "is_rising_star": true
   },
   {
@@ -9860,8 +9860,8 @@
     "tags": [
       "translation-localization"
     ],
-    "likes": 128639,
-    "downloads": 128639,
+    "likes": 134232,
+    "downloads": 134232,
     "is_rising_star": true
   },
   {
@@ -9886,8 +9886,8 @@
       "synthetic-data",
       "data-analysis-insights"
     ],
-    "likes": 127462,
-    "downloads": 127462,
+    "likes": 133005,
+    "downloads": 133005,
     "is_rising_star": true
   },
   {
@@ -9903,8 +9903,8 @@
       "rag-knowledge-base-qa",
       "data-analysis-insights"
     ],
-    "likes": 126960,
-    "downloads": 126960,
+    "likes": 132480,
+    "downloads": 132480,
     "is_rising_star": true
   },
   {
@@ -9921,8 +9921,8 @@
       "vibe-coding",
       "code-generation-assistance"
     ],
-    "likes": 126225,
-    "downloads": 126225,
+    "likes": 131714,
+    "downloads": 131714,
     "is_rising_star": true
   },
   {
@@ -9953,8 +9953,8 @@
       "multi-ai-agents",
       "code-generation-assistance"
     ],
-    "likes": 126150,
-    "downloads": 126150,
+    "likes": 131635,
+    "downloads": 131635,
     "is_rising_star": true
   },
   {
@@ -9978,8 +9978,8 @@
       "oauth2",
       "open-source"
     ],
-    "likes": 125757,
-    "downloads": 125757,
+    "likes": 131225,
+    "downloads": 131225,
     "is_rising_star": true
   },
   {
@@ -10006,8 +10006,8 @@
       "simbert",
       "xlnet"
     ],
-    "likes": 125580,
-    "downloads": 125580,
+    "likes": 131040,
+    "downloads": 131040,
     "is_rising_star": true
   },
   {
@@ -10023,8 +10023,8 @@
       "http2",
       "post-exploitation"
     ],
-    "likes": 125028,
-    "downloads": 125028,
+    "likes": 130464,
+    "downloads": 130464,
     "is_rising_star": true
   },
   {
@@ -10038,8 +10038,8 @@
       "llmops",
       "mlops"
     ],
-    "likes": 125020,
-    "downloads": 125020,
+    "likes": 130456,
+    "downloads": 130456,
     "is_rising_star": true
   },
   {
@@ -10052,8 +10052,8 @@
       "rlhf",
       "transformers"
     ],
-    "likes": 124821,
-    "downloads": 124821,
+    "likes": 130248,
+    "downloads": 130248,
     "is_rising_star": true
   },
   {
@@ -10081,8 +10081,8 @@
       "swarms",
       "tree-of-thoughts"
     ],
-    "likes": 124816,
-    "downloads": 124816,
+    "likes": 130243,
+    "downloads": 130243,
     "is_rising_star": true
   },
   {
@@ -10093,8 +10093,8 @@
     "tags": [
       "code-generation-assistance"
     ],
-    "likes": 124461,
-    "downloads": 124461,
+    "likes": 129873,
+    "downloads": 129873,
     "is_rising_star": true
   },
   {
@@ -10117,8 +10117,8 @@
       "realtime",
       "websocket"
     ],
-    "likes": 124085,
-    "downloads": 124085,
+    "likes": 129480,
+    "downloads": 129480,
     "is_rising_star": true
   },
   {
@@ -10148,8 +10148,8 @@
       "qt",
       "second-brain"
     ],
-    "likes": 123942,
-    "downloads": 123942,
+    "likes": 129331,
+    "downloads": 129331,
     "is_rising_star": true
   },
   {
@@ -10165,8 +10165,8 @@
       "llm",
       "pentesting"
     ],
-    "likes": 123573,
-    "downloads": 123573,
+    "likes": 128949,
+    "downloads": 128949,
     "is_rising_star": true
   },
   {
@@ -10191,8 +10191,8 @@
       "open-source",
       "tools"
     ],
-    "likes": 123484,
-    "downloads": 123484,
+    "likes": 128855,
+    "downloads": 128855,
     "is_rising_star": true
   },
   {
@@ -10213,8 +10213,8 @@
       "rust",
       "general-dialogue-qa"
     ],
-    "likes": 123261,
-    "downloads": 123261,
+    "likes": 128620,
+    "downloads": 128620,
     "is_rising_star": true
   },
   {
@@ -10223,8 +10223,8 @@
     "author": "superdesigndev",
     "description": "AI Product Design Agent - Open Source",
     "tags": [],
-    "likes": 123122,
-    "downloads": 123122,
+    "likes": 128476,
+    "downloads": 128476,
     "is_rising_star": true
   },
   {
@@ -10246,8 +10246,8 @@
       "vector",
       "rag-knowledge-base-qa"
     ],
-    "likes": 123091,
-    "downloads": 123091,
+    "likes": 128443,
+    "downloads": 128443,
     "is_rising_star": true
   },
   {
@@ -10258,8 +10258,8 @@
     "tags": [
       "general-dialogue-qa"
     ],
-    "likes": 122636,
-    "downloads": 122636,
+    "likes": 127968,
+    "downloads": 127968,
     "is_rising_star": true
   },
   {
@@ -10279,8 +10279,8 @@
       "safety",
       "general-dialogue-qa"
     ],
-    "likes": 122269,
-    "downloads": 122269,
+    "likes": 127586,
+    "downloads": 127586,
     "is_rising_star": true
   },
   {
@@ -10300,8 +10300,8 @@
       "sdk",
       "workflows"
     ],
-    "likes": 122189,
-    "downloads": 122189,
+    "likes": 127505,
+    "downloads": 127505,
     "is_rising_star": true
   },
   {
@@ -10320,8 +10320,8 @@
       "code-generation-assistance",
       "rag-knowledge-base-qa"
     ],
-    "likes": 121813,
-    "downloads": 121813,
+    "likes": 127109,
+    "downloads": 127109,
     "is_rising_star": true
   },
   {
@@ -10338,8 +10338,8 @@
       "openai",
       "openai-api"
     ],
-    "likes": 121532,
-    "downloads": 121532,
+    "likes": 126816,
+    "downloads": 126816,
     "is_rising_star": true
   },
   {
@@ -10350,8 +10350,8 @@
     "tags": [
       "general-dialogue-qa"
     ],
-    "likes": 121026,
-    "downloads": 121026,
+    "likes": 126288,
+    "downloads": 126288,
     "is_rising_star": true
   },
   {
@@ -10370,8 +10370,8 @@
       "vector-database",
       "rag-knowledge-base-qa"
     ],
-    "likes": 120813,
-    "downloads": 120813,
+    "likes": 126068,
+    "downloads": 126068,
     "is_rising_star": true
   },
   {
@@ -10395,8 +10395,8 @@
       "nlp",
       "general-dialogue-qa"
     ],
-    "likes": 120359,
-    "downloads": 120359,
+    "likes": 125592,
+    "downloads": 125592,
     "is_rising_star": true
   },
   {
@@ -10428,8 +10428,8 @@
       "general-dialogue-qa",
       "rag-knowledge-base-qa"
     ],
-    "likes": 120239,
-    "downloads": 120239,
+    "likes": 125467,
+    "downloads": 125467,
     "is_rising_star": true
   },
   {
@@ -10441,8 +10441,8 @@
       "general-dialogue-qa",
       "code-generation-assistance"
     ],
-    "likes": 118795,
-    "downloads": 118795,
+    "likes": 123960,
+    "downloads": 123960,
     "is_rising_star": true
   },
   {
@@ -10463,8 +10463,8 @@
       "flux",
       "stable-diffusion"
     ],
-    "likes": 118749,
-    "downloads": 118749,
+    "likes": 123912,
+    "downloads": 123912,
     "is_rising_star": true
   },
   {
@@ -10482,8 +10482,8 @@
       "video-clip",
       "video-subtitles"
     ],
-    "likes": 118566,
-    "downloads": 118566,
+    "likes": 123722,
+    "downloads": 123722,
     "is_rising_star": true
   },
   {
@@ -10500,8 +10500,8 @@
       "tpu-acceleration",
       "code-generation-assistance"
     ],
-    "likes": 118473,
-    "downloads": 118473,
+    "likes": 123624,
+    "downloads": 123624,
     "is_rising_star": true
   },
   {
@@ -10516,8 +10516,8 @@
       "llm-evaluation",
       "general-dialogue-qa"
     ],
-    "likes": 118468,
-    "downloads": 118468,
+    "likes": 123619,
+    "downloads": 123619,
     "is_rising_star": true
   },
   {
@@ -10571,8 +10571,8 @@
       "memory-agents",
       "personal-assistant"
     ],
-    "likes": 70647,
-    "downloads": 70647,
+    "likes": 73726,
+    "downloads": 73726,
     "is_rising_star": true
   },
   {
@@ -10581,8 +10581,8 @@
     "author": "facebookresearch",
     "description": "SAM 3D Objects is one part of SAM 3D, a pair of models for object and human mesh reconstruction.  If you’re looking for SAM 3D Body, [click here](https://github.com/facebookresearch/sam-3d-body). **SAM 3D Team**, [Xingyu Chen](https://scholar.google....",
     "tags": [],
-    "likes": 71101,
-    "downloads": 71101,
+    "likes": 74213,
+    "downloads": 74213,
     "is_rising_star": true
   },
   {
@@ -10591,8 +10591,8 @@
     "author": "ByteDance-Seed",
     "description": "<div align=\"center\"> <h1 style=\"border-bottom: none; margin-bottom: 0px \">Depth Anything 3: Recovering the Visual Space from Any Views</h1>...",
     "tags": [],
-    "likes": 58848,
-    "downloads": 58848,
+    "likes": 61413,
+    "downloads": 61413,
     "is_rising_star": true
   },
   {
@@ -10624,8 +10624,8 @@
       "general-dialogue-qa",
       "data-analysis-insights"
     ],
-    "likes": 53520,
-    "downloads": 53520,
+    "likes": 55856,
+    "downloads": 55856,
     "is_rising_star": true
   },
   {
@@ -10653,8 +10653,8 @@
       "code-generation-assistance",
       "general-dialogue-qa"
     ],
-    "likes": 33120,
-    "downloads": 176180,
+    "likes": 34560,
+    "downloads": 183840,
     "is_rising_star": false
   },
   {
@@ -10672,8 +10672,8 @@
       "rlinf",
       "vla-rl"
     ],
-    "likes": 31473,
-    "downloads": 31473,
+    "likes": 32842,
+    "downloads": 32842,
     "is_rising_star": true
   },
   {
@@ -10701,8 +10701,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 25645,
-    "downloads": 499675,
+    "likes": 26760,
+    "downloads": 521400,
     "is_rising_star": false
   },
   {
@@ -10730,8 +10730,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 24610,
-    "downloads": 5290,
+    "likes": 25680,
+    "downloads": 5520,
     "is_rising_star": false
   },
   {
@@ -10740,8 +10740,8 @@
     "author": "LTH14",
     "description": "PyTorch implementation of JiT https://arxiv.org/abs/2511.13720",
     "tags": [],
-    "likes": 24728,
-    "downloads": 24728,
+    "likes": 25809,
+    "downloads": 25809,
     "is_rising_star": true
   },
   {
@@ -10774,8 +10774,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 23575,
-    "downloads": 242190,
+    "likes": 24600,
+    "downloads": 252720,
     "is_rising_star": false
   },
   {
@@ -10794,8 +10794,8 @@
       "research-agent",
       "xbench"
     ],
-    "likes": 23471,
-    "downloads": 23471,
+    "likes": 24497,
+    "downloads": 24497,
     "is_rising_star": true
   },
   {
@@ -10804,8 +10804,8 @@
     "author": "HITsz-TMG",
     "description": "Uni-MoE: Lychee's Large Multimodal Model Family.",
     "tags": [],
-    "likes": 21919,
-    "downloads": 21919,
+    "likes": 22872,
+    "downloads": 22872,
     "is_rising_star": true
   },
   {
@@ -10814,8 +10814,8 @@
     "author": "0russwest0",
     "description": "Agent-R1: Training Powerful LLM Agents with End-to-End Reinforcement Learning",
     "tags": [],
-    "likes": 21784,
-    "downloads": 21784,
+    "likes": 22732,
+    "downloads": 22732,
     "is_rising_star": true
   },
   {
@@ -10838,8 +10838,8 @@
       "autotrain_compatible",
       "region:us"
     ],
-    "likes": 15065,
-    "downloads": 23460,
+    "likes": 15720,
+    "downloads": 24480,
     "is_rising_star": false
   },
   {
@@ -10862,8 +10862,8 @@
       "autotrain_compatible",
       "region:us"
     ],
-    "likes": 14605,
-    "downloads": 4140,
+    "likes": 15240,
+    "downloads": 4320,
     "is_rising_star": false
   },
   {
@@ -10894,8 +10894,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 11385,
-    "downloads": 4167255,
+    "likes": 11880,
+    "downloads": 4348440,
     "is_rising_star": false
   },
   {
@@ -10917,8 +10917,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 10810,
-    "downloads": 19895,
+    "likes": 11280,
+    "downloads": 20760,
     "is_rising_star": false
   },
   {
@@ -10938,8 +10938,8 @@
       "sllm",
       "transformer"
     ],
-    "likes": 10742,
-    "downloads": 10742,
+    "likes": 11210,
+    "downloads": 11210,
     "is_rising_star": true
   },
   {
@@ -10948,8 +10948,8 @@
     "author": "jayin92",
     "description": "Skyfall-GS: Synthesizing Immersive 3D Urban Scenes from Satellite Imagery",
     "tags": [],
-    "likes": 10673,
-    "downloads": 10673,
+    "likes": 11145,
+    "downloads": 11145,
     "is_rising_star": true
   },
   {
@@ -10962,8 +10962,8 @@
       "image-to-3d",
       "physical-modeling"
     ],
-    "likes": 10116,
-    "downloads": 10116,
+    "likes": 10558,
+    "downloads": 10558,
     "is_rising_star": true
   },
   {
@@ -10988,8 +10988,8 @@
       "region:us",
       "code-generation-assistance"
     ],
-    "likes": 9315,
-    "downloads": 40710,
+    "likes": 9720,
+    "downloads": 42480,
     "is_rising_star": false
   },
   {
@@ -11013,8 +11013,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 9315,
-    "downloads": 373175,
+    "likes": 9720,
+    "downloads": 389400,
     "is_rising_star": false
   },
   {
@@ -11023,8 +11023,8 @@
     "author": "IPADS-SAI",
     "description": "The Intelligent GUI Agent for Mobile Phones",
     "tags": [],
-    "likes": 9238,
-    "downloads": 9238,
+    "likes": 9660,
+    "downloads": 9660,
     "is_rising_star": true
   },
   {
@@ -11042,8 +11042,8 @@
       "video-generation-editing",
       "image-generation"
     ],
-    "likes": 8529,
-    "downloads": 8529,
+    "likes": 8902,
+    "downloads": 8902,
     "is_rising_star": true
   },
   {
@@ -11068,8 +11068,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 8395,
-    "downloads": 41285,
+    "likes": 8760,
+    "downloads": 43080,
     "is_rising_star": false
   },
   {
@@ -11092,8 +11092,8 @@
       "region:us",
       "code-generation-assistance"
     ],
-    "likes": 8395,
-    "downloads": 15065,
+    "likes": 8760,
+    "downloads": 15720,
     "is_rising_star": false
   },
   {
@@ -11117,8 +11117,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 8165,
-    "downloads": 274275,
+    "likes": 8520,
+    "downloads": 286200,
     "is_rising_star": false
   },
   {
@@ -11141,8 +11141,8 @@
       "autotrain_compatible",
       "region:us"
     ],
-    "likes": 7935,
-    "downloads": 2300,
+    "likes": 8280,
+    "downloads": 2400,
     "is_rising_star": false
   },
   {
@@ -11171,8 +11171,8 @@
       "code-generation-assistance",
       "general-dialogue-qa"
     ],
-    "likes": 7705,
-    "downloads": 1053515,
+    "likes": 8040,
+    "downloads": 1099320,
     "is_rising_star": false
   },
   {
@@ -11200,8 +11200,8 @@
       "deploy:azure",
       "general-dialogue-qa"
     ],
-    "likes": 7705,
-    "downloads": 87400,
+    "likes": 8040,
+    "downloads": 91200,
     "is_rising_star": false
   },
   {
@@ -11228,8 +11228,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 7130,
-    "downloads": 19780,
+    "likes": 7440,
+    "downloads": 20640,
     "is_rising_star": false
   },
   {
@@ -11253,8 +11253,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 7130,
-    "downloads": 117530,
+    "likes": 7440,
+    "downloads": 122640,
     "is_rising_star": false
   },
   {
@@ -11287,8 +11287,8 @@
       "deploy:azure",
       "general-dialogue-qa"
     ],
-    "likes": 7015,
-    "downloads": 41170,
+    "likes": 7320,
+    "downloads": 42960,
     "is_rising_star": false
   },
   {
@@ -11315,8 +11315,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 6670,
-    "downloads": 14030,
+    "likes": 6960,
+    "downloads": 14640,
     "is_rising_star": false
   },
   {
@@ -11325,8 +11325,8 @@
     "author": "facebookresearch",
     "description": "Momentum Human Rig is an anatomically-inspired parametric full-body digital human model developed at Meta. It includes: A parametric body skeletal model; A realistic 3D mesh skinned to the skeleton with levels of detail;A body blendshape and pose corrective model; A facial blendshape model.Its design is friendly for both CG and CV communities.",
     "tags": [],
-    "likes": 6820,
-    "downloads": 6820,
+    "likes": 7119,
+    "downloads": 7119,
     "is_rising_star": true
   },
   {
@@ -11359,8 +11359,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 6555,
-    "downloads": 43585,
+    "likes": 6840,
+    "downloads": 45480,
     "is_rising_star": false
   },
   {
@@ -11394,8 +11394,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 6325,
-    "downloads": 13685,
+    "likes": 6600,
+    "downloads": 14280,
     "is_rising_star": false
   },
   {
@@ -11404,8 +11404,8 @@
     "author": "tyfeld",
     "description": "Official Implementation of \"MMaDA-Parallel: Multimodal Large Diffusion Language Models for Thinking-Aware Editing and Generation\"",
     "tags": [],
-    "likes": 5595,
-    "downloads": 5595,
+    "likes": 5839,
+    "downloads": 5839,
     "is_rising_star": true
   },
   {
@@ -11429,8 +11429,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 5405,
-    "downloads": 55545,
+    "likes": 5640,
+    "downloads": 57960,
     "is_rising_star": false
   },
   {
@@ -11454,8 +11454,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 4945,
-    "downloads": 16790,
+    "likes": 5160,
+    "downloads": 17520,
     "is_rising_star": false
   },
   {
@@ -11480,8 +11480,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 4600,
-    "downloads": 103385,
+    "likes": 4800,
+    "downloads": 107880,
     "is_rising_star": false
   },
   {
@@ -11504,8 +11504,8 @@
       "autotrain_compatible",
       "region:us"
     ],
-    "likes": 4600,
-    "downloads": 2185,
+    "likes": 4800,
+    "downloads": 2280,
     "is_rising_star": false
   },
   {
@@ -11531,8 +11531,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 4600,
-    "downloads": 103615,
+    "likes": 4800,
+    "downloads": 108120,
     "is_rising_star": false
   },
   {
@@ -11558,8 +11558,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 4485,
-    "downloads": 494845,
+    "likes": 4680,
+    "downloads": 516360,
     "is_rising_star": false
   },
   {
@@ -11593,8 +11593,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 4485,
-    "downloads": 1725,
+    "likes": 4680,
+    "downloads": 1800,
     "is_rising_star": false
   },
   {
@@ -11622,8 +11622,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 4370,
-    "downloads": 1687625,
+    "likes": 4560,
+    "downloads": 1761000,
     "is_rising_star": false
   },
   {
@@ -11658,8 +11658,8 @@
       "region:us",
       "code-generation-assistance"
     ],
-    "likes": 4140,
-    "downloads": 5290,
+    "likes": 4320,
+    "downloads": 5520,
     "is_rising_star": false
   },
   {
@@ -11687,8 +11687,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 4025,
-    "downloads": 3090165,
+    "likes": 4200,
+    "downloads": 3224520,
     "is_rising_star": false
   },
   {
@@ -11713,8 +11713,8 @@
       "region:us",
       "code-generation-assistance"
     ],
-    "likes": 3680,
-    "downloads": 7475,
+    "likes": 3840,
+    "downloads": 7800,
     "is_rising_star": false
   },
   {
@@ -11739,8 +11739,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 3565,
-    "downloads": 13340,
+    "likes": 3720,
+    "downloads": 13920,
     "is_rising_star": false
   },
   {
@@ -11765,8 +11765,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 3450,
-    "downloads": 2185,
+    "likes": 3600,
+    "downloads": 2280,
     "is_rising_star": false
   },
   {
@@ -11792,8 +11792,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 3450,
-    "downloads": 67850,
+    "likes": 3600,
+    "downloads": 70800,
     "is_rising_star": false
   },
   {
@@ -11817,8 +11817,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 3335,
-    "downloads": 122935,
+    "likes": 3480,
+    "downloads": 128280,
     "is_rising_star": false
   },
   {
@@ -11843,8 +11843,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 3335,
-    "downloads": 2760,
+    "likes": 3480,
+    "downloads": 2880,
     "is_rising_star": false
   },
   {
@@ -11872,8 +11872,8 @@
       "region:us",
       "code-generation-assistance"
     ],
-    "likes": 3220,
-    "downloads": 9890,
+    "likes": 3360,
+    "downloads": 10320,
     "is_rising_star": false
   },
   {
@@ -11896,8 +11896,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 3105,
-    "downloads": 4485,
+    "likes": 3240,
+    "downloads": 4680,
     "is_rising_star": false
   },
   {
@@ -11926,8 +11926,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 3105,
-    "downloads": 17595,
+    "likes": 3240,
+    "downloads": 18360,
     "is_rising_star": false
   },
   {
@@ -11953,8 +11953,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 3105,
-    "downloads": 336145,
+    "likes": 3240,
+    "downloads": 350760,
     "is_rising_star": false
   },
   {
@@ -11974,8 +11974,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2990,
-    "downloads": 460,
+    "likes": 3120,
+    "downloads": 480,
     "is_rising_star": false
   },
   {
@@ -11998,8 +11998,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2875,
-    "downloads": 805,
+    "likes": 3000,
+    "downloads": 840,
     "is_rising_star": false
   },
   {
@@ -12025,8 +12025,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2875,
-    "downloads": 42205,
+    "likes": 3000,
+    "downloads": 44040,
     "is_rising_star": false
   },
   {
@@ -12051,8 +12051,8 @@
       "region:us",
       "code-generation-assistance"
     ],
-    "likes": 2875,
-    "downloads": 7130,
+    "likes": 3000,
+    "downloads": 7440,
     "is_rising_star": false
   },
   {
@@ -12070,7 +12070,7 @@
       "license:other",
       "region:us"
     ],
-    "likes": 2875,
+    "likes": 3000,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -12094,8 +12094,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2760,
-    "downloads": 920,
+    "likes": 2880,
+    "downloads": 960,
     "is_rising_star": false
   },
   {
@@ -12107,8 +12107,8 @@
       "image-generation",
       "code-generation-assistance"
     ],
-    "likes": 2659,
-    "downloads": 2659,
+    "likes": 2777,
+    "downloads": 2777,
     "is_rising_star": true
   },
   {
@@ -12117,8 +12117,8 @@
     "author": "stepfun-ai",
     "description": "<p align=\"center\">   <img src=\"assets/logo.png\"  height=100>...",
     "tags": [],
-    "likes": 2832,
-    "downloads": 2832,
+    "likes": 2962,
+    "downloads": 2962,
     "is_rising_star": true
   },
   {
@@ -12142,8 +12142,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2530,
-    "downloads": 1840,
+    "likes": 2640,
+    "downloads": 1920,
     "is_rising_star": false
   },
   {
@@ -12165,8 +12165,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 2530,
-    "downloads": 575,
+    "likes": 2640,
+    "downloads": 600,
     "is_rising_star": false
   },
   {
@@ -12190,8 +12190,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2415,
-    "downloads": 105570,
+    "likes": 2520,
+    "downloads": 110160,
     "is_rising_star": false
   },
   {
@@ -12216,8 +12216,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2415,
-    "downloads": 20930,
+    "likes": 2520,
+    "downloads": 21840,
     "is_rising_star": false
   },
   {
@@ -12241,8 +12241,8 @@
       "conversational",
       "general-dialogue-qa"
     ],
-    "likes": 2415,
-    "downloads": 453330,
+    "likes": 2520,
+    "downloads": 473040,
     "is_rising_star": false
   },
   {
@@ -12264,8 +12264,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2300,
-    "downloads": 86825,
+    "likes": 2400,
+    "downloads": 90600,
     "is_rising_star": false
   },
   {
@@ -12296,8 +12296,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 2185,
-    "downloads": 50715,
+    "likes": 2280,
+    "downloads": 52920,
     "is_rising_star": false
   },
   {
@@ -12324,8 +12324,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 2070,
-    "downloads": 206195,
+    "likes": 2160,
+    "downloads": 215160,
     "is_rising_star": false
   },
   {
@@ -12348,8 +12348,8 @@
       "autotrain_compatible",
       "region:us"
     ],
-    "likes": 2070,
-    "downloads": 805,
+    "likes": 2160,
+    "downloads": 840,
     "is_rising_star": false
   },
   {
@@ -12374,8 +12374,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 2070,
-    "downloads": 13455,
+    "likes": 2160,
+    "downloads": 14040,
     "is_rising_star": false
   },
   {
@@ -12398,8 +12398,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 2070,
-    "downloads": 87170,
+    "likes": 2160,
+    "downloads": 90960,
     "is_rising_star": false
   },
   {
@@ -12408,8 +12408,8 @@
     "author": "XiaomiMiMo",
     "description": "<div align=\"center\">   <img src=\"./assets/xfmlogo.svg\" width=600>...",
     "tags": [],
-    "likes": 2161,
-    "downloads": 2161,
+    "likes": 2259,
+    "downloads": 2259,
     "is_rising_star": true
   },
   {
@@ -12435,8 +12435,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 1955,
-    "downloads": 13570,
+    "likes": 2040,
+    "downloads": 14160,
     "is_rising_star": false
   },
   {
@@ -12458,8 +12458,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 1955,
-    "downloads": 805,
+    "likes": 2040,
+    "downloads": 840,
     "is_rising_star": false
   },
   {
@@ -12482,8 +12482,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 1840,
-    "downloads": 88665,
+    "likes": 1920,
+    "downloads": 92520,
     "is_rising_star": false
   },
   {
@@ -12508,8 +12508,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 1840,
-    "downloads": 83030,
+    "likes": 1920,
+    "downloads": 86640,
     "is_rising_star": false
   },
   {
@@ -12542,8 +12542,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1840,
-    "downloads": 37835,
+    "likes": 1920,
+    "downloads": 39480,
     "is_rising_star": false
   },
   {
@@ -12567,8 +12567,8 @@
       "conversational",
       "general-dialogue-qa"
     ],
-    "likes": 1840,
-    "downloads": 25185,
+    "likes": 1920,
+    "downloads": 26280,
     "is_rising_star": false
   },
   {
@@ -12595,8 +12595,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 1840,
-    "downloads": 331660,
+    "likes": 1920,
+    "downloads": 346080,
     "is_rising_star": false
   },
   {
@@ -12630,8 +12630,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 1725,
-    "downloads": 169970,
+    "likes": 1800,
+    "downloads": 177360,
     "is_rising_star": false
   },
   {
@@ -12654,8 +12654,8 @@
       "autotrain_compatible",
       "region:us"
     ],
-    "likes": 1610,
-    "downloads": 1495,
+    "likes": 1680,
+    "downloads": 1560,
     "is_rising_star": false
   },
   {
@@ -12685,8 +12685,8 @@
       "deploy:azure",
       "general-dialogue-qa"
     ],
-    "likes": 1610,
-    "downloads": 903440,
+    "likes": 1680,
+    "downloads": 942720,
     "is_rising_star": false
   },
   {
@@ -12719,8 +12719,8 @@
       "deploy:azure",
       "general-dialogue-qa"
     ],
-    "likes": 1610,
-    "downloads": 332695,
+    "likes": 1680,
+    "downloads": 347160,
     "is_rising_star": false
   },
   {
@@ -12746,8 +12746,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 1495,
-    "downloads": 575,
+    "likes": 1560,
+    "downloads": 600,
     "is_rising_star": false
   },
   {
@@ -12771,8 +12771,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 1380,
-    "downloads": 103500,
+    "likes": 1440,
+    "downloads": 108000,
     "is_rising_star": false
   },
   {
@@ -12798,8 +12798,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 1380,
-    "downloads": 100050,
+    "likes": 1440,
+    "downloads": 104400,
     "is_rising_star": false
   },
   {
@@ -12826,8 +12826,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 1380,
-    "downloads": 1840,
+    "likes": 1440,
+    "downloads": 1920,
     "is_rising_star": false
   },
   {
@@ -12857,8 +12857,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 1380,
-    "downloads": 1150,
+    "likes": 1440,
+    "downloads": 1200,
     "is_rising_star": false
   },
   {
@@ -12889,8 +12889,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 1265,
-    "downloads": 9545,
+    "likes": 1320,
+    "downloads": 9960,
     "is_rising_star": false
   },
   {
@@ -12923,8 +12923,8 @@
       "deploy:azure",
       "code-generation-assistance"
     ],
-    "likes": 1265,
-    "downloads": 3105,
+    "likes": 1320,
+    "downloads": 3240,
     "is_rising_star": false
   },
   {
@@ -13051,8 +13051,8 @@
       "code-generation-assistance",
       "general-dialogue-qa"
     ],
-    "likes": 1265,
-    "downloads": 420900,
+    "likes": 1320,
+    "downloads": 439200,
     "is_rising_star": false
   },
   {
@@ -13190,8 +13190,8 @@
       "general-dialogue-qa",
       "code-generation-assistance"
     ],
-    "likes": 1265,
-    "downloads": 237130,
+    "likes": 1320,
+    "downloads": 247440,
     "is_rising_star": false
   },
   {
@@ -13200,8 +13200,8 @@
     "author": "Zeqiang-Lai",
     "description": "NaTex: Seamless Texture Generation as Latent Color Diffusion",
     "tags": [],
-    "likes": 1286,
-    "downloads": 1286,
+    "likes": 1345,
+    "downloads": 1345,
     "is_rising_star": true
   },
   {
@@ -13225,8 +13225,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 1150,
-    "downloads": 102350,
+    "likes": 1200,
+    "downloads": 106800,
     "is_rising_star": false
   },
   {
@@ -13250,8 +13250,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 1150,
-    "downloads": 8855,
+    "likes": 1200,
+    "downloads": 9240,
     "is_rising_star": false
   },
   {
@@ -13275,8 +13275,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 1150,
-    "downloads": 6785,
+    "likes": 1200,
+    "downloads": 7080,
     "is_rising_star": false
   },
   {
@@ -13300,8 +13300,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 1035,
-    "downloads": 103615,
+    "likes": 1080,
+    "downloads": 108120,
     "is_rising_star": false
   },
   {
@@ -13327,8 +13327,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1035,
-    "downloads": 29325,
+    "likes": 1080,
+    "downloads": 30600,
     "is_rising_star": false
   },
   {
@@ -13351,8 +13351,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1035,
-    "downloads": 5060,
+    "likes": 1080,
+    "downloads": 5280,
     "is_rising_star": false
   },
   {
@@ -13377,8 +13377,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 1035,
-    "downloads": 7245,
+    "likes": 1080,
+    "downloads": 7560,
     "is_rising_star": false
   },
   {
@@ -13387,8 +13387,8 @@
     "author": "ZiyuGuo99",
     "description": "The first Interleaved framework for textual reasoning within the visual generation process",
     "tags": [],
-    "likes": 555,
-    "downloads": 555,
+    "likes": 599,
+    "downloads": 599,
     "is_rising_star": true
   },
   {
@@ -13415,8 +13415,8 @@
       "gptq",
       "region:us"
     ],
-    "likes": 920,
-    "downloads": 460,
+    "likes": 960,
+    "downloads": 480,
     "is_rising_star": false
   },
   {
@@ -13439,8 +13439,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 920,
-    "downloads": 87630,
+    "likes": 960,
+    "downloads": 91440,
     "is_rising_star": false
   },
   {
@@ -13459,8 +13459,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 920,
-    "downloads": 1380,
+    "likes": 960,
+    "downloads": 1440,
     "is_rising_star": false
   },
   {
@@ -13485,8 +13485,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 920,
-    "downloads": 1495,
+    "likes": 960,
+    "downloads": 1560,
     "is_rising_star": false
   },
   {
@@ -13511,8 +13511,8 @@
       "region:us",
       "code-generation-assistance"
     ],
-    "likes": 920,
-    "downloads": 7475,
+    "likes": 960,
+    "downloads": 7800,
     "is_rising_star": false
   },
   {
@@ -13539,8 +13539,8 @@
       "region:us",
       "code-generation-assistance"
     ],
-    "likes": 920,
-    "downloads": 8050,
+    "likes": 960,
+    "downloads": 8400,
     "is_rising_star": false
   },
   {
@@ -13564,8 +13564,8 @@
       "conversational",
       "general-dialogue-qa"
     ],
-    "likes": 920,
-    "downloads": 47725,
+    "likes": 960,
+    "downloads": 49800,
     "is_rising_star": false
   },
   {
@@ -13589,7 +13589,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 920,
+    "likes": 960,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -13623,8 +13623,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 920,
-    "downloads": 920,
+    "likes": 960,
+    "downloads": 960,
     "is_rising_star": false
   },
   {
@@ -13652,8 +13652,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 920,
-    "downloads": 4140,
+    "likes": 960,
+    "downloads": 4320,
     "is_rising_star": false
   },
   {
@@ -13685,8 +13685,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 920,
-    "downloads": 1495,
+    "likes": 960,
+    "downloads": 1560,
     "is_rising_star": false
   },
   {
@@ -13715,8 +13715,8 @@
       "region:us",
       "general-dialogue-qa"
     ],
-    "likes": 920,
-    "downloads": 2875,
+    "likes": 960,
+    "downloads": 3000,
     "is_rising_star": false
   },
   {
@@ -13761,8 +13761,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 805,
-    "downloads": 3565,
+    "likes": 840,
+    "downloads": 3720,
     "is_rising_star": false
   },
   {
@@ -13788,8 +13788,8 @@
       "gptq",
       "region:us"
     ],
-    "likes": 805,
-    "downloads": 3910,
+    "likes": 840,
+    "downloads": 4080,
     "is_rising_star": false
   },
   {
@@ -13798,8 +13798,8 @@
     "author": "KlingTeam",
     "description": "Video-as-Answer: Predict and Generate Next Video Event with Joint-GRPO",
     "tags": [],
-    "likes": 741,
-    "downloads": 741,
+    "likes": 774,
+    "downloads": 774,
     "is_rising_star": false
   },
   {
@@ -13808,8 +13808,8 @@
     "author": "aiming-lab",
     "description": "[arXiv'25] Agent0: Unleashing Self-Evolving Agents from Zero Data via Tool-Integrated Reasoning",
     "tags": [],
-    "likes": 628,
-    "downloads": 628,
+    "likes": 663,
+    "downloads": 663,
     "is_rising_star": false
   },
   {
@@ -13818,8 +13818,8 @@
     "author": "yangluo7",
     "description": "A lightweight and comprehensive evaluation suite for video reasoning tasks across multiple domains including structured problem-solving, spatial cognition, pattern-based inference, and physical dynamics. <p align=\"center\">...",
     "tags": [],
-    "likes": 180,
-    "downloads": 180,
+    "likes": 195,
+    "downloads": 195,
     "is_rising_star": true
   },
   {
