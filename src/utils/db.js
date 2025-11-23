@@ -3,13 +3,10 @@
  * Helper to fetch a model record from Cloudflare D1 by slug.
  * Returns the raw row object (or null if not found).
  */
-export async function getModelBySlug(slug) {
+export async function getModelBySlug(slug, locals) {
     // Convert slug back to model id (replace '--' with '/')
     const modelId = slug.replace(/--/g, '/');
-    // Access the D1 DB via the runtime env (available in Astro pages via locals.runtime)
-    // This function expects to be called from an Astro page where `Astro.locals` is in scope.
-    // We'll retrieve the DB instance from the global `Astro` object.
-    const { locals } = Astro;
+    // Access the D1 DB via the runtime env (passed from Astro page)
     const db = locals?.runtime?.env?.DB;
     if (!db) {
         throw new Error('Database connection is not available');
