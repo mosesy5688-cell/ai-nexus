@@ -12,16 +12,17 @@ export default defineConfig({
   output: 'hybrid',
   adapter: cloudflare({
     routes: {
-      strategy: 'exclude',
-      exclude: [
-        '/_astro/*',
-        '/favicon.svg',
-        '/robots.txt',
-        '/ads.txt',
-        '/models.json',
-        '/data/*',
-        '/archives/*'
-      ]
+      extend: {
+        exclude: [
+          { pattern: '/_astro/*' },
+          { pattern: '/favicon.svg' },
+          { pattern: '/robots.txt' },
+          { pattern: '/ads.txt' },
+          { pattern: '/models.json' },
+          { pattern: '/data/*' },
+          { pattern: '/archives/*' }
+        ]
+      }
     }
   }),
   image: {
