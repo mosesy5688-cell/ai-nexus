@@ -45,11 +45,22 @@ try {
                     ? JSON.parse(model.related_ids) 
                     : model.related_ids;
                 
-                if (Array.isArray(parsed)) {
-                    // 这里假设您有逻辑将 ID 列表转换为模型对象列表
-                    // 如果 relatedModels 已经在 getModelBySlug 中处理好，则直接赋值
-                    // 这里的核心是确保它是一个数组
-                    relatedModels = parsed; 
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    // Fetch full model details for the related IDs
+                    const placeholders = parsed.map(() => '?').join(',');
+                    // Access DB from locals (passed as argument to getModelBySlug, but here we are in the page script)
+                    // We need to access db again. Since we are in the page script, we can use Astro.locals.
+                    const db = Astro.locals?.runtime?.env?.DB;
+                    
+                    if (db) {
+                        const stmt = db.prepare(`
+                            SELECT id, name, author, likes, downloads, cover_image_url, description 
+                            FROM models 
+                            WHERE id IN (${placeholders})
+                        `);
+                        const { results } = await stmt.bind(...parsed).all();
+                        relatedModels = results || [];
+                    }
                 }
             } catch (jsonErr) {
                 console.warn("Failed to parse related_ids:", jsonErr);
