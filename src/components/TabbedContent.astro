@@ -1,0 +1,62 @@
+---
+// src/components/TabbedContent.astro
+import CopyButton from './CopyButton.astro';
+
+export interface Props {
+  overview: string;
+  quickStart: string;
+  useCases?: string;
+  resources?: string;
+}
+
+const { overview, quickStart, useCases = '', resources = '' } = Astro.props;
+---
+
+<div class="tabbed-content" x-data="{ active: 'overview' }">
+  <!-- Tab navigation -->
+  <nav class="flex border-b mb-4 space-x-2 overflow-x-auto">
+    <button type="button" class="px-4 py-2 whitespace-nowrap" :class="{ 'border-b-2 border-primary font-bold': active === 'overview' }" @click="active = 'overview'">Overview</button>
+    <button type="button" class="px-4 py-2 whitespace-nowrap" :class="{ 'border-b-2 border-primary font-bold': active === 'quick' }" @click="active = 'quick'">Quick Start</button>
+    <button type="button" class="px-4 py-2 whitespace-nowrap" :class="{ 'border-b-2 border-primary font-bold': active === 'use' }" @click="active = 'use'">Use Cases</button>
+    <button type="button" class="px-4 py-2 whitespace-nowrap" :class="{ 'border-b-2 border-primary font-bold': active === 'resources' }" @click="active = 'resources'">Resources</button>
+  </nav>
+
+  <!-- Panels -->
+  <section x-show="active === 'overview'" class="prose lg:prose-xl max-w-none">
+    <div class="whitespace-pre-wrap" set:html={overview}></div>
+  </section>
+
+  <section x-show="active === 'quick'" class="prose lg:prose-xl max-w-none" style="display: none;">
+    <div class="relative group">
+        <pre class="bg-gray-100 dark:bg-gray-800 p-4 rounded overflow-x-auto"><code>{quickStart}</code></pre>
+        <div class="absolute top-2 right-2">
+            <CopyButton text={quickStart} label="Copy" />
+        </div>
+    </div>
+  </section>
+
+  <section x-show="active === 'use'" class="prose lg:prose-xl max-w-none" style="display: none;">
+    {useCases ? <div set:html={useCases}></div> : <p class="text-gray-500 italic">No use cases provided.</p>}
+  </section>
+
+  <section x-show="active === 'resources'" class="prose lg:prose-xl max-w-none" style="display: none;">
+    {resources ? <div set:html={resources}></div> : <p class="text-gray-500 italic">No additional resources.</p>}
+  </section>
+</div>
+
+<style>
+  .tabbed-content button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--astro-gray-700, #4b5563);
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .tabbed-content button:hover {
+    color: var(--astro-primary, #3b82f6);
+  }
+  .tabbed-content button.border-primary {
+    color: var(--astro-primary, #3b82f6);
+    border-color: var(--astro-primary, #3b82f6);
+  }
+</style>

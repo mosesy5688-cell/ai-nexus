@@ -1,0 +1,57 @@
+---
+// src/components/CopyButton.astro
+export interface Props {
+  text: string;
+  label?: string;
+}
+
+const { text, label = "Copy" } = Astro.props;
+---
+
+<button class="copy-btn px-3 py-1 bg-gray-200 hover:bg-gray-300 text-sm rounded transition-colors duration-200" data-text={text} data-label={label}>
+  <span class="btn-label">{label}</span>
+</button>
+
+<script>
+  // Use event delegation or attach to all buttons
+  // Since this component might be used multiple times, we attach to all .copy-btn
+  // We use a weakmap or check if listener is attached to avoid duplicates if using view transitions (though we are not yet)
+  // For now, simple querySelectorAll is fine as this script runs once per page load in standard Astro
+  
+  function setupCopyButtons() {
+    const buttons = document.querySelectorAll('.copy-btn');
+    buttons.forEach(btn => {
+      // Avoid double binding
+      if (btn.hasAttribute('data-initialized')) return;
+      btn.setAttribute('data-initialized', 'true');
+
+      btn.addEventListener('click', async () => {
+        const text = btn.getAttribute('data-text');
+        const originalLabel = btn.getAttribute('data-label') || "Copy";
+        const labelSpan = btn.querySelector('.btn-label');
+
+        if (!text) return;
+
+        try {
+          await navigator.clipboard.writeText(text);
+          if (labelSpan) {
+            labelSpan.textContent = "Copied!";
+            // Reset after 1.5s
+            setTimeout(() => {
+                labelSpan.textContent = originalLabel;
+            }, 1500);
+          }
+        } catch (err) {
+          console.error('Failed to copy:', err);
+          if (labelSpan) labelSpan.textContent = "Error";
+        }
+      });
+    });
+  }
+
+  // Run on load
+  setupCopyButtons();
+
+  // If using Astro View Transitions in the future, we'd hook into 'astro:page-load'
+  // document.addEventListener('astro:page-load', setupCopyButtons);
+</script>
