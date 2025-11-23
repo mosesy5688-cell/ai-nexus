@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import RelatedModels from '../../components/RelatedModels.astro';
-import { getModelBySlug } from '../../utils/db'; // 假设这是您的DB工具函数引用
+import { getModelBySlug } from '../../utils/db.js'; // DB helper
 
 const { slug } = Astro.params;
 
