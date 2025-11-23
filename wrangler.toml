@@ -1,29 +1,24 @@
 name = "ai-nexus"
-# The `pages_build_output_dir` key is deprecated in favor of the `[pages_build_output]` table.
-# This new configuration is essential for Astro's hybrid/server mode to work correctly.
-[pages_build_output]
-dir = "dist"
-entry-point = "_worker.js"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat_v2"]
 
-compatibility_date = "2025-11-05"
-compatibility_flags = ["nodejs_compat"]
-
-# [vars]
-# Algolia vars removed - using D1 search
-
-[ai]
-binding = "AI"
-
-[[r2_buckets]]
-binding = "ASSETS"
-bucket_name = "ai-nexus-assets"
-
-[[kv_namespaces]]
-binding = "KV_CACHE"
-id = "24a9a70c8676477c98bf4a02f3b75b05"
-
+# D1 Database
 [[d1_databases]]
 binding = "DB"
 database_name = "ai-nexus-db"
 database_id = "adac7bc9-46a9-40b4-b609-28479221a17d"
-migrations_dir = "migrations"
+
+# KV Namespace
+[[kv_namespaces]]
+binding = "KV_CACHE"
+id = "24a9a70c8676477c98bf4a02f3b75b05"
+
+# R2 Bucket
+[[r2_buckets]]
+binding = "R2_ASSETS"
+bucket_name = "ai-nexus-assets"
+
+# Workers AI
+[ai]
+binding = "AI"
