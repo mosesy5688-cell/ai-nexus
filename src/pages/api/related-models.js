@@ -5,10 +5,12 @@ export async function GET({ request, locals }) {
         const idsParam = url.searchParams.get('ids');
 
         // If no IDs provided, return empty results (200 OK)
-        return new Response(JSON.stringify({ results: [] }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        if (!idsParam) {
+            return new Response(JSON.stringify({ results: [] }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
 
         const ids = idsParam.split(',').map(id => id.trim()).filter(id => id.length > 0);
 
