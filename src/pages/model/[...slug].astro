@@ -39,6 +39,23 @@ try {
             model.description = model.description ? String(model.description) : ""; 
         }
 
+        // [防御性检查 3] 处理 related_ids
+        if (model.related_ids) {
+            try {
+                const parsed = JSON.parse(model.related_ids);
+                if (Array.isArray(parsed)) {
+                    relatedIds = parsed;
+                }
+            } catch (e) {
+                console.warn("Failed to parse related_ids JSON:", e);
+                relatedIds = [];
+            }
+        }
+    }
+        
+    // 🔥 STEP 1: If we have related_ids, query them directly
+    if (relatedIds.length > 0) {
+        try {
             const db = Astro.locals?.runtime?.env?.DB;
             if (db) {
                 const placeholders = relatedIds.map(() => '?').join(',');
@@ -74,6 +91,23 @@ try {
                 }
 
                 // Attempt 2: Ultimate Fallback (Top Downloads) if still empty
+                if (relatedModels.length === 0) {
+                     const stmt = db.prepare(`
+                        SELECT id, name, author, likes, downloads, cover_image_url, description 
+                        FROM models 
+                        WHERE id != ?
+                        ORDER BY downloads DESC 
+                        LIMIT 6
+                    `);
+                    const { results } = await stmt.bind(model.id).all();
+                    relatedModels = results || [];
+                }
+            }
+        } catch (fallbackErr) {
+            console.warn("Fallback strategies failed:", fallbackErr);
+        }
+    }
+  }
 } catch (e) {
   console.error("SSR Error fetching model:", e);
   error = e.message;
@@ -123,6 +157,15 @@ const linksData = model ? JSON.stringify({
             </div>
         </div>
     ) : (
+        <article class="lg:prose-xl mx-auto">
+          <ModelHero 
+            name={model.name}
+            description={model.description}
+            author={model.author}
+            likes={Number(model.likes || 0)}
+            downloads={Number(model.downloads || 0)}
+            pipelineTag={model.pipeline_tag}
+            />
           </div>
         </article>
     )}
