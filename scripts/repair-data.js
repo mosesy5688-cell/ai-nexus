@@ -30,22 +30,21 @@ function repairData() {
     const repairedModels = models.map(model => {
         let changed = false;
 
-        // 1. Fix Download URL
-        if (!model.downloadUrl || model.downloadUrl === null) {
-            if (model.id.startsWith('github-')) {
-                // Construct GitHub zip link
-                const repoPath = model.id.replace('github-', '').replace(/-/g, '/'); // Rough approximation, but better to use source url if available
-                // Better strategy: use the first source URL
-                const sourceUrl = model.sources?.[0]?.url;
-                if (sourceUrl && sourceUrl.includes('github.com')) {
-                    model.downloadUrl = `${sourceUrl}/archive/refs/heads/main.zip`;
-                } else {
-                    model.downloadUrl = `https://github.com/search?q=${model.name}`; // Ultimate fallback
+        // 1. Fix Download URL (Aggressive V9.25 Fix)
+        // Force update for GitHub models to ensure they point to the zip archive, not a 404 HF page
+        if (model.id.startsWith('github-')) {
+            const sourceUrl = model.sources?.[0]?.url;
+            if (sourceUrl && sourceUrl.includes('github.com')) {
+                const newUrl = `${sourceUrl}/archive/refs/heads/main.zip`;
+                if (model.downloadUrl !== newUrl) {
+                    model.downloadUrl = newUrl;
+                    changed = true;
                 }
-            } else {
-                // Assume Hugging Face
-                model.downloadUrl = `https://huggingface.co/${model.id}/tree/main`;
             }
+        }
+        // For non-GitHub models (Hugging Face), only fix if missing
+        else if (!model.downloadUrl || model.downloadUrl === null) {
+            model.downloadUrl = `https://huggingface.co/${model.id}/tree/main`;
             changed = true;
         }
 
