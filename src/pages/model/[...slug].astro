@@ -79,28 +79,31 @@ try {
 }
 
 // --- 阶段 2: 路由控制 ---
+// --- 阶段 2: 路由控制 ---
 if (!model || typeof model !== 'object' || !model.id || !model.name) {
-  return new Response(null, {
-    status: 404,
-    statusText: 'Not Found'
-  });
+  Astro.response.status = 404;
+  Astro.response.statusText = 'Not Found';
+  error = "Model not found or invalid data returned.";
+  // Don't return early, let the Layout render with the error message
 }
 
 // --- 阶段 3: 布局参数安全生成 ---
-pageTitle = typeof model.name === 'string' && model.name.trim() !== ''
-    ? `${model.name} - AI Nexus`
-    : "AI Model Details - AI Nexus";
+if (model) {
+    pageTitle = typeof model.name === 'string' && model.name.trim() !== ''
+        ? `${model.name} - AI Nexus`
+        : "AI Model Details - AI Nexus";
 
-pageDescription = typeof model.description === 'string' 
-    ? model.description.substring(0, 160).replace(/[\n\r]/g, ' ') + "..."
-    : "Explore this AI model on AI Nexus.";
+    pageDescription = typeof model.description === 'string' 
+        ? model.description.substring(0, 160).replace(/[\n\r]/g, ' ') + "..."
+        : "Explore this AI model on AI Nexus.";
+}
 
 // --- 阶段 4: 生成 links_data ---
-const linksData = JSON.stringify({
+const linksData = model ? JSON.stringify({
   source_url: model.source_url || `https://huggingface.co/${model.id}`,
   docs_url: model.docs_url || (model.source_url ? `${model.source_url}#readme` : ''),
   demo_url: model.demo_url || ''
-});
+}) : '{}';
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -109,39 +112,45 @@ const linksData = JSON.stringify({
   
   <main class="container mx-auto px-4 py-8">
     
-    {error && (
-        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            <p>System Error: {error}</p>
+    {error ? (
+        <div class="max-w-4xl mx-auto text-center py-12">
+            <div class="bg-red-50 border border-red-200 text-red-700 px-6 py-8 rounded-lg shadow-sm">
+                <h2 class="text-2xl font-bold mb-4">Model Not Found</h2>
+                <p class="mb-6">{error}</p>
+                <a href="/" class="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700">
+                    Return Home
+                </a>
+            </div>
         </div>
+    ) : (
+        <article class="lg:prose-xl mx-auto">
+          <ModelHero 
+            name={model.name}
+            description={model.description}
+            author={model.author}
+            likes={Number(model.likes || 0)}
+            downloads={Number(model.downloads || 0)}
+            pipelineTag={model.pipeline_tag}
+            linksData={linksData}
+            lastUpdated={model.last_updated}
+            license={model.license}
+          />
+
+          <TabbedContent
+            overview={model.description || ""}
+            quickStart={model.quick_start || ""}
+            useCases={model.use_cases || ""}
+            resources={model.resources || ""}
+          />
+
+          <div class="mt-12">
+            <h2 class="text-2xl font-bold mb-6">Related Models</h2>
+            <ModelCarousel 
+                ids={relatedIds} 
+                initialModels={relatedModels} 
+            />
+          </div>
+        </article>
     )}
-
-    <article class="lg:prose-xl mx-auto">
-      <ModelHero 
-        name={model.name}
-        description={model.description}
-        author={model.author}
-        likes={Number(model.likes || 0)}
-        downloads={Number(model.downloads || 0)}
-        pipelineTag={model.pipeline_tag}
-        linksData={linksData}
-        lastUpdated={model.last_updated}
-        license={model.license}
-      />
-
-      <TabbedContent
-        overview={model.description || ""}
-        quickStart={model.quick_start || ""}
-        useCases={model.use_cases || ""}
-        resources={model.resources || ""}
-      />
-
-      <div class="mt-12">
-        <h2 class="text-2xl font-bold mb-6">Related Models</h2>
-        <ModelCarousel 
-            ids={relatedIds} 
-            initialModels={relatedModels} 
-        />
-      </div>
-    </article>
   </main>
 </Layout>
