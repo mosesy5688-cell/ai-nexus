@@ -53,8 +53,27 @@ try {
         }
     }
         
-    // 🔥 SMART FALLBACK & ULTIMATE FALLBACK
-    if (relatedIds.length === 0) {
+    // 🔥 STEP 1: If we have related_ids, query them directly
+    if (relatedIds.length > 0) {
+        try {
+            const db = Astro.locals?.runtime?.env?.DB;
+            if (db) {
+                const placeholders = relatedIds.map(() => '?').join(',');
+                const stmt = db.prepare(`
+                    SELECT id, name, author, likes, downloads, cover_image_url, description 
+                    FROM models 
+                    WHERE id IN (${placeholders})
+                `);
+                const { results } = await stmt.bind(...relatedIds).all();
+                relatedModels = results || [];
+            }
+        } catch (queryErr) {
+            console.warn("Failed to query related_ids:", queryErr);
+        }
+    }
+
+    // 🔥 STEP 2: SMART FALLBACK & ULTIMATE FALLBACK (if still no data)
+    if (relatedModels.length === 0) {
         try {
             const db = Astro.locals?.runtime?.env?.DB;
             if (db) {
