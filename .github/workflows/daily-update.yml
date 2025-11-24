@@ -1,85 +1,58 @@
 name: Daily Data Fetch and Build
 
 on:
+  # 1. 允许代码推送到 main 时自动部署 (为了修复 CSS)
   push:
     branches:
-      - main # Also trigger on pushes to the main branch
+      - main
+  # 2. 每天自动运行 (为了数据更新)
   schedule:
-    # Runs every day at midnight UTC
     - cron: '0 0 * * *'
-  workflow_dispatch: # Allows manual triggering
+  # 3. 允许手动触发 (为了调试)
+  workflow_dispatch:
 
+# 防止并发部署冲突
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-name: Daily Data Fetch and Build
-
-on:
-  push:
-    branches:
-      - main # Also trigger on pushes to the main branch
-  schedule:
-    # Runs every day at midnight UTC
-    - cron: '0 0 * * *'
-  workflow_dispatch: # Allows manual triggering
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: write
-  pull-requests: write
-  deployments: write
 
 jobs:
   fetch_build_and_deploy:
     runs-on: ubuntu-latest
-    name: Fetch Data, Build, and Deploy
+    permissions:
+      contents: read
+      deployments: write
+    name: Fetch, Build and Deploy
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install Dependencies
         run: npm ci
 
-      - name: Fetch Data
-        # Only run data fetching on schedule or manual dispatch
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-        run: node scripts/fetch-data.js
+      # 这里会自动执行 package.json 中的 "build" 脚本
+      # 根据我们的修改，它会先运行 "npm run build:css" 生成 CSS，再运行 "astro build"
+      - name: Build Project (includes CSS generation)
+        run: npm run build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # 确保 Astro 构建时能获取到必要的环境变量
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # 如果您的构建过程需要访问 D1 或 R2，可能还需要以下变量，不需要则可忽略
+          # R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          # R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
-      - name: Commit and Push Data Changes
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-        uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
         with:
-          commit_message: "chore(data): Update models and reports data"
-          file_pattern: "src/data/*.json public/data/*.json src/data/archives/*.json src/data/report-archives/*.json"
-          commit_user_name: "GitHub Actions Bot"
-          commit_user_email: "github-actions[bot]@users.noreply.github.com"
-          commit_author: "GitHub Actions Bot <github-actions[bot]@users.noreply.github.com>"
-
-      - name: Generate Seed SQL
-        run: node scripts/generate-seed-sql.js
-
-      - name: Run Database Migrations
-        run: npx wrangler d1 migrations apply DB --remote
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Deploy SEO Worker
-        run: |
-          cd workers/seo-generator
-          npx wrangler deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # 注意：Astro 默认输出目录是 dist
+          # --branch=main 确保部署到生产环境
+          command: pages deploy dist --project-name=ai-nexus --branch=main
