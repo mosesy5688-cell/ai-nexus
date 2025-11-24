@@ -9,6 +9,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   site: 'https://free2aitools.com',
+```javascript
+import { defineConfig } from 'astro/config';
+import tailwind from "@astrojs/tailwind";
+import sitemap from "@astrojs/sitemap";
+import cloudflare from "@astrojs/cloudflare";
+import path from 'path';
+import { fileURLTo4path } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+export default defineConfig({
+  site: 'https://free2aitools.com',
   output: 'hybrid',
   build: {
     assets: 'assets',
@@ -16,5 +28,17 @@ export default defineConfig({
   },
   adapter: cloudflare(),
   image: {
+    service: {
+      entrypoint: 'astro/assets/services/noop'
+    }
+  },
+  integrations: [tailwind(), sitemap()],
+  vite: {
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src')
+      }
+    }
   }
 });
+```
