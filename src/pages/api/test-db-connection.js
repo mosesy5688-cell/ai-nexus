@@ -1,8 +1,10 @@
 // API endpoint to test DB connection and data structure
 export const prerender = false;
-export async function GET({ locals }) {
+export async function GET({ locals, request }) {
     try {
         const db = locals?.runtime?.env?.DB;
+        const url = new URL(request.url);
+        const debugSlug = url.searchParams.get('slug'); // e.g. ollama--ollama
 
         if (!db) {
             return new Response(JSON.stringify({
@@ -17,21 +19,48 @@ export async function GET({ locals }) {
             });
         }
 
-        // Test query: Get first model
-        const testQuery = await db.prepare(`SELECT * FROM models LIMIT 1`).first();
+        let result = {};
+
+        if (debugSlug) {
+            // Debug specific model logic
+            const modelId = debugSlug.replace(/--/g, '/');
+            const firstSlashIndex = modelId.indexOf('/');
+            let model = null;
+
+            if (firstSlashIndex !== -1) {
+                const author = modelId.substring(0, firstSlashIndex);
+                const name = modelId.substring(firstSlashIndex + 1);
+                model = await db.prepare('SELECT * FROM models WHERE author = ? AND name = ?').bind(author, name).first();
+            }
+
+            if (!model) {
+                model = await db.prepare('SELECT * FROM models WHERE id = ?').bind(modelId).first();
+            }
+
+            result.model = model;
+
+            if (model) {
+                // Test Fallback Query
+                const fallbackStmt = db.prepare(`
+                    SELECT id, name, author, likes, downloads, pipeline_tag 
+                    FROM models 
+                    WHERE pipeline_tag = ? AND id != ?
+                    ORDER BY downloads DESC 
+                    LIMIT 6
+                `);
+                const { results } = await fallbackStmt.bind(model.pipeline_tag, model.id).all();
+                result.fallbackResults = results;
+            }
+        } else {
+            // Default test
+            const testQuery = await db.prepare(`SELECT * FROM models LIMIT 1`).first();
+            result.testQueryResult = testQuery;
+        }
 
         return new Response(JSON.stringify({
             success: true,
             dbConnected: true,
-            testQueryResult: {
-                hasResult: !!testQuery,
-                resultType: typeof testQuery,
-                isObject: typeof testQuery === 'object',
-                keys: testQuery ? Object.keys(testQuery) : [],
-                hasId: !!(testQuery?.id),
-                hasName: !!(testQuery?.name),
-                sample: testQuery
-            }
+            ...result
         }, null, 2), {
             headers: { 'Content-Type': 'application/json' }
         });
