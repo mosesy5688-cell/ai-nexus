@@ -29,32 +29,6 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x' # Use '20.x' for broader compatibility
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Fetch Data
-        # This step now only runs the data fetching script, not the full build.
-        run: node scripts/fetch-data.js
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-
-      - name: Commit and Push Data Changes
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore(data): Update models and reports data"
-          file_pattern: "src/data/*.json public/data/*.json src/data/archives/*.json src/data/report-archives/*.json"
-          commit_user_name: "GitHub Actions Bot"
-          commit_user_email: "github-actions[bot]@users.noreply.github.com"
-          commit_author: "GitHub Actions Bot <github-actions[bot]@users.noreply.github.com>"
-
-      - name: Generate Seed SQL
-        run: node scripts/generate-seed-sql.js
-
-      - name: Run Database Migrations
         # Ensure the remote database has the V3.0 schema before seeding
         run: npx wrangler d1 migrations apply DB --remote
         env:
