@@ -16,6 +16,16 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler
       
+      - name: Add Resources Column (if not exists)
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "46307fa431173267a9c52d6954d5a2df"
+        run: |
+          echo "Adding resources column..."
+          wrangler d1 execute ai-nexus-db --remote --command "ALTER TABLE models ADD COLUMN resources TEXT;"
+          echo "Column added or already exists"
+      
       - name: Execute SQL in Chunks
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
