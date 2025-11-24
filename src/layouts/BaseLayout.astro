@@ -13,6 +13,21 @@ const { title, description } = Astro.props;
 import ThemeToggle from '@/components/ThemeToggle.astro';
 import { ViewTransitions } from 'astro:transitions';
 
+---
+import ThemeToggle from '@/components/ThemeToggle.astro';
+import { ViewTransitions } from 'astro:transitions';
+
+export interface Props {
+	title: string;
+	description: string;
+}
+
+const { title, description } = Astro.props;
+					<a href="/about" class="hover:text-primary hover:underline transition-colors">About</a>
+---
+import ThemeToggle from '@/components/ThemeToggle.astro';
+import { ViewTransitions } from 'astro:transitions';
+
 export interface Props {
 	title: string;
 	description: string;
