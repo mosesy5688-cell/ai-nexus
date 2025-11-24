@@ -1,4 +1,3 @@
-```javascript
 // src/pages/api/related-models.js
 export const prerender = false;
 export async function GET({ request, locals }) {
@@ -21,7 +20,7 @@ export async function GET({ request, locals }) {
                 FROM models
                 ORDER BY downloads DESC
                 LIMIT 6
-    `);
+            `);
             const { results } = await stmt.all();
             return new Response(JSON.stringify({ results: results || [] }), {
                 headers: {
@@ -44,8 +43,8 @@ export async function GET({ request, locals }) {
         const stmt = db.prepare(`
             SELECT id, name, author, likes, downloads, cover_image_url, pipeline_tag, description
             FROM models
-            WHERE id IN(${ placeholders })
-    `);
+            WHERE id IN (${placeholders})
+        `);
 
         const { results } = await stmt.bind(...ids).all();
 
@@ -58,13 +57,12 @@ export async function GET({ request, locals }) {
 
     } catch (e) {
         console.error('API Error:', e);
-        return new Response(JSON.stringify({ 
+        return new Response(JSON.stringify({
             error: e.message,
-            stack: e.stack 
+            stack: e.stack
         }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
     }
 }
-```
