@@ -2,25 +2,6 @@
 export const prerender = false;
 export async function GET({ request, locals }) {
     try {
-        const url = new URL(request.url);
-        const idsParam = url.searchParams.get('ids');
-
-        // If no IDs provided, return empty results (200 OK)
-        if (!idsParam) {
-            return new Response(JSON.stringify({ results: [] }), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-
-        const ids = idsParam.split(',').map(id => id.trim()).filter(id => id.length > 0);
-
-        if (ids.length === 0) {
-            return new Response(JSON.stringify({ results: [] }), {
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-
         const db = locals?.runtime?.env?.DB;
         if (!db) {
             return new Response(JSON.stringify({ error: 'Database unavailable' }), {
@@ -29,26 +10,35 @@ export async function GET({ request, locals }) {
             });
         }
 
-        // Use parameterized query for safety
-        const placeholders = ids.map(() => '?').join(',');
+        // 🔥 EMERGENCY DEBUG: Simple query to confirm D1 works
+        // Bypassing all WHERE clauses to get ANY data
         const stmt = db.prepare(`
             SELECT id, name, author, likes, downloads, cover_image_url, pipeline_tag
             FROM models
-            WHERE id IN (${placeholders})
+            ORDER BY downloads DESC
+            LIMIT 6
         `);
+        const { results } = await stmt.all();
 
-        const { results } = await stmt.bind(...ids).all();
-
-        return new Response(JSON.stringify({ results: results || [] }), {
+        return new Response(JSON.stringify({
+            results: results || [],
+            debug: {
+                resultCount: results?.length || 0,
+                note: "Emergency debug mode - returning top 6 models by downloads"
+            }
+        }), {
             headers: {
                 'Content-Type': 'application/json',
-                'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
+                'Cache-Control': 'public, max-age=3600'
             }
         });
 
     } catch (e) {
         console.error('API Error:', e);
-        return new Response(JSON.stringify({ error: e.message }), {
+        return new Response(JSON.stringify({
+            error: e.message,
+            stack: e.stack
+        }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
