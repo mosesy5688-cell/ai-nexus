@@ -1,10 +1,7 @@
-// src/pages/api/related-models.js
+// src/pages/api/related-models.js - V9.15 ROLLBACK
 export const prerender = false;
 export async function GET({ request, locals }) {
     try {
-        const url = new URL(request.url);
-        const idsParam = url.searchParams.get('ids');
-
         const db = locals?.runtime?.env?.DB;
         if (!db) {
             return new Response(JSON.stringify({ error: 'Database unavailable' }), {
@@ -13,42 +10,19 @@ export async function GET({ request, locals }) {
             });
         }
 
-        // If no IDs provided, return top 6 models as fallback
-        if (!idsParam) {
-            const stmt = db.prepare(`
-                SELECT id, name, author, likes, downloads, cover_image_url, pipeline_tag, description
-                FROM models
-                ORDER BY downloads DESC
-                LIMIT 6
-            `);
-            const { results } = await stmt.all();
-            return new Response(JSON.stringify({ results: results || [] }), {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'public, max-age=3600'
-                }
-            });
-        }
-
-        const ids = idsParam.split(',').map(id => id.trim()).filter(id => id.length > 0);
-
-        if (ids.length === 0) {
-            return new Response(JSON.stringify({ results: [] }), {
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-
-        // Use parameterized query for safety
-        const placeholders = ids.map(() => '?').join(',');
+        // 🔥 V9.15: ROLLBACK to simple query - prioritize successful data flow
         const stmt = db.prepare(`
             SELECT id, name, author, likes, downloads, cover_image_url, pipeline_tag, description
             FROM models
-            WHERE id IN (${placeholders})
+            ORDER BY downloads DESC
+            LIMIT 6
         `);
+        const { results } = await stmt.all();
 
-        const { results } = await stmt.bind(...ids).all();
-
-        return new Response(JSON.stringify({ results: results || [] }), {
+        return new Response(JSON.stringify({
+            results: results || [],
+            _debug: "V9.15 rollback mode"
+        }), {
             headers: {
                 'Content-Type': 'application/json',
                 'Cache-Control': 'public, max-age=3600'
