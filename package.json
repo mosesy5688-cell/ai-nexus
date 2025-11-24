@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "astro dev",
-    "build": "cross-env NODE_ENV=production astro build",
+    "build:css": "tailwindcss -i ./src/styles/theme.css -o ./public/verified-tailwind.css --minify",
+    "build": "npm run build:css && cross-env NODE_ENV=production astro build",
     "preview": "astro preview",
     "fetch-data": "node scripts/fetch-data.js",
     "fetch-data:v3": "node scripts/fetch-data-v3.js"

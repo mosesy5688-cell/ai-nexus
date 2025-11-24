@@ -20,20 +20,6 @@ const { title, description } = Astro.props;
 		<meta name="generator" content={Astro.generator} />
 		<ViewTransitions />
 		<title>{title}</title>
-
-		<!-- Modern Font Stack -->
-		<link rel="preconnect" href="https://fonts.googleapis.com">
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
-		
-		<!-- Global Theme Styles -->
-		<link rel="stylesheet" href="/styles/theme.css" />
-	</head>
-	<body class="bg-background text-foreground font-sans antialiased flex flex-col min-h-screen selection:bg-primary/20">
-		<header class="bg-card-background/80 dark:bg-card-background/80 backdrop-blur-sm border-b border-card-border sticky top-0 z-50">
-			<nav class="container mx-auto px-4 py-4 flex justify-between items-center">
-				<a href="/" class="text-2xl font-bold text-foreground shrink-0 hover:text-primary transition-colors">Free AI Tools</a>
-				<div class="w-full max-w-md mx-4">
 					<input type="search" id="header-search" placeholder="Search models..." class="w-full px-4 py-2 text-base bg-input-background border border-input-border rounded-full focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all" />
 				</div>
 				<div class="flex items-center space-x-4 shrink-0">
