@@ -8,8 +8,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Sync to D1
-        uses: cloudflare/wrangler-action@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: d1 execute ai-nexus-db --remote --file=./seed.sql
+          node-version: '20'
+      
+      - name: Install Wrangler
+        run: npm install -g wrangler
+      
+      - name: Execute SQL in Chunks
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          node -e "
+          const fs = require('fs');
+          const { execSync } = require('child_process');
+          const sql = fs.readFileSync('./seed.sql', 'utf-8');
+          const statements = sql.split(';').filter(s => s.trim());
+          console.log(\`Total statements: \${statements.length}\`);
+          let batch = [];
+          let count = 0;
+          for (let i = 0; i < statements.length; i++) {
+            batch.push(statements[i]);
+            if (batch.length === 50 || i === statements.length - 1) {
+              const tempSql = batch.join(';') + ';';
+              fs.writeFileSync('temp.sql', tempSql);
+              try {
+                execSync('wrangler d1 execute ai-nexus-db --remote --file=temp.sql', {stdio: 'inherit'});
+                count += batch.length;
+                console.log(\`Processed \${count}/\${statements.length} statements\`);
+              } catch (e) {
+                console.error('Failed at statement ' + count);
+                throw e;
+              }
+              batch = [];
+            }
+          }
+          fs.unlinkSync('temp.sql');
+          console.log('✅ All statements executed successfully');
+          "
+
