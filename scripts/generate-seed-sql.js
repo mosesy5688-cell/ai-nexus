@@ -55,7 +55,9 @@ try {
         const likes = model.likes || 0;
         const downloads = model.downloads || 0;
         const cover_image_url = escape(model.cover_image_url || null);
-        const source_url = escape(model.source_url || `https://huggingface.co/${model.id}`);
+        // V9.26 FIX: Extract source_url from sources array if top-level is missing
+        const primarySource = (model.sources && model.sources.length > 0) ? model.sources[0].url : null;
+        const source_url = escape(model.source_url || primarySource || `https://huggingface.co/${model.id}`);
         const created_at = escape(model.createdAt || new Date().toISOString());
 
         // 添加 related_ids 字段
