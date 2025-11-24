@@ -1,10 +1,5 @@
 ---
-// Static generation with catch-all path
-export function getStaticPaths() {
-  return [
-    { params: { slug: '_placeholder' } }
-  ];
-}
+export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 import ModelHero from '../../components/ModelHero.astro';
