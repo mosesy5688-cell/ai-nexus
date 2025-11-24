@@ -68,7 +68,7 @@ const { ids = [], initialModels = [] } = Astro.props;
   </div>
 </div>
 
-<script>
+<script is:inline>
   document.addEventListener('alpine:init', () => {
     Alpine.data('modelCarousel', function() {
       return {
