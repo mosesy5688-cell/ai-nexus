@@ -29,33 +29,6 @@ jobs:
       - name: Execute SQL in Chunks
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: "46307fa431173267a9c52d6954d5a2df"
-        run: |
-          node -e "
-          const fs = require('fs');
-          const { execSync } = require('child_process');
-          const sql = fs.readFileSync('./seed.sql', 'utf-8');
-          const statements = sql.split(';').filter(s => s.trim());
-          console.log(\`Total statements: \${statements.length}\`);
-          let batch = [];
-          let count = 0;
-          for (let i = 0; i < statements.length; i++) {
-            batch.push(statements[i]);
-            if (batch.length === 50 || i === statements.length - 1) {
-              const tempSql = batch.join(';') + ';';
-              fs.writeFileSync('temp.sql', tempSql);
-              try {
-                execSync('wrangler d1 execute ai-nexus-db --remote --file=temp.sql', {stdio: 'inherit'});
-                count += batch.length;
-                console.log(\`Processed \${count}/\${statements.length} statements\`);
-              } catch (e) {
-                console.error('Failed at statement ' + count);
-                throw e;
-              }
-              batch = [];
-            }
-          }
-          fs.unlinkSync('temp.sql');
           console.log('✅ All statements executed successfully');
           "
 
