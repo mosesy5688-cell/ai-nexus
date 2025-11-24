@@ -65,8 +65,11 @@ try {
         const safeRelated = (rawRelated && rawRelated.length > 2) ? rawRelated : '[]';
         const related_ids = escape(safeRelated);
 
-        sql += `INSERT INTO models (id, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, source_url, created_at, related_ids) 
-VALUES (${id}, ${name}, ${author}, ${description}, ${tags}, ${pipeline_tag}, ${likes}, ${downloads}, ${cover_image_url}, ${source_url}, ${created_at}, ${related_ids})
+        // V9.27 FIX: Preserve rich source data
+        const resources = escape(JSON.stringify(model.sources || []));
+
+        sql += `INSERT INTO models (id, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, source_url, created_at, related_ids, resources) 
+VALUES (${id}, ${name}, ${author}, ${description}, ${tags}, ${pipeline_tag}, ${likes}, ${downloads}, ${cover_image_url}, ${source_url}, ${created_at}, ${related_ids}, ${resources})
 ON CONFLICT(id) DO UPDATE SET
     name=excluded.name,
     author=excluded.author,
@@ -78,6 +81,7 @@ ON CONFLICT(id) DO UPDATE SET
     cover_image_url=excluded.cover_image_url,
     source_url=excluded.source_url,
     related_ids=excluded.related_ids,
+    resources=excluded.resources,
     last_checked=CURRENT_TIMESTAMP;\n`;
     }
 

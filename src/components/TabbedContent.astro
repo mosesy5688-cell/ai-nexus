@@ -40,7 +40,43 @@ const { overview, quickStart, useCases = '', resources = '' } = Astro.props;
   </section>
 
   <section x-show="active === 'resources'" class="prose lg:prose-xl max-w-none" style="display: none;">
-    {resources ? <div set:html={resources}></div> : <p class="text-gray-500 italic">No additional resources.</p>}
+  <section x-show="active === 'resources'" class="prose lg:prose-xl max-w-none" style="display: none;">
+    {(() => {
+        try {
+            const parsedResources = resources ? JSON.parse(resources) : [];
+            if (parsedResources.length > 0) {
+                return (
+                    <div class="space-y-4">
+                        <p class="text-gray-600 dark:text-gray-300">Original source data and files:</p>
+                        <ul class="list-disc pl-5">
+                            {parsedResources.map((res: any) => (
+                                <li class="mb-2">
+                                    <a href={res.url} target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">
+                                        {res.platform || 'Source'} Link
+                                    </a>
+                                    {res.files && res.files.length > 0 && (
+                                        <div class="mt-1 text-sm text-gray-500">
+                                            <span class="font-semibold">Files:</span>
+                                            <ul class="list-circle pl-5 mt-1">
+                                                {res.files.slice(0, 5).map((f: any) => (
+                                                    <li>{f.name} ({Math.round(f.size / 1024 / 1024)} MB)</li>
+                                                ))}
+                                                {res.files.length > 5 && <li>...and {res.files.length - 5} more</li>}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                );
+            }
+        } catch (e) {
+            console.error("Failed to parse resources:", e);
+        }
+        return <p class="text-gray-500 italic">No additional resources available.</p>;
+    })()}
+  </section>
   </section>
 </div>
 

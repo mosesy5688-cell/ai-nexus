@@ -58,7 +58,7 @@ try {
         if (db) {
           const placeholders = relatedIds.map(() => "?").join(",");
           const stmt = db.prepare(`
-            SELECT id, name, author, likes, downloads, cover_image_url, description
+            SELECT id, name, author, likes, downloads, cover_image_url, description, resources
             FROM models
             WHERE id IN (${placeholders})
           `);
@@ -78,7 +78,7 @@ try {
           // Tag‑based fallback
           if (model.pipeline_tag) {
             const stmt = db.prepare(`
-              SELECT id, name, author, likes, downloads, cover_image_url, description
+              SELECT id, name, author, likes, downloads, cover_image_url, description, resources
               FROM models
               WHERE pipeline_tag = ? AND id != ?
               ORDER BY downloads DESC
@@ -90,7 +90,7 @@ try {
           // Ultimate fallback: top downloads excluding current model
           if (relatedModels.length === 0) {
             const stmt = db.prepare(`
-              SELECT id, name, author, likes, downloads, cover_image_url, description
+              SELECT id, name, author, likes, downloads, cover_image_url, description, resources
               FROM models
               WHERE id != ?
               ORDER BY downloads DESC
@@ -178,7 +178,8 @@ const linksData = model
           overview={model.description || model.seo_summary || "No description available for this model. Content not available at this time."}
           quickStart={model.quick_start || `# Quick Start\n\nVisit the model repository for usage instructions:\n\n${model.source_url || 'https://huggingface.co'}`}
           useCases={model.use_cases || ""}
-          resources={model.resources || ""}
+          useCases={model.use_cases || ""}
+          resources={model.resources || "[]"}
         />
         <div class="mt-12">
           <h2 class="text-2xl font-bold mb-6">Related Models</h2>
