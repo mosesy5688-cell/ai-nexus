@@ -39,23 +39,6 @@ try {
             model.description = model.description ? String(model.description) : ""; 
         }
 
-        // [防御性检查 3] 处理 related_ids
-        if (model.related_ids) {
-            try {
-                const parsed = JSON.parse(model.related_ids);
-                if (Array.isArray(parsed)) {
-                    relatedIds = parsed;
-                }
-            } catch (e) {
-                console.warn("Failed to parse related_ids JSON:", e);
-                relatedIds = [];
-            }
-        }
-    }
-        
-    // 🔥 STEP 1: If we have related_ids, query them directly
-    if (relatedIds.length > 0) {
-        try {
             const db = Astro.locals?.runtime?.env?.DB;
             if (db) {
                 const placeholders = relatedIds.map(() => '?').join(',');
