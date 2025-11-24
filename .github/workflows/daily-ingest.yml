@@ -12,6 +12,11 @@ jobs:
 
       # Step 1: 智能元数据抓取 (Smart Fetch)
       # 如果直连失败，自动切换到 Secrets 中配置的 Worker 代理
+      - name: Install Dependencies
+        run: npm install
+
+      # Step 1: 智能元数据抓取 (Smart Fetch)
+      # 如果直连失败，自动切换到 Secrets 中配置的 Worker 代理
       - name: Fetch Metadata
         run: node scripts/fetch-metadata.js
         env:

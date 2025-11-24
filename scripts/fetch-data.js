@@ -359,18 +359,6 @@ async function fetchReadme(url, config = {}) {
  * @returns {Promise<object>}
  */
 async function transformHuggingFaceModel(model) {
-    const readmeUrl = `https://huggingface.co/${model.modelId}/raw/main/README.md`;
-    const readmeContent = await fetchReadme(readmeUrl);
-
-    const files = model.siblings?.map(s => s.rfilename) || [];
-    const safetensorFile = files.find(f => f.endsWith('.safetensors'));
-    const modelUrl = `https://huggingface.co/${model.modelId}`;
-    const downloadUrl = safetensorFile ? `https://huggingface.co/${model.modelId}/resolve/main/${safetensorFile}` : null;
-
-    const fileDetails = (model.siblings || []).map(s => ({ name: s.rfilename, size: s.sizeInBytes })).filter(f => !f.name.startsWith('.'));
-
-    // Ensure we always have author and name by extracting from modelId if missing
-    const modelIdParts = model.modelId.split('/');
     const author = model.author || (modelIdParts.length > 1 ? modelIdParts[0] : 'unknown');
     const name = modelIdParts.length > 1 ? modelIdParts[1] : model.modelId;
     let cleanDescription = (typeof model.cardData?.description === 'string' ? model.cardData.description : JSON.stringify(model.cardData?.description || '')) || `A model for ${model.pipeline_tag || 'various tasks'}.`;
@@ -525,7 +513,8 @@ async function transformGitHubRepo(repo) {
         lastModified: repo.updated_at,
         lastModifiedTimestamp: new Date(repo.updated_at).getTime(),
         readme: readmeContent,
-        downloadUrl: null,
+        // V9.25 FIX: Fallback to the source code archive for GitHub repos
+        downloadUrl: `https://github.com/${repo.full_name}/archive/refs/heads/main.zip`,
         sources: [{
             platform: 'GitHub',
             url: repo.html_url,

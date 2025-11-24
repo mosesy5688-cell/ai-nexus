@@ -11,6 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Dependencies
+        run: npm install
+
       # Job 1: Dead Link Checker
       - name: Check Dead Links
         run: node scripts/check-links.js

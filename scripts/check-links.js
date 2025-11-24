@@ -16,7 +16,7 @@ async function checkLinks() {
     try {
         // 1. Fetch candidates from D1 using Wrangler
         // We use JSON output to parse it in Node
-        const cmd = `npx wrangler d1 execute DB --remote --command "SELECT id, source_url FROM models WHERE link_status = 'alive' LIMIT 50" --json`;
+        const cmd = `npx wrangler d1 execute ai-nexus-db --remote --command "SELECT id, source_url FROM models WHERE link_status = 'alive' LIMIT 50" --json`;
         console.log("Fetching links from D1...");
         const output = execSync(cmd, { encoding: 'utf-8' });
         const result = JSON.parse(output);
@@ -40,7 +40,7 @@ async function checkLinks() {
             if (!isAlive) {
                 console.log(`[BROKEN] ${id}: ${source_url}`);
                 // Update status to broken
-                const updateCmd = `npx wrangler d1 execute DB --remote --command "UPDATE models SET link_status = 'broken', last_checked = CURRENT_TIMESTAMP WHERE id = '${id}'"`;
+                const updateCmd = `npx wrangler d1 execute ai-nexus-db --remote --command "UPDATE models SET link_status = 'broken', last_checked = CURRENT_TIMESTAMP WHERE id = '${id}'"`;
                 execSync(updateCmd);
             } else {
                 console.log(`[ALIVE] ${id}`);
