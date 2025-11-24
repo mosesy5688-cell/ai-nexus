@@ -16,5 +16,24 @@ export default defineConfig({
   },
   adapter: cloudflare(),
   image: {
+    service: {
+      entrypoint: 'astro/assets/services/noop'
+    }
+  },
+  integrations: [tailwind(), sitemap()],
+  vite: {
+    build: {
+      cssCodeSplit: false,
+      rollupOptions: {
+        output: {
+          assetFileNames: '_static_bundle/[name].[hash][extname]'
+        }
+      }
+    },
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src')
+      }
+    }
   }
 });
