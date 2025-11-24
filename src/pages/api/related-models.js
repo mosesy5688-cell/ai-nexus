@@ -1,10 +1,7 @@
-// src/pages/api/related-models.js - V9.17 FINAL FIX
+// src/pages/api/related-models.js - V9.19 SQL ROLLBACK
 export const prerender = false;
 export async function GET({ request, locals }) {
     try {
-        const url = new URL(request.url);
-        const idsParam = url.searchParams.get('ids');
-
         const db = locals?.runtime?.env?.DB;
         if (!db) {
             return new Response(JSON.stringify({ error: 'Database unavailable' }), {
@@ -13,31 +10,7 @@ export async function GET({ request, locals }) {
             });
         }
 
-        // 🔥 V9.17: RESTORATION - Use IDs when provided, fallback to top 6
-        if (idsParam) {
-            const ids = idsParam.split(',').map(id => id.trim()).filter(id => id.length > 0);
-
-            if (ids.length > 0) {
-                // Use parameterized query for safety
-                const placeholders = ids.map(() => '?').join(',');
-                const stmt = db.prepare(`
-                    SELECT id, name, author, likes, downloads, cover_image_url, pipeline_tag, description
-                    FROM models
-                    WHERE id IN (${placeholders})
-                `);
-
-                const { results } = await stmt.bind(...ids).all();
-
-                return new Response(JSON.stringify({ results: results || [] }), {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'public, max-age=3600'
-                    }
-                });
-            }
-        }
-
-        // Fallback: no IDs provided, return top 6
+        // 🔥 V9.19: ROLLBACK - Simple LIMIT 6 for data visibility
         const stmt = db.prepare(`
             SELECT id, name, author, likes, downloads, cover_image_url, pipeline_tag, description
             FROM models
@@ -46,7 +19,10 @@ export async function GET({ request, locals }) {
         `);
         const { results } = await stmt.all();
 
-        return new Response(JSON.stringify({ results: results || [] }), {
+        return new Response(JSON.stringify({
+            results: results || [],
+            _version: "V9.19 - Simple LIMIT 6"
+        }), {
             headers: {
                 'Content-Type': 'application/json',
                 'Cache-Control': 'public, max-age=3600'
