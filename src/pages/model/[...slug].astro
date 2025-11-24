@@ -91,23 +91,6 @@ try {
                 }
 
                 // Attempt 2: Ultimate Fallback (Top Downloads) if still empty
-                if (relatedModels.length === 0) {
-                     const stmt = db.prepare(`
-                        SELECT id, name, author, likes, downloads, cover_image_url, description 
-                        FROM models 
-                        WHERE id != ?
-                        ORDER BY downloads DESC 
-                        LIMIT 6
-                    `);
-                    const { results } = await stmt.bind(model.id).all();
-                    relatedModels = results || [];
-                }
-            }
-        } catch (fallbackErr) {
-            console.warn("Fallback strategies failed:", fallbackErr);
-        }
-    }
-  }
 } catch (e) {
   console.error("SSR Error fetching model:", e);
   error = e.message;
