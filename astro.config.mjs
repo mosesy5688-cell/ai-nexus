@@ -14,7 +14,15 @@ export default defineConfig({
     assets: 'assets',
     inlineStylesheets: 'never' // Force external CSS files
   },
-  adapter: cloudflare(),
+  adapter: cloudflare({
+    mode: 'static',
+    bindings: {
+      DB: 'ai-nexus-db',
+      KV_CACHE: 'ai-nexus',
+      R2_ASSETS: 'ai-nexus-assets',
+      SESSION: 'SESSION',
+    }
+  }),
   image: {
     service: {
       entrypoint: 'astro/assets/services/noop'
