@@ -1,10 +1,9 @@
 # Cloudflare Configuration for AI Nexus
 name = "ai-nexus"
-pages_build_output_dir = "dist"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat_v2"]
 
-# CRITICAL: Account ID required for D1 operations
+# Account ID (required for CLI operations)
 account_id = "46307fa431173267a9c52d6954d5a2df"
 
 # D1 Database
