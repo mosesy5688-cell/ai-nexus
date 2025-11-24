@@ -165,6 +165,25 @@ const linksData = model ? JSON.stringify({
             likes={Number(model.likes || 0)}
             downloads={Number(model.downloads || 0)}
             pipelineTag={model.pipeline_tag}
+<<<<<<< HEAD
+=======
+            linksData={linksData}
+            lastUpdated={model.last_updated}
+            license={model.license}
+          />
+
+          <TabbedContent
+            overview={model.description || model.seo_summary || "No description available for this model. Content not available at this time."}
+            quickStart={model.quick_start || `# Quick Start\n\nVisit the model repository for usage instructions:\n\n${model.source_url || 'https://huggingface.co'}`} 
+            useCases={model.use_cases || ""}
+            resources={model.resources || ""}
+          />
+
+          <div class="mt-12">
+            <h2 class="text-2xl font-bold mb-6">Related Models</h2>
+            <ModelCarousel 
+                models={relatedModels} 
+>>>>>>> 7fbcfb80 (FIX: V9.21 - Forced content injection to resolve missing body; SQL reverted to LIMIT 6; completed final render logic verification.)
             />
           </div>
         </article>
