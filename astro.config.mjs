@@ -8,26 +8,6 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  site: 'https://free2aitools.com',
-  output: 'static',
-  build: {
-    assets: 'assets',
-    inlineStylesheets: 'never' // Force external CSS files
-  },
-  adapter: cloudflare({
-    mode: 'static',
-    bindings: {
-      DB: 'ai-nexus-db',
-      KV_CACHE: 'ai-nexus',
-      R2_ASSETS: 'ai-nexus-assets',
-      SESSION: 'SESSION',
-    }
-  }),
-  image: {
-    service: {
-      entrypoint: 'astro/assets/services/noop'
-    }
-  },
   integrations: [tailwind(), sitemap()],
   vite: {
     resolve: {
