@@ -40,7 +40,6 @@ const { overview, quickStart, useCases = '', resources = '' } = Astro.props;
   </section>
 
   <section x-show="active === 'resources'" class="prose lg:prose-xl max-w-none" style="display: none;">
-  <section x-show="active === 'resources'" class="prose lg:prose-xl max-w-none" style="display: none;">
     {(() => {
         try {
             const parsedResources = resources ? JSON.parse(resources) : [];
