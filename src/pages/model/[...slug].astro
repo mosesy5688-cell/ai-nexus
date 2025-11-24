@@ -53,23 +53,39 @@ try {
         }
     }
         
-    // 🔥 SMART FALLBACK
-    if (relatedIds.length === 0 && model.pipeline_tag) {
+    // 🔥 SMART FALLBACK & ULTIMATE FALLBACK
+    if (relatedIds.length === 0) {
         try {
             const db = Astro.locals?.runtime?.env?.DB;
             if (db) {
-                const stmt = db.prepare(`
-                    SELECT id, name, author, likes, downloads, cover_image_url, description 
-                    FROM models 
-                    WHERE pipeline_tag = ? AND id != ?
-                    ORDER BY downloads DESC 
-                    LIMIT 6
-                `);
-                const { results } = await stmt.bind(model.pipeline_tag, model.id).all();
-                relatedModels = results || [];
+                // Attempt 1: Tag-based fallback
+                if (model.pipeline_tag) {
+                    const stmt = db.prepare(`
+                        SELECT id, name, author, likes, downloads, cover_image_url, description 
+                        FROM models 
+                        WHERE pipeline_tag = ? AND id != ?
+                        ORDER BY downloads DESC 
+                        LIMIT 6
+                    `);
+                    const { results } = await stmt.bind(model.pipeline_tag, model.id).all();
+                    relatedModels = results || [];
+                }
+
+                // Attempt 2: Ultimate Fallback (Top Downloads) if still empty
+                if (relatedModels.length === 0) {
+                     const stmt = db.prepare(`
+                        SELECT id, name, author, likes, downloads, cover_image_url, description 
+                        FROM models 
+                        WHERE id != ?
+                        ORDER BY downloads DESC 
+                        LIMIT 6
+                    `);
+                    const { results } = await stmt.bind(model.id).all();
+                    relatedModels = results || [];
+                }
             }
         } catch (fallbackErr) {
-            console.warn("Smart fallback failed:", fallbackErr);
+            console.warn("Fallback strategies failed:", fallbackErr);
         }
     }
   }
