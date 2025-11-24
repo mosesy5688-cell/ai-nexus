@@ -1,3 +1,21 @@
+{
+  "name": "ai-nexus",
+  "type": "module",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build:css": "tailwindcss -i ./src/styles/base.css -o ./public/verified-tailwind.css --minify",
+    "build": "npm run build:css && cross-env NODE_ENV=production astro build",
+    "preview": "astro preview",
+    "fetch-data": "node scripts/fetch-data.js",
+    "fetch-data:v3": "node scripts/fetch-data-v3.js"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^11.1.0",
+    "@astrojs/react": "^3.6.2",
+    "@astrojs/sitemap": "^3.2.1",
+    "@astrojs/tailwind": "^5.1.2",
     "@aws-sdk/client-s3": "^3.937.0",
     "@cloudflare/ai": "^1.2.2",
     "@cloudflare/workers-types": "^4.20251121.0",
