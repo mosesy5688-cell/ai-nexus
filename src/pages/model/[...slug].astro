@@ -104,6 +104,9 @@ const linksData = JSON.stringify({
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
+  <!-- Fallback: Inject CSS directly in body if head injection fails -->
+  <link rel="stylesheet" href="/tailwind-output.css">
+  
   <main class="container mx-auto px-4 py-8">
     
     {error && (
