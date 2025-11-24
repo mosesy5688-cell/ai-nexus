@@ -9,7 +9,7 @@ import { getModelBySlug } from '../../utils/db';
 
 const { slug } = Astro.params;
 
-// 初始化变量，防止 undefined 错误
+// Initialize variables
 let model = null;
 let relatedModels = [];
 let relatedIds = [];
@@ -17,95 +17,92 @@ let error = null;
 let pageTitle = "AI Model Details";
 let pageDescription = "View details for this AI model.";
 
-// --- 阶段 1: 数据获取与防御性解析 ---
+// ---------------------------------------------------
+// Stage 1: Fetch data with defensive checks
+// ---------------------------------------------------
 try {
   if (!slug) {
     throw new Error("No slug provided");
   }
 
-  // 获取原始数据
   const result = await getModelBySlug(slug, Astro.locals);
-  
   if (result) {
     model = result;
-    
-    // [防御性检查 1] 确保 model 是对象
-    if (typeof model !== 'object') {
-       console.error("Critical: Model is not an object:", model);
-       model = null;
+    // Defensive: ensure model is an object
+    if (typeof model !== "object" || model === null) {
+      console.error("Critical: Model is not an object:", model);
+      model = null;
     } else {
-        // [防御性检查 2] 处理 description (防止它是对象)
-        if (typeof model.description !== 'string') {
-            model.description = model.description ? String(model.description) : ""; 
+      // Defensive: description should be a string
+      if (typeof model.description !== "string") {
+        model.description = model.description ? String(model.description) : "";
+      }
+      // Defensive: parse related_ids if present
+      if (model.related_ids) {
+        try {
+          const parsed = JSON.parse(model.related_ids);
+          if (Array.isArray(parsed)) {
+            relatedIds = parsed;
+          }
+        } catch (e) {
+          console.warn("Failed to parse related_ids JSON:", e);
+          relatedIds = [];
         }
-
-        // [防御性检查 3] 处理 related_ids
-        if (model.related_ids) {
-            try {
-                const parsed = JSON.parse(model.related_ids);
-                if (Array.isArray(parsed)) {
-                    relatedIds = parsed;
-                }
-            } catch (e) {
-                console.warn("Failed to parse related_ids JSON:", e);
-                relatedIds = [];
-            }
-        }
+      }
     }
-        
-    // 🔥 STEP 1: If we have related_ids, query them directly
+
+    // STEP 1: Query explicit related IDs
     if (relatedIds.length > 0) {
-        try {
-            const db = Astro.locals?.runtime?.env?.DB;
-            if (db) {
-                const placeholders = relatedIds.map(() => '?').join(',');
-                const stmt = db.prepare(`
-                    SELECT id, name, author, likes, downloads, cover_image_url, description 
-                    FROM models 
-                    WHERE id IN (${placeholders})
-                `);
-                const { results } = await stmt.bind(...relatedIds).all();
-                relatedModels = results || [];
-            }
-        } catch (queryErr) {
-            console.warn("Failed to query related_ids:", queryErr);
+      try {
+        const db = Astro.locals?.runtime?.env?.DB;
+        if (db) {
+          const placeholders = relatedIds.map(() => "?").join(",");
+          const stmt = db.prepare(`
+            SELECT id, name, author, likes, downloads, cover_image_url, description
+            FROM models
+            WHERE id IN (${placeholders})
+          `);
+          const { results } = await stmt.bind(...relatedIds).all();
+          relatedModels = results || [];
         }
+      } catch (queryErr) {
+        console.warn("Failed to query related_ids:", queryErr);
+      }
     }
 
-    // 🔥 STEP 2: SMART FALLBACK & ULTIMATE FALLBACK (if still no data)
+    // STEP 2: Fallback to tag‑based or top‑downloads if needed
     if (relatedModels.length === 0) {
-        try {
-            const db = Astro.locals?.runtime?.env?.DB;
-            if (db) {
-                // Attempt 1: Tag-based fallback
-                if (model.pipeline_tag) {
-                    const stmt = db.prepare(`
-                        SELECT id, name, author, likes, downloads, cover_image_url, description 
-                        FROM models 
-                        WHERE pipeline_tag = ? AND id != ?
-                        ORDER BY downloads DESC 
-                        LIMIT 6
-                    `);
-                    const { results } = await stmt.bind(model.pipeline_tag, model.id).all();
-                    relatedModels = results || [];
-                }
-
-                // Attempt 2: Ultimate Fallback (Top Downloads) if still empty
-                if (relatedModels.length === 0) {
-                     const stmt = db.prepare(`
-                        SELECT id, name, author, likes, downloads, cover_image_url, description 
-                        FROM models 
-                        WHERE id != ?
-                        ORDER BY downloads DESC 
-                        LIMIT 6
-                    `);
-                    const { results } = await stmt.bind(model.id).all();
-                    relatedModels = results || [];
-                }
-            }
-        } catch (fallbackErr) {
-            console.warn("Fallback strategies failed:", fallbackErr);
+      try {
+        const db = Astro.locals?.runtime?.env?.DB;
+        if (db) {
+          // Tag‑based fallback
+          if (model.pipeline_tag) {
+            const stmt = db.prepare(`
+              SELECT id, name, author, likes, downloads, cover_image_url, description
+              FROM models
+              WHERE pipeline_tag = ? AND id != ?
+              ORDER BY downloads DESC
+              LIMIT 6
+            `);
+            const { results } = await stmt.bind(model.pipeline_tag, model.id).all();
+            relatedModels = results || [];
+          }
+          // Ultimate fallback: top downloads excluding current model
+          if (relatedModels.length === 0) {
+            const stmt = db.prepare(`
+              SELECT id, name, author, likes, downloads, cover_image_url, description
+              FROM models
+              WHERE id != ?
+              ORDER BY downloads DESC
+              LIMIT 6
+            `);
+            const { results } = await stmt.bind(model.id).all();
+            relatedModels = results || [];
+          }
         }
+      } catch (fallbackErr) {
+        console.warn("Fallback strategies failed:", fallbackErr);
+      }
     }
   }
 } catch (e) {
@@ -113,80 +110,81 @@ try {
   error = e.message;
 }
 
-// --- 阶段 2: 路由控制 ---
-// --- 阶段 2: 路由控制 ---
-if (!model || typeof model !== 'object' || !model.id || !model.name) {
+// ---------------------------------------------------
+// Stage 2: Routing control – handle missing/invalid model
+// ---------------------------------------------------
+if (!model || typeof model !== "object" || !model.id || !model.name) {
   Astro.response.status = 404;
-  Astro.response.statusText = 'Not Found';
+  Astro.response.statusText = "Not Found";
   error = "Model not found or invalid data returned.";
-  // Don't return early, let the Layout render with the error message
 }
 
-// --- 阶段 3: 布局参数安全生成 ---
+// ---------------------------------------------------
+// Stage 3: Generate page metadata safely
+// ---------------------------------------------------
 if (model) {
-    pageTitle = typeof model.name === 'string' && model.name.trim() !== ''
-        ? `${model.name} - AI Nexus`
-        : "AI Model Details - AI Nexus";
+  pageTitle = typeof model.name === "string" && model.name.trim() !== ""
+    ? `${model.name} - AI Nexus`
+    : "AI Model Details - AI Nexus";
 
-    pageDescription = typeof model.description === 'string' 
-        ? model.description.substring(0, 160).replace(/[\n\r]/g, ' ') + "..."
-        : "Explore this AI model on AI Nexus.";
+  pageDescription = typeof model.description === "string"
+    ? model.description.substring(0, 160).replace(/[\n\r]/g, " ") + "..."
+    : "Explore this AI model on AI Nexus.";
 }
 
-// --- 阶段 4: 生成 links_data ---
-const linksData = model ? JSON.stringify({
-  source_url: model.source_url || `https://huggingface.co/${model.id}`,
-  docs_url: model.docs_url || (model.source_url ? `${model.source_url}#readme` : ''),
-  demo_url: model.demo_url || ''
-}) : '{}';
+// ---------------------------------------------------
+// Stage 4: Prepare links data for ModelHero
+// ---------------------------------------------------
+const linksData = model
+  ? JSON.stringify({
+      source_url: model.source_url || `https://huggingface.co/${model.id}`,
+      docs_url: model.docs_url || (model.source_url ? `${model.source_url}#readme` : ""),
+      demo_url: model.demo_url || "",
+    })
+  : "{}";
+
 ---
-
 <Layout title={pageTitle} description={pageDescription}>
-  <!-- Fallback: Inject CSS directly in body if head injection fails -->
-  
   <main class="container mx-auto px-4 py-8">
-    
     {error ? (
-        <div class="max-w-4xl mx-auto text-center py-12">
-            <div class="bg-red-50 border border-red-200 text-red-700 px-6 py-8 rounded-lg shadow-sm">
-                <h2 class="text-2xl font-bold mb-4">Model Not Found</h2>
-                <p class="mb-6">{error}</p>
-                <a href="/" class="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700">
-                    Return Home
-                </a>
-            </div>
+      <div class="max-w-4xl mx-auto text-center py-12">
+        <div class="bg-red-50 border border-red-200 text-red-700 px-6 py-8 rounded-lg shadow-sm">
+          <h2 class="text-2xl font-bold mb-4">Model Not Found</h2>
+          <p class="mb-6">{error}</p>
+          <a href="/" class="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700">
+            Return Home
+          </a>
         </div>
+      </div>
     ) : (
-        <article class="lg:prose-xl mx-auto">
-          <ModelHero 
-            name={model.name}
-            description={model.description}
-            author={model.author}
-            likes={Number(model.likes || 0)}
-            downloads={Number(model.downloads || 0)}
-            pipelineTag={model.pipeline_tag}
-<<<<<<< HEAD
-=======
-            linksData={linksData}
-            lastUpdated={model.last_updated}
-            license={model.license}
-          />
-
-          <TabbedContent
-            overview={model.description || model.seo_summary || "No description available for this model. Content not available at this time."}
-            quickStart={model.quick_start || `# Quick Start\n\nVisit the model repository for usage instructions:\n\n${model.source_url || 'https://huggingface.co'}`} 
-            useCases={model.use_cases || ""}
-            resources={model.resources || ""}
-          />
-
-          <div class="mt-12">
-            <h2 class="text-2xl font-bold mb-6">Related Models</h2>
-            <ModelCarousel 
-                models={relatedModels} 
->>>>>>> 7fbcfb80 (FIX: V9.21 - Forced content injection to resolve missing body; SQL reverted to LIMIT 6; completed final render logic verification.)
-            />
-          </div>
-        </article>
+      <article class="lg:prose-xl mx-auto">
+        <!-- Forced static placeholder to guarantee visible content -->
+        <div class="bg-gray-100 p-8 rounded-lg text-center mb-6">
+          <h2 class="text-2xl font-bold mb-2">Content Placeholder</h2>
+          <p>This static HTML ensures the page always displays core content even if dynamic data is missing.</p>
+        </div>
+        <ModelHero
+          name={model.name}
+          description={model.description}
+          author={model.author}
+          likes={Number(model.likes || 0)}
+          downloads={Number(model.downloads || 0)}
+          pipelineTag={model.pipeline_tag}
+          linksData={linksData}
+          lastUpdated={model.last_updated}
+          license={model.license}
+        />
+        <TabbedContent
+          overview={model.description || model.seo_summary || "No description available for this model. Content not available at this time."}
+          quickStart={model.quick_start || `# Quick Start\n\nVisit the model repository for usage instructions:\n\n${model.source_url || 'https://huggingface.co'}`}
+          useCases={model.use_cases || ""}
+          resources={model.resources || ""}
+        />
+        <div class="mt-12">
+          <h2 class="text-2xl font-bold mb-6">Related Models</h2>
+          <ModelCarousel models={relatedModels} />
+        </div>
+      </article>
     )}
   </main>
 </Layout>
