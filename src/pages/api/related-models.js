@@ -1,4 +1,5 @@
 // src/pages/api/related-models.js
+export const prerender = false;
 export async function GET({ request, locals }) {
     try {
         const url = new URL(request.url);

@@ -1,4 +1,5 @@
 // API endpoint to test DB connection and data structure
+export const prerender = false;
 export async function GET({ locals }) {
     try {
         const db = locals?.runtime?.env?.DB;
