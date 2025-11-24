@@ -77,7 +77,8 @@ const isPopular = likes > 500000 || downloads > 500000;
 
 // Determine if author is "verified" (Mock logic for now, can be expanded)
 const verifiedAuthors = ['meta-llama', 'google', 'microsoft', 'mistralai', 'openai'];
-const isVerified = verifiedAuthors.some(v => author.toLowerCase().includes(v));
+const safeAuthor = author || '';
+const isVerified = verifiedAuthors.some(v => safeAuthor.toLowerCase().includes(v));
 
 // Extract first line of description as tagline
 const tagline = description 
