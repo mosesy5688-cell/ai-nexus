@@ -9,9 +9,9 @@ export default {
     async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
         console.log("Cron job started: Auto-Enrich");
 
-        // 1. 领取任务: 每次处理 5 个未生成的模型
+        // 1. 领取任务: 每次处理 15 个未生成的模型 (V9.52: Scaled up from 5)
         const { results } = await env.DB.prepare(
-            "SELECT * FROM models WHERE seo_status = 'pending' LIMIT 5"
+            "SELECT * FROM models WHERE seo_status = 'pending' LIMIT 15"
         ).all();
 
         if (!results || results.length === 0) {
