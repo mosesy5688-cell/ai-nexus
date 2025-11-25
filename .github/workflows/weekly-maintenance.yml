@@ -39,7 +39,7 @@ jobs:
       # Job 4: Upload backup to artifacts
       - name: Upload D1 Backup
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: d1-backup
           path: backup.sql
