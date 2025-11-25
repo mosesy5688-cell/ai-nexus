@@ -9,11 +9,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   site: 'https://free2aitools.com',
-  output: 'static',
+  output: 'server', // Fixed: Changed from 'static' to 'server' for SSR with D1
   build: {
     assets: 'assets',
     inlineStylesheets: 'never', // Force external CSS files
-    format: 'directory', // 🔥 V9.12: Force directory format for cache busting
+    format: 'directory',
   },
   adapter: cloudflare({
     mode: 'directory',
