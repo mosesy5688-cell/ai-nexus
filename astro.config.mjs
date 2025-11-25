@@ -7,7 +7,33 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-        }
+export default defineConfig({
+  site: 'https://free2aitools.com',
+  output: 'static',
+  build: {
+    assets: 'assets',
+    inlineStylesheets: 'never', // Force external CSS files
+    format: 'directory', // 🔥 V9.12: Force directory format for cache busting
+  },
+  adapter: cloudflare({
+    mode: 'directory',
+    bindings: {
+      DB: 'ai-nexus-db',
+      KV_CACHE: 'ai-nexus',
+      R2_ASSETS: 'ai-nexus-assets',
+    }
+  }),
+  image: {
+    service: {
+      entrypoint: 'astro/assets/services/noop'
+    }
+  },
+  integrations: [tailwind(), sitemap()],
+  vite: {
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src')
       }
     }
-  });
+  }
+});
