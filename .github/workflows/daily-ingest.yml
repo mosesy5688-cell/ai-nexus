@@ -1,7 +1,7 @@
 name: Auto-Ingest (Rust Powered)
 on:
   schedule:
-    - cron: '0 2 * * *' # Daily at 2 AM UTC+8
+    - cron: '0 2 * * *' # Daily at 2 AM UTC
   workflow_dispatch:
 
 jobs:
@@ -46,14 +46,23 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler@3.8.0
 
-      # Step 6: Sync to D1 (REMOVED --remote flag)
+      # Step 6: Ensure last_updated column exists
+      - name: Ensure last_updated Column
+        run: |
+          echo "Ensuring last_updated column exists..."
+          wrangler d1 execute ai-nexus-db --command "ALTER TABLE models ADD COLUMN last_updated TEXT DEFAULT CURRENT_TIMESTAMP;" || echo "Column may already exist (this is OK)"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Step 7: Sync to D1
       - name: Sync to D1
         run: wrangler d1 execute ai-nexus-db --file=./data/upsert.sql
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Step 7: Upload logs (always runs)
+      # Step 8: Upload logs (always runs)
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v4

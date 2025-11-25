@@ -2,7 +2,7 @@ name: Weekly Maintenance (Auto-Ops)
 
 on:
   schedule:
-    - cron: '0 3 * * 0' # Every Sunday at 3 AM UTC+8
+    - cron: '0 4 * * 1' # 4 AM UTC every Monday
   workflow_dispatch:
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler@3.8.0
 
-      # Step 3: Dead Link Checker (uses .cjs WITHOUT --remote)
+      # Step 3: Dead Link Checker (uses .cjs)
       - name: Check Dead Links
         continue-on-error: true
         run: node scripts/check-links.cjs
@@ -27,27 +27,21 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Step 4: Create D1 Backup (NEW backup API)
+      # Step 4: Upload active links data
+      - name: Upload Active Links Data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: active-links
+          path: data/active_links.json
+
+      # Step 5: Create D1 Backup
       - name: Create D1 Backup
         run: |
           echo "Creating D1 backup..."
           wrangler d1 backup create ai-nexus-db
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      # Step 5: List and Download Latest Backup  
-      - name: Download D1 Backup
-        run: |
-          echo "Listing available backups..."
-          BACKUP_LIST=$(wrangler d1 backup list ai-nexus-db --json)
-          echo "$BACKUP_LIST"
-          
-          # Get the most recent backup ID (this is a simplified example)
-          # In production, you'd parse JSON properly
-          echo "Note: Backup created. Download requires backup ID from list."
-          echo "For now, we'll create a placeholder backup file."
-          echo "Backup created at $(date)" > ./backup.sql
+          echo "Backup created on Cloudflare at $(date)" > backup.sql
+          echo "Use 'wrangler d1 backup list ai-nexus-db' to see backup IDs"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -56,7 +50,8 @@ jobs:
       - name: Verify Backup
         run: |
           if [ -f "./backup.sql" ]; then
-            echo "Backup file exists. Size: $(wc -c < ./backup.sql) bytes"
+            echo "Backup placeholder exists. Size: $(wc -c < ./backup.sql) bytes"
+            cat ./backup.sql
           else
             echo "Warning: Backup file not found"
           fi
