@@ -137,8 +137,8 @@ if (model) {
 // ---------------------------------------------------
 const linksData = model
   ? JSON.stringify({
-      source_url: model.source_url || `https://huggingface.co/${model.id}`,
-      docs_url: model.docs_url || (model.source_url ? `${model.source_url}#readme` : ""),
+      source_url: model.source_url || "",
+      docs_url: model.docs_url || "",
       demo_url: model.demo_url || "",
     })
   : "{}";

@@ -42,8 +42,25 @@ const { overview, quickStart, useCases = '', resources = '' } = Astro.props;
   <section x-show="active === 'resources'" class="prose lg:prose-xl max-w-none" style="display: none;">
     {(() => {
         try {
-            const parsedResources = resources ? JSON.parse(resources) : [];
-            if (parsedResources.length > 0) {
+            let parsedResources = [];
+            if (resources) {
+                try {
+                    parsedResources = JSON.parse(resources);
+                } catch (parseErr) {
+                    console.warn("JSON parse failed, treating as raw string:", parseErr);
+                    // Fallback: if it looks like a URL, wrap it in an object
+                    if (typeof resources === 'string' && (resources.startsWith('http') || resources.startsWith('/'))) {
+                        parsedResources = [{ platform: 'Source', url: resources }];
+                    } else {
+                         return <div class="p-4 bg-gray-50 rounded">
+                            <p class="font-medium text-gray-700">Raw Resource Data:</p>
+                            <pre class="mt-2 text-xs overflow-x-auto">{resources}</pre>
+                         </div>;
+                    }
+                }
+            }
+
+            if (Array.isArray(parsedResources) && parsedResources.length > 0) {
                 return (
                     <div class="space-y-4">
                         <p class="text-gray-600 dark:text-gray-300">Original source data and files:</p>
@@ -71,11 +88,10 @@ const { overview, quickStart, useCases = '', resources = '' } = Astro.props;
                 );
             }
         } catch (e) {
-            console.error("Failed to parse resources:", e);
+            console.error("Critical error in resources render:", e);
         }
         return <p class="text-gray-500 italic">No additional resources available.</p>;
     })()}
-  </section>
   </section>
 </div>
 
