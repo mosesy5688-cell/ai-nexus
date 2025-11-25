@@ -1,72 +1,40 @@
-name: Weekly Maintenance (Auto-Ops)
+name: Weekly Maintenance
 
 on:
   schedule:
-    - cron: '0 4 * * 1' # 4 AM UTC every Monday
+    - cron: '0 4 * * 0' # 每周日凌晨4点运行
   workflow_dispatch:
 
 jobs:
   maintenance:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # Step 1: Install Node Dependencies
-      - name: Install Node Dependencies
-        run: npm ci
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
 
-      # Step 2: Install Wrangler globally
       - name: Install Wrangler
         run: npm install -g wrangler@3.8.0
 
-      # Step 3: Dead Link Checker (uses .cjs)
-      - name: Check Dead Links
-        continue-on-error: true
-        run: node scripts/check-links.cjs
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      # Step 4: Upload active links data
-      - name: Upload Active Links Data
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: active-links
-          path: data/active_links.json
-
-      # Step 5: Create D1 Backup
-      - name: Create D1 Backup
+      - name: Create D1 backup
         run: |
           echo "Creating D1 backup..."
-          wrangler d1 backup create ai-nexus-db
-          echo "Backup created on Cloudflare at $(date)" > backup.sql
-          echo "Use 'wrangler d1 backup list ai-nexus-db' to see backup IDs"
+          BACKUP_ID=$(wrangler d1 backup create ai-nexus-db --json | jq -r '.id')
+          echo "Backup created with ID: $BACKUP_ID"
+          echo "Backup ID: $BACKUP_ID" > ./backup.txt
+          echo "Created at: $(date)" >> ./backup.txt
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Step 6: Verify backup file exists
-      - name: Verify Backup
-        run: |
-          if [ -f "./backup.sql" ]; then
-            echo "Backup placeholder exists. Size: $(wc -c < ./backup.sql) bytes"
-            cat ./backup.sql
-          else
-            echo "Warning: Backup file not found"
-          fi
-
-      # Step 7: Ping Search Engines (non-blocking)
-      - name: Ping Search Engines
-        continue-on-error: true
-        run: |
-          curl "https://www.google.com/ping?sitemap=https://free2aitools.com/sitemap-index.xml"
-
-      # Step 8: Upload D1 Backup (always runs)
-      - name: Upload D1 Backup
+      - name: Upload D1 backup artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: d1-backup
-          path: backup.sql
-          retention-days: 7
+          path: ./backup.txt
+          retention-days: 30

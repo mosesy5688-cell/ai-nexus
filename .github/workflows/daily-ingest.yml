@@ -1,73 +1,52 @@
-name: Auto-Ingest (Rust Powered)
+name: Daily Ingest
+
 on:
   schedule:
-    - cron: '0 2 * * *' # Daily at 2 AM UTC
+    - cron: '0 3 * * *' # 每天凌晨3点运行
   workflow_dispatch:
 
 jobs:
-  ingest-and-process:
+  ingest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # Step 1: Install Node Dependencies
-      - name: Install Node Dependencies
-        run: npm ci
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
 
-      # Step 2: Fetch Metadata
-      - name: Fetch Metadata
-        continue-on-error: false
-        run: node scripts/fetch-metadata.js
-        env:
-          CF_PROXY_URL: ${{ secrets.CF_PROXY_URL }}
-
-      # Step 3: Build and Run Rust Tool
-      - name: Build and Run Rust Tool
-        run: |
-          cd tools/rust-img-optimizer
-          cargo run --release -- --input ../../data/raw.json --upload
-        env:
-          R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
-          R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
-          R2_BUCKET: "ai-nexus-assets"
-
-      # Step 4: Verify SQL file was generated
-      - name: Verify SQL File
-        run: |
-          if [ ! -f "./data/upsert.sql" ]; then
-            echo "Error: upsert.sql not found!"
-            exit 1
-          fi
-          echo "SQL file found. Size: $(wc -c < ./data/upsert.sql) bytes"
-          echo "First 5 lines:"
-          head -n 5 ./data/upsert.sql
-
-      # Step 5: Install Wrangler globally
       - name: Install Wrangler
         run: npm install -g wrangler@3.8.0
 
-      # Step 6: Ensure last_updated column exists
-      - name: Ensure last_updated Column
+      - name: Ensure last_updated column exists
         run: |
           echo "Ensuring last_updated column exists..."
-          wrangler d1 execute ai-nexus-db --command "ALTER TABLE models ADD COLUMN last_updated TEXT DEFAULT CURRENT_TIMESTAMP;" || echo "Column may already exist (this is OK)"
+          wrangler d1 execute ai-nexus-db --command "
+          BEGIN;
+          ALTER TABLE models ADD COLUMN last_updated TEXT;
+          COMMIT;
+          " || echo "Column last_updated may already exist, continuing..."
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Step 7: Sync to D1
-      - name: Sync to D1
+      - name: Execute upsert SQL
         run: wrangler d1 execute ai-nexus-db --file=./data/upsert.sql
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Step 8: Upload logs (always runs)
-      - name: Upload Logs
+      - name: Check active links
+        run: node scripts/check-links.cjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Upload active links artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ingest-logs
-          path: |
-            data/raw.json
-            data/upsert.sql
+          name: active-links
+          path: data/active_links.json
