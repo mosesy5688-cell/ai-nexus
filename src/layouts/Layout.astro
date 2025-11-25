@@ -56,14 +56,6 @@ const { title, description = 'A premier, free directory of open-source AI models
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2292826803755214"
      crossorigin="anonymous"></script>
 
-    <!-- V9.70: Force inline critical global styles for SSR pages -->
-    <!-- This ensures global styles are available even with code splitting -->
-    <style is:global>
-        /* Critical base styles to prevent FOUC */
-        html { font-family: system-ui, -apple-system, sans-serif; }
-        body { margin: 0; min-height: 100vh; }
-    </style>
-
     <!-- Global Alpine.js loaded for TabbedContent & ModelCarousel -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
