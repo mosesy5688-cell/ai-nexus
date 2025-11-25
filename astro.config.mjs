@@ -30,19 +30,19 @@ export default defineConfig({
   },
   integrations: [tailwind(), sitemap()],
   vite: {
+    base: '/',
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src')
       }
     },
     build: {
-      // V9.70: Prevent CSS code splitting for SSR pages
-      // This ensures all Tailwind styles are available on detail pages
+      // V9.71: Prevent CSS code splitting + ensure proper asset paths
       cssCodeSplit: false,
       rollupOptions: {
         output: {
-          // Force single CSS bundle to prevent missing styles
-          manualChunks: undefined
+          manualChunks: undefined,
+          assetFileNames: 'assets/[name]-[hash][extname]'
         }
       }
     }
