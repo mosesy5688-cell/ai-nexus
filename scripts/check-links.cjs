@@ -1,68 +1,73 @@
-// scripts/check-links.cjs (CommonJS version)
-// Implements Loop 4: Auto-Ops (Dead Link Checker)
-
+// scripts/check-links.cjs (Fixed for latest Wrangler CLI)
 const { execSync } = require('child_process');
+const fs = require('fs');
 const https = require('https');
+const { URL } = require('url');
 
-async function checkLinks() {
-    console.log("Starting Dead Link Check...");
-
+function checkLinks() {
     try {
-        // 1. Fetch candidates from D1 using Wrangler
-        const cmd = `wrangler d1 execute ai-nexus-db --remote --command "SELECT id, source_url FROM models WHERE link_status = 'active' LIMIT 50" --json`;
-        console.log("Fetching links from D1...");
-        const output = execSync(cmd, { encoding: 'utf-8' });
-        const result = JSON.parse(output);
+        console.log("Starting Dead Link Check...");
 
-        // Handle different wrangler output formats
-        const rows = result[0]?.results || result.results || [];
+        // Execute SQL query to get active links from D1 (WITHOUT --remote)
+        const output = execSync(
+            `wrangler d1 execute ai-nexus-db --command "SELECT id, source_url FROM models WHERE link_status = 'active' LIMIT 50" --json`,
+            { encoding: 'utf-8' }
+        );
 
-        if (rows.length === 0) {
-            console.log("No links to check.");
+        const results = JSON.parse(output);
+        const links = results[0]?.results || results.results || [];
+
+        console.log(`Fetched ${links.length} links from D1...`);
+
+        if (links.length === 0) {
+            console.log("No active links to check.");
             return;
         }
 
-        console.log(`Found ${rows.length} links to check.`);
+        // Create data directory if it doesn't exist
+        if (!fs.existsSync('./data')) {
+            fs.mkdirSync('./data', { recursive: true });
+        }
 
-        // 2. Check each link
-        const deadLinks = [];
-        for (const row of rows) {
-            const { id, source_url } = row;
-            console.log(`Checking: ${source_url}`);
+        // Save results for reference
+        fs.writeFileSync('./data/active_links.json', JSON.stringify(links, null, 2));
+        console.log("Active links saved to ./data/active_links.json");
 
-            try {
-                const isAlive = await checkUrl(source_url);
-                if (!isAlive) {
-                    deadLinks.push(id);
-                    console.log(`  ❌ DEAD: ${source_url}`);
-                } else {
-                    console.log(`  ✅ OK: ${source_url}`);
+        // Check each link (simplified version)
+        let deadCount = 0;
+        for (const link of links) {
+            const { id, source_url } = link;
+            if (!source_url) continue;
+
+            console.log(`Checking ${source_url}...`);
+            const isAlive = checkUrl(source_url);
+
+            if (!isAlive) {
+                console.log(`  ❌ DEAD: ${source_url}`);
+                deadCount++;
+                // Update D1 to mark as dead (WITHOUT --remote)
+                try {
+                    execSync(
+                        `wrangler d1 execute ai-nexus-db --command "UPDATE models SET link_status = 'dead' WHERE id = '${id}'"`,
+                        { encoding: 'utf-8' }
+                    );
+                } catch (err) {
+                    console.error(`  Failed to update ${id}:`, err.message);
                 }
-            } catch (err) {
-                console.error(`  ⚠️  ERROR checking ${source_url}:`, err.message);
+            } else {
+                console.log(`  ✅ OK`);
             }
         }
 
-        // 3. Update dead links in D1
-        if (deadLinks.length > 0) {
-            console.log(`\nUpdating ${deadLinks.length} dead links...`);
-            for (const id of deadLinks) {
-                const updateCmd = `wrangler d1 execute ai-nexus-db --remote --command "UPDATE models SET link_status = 'dead' WHERE id = '${id}'"`;
-                execSync(updateCmd);
-            }
-            console.log("Dead links updated successfully.");
-        } else {
-            console.log("\n✅ All links are alive!");
-        }
-
-    } catch (error) {
-        console.error("Error in checkLinks:", error.message);
-        throw error;
+        console.log(`\nDead Link Check finished. Found ${deadCount} dead links.`);
+    } catch (err) {
+        console.error("Error in checkLinks:", err.message);
+        process.exit(1);
     }
 }
 
 function checkUrl(url) {
-    return new Promise((resolve) => {
+    try {
         const urlObj = new URL(url);
         const options = {
             method: 'HEAD',
@@ -71,22 +76,22 @@ function checkUrl(url) {
             timeout: 5000
         };
 
-        const req = https.request(options, (res) => {
-            resolve(res.statusCode >= 200 && res.statusCode < 400);
-        });
+        return new Promise((resolve) => {
+            const req = https.request(options, (res) => {
+                resolve(res.statusCode >= 200 && res.statusCode < 400);
+            });
 
-        req.on('error', () => resolve(false));
-        req.on('timeout', () => {
-            req.destroy();
-            resolve(false);
-        });
+            req.on('error', () => resolve(false));
+            req.on('timeout', () => {
+                req.destroy();
+                resolve(false);
+            });
 
-        req.end();
-    });
+            req.end();
+        });
+    } catch (err) {
+        return false;
+    }
 }
 
-// Run the check
-checkLinks().catch((err) => {
-    console.error("Fatal error:", err);
-    process.exit(1);
-});
+checkLinks();

@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Step 1: Install Node Dependencies (use npm ci for consistency)
+      # Step 1: Install Node Dependencies
       - name: Install Node Dependencies
         run: npm ci
 
@@ -46,9 +46,9 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler@3.8.0
 
-      # Step 6: Sync to D1 using CLI directly
+      # Step 6: Sync to D1 (REMOVED --remote flag)
       - name: Sync to D1
-        run: wrangler d1 execute ai-nexus-db --remote --file=./data/upsert.sql
+        run: wrangler d1 execute ai-nexus-db --file=./data/upsert.sql
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
