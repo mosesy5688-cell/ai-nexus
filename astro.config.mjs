@@ -13,33 +13,17 @@ export default defineConfig({
   build: {
     assets: 'assets',
     inlineStylesheets: 'never', // Force external CSS files
-    format: 'directory', // 🔥 V9.12: Force directory format for cache busting
-    // 🔥 V9.15: PLATFORM CACHE BUST - Force complete rebuild
-    // Build timestamp: 2025-11-24T18:45:00Z
-  },
-  adapter: cloudflare({
-    mode: 'directory',
-    routes: {
-      strategy: 'include',
-      include: ['/api/*']
+    image: {
+      service: {
+        entrypoint: 'astro/assets/services/noop'
+      }
     },
-    bindings: {
-      DB: 'ai-nexus-db',
-      KV_CACHE: 'ai-nexus',
-      R2_ASSETS: 'ai-nexus-assets',
-    }
-  }),
-  image: {
-    service: {
-      entrypoint: 'astro/assets/services/noop'
-    }
-  },
-  integrations: [tailwind(), sitemap()],
-  vite: {
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, './src')
+    integrations: [tailwind(), sitemap()],
+    vite: {
+      resolve: {
+        alias: {
+          '@': path.resolve(__dirname, './src')
+        }
       }
     }
-  }
-});
+  });
