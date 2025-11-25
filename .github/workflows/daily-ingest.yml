@@ -1,7 +1,7 @@
 name: Auto-Ingest (Rust Powered)
 on:
   schedule:
-    - cron: '0 2 * * *' # 每天凌晨 2 点
+    - cron: '0 2 * * *' # Daily at 2 AM UTC+8
   workflow_dispatch:
 
 jobs:
@@ -10,9 +10,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Step 1: Install JS Dependencies
-      - name: Install Dependencies
-        run: npm install
+      # Step 1: Install Node Dependencies (use npm ci for consistency)
+      - name: Install Node Dependencies
+        run: npm ci
 
       # Step 2: Fetch Metadata
       - name: Fetch Metadata
@@ -42,15 +42,18 @@ jobs:
           echo "First 5 lines:"
           head -n 5 ./data/upsert.sql
 
-      # Step 5: Sync to D1 with proper configuration
-      - name: Sync to D1
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 execute ai-nexus-db --remote --file=./data/upsert.sql
+      # Step 5: Install Wrangler globally
+      - name: Install Wrangler
+        run: npm install -g wrangler@3.8.0
 
-      # Step 6: Upload logs (always runs)
+      # Step 6: Sync to D1 using CLI directly
+      - name: Sync to D1
+        run: wrangler d1 execute ai-nexus-db --remote --file=./data/upsert.sql
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Step 7: Upload logs (always runs)
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v4

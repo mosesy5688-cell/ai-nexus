@@ -2,7 +2,7 @@ name: Weekly Maintenance (Auto-Ops)
 
 on:
   schedule:
-    - cron: '0 3 * * 0' # Every Sunday at 3 AM
+    - cron: '0 3 * * 0' # Every Sunday at 3 AM UTC+8
   workflow_dispatch:
 
 jobs:
@@ -11,42 +11,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Step 1: Install JS Dependencies
-      - name: Install Dependencies
-        run: npm install
+      # Step 1: Install Node Dependencies
+      - name: Install Node Dependencies
+        run: npm ci
 
-      # Step 2: Dead Link Checker (non-blocking)
+      # Step 2: Install Wrangler globally
+      - name: Install Wrangler
+        run: npm install -g wrangler@3.8.0
+
+      # Step 3: Dead Link Checker (non-blocking, uses .cjs)
       - name: Check Dead Links
         continue-on-error: true
-        run: node scripts/check-links.js
+        run: node scripts/check-links.cjs
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Step 3: D1 Database Backup
+      # Step 4: D1 Database Backup using CLI
       - name: Backup D1 Database
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 export ai-nexus-db --remote --output=./backup.sql
+        run: wrangler d1 export ai-nexus-db --remote --output=./backup.sql
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Step 4: Verify backup was created
+      # Step 5: Verify backup was created
       - name: Verify Backup
         run: |
           if [ -f "./backup.sql" ]; then
             echo "Backup created successfully. Size: $(wc -c < ./backup.sql) bytes"
           else
             echo "Warning: Backup file not found"
+            exit 1
           fi
 
-      # Step 5: Ping Search Engines (non-blocking)
+      # Step 6: Ping Search Engines (non-blocking)
       - name: Ping Search Engines
         continue-on-error: true
         run: |
           curl "https://www.google.com/ping?sitemap=https://free2aitools.com/sitemap-index.xml"
 
-      # Step 6: Upload D1 Backup
+      # Step 7: Upload D1 Backup (always runs)
       - name: Upload D1 Backup
         if: always()
         uses: actions/upload-artifact@v4
