@@ -2,48 +2,88 @@ name: Daily Ingest
 
 on:
   schedule:
-    - cron: '0 3 * * *' # 每天凌晨3点运行
+    - cron: '0 3 * * *' # Daily at 03:00 UTC
   workflow_dispatch:
 
 jobs:
   ingest:
     runs-on: ubuntu-latest
     steps:
+      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Step 2: Setup Node.js environment
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 20
 
+      # Step 3: Install Wrangler CLI globally
       - name: Install Wrangler
         run: npm install -g wrangler@3.8.0
 
+      # Step 4: Ensure last_updated column exists in models table
+      # This handles the case where the column doesn't exist yet
+      # If it already exists, the error is caught and ignored
       - name: Ensure last_updated column exists
         run: |
-          echo "Ensuring last_updated column exists..."
-          wrangler d1 execute ai-nexus-db --command "
-          BEGIN;
-          ALTER TABLE models ADD COLUMN last_updated TEXT;
-          COMMIT;
-          " || echo "Column last_updated may already exist, continuing..."
+          echo "Checking if last_updated column exists..."
+          wrangler d1 execute ai-nexus-db --command "ALTER TABLE models ADD COLUMN last_updated TEXT;" 2>&1 | tee column_result.txt || true
+          if grep -q "duplicate column" column_result.txt; then
+            echo "✅ Column 'last_updated' already exists"
+          elif grep -q "error" column_result.txt; then
+            echo "⚠️  Unexpected error, but continuing..."
+            cat column_result.txt
+          else
+            echo "✅ Column 'last_updated' created successfully"
+          fi
+          rm -f column_result.txt
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      # Step 5: Verify upsert.sql file exists
+      - name: Verify upsert.sql exists
+        run: |
+          if [ ! -f "./data/upsert.sql" ]; then
+            echo "❌ Error: ./data/upsert.sql not found!"
+            exit 1
+          fi
+          echo "✅ Found ./data/upsert.sql ($(wc -c < ./data/upsert.sql) bytes)"
+
+      # Step 6: Execute upsert SQL to sync data to D1
       - name: Execute upsert SQL
-        run: wrangler d1 execute ai-nexus-db --file=./data/upsert.sql
+        run: |
+          echo "Executing upsert.sql..."
+          wrangler d1 execute ai-nexus-db --file=./data/upsert.sql
+          echo "✅ Upsert completed successfully"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      # Step 7: Run link checker to generate active_links.json
       - name: Check active links
-        run: node scripts/check-links.cjs
+        run: |
+          echo "Running link checker..."
+          node scripts/check-links.cjs
+          echo "✅ Link check completed"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      # Step 8: Verify active_links.json was created
+      - name: Verify active_links.json
+        run: |
+          if [ -f "./data/active_links.json" ]; then
+            echo "✅ Found ./data/active_links.json ($(wc -c < ./data/active_links.json) bytes)"
+          else
+            echo "⚠️  Warning: active_links.json not found, creating empty file"
+            mkdir -p ./data
+            echo "[]" > ./data/active_links.json
+          fi
+
+      # Step 9: Upload active links as artifact
       - name: Upload active links artifact
         if: always()
         uses: actions/upload-artifact@v4
