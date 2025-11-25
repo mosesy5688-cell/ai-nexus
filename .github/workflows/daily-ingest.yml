@@ -18,6 +18,7 @@ jobs:
       # Step 1: 智能元数据抓取 (Smart Fetch)
       # 如果直连失败，自动切换到 Secrets 中配置的 Worker 代理
       - name: Fetch Metadata
+        continue-on-error: false
         run: node scripts/fetch-metadata.js
         env:
           CF_PROXY_URL: ${{ secrets.CF_PROXY_URL }}
@@ -35,7 +36,18 @@ jobs:
 
       # Step 3: D1 增量同步 (Upsert)
       - name: Sync to D1
+        continue-on-error: false
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: d1 execute ai-nexus-db --file=./data/upsert.sql
+          command: d1 execute ai-nexus-db --remote --file=./data/upsert.sql
+      
+      # Step 4: Upload logs as artifacts
+      - name: Upload Logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: ingest-logs
+          path: |
+            data/raw.json
+            data/upsert.sql
