@@ -5,6 +5,7 @@ import Layout from '../../layouts/Layout.astro';
 import ModelHero from '../../components/ModelHero.astro';
 import TabbedContent from '../../components/TabbedContent.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
+import Comments from '../../components/Comments.astro';
 import { getModelBySlug } from '../../utils/db';
 
 const { slug } = Astro.params;
@@ -174,12 +175,98 @@ const linksData = model
           lastUpdated={model.last_updated}
           license={model.license}
         />
-        <TabbedContent
-          overview={model.description || model.seo_summary || "No description available for this model. Content not available at this time."}
-          quickStart={model.quick_start || `# Quick Start\n\nVisit the model repository for usage instructions:\n\n${model.source_url || 'https://huggingface.co'}`}
-          useCases={model.use_cases || ""}
-          resources={model.resources || "[]"}
-        />
+        {/* Main Content Area - Simplified Linear Flow */}
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-12 mt-8">
+          
+          {/* Left Column: Description & Details */}
+          <div class="lg:col-span-2 space-y-12">
+            
+            {/* About Section */}
+            <section>
+              <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">About this Model</h2>
+              <div class="prose lg:prose-xl max-w-none dark:prose-invert text-gray-700 dark:text-gray-300">
+                <div class="whitespace-pre-wrap">{model.description || model.seo_summary || "No description available."}</div>
+              </div>
+            </section>
+
+            {/* Resources Section (Always Visible) */}
+            {model.resources && model.resources !== "[]" && (
+              <section class="bg-blue-50 dark:bg-gray-800 rounded-xl p-6 border border-blue-100 dark:border-gray-700">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  Resources & Files
+                </h3>
+                {(() => {
+                  try {
+                    let parsed = [];
+                    try {
+                      parsed = JSON.parse(model.resources);
+                    } catch (e) {
+                      // Fallback for raw strings
+                      if (typeof model.resources === 'string' && model.resources.startsWith('http')) {
+                        parsed = [{ platform: 'Source', url: model.resources }];
+                      }
+                    }
+                    
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                      return (
+                        <ul class="space-y-3">
+                          {parsed.map((res: any) => (
+                            <li class="flex items-start gap-3">
+                              <svg class="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                              </svg>
+                              <div>
+                                <a href={res.url} target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium break-all">
+                                  {res.url}
+                                </a>
+                                {res.files && res.files.length > 0 && (
+                                  <p class="text-sm text-gray-500 mt-1">
+                                    Includes {res.files.length} file{res.files.length !== 1 ? 's' : ''}
+                                  </p>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    }
+                  } catch (e) {
+                    return <p class="text-sm text-gray-500">Resource data available at source link.</p>;
+                  }
+                })()}
+              </section>
+            )}
+
+            {/* Comments Placeholder */}
+            <Comments modelId={model.id} />
+
+          </div>
+
+          {/* Right Column: Quick Stats & Sidebar */}
+          <div class="space-y-8">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Quick Stats</h3>
+              <dl class="space-y-4">
+                <div class="flex justify-between">
+                  <dt class="text-gray-500 dark:text-gray-400">License</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white">{model.license || "Unknown"}</dd>
+                </div>
+                <div class="flex justify-between">
+                  <dt class="text-gray-500 dark:text-gray-400">Downloads</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white">{Number(model.downloads).toLocaleString()}</dd>
+                </div>
+                <div class="flex justify-between">
+                  <dt class="text-gray-500 dark:text-gray-400">Likes</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white">{Number(model.likes).toLocaleString()}</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+
+        </div>
         <div class="mt-12">
           <h2 class="text-2xl font-bold mb-6">Related Models</h2>
           <ModelCarousel models={relatedModels} />
