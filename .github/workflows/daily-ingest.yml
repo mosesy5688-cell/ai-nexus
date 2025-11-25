@@ -10,23 +10,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Step 1: 智能元数据抓取 (Smart Fetch)
-      # 如果直连失败，自动切换到 Secrets 中配置的 Worker 代理
+      # Step 1: Install Dependencies
       - name: Install Dependencies
         run: npm install
 
-      # Step 1: 智能元数据抓取 (Smart Fetch)
-      # 如果直连失败，自动切换到 Secrets 中配置的 Worker 代理
+      # Step 2: Fetch Metadata
       - name: Fetch Metadata
         continue-on-error: false
         run: node scripts/fetch-metadata.js
         env:
           CF_PROXY_URL: ${{ secrets.CF_PROXY_URL }}
 
-      # Step 2: Build and Run Rust Tool
-      # We build on the fly to ensure compatibility with the runner (Ubuntu)
+      # Step 3: Build and Run Rust Tool
       - name: Build and Run Rust Tool
         run: |
+          cd tools/rust-img-optimizer
+          cargo run --release -- --input ../../data/raw.json --upload
+        env:
+          R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
+          R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
+          R2_BUCKET: "ai-nexus-assets"
+
+      # Step 4: Install Wrangler explicitly
+      - name: Install Wrangler
+        run: npm install -g wrangler@3.8.0
+      
+      # Step 5: D1 Sync
+      - name: Sync to D1
+        continue-on-error: false
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: d1 execute ai-nexus-db --remote --file=./data/upsert.sql
+      
+      # Step 6: Upload logs as artifacts
+      - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
