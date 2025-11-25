@@ -11,10 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Step 1: Install JS Dependencies
       - name: Install Dependencies
         run: npm install
 
-      # Job 1: Dead Link Checker
+      # Step 2: Dead Link Checker
       - name: Check Dead Links
         continue-on-error: true
         run: node scripts/check-links.js
@@ -22,11 +23,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Job 2: Install Wrangler explicitly
-      - name: Install Wrangler
-        run: npm install -g wrangler@3.8.0
-
-      # Job 3: Database Snapshot (Backup)
+      # Step 3: D1 Database Backup (Do NOT install Wrangler manually)
       - name: Backup D1 Database
         uses: cloudflare/wrangler-action@v3
         with:
@@ -34,13 +31,13 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: d1 export ai-nexus-db --remote --output=./backup.sql
 
-      # Job 4: Sitemap & Ping
+      # Step 4: Ping Search Engines
       - name: Ping Search Engines
         continue-on-error: true
         run: |
           curl "https://www.google.com/ping?sitemap=https://free2aitools.com/sitemap-index.xml"
-      
-      # Job 5: Upload backup to artifacts
+
+      # Step 5: Upload D1 Backup
       - name: Upload D1 Backup
         if: always()
         uses: actions/upload-artifact@v4

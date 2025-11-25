@@ -1,7 +1,7 @@
 name: Auto-Ingest (Rust Powered)
 on:
   schedule:
-    - cron: '0 2 * * *' # 每天凌晨 2 点 (避开高峰)
+    - cron: '0 2 * * *' # 每天凌晨 2 点
   workflow_dispatch:
 
 jobs:
@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Step 1: Install Dependencies
+      # Step 1: Install JS Dependencies
       - name: Install Dependencies
         run: npm install
 
@@ -31,19 +31,14 @@ jobs:
           R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
           R2_BUCKET: "ai-nexus-assets"
 
-      # Step 4: Install Wrangler explicitly
-      - name: Install Wrangler
-        run: npm install -g wrangler@3.8.0
-      
-      # Step 5: D1 Sync
+      # Step 4: Sync to D1 (Do NOT install wrangler manually)
       - name: Sync to D1
-        continue-on-error: false
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           command: d1 execute ai-nexus-db --remote --file=./data/upsert.sql
-      
-      # Step 6: Upload logs as artifacts
+
+      # Step 5: Upload logs
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v4
