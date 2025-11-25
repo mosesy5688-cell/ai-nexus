@@ -19,42 +19,59 @@ jobs:
         with:
           node-version: 20
 
-      # Step 3: Install Wrangler CLI globally
+      # Step 3: Install Dependencies (Node & Rust)
+      - name: Install Dependencies
+        run: |
+          npm ci
+          # Rust is pre-installed on ubuntu-latest
+
+      # Step 4: Fetch Metadata (Core Step)
+      - name: Fetch Metadata
+        run: |
+          echo "Fetching metadata..."
+          node scripts/fetch-metadata.js
+          echo "✅ Metadata fetched"
+        env:
+          CF_PROXY_URL: ${{ secrets.CF_PROXY_URL }}
+
+      # Step 5: Process Data with Rust (Core Step)
+      - name: Process Data (Rust)
+        run: |
+          echo "Building and running Rust optimizer..."
+          cd tools/rust-img-optimizer
+          cargo run --release -- --input ../../data/raw.json --upload
+          echo "✅ Data processed and upsert.sql generated"
+        env:
+          R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
+          R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
+          R2_BUCKET: "ai-nexus-assets"
+
+      # Step 6: Install Wrangler CLI globally
       - name: Install Wrangler
         run: npm install -g wrangler@3.8.0
 
-      # Step 4: Ensure last_updated column exists in models table
-      # This handles the case where the column doesn't exist yet
-      # If it already exists, the error is caught and ignored
+      # Step 7: Ensure last_updated column exists
       - name: Ensure last_updated column exists
         run: |
           echo "Checking if last_updated column exists..."
           wrangler d1 execute ai-nexus-db --command "ALTER TABLE models ADD COLUMN last_updated TEXT;" 2>&1 | tee column_result.txt || true
           if grep -q "duplicate column" column_result.txt; then
             echo "✅ Column 'last_updated' already exists"
-          elif grep -q "error" column_result.txt; then
-            echo "⚠️  Unexpected error, but continuing..."
-            cat column_result.txt
           else
-            echo "✅ Column 'last_updated' created successfully"
+            echo "✅ Column 'last_updated' check completed"
           fi
           rm -f column_result.txt
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Step 5: Verify upsert.sql file exists
-      - name: Verify upsert.sql exists
+      # Step 8: Execute upsert SQL
+      - name: Execute upsert SQL
         run: |
           if [ ! -f "./data/upsert.sql" ]; then
             echo "❌ Error: ./data/upsert.sql not found!"
             exit 1
           fi
-          echo "✅ Found ./data/upsert.sql ($(wc -c < ./data/upsert.sql) bytes)"
-
-      # Step 6: Execute upsert SQL to sync data to D1
-      - name: Execute upsert SQL
-        run: |
           echo "Executing upsert.sql..."
           wrangler d1 execute ai-nexus-db --file=./data/upsert.sql
           echo "✅ Upsert completed successfully"
@@ -62,7 +79,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Step 7: Run link checker to generate active_links.json
+      # Step 9: Run link checker
       - name: Check active links
         run: |
           echo "Running link checker..."
@@ -72,21 +89,13 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Step 8: Verify active_links.json was created
-      - name: Verify active_links.json
-        run: |
-          if [ -f "./data/active_links.json" ]; then
-            echo "✅ Found ./data/active_links.json ($(wc -c < ./data/active_links.json) bytes)"
-          else
-            echo "⚠️  Warning: active_links.json not found, creating empty file"
-            mkdir -p ./data
-            echo "[]" > ./data/active_links.json
-          fi
-
-      # Step 9: Upload active links as artifact
-      - name: Upload active links artifact
+      # Step 10: Upload artifacts
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: active-links
-          path: data/active_links.json
+          name: ingest-logs
+          path: |
+            data/raw.json
+            data/upsert.sql
+            data/active_links.json

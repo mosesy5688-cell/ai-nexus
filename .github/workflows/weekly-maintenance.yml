@@ -23,27 +23,23 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler@3.8.0
 
-      # Step 4: Create D1 backup using the new backup API
-      # NOTE: The --json flag is NOT supported in the current version
-      # We parse the text output instead
+      # Step 4: Create D1 backup (Core Step)
       - name: Create D1 backup
         run: |
           echo "Creating D1 backup for ai-nexus-db..."
           
-          # Create backup and capture output (WITHOUT --json flag)
-          BACKUP_OUTPUT=$(wrangler d1 backup create ai-nexus-db 2>&1) || true
-          
-          echo "Backup command output:"
-          echo "$BACKUP_OUTPUT"
-          
-          # Try to extract backup ID from output
-          # The output format may vary, so we use multiple patterns
-          BACKUP_ID=$(echo "$BACKUP_OUTPUT" | grep -oP '(?<=ID:\s)[a-zA-Z0-9-]+' || echo "")
-          
-          if [ -z "$BACKUP_ID" ]; then
-            # Try alternative pattern
-            BACKUP_ID=$(echo "$BACKUP_OUTPUT" | grep -oP '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' || echo "unknown")
+          # Attempt to use --json flag for cleaner parsing
+          if BACKUP_JSON=$(wrangler d1 backup create ai-nexus-db --json 2>/dev/null); then
+             echo "✅ Backup created successfully (JSON output)"
+             BACKUP_ID=$(echo "$BACKUP_JSON" | jq -r '.id')
+          else
+             echo "⚠️  JSON output failed, falling back to text parsing..."
+             BACKUP_OUTPUT=$(wrangler d1 backup create ai-nexus-db 2>&1)
+             echo "$BACKUP_OUTPUT"
+             BACKUP_ID=$(echo "$BACKUP_OUTPUT" | grep -oP '(?<=ID:\s)[a-zA-Z0-9-]+' || echo "unknown")
           fi
+          
+          echo "Backup ID: $BACKUP_ID"
           
           # Create backup info file
           echo "D1 Backup Information" > ./backup.txt
@@ -51,9 +47,6 @@ jobs:
           echo "Database: ai-nexus-db" >> ./backup.txt
           echo "Backup ID: $BACKUP_ID" >> ./backup.txt
           echo "Created at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> ./backup.txt
-          echo "" >> ./backup.txt
-          echo "Full Output:" >> ./backup.txt
-          echo "$BACKUP_OUTPUT" >> ./backup.txt
           
           echo "✅ Backup info saved to backup.txt"
           cat ./backup.txt
@@ -61,11 +54,11 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Step 5: Verify backup.txt was created
+      # Step 5: Verify backup.txt
       - name: Verify backup file
         run: |
           if [ -f "./backup.txt" ]; then
-            echo "✅ Backup file exists ($(wc -c < ./backup.txt) bytes)"
+            echo "✅ Backup file exists"
           else
             echo "❌ Error: backup.txt not found!"
             exit 1
