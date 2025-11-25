@@ -9,10 +9,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   site: 'https://free2aitools.com',
-  output: 'server', // SSR mode for D1 database
+  output: 'server',
   build: {
     assets: 'assets',
-    inlineStylesheets: 'never', // Keep CSS external for caching
+    inlineStylesheets: 'never',
     format: 'directory',
   },
   adapter: cloudflare({
@@ -30,19 +30,16 @@ export default defineConfig({
   },
   integrations: [tailwind(), sitemap()],
   vite: {
-    base: '/',
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src')
       }
     },
     build: {
-      // V9.71: Prevent CSS code splitting + ensure proper asset paths
       cssCodeSplit: false,
       rollupOptions: {
         output: {
-          manualChunks: undefined,
-          assetFileNames: 'assets/[name]-[hash][extname]'
+          manualChunks: undefined
         }
       }
     }
