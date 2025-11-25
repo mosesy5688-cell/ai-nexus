@@ -31,14 +31,26 @@ jobs:
           R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
           R2_BUCKET: "ai-nexus-assets"
 
-      # Step 4: Sync to D1 (Do NOT install wrangler manually)
+      # Step 4: Verify SQL file was generated
+      - name: Verify SQL File
+        run: |
+          if [ ! -f "./data/upsert.sql" ]; then
+            echo "Error: upsert.sql not found!"
+            exit 1
+          fi
+          echo "SQL file found. Size: $(wc -c < ./data/upsert.sql) bytes"
+          echo "First 5 lines:"
+          head -n 5 ./data/upsert.sql
+
+      # Step 5: Sync to D1 with proper configuration
       - name: Sync to D1
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: d1 execute ai-nexus-db --remote --file=./data/upsert.sql
 
-      # Step 5: Upload logs
+      # Step 6: Upload logs (always runs)
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v4
