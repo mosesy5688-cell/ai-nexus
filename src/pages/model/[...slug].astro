@@ -3,6 +3,7 @@ export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 import ModelHero from '../../components/ModelHero.astro';
+import TabbedContent from '../../components/TabbedContent.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import Comments from '../../components/Comments.astro';
 import { getModelBySlug } from '../../utils/db';
@@ -41,44 +42,60 @@ try {
       validation: model.validation
     });
 
-    // Fetch related models
+    // Defensive: parse related_ids if present
     const relatedIds = model.related_ids || [];
+    
+    // Fetch related models
     if (relatedIds.length > 0) {
       try {
         const db = Astro.locals?.runtime?.env?.DB;
         if (db) {
           const placeholders = relatedIds.map(() => "?").join(",");
           const stmt = db.prepare(`
-            SELECT id, name, author, likes, downloads, cover_image_url, description, tags
+            SELECT id, name, author, likes, downloads, cover_image_url, description, resources
             FROM models
             WHERE id IN (${placeholders})
-            LIMIT 6
           `);
           const { results } = await stmt.bind(...relatedIds).all();
           relatedModels = results || [];
         }
       } catch (queryErr) {
-        console.warn("Failed to query related models:", queryErr);
+        console.warn("Failed to query related_ids:", queryErr);
       }
     }
 
-    // Fallback: query by pipeline_tag if no related models
-    if (relatedModels.length === 0 && model.pipeline_tag) {
+    // Fallback to tag-based or top-downloads if needed
+    if (relatedModels.length === 0) {
       try {
         const db = Astro.locals?.runtime?.env?.DB;
         if (db) {
-          const stmt = db.prepare(`
-            SELECT id, name, author, likes, downloads, cover_image_url, description, tags
-            FROM models
-            WHERE pipeline_tag = ? AND id != ?
-            ORDER BY downloads DESC
-            LIMIT 6
-          `);
-          const { results } = await stmt.bind(model.pipeline_tag, model.id).all();
-          relatedModels = results || [];
+          // Tag-based fallback
+          if (model.pipeline_tag) {
+            const stmt = db.prepare(`
+              SELECT id, name, author, likes, downloads, cover_image_url, description, resources
+              FROM models
+              WHERE pipeline_tag = ? AND id != ?
+              ORDER BY downloads DESC
+              LIMIT 6
+            `);
+            const { results } = await stmt.bind(model.pipeline_tag, model.id).all();
+            relatedModels = results || [];
+          }
+          // Ultimate fallback: top downloads excluding current model
+          if (relatedModels.length === 0) {
+            const stmt = db.prepare(`
+              SELECT id, name, author, likes, downloads, cover_image_url, description, resources
+              FROM models
+              WHERE id != ?
+              ORDER BY downloads DESC
+              LIMIT 6
+            `);
+            const { results } = await stmt.bind(model.id).all();
+            relatedModels = results || [];
+          }
         }
       } catch (fallbackErr) {
-        console.warn("Fallback search failed:", fallbackErr);
+        console.warn("Fallback strategies failed:", fallbackErr);
       }
     }
   }
@@ -93,11 +110,12 @@ try {
 // ---------------------------------------------------
 if (!model || model._isPlaceholder) {
   Astro.response.status = 404;
-  error = "Model not found or data unavailable.";
+  Astro.response.statusText = "Not Found";
+  error = "Model not found or invalid data returned.";
 }
 
 // ---------------------------------------------------
-// Stage 3: Generate SEO metadata
+// Stage 3: Generate page metadata safely
 // ---------------------------------------------------
 if (model && !model._isPlaceholder) {
   pageTitle = `${model.displayName} by ${model.author} - Free AI Tools`;
@@ -105,7 +123,7 @@ if (model && !model._isPlaceholder) {
 }
 
 // ---------------------------------------------------
-// Stage 4: Prepare links and tags data
+// Stage 4: Prepare links data for ModelHero
 // ---------------------------------------------------
 const linksData = model ? JSON.stringify({
   source_url: model.links_data?.source_url || model.source_url || "",
@@ -113,27 +131,22 @@ const linksData = model ? JSON.stringify({
   demo_url: model.links_data?.demo_url || model.demo_url || "",
 }) : "{}";
 
-const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
   <main class="container mx-auto px-4 py-8">
     {error ? (
-      <!-- Error State -->
       <div class="max-w-4xl mx-auto text-center py-12">
-        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-6 py-8 rounded-lg shadow-sm">
-          <h1 class="text-3xl font-bold mb-4">Model Not Found</h1>
-          <p class="mb-6 text-lg">{error}</p>
-          <a href="/" class="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm transition-colors">
-            ← Return Home
+        <div class="bg-red-50 border border-red-200 text-red-700 px-6 py-8 rounded-lg shadow-sm">
+          <h2 class="text-2xl font-bold mb-4">Model Not Found</h2>
+          <p class="mb-6">{error}</p>
+          <a href="/" class="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700">
+            Return Home
           </a>
         </div>
       </div>
     ) : (
-      <!-- Content -->
-      <article itemscope itemtype="https://schema.org/SoftwareApplication">
-        
-        <!-- Hero Section with comprehensive data -->
+      <article class="lg:prose-xl mx-auto">
         <ModelHero
           name={model.displayName}
           description={model.displayDescription}
@@ -145,28 +158,21 @@ const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
           lastUpdated={model.last_updated}
           license={model.license}
         />
-
-        <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+        
+        {/* Main Content Area - Simplified Linear Flow */}
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-12 mt-8">
           
-          <!-- Left Column: Main Content -->
-          <div class="lg:col-span-2 space-y-8">
+          {/* Left Column: Description & Details */}
+          <div class="lg:col-span-2 space-y-12">
             
-            <!-- Description Section -->
-            <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                About this Model
-              </h2>
-              <div class="prose lg:prose-lg max-w-none dark:prose-invert">
-                <div class="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed">
-                  {model.displayDescription}
-                </div>
+            {/* About Section */}
+            <section>
+              <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">About this Model</h2>
+              <div class="prose lg:prose-xl max-w-none dark:prose-invert text-gray-700 dark:text-gray-300">
+                <div class="whitespace-pre-wrap">{model.displayDescription}</div>
               </div>
               
-              <!-- SEO Status Indicator -->
+              {/* SEO Status Indicator */}
               {model.seo_status === 'done' && model.seo_summary && (
                 <div class="mt-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                   <p class="text-sm text-green-700 dark:text-green-300">
@@ -176,156 +182,93 @@ const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
               )}
             </section>
 
-            <!-- Tags Section -->
-            {tagsArray.length > 0 && (
-              <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Tags & Categories</h3>
-                <div class="flex flex-wrap gap-2">
-                  {tagsArray.map((tag) => (
-                    <span class="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-full text-sm font-medium">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <!-- Quick Start Guide -->
-            {model.source_url && (
-              <section class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 border border-blue-100 dark:border-gray-700">
+            {/* Resources Section (Always Visible) */}
+            {model.resources && model.resources !== "[]" && (
+              <section class="bg-blue-50 dark:bg-gray-800 rounded-xl p-6 border border-blue-100 dark:border-gray-700">
                 <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                   </svg>
-                  Quick Start
+                  Resources & Files
                 </h3>
-                <pre class="bg-gray-900 dark:bg-black text-gray-100 p-4 rounded-lg overflow-x-auto"><code># Quick Start
-Visit the model repository for usage instructions:
-{model.source_url}</code></pre>
+                {(() => {
+                  try {
+                    let parsed = [];
+                    try {
+                      parsed = JSON.parse(model.resources);
+                    } catch (e) {
+                      // Fallback for raw strings
+                      if (typeof model.resources === 'string' && model.resources.startsWith('http')) {
+                        parsed = [{ platform: 'Source', url: model.resources }];
+                      }
+                    }
+                    
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                      return (
+                        <ul class="space-y-3">
+                          {parsed.map((res: any) => (
+                            <li class="flex items-start gap-3">
+                              <svg class="w-5 h-5 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                              </svg>
+                              <div>
+                                <a href={res.url} target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium break-all">
+                                  {res.url}
+                                </a>
+                                {res.files && res.files.length > 0 && (
+                                  <p class="text-sm text-gray-500 mt-1">
+                                    Includes {res.files.length} file{res.files.length !== 1 ? 's' : ''}
+                                  </p>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    }
+                  } catch (e) {
+                    return <p class="text-sm text-gray-500">Resource data available at source link.</p>;
+                  }
+                })()}
               </section>
             )}
 
-            <!-- Resources Section -->
-            {model.links_data && Object.keys(model.links_data).length > 0 && (
-              <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                  Original source data and files:
-                </h3>
-                <ul class="space-y-2">
-                  {model.links_data.source_url && (
-                    <li>
-                      <a 
-                        href={model.links_data.source_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        class="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-                          <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-                        </svg>
-                        GitHub Link
-                      </a>
-                    </li>
-                  )}
-                  {model.links_data.docs_url && (
-                    <li>
-                      <a 
-                        href={model.links_data.docs_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        class="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd" />
-                        </svg>
-                        Documentation
-                      </a>
-                    </li>
-                  )}
-                  {model.links_data.demo_url && (
-                    <li>
-                      <a 
-                        href={model.links_data.demo_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        class="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
-                        </svg>
-                        Live Demo
-                      </a>
-                    </li>
-                  )}
-                </ul>
-              </section>
-            )}
-
-            <!-- Comments -->
+            {/* Comments Placeholder */}
             <Comments modelId={model.id} />
 
           </div>
 
-          <!-- Right Column: Sidebar -->
-          <div class="space-y-6">
-            
-            <!-- Quick Stats -->
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 sticky top-20">
+          {/* Right Column: Quick Stats & Sidebar */}
+          <div class="space-y-8">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Quick Stats</h3>
               <dl class="space-y-4">
-                <div>
-                  <dt class="text-sm text-gray-500 dark:text-gray-400 mb-1">Downloads</dt>
-                  <dd class="text-2xl font-bold text-gray-900 dark:text-white">{model.formattedDownloads}</dd>
+                <div class="flex justify-between">
+                  <dt class="text-gray-500 dark:text-gray-400">License</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white">{model.license || "Unknown"}</dd>
                 </div>
-                <div>
-                  <dt class="text-sm text-gray-500 dark:text-gray-400 mb-1">Likes</dt>
-                  <dd class="text-2xl font-bold text-gray-900 dark:text-white">{model.formattedLikes}</dd>
+                <div class="flex justify-between">
+                  <dt class="text-gray-500 dark:text-gray-400">Downloads</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white">{model.formattedDownloads}</dd>
                 </div>
-                <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <dt class="text-sm text-gray-500 dark:text-gray-400 mb-1">License</dt>
-                  <dd class="text-sm font-medium text-gray-900 dark:text-white">{model.license || "Unknown"}</dd>
+                <div class="flex justify-between">
+                  <dt class="text-gray-500 dark:text-gray-400">Likes</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white">{model.formattedLikes}</dd>
                 </div>
-                <div>
-                  <dt class="text-sm text-gray-500 dark:text-gray-400 mb-1">Last Updated</dt>
-                  <dd class="text-sm font-medium text-gray-900 dark:text-white">{model.relativeTime}</dd>
-                </div>
-                {model.pipeline_tag && (
-                  <div>
-                    <dt class="text-sm text-gray-500 dark:text-gray-400 mb-1">Type</dt>
-                    <dd class="text-sm font-medium text-gray-900 dark:text-white capitalize">{model.pipeline_tag.replace(/-/g, ' ')}</dd>
-                  </div>
-                )}
-                <div>
-                  <dt class="text-sm text-gray-500 dark:text-gray-400 mb-1">Link Status</dt>
-                  <dd class="text-sm">
-                    <span class={`px-2 py-1 rounded-full text-xs font-medium ${
-                      model.link_status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                      model.link_status === 'dead' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                      'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                    }`}>
-                      {model.link_status || 'unknown'}
-                    </span>
-                  </dd>
+                <div class="flex justify-between">
+                  <dt class="text-gray-500 dark:text-gray-400">Last Updated</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white">{model.relativeTime}</dd>
                 </div>
               </dl>
             </div>
-
           </div>
 
         </div>
-
-        <!-- Related Models Section -->
-        {relatedModels.length > 0 && (
-          <section class="mt-12">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Related Models</h2>
-            <ModelCarousel models={relatedModels} />
-          </section>
-        )}
-
+        
+        <div class="mt-12">
+          <h2 class="text-2xl font-bold mb-6">Related Models</h2>
+          <ModelCarousel models={relatedModels} />
+        </div>
       </article>
     )}
   </main>
