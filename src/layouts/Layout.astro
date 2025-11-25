@@ -2,6 +2,9 @@
 // src/layouts/Layout.astro
 import Header from '@/components/Header.astro';
 import Footer from '@/components/Footer.astro';
+
+// V9.70: Ensure global Tailwind CSS is ALWAYS included
+// This import MUST be at layout level to ensure all pages get Tailwind
 import '../styles/base.css';
 
 interface Props {
@@ -53,19 +56,25 @@ const { title, description = 'A premier, free directory of open-source AI models
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2292826803755214"
      crossorigin="anonymous"></script>
 
-    <!-- Global Alpine.js loaded for TabbedContent & ModelCarousel -->
+    <!-- V9.70: Force inline critical global styles for SSR pages -->
+    <!-- This ensures global styles are available even with code splitting -->
+    <style is:global>
+        /* Critical base styles to prevent FOUC */
+        html { font-family: system-ui, -apple-system, sans-serif; }
+        body { margin: 0; min-height: 100vh; }
+    </style>
+
     <!-- Global Alpine.js loaded for TabbedContent & ModelCarousel -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans antialiased flex flex-col min-h-screen">
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans antialiased flex flex-col min-h-screen">
     <!-- Google Tag Manager (noscript) -->
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-58C2CQ8G"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <!-- End Google Tag Manager (noscript) -->
+    
     <Header />
-    <main class="flex-grow">
-        <slot />
-    </main>
+    <slot />
     <Footer />
 </body>
 </html>

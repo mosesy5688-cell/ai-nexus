@@ -9,10 +9,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   site: 'https://free2aitools.com',
-  output: 'server', // Fixed: Changed from 'static' to 'server' for SSR with D1
+  output: 'server', // SSR mode for D1 database
   build: {
     assets: 'assets',
-    inlineStylesheets: 'never', // Force external CSS files
+    inlineStylesheets: 'never', // Keep CSS external for caching
     format: 'directory',
   },
   adapter: cloudflare({
@@ -33,6 +33,17 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src')
+      }
+    },
+    build: {
+      // V9.70: Prevent CSS code splitting for SSR pages
+      // This ensures all Tailwind styles are available on detail pages
+      cssCodeSplit: false,
+      rollupOptions: {
+        output: {
+          // Force single CSS bundle to prevent missing styles
+          manualChunks: undefined
+        }
       }
     }
   }
