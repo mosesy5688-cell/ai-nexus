@@ -17,11 +17,6 @@ export default defineConfig({
   },
   adapter: cloudflare({
     mode: 'directory',
-    bindings: {
-      DB: 'ai-nexus-db',
-      KV_CACHE: 'ai-nexus',
-      R2_ASSETS: 'ai-nexus-assets',
-    }
   }),
   image: {
     service: {

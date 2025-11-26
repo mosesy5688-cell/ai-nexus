@@ -1,14 +1,18 @@
+# g:\ai-nexus\.gitignore
+
 # Dependencies
-/node_modules
+node_modules
 
 # Build artifacts
-/dist
+dist
+coverage
+target
+
+# Wrangler local development state
+.wrangler/
 
 # Astro auto-generated files
 .astro/
-
-# Test coverage
-/coverage
 
 # Log files
 npm-debug.log*

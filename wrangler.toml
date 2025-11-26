@@ -5,3 +5,28 @@ compatibility_flags = ["nodejs_compat_v2"]
 
 # Specify the output directory for Cloudflare Pages
 pages_build_output_dir = "dist"
+
+# D1 Database Binding
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-nexus-db"
+database_id = "adac7bc9-46a9-40b4-b609-28479221a17d"
+
+# KV Namespace Binding
+[[kv_namespaces]]
+binding = "KV_CACHE"
+id = "24a9a70c8676477c98bf4a02f3b75b05"
+
+# R2 Bucket Binding
+[[kv_namespaces]]
+binding = "SESSION"
+id = "d0efa63049764b8a906c2ee43ce6d34e" # 
+
+# R2 Bucket Binding
+[[r2_buckets]]
+binding = "R2_ASSETS"
+bucket_name = "ai-nexus-assets"
+
+# Workers AI Binding
+[ai]
+binding = "AI"
