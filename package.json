@@ -1,14 +1,17 @@
 {
   "name": "ai-nexus",
+  "version": "2.1.0",
   "type": "module",
-  "version": "2.0.0",
   "private": true,
   "scripts": {
     "dev": "astro dev",
     "build": "cross-env NODE_ENV=production astro build",
     "preview": "astro preview",
     "fetch-data": "node scripts/fetch-data.js",
-    "fetch-data:v3": "node scripts/fetch-data-v3.js"
+    "fetch-data:v3": "node scripts/fetch-data-v3.js",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.5",
@@ -29,7 +32,7 @@
     "dotenv": "^17.2.3",
     "form-data": "^4.0.5",
     "fuse.js": "^7.1.0",
-    "marked": "^13.0.2",
+    "marked": "^13.0.3",
     "mustache": "^4.2.0",
     "react": "^19.0.0-rc-f994737d14-20240522",
     "react-dom": "^19.0.0-rc-f994737d14-20240522",
@@ -38,6 +41,10 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "cross-env": "^10.1.0"
+    "@vitest/coverage-v8": "^2.0.5",
+    "@vitest/ui": "^4.0.14",
+    "cross-env": "^10.1.0",
+    "happy-dom": "^20.0.10",
+    "vitest": "^4.0.14"
   }
 }

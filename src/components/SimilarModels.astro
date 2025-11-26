@@ -1,0 +1,26 @@
+---
+const { models } = Astro.props;
+
+const hasModels = Array.isArray(models) && models.length > 0;
+---
+
+{hasModels && (
+  <section class="mt-12">
+    <h2 class="text-2xl font-bold mb-6">You might also like</h2>
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      {models.map((model) => (
+        <a 
+          href={model.url} 
+          class="block border border-gray-200 p-4 rounded-lg hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800 transition-colors duration-200"
+        >
+          <div class="font-bold text-lg mb-1 truncate" title={model.name}>
+            {model.name}
+          </div>
+          <div class="text-sm text-gray-500 truncate" title={model.author}>
+            {model.author}
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+)}

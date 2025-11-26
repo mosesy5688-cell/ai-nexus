@@ -37,7 +37,7 @@ export function normalizeModelData(rawModel) {
         // Metadata
         pipeline_tag: rawModel.pipeline_tag || '',
         license: rawModel.license || 'Unknown',
-        last_updated: rawModel.last_updated || rawModel.lastUpdated || new Date().toISOString(),
+        last_updated: rawModel.last_updated || new Date().toISOString(),
 
         // Image handling
         cover_image_url: validateImageUrl(rawModel.cover_image_url),
@@ -106,7 +106,7 @@ function validateImageUrl(url) {
         return url;
     } catch (e) {
         // If not absolute URL, check if it's a relative path
-        if (url.startsWith('/')) return url;
+        if (url.startsWith('/') || url.startsWith('./') || url.startsWith('../')) return url;
         return '/placeholder-model.png';
     }
 }
@@ -144,6 +144,7 @@ export function formatRelativeTime(dateString) {
 
     try {
         const date = new Date(dateString);
+        if (isNaN(date.getTime())) return 'Unknown';
         const now = new Date();
         const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
@@ -165,9 +166,9 @@ export function formatRelativeTime(dateString) {
 export function validateModelData(model) {
     const issues = [];
 
-    if (!model.id) issues.push('missing_id');
-    if (!model.name) issues.push('missing_name');
-    if (!model.author) issues.push('missing_author');
+    if (!model.id || model.id === 'unknown') issues.push('missing_id');
+    if (!model.name || model.name === 'Untitled Model') issues.push('missing_name');
+    if (!model.author || model.author === 'Unknown Author') issues.push('missing_author');
     if (typeof model.description !== 'string') issues.push('invalid_description');
     if (typeof model.likes !== 'number') issues.push('invalid_likes');
     if (typeof model.downloads !== 'number') issues.push('invalid_downloads');
@@ -242,9 +243,28 @@ export function prepareCardData(model) {
 /**
  * Prepare model data for detail page
  */
-export function prepareDetailData(model) {
+export function findSimilarModels(targetModel, allModels, count = 5) {
+    if (!targetModel || !allModels || !Array.isArray(allModels)) return [];
+
+    const targetTags = new Set(targetModel.tags || []);
+
+    return allModels
+        .filter(model => model.id !== targetModel.id)
+        .map(model => {
+            const modelTags = model.tags || [];
+            const sharedTags = modelTags.filter(tag => targetTags.has(tag));
+            return { model, score: sharedTags.length };
+        })
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, count)
+        .map(item => item.model);
+}
+
+export function prepareDetailData(model, allModels = []) {
     const normalized = normalizeModelData(model);
     const validation = validateModelData(normalized);
+    const similarModels = findSimilarModels(normalized, allModels, 5);
 
     return {
         ...normalized,
@@ -253,6 +273,7 @@ export function prepareDetailData(model) {
         formattedLikes: formatMetric(normalized.likes),
         formattedDownloads: formatMetric(normalized.downloads),
         relativeTime: formatRelativeTime(normalized.last_updated),
+        similarModels,
         validation,
         hasIssues: validation.length > 0
     };

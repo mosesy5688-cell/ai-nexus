@@ -3,6 +3,7 @@ export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
+import SimilarModels from '../../components/SimilarModels.astro';
 import { getModelBySlug } from '../../utils/db';
 import { prepareDetailData, getBestDescription, formatMetric, formatRelativeTime } from '../../utils/frontend-data';
 
@@ -22,10 +23,25 @@ try {
   rawModel = await getModelBySlug(slug, Astro.locals);
   
   if (rawModel) {
-    model = prepareDetailData(rawModel);
+    // Fetch candidate models for similarity check
+    let candidateModels = [];
+    const db = Astro.locals?.runtime?.env?.DB;
+    
+    if (db) {
+      try {
+        // Fetch top 100 models by downloads to serve as a pool for finding similar models
+        // This is a performance compromise to avoid fetching ALL models
+        const stmt = db.prepare('SELECT * FROM models ORDER BY downloads DESC LIMIT 100');
+        const { results } = await stmt.all();
+        candidateModels = results || [];
+      } catch (e) {
+        console.warn("Candidate models fetch failed:", e);
+      }
+    }
+
+    model = prepareDetailData(rawModel, candidateModels);
     
     // Fetch related models with fallback
-    const db = Astro.locals?.runtime?.env?.DB;
     if (db) {
       try {
         let results = [];
@@ -377,7 +393,10 @@ print(result)
 
             </div>
 
-            {/* Related Models */}
+            {/* Similar Models (Tag-based) */}
+            <SimilarModels models={model.similarModels} />
+
+            {/* Related Models (Pipeline-based) */}
             <section class="mt-20 border-t border-gray-200 dark:border-gray-700 pt-12">
                 <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
                   <svg class="w-8 h-8 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
