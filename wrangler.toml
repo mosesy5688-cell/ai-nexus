@@ -30,3 +30,5 @@ bucket_name = "ai-nexus-assets"
 # Workers AI Binding
 [ai]
 binding = "AI"
+
+# Triggering a fresh deployment at 2025-11-26
