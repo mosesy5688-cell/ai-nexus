@@ -31,10 +31,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+          # Disable cache to ensure clean build after git history rewrite
+          # cache: "npm"
 
       - name: Install Dependencies
         run: npm ci
+
+      # Debug Step: Verify clean environment
+      - name: Check Environment
+        run: |
+          node -v
+          npm -v
+          ls -la
 
       # 这里会自动执行 package.json 中的 "build" 脚本
       # 根据我们的修改，它会先运行 "npm run build:css" 生成 CSS，再运行 "astro build"
@@ -47,6 +55,15 @@ jobs:
           # 如果您的构建过程需要访问 D1 或 R2，可能还需要以下变量，不需要则可忽略
           # R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           # R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      - name: Verify Build Artifacts
+        run: |
+          echo "Listing dist directory..."
+          ls -R dist
+          echo "Checking for _worker.js..."
+          ls -la dist/_worker.js || echo "_worker.js directory/file not found!"
+          echo "Checking for _routes.json..."
+          cat dist/_routes.json
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
