@@ -1,0 +1,25 @@
+{
+  "timestamp": "2025-11-25T05:13:33.760Z",
+  "components": {
+    "autoEnrich": {
+      "done": 0,
+      "pending": 0,
+      "failed": 0,
+      "batchSize": 15,
+      "estimatedHoursRemaining": 0
+    },
+    "database": {
+      "totalModels": 0,
+      "lastChecked": "2025-11-25T05:13:40.533Z"
+    },
+    "workflows": {
+      "autoIngest": "pending_manual_trigger",
+      "weeklyMaintenance": "pending_manual_trigger",
+      "note": "Requires GitHub Actions workflow_dispatch"
+    },
+    "ssr": {
+      "sampleUrl": "https://009a977d.ai-nexus-293.pages.dev/model/github-Netflix-metaflow",
+      "status": "manual_verification_required"
+    }
+  }
+}

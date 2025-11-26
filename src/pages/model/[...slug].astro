@@ -24,19 +24,37 @@ try {
   if (rawModel) {
     model = prepareDetailData(rawModel);
     
-    // Fetch related models
+    // Fetch related models with fallback
     const db = Astro.locals?.runtime?.env?.DB;
-    if (db && model.pipeline_tag) {
+    if (db) {
       try {
-        const stmt = db.prepare(`
-          SELECT id, name, author, likes, downloads, cover_image_url, description, pipeline_tag
-          FROM models
-          WHERE pipeline_tag = ? AND id != ?
-          ORDER BY downloads DESC
-          LIMIT 6
-        `);
-        const { results } = await stmt.bind(model.pipeline_tag, model.id).all();
-        relatedModels = results || [];
+        let results = [];
+        // 1. Try fetching by pipeline tag
+        if (model.pipeline_tag) {
+            const stmt = db.prepare(`
+            SELECT id, name, author, likes, downloads, cover_image_url, description, pipeline_tag
+            FROM models
+            WHERE pipeline_tag = ? AND id != ?
+            ORDER BY downloads DESC
+            LIMIT 6
+            `);
+            const data = await stmt.bind(model.pipeline_tag, model.id).all();
+            results = data.results || [];
+        }
+
+        // 2. Fallback to popular models if no related found
+        if (results.length === 0) {
+            const stmt = db.prepare(`
+            SELECT id, name, author, likes, downloads, cover_image_url, description, pipeline_tag
+            FROM models
+            WHERE id != ?
+            ORDER BY downloads DESC
+            LIMIT 6
+            `);
+            const data = await stmt.bind(model.id).all();
+            results = data.results || [];
+        }
+        relatedModels = results;
       } catch (e) {
         console.warn("Related models fetch failed:", e);
       }
@@ -113,101 +131,102 @@ try {
       <article class="pb-16" itemscope itemtype="https://schema.org/SoftwareApplication">
         
         {/* Hero Section */}
-        <div class="bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 border-b border-gray-200 dark:border-gray-700">
-          <div class="container mx-auto px-4 py-12">
-            <div class="max-w-6xl mx-auto">
+        <div class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950/30 border-b border-gray-200 dark:border-gray-700">
+          <div class="container mx-auto px-4 py-8">
+            <div class="max-w-7xl mx-auto">
               
               {/* Breadcrumb */}
               <nav class="mb-6">
                 <ol class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                  <li><a href="/" class="hover:text-blue-600 dark:hover:text-blue-400">Home</a></li>
+                  <li><a href="/" class="hover:text-indigo-600 dark:hover:text-indigo-400">Home</a></li>
                   <li><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg></li>
-                  <li><span class="text-gray-900 dark:text-white" itemprop="name">{model.displayName}</span></li>
+                  <li><a href="/explore" class="hover:text-indigo-600 dark:hover:text-indigo-400">Models</a></li>
+                  <li><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg></li>
+                  <li><span class="text-gray-900 dark:text-white font-medium truncate max-w-[200px]" itemprop="name">{model.displayName}</span></li>
                 </ol>
               </nav>
 
-              {/* Title & Metadata */}
-              <div class="flex flex-col lg:flex-row gap-8 items-start">
+              {/* Title & Header Info */}
+              <div class="flex flex-col md:flex-row gap-6 items-start">
+                {model.cover_image_url && (
+                  <img src={model.cover_image_url} alt={`${model.displayName} icon`} class="w-24 h-24 rounded-2xl object-cover shadow-lg ring-1 ring-gray-200 dark:ring-gray-700" itemprop="image" />
+                )}
                 <div class="flex-1">
-                  <div class="flex items-start gap-4 mb-4">
-                    {model.cover_image_url && (
-                      <img src={model.cover_image_url} alt={`${model.displayName} icon`} class="w-20 h-20 rounded-xl object-cover shadow-md" itemprop="image" />
-                    )}
-                    <div class="flex-1">
-                      <h1 class="text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-2" itemprop="name">
-                        {model.displayName}
-                      </h1>
-                      <p class="text-lg text-gray-600 dark:text-gray-300">
-                        by <span class="font-medium text-gray-900 dark:text-white" itemprop="author">{model.author}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Quick Stats Bar */}
-                  <div class="flex flex-wrap gap-4 mt-6">
-                    <div class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                      <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/></svg>
-                      <span class="font-semibold text-gray-900 dark:text-white">{model.formattedLikes}</span>
-                      <span class="text-sm text-gray-500">likes</span>
-                    </div>
-                    <div class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-                      <svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z"/></svg>
-                      <span class="font-semibold text-gray-900 dark:text-white">{model.formattedDownloads}</span>
-                      <span class="text-sm text-gray-500">downloads</span>
-                    </div>
+                  <h1 class="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white mb-3 tracking-tight">
+                    {model.displayName}
+                  </h1>
+                  <p class="text-lg text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                    by <span class="font-semibold text-gray-900 dark:text-white" itemprop="author">{model.author}</span>
                     {model.pipeline_tag && (
-                      <div class="px-4 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded-lg font-medium">
-                        {model.pipeline_tag}
-                      </div>
+                      <>
+                        <span class="text-gray-300 dark:text-gray-600">•</span>
+                        <span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 rounded-full text-sm font-medium">
+                          {model.pipeline_tag}
+                        </span>
+                      </>
                     )}
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div class="flex flex-wrap gap-3 mt-6">
-                    {resourceLinks.map(link => (
-                      <a 
-                        href={link.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-sm"
-                      >
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
-                          <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
-                        </svg>
-                        {link.label}
-                      </a>
-                    ))}
-                  </div>
+                  </p>
                 </div>
               </div>
+
             </div>
           </div>
         </div>
 
         {/* Main Content Grid */}
         <div class="container mx-auto px-4 py-12">
-          <div class="max-w-6xl mx-auto">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div class="max-w-7xl mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
               
-              {/* Left Column: Main Content */}
-              <div class="lg:col-span-2 space-y-8">
+              {/* Left Column: Main Content (2/3) */}
+              <div class="md:col-span-2 space-y-8">
                 
-                {/* Description */}
-                <section class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
-                  <div class="flex items-center gap-2 mb-6">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
+                {/* Description & Metadata Integration */}
+                <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+                  <div class="flex items-center gap-3 mb-6 border-b border-gray-100 dark:border-gray-700 pb-4">
+                    <div class="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
+                        <svg class="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
                     <h2 class="text-2xl font-bold text-gray-900 dark:text-white">About this Model</h2>
                   </div>
-                  <div class="prose prose-lg dark:prose-invert max-w-none" itemprop="description">
-                    <p class="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{model.displayDescription}</p>
+                  
+                  {/* Integrated Metadata List */}
+                  <div class="mb-8 p-5 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                    <ul class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <li class="flex items-start gap-2">
+                            <span class="text-sm font-semibold text-gray-500 dark:text-gray-400">License:</span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">{model.license || "Unknown"}</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-sm font-semibold text-gray-500 dark:text-gray-400">Library:</span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">{model.library_name || "Transformers"}</span>
+                        </li>
+                         {/* Extracting 'arxiv' tags if any */}
+                        {tagsArray.filter(t => t.startsWith('arxiv:')).map(tag => (
+                            <li class="flex items-start gap-2">
+                                <span class="text-sm font-semibold text-gray-500 dark:text-gray-400">Arxiv:</span>
+                                <a href={`https://arxiv.org/abs/${tag.split(':')[1]}`} target="_blank" class="text-sm font-medium text-blue-600 hover:underline">{tag.split(':')[1]}</a>
+                            </li>
+                        ))}
+                        {/* Extracting 'dataset' tags if any */}
+                        {tagsArray.filter(t => t.startsWith('dataset:')).slice(0, 3).map(tag => (
+                            <li class="flex items-start gap-2">
+                                <span class="text-sm font-semibold text-gray-500 dark:text-gray-400">Dataset:</span>
+                                <span class="text-sm font-medium text-gray-900 dark:text-white truncate">{tag.split(':')[1]}</span>
+                            </li>
+                        ))}
+                    </ul>
+                  </div>
+
+                  <div class="prose prose-lg dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 leading-relaxed" itemprop="description">
+                    <p class="whitespace-pre-wrap">{model.displayDescription}</p>
                   </div>
                   
                   {/* SEO Enhancement Indicator */}
                   {model.seo_status === 'done' && model.seo_summary && (
-                    <div class="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-start gap-3">
+                    <div class="mt-8 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-start gap-3">
                       <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                       </svg>
@@ -218,28 +237,46 @@ try {
                   )}
                 </section>
 
-                {/* Tags & Categories */}
-                {tagsArray.length > 0 && (
-                  <section class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                      <svg class="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
-                      </svg>
-                      Tags & Categories
-                    </h3>
-                    <div class="flex flex-wrap gap-2">
-                      {tagsArray.map((tag) => (
-                        <span class="px-4 py-2 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-800 dark:text-blue-300 rounded-full text-sm font-medium border border-blue-200 dark:border-blue-800">
-                          #{tag}
-                        </span>
-                      ))}
+                {/* Usage Example Section */}
+                <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+                    <div class="flex items-center justify-between mb-6 border-b border-gray-100 dark:border-gray-700 pb-4">
+                         <div class="flex items-center gap-3">
+                            <div class="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
+                                <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                                </svg>
+                            </div>
+                            <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Usage Example</h2>
+                        </div>
                     </div>
-                  </section>
-                )}
+                    
+                    <div class="relative group" x-data="{ copied: false }">
+                        <div class="absolute top-4 right-4 z-10">
+                            <button 
+                                @click="navigator.clipboard.writeText($refs.codeBlock.innerText); copied = true; setTimeout(() => copied = false, 2000)"
+                                class="flex items-center gap-2 px-3 py-1.5 bg-gray-800 text-white text-xs font-medium rounded-md hover:bg-gray-700 transition-colors shadow-sm"
+                            >
+                                <svg x-show="!copied" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                                <svg x-show="copied" class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                            </button>
+                        </div>
+                        <pre class="bg-gray-900 text-gray-100 p-6 rounded-xl overflow-x-auto text-sm font-mono leading-relaxed shadow-inner"><code x-ref="codeBlock">
+from transformers import pipeline
+
+# Load the model
+pipe = pipeline("{model.pipeline_tag || 'text-generation'}", model="{model.id}")
+
+# Run inference
+result = pipe("Hello, world!")
+print(result)
+                        </code></pre>
+                    </div>
+                </section>
 
                 {/* Resources & Files */}
                 {parsedResources.length > 0 && (
-                  <section class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+                  <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
                     <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                       <svg class="w-5 h-5 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
@@ -267,135 +304,89 @@ try {
                     </ul>
                   </section>
                 )}
-
-                {/* Raw Metadata Section (Developer Info) */}
-                <section class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
-                  <details class="group">
-                    <summary class="flex items-center justify-between cursor-pointer list-none">
-                      <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fill-rule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                        </svg>
-                        Technical Metadata
-                      </h3>
-                      <svg class="w-5 h-5 text-gray-500 transition-transform group-open:rotate-180" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                      </svg>
-                    </summary>
-                    <div class="mt-6 space-y-3">
-                      <div class="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                        <div><span class="text-sm font-medium text-gray-500 dark:text-gray-400">Model ID:</span></div>
-                        <div><code class="text-sm text-gray-900 dark:text-white font-mono">{model.id}</code></div>
-                        
-                        <div><span class="text-sm font-medium text-gray-500 dark:text-gray-400">Source URL:</span></div>
-                        <div><code class="text-sm text-gray-900 dark:text-white font-mono break-all">{model.source_url || 'N/A'}</code></div>
-                        
-                        <div><span class="text-sm font-medium text-gray-500 dark:text-gray-400">Link Status:</span></div>
-                        <div>
-                          <span class={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            model.link_status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                            model.link_status === 'dead' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
-                            'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                          }`}>
-                            {model.link_status || 'unknown'}
-                          </span>
-                        </div>
-                        
-                        <div><span class="text-sm font-medium text-gray-500 dark:text-gray-400">SEO Status:</span></div>
-                        <div>
-                          <span class={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            model.seo_status === 'done' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
-                            model.seo_status === 'processing' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
-                            'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-                          }`}>
-                            {model.seo_status}
-                          </span>
-                        </div>
-                        
-                        <div><span class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Checked:</span></div>
-                        <div><span class="text-sm text-gray-900 dark:text-white">{model.last_checked ? formatRelativeTime(model.last_checked) : 'Never'}</span></div>
-                        
-                        <div><span class="text-sm font-medium text-gray-500 dark:text-gray-400">First Indexed:</span></div>
-                        <div><span class="text-sm text-gray-900 dark:text-white">{model.first_indexed ? formatRelativeTime(model.first_indexed) : 'Unknown'}</span></div>
-                        
-                        <div><span class="text-sm font-medium text-gray-500 dark:text-gray-400">Created At:</span></div>
-                        <div><span class="text-sm text-gray-900 dark:text-white">{model.created_at ? formatRelativeTime(model.created_at) : 'Unknown'}</span></div>
-                      </div>
-                    </div>
-                  </details>
-                </section>
-
               </div>
 
-              {/* Right Column: Sidebar */}
+              {/* Right Column: Sticky Sidebar (1/3) */}
               <div class="space-y-6">
-                
-                {/* Quick Stats Card */}
-                <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 sticky top-4">
-                  <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Quick Stats</h3>
-                  <dl class="space-y-4">
-                    <div class="border-b border-gray-200 dark:border-gray-700 pb-4">
-                      <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">License</dt>
-                      <dd class="text-base font-semibold text-gray-900 dark:text-white" itemprop="license">{model.license || "Unknown"}</dd>
-                    </div>
-                    <div class="border-b border-gray-200 dark:border-gray-700 pb-4">
-                      <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Pipeline Type</dt>
-                      <dd class="text-base font-semibold text-gray-900 dark:text-white">{model.pipeline_tag || "Not specified"}</dd>
-                    </div>
-                    <div class="border-b border-gray-200 dark:border-gray-700 pb-4">
-                      <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Total Downloads</dt>
-                      <dd class="text-2xl font-bold text-blue-600 dark:text-blue-400">{model.formattedDownloads}</dd>
-                    </div>
-                    <div class="border-b border-gray-200 dark:border-gray-700 pb-4">
-                      <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Total Likes</dt>
-                      <dd class="text-2xl font-bold text-red-600 dark:text-red-400">{model.formattedLikes}</dd>
-                    </div>
-                    <div>
-                      <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Last Updated</dt>
-                      <dd class="text-base font-semibold text-gray-900 dark:text-white">{model.relativeTime}</dd>
-                    </div>
-                  </dl>
-                </div>
-
-                {/* Quick Links */}
-                {resourceLinks.length > 0 && (
-                  <div class="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl border border-blue-200 dark:border-blue-800 p-6">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Quick Links</h3>
-                    <div class="space-y-2">
-                      {resourceLinks.map(link => (
+                <div class="sticky top-24 space-y-6">
+                    
+                    {/* Primary CTA Card */}
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Get Started</h3>
                         <a 
-                          href={link.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          class="flex items-center gap-2 p-3 bg-white/80 dark:bg-gray-800/80 hover:bg-white dark:hover:bg-gray-800 rounded-lg transition-colors text-gray-900 dark:text-white font-medium"
+                            href={model.source_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            class="flex items-center justify-center w-full px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-xl transition-all shadow-md hover:shadow-xl transform hover:-translate-y-0.5 mb-4"
                         >
-                          <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
-                            <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
-                          </svg>
-                          {link.label}
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                            Download Model
                         </a>
-                      ))}
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div class="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                                <div class="text-2xl font-bold text-gray-900 dark:text-white">{model.formattedDownloads}</div>
+                                <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Downloads</div>
+                            </div>
+                            <div class="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                                <div class="text-2xl font-bold text-red-500">{model.formattedLikes}</div>
+                                <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Likes</div>
+                            </div>
+                        </div>
                     </div>
-                  </div>
-                )}
 
+                    {/* Social Sharing */}
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Share this Model</h3>
+                        <div class="flex gap-2 justify-between">
+                            <a href={`https://twitter.com/intent/tweet?text=Check out ${model.displayName} on Free2AITools&url=https://free2aitools.com/model/${slug}`} target="_blank" class="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-black hover:text-white rounded-lg transition-colors" aria-label="Share on X">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                            </a>
+                            <a href={`https://www.facebook.com/sharer/sharer.php?u=https://free2aitools.com/model/${slug}`} target="_blank" class="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-blue-600 hover:text-white rounded-lg transition-colors" aria-label="Share on Facebook">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                            </a>
+                            <a href={`https://www.reddit.com/submit?url=https://free2aitools.com/model/${slug}&title=${model.displayName}`} target="_blank" class="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-orange-600 hover:text-white rounded-lg transition-colors" aria-label="Share on Reddit">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z"/></svg>
+                            </a>
+                            <a href={`https://www.linkedin.com/sharing/share-offsite/?url=https://free2aitools.com/model/${slug}`} target="_blank" class="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-blue-700 hover:text-white rounded-lg transition-colors" aria-label="Share on LinkedIn">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                            </a>
+                        </div>
+                    </div>
+
+                    {/* Technical Details */}
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Technical Details</h3>
+                        <dl class="space-y-3">
+                            <div class="flex justify-between">
+                                <dt class="text-sm text-gray-600 dark:text-gray-400">Model ID</dt>
+                                <dd class="text-sm font-mono text-gray-900 dark:text-white truncate max-w-[150px]" title={model.id}>{model.id}</dd>
+                            </div>
+                            <div class="flex justify-between">
+                                <dt class="text-sm text-gray-600 dark:text-gray-400">Last Updated</dt>
+                                <dd class="text-sm font-medium text-gray-900 dark:text-white">{model.relativeTime}</dd>
+                            </div>
+                            <div class="flex justify-between">
+                                <dt class="text-sm text-gray-600 dark:text-gray-400">Created</dt>
+                                <dd class="text-sm font-medium text-gray-900 dark:text-white">{model.created_at ? formatRelativeTime(model.created_at) : 'Unknown'}</dd>
+                            </div>
+                        </dl>
+                    </div>
+
+                </div>
               </div>
 
             </div>
 
             {/* Related Models */}
-            {relatedModels.length > 0 && (
-              <section class="mt-16">
+            <section class="mt-20 border-t border-gray-200 dark:border-gray-700 pt-12">
                 <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
-                  <svg class="w-8 h-8 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                  <svg class="w-8 h-8 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
                   </svg>
-                  Related Models
+                  {relatedModels.length > 0 && !model.pipeline_tag ? "Popular Models" : "Related Models"}
                 </h2>
                 <ModelCarousel models={relatedModels} />
-              </section>
-            )}
+            </section>
 
           </div>
         </div>
@@ -434,28 +425,24 @@ try {
 <style>
   /* Smooth transitions */
   * {
-    transition-property: background-color, border-color, color, fill, stroke;
+    transition-property: background-color, border-color, color, fill, stroke, transform, box-shadow;
     transition-duration: 200ms;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
   
   /* Custom scrollbar for code blocks */
-  code {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(155, 155, 155, 0.5) transparent;
-  }
-  
-  code::-webkit-scrollbar {
+  pre::-webkit-scrollbar {
     height: 0.5rem;
     width: 0.5rem;
   }
   
-  code::-webkit-scrollbar-track {
-    background-color: transparent;
+  pre::-webkit-scrollbar-track {
+    background-color: rgba(31, 41, 55, 0.5);
+    border-radius: 0.5rem;
   }
   
-  code::-webkit-scrollbar-thumb {
-    background-color: rgba(155, 155, 155, 0.5);
+  pre::-webkit-scrollbar-thumb {
+    background-color: rgba(75, 85, 99, 0.8);
     border-radius: 9999px;
   }
 </style>
