@@ -26,25 +26,28 @@ jobs:
           # Rust is pre-installed on ubuntu-latest
 
       # Step 4: Fetch Metadata (Multi-Source)
+      # Step 4: Fetch Metadata (Multi-Source)
       - name: Fetch Model Metadata
         env:
           CF_PROXY_URL: ${{ secrets.CF_PROXY_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/run-collectors.js
 
-      # Step 5: Process Data with Rust (Core Step)
+      # Step 5: Process Raw Data (Loop 1.5)
+      - name: Process Raw Data (Loop 1.5)
+        run: node scripts/process-raw-data.js
+
+      # Step 6: Process Data with Rust (Core Step)
       - name: Process Data (Rust)
         run: |
           echo "Building and running Rust optimizer..."
           cd tools/rust-img-optimizer
-          cargo run --release -- --input ../../data/raw.json --upload
+          cargo run --release -- ../../data/merged.json ../../data/upsert.sql
           echo "✅ Data processed and upsert.sql generated"
         env:
           R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
           R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
           R2_BUCKET: "ai-nexus-assets"
-
-      # Step 6: Deploy to D1 using npx wrangler
       - name: Execute D1 Updates
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
