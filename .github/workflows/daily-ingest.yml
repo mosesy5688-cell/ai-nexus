@@ -42,7 +42,7 @@ jobs:
         run: |
           echo "Building and running Rust optimizer..."
           cd tools/rust-img-optimizer
-          cargo run --release -- --input ../../data/merged.json --output ../../data/upsert.sql --upload
+          cargo run --release -- --input ../../data/merged.json --upload > ../../data/upsert.sql
           echo "✅ Data processed and upsert.sql generated"
         env:
           R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
