@@ -46,40 +46,17 @@ jobs:
           R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
           R2_BUCKET: "ai-nexus-assets"
 
-      # Step 6: Install Wrangler CLI globally
-      - name: Install Wrangler
-        run: npm install -g wrangler@3.8.0
+      # Step 6: Deploy to D1 using Wrangler Action
+      - name: Execute D1 Updates
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: |
+            d1 execute ai-nexus-db --command "ALTER TABLE models ADD COLUMN last_updated TEXT;" || true
+            d1 execute ai-nexus-db --file=./data/upsert.sql
 
-      # Step 7: Ensure last_updated column exists
-      - name: Ensure last_updated column exists
-        run: |
-          echo "Checking if last_updated column exists..."
-          wrangler d1 execute ai-nexus-db --command "ALTER TABLE models ADD COLUMN last_updated TEXT;" 2>&1 | tee column_result.txt || true
-          if grep -q "duplicate column" column_result.txt; then
-            echo "✅ Column 'last_updated' already exists"
-          else
-            echo "✅ Column 'last_updated' check completed"
-          fi
-          rm -f column_result.txt
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      # Step 8: Execute upsert SQL
-      - name: Execute upsert SQL
-        run: |
-          if [ ! -f "./data/upsert.sql" ]; then
-            echo "❌ Error: ./data/upsert.sql not found!"
-            exit 1
-          fi
-          echo "Executing upsert.sql..."
-          wrangler d1 execute ai-nexus-db --file=./data/upsert.sql
-          echo "✅ Upsert completed successfully"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      # Step 9: Run link checker
+      # Step 7: Run link checker
       - name: Check active links
         run: |
           echo "Running link checker..."
@@ -89,7 +66,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Step 10: Upload artifacts
+      # Step 8: Upload artifacts
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4

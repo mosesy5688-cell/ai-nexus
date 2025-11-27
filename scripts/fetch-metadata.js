@@ -16,9 +16,8 @@ async function fetchModels() {
     let url = HF_API_URL;
     if (PROXY_URL) {
         console.log(`Using proxy: ${PROXY_URL}`);
-        // Simple proxy implementation logic if needed, or just use the proxy URL directly if it handles the target
-        // For now, we assume PROXY_URL might be a worker that forwards requests
-        // url = `${PROXY_URL}?target=${encodeURIComponent(HF_API_URL)}`;
+        // Use the proxy URL to fetch the target API
+        url = `${PROXY_URL}?target=${encodeURIComponent(HF_API_URL)}`;
     }
 
     try {
