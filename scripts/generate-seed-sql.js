@@ -60,7 +60,7 @@ try {
         const source_url = escape(model.source_url || primarySource || `https://huggingface.co/${model.id}`);
         const created_at = escape(model.createdAt || new Date().toISOString());
 
-        // 添加 related_ids 字段
+        // Add related_ids field
         const rawRelated = model.related_ids;
         const safeRelated = (rawRelated && rawRelated.length > 2) ? rawRelated : '[]';
         const related_ids = escape(safeRelated);

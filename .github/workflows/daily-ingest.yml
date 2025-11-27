@@ -42,7 +42,7 @@ jobs:
         run: |
           echo "Building and running Rust optimizer..."
           cd tools/rust-img-optimizer
-          cargo run --release -- ../../data/merged.json ../../data/upsert.sql
+          cargo run --release -- --input ../../data/merged.json --output ../../data/upsert.sql --upload
           echo "✅ Data processed and upsert.sql generated"
         env:
           R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
@@ -67,4 +67,5 @@ jobs:
           name: ingest-logs
           path: |
             data/raw.json
+            data/merged.json
             data/upsert.sql

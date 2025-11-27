@@ -55,9 +55,9 @@ function processData() {
 
         if (mergedMap.has(model.id)) {
             const existing = mergedMap.get(model.id);
-            // Merge logic: keep max likes/downloads, combine tags
-            existing.likes = Math.max(existing.likes || 0, model.likes || 0);
-            existing.downloads = Math.max(existing.downloads || 0, model.downloads || 0);
+            // Merge logic: SUM likes/downloads, combine tags
+            existing.likes = (existing.likes || 0) + (model.likes || 0);
+            existing.downloads = (existing.downloads || 0) + (model.downloads || 0);
 
             // Merge tags
             const existingTags = new Set(existing.tags || []);

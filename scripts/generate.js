@@ -3,16 +3,16 @@ const fs = require('fs');
 const axios = require('axios');
 const CryptoJS = require('crypto-js');
 
-// 官方 API + 超时 30s + 重试 3 次
+// Official API + 30s timeout + 3 retries
 const api = axios.create({
   baseURL: 'https://huggingface.co',
   timeout: 30000,  // 30秒
-  headers: { 
+  headers: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
   }
 });
 
-// 自动重试
+// Auto retry
 api.interceptors.response.use(
   response => response,
   async error => {
@@ -29,11 +29,11 @@ api.interceptors.response.use(
 const niches = ['image', 'logo', 'video', 'writing', 'resume'];
 const realData = {};
 
-// 缓存系统
+// Cache system
 async function fetchWithCache(url, cacheFile) {
   const cachePath = `scripts/cache/${cacheFile}`;
   if (fs.existsSync(cachePath)) {
-    console.log(`📁 使用缓存: ${cacheFile}`);
+    console.log(`📁 Using cache: ${cacheFile}`);
     return JSON.parse(fs.readFileSync(cachePath, 'utf-8'));
   }
 
@@ -41,15 +41,15 @@ async function fetchWithCache(url, cacheFile) {
     const res = await api.get(url);
     fs.mkdirSync('scripts/cache', { recursive: true });
     fs.writeFileSync(cachePath, JSON.stringify(res.data));
-    console.log(`✅ 抓取成功: ${url}`);
+    console.log(`✅ Fetch success: ${url}`);
     return res.data;
   } catch (e) {
-    console.error(`❌ 抓取失败 ${url}:`, e.message);
+    console.error(`❌ Fetch failed ${url}:`, e.message);
     return [];
   }
 }
 
-// 真实数据抓取
+// Real data fetching
 async function fetchData(niche) {
   if (niche === 'image') {
     const data = await fetchWithCache('/api/models?filter=image-generation&limit=10', 'image.json');
@@ -61,12 +61,12 @@ async function fetchData(niche) {
     }));
   }
 
-  // 其他 niche：官网静态数据（防超时）
+  // Other niches: Official static data (prevent timeout)
   const staticData = {
     logo: [
-        { name: 'Looka', free: 'No (free creation/customization)', limit: 'Unlimited creation, no free downloads', source: 'https://looka.com', description: 'AI-powered logo maker and brand identity platform designed to help entrepreneurs and small businesses create professional logos.' },
-        { name: 'Canva', free: 'Yes (limited AI generations)', limit: '20/month (free plan)', source: 'https://www.canva.com/create/logos/', description: 'Offers an AI logo generator with both free and paid tiers, providing various features for creating professional-looking logos.' },
-        { name: 'Wix Logo Maker', free: 'Yes (free design and customization)', limit: 'Unlimited design and customization, no free high-res downloads', source: 'https://www.wix.com/logo/maker', description: 'Leverages AI technology to simplify the logo design process, making it accessible even for those without graphic design experience.' }
+      { name: 'Looka', free: 'No (free creation/customization)', limit: 'Unlimited creation, no free downloads', source: 'https://looka.com', description: 'AI-powered logo maker and brand identity platform designed to help entrepreneurs and small businesses create professional logos.' },
+      { name: 'Canva', free: 'Yes (limited AI generations)', limit: '20/month (free plan)', source: 'https://www.canva.com/create/logos/', description: 'Offers an AI logo generator with both free and paid tiers, providing various features for creating professional-looking logos.' },
+      { name: 'Wix Logo Maker', free: 'Yes (free design and customization)', limit: 'Unlimited design and customization, no free high-res downloads', source: 'https://www.wix.com/logo/maker', description: 'Leverages AI technology to simplify the logo design process, making it accessible even for those without graphic design experience.' }
     ],
     video: [{ name: 'CapCut', free: 'Yes', limit: 'Unlimited', source: 'https://www.capcut.com/pricing' }],
     writing: [{ name: 'ChatGPT', free: 'Yes', limit: 'Unlimited', source: 'https://openai.com/pricing' }],
@@ -80,11 +80,11 @@ async function fetchData(niche) {
     realData[niche] = await fetchData(niche);
   }
 
-  // 写入 JSON + Hash
+  // Write JSON + Hash
   Object.keys(realData).forEach(k => {
     const data = realData[k];
     const hash = CryptoJS.SHA256(JSON.stringify(data)).toString();
     fs.writeFileSync(`src/content/auto/${k}.json`, JSON.stringify({ data, hash, updated: new Date().toISOString() }, null, 2));
   });
-  console.log('✅ 5站真实数据生成完成！（官方 API + 缓存）');
+  console.log('✅ 5-site real data generation complete! (Official API + Cache)');
 })();

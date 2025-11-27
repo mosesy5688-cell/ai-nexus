@@ -1,0 +1,185 @@
+[33mcommit 825350ab2f305db8db9542acb13c3c64c80fb163[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Wed Nov 26 20:09:25 2025 +0800
+
+    fix: Correct .gitignore and wrangler.toml, clean repo state
+
+[33mcommit 2a8d4d57fdb3c4b9a4a0f56d207ef7b3f37fe657[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Wed Nov 26 19:58:51 2025 +0800
+
+    feat: Restore all necessary bindings in wrangler.toml and finalize .gitignore
+
+[33mcommit 33e102e62b9c9d0281078532df35ed1437d078ba[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Wed Nov 26 19:45:55 2025 +0800
+
+    fix(.gitignore): Ignore all node_modules directories and clean repo
+
+[33mcommit 2f304a179ddac814ac702dbfa8a3d3a167d498ed[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Wed Nov 26 19:20:06 2025 +0800
+
+    fix: Restore deploy workflow and clean repository
+
+[33mcommit 9940005ff75b7e9dcae39cc65188b7d5d58076df[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Wed Nov 26 18:50:31 2025 +0800
+
+    fix: Add pages_build_output_dir to wrangler.toml
+
+[33mcommit 2529bbe565c08d991153e2761924da66f38e7453[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Wed Nov 26 18:37:49 2025 +0800
+
+    fix: Add pages_build_output_dir to wrangler.toml
+    
+    - Explicitly specify dist as the build output directory
+    - Ensures Cloudflare Pages uses correct deployment path
+    - Restores all binding configurations
+
+[33mcommit fda731fc3aa8594c17b9f4b75dca0353269c5196[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Wed Nov 26 17:51:06 2025 +0800
+
+    Fix: Align vitest dependency versions to resolve ERESOLVE conflict
+    
+    - Update @vitest/coverage-v8 from ^2.0.5 to ^4.0.14
+    - Align with vitest@^4.0.14 to resolve peer dependency conflict
+    - All tests passing (53/53)
+
+[33mcommit 60bc803c9b3fe5e7a7cf925e177398daaf8679c0[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Wed Nov 26 17:39:09 2025 +0800
+
+    Release v2.1.0: Similar Models Recommendation Feature
+    
+    - Added Similar Models recommendation section on model detail pages
+    - Implemented findSimilarModels algorithm based on shared tags
+    - Created SimilarModels.astro component with responsive grid layout
+    - Added comprehensive unit tests for frontend-data.js (53 tests, 82.75% coverage)
+    - Refactored frontend-data.js for improved code quality
+    - Updated project version from 2.0.0 to 2.1.0
+    - Created CHANGELOG.md documenting V10.2 release
+
+[33mcommit 3317194b5b83a37c453007f1227c7165bdea6e65[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Wed Nov 26 11:29:45 2025 +0800
+
+    FEAT: V10.1 - Ultimate UX Upgrade: Redesigned Detail Page (Sticky Sidebar, Breadcrumbs, Copy Btn), added Social Share, fixed Mobile Nav, and implemented SEO/Related Model fallbacks.
+
+[33mcommit 4dc832659c7e999143ee6b1e6ea5f976036a240b[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 23:48:57 2025 +0800
+
+    FIX: Remove redundant inline styles from Layout - Astro auto-injects CSS
+
+[33mcommit 42efbf06489d78909e04f272d1930bbe8bbfb477[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 22:52:56 2025 +0800
+
+    Force Cloudflare Pages rebuild - deploy V10.0
+
+[33mcommit 15ddbc773b59a3da5f4e3dd02433abdee6e337a2[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 22:24:16 2025 +0800
+
+    ENHANCE V10.0: Complete model detail page - 100% D1 data display + premium UX
+    
+    - Display ALL 16+ D1 fields (id, name, author, description, tags, seo_summary, etc.)
+    - Premium card-based layout with gradient hero section
+    - Sticky sidebar with Quick Stats
+    - Collapsible Technical Metadata section
+    - Full SEO optimization (Schema.org, meta tags, semantic HTML)
+    - Mobile responsive with 3-column  1-column adaptive grid
+    - Dark mode support with smooth transitions
+    - Status badges for link_status and seo_status
+    - Resource links and files display
+    - Related models carousel
+    - Zero backend modifications - Root Plan compliant
+
+[33mcommit eaab618c9372aaad58e1e0e7b2e22d1d8db729de[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 21:52:54 2025 +0800
+
+    CRITICAL FIX V9.72: Remove problematic vite.base and assetFileNames config that broke asset paths
+
+[33mcommit 2f0e02419cf3ae393676a00d3a60ef0bad2127c4[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 21:39:00 2025 +0800
+
+    FIX V9.71: Configure assetFileNames to ensure proper /assets/ path for CSS
+
+[33mcommit 0f99d6319b36e5e9319fd959a427cd6beef2c2e1[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 21:28:10 2025 +0800
+
+    CRITICAL FIX V9.70: Disable CSS code splitting to fix missing styles on SSR detail pages
+
+[33mcommit c5be4f86cb605e1909c8f261f0cd98b94a1357eb[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 20:45:59 2025 +0800
+
+    ADD: Cache control headers to prevent CSS/JS loading issues
+
+[33mcommit f60418a6a4702aefd5a8be98d36158e25bb8071e[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 20:40:01 2025 +0800
+
+    CRITICAL FIX: Change output to 'server' for proper SSR with D1 database - fixes detail page styling issues
+
+[33mcommit aac87f4e3f176ee0d2a4a7a417e97205c0ff97a0[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 20:07:56 2025 +0800
+
+    FIX: 恢复详情页格式 - 修复布局和样式显示问题
+
+[33mcommit 9186b9d9f20bd83af996f1c393dfd65a3be2c492[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 19:49:44 2025 +0800
+
+    FIX: Resolve build error - typo 'tags Array' -> 'tagsArray' in model detail page
+
+[33mcommit 501e775ca29398a94a92250f79b359df816e17f8[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 19:41:31 2025 +0800
+
+    ENHANCE: Optimize model detail page with complete D1 data display and improved UX
+
+[33mcommit 032d60e6a0fbdad14f2450c7520d0d14cf41ce6d[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 19:25:32 2025 +0800
+
+    FEAT: Add frontend data coordination layer for D1 database display
+
+[33mcommit 5f2aca8f70999bb3b534ecef9f8eb4d3f6d35d8e[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 18:39:31 2025 +0800
+
+    FIX: V9.64 - Bulletproof Weekly Maintenance with guaranteed backup.txt creation and multi-level fallbacks
+
+[33mcommit 83cbaf57d1c7e5a9c132eebb2724fcf45972547f[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 18:21:33 2025 +0800
+
+    FIX: Restore core processing steps to Daily Ingest and optimize Weekly Maintenance per Root Scheme
+
+[33mcommit e242f3b5130b0e02cbe51f6c8aa6b8e5a7754fb1[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 18:03:13 2025 +0800
+
+    PROD: V9.63 - Production-ready workflows with robust error handling and backup parsing
+
+[33mcommit 8387b3635ea1f5ad1b26c966c36c892b2a301659[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 17:49:57 2025 +0800
+
+    REFACTOR: V9.62 - Simplify workflows to core D1 operations with proper error handling
+
+[33mcommit 55aacab967ea7f0188981a93908c9bf853769f24[m
+Author: mosesy5688-cell <238160801+mosesy5688-cell@users.noreply.github.com>
+Date:   Tue Nov 25 17:27:44 2025 +0800
+
+    FEAT: V9.61 - Add last_updated column support and finalize workflow stability
+
+[33mcommit a9d13f0999fd72011c

@@ -30,6 +30,8 @@ function buildReportPrompt(reportId, dateRange, currentDateFormatted, startDate,
     const reportPrompt = `
 **[PERSONA DEFINITION & TONE]**
 You are a Senior AI Industry Analyst working for **Free AI Tools**, a high-authority platform tracking the open-source AI sector. Your tone must be strictly objective, professional, analytical, and forward-looking.
+**[LANGUAGE REQUIREMENT]**
+Your entire output, including all sections, analysis, and titles, MUST be in English. Do not use any other language.
 
 **[CRITICAL TIME CONTEXT]**
 The current date is **${currentDateFormatted}**. The report's analysis period is the **two-week period from ${startDate} to ${endDate}**. Your external citations MUST prioritize news and data released within the last 14 days.

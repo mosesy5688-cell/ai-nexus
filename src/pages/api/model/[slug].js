@@ -14,7 +14,7 @@ export async function GET({ params, locals }) {
             });
         }
 
-        // 获取原始数据
+        // Fetch raw data
         const model = await getModelBySlug(slug, locals);
 
         if (!model || typeof model !== 'object' || !model.id || !model.name) {
@@ -24,12 +24,12 @@ export async function GET({ params, locals }) {
             });
         }
 
-        // [防御性检查] 处理 description (防止它是对象)
+        // [Defensive Check] Handle description (prevent it from being an object)
         if (typeof model.description !== 'string') {
             model.description = model.description ? String(model.description) : "";
         }
 
-        // 解析 related_ids
+        // Parse related_ids
         let relatedIds = [];
         if (model.related_ids) {
             try {
