@@ -52,15 +52,7 @@ jobs:
           npx wrangler d1 execute ai-nexus-db --command "ALTER TABLE models ADD COLUMN last_updated TEXT;" || true
           npx wrangler d1 execute ai-nexus-db --file=./data/upsert.sql
 
-      # Step 7: Run link checker
-      - name: Check active links
-        run: |
-          echo "Running link checker..."
-          node scripts/check-links.cjs
-          echo "✅ Link check completed"
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
 
       # Step 8: Upload artifacts
       - name: Upload artifacts
@@ -71,4 +63,3 @@ jobs:
           path: |
             data/raw.json
             data/upsert.sql
-            data/active_links.json

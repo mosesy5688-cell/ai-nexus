@@ -1,139 +1,34 @@
-name: Weekly Maintenance
+name: Weekly Maintenance (Loop 4)
 
 on:
   schedule:
-    - cron: '0 4 * * 0' # Weekly on Sunday at 04:00 UTC
+    - cron: '0 0 * * 0' # Weekly on Sunday at 00:00 UTC
   workflow_dispatch:
 
 jobs:
   maintenance:
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Setup Node.js environment
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 20
 
-      # Step 3: Install Wrangler CLI globally
-      - name: Install Wrangler
-        run: npm install -g wrangler@3.8.0
+      - name: Install Dependencies
+        run: npm ci
 
-      # Step 4: Create D1 backup (CORE FUNCTIONALITY - MUST ALWAYS GENERATE backup.txt)
-      - name: Create D1 backup
-        run: |
-          echo "=========================================="
-          echo "Creating D1 backup for ai-nexus-db..."
-          echo "=========================================="
-          
-          # Initialize variables
-          BACKUP_ID="unknown"
-          BACKUP_STATUS="FAILED"
-          BACKUP_OUTPUT=""
-          
-          # Attempt 1: Try JSON output with jq parsing
-          echo "Attempt 1: Trying JSON output..."
-          if command -v jq &> /dev/null; then
-            BACKUP_JSON=$(wrangler d1 backup create ai-nexus-db --json 2>&1 || true)
-            echo "JSON Output: $BACKUP_JSON"
-            
-            if echo "$BACKUP_JSON" | jq . &> /dev/null; then
-              BACKUP_ID=$(echo "$BACKUP_JSON" | jq -r '.id // "unknown"')
-              if [ "$BACKUP_ID" != "unknown" ] && [ "$BACKUP_ID" != "null" ]; then
-                BACKUP_STATUS="SUCCESS (JSON)"
-                BACKUP_OUTPUT="$BACKUP_JSON"
-                echo "✅ Backup created successfully via JSON: $BACKUP_ID"
-              fi
-            fi
-          fi
-          
-          # Attempt 2: If JSON failed, try text output
-          if [ "$BACKUP_STATUS" = "FAILED" ]; then
-            echo "Attempt 2: Falling back to text output..."
-            BACKUP_TEXT=$(wrangler d1 backup create ai-nexus-db 2>&1 || true)
-            echo "Text Output: $BACKUP_TEXT"
-            BACKUP_OUTPUT="$BACKUP_TEXT"
-            
-            # Try to extract ID using various patterns
-            # Pattern 1: "ID: <id>"
-            EXTRACTED=$(echo "$BACKUP_TEXT" | grep -oP '(?<=ID:\s)[a-zA-Z0-9-]+' || true)
-            if [ -n "$EXTRACTED" ]; then
-              BACKUP_ID="$EXTRACTED"
-              BACKUP_STATUS="SUCCESS (TEXT)"
-            else
-              # Pattern 2: UUID format
-              EXTRACTED=$(echo "$BACKUP_TEXT" | grep -oP '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' || true)
-              if [ -n "$EXTRACTED" ]; then
-                BACKUP_ID="$EXTRACTED"
-                BACKUP_STATUS="SUCCESS (UUID)"
-              fi
-            fi
-            
-            if [ "$BACKUP_ID" != "unknown" ]; then
-              echo "✅ Backup ID extracted via text parsing: $BACKUP_ID"
-            else
-              echo "⚠️  Could not extract backup ID, but continuing..."
-            fi
-          fi
-          
-          # GUARANTEE: Always create backup.txt file
-          echo "=========================================="
-          echo "Generating backup.txt file..."
-          echo "=========================================="
-          
-          cat > ./backup.txt << EOF
-          D1 Backup Information
-          =====================
-          Database: ai-nexus-db
-          Backup ID: $BACKUP_ID
-          Status: $BACKUP_STATUS
-          Created at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          Workflow Run: ${{ github.run_id }}
-          
-          Full Output:
-          ============
-          $BACKUP_OUTPUT
-          EOF
-          
-          echo "✅ backup.txt created successfully"
-          echo "File contents:"
-          cat ./backup.txt
-          
-          # Verify file exists
-          if [ -f "./backup.txt" ]; then
-            echo "✅ VERIFIED: backup.txt exists ($(wc -c < ./backup.txt) bytes)"
-          else
-            echo "❌ CRITICAL ERROR: backup.txt was not created!"
-            # Create emergency backup file
-            echo "Backup creation failed at $(date -u)" > ./backup.txt
-            echo "⚠️  Created emergency backup.txt"
-          fi
+      - name: Run Dead Link Checker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/check-links.js
 
-      # Step 5: Final verification before upload
-      - name: Verify backup file exists
-        run: |
-          if [ ! -f "./backup.txt" ]; then
-            echo "❌ ERROR: backup.txt not found - creating fallback file"
-            echo "Backup verification failed at $(date -u)" > ./backup.txt
-            echo "GitHub Run ID: ${{ github.run_id }}" >> ./backup.txt
-          fi
-          
-          echo "✅ Final check: backup.txt exists"
-          ls -lh ./backup.txt
-          wc -l ./backup.txt
-
-      # Step 6: Upload backup info as artifact (MUST ALWAYS RUN)
-      - name: Upload D1 backup artifact
+      - name: Upload Maintenance Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: d1-backup-${{ github.run_id }}
-          path: ./backup.txt
-          retention-days: 30
+          name: maintenance-report
+          path: data/link_check_report.json

@@ -1,79 +1,91 @@
-// scripts/check-links.js
-// Implements Loop 4: Auto-Ops (Dead Link Checker)
+import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import axios from 'axios';
 
-// Note: This script is intended to be run in a Cloudflare Worker or environment with D1 access.
-// Since GitHub Actions cannot directly access D1 without Wrangler, and Wrangler D1 access from Actions
-// is usually for migrations/executions via file, we might need to use the HTTP API or a Worker.
-// However, for the blueprint's sake, we will implement a Node.js script that *could* run if it had access,
-// or we can use `wrangler d1 execute` to fetch and update.
+const REPORT_FILE = "./data/link_check_report.json";
 
-const { execSync } = require('child_process');
-const https = require('https');
-
-async function checkLinks() {
-    console.log("Starting Dead Link Check...");
-
-    try {
-        // 1. Fetch candidates from D1 using Wrangler
-        // We use JSON output to parse it in Node
-        const cmd = `npx wrangler d1 execute ai-nexus-db --remote --command "SELECT id, source_url FROM models WHERE link_status = 'alive' LIMIT 50" --json`;
-        console.log("Fetching links from D1...");
-        const output = execSync(cmd, { encoding: 'utf-8' });
-        const result = JSON.parse(output);
-
-        // Handle different wrangler output formats (sometimes array of results, sometimes object)
-        const rows = result[0]?.results || result.results || [];
-
-        if (rows.length === 0) {
-            console.log("No links to check.");
-            return;
-        }
-
-        console.log(`Checking ${rows.length} links...`);
-
-        for (const row of rows) {
-            const { id, source_url } = row;
-            if (!source_url) continue;
-
-            const isAlive = await checkUrl(source_url);
-
-            if (!isAlive) {
-                console.log(`[BROKEN] ${id}: ${source_url}`);
-                // Update status to broken
-                const updateCmd = `npx wrangler d1 execute ai-nexus-db --remote --command "UPDATE models SET link_status = 'broken', last_checked = CURRENT_TIMESTAMP WHERE id = '${id}'"`;
-                execSync(updateCmd);
-            } else {
-                console.log(`[ALIVE] ${id}`);
-                // Optional: Update last_checked even if alive
-                // const updateCmd = `npx wrangler d1 execute DB --remote --command "UPDATE models SET last_checked = CURRENT_TIMESTAMP WHERE id = '${id}'"`;
-                // execSync(updateCmd);
-            }
-        }
-
-    } catch (error) {
-        console.error("Error during link check:", error.message);
-        // Don't fail the build, just log
+function ensureDataDir() {
+    const dataDir = path.dirname(REPORT_FILE);
+    if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
     }
 }
 
-function checkUrl(url) {
-    return new Promise((resolve) => {
-        const req = https.request(url, { method: 'HEAD', timeout: 5000 }, (res) => {
-            if (res.statusCode >= 200 && res.statusCode < 400) {
-                resolve(true);
-            } else {
-                resolve(false);
-            }
-        });
-
-        req.on('error', () => resolve(false));
-        req.on('timeout', () => {
-            req.destroy();
-            resolve(false);
-        });
-
-        req.end();
-    });
+async function checkUrl(url) {
+    try {
+        await axios.head(url, { timeout: 5000 });
+        return 'active';
+    } catch (e) {
+        if (e.response) {
+            if (e.response.status === 404) return 'dead';
+            if (e.response.status >= 300 && e.response.status < 400) return 'redirect';
+        }
+        return 'dead'; // Assume dead on other errors (timeout, etc.)
+    }
 }
 
-checkLinks();
+async function main() {
+    console.log("🔍 Starting Dead Link Check (ESM)...");
+    ensureDataDir();
+
+    try {
+        // 1. Fetch active models
+        console.log("Fetching models from D1...");
+        // We fetch ID and Source URL. 
+        // Note: We limit to 50 for this demo/phase to avoid rate limits, 
+        // but in production this should be paginated or handle more.
+        const cmd = `npx wrangler d1 execute ai-nexus-db --command "SELECT id, source_url FROM models WHERE link_status != 'dead' LIMIT 50" --json`;
+        const output = execSync(cmd, { encoding: 'utf-8' });
+        const parsed = JSON.parse(output);
+        const models = parsed[0]?.results || parsed.results || [];
+
+        console.log(`Checking ${models.length} models...`);
+
+        const updates = [];
+        const report = {
+            checked: 0,
+            active: 0,
+            dead: 0,
+            redirect: 0,
+            details: []
+        };
+
+        // 2. Check each URL
+        for (const model of models) {
+            if (!model.source_url) continue;
+
+            process.stdout.write(`Checking ${model.id}... `);
+            const status = await checkUrl(model.source_url);
+            console.log(status);
+
+            report.checked++;
+            report[status]++;
+            report.details.push({ id: model.id, url: model.source_url, status });
+
+            if (status !== 'active') {
+                updates.push({ id: model.id, status });
+            }
+        }
+
+        // 3. Update D1
+        if (updates.length > 0) {
+            console.log(`\nUpdating ${updates.length} models in D1...`);
+            for (const update of updates) {
+                // Batching would be better, but simple loop for now
+                const updateCmd = `npx wrangler d1 execute ai-nexus-db --command "UPDATE models SET link_status = '${update.status}' WHERE id = '${update.id}'"`;
+                execSync(updateCmd);
+            }
+        }
+
+        // 4. Save Report
+        fs.writeFileSync(REPORT_FILE, JSON.stringify(report, null, 2));
+        console.log(`\n✅ Check complete. Report saved to ${REPORT_FILE}`);
+
+    } catch (e) {
+        console.error("❌ Fatal error:", e.message);
+        process.exit(1);
+    }
+}
+
+main();
