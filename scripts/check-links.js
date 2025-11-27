@@ -35,7 +35,7 @@ async function main() {
         // We fetch ID and Source URL. 
         // Note: We limit to 50 for this demo/phase to avoid rate limits, 
         // but in production this should be paginated or handle more.
-        const cmd = `npx wrangler d1 execute ai-nexus-db --command "SELECT id, source_url FROM models WHERE link_status != 'dead' LIMIT 50" --json`;
+        const cmd = `npx wrangler d1 execute ai-nexus-db --remote --command "SELECT id, source_url FROM models WHERE link_status != 'dead' LIMIT 50" --json`;
         const output = execSync(cmd, { encoding: 'utf-8' });
         const parsed = JSON.parse(output);
         const models = parsed[0]?.results || parsed.results || [];
@@ -73,7 +73,7 @@ async function main() {
             console.log(`\nUpdating ${updates.length} models in D1...`);
             for (const update of updates) {
                 // Batching would be better, but simple loop for now
-                const updateCmd = `npx wrangler d1 execute ai-nexus-db --command "UPDATE models SET link_status = '${update.status}' WHERE id = '${update.id}'"`;
+                const updateCmd = `npx wrangler d1 execute ai-nexus-db --remote --command "UPDATE models SET link_status = '${update.status}' WHERE id = '${update.id}'"`;
                 execSync(updateCmd);
             }
         }
