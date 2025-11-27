@@ -1,0 +1,65 @@
+[
+  {
+    "id": 1,
+    "title": "General Dialogue & Q&A",
+    "slug": "general-dialogue-qa",
+    "description": "Models for open-ended conversations and answering various questions.",
+    "count": 172
+  },
+  {
+    "id": 6,
+    "title": "Code Generation & Assistance",
+    "slug": "code-generation-assistance",
+    "description": "Generate, complete, and explain code.",
+    "count": 101
+  },
+  {
+    "id": 7,
+    "title": "RAG & Knowledge Base Q&A",
+    "slug": "rag-knowledge-base-qa",
+    "description": "Retrieval-Augmented Generation for Q&A with external knowledge bases.",
+    "count": 89
+  },
+  {
+    "id": 12,
+    "title": "Image Generation",
+    "slug": "image-generation",
+    "description": "Generate images from text descriptions.",
+    "count": 47
+  },
+  {
+    "id": 8,
+    "title": "Data Analysis & Insights",
+    "slug": "data-analysis-insights",
+    "description": "Analyze structured data and provide business insights.",
+    "count": 23
+  },
+  {
+    "id": 3,
+    "title": "Summarization & Extraction",
+    "slug": "summarization-extraction",
+    "description": "Extract key information or generate summaries from long texts.",
+    "count": 5
+  },
+  {
+    "id": 14,
+    "title": "Video Generation & Editing",
+    "slug": "video-generation-editing",
+    "description": "Generate or edit video content.",
+    "count": 4
+  },
+  {
+    "id": 17,
+    "title": "Workflow Automation",
+    "slug": "workflow-automation",
+    "description": "Automate repetitive tasks and business processes.",
+    "count": 4
+  },
+  {
+    "id": 4,
+    "title": "Translation & Localization",
+    "slug": "translation-localization",
+    "description": "Translate text between multiple languages.",
+    "count": 3
+  }
+]
