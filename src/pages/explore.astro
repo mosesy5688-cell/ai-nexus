@@ -1,0 +1,273 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+let pageTitle = "Explore AI Models - AI Nexus";
+let pageDescription = "Browse and filter our extensive collection of open-source AI models. Sort by popularity, downloads, or freshness.";
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+    <div class="container mx-auto px-4 py-8 min-h-screen">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Explore Models</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">Discover the best AI models from Hugging Face, PyTorch, and GitHub.</p>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Sidebar / Filters -->
+            <aside class="w-full lg:w-64 flex-shrink-0 space-y-6">
+                <!-- Search -->
+                <div>
+                    <label for="explore-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Search</label>
+                    <div class="relative">
+                        <input type="text" id="explore-search" placeholder="Keywords..." class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
+                        <svg class="w-5 h-5 text-gray-400 absolute right-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                </div>
+
+                <!-- Sort -->
+                <div>
+                    <label for="explore-sort" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sort By</label>
+                    <select id="explore-sort" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="likes">Most Popular (Likes)</option>
+                        <option value="downloads">Most Downloaded</option>
+                        <option value="last_updated">Recently Updated</option>
+                    </select>
+                </div>
+
+                <!-- Source Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Source</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="source" value="" checked class="text-blue-600 focus:ring-blue-500" />
+                            <span class="text-gray-700 dark:text-gray-300">All Sources</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="source" value="huggingface" class="text-blue-600 focus:ring-blue-500" />
+                            <span class="text-gray-700 dark:text-gray-300 flex items-center gap-1">🤗 Hugging Face</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="source" value="pytorch" class="text-blue-600 focus:ring-blue-500" />
+                            <span class="text-gray-700 dark:text-gray-300 flex items-center gap-1">🔥 PyTorch</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="radio" name="source" value="github" class="text-blue-600 focus:ring-blue-500" />
+                            <span class="text-gray-700 dark:text-gray-300 flex items-center gap-1">🐙 GitHub</span>
+                        </label>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="flex-1">
+                <!-- Loading State -->
+                <div id="explore-loading" class="text-center py-12 hidden">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    <p class="mt-2 text-gray-500">Loading models...</p>
+                </div>
+
+                <!-- Error State -->
+                <div id="explore-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6">
+                    <strong class="font-bold">Error:</strong>
+                    <span class="block sm:inline" id="explore-error-msg"></span>
+                </div>
+
+                <!-- Results Grid -->
+                <div id="explore-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- No Results -->
+                <div id="explore-no-results" class="hidden text-center py-12">
+                    <p class="text-xl text-gray-600 dark:text-gray-400">No models found matching your criteria.</p>
+                    <button id="reset-filters" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Reset Filters
+                    </button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Client-side logic for Explore page
+        let currentController = null;
+        let debounceTimer = null;
+
+        const elements = {
+            search: document.getElementById('explore-search'),
+            sort: document.getElementById('explore-sort'),
+            sourceInputs: document.querySelectorAll('input[name="source"]'),
+            grid: document.getElementById('explore-grid'),
+            loading: document.getElementById('explore-loading'),
+            error: document.getElementById('explore-error'),
+            errorMsg: document.getElementById('explore-error-msg'),
+            noResults: document.getElementById('explore-no-results'),
+            resetBtn: document.getElementById('reset-filters')
+        };
+
+        function getFilters() {
+            const q = elements.search.value.trim();
+            const sort = elements.sort.value;
+            const source = document.querySelector('input[name="source"]:checked').value;
+            return { q, sort, source };
+        }
+
+        async function fetchModels() {
+            const { q, sort, source } = getFilters();
+            
+            // Abort previous request
+            if (currentController) currentController.abort();
+            currentController = new AbortController();
+
+            // UI State: Loading
+            elements.grid.classList.add('opacity-50');
+            elements.loading.classList.remove('hidden');
+            elements.error.classList.add('hidden');
+            elements.noResults.classList.add('hidden');
+
+            try {
+                const params = new URLSearchParams();
+                if (q) params.set('q', q);
+                params.set('sort', sort);
+                if (source) params.set('source', source);
+                params.set('limit', '50'); // Fetch more for explore page
+
+                const response = await fetch(`/api/search?${params.toString()}`, {
+                    signal: currentController.signal
+                });
+
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                
+                const data = await response.json();
+                renderModels(data.results || []);
+
+            } catch (e) {
+                if (e.name === 'AbortError') return;
+                console.error("Fetch error:", e);
+                elements.error.classList.remove('hidden');
+                elements.errorMsg.textContent = e.message;
+                elements.grid.innerHTML = '';
+            } finally {
+                elements.loading.classList.add('hidden');
+                elements.grid.classList.remove('opacity-50');
+            }
+        }
+
+        function renderModels(models) {
+            if (models.length === 0) {
+                elements.grid.innerHTML = '';
+                elements.noResults.classList.remove('hidden');
+                return;
+            }
+
+            const html = models.map(model => {
+                // Replicate ModelCard logic roughly or use a shared client-side template if possible.
+                // Since we can't easily import Astro components in client-side JS, we reconstruct the HTML.
+                // This duplicates logic from ModelCard.astro, which is a trade-off for client-side interactivity without full hydration.
+                
+                const modelId = (model.author && model.name) ? `${model.author}/${model.name}` : model.id;
+                // Use slug if available
+                const slug = model.slug || modelId.replace(/\//g, '--');
+                const modelUrl = `/model/${slug}`;
+                const description = (model.description || 'No description available.').replace(/<[^>]*>?/gm, '').substring(0, 120) + '...';
+                
+                const formatNum = (n) => {
+                    if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+                    if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+                    return n;
+                };
+
+                const getSourceIcon = (s) => {
+                    switch(s?.toLowerCase()) {
+                        case 'huggingface': return '🤗';
+                        case 'github': return '🐙';
+                        case 'pytorch': return '🔥';
+                        default: return '📦';
+                    }
+                };
+                
+                const getSourceLabel = (s) => {
+                    switch(s?.toLowerCase()) {
+                        case 'huggingface': return 'HF';
+                        case 'github': return 'GH';
+                        case 'pytorch': return 'PT';
+                        default: return 'UNK';
+                    }
+                };
+
+                const getFirstTag = (tagsStr) => {
+                    try {
+                        if (!tagsStr) return null;
+                        const tags = JSON.parse(tagsStr);
+                        return Array.isArray(tags) ? tags[0] : null;
+                    } catch (e) {
+                        return null;
+                    }
+                };
+                
+                const firstTag = getFirstTag(model.tags);
+
+                return `
+                <a href="${modelUrl}" class="group relative block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full border border-gray-100 dark:border-gray-700">
+                    <div class="absolute top-2 left-2 z-10 flex items-center gap-1 bg-gray-100/90 dark:bg-gray-700/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-medium text-gray-600 dark:text-gray-300 shadow-sm border border-gray-200 dark:border-gray-600">
+                        <span>${getSourceIcon(model.source)}</span>
+                        <span class="uppercase">${getSourceLabel(model.source)}</span>
+                    </div>
+
+                    <div class="p-5 flex flex-col h-full justify-between pt-10">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" title="${model.name}">
+                                ${model.name}
+                            </h3>
+                            <p class="text-gray-500 dark:text-gray-400 text-xs mb-3 flex items-center gap-1">
+                                <span>by ${model.author}</span>
+                            </p>
+                            <p class="text-gray-600 dark:text-gray-300 text-sm h-20 overflow-hidden text-ellipsis leading-relaxed line-clamp-3">
+                                ${description}
+                            </p>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700 pt-3">
+                            <div class="flex gap-2">
+                                ${firstTag ? `
+                                    <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full truncate max-w-[80px]">
+                                        ${firstTag}
+                                    </span>
+                                ` : ''}
+                            </div>
+                            <div class="flex gap-3">
+                                <div class="flex items-center gap-1" title="${(model.likes || 0).toLocaleString()} likes">❤️ <span>${formatNum(model.likes || 0)}</span></div>
+                                <div class="flex items-center gap-1" title="${(model.downloads || 0).toLocaleString()} downloads">📥 <span>${formatNum(model.downloads || 0)}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+                `;
+            }).join('');
+
+            elements.grid.innerHTML = html;
+        }
+
+        // Event Listeners
+        elements.search.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(fetchModels, 300);
+        });
+
+        elements.sort.addEventListener('change', fetchModels);
+        
+        elements.sourceInputs.forEach(input => {
+            input.addEventListener('change', fetchModels);
+        });
+
+        elements.resetBtn.addEventListener('click', () => {
+            elements.search.value = '';
+            elements.sort.value = 'likes';
+            document.querySelector('input[name="source"][value=""]').checked = true;
+            fetchModels();
+        });
+
+        // Initial fetch
+        fetchModels();
+
+    </script>
+</Layout>

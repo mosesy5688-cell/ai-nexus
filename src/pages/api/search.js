@@ -4,7 +4,8 @@ export async function GET({ request, locals }) {
     const url = new URL(request.url);
     const query = url.searchParams.get('q');
     const tag = url.searchParams.get('tag');
-    const limit = parseInt(url.searchParams.get('limit') || '20');
+    const sort = url.searchParams.get('sort') || 'likes';
+    const source = url.searchParams.get('source');
 
     const db = locals.runtime?.env?.DB;
 
@@ -17,33 +18,57 @@ export async function GET({ request, locals }) {
 
     try {
         let results = [];
+        let sql = '';
+        let params = [];
 
+        // Base query construction
         if (query) {
-            // Use FTS5 for full-text search
-            // We join with models table using the rowid (which matches because of content_rowid='rowid')
-            const sql = `
+            // Full-text search takes precedence
+            sql = `
                 SELECT m.* 
                 FROM models m 
                 JOIN models_fts f ON m.rowid = f.rowid 
                 WHERE models_fts MATCH ? 
-                ORDER BY f.rank 
-                LIMIT ?
             `;
-            // FTS5 query syntax: simple words or "phrase"
             const ftsQuery = `"${query}" OR ${query}*`;
-            const { results: ftsResults } = await db.prepare(sql).bind(ftsQuery, limit).all();
-            results = ftsResults;
-        } else if (tag) {
-            // Tag search
-            const sql = `SELECT * FROM models WHERE tags LIKE ? ORDER BY likes DESC LIMIT ?`;
-            const { results: tagResults } = await db.prepare(sql).bind(`%${tag}%`, limit).all();
-            results = tagResults;
+            params.push(ftsQuery);
         } else {
-            // Default: Hot models (by likes/downloads)
-            const sql = `SELECT * FROM models ORDER BY likes DESC LIMIT ?`;
-            const { results: hotResults } = await db.prepare(sql).bind(limit).all();
-            results = hotResults;
+            sql = `SELECT * FROM models WHERE 1=1`;
         }
+
+        // Apply filters
+        if (tag) {
+            sql += ` AND tags LIKE ?`;
+            params.push(`%${tag}%`);
+        }
+
+        if (source) {
+            sql += ` AND source = ?`;
+            params.push(source.toLowerCase());
+        }
+
+        // Apply sorting (only if not FTS, or if explicit sort requested)
+        // Note: FTS usually ranks by relevance, but we might want to sort results
+        let orderBy = 'likes DESC';
+        switch (sort) {
+            case 'downloads': orderBy = 'downloads DESC'; break;
+            case 'last_updated': orderBy = 'last_updated DESC'; break;
+            case 'likes': orderBy = 'likes DESC'; break;
+            default: orderBy = 'likes DESC';
+        }
+
+        // If query is present, we might want to keep rank, but for now let's allow override
+        if (query && sort === 'relevance') {
+            sql += ` ORDER BY f.rank`;
+        } else {
+            sql += ` ORDER BY ${orderBy}`;
+        }
+
+        sql += ` LIMIT ?`;
+        params.push(limit);
+
+        const { results: data } = await db.prepare(sql).bind(...params).all();
+        results = data;
 
         return new Response(JSON.stringify({ results }), {
             status: 200,
