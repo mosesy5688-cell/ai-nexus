@@ -39,11 +39,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Generate SQL
     let mut sql = String::from("-- Auto-generated upsert SQL\n");
     
-    for model in models {
-        // Simplified logic: Generate INSERT OR REPLACE statements
-        // In a real implementation, we would process images here and update cover_image_url
+        // Parse ID (author/name) to generate robust fields
+        let parts: Vec<&str> = model.id.split('/').collect();
+        let (author_part, name_part) = if parts.len() >= 2 {
+            (parts[0], parts[1])
+        } else {
+            ("unknown", model.id.as_str())
+        };
+
+        // Generate ID: github-author-name
+        let db_id = format!("github-{}-{}", author_part, name_part);
         
-        let author = model.author.unwrap_or_else(|| "unknown".to_string());
+        // Generate Slug: github--author--name (URL safe, double dash separator)
+        let slug = format!("github--{}--{}", author_part, name_part);
+
+        let author = model.author.unwrap_or_else(|| author_part.to_string());
         let pipeline = model.pipeline_tag.unwrap_or_else(|| "other".to_string());
         let tags_json = serde_json::to_string(&model.tags).unwrap_or("[]".to_string());
         
@@ -51,9 +61,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let safe_desc = "Auto-ingested description"; 
         
         let stmt = format!(
-            "INSERT OR REPLACE INTO models (id, name, author, description, tags, pipeline_tag, likes, downloads, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', {}, {}, CURRENT_TIMESTAMP);\n",
-            model.id,
-            model.id, // Name defaults to ID for now
+            "INSERT OR REPLACE INTO models (id, slug, name, author, description, tags, pipeline_tag, likes, downloads, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, CURRENT_TIMESTAMP);\n",
+            db_id,
+            slug,
+            name_part, // Use parsed name
             author,
             safe_desc,
             tags_json.replace("'", "''"),
