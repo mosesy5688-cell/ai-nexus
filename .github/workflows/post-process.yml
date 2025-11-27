@@ -34,4 +34,5 @@ jobs:
         with:
           add: 'public/data/*.json'
           message: 'chore: update rankings and search index [skip ci]'
-          default_author: github_actions
+          author_name: 'GitHub Actions Bot'
+          author_email: 'actions@github.com'
