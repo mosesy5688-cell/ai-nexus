@@ -10,6 +10,8 @@ on:
 jobs:
   post-process:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout repository
