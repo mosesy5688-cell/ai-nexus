@@ -55,6 +55,9 @@ jobs:
         run: |
           npx wrangler d1 execute ai-nexus-db --remote --command "ALTER TABLE models ADD COLUMN slug TEXT;" || true
           npx wrangler d1 execute ai-nexus-db --remote --command "ALTER TABLE models ADD COLUMN last_updated TEXT;" || true
+          npx wrangler d1 execute ai-nexus-db --remote --command "ALTER TABLE models ADD COLUMN is_rising_star INTEGER;" || true
+          npx wrangler d1 execute ai-nexus-db --remote --command "ALTER TABLE models ADD COLUMN related_ids TEXT;" || true
+          npx wrangler d1 execute ai-nexus-db --remote --command "ALTER TABLE models ADD COLUMN popularity_score REAL;" || true
           npx wrangler d1 execute ai-nexus-db --remote --file=./data/upsert.sql
 
 

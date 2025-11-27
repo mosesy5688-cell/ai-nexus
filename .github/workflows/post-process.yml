@@ -30,9 +30,8 @@ jobs:
         run: node scripts/run-post-processing.js
 
       - name: Commit and Push Generated Data
-        run: |
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com"
-          git add public/data/rankings.json public/data/search-index.json public/data/keywords.json
-          git commit -m "chore: update rankings and search index [skip ci]" || echo "No changes to commit"
-          git push
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: 'public/data/*.json'
+          message: 'chore: update rankings and search index [skip ci]'
+          default_author: github_actions
