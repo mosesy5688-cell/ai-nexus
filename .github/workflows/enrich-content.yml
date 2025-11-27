@@ -1,0 +1,27 @@
+name: AI Content Enrichment (Loop 2)
+
+on:
+  schedule:
+    - cron: '0 4 * * *' # Daily at 04:00 UTC (1 hour after ingestion)
+  workflow_dispatch:
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run AI Enrichment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node scripts/enrich-content.js
