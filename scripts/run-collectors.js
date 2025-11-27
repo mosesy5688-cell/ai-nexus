@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { collect as collectHuggingFace } from './collectors/huggingface.js';
 import { collect as collectPyTorch } from './collectors/pytorch.js';
+import { collect as collectGitHub } from './collectors/github.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,7 +15,8 @@ async function main() {
     // Run collectors in parallel
     const results = await Promise.all([
         collectHuggingFace(),
-        collectPyTorch()
+        collectPyTorch(),
+        collectGitHub()
     ]);
 
     // Flatten results

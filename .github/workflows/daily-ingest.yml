@@ -29,6 +29,7 @@ jobs:
       - name: Fetch Model Metadata
         env:
           CF_PROXY_URL: ${{ secrets.CF_PROXY_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/run-collectors.js
 
       # Step 5: Process Data with Rust (Core Step)
@@ -54,8 +55,8 @@ jobs:
 
 
 
-      # Step 8: Upload artifacts
-      - name: Upload artifacts
+      # Step 7: Upload artifacts
+      - name: Upload ingest artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
