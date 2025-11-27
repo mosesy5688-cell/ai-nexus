@@ -38,6 +38,7 @@ export function normalizeModelData(rawModel) {
         pipeline_tag: rawModel.pipeline_tag || '',
         license: rawModel.license || 'Unknown',
         last_updated: rawModel.last_updated || new Date().toISOString(),
+        slug: rawModel.slug || generateSlug(rawModel.id), // Use DB slug or fallback
 
         // Image handling
         cover_image_url: validateImageUrl(rawModel.cover_image_url),
@@ -234,7 +235,7 @@ export function prepareCardData(model) {
         likes: normalized.likes,
         downloads: normalized.downloads,
         cover_image_url: normalized.cover_image_url,
-        url: `/model/${generateSlug(normalized.id)}`,
+        url: `/model/${normalized.slug || generateSlug(normalized.id)}`,
         pipeline_tag: normalized.pipeline_tag,
         last_updated: formatRelativeTime(normalized.last_updated)
     };

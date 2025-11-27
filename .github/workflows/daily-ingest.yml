@@ -25,14 +25,11 @@ jobs:
           npm ci
           # Rust is pre-installed on ubuntu-latest
 
-      # Step 4: Fetch Metadata (Core Step)
-      - name: Fetch Metadata
-        run: |
-          echo "Fetching metadata..."
-          node scripts/fetch-metadata.js
-          echo "✅ Metadata fetched"
+      # Step 4: Fetch Metadata (Multi-Source)
+      - name: Fetch Model Metadata
         env:
           CF_PROXY_URL: ${{ secrets.CF_PROXY_URL }}
+        run: node scripts/run-collectors.js
 
       # Step 5: Process Data with Rust (Core Step)
       - name: Process Data (Rust)

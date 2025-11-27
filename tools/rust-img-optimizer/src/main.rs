@@ -23,7 +23,8 @@ struct Model {
     tags: Vec<String>,
     pipeline_tag: Option<String>,
     author: Option<String>,
-    // Add other fields as needed
+    name: Option<String>,
+    source: Option<String>,
 }
 
 #[tokio::main]
@@ -39,32 +40,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Generate SQL
     let mut sql = String::from("-- Auto-generated upsert SQL\n");
     
-        // Parse ID (author/name) to generate robust fields
-        let parts: Vec<&str> = model.id.split('/').collect();
-        let (author_part, name_part) = if parts.len() >= 2 {
-            (parts[0], parts[1])
+    for model in models {
+        // Determine Source
+        let source = model.source.clone().unwrap_or_else(|| "huggingface".to_string());
+
+        // Determine Author and Name
+        // If provided in JSON, use them. Otherwise fallback to ID parsing.
+        let (author, name) = if let (Some(a), Some(n)) = (&model.author, &model.name) {
+            (a.clone(), n.clone())
         } else {
-            ("unknown", model.id.as_str())
+            // Fallback: Parse ID (author/name)
+            let parts: Vec<&str> = model.id.split('/').collect();
+            if parts.len() >= 2 {
+                (parts[0].to_string(), parts[1].to_string())
+            } else {
+                ("unknown".to_string(), model.id.clone())
+            }
         };
 
-        // Generate ID: github-author-name
-        let db_id = format!("github-{}-{}", author_part, name_part);
+        // Generate ID: source-author-name (Internal ID)
+        // Sanitize to ensure safe characters for DB ID
+        let safe_author = author.replace('/', "-").replace('_', "-");
+        let safe_name = name.replace('/', "-").replace('_', "-");
+        let db_id = format!("{}-{}-{}", source, safe_author, safe_name);
         
-        // Generate Slug: github--author--name (URL safe, double dash separator)
-        let slug = format!("github--{}--{}", author_part, name_part);
+        // Generate Slug: source--author--name (URL safe)
+        let slug = format!("{}--{}--{}", source, safe_author.to_lowercase(), safe_name.to_lowercase());
 
-        let author = model.author.unwrap_or_else(|| author_part.to_string());
-        let pipeline = model.pipeline_tag.unwrap_or_else(|| "other".to_string());
+        let pipeline = model.pipeline_tag.clone().unwrap_or_else(|| "other".to_string());
         let tags_json = serde_json::to_string(&model.tags).unwrap_or("[]".to_string());
         
-        // Escape strings (very basic, should use parameterized queries in app, but this is generating a script)
+        // Escape strings
         let safe_desc = "Auto-ingested description"; 
         
         let stmt = format!(
             "INSERT OR REPLACE INTO models (id, slug, name, author, description, tags, pipeline_tag, likes, downloads, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, CURRENT_TIMESTAMP);\n",
             db_id,
             slug,
-            name_part, // Use parsed name
+            name,
             author,
             safe_desc,
             tags_json.replace("'", "''"),
