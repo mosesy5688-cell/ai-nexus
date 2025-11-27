@@ -30,12 +30,12 @@ struct Model {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
-    println!("Processing input: {}", args.input);
+    eprintln!("Processing input: {}", args.input);
 
     // 1. Read JSON
     let data = fs::read_to_string(&args.input)?;
     let models: Vec<Model> = serde_json::from_str(&data)?;
-    println!("Found {} models", models.len());
+    eprintln!("Found {} models", models.len());
 
     // 2. Generate SQL
     let mut sql = String::from("-- Auto-generated upsert SQL\n");
@@ -88,16 +88,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         sql.push_str(&stmt);
     }
 
-    // 3. Write SQL to file (at repo root)
-    let output_path = Path::new("../../data/upsert.sql");
-    if let Some(parent) = output_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(output_path, sql)?;
-    println!("SQL written to {:?}", output_path);
+    // 3. Output SQL to stdout (for redirection)
+    println!("{}", sql);
+    eprintln!("SQL generated and output to stdout");
 
     if args.upload {
-        println!("Upload flag set - Image processing would happen here.");
+        eprintln!("Upload flag set - Image processing would happen here.");
         // Implement R2 upload logic using aws-sdk-s3
     }
 
