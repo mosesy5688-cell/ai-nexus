@@ -18568,7 +18568,7 @@
       "fp8",
       "region:us"
     ],
-    "likes": 12880,
+    "likes": 12879,
     "downloads": 1117590,
     "is_rising_star": false
   },
@@ -18589,7 +18589,7 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 11915,
+    "likes": 11917,
     "downloads": 1424674,
     "is_rising_star": false
   },
@@ -18616,7 +18616,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 7161,
+    "likes": 7163,
     "downloads": 2798961,
     "is_rising_star": false
   },
@@ -18690,7 +18690,7 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 5321,
+    "likes": 5324,
     "downloads": 3932532,
     "is_rising_star": false
   },
@@ -18851,7 +18851,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 5016,
+    "likes": 5020,
     "downloads": 5221966,
     "is_rising_star": false
   },
@@ -19042,7 +19042,7 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 4424,
+    "likes": 4426,
     "downloads": 805717,
     "is_rising_star": false
   },
@@ -19096,7 +19096,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 4192,
+    "likes": 4193,
     "downloads": 4317460,
     "is_rising_star": false
   },
@@ -19152,7 +19152,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 4160,
+    "likes": 4161,
     "downloads": 148188690,
     "is_rising_star": true
   },
@@ -19227,7 +19227,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 3988,
+    "likes": 3989,
     "downloads": 6902707,
     "is_rising_star": false
   },
@@ -19425,7 +19425,7 @@
       "diffusers:StableVideoDiffusionPipeline",
       "region:us"
     ],
-    "likes": 3190,
+    "likes": 3191,
     "downloads": 174253,
     "is_rising_star": false
   },
@@ -19504,7 +19504,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 3038,
+    "likes": 3039,
     "downloads": 9934564,
     "is_rising_star": false
   },
@@ -19564,6 +19564,31 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-deepseek-ai-DeepSeek-OCR",
+    "slug": "huggingface--deepseek-ai--deepseek-ocr",
+    "name": "DeepSeek-OCR",
+    "author": "deepseek-ai",
+    "description": "Auto-ingested description",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "deepseek_vl_v2",
+      "feature-extraction",
+      "deepseek",
+      "vision-language",
+      "ocr",
+      "custom_code",
+      "image-text-to-text",
+      "multilingual",
+      "arxiv:2510.18234",
+      "license:mit",
+      "region:us"
+    ],
+    "likes": 2870,
+    "downloads": 5368910,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-Qwen-QwQ-32B",
     "slug": "huggingface--qwen--qwq-32b",
     "name": "QwQ-32B",
@@ -19614,31 +19639,6 @@
     ],
     "likes": 2867,
     "downloads": 2106,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-deepseek-ai-DeepSeek-OCR",
-    "slug": "huggingface--deepseek-ai--deepseek-ocr",
-    "name": "DeepSeek-OCR",
-    "author": "deepseek-ai",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "deepseek_vl_v2",
-      "feature-extraction",
-      "deepseek",
-      "vision-language",
-      "ocr",
-      "custom_code",
-      "image-text-to-text",
-      "multilingual",
-      "arxiv:2510.18234",
-      "license:mit",
-      "region:us"
-    ],
-    "likes": 2862,
-    "downloads": 5368910,
     "is_rising_star": false
   },
   {
@@ -19866,7 +19866,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2526,
+    "likes": 2527,
     "downloads": 7058209,
     "is_rising_star": false
   },
@@ -20085,7 +20085,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2273,
+    "likes": 2274,
     "downloads": 24385,
     "is_rising_star": false
   },
@@ -20105,7 +20105,7 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 2270,
+    "likes": 2271,
     "downloads": 977839,
     "is_rising_star": false
   },
@@ -20129,7 +20129,7 @@
       "fp8",
       "region:us"
     ],
-    "likes": 2264,
+    "likes": 2265,
     "downloads": 174316,
     "is_rising_star": false
   },
@@ -20290,7 +20290,7 @@
       "diffusers:QwenImageEditPipeline",
       "region:us"
     ],
-    "likes": 2159,
+    "likes": 2161,
     "downloads": 141684,
     "is_rising_star": false
   },
@@ -20358,7 +20358,7 @@
       "diffusers:LTXPipeline",
       "region:us"
     ],
-    "likes": 2061,
+    "likes": 2063,
     "downloads": 256892,
     "is_rising_star": false
   },
@@ -20463,7 +20463,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1992,
+    "likes": 1993,
     "downloads": 169342,
     "is_rising_star": false
   },
@@ -20553,7 +20553,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1940,
+    "likes": 1941,
     "downloads": 667198,
     "is_rising_star": false
   },
@@ -20873,6 +20873,23 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-Kijai-WanVideo-comfy",
+    "slug": "huggingface--kijai--wanvideo-comfy",
+    "name": "WanVideo_comfy",
+    "author": "Kijai",
+    "description": "Auto-ingested description",
+    "tags": [
+      "diffusion-single-file",
+      "comfyui",
+      "base_model:Wan-AI/Wan2.1-VACE-1.3B",
+      "base_model:finetune:Wan-AI/Wan2.1-VACE-1.3B",
+      "region:us"
+    ],
+    "likes": 1772,
+    "downloads": 6399936,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-mistralai-Mixtral-8x7B-v0.1",
     "slug": "huggingface--mistralai--mixtral-8x7b-v0.1",
     "name": "Mixtral-8x7B-v0.1",
@@ -20894,23 +20911,6 @@
     ],
     "likes": 1770,
     "downloads": 80207,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-Kijai-WanVideo-comfy",
-    "slug": "huggingface--kijai--wanvideo-comfy",
-    "name": "WanVideo_comfy",
-    "author": "Kijai",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusion-single-file",
-      "comfyui",
-      "base_model:Wan-AI/Wan2.1-VACE-1.3B",
-      "base_model:finetune:Wan-AI/Wan2.1-VACE-1.3B",
-      "region:us"
-    ],
-    "likes": 1770,
-    "downloads": 6399936,
     "is_rising_star": false
   },
   {
@@ -21181,7 +21181,7 @@
       "license:other",
       "region:us"
     ],
-    "likes": 1671,
+    "likes": 1672,
     "downloads": 85036,
     "is_rising_star": false
   },
@@ -21501,6 +21501,19 @@
     "is_rising_star": false
   },
   {
+    "id": "pytorch-pytorch-RoBERTa",
+    "slug": "pytorch--pytorch--roberta",
+    "name": "RoBERTa",
+    "author": "pytorch",
+    "description": "Auto-ingested description",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 32000,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "pytorch-pytorch-Transformer (NMT)",
     "slug": "pytorch--pytorch--transformer (nmt)",
     "name": "Transformer (NMT)",
@@ -21514,15 +21527,54 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-RoBERTa",
-    "slug": "pytorch--pytorch--roberta",
-    "name": "RoBERTa",
+    "id": "pytorch-pytorch-MobileNet v2",
+    "slug": "pytorch--pytorch--mobilenet v2",
+    "name": "MobileNet v2",
     "author": "pytorch",
     "description": "Auto-ingested description",
     "tags": [
       "pytorch"
     ],
-    "likes": 32000,
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-ResNet",
+    "slug": "pytorch--pytorch--resnet",
+    "name": "ResNet",
+    "author": "pytorch",
+    "description": "Auto-ingested description",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-ResNext",
+    "slug": "pytorch--pytorch--resnext",
+    "name": "ResNext",
+    "author": "pytorch",
+    "description": "Auto-ingested description",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-ShuffleNet v2",
+    "slug": "pytorch--pytorch--shufflenet v2",
+    "name": "ShuffleNet v2",
+    "author": "pytorch",
+    "description": "Auto-ingested description",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -21644,71 +21696,6 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-MobileNet v2",
-    "slug": "pytorch--pytorch--mobilenet v2",
-    "name": "MobileNet v2",
-    "author": "pytorch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-ResNet",
-    "slug": "pytorch--pytorch--resnet",
-    "name": "ResNet",
-    "author": "pytorch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-ResNext",
-    "slug": "pytorch--pytorch--resnext",
-    "name": "ResNext",
-    "author": "pytorch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-ShuffleNet v2",
-    "slug": "pytorch--pytorch--shufflenet v2",
-    "name": "ShuffleNet v2",
-    "author": "pytorch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-nvidia-FastPitch 2",
-    "slug": "pytorch--nvidia--fastpitch 2",
-    "name": "FastPitch 2",
-    "author": "nvidia",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
     "id": "pytorch-nvidia-GPUNet",
     "slug": "pytorch--nvidia--gpunet",
     "name": "GPUNet",
@@ -21826,6 +21813,19 @@
     "is_rising_star": false
   },
   {
+    "id": "pytorch-nvidia-FastPitch 2",
+    "slug": "pytorch--nvidia--fastpitch 2",
+    "name": "FastPitch 2",
+    "author": "nvidia",
+    "description": "Auto-ingested description",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "pytorch-snakers4-Silero Voice Activity Detector",
     "slug": "pytorch--snakers4--silero voice activity detector",
     "name": "Silero Voice Activity Detector",
@@ -21878,9 +21878,9 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-GhostNet",
-    "slug": "pytorch--pytorch--ghostnet",
-    "name": "GhostNet",
+    "id": "pytorch-pytorch-SNNMLP",
+    "slug": "pytorch--pytorch--snnmlp",
+    "name": "SNNMLP",
     "author": "pytorch",
     "description": "Auto-ingested description",
     "tags": [
@@ -21891,9 +21891,9 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-SNNMLP",
-    "slug": "pytorch--pytorch--snnmlp",
-    "name": "SNNMLP",
+    "id": "pytorch-pytorch-GhostNet",
+    "slug": "pytorch--pytorch--ghostnet",
+    "name": "GhostNet",
     "author": "pytorch",
     "description": "Auto-ingested description",
     "tags": [
@@ -22652,33 +22652,17 @@
     "is_rising_star": false
   },
   {
-    "id": "github-Lamiorkor-LyriGenesis",
-    "slug": "github--lamiorkor--lyrigenesis",
-    "name": "LyriGenesis",
-    "author": "Lamiorkor",
+    "id": "github-Himasnhu-AT-COX3-ML-Model",
+    "slug": "github--himasnhu-at--cox3-ml-model",
+    "name": "COX3-ML-Model",
+    "author": "Himasnhu-AT",
     "description": "Auto-ingested description",
     "tags": [
       "github",
-      "artificial-intelligence",
-      "final-project",
+      "machine-learning",
+      "machine-learning-algorithms",
       "machine-learning-model",
-      "song-lyrics-generator"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-gracesianipar-ML-in-the-Cloud",
-    "slug": "github--gracesianipar--ml-in-the-cloud",
-    "name": "ML-in-the-Cloud",
-    "author": "gracesianipar",
-    "description": "Auto-ingested description",
-    "tags": [
-      "github",
-      "cloudrun",
-      "deployment",
-      "machine-learning-model"
+      "model"
     ],
     "likes": 0,
     "downloads": 0,
@@ -22719,17 +22703,33 @@
     "is_rising_star": false
   },
   {
-    "id": "github-Himasnhu-AT-COX3-ML-Model",
-    "slug": "github--himasnhu-at--cox3-ml-model",
-    "name": "COX3-ML-Model",
-    "author": "Himasnhu-AT",
+    "id": "github-Lamiorkor-LyriGenesis",
+    "slug": "github--lamiorkor--lyrigenesis",
+    "name": "LyriGenesis",
+    "author": "Lamiorkor",
     "description": "Auto-ingested description",
     "tags": [
       "github",
-      "machine-learning",
-      "machine-learning-algorithms",
+      "artificial-intelligence",
+      "final-project",
       "machine-learning-model",
-      "model"
+      "song-lyrics-generator"
+    ],
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-gracesianipar-ML-in-the-Cloud",
+    "slug": "github--gracesianipar--ml-in-the-cloud",
+    "name": "ML-in-the-Cloud",
+    "author": "gracesianipar",
+    "description": "Auto-ingested description",
+    "tags": [
+      "github",
+      "cloudrun",
+      "deployment",
+      "machine-learning-model"
     ],
     "likes": 0,
     "downloads": 0,
