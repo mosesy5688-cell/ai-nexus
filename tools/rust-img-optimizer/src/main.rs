@@ -15,10 +15,6 @@ struct Args {
     /// Input JSON file path
     #[arg(short, long)]
     input: String,
-
-    /// Upload to R2
-    #[arg(long)]
-    upload: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -45,6 +41,13 @@ struct ProcessingContext {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
+    
+    // DEBUG: Write context to SQL immediately
+    let mut debug_header = String::new();
+    debug_header.push_str(&format!("-- Args: {:?}\n", args));
+    debug_header.push_str(&format!("-- R2_BUCKET env: {:?}\n", env::var("R2_BUCKET")));
+    debug_header.push_str(&format!("-- CLOUDFLARE_ACCOUNT_ID env: {:?}\n", env::var("CLOUDFLARE_ACCOUNT_ID")));
+    
     eprintln!("Processing input: {}", args.input);
 
     // 1. Setup R2 Client
@@ -52,30 +55,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut bucket = String::new();
     let mut account_id = String::new();
 
-    if args.upload {
-        bucket = env::var("R2_BUCKET").expect("R2_BUCKET must be set");
-        account_id = env::var("CLOUDFLARE_ACCOUNT_ID").expect("CLOUDFLARE_ACCOUNT_ID must be set");
-        let access_key = env::var("R2_ACCESS_KEY").expect("R2_ACCESS_KEY must be set");
-        let secret_key = env::var("R2_SECRET_KEY").expect("R2_SECRET_KEY must be set");
+    // ALWAYS try to setup upload
+    {
+        bucket = env::var("R2_BUCKET").unwrap_or_else(|_| "MISSING_BUCKET".to_string());
+        account_id = env::var("CLOUDFLARE_ACCOUNT_ID").unwrap_or_else(|_| "MISSING_ID".to_string());
+        let access_key = env::var("R2_ACCESS_KEY").unwrap_or_else(|_| "MISSING_KEY".to_string());
+        let secret_key = env::var("R2_SECRET_KEY").unwrap_or_else(|_| "MISSING_SECRET".to_string());
         
-        // Manual credential provider is tricky in older sdk versions, 
-        // relying on env vars AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY is standard.
-        // We will set them for the process.
-        env::set_var("AWS_ACCESS_KEY_ID", access_key);
-        env::set_var("AWS_SECRET_ACCESS_KEY", secret_key);
-        env::set_var("AWS_REGION", "auto");
+        if bucket != "MISSING_BUCKET" && account_id != "MISSING_ID" && access_key != "MISSING_KEY" {
+            // Manual credential provider is tricky in older sdk versions, 
+            // relying on env vars AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY is standard.
+            // We will set them for the process.
+            env::set_var("AWS_ACCESS_KEY_ID", access_key);
+            env::set_var("AWS_SECRET_ACCESS_KEY", secret_key);
+            env::set_var("AWS_REGION", "auto");
 
-        let endpoint = format!("https://{}.r2.cloudflarestorage.com", account_id);
-        
-        let region_provider = RegionProviderChain::default_provider().or_else("auto");
-        let config = aws_config::from_env()
-            .endpoint_url(endpoint)
-            .region(region_provider)
-            .load()
-            .await;
-        
-        r2_client = Some(Client::new(&config));
-        eprintln!("R2 Client initialized for bucket: {}", bucket);
+            let endpoint = format!("https://{}.r2.cloudflarestorage.com", account_id);
+            
+            let region_provider = RegionProviderChain::default_provider().or_else("auto");
+            let config = aws_config::from_env()
+                .endpoint_url(endpoint)
+                .region(region_provider)
+                .load()
+                .await;
+            
+            r2_client = Some(Client::new(&config));
+            eprintln!("R2 Client initialized for bucket: {}", bucket);
+            debug_header.push_str("-- R2 Client: Initialized\n");
+        } else {
+            eprintln!("R2 Credentials missing, skipping upload.");
+            debug_header.push_str("-- R2 Client: SKIPPED (Missing credentials)\n");
+        }
     }
 
     // 2. Read JSON
@@ -111,6 +121,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 4. Generate SQL and count successes
     let mut sql = String::from("-- Auto-generated upsert SQL\n");
+    sql.push_str(&debug_header);
+    
     let mut total_models = 0;
     let mut models_with_images = 0;
     
