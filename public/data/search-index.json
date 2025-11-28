@@ -18527,6 +18527,85 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-black-forest-labs-FLUX.1-dev",
+    "slug": "huggingface--black-forest-labs--flux.1-dev",
+    "name": "FLUX.1-dev",
+    "author": "black-forest-labs",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "image-generation",
+      "flux",
+      "en",
+      "license:other",
+      "endpoints_compatible",
+      "diffusers:FluxPipeline",
+      "region:us"
+    ],
+    "likes": 11921,
+    "downloads": 1407316,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-meta-llama-Llama-3.1-8B-Instruct",
+    "slug": "huggingface--meta-llama--llama-3.1-8b-instruct",
+    "name": "Llama-3.1-8B-Instruct",
+    "author": "meta-llama",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "llama",
+      "text-generation",
+      "facebook",
+      "meta",
+      "pytorch",
+      "llama-3",
+      "general-dialogue-qa",
+      "en",
+      "de",
+      "fr",
+      "it",
+      "pt",
+      "hi",
+      "es",
+      "th",
+      "arxiv:2204.05149",
+      "base_model:meta-llama/Llama-3.1-8B",
+      "base_model:finetune:meta-llama/Llama-3.1-8B",
+      "license:llama3.1",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 5023,
+    "downloads": 5134176,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-hexgrad-Kokoro-82M",
+    "slug": "huggingface--hexgrad--kokoro-82m",
+    "name": "Kokoro-82M",
+    "author": "hexgrad",
+    "description": "",
+    "tags": [
+      "text-to-speech",
+      "en",
+      "arxiv:2306.07691",
+      "arxiv:2203.02395",
+      "base_model:yl4579/StyleTTS2-LJSpeech",
+      "base_model:finetune:yl4579/StyleTTS2-LJSpeech",
+      "doi:10.57967/hf/4329",
+      "license:apache-2.0",
+      "region:us"
+    ],
+    "likes": 5326,
+    "downloads": 3848136,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-bigscience-bloom",
     "slug": "huggingface--bigscience--bloom",
     "name": "bloom",
@@ -18604,80 +18683,30 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-stabilityai-stable-diffusion-3-medium",
-    "slug": "huggingface--stabilityai--stable-diffusion-3-medium",
-    "name": "stable-diffusion-3-medium",
+    "id": "huggingface-stabilityai-stable-diffusion-xl-base-1.0",
+    "slug": "huggingface--stabilityai--stable-diffusion-xl-base-1.0",
+    "name": "stable-diffusion-xl-base-1.0",
     "author": "stabilityai",
     "description": "",
     "tags": [
-      "diffusion-single-file",
+      "diffusers",
+      "onnx",
+      "safetensors",
       "image-generation",
       "stable-diffusion",
-      "en",
-      "arxiv:2403.03206",
-      "license:other",
-      "region:us"
-    ],
-    "likes": 4873,
-    "downloads": 11237,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-meta-llama-Llama-3.1-8B-Instruct",
-    "slug": "huggingface--meta-llama--llama-3.1-8b-instruct",
-    "name": "Llama-3.1-8B-Instruct",
-    "author": "meta-llama",
-    "description": "",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "llama",
-      "text-generation",
-      "facebook",
-      "meta",
-      "pytorch",
-      "llama-3",
-      "general-dialogue-qa",
-      "en",
-      "de",
-      "fr",
-      "it",
-      "pt",
-      "hi",
-      "es",
-      "th",
-      "arxiv:2204.05149",
-      "base_model:meta-llama/Llama-3.1-8B",
-      "base_model:finetune:meta-llama/Llama-3.1-8B",
-      "license:llama3.1",
+      "arxiv:2307.01952",
+      "arxiv:2211.01324",
+      "arxiv:2108.01073",
+      "arxiv:2112.10752",
+      "license:openrail++",
       "autotrain_compatible",
-      "text-generation-inference",
       "endpoints_compatible",
-      "region:us"
+      "diffusers:StableDiffusionXLPipeline",
+      "region:us",
+      "deploy:azure"
     ],
-    "likes": 5023,
-    "downloads": 5134176,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-black-forest-labs-FLUX.1-dev",
-    "slug": "huggingface--black-forest-labs--flux.1-dev",
-    "name": "FLUX.1-dev",
-    "author": "black-forest-labs",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "image-generation",
-      "flux",
-      "en",
-      "license:other",
-      "endpoints_compatible",
-      "diffusers:FluxPipeline",
-      "region:us"
-    ],
-    "likes": 11921,
-    "downloads": 1407316,
+    "likes": 7164,
+    "downloads": 2785170,
     "is_rising_star": false
   },
   {
@@ -18704,85 +18733,6 @@
     ],
     "likes": 6391,
     "downloads": 2086585,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-stabilityai-stable-diffusion-xl-base-1.0",
-    "slug": "huggingface--stabilityai--stable-diffusion-xl-base-1.0",
-    "name": "stable-diffusion-xl-base-1.0",
-    "author": "stabilityai",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "onnx",
-      "safetensors",
-      "image-generation",
-      "stable-diffusion",
-      "arxiv:2307.01952",
-      "arxiv:2211.01324",
-      "arxiv:2108.01073",
-      "arxiv:2112.10752",
-      "license:openrail++",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "diffusers:StableDiffusionXLPipeline",
-      "region:us",
-      "deploy:azure"
-    ],
-    "likes": 7163,
-    "downloads": 2785170,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-deepseek-ai-DeepSeek-R1",
-    "slug": "huggingface--deepseek-ai--deepseek-r1",
-    "name": "DeepSeek-R1",
-    "author": "deepseek-ai",
-    "description": "",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "deepseek_v3",
-      "text-generation",
-      "general-dialogue-qa",
-      "custom_code",
-      "arxiv:2501.12948",
-      "license:mit",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "fp8",
-      "region:us"
-    ],
-    "likes": 12881,
-    "downloads": 1164599,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-CompVis-stable-diffusion-v1-4",
-    "slug": "huggingface--compvis--stable-diffusion-v1-4",
-    "name": "stable-diffusion-v1-4",
-    "author": "CompVis",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "stable-diffusion",
-      "stable-diffusion-diffusers",
-      "image-generation",
-      "arxiv:2207.12598",
-      "arxiv:2112.10752",
-      "arxiv:2103.00020",
-      "arxiv:2205.11487",
-      "arxiv:1910.09700",
-      "license:creativeml-openrail-m",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "diffusers:StableDiffusionPipeline",
-      "region:us"
-    ],
-    "likes": 6939,
-    "downloads": 625918,
     "is_rising_star": false
   },
   {
@@ -18910,24 +18860,74 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-hexgrad-Kokoro-82M",
-    "slug": "huggingface--hexgrad--kokoro-82m",
-    "name": "Kokoro-82M",
-    "author": "hexgrad",
+    "id": "huggingface-CompVis-stable-diffusion-v1-4",
+    "slug": "huggingface--compvis--stable-diffusion-v1-4",
+    "name": "stable-diffusion-v1-4",
+    "author": "CompVis",
     "description": "",
     "tags": [
-      "text-to-speech",
-      "en",
-      "arxiv:2306.07691",
-      "arxiv:2203.02395",
-      "base_model:yl4579/StyleTTS2-LJSpeech",
-      "base_model:finetune:yl4579/StyleTTS2-LJSpeech",
-      "doi:10.57967/hf/4329",
-      "license:apache-2.0",
+      "diffusers",
+      "safetensors",
+      "stable-diffusion",
+      "stable-diffusion-diffusers",
+      "image-generation",
+      "arxiv:2207.12598",
+      "arxiv:2112.10752",
+      "arxiv:2103.00020",
+      "arxiv:2205.11487",
+      "arxiv:1910.09700",
+      "license:creativeml-openrail-m",
+      "autotrain_compatible",
+      "endpoints_compatible",
+      "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 5325,
-    "downloads": 3848136,
+    "likes": 6939,
+    "downloads": 625918,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-deepseek-ai-DeepSeek-R1",
+    "slug": "huggingface--deepseek-ai--deepseek-r1",
+    "name": "DeepSeek-R1",
+    "author": "deepseek-ai",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "deepseek_v3",
+      "text-generation",
+      "general-dialogue-qa",
+      "custom_code",
+      "arxiv:2501.12948",
+      "license:mit",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "fp8",
+      "region:us"
+    ],
+    "likes": 12881,
+    "downloads": 1164599,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-stabilityai-stable-diffusion-3-medium",
+    "slug": "huggingface--stabilityai--stable-diffusion-3-medium",
+    "name": "stable-diffusion-3-medium",
+    "author": "stabilityai",
+    "description": "",
+    "tags": [
+      "diffusion-single-file",
+      "image-generation",
+      "stable-diffusion",
+      "en",
+      "arxiv:2403.03206",
+      "license:other",
+      "region:us"
+    ],
+    "likes": 4873,
+    "downloads": 11237,
     "is_rising_star": false
   },
   {
@@ -18959,31 +18959,29 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-meta-llama-Meta-Llama-3-8B-Instruct",
-    "slug": "huggingface--meta-llama--meta-llama-3-8b-instruct",
-    "name": "Meta-Llama-3-8B-Instruct",
-    "author": "meta-llama",
+    "id": "huggingface-openai-gpt-oss-120b",
+    "slug": "huggingface--openai--gpt-oss-120b",
+    "name": "gpt-oss-120b",
+    "author": "openai",
     "description": "",
     "tags": [
       "transformers",
       "safetensors",
-      "llama",
+      "gpt_oss",
       "text-generation",
-      "facebook",
-      "meta",
-      "pytorch",
-      "llama-3",
+      "vllm",
       "general-dialogue-qa",
-      "en",
-      "license:llama3",
+      "arxiv:2508.10925",
+      "license:apache-2.0",
       "autotrain_compatible",
-      "text-generation-inference",
       "endpoints_compatible",
+      "8-bit",
+      "mxfp4",
       "region:us",
       "deploy:azure"
     ],
-    "likes": 4302,
-    "downloads": 1075757,
+    "likes": 4197,
+    "downloads": 4355071,
     "is_rising_star": false
   },
   {
@@ -19054,55 +19052,31 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-openai-gpt-oss-120b",
-    "slug": "huggingface--openai--gpt-oss-120b",
-    "name": "gpt-oss-120b",
-    "author": "openai",
+    "id": "huggingface-meta-llama-Meta-Llama-3-8B-Instruct",
+    "slug": "huggingface--meta-llama--meta-llama-3-8b-instruct",
+    "name": "Meta-Llama-3-8B-Instruct",
+    "author": "meta-llama",
     "description": "",
     "tags": [
       "transformers",
       "safetensors",
-      "gpt_oss",
+      "llama",
       "text-generation",
-      "vllm",
+      "facebook",
+      "meta",
+      "pytorch",
+      "llama-3",
       "general-dialogue-qa",
-      "arxiv:2508.10925",
-      "license:apache-2.0",
+      "en",
+      "license:llama3",
       "autotrain_compatible",
+      "text-generation-inference",
       "endpoints_compatible",
-      "8-bit",
-      "mxfp4",
       "region:us",
       "deploy:azure"
     ],
-    "likes": 4197,
-    "downloads": 4355071,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-openai-gpt-oss-20b",
-    "slug": "huggingface--openai--gpt-oss-20b",
-    "name": "gpt-oss-20b",
-    "author": "openai",
-    "description": "",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "gpt_oss",
-      "text-generation",
-      "vllm",
-      "general-dialogue-qa",
-      "arxiv:2508.10925",
-      "license:apache-2.0",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "8-bit",
-      "mxfp4",
-      "deploy:azure",
-      "region:us"
-    ],
-    "likes": 3990,
-    "downloads": 7028859,
+    "likes": 4302,
+    "downloads": 1075757,
     "is_rising_star": false
   },
   {
@@ -19157,9 +19131,30 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 4161,
+    "likes": 4162,
     "downloads": 147964144,
     "is_rising_star": true
+  },
+  {
+    "id": "huggingface-WarriorMama777-OrangeMixs",
+    "slug": "huggingface--warriormama777--orangemixs",
+    "name": "OrangeMixs",
+    "author": "WarriorMama777",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "stable-diffusion",
+      "image-generation",
+      "dataset:Nerfgun3/bad_prompt",
+      "license:creativeml-openrail-m",
+      "autotrain_compatible",
+      "endpoints_compatible",
+      "diffusers:StableDiffusionPipeline",
+      "region:us"
+    ],
+    "likes": 3886,
+    "downloads": 8227,
+    "is_rising_star": false
   },
   {
     "id": "huggingface-mistralai-Mistral-7B-v0.1",
@@ -19211,6 +19206,32 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-openai-gpt-oss-20b",
+    "slug": "huggingface--openai--gpt-oss-20b",
+    "name": "gpt-oss-20b",
+    "author": "openai",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "gpt_oss",
+      "text-generation",
+      "vllm",
+      "general-dialogue-qa",
+      "arxiv:2508.10925",
+      "license:apache-2.0",
+      "autotrain_compatible",
+      "endpoints_compatible",
+      "8-bit",
+      "mxfp4",
+      "deploy:azure",
+      "region:us"
+    ],
+    "likes": 3990,
+    "downloads": 7028859,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-lllyasviel-ControlNet-v1-1",
     "slug": "huggingface--lllyasviel--controlnet-v1-1",
     "name": "ControlNet-v1-1",
@@ -19225,52 +19246,6 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-microsoft-phi-2",
-    "slug": "huggingface--microsoft--phi-2",
-    "name": "phi-2",
-    "author": "microsoft",
-    "description": "",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "phi",
-      "text-generation",
-      "nlp",
-      "code-generation-assistance",
-      "en",
-      "license:mit",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
-    ],
-    "likes": 3410,
-    "downloads": 919142,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-WarriorMama777-OrangeMixs",
-    "slug": "huggingface--warriormama777--orangemixs",
-    "name": "OrangeMixs",
-    "author": "WarriorMama777",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "stable-diffusion",
-      "image-generation",
-      "dataset:Nerfgun3/bad_prompt",
-      "license:creativeml-openrail-m",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "diffusers:StableDiffusionPipeline",
-      "region:us"
-    ],
-    "likes": 3886,
-    "downloads": 8227,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-lllyasviel-ControlNet",
     "slug": "huggingface--lllyasviel--controlnet",
     "name": "ControlNet",
@@ -19282,6 +19257,22 @@
     ],
     "likes": 3767,
     "downloads": 3,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-coqui-XTTS-v2",
+    "slug": "huggingface--coqui--xtts-v2",
+    "name": "XTTS-v2",
+    "author": "coqui",
+    "description": "",
+    "tags": [
+      "coqui",
+      "text-to-speech",
+      "license:other",
+      "region:us"
+    ],
+    "likes": 3198,
+    "downloads": 5465437,
     "is_rising_star": false
   },
   {
@@ -19308,24 +19299,28 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-stabilityai-stable-diffusion-3.5-large",
-    "slug": "huggingface--stabilityai--stable-diffusion-3.5-large",
-    "name": "stable-diffusion-3.5-large",
-    "author": "stabilityai",
+    "id": "huggingface-microsoft-phi-2",
+    "slug": "huggingface--microsoft--phi-2",
+    "name": "phi-2",
+    "author": "microsoft",
     "description": "",
     "tags": [
-      "diffusers",
+      "transformers",
       "safetensors",
-      "image-generation",
-      "stable-diffusion",
+      "phi",
+      "text-generation",
+      "nlp",
+      "code-generation-assistance",
       "en",
-      "arxiv:2403.03206",
-      "license:other",
-      "diffusers:StableDiffusion3Pipeline",
-      "region:us"
+      "license:mit",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "region:us",
+      "deploy:azure"
     ],
-    "likes": 3231,
-    "downloads": 96590,
+    "likes": 3410,
+    "downloads": 919142,
     "is_rising_star": false
   },
   {
@@ -19375,42 +19370,24 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-prompthero-openjourney",
-    "slug": "huggingface--prompthero--openjourney",
-    "name": "openjourney",
-    "author": "prompthero",
+    "id": "huggingface-stabilityai-stable-diffusion-3.5-large",
+    "slug": "huggingface--stabilityai--stable-diffusion-3.5-large",
+    "name": "stable-diffusion-3.5-large",
+    "author": "stabilityai",
     "description": "",
     "tags": [
       "diffusers",
       "safetensors",
-      "stable-diffusion",
       "image-generation",
+      "stable-diffusion",
       "en",
-      "license:creativeml-openrail-m",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "diffusers:StableDiffusionPipeline",
-      "region:us",
-      "deploy:azure"
-    ],
-    "likes": 3172,
-    "downloads": 16218,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-coqui-XTTS-v2",
-    "slug": "huggingface--coqui--xtts-v2",
-    "name": "XTTS-v2",
-    "author": "coqui",
-    "description": "",
-    "tags": [
-      "coqui",
-      "text-to-speech",
+      "arxiv:2403.03206",
       "license:other",
+      "diffusers:StableDiffusion3Pipeline",
       "region:us"
     ],
-    "likes": 3198,
-    "downloads": 5465437,
+    "likes": 3232,
+    "downloads": 96590,
     "is_rising_star": false
   },
   {
@@ -19429,87 +19406,6 @@
     ],
     "likes": 3193,
     "downloads": 182108,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-openai-community-gpt2",
-    "slug": "huggingface--openai-community--gpt2",
-    "name": "gpt2",
-    "author": "openai-community",
-    "description": "",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "tf",
-      "jax",
-      "tflite",
-      "rust",
-      "onnx",
-      "safetensors",
-      "gpt2",
-      "text-generation",
-      "exbert",
-      "en",
-      "doi:10.57967/hf/0039",
-      "license:mit",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
-    ],
-    "likes": 3039,
-    "downloads": 9762286,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-deepseek-ai-DeepSeek-V3-0324",
-    "slug": "huggingface--deepseek-ai--deepseek-v3-0324",
-    "name": "DeepSeek-V3-0324",
-    "author": "deepseek-ai",
-    "description": "",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "deepseek_v3",
-      "text-generation",
-      "general-dialogue-qa",
-      "custom_code",
-      "arxiv:2412.19437",
-      "license:mit",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "fp8",
-      "region:us"
-    ],
-    "likes": 3083,
-    "downloads": 169132,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-deepseek-ai-DeepSeek-OCR",
-    "slug": "huggingface--deepseek-ai--deepseek-ocr",
-    "name": "DeepSeek-OCR",
-    "author": "deepseek-ai",
-    "description": "",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "deepseek_vl_v2",
-      "feature-extraction",
-      "deepseek",
-      "vision-language",
-      "ocr",
-      "custom_code",
-      "image-text-to-text",
-      "multilingual",
-      "arxiv:2510.18234",
-      "license:mit",
-      "region:us"
-    ],
-    "likes": 2875,
-    "downloads": 5384942,
     "is_rising_star": false
   },
   {
@@ -19542,6 +19438,85 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-prompthero-openjourney",
+    "slug": "huggingface--prompthero--openjourney",
+    "name": "openjourney",
+    "author": "prompthero",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "stable-diffusion",
+      "image-generation",
+      "en",
+      "license:creativeml-openrail-m",
+      "autotrain_compatible",
+      "endpoints_compatible",
+      "diffusers:StableDiffusionPipeline",
+      "region:us",
+      "deploy:azure"
+    ],
+    "likes": 3172,
+    "downloads": 16218,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-deepseek-ai-DeepSeek-V3-0324",
+    "slug": "huggingface--deepseek-ai--deepseek-v3-0324",
+    "name": "DeepSeek-V3-0324",
+    "author": "deepseek-ai",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "deepseek_v3",
+      "text-generation",
+      "general-dialogue-qa",
+      "custom_code",
+      "arxiv:2412.19437",
+      "license:mit",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "fp8",
+      "region:us"
+    ],
+    "likes": 3083,
+    "downloads": 169132,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-openai-community-gpt2",
+    "slug": "huggingface--openai-community--gpt2",
+    "name": "gpt2",
+    "author": "openai-community",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "tf",
+      "jax",
+      "tflite",
+      "rust",
+      "onnx",
+      "safetensors",
+      "gpt2",
+      "text-generation",
+      "exbert",
+      "en",
+      "doi:10.57967/hf/0039",
+      "license:mit",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "region:us",
+      "deploy:azure"
+    ],
+    "likes": 3040,
+    "downloads": 9762286,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.2",
     "slug": "huggingface--mistralai--mistral-7b-instruct-v0.2",
     "name": "Mistral-7B-Instruct-v0.2",
@@ -19568,56 +19543,28 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-zai-org-chatglm-6b",
-    "slug": "huggingface--zai-org--chatglm-6b",
-    "name": "chatglm-6b",
-    "author": "zai-org",
-    "description": "",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "chatglm",
-      "glm",
-      "thudm",
-      "custom_code",
-      "zh",
-      "en",
-      "arxiv:2103.10360",
-      "arxiv:2210.02414",
-      "arxiv:2406.12793",
-      "endpoints_compatible",
-      "region:us"
-    ],
-    "likes": 2867,
-    "downloads": 2100,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-Qwen-QwQ-32B",
-    "slug": "huggingface--qwen--qwq-32b",
-    "name": "QwQ-32B",
-    "author": "Qwen",
+    "id": "huggingface-deepseek-ai-DeepSeek-OCR",
+    "slug": "huggingface--deepseek-ai--deepseek-ocr",
+    "name": "DeepSeek-OCR",
+    "author": "deepseek-ai",
     "description": "",
     "tags": [
       "transformers",
       "safetensors",
-      "qwen2",
-      "text-generation",
-      "general-dialogue-qa",
-      "en",
-      "arxiv:2309.00071",
-      "arxiv:2412.15115",
-      "base_model:Qwen/Qwen2.5-32B",
-      "base_model:finetune:Qwen/Qwen2.5-32B",
-      "license:apache-2.0",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "deploy:azure",
+      "deepseek_vl_v2",
+      "feature-extraction",
+      "deepseek",
+      "vision-language",
+      "ocr",
+      "custom_code",
+      "image-text-to-text",
+      "multilingual",
+      "arxiv:2510.18234",
+      "license:mit",
       "region:us"
     ],
-    "likes": 2869,
-    "downloads": 54836,
+    "likes": 2876,
+    "downloads": 5384942,
     "is_rising_star": false
   },
   {
@@ -19743,6 +19690,59 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-Qwen-QwQ-32B",
+    "slug": "huggingface--qwen--qwq-32b",
+    "name": "QwQ-32B",
+    "author": "Qwen",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "qwen2",
+      "text-generation",
+      "general-dialogue-qa",
+      "en",
+      "arxiv:2309.00071",
+      "arxiv:2412.15115",
+      "base_model:Qwen/Qwen2.5-32B",
+      "base_model:finetune:Qwen/Qwen2.5-32B",
+      "license:apache-2.0",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "deploy:azure",
+      "region:us"
+    ],
+    "likes": 2869,
+    "downloads": 54836,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-zai-org-chatglm-6b",
+    "slug": "huggingface--zai-org--chatglm-6b",
+    "name": "chatglm-6b",
+    "author": "zai-org",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "chatglm",
+      "glm",
+      "thudm",
+      "custom_code",
+      "zh",
+      "en",
+      "arxiv:2103.10360",
+      "arxiv:2210.02414",
+      "arxiv:2406.12793",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 2867,
+    "downloads": 2100,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-CompVis-stable-diffusion-v-1-4-original",
     "slug": "huggingface--compvis--stable-diffusion-v-1-4-original",
     "name": "stable-diffusion-v-1-4-original",
@@ -19784,35 +19784,6 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-BAAI-bge-m3",
-    "slug": "huggingface--baai--bge-m3",
-    "name": "bge-m3",
-    "author": "BAAI",
-    "description": "",
-    "tags": [
-      "sentence-transformers",
-      "pytorch",
-      "onnx",
-      "xlm-roberta",
-      "feature-extraction",
-      "sentence-similarity",
-      "arxiv:2402.03216",
-      "arxiv:2004.04906",
-      "arxiv:2106.14807",
-      "arxiv:2107.05720",
-      "arxiv:2004.12832",
-      "license:mit",
-      "autotrain_compatible",
-      "text-embeddings-inference",
-      "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
-    ],
-    "likes": 2528,
-    "downloads": 7086871,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-meta-llama-Llama-3.3-70B-Instruct",
     "slug": "huggingface--meta-llama--llama-3.3-70b-instruct",
     "name": "Llama-3.3-70B-Instruct",
@@ -19850,23 +19821,55 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-stabilityai-sdxl-turbo",
-    "slug": "huggingface--stabilityai--sdxl-turbo",
-    "name": "sdxl-turbo",
-    "author": "stabilityai",
+    "id": "huggingface-black-forest-labs-FLUX.1-Kontext-dev",
+    "slug": "huggingface--black-forest-labs--flux.1-kontext-dev",
+    "name": "FLUX.1-Kontext-dev",
+    "author": "black-forest-labs",
     "description": "",
     "tags": [
       "diffusers",
-      "onnx",
       "safetensors",
       "image-generation",
+      "flux",
+      "diffusion-single-file",
+      "image-to-image",
+      "en",
+      "arxiv:2506.15742",
       "license:other",
-      "autotrain_compatible",
-      "diffusers:StableDiffusionXLPipeline",
+      "diffusers:FluxKontextPipeline",
       "region:us"
     ],
-    "likes": 2483,
-    "downloads": 383030,
+    "likes": 2448,
+    "downloads": 328501,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-BAAI-bge-m3",
+    "slug": "huggingface--baai--bge-m3",
+    "name": "bge-m3",
+    "author": "BAAI",
+    "description": "",
+    "tags": [
+      "sentence-transformers",
+      "pytorch",
+      "onnx",
+      "xlm-roberta",
+      "feature-extraction",
+      "sentence-similarity",
+      "arxiv:2402.03216",
+      "arxiv:2004.04906",
+      "arxiv:2106.14807",
+      "arxiv:2107.05720",
+      "arxiv:2004.12832",
+      "license:mit",
+      "autotrain_compatible",
+      "text-embeddings-inference",
+      "endpoints_compatible",
+      "region:us",
+      "deploy:azure"
+    ],
+    "likes": 2528,
+    "downloads": 7086871,
     "is_rising_star": false
   },
   {
@@ -19900,6 +19903,48 @@
     "likes": 2488,
     "downloads": 60809807,
     "is_rising_star": true
+  },
+  {
+    "id": "huggingface-stabilityai-sdxl-turbo",
+    "slug": "huggingface--stabilityai--sdxl-turbo",
+    "name": "sdxl-turbo",
+    "author": "stabilityai",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "onnx",
+      "safetensors",
+      "image-generation",
+      "license:other",
+      "autotrain_compatible",
+      "diffusers:StableDiffusionXLPipeline",
+      "region:us"
+    ],
+    "likes": 2483,
+    "downloads": 383030,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-hakurei-waifu-diffusion",
+    "slug": "huggingface--hakurei--waifu-diffusion",
+    "name": "waifu-diffusion",
+    "author": "hakurei",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "stable-diffusion",
+      "image-generation",
+      "en",
+      "license:creativeml-openrail-m",
+      "autotrain_compatible",
+      "endpoints_compatible",
+      "diffusers:StableDiffusionPipeline",
+      "region:us"
+    ],
+    "likes": 2460,
+    "downloads": 3107,
+    "is_rising_star": false
   },
   {
     "id": "huggingface-tiiuae-falcon-40b",
@@ -19936,65 +19981,23 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-hakurei-waifu-diffusion",
-    "slug": "huggingface--hakurei--waifu-diffusion",
-    "name": "waifu-diffusion",
-    "author": "hakurei",
+    "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.3",
+    "slug": "huggingface--mistralai--mistral-7b-instruct-v0.3",
+    "name": "Mistral-7B-Instruct-v0.3",
+    "author": "mistralai",
     "description": "",
     "tags": [
-      "diffusers",
+      "vllm",
       "safetensors",
-      "stable-diffusion",
-      "image-generation",
-      "en",
-      "license:creativeml-openrail-m",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "diffusers:StableDiffusionPipeline",
-      "region:us"
-    ],
-    "likes": 2460,
-    "downloads": 3107,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-black-forest-labs-FLUX.1-Kontext-dev",
-    "slug": "huggingface--black-forest-labs--flux.1-kontext-dev",
-    "name": "FLUX.1-Kontext-dev",
-    "author": "black-forest-labs",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "image-generation",
-      "flux",
-      "diffusion-single-file",
-      "image-to-image",
-      "en",
-      "arxiv:2506.15742",
-      "license:other",
-      "diffusers:FluxKontextPipeline",
-      "region:us"
-    ],
-    "likes": 2448,
-    "downloads": 328501,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-xai-org-grok-1",
-    "slug": "huggingface--xai-org--grok-1",
-    "name": "grok-1",
-    "author": "xai-org",
-    "description": "",
-    "tags": [
-      "grok",
-      "grok-1",
-      "text-generation",
+      "mistral",
+      "mistral-common",
+      "base_model:mistralai/Mistral-7B-v0.3",
+      "base_model:finetune:mistralai/Mistral-7B-v0.3",
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 2368,
-    "downloads": 785,
+    "likes": 2272,
+    "downloads": 974882,
     "is_rising_star": false
   },
   {
@@ -20023,23 +20026,20 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.3",
-    "slug": "huggingface--mistralai--mistral-7b-instruct-v0.3",
-    "name": "Mistral-7B-Instruct-v0.3",
-    "author": "mistralai",
+    "id": "huggingface-xai-org-grok-1",
+    "slug": "huggingface--xai-org--grok-1",
+    "name": "grok-1",
+    "author": "xai-org",
     "description": "",
     "tags": [
-      "vllm",
-      "safetensors",
-      "mistral",
-      "mistral-common",
-      "base_model:mistralai/Mistral-7B-v0.3",
-      "base_model:finetune:mistralai/Mistral-7B-v0.3",
+      "grok",
+      "grok-1",
+      "text-generation",
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 2272,
-    "downloads": 974882,
+    "likes": 2368,
+    "downloads": 785,
     "is_rising_star": false
   },
   {
@@ -20089,28 +20089,6 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-Qwen-Qwen-Image",
-    "slug": "huggingface--qwen--qwen-image",
-    "name": "Qwen-Image",
-    "author": "Qwen",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "image-generation",
-      "en",
-      "zh",
-      "arxiv:2508.02324",
-      "license:apache-2.0",
-      "diffusers:QwenImagePipeline",
-      "deploy:azure",
-      "region:us"
-    ],
-    "likes": 2239,
-    "downloads": 265251,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-moonshotai-Kimi-K2-Instruct",
     "slug": "huggingface--moonshotai--kimi-k2-instruct",
     "name": "Kimi-K2-Instruct",
@@ -20135,38 +20113,53 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-meta-llama-Llama-3.2-1B",
-    "slug": "huggingface--meta-llama--llama-3.2-1b",
-    "name": "Llama-3.2-1B",
-    "author": "meta-llama",
+    "id": "huggingface-microsoft-phi-4",
+    "slug": "huggingface--microsoft--phi-4",
+    "name": "phi-4",
+    "author": "microsoft",
     "description": "",
     "tags": [
       "transformers",
       "safetensors",
-      "llama",
+      "phi3",
       "text-generation",
-      "facebook",
-      "meta",
-      "pytorch",
-      "llama-3",
+      "phi",
+      "nlp",
+      "math",
+      "code-generation-assistance",
+      "general-dialogue-qa",
       "en",
-      "de",
-      "fr",
-      "it",
-      "pt",
-      "hi",
-      "es",
-      "th",
-      "arxiv:2204.05149",
-      "arxiv:2405.16406",
-      "license:llama3.2",
+      "arxiv:2412.08905",
+      "license:mit",
       "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2199,
-    "downloads": 3245555,
+    "likes": 2190,
+    "downloads": 464993,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-Qwen-Qwen-Image",
+    "slug": "huggingface--qwen--qwen-image",
+    "name": "Qwen-Image",
+    "author": "Qwen",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "image-generation",
+      "en",
+      "zh",
+      "arxiv:2508.02324",
+      "license:apache-2.0",
+      "diffusers:QwenImagePipeline",
+      "deploy:azure",
+      "region:us"
+    ],
+    "likes": 2239,
+    "downloads": 265251,
     "is_rising_star": false
   },
   {
@@ -20225,6 +20218,41 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-meta-llama-Llama-3.2-1B",
+    "slug": "huggingface--meta-llama--llama-3.2-1b",
+    "name": "Llama-3.2-1B",
+    "author": "meta-llama",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "llama",
+      "text-generation",
+      "facebook",
+      "meta",
+      "pytorch",
+      "llama-3",
+      "en",
+      "de",
+      "fr",
+      "it",
+      "pt",
+      "hi",
+      "es",
+      "th",
+      "arxiv:2204.05149",
+      "arxiv:2405.16406",
+      "license:llama3.2",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 2199,
+    "downloads": 3245555,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-Qwen-Qwen-Image-Edit",
     "slug": "huggingface--qwen--qwen-image-edit",
     "name": "Qwen-Image-Edit",
@@ -20246,44 +20274,33 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-microsoft-phi-4",
-    "slug": "huggingface--microsoft--phi-4",
-    "name": "phi-4",
-    "author": "microsoft",
+    "id": "huggingface-nvidia-Llama-3.1-Nemotron-70B-Instruct-HF",
+    "slug": "huggingface--nvidia--llama-3.1-nemotron-70b-instruct-hf",
+    "name": "Llama-3.1-Nemotron-70B-Instruct-HF",
+    "author": "nvidia",
     "description": "",
     "tags": [
       "transformers",
       "safetensors",
-      "phi3",
+      "llama",
       "text-generation",
-      "phi",
-      "nlp",
-      "math",
-      "code-generation-assistance",
+      "nvidia",
+      "llama3.1",
       "general-dialogue-qa",
       "en",
-      "arxiv:2412.08905",
-      "license:mit",
+      "dataset:nvidia/HelpSteer2",
+      "arxiv:2410.01257",
+      "arxiv:2405.01481",
+      "arxiv:2406.08673",
+      "base_model:meta-llama/Llama-3.1-70B-Instruct",
+      "base_model:finetune:meta-llama/Llama-3.1-70B-Instruct",
+      "license:llama3.1",
       "autotrain_compatible",
       "text-generation-inference",
-      "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2190,
-    "downloads": 464993,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-lllyasviel-sd-control-collection",
-    "slug": "huggingface--lllyasviel--sd-control-collection",
-    "name": "sd_control_collection",
-    "author": "lllyasviel",
-    "description": "",
-    "tags": [
-      "region:us"
-    ],
-    "likes": 2072,
-    "downloads": 0,
+    "likes": 2059,
+    "downloads": 10243,
     "is_rising_star": false
   },
   {
@@ -20322,33 +20339,16 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-nvidia-Llama-3.1-Nemotron-70B-Instruct-HF",
-    "slug": "huggingface--nvidia--llama-3.1-nemotron-70b-instruct-hf",
-    "name": "Llama-3.1-Nemotron-70B-Instruct-HF",
-    "author": "nvidia",
+    "id": "huggingface-lllyasviel-sd-control-collection",
+    "slug": "huggingface--lllyasviel--sd-control-collection",
+    "name": "sd_control_collection",
+    "author": "lllyasviel",
     "description": "",
     "tags": [
-      "transformers",
-      "safetensors",
-      "llama",
-      "text-generation",
-      "nvidia",
-      "llama3.1",
-      "general-dialogue-qa",
-      "en",
-      "dataset:nvidia/HelpSteer2",
-      "arxiv:2410.01257",
-      "arxiv:2405.01481",
-      "arxiv:2406.08673",
-      "base_model:meta-llama/Llama-3.1-70B-Instruct",
-      "base_model:finetune:meta-llama/Llama-3.1-70B-Instruct",
-      "license:llama3.1",
-      "autotrain_compatible",
-      "text-generation-inference",
       "region:us"
     ],
-    "likes": 2059,
-    "downloads": 10243,
+    "likes": 2072,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
@@ -20369,32 +20369,6 @@
     ],
     "likes": 2063,
     "downloads": 256555,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-microsoft-VibeVoice-1.5B",
-    "slug": "huggingface--microsoft--vibevoice-1.5b",
-    "name": "VibeVoice-1.5B",
-    "author": "microsoft",
-    "description": "",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "vibevoice",
-      "text-generation",
-      "Podcast",
-      "text-to-speech",
-      "en",
-      "zh",
-      "arxiv:2508.19205",
-      "arxiv:2412.08635",
-      "license:mit",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "region:us"
-    ],
-    "likes": 1994,
-    "downloads": 165996,
     "is_rising_star": false
   },
   {
@@ -20421,113 +20395,6 @@
     ],
     "likes": 2056,
     "downloads": 628072,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-stabilityai-stable-diffusion-xl-refiner-1.0",
-    "slug": "huggingface--stabilityai--stable-diffusion-xl-refiner-1.0",
-    "name": "stable-diffusion-xl-refiner-1.0",
-    "author": "stabilityai",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "stable-diffusion",
-      "image-to-image",
-      "arxiv:2307.01952",
-      "arxiv:2211.01324",
-      "arxiv:2108.01073",
-      "arxiv:2112.10752",
-      "license:openrail++",
-      "diffusers:StableDiffusionXLImg2ImgPipeline",
-      "region:us"
-    ],
-    "likes": 1997,
-    "downloads": 475435,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-Qwen-Qwen2.5-Coder-32B-Instruct",
-    "slug": "huggingface--qwen--qwen2.5-coder-32b-instruct",
-    "name": "Qwen2.5-Coder-32B-Instruct",
-    "author": "Qwen",
-    "description": "",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "qwen2",
-      "text-generation",
-      "code-generation-assistance",
-      "codeqwen",
-      "general-dialogue-qa",
-      "qwen",
-      "qwen-coder",
-      "en",
-      "arxiv:2409.12186",
-      "arxiv:2309.00071",
-      "arxiv:2407.10671",
-      "base_model:Qwen/Qwen2.5-Coder-32B",
-      "base_model:finetune:Qwen/Qwen2.5-Coder-32B",
-      "license:apache-2.0",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "deploy:azure",
-      "region:us"
-    ],
-    "likes": 1953,
-    "downloads": 275090,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-databricks-dolly-v2-12b",
-    "slug": "huggingface--databricks--dolly-v2-12b",
-    "name": "dolly-v2-12b",
-    "author": "databricks",
-    "description": "",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "gpt_neox",
-      "text-generation",
-      "en",
-      "dataset:databricks/databricks-dolly-15k",
-      "license:mit",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "region:us",
-      "deploy:azure"
-    ],
-    "likes": 1956,
-    "downloads": 2450,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-briaai-RMBG-1.4",
-    "slug": "huggingface--briaai--rmbg-1.4",
-    "name": "RMBG-1.4",
-    "author": "briaai",
-    "description": "",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "onnx",
-      "safetensors",
-      "SegformerForSemanticSegmentation",
-      "image-segmentation",
-      "remove background",
-      "background",
-      "background-removal",
-      "Pytorch",
-      "vision",
-      "legal liability",
-      "transformers.js",
-      "custom_code",
-      "license:other",
-      "region:us"
-    ],
-    "likes": 1891,
-    "downloads": 189188,
     "is_rising_star": false
   },
   {
@@ -20565,6 +20432,111 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-stabilityai-stable-diffusion-xl-refiner-1.0",
+    "slug": "huggingface--stabilityai--stable-diffusion-xl-refiner-1.0",
+    "name": "stable-diffusion-xl-refiner-1.0",
+    "author": "stabilityai",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "stable-diffusion",
+      "image-to-image",
+      "arxiv:2307.01952",
+      "arxiv:2211.01324",
+      "arxiv:2108.01073",
+      "arxiv:2112.10752",
+      "license:openrail++",
+      "diffusers:StableDiffusionXLImg2ImgPipeline",
+      "region:us"
+    ],
+    "likes": 1997,
+    "downloads": 475435,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-microsoft-VibeVoice-1.5B",
+    "slug": "huggingface--microsoft--vibevoice-1.5b",
+    "name": "VibeVoice-1.5B",
+    "author": "microsoft",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "vibevoice",
+      "text-generation",
+      "Podcast",
+      "text-to-speech",
+      "en",
+      "zh",
+      "arxiv:2508.19205",
+      "arxiv:2412.08635",
+      "license:mit",
+      "autotrain_compatible",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 1994,
+    "downloads": 165996,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-databricks-dolly-v2-12b",
+    "slug": "huggingface--databricks--dolly-v2-12b",
+    "name": "dolly-v2-12b",
+    "author": "databricks",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "gpt_neox",
+      "text-generation",
+      "en",
+      "dataset:databricks/databricks-dolly-15k",
+      "license:mit",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "region:us",
+      "deploy:azure"
+    ],
+    "likes": 1956,
+    "downloads": 2450,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-Qwen-Qwen2.5-Coder-32B-Instruct",
+    "slug": "huggingface--qwen--qwen2.5-coder-32b-instruct",
+    "name": "Qwen2.5-Coder-32B-Instruct",
+    "author": "Qwen",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "qwen2",
+      "text-generation",
+      "code-generation-assistance",
+      "codeqwen",
+      "general-dialogue-qa",
+      "qwen",
+      "qwen-coder",
+      "en",
+      "arxiv:2409.12186",
+      "arxiv:2309.00071",
+      "arxiv:2407.10671",
+      "base_model:Qwen/Qwen2.5-Coder-32B",
+      "base_model:finetune:Qwen/Qwen2.5-Coder-32B",
+      "license:apache-2.0",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "deploy:azure",
+      "region:us"
+    ],
+    "likes": 1953,
+    "downloads": 275090,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-openai-clip-vit-large-patch14",
     "slug": "huggingface--openai--clip-vit-large-patch14",
     "name": "clip-vit-large-patch14",
@@ -20589,10 +20561,10 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.1",
-    "slug": "huggingface--mistralai--mistral-7b-instruct-v0.1",
-    "name": "Mistral-7B-Instruct-v0.1",
-    "author": "mistralai",
+    "id": "huggingface-HuggingFaceH4-zephyr-7b-beta",
+    "slug": "huggingface--huggingfaceh4--zephyr-7b-beta",
+    "name": "zephyr-7b-beta",
+    "author": "HuggingFaceH4",
     "description": "",
     "tags": [
       "transformers",
@@ -20600,19 +20572,55 @@
       "safetensors",
       "mistral",
       "text-generation",
-      "finetuned",
-      "mistral-common",
+      "generated_from_trainer",
       "general-dialogue-qa",
-      "arxiv:2310.06825",
+      "en",
+      "dataset:HuggingFaceH4/ultrachat_200k",
+      "dataset:HuggingFaceH4/ultrafeedback_binarized",
+      "arxiv:2305.18290",
+      "arxiv:2310.16944",
+      "arxiv:2305.14233",
+      "arxiv:2310.01377",
       "base_model:mistralai/Mistral-7B-v0.1",
       "base_model:finetune:mistralai/Mistral-7B-v0.1",
-      "license:apache-2.0",
+      "license:mit",
+      "model-index",
       "autotrain_compatible",
       "text-generation-inference",
+      "endpoints_compatible",
+      "region:us",
+      "deploy:azure"
+    ],
+    "likes": 1813,
+    "downloads": 257484,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-briaai-RMBG-1.4",
+    "slug": "huggingface--briaai--rmbg-1.4",
+    "name": "RMBG-1.4",
+    "author": "briaai",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "onnx",
+      "safetensors",
+      "SegformerForSemanticSegmentation",
+      "image-segmentation",
+      "remove background",
+      "background",
+      "background-removal",
+      "Pytorch",
+      "vision",
+      "legal liability",
+      "transformers.js",
+      "custom_code",
+      "license:other",
       "region:us"
     ],
-    "likes": 1814,
-    "downloads": 386022,
+    "likes": 1891,
+    "downloads": 189188,
     "is_rising_star": false
   },
   {
@@ -20674,6 +20682,33 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.1",
+    "slug": "huggingface--mistralai--mistral-7b-instruct-v0.1",
+    "name": "Mistral-7B-Instruct-v0.1",
+    "author": "mistralai",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "safetensors",
+      "mistral",
+      "text-generation",
+      "finetuned",
+      "mistral-common",
+      "general-dialogue-qa",
+      "arxiv:2310.06825",
+      "base_model:mistralai/Mistral-7B-v0.1",
+      "base_model:finetune:mistralai/Mistral-7B-v0.1",
+      "license:apache-2.0",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "region:us"
+    ],
+    "likes": 1814,
+    "downloads": 386022,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-h94-IP-Adapter-FaceID",
     "slug": "huggingface--h94--ip-adapter-faceid",
     "name": "IP-Adapter-FaceID",
@@ -20692,62 +20727,30 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-HuggingFaceH4-zephyr-7b-beta",
-    "slug": "huggingface--huggingfaceh4--zephyr-7b-beta",
-    "name": "zephyr-7b-beta",
-    "author": "HuggingFaceH4",
+    "id": "huggingface-Qwen-QwQ-32B-Preview",
+    "slug": "huggingface--qwen--qwq-32b-preview",
+    "name": "QwQ-32B-Preview",
+    "author": "Qwen",
     "description": "",
     "tags": [
       "transformers",
-      "pytorch",
       "safetensors",
-      "mistral",
+      "qwen2",
       "text-generation",
-      "generated_from_trainer",
       "general-dialogue-qa",
       "en",
-      "dataset:HuggingFaceH4/ultrachat_200k",
-      "dataset:HuggingFaceH4/ultrafeedback_binarized",
-      "arxiv:2305.18290",
-      "arxiv:2310.16944",
-      "arxiv:2305.14233",
-      "arxiv:2310.01377",
-      "base_model:mistralai/Mistral-7B-v0.1",
-      "base_model:finetune:mistralai/Mistral-7B-v0.1",
-      "license:mit",
-      "model-index",
+      "arxiv:2407.10671",
+      "base_model:Qwen/Qwen2.5-32B-Instruct",
+      "base_model:finetune:Qwen/Qwen2.5-32B-Instruct",
+      "license:apache-2.0",
       "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
-    ],
-    "likes": 1813,
-    "downloads": 257484,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-mistralai-Mixtral-8x7B-v0.1",
-    "slug": "huggingface--mistralai--mixtral-8x7b-v0.1",
-    "name": "Mixtral-8x7B-v0.1",
-    "author": "mistralai",
-    "description": "",
-    "tags": [
-      "vllm",
-      "safetensors",
-      "mixtral",
-      "moe",
-      "mistral-common",
-      "fr",
-      "it",
-      "de",
-      "es",
-      "en",
-      "license:apache-2.0",
+      "deploy:azure",
       "region:us"
     ],
-    "likes": 1770,
-    "downloads": 79421,
+    "likes": 1741,
+    "downloads": 53159,
     "is_rising_star": false
   },
   {
@@ -20893,30 +20896,27 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-Qwen-QwQ-32B-Preview",
-    "slug": "huggingface--qwen--qwq-32b-preview",
-    "name": "QwQ-32B-Preview",
-    "author": "Qwen",
+    "id": "huggingface-mistralai-Mixtral-8x7B-v0.1",
+    "slug": "huggingface--mistralai--mixtral-8x7b-v0.1",
+    "name": "Mixtral-8x7B-v0.1",
+    "author": "mistralai",
     "description": "",
     "tags": [
-      "transformers",
+      "vllm",
       "safetensors",
-      "qwen2",
-      "text-generation",
-      "general-dialogue-qa",
+      "mixtral",
+      "moe",
+      "mistral-common",
+      "fr",
+      "it",
+      "de",
+      "es",
       "en",
-      "arxiv:2407.10671",
-      "base_model:Qwen/Qwen2.5-32B-Instruct",
-      "base_model:finetune:Qwen/Qwen2.5-32B-Instruct",
       "license:apache-2.0",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "deploy:azure",
       "region:us"
     ],
-    "likes": 1741,
-    "downloads": 53159,
+    "likes": 1770,
+    "downloads": 79421,
     "is_rising_star": false
   },
   {
@@ -20952,31 +20952,6 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-mattshumer-Reflection-Llama-3.1-70B",
-    "slug": "huggingface--mattshumer--reflection-llama-3.1-70b",
-    "name": "Reflection-Llama-3.1-70B",
-    "author": "mattshumer",
-    "description": "",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "llama",
-      "text-generation",
-      "general-dialogue-qa",
-      "base_model:meta-llama/Llama-3.1-70B-Instruct",
-      "base_model:finetune:meta-llama/Llama-3.1-70B-Instruct",
-      "license:llama3.1",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
-    ],
-    "likes": 1711,
-    "downloads": 138,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-dreamlike-art-dreamlike-photoreal-2.0",
     "slug": "huggingface--dreamlike-art--dreamlike-photoreal-2.0",
     "name": "dreamlike-photoreal-2.0",
@@ -20998,6 +20973,27 @@
     ],
     "likes": 1719,
     "downloads": 8411,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-microsoft-OmniParser",
+    "slug": "huggingface--microsoft--omniparser",
+    "name": "OmniParser",
+    "author": "microsoft",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "blip-2",
+      "image-to-text",
+      "image-text-to-text",
+      "arxiv:2408.00203",
+      "license:mit",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 1696,
+    "downloads": 376,
     "is_rising_star": false
   },
   {
@@ -21053,24 +21049,28 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-microsoft-OmniParser",
-    "slug": "huggingface--microsoft--omniparser",
-    "name": "OmniParser",
-    "author": "microsoft",
+    "id": "huggingface-mattshumer-Reflection-Llama-3.1-70B",
+    "slug": "huggingface--mattshumer--reflection-llama-3.1-70b",
+    "name": "Reflection-Llama-3.1-70B",
+    "author": "mattshumer",
     "description": "",
     "tags": [
       "transformers",
       "safetensors",
-      "blip-2",
-      "image-to-text",
-      "image-text-to-text",
-      "arxiv:2408.00203",
-      "license:mit",
+      "llama",
+      "text-generation",
+      "general-dialogue-qa",
+      "base_model:meta-llama/Llama-3.1-70B-Instruct",
+      "base_model:finetune:meta-llama/Llama-3.1-70B-Instruct",
+      "license:llama3.1",
+      "autotrain_compatible",
+      "text-generation-inference",
       "endpoints_compatible",
-      "region:us"
+      "region:us",
+      "deploy:azure"
     ],
-    "likes": 1696,
-    "downloads": 376,
+    "likes": 1711,
+    "downloads": 138,
     "is_rising_star": false
   },
   {
@@ -21095,29 +21095,6 @@
     ],
     "likes": 1709,
     "downloads": 805190,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-tencent-Hunyuan3D-2",
-    "slug": "huggingface--tencent--hunyuan3d-2",
-    "name": "Hunyuan3D-2",
-    "author": "tencent",
-    "description": "",
-    "tags": [
-      "hunyuan3d-2",
-      "diffusers",
-      "safetensors",
-      "image-to-3d",
-      "text-to-3d",
-      "en",
-      "zh",
-      "arxiv:2501.12202",
-      "arxiv:2411.02293",
-      "license:other",
-      "region:us"
-    ],
-    "likes": 1672,
-    "downloads": 84347,
     "is_rising_star": false
   },
   {
@@ -21162,6 +21139,60 @@
     ],
     "likes": 1681,
     "downloads": 7927,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-docling-project-SmolDocling-256M-preview",
+    "slug": "huggingface--docling-project--smoldocling-256m-preview",
+    "name": "SmolDocling-256M-preview",
+    "author": "docling-project",
+    "description": "",
+    "tags": [
+      "transformers",
+      "onnx",
+      "safetensors",
+      "idefics3",
+      "image-to-text",
+      "image-text-to-text",
+      "general-dialogue-qa",
+      "en",
+      "dataset:ds4sd/SynthCodeNet",
+      "dataset:ds4sd/SynthFormulaNet",
+      "dataset:ds4sd/SynthChartNet",
+      "dataset:HuggingFaceM4/DoclingMatix",
+      "arxiv:2503.11576",
+      "arxiv:2305.03393",
+      "base_model:HuggingFaceTB/SmolVLM-256M-Instruct",
+      "base_model:quantized:HuggingFaceTB/SmolVLM-256M-Instruct",
+      "license:cdla-permissive-2.0",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 1598,
+    "downloads": 196217,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-tencent-Hunyuan3D-2",
+    "slug": "huggingface--tencent--hunyuan3d-2",
+    "name": "Hunyuan3D-2",
+    "author": "tencent",
+    "description": "",
+    "tags": [
+      "hunyuan3d-2",
+      "diffusers",
+      "safetensors",
+      "image-to-3d",
+      "text-to-3d",
+      "en",
+      "zh",
+      "arxiv:2501.12202",
+      "arxiv:2411.02293",
+      "license:other",
+      "region:us"
+    ],
+    "likes": 1672,
+    "downloads": 84347,
     "is_rising_star": false
   },
   {
@@ -21211,28 +21242,6 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-gsdf-Counterfeit-V2.5",
-    "slug": "huggingface--gsdf--counterfeit-v2.5",
-    "name": "Counterfeit-V2.5",
-    "author": "gsdf",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "stable-diffusion",
-      "stable-diffusion-diffusers",
-      "image-generation",
-      "license:creativeml-openrail-m",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "diffusers:StableDiffusionPipeline",
-      "region:us"
-    ],
-    "likes": 1577,
-    "downloads": 2985,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-xinsir-controlnet-union-sdxl-1.0",
     "slug": "huggingface--xinsir--controlnet-union-sdxl-1.0",
     "name": "controlnet-union-sdxl-1.0",
@@ -21253,95 +21262,25 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-docling-project-SmolDocling-256M-preview",
-    "slug": "huggingface--docling-project--smoldocling-256m-preview",
-    "name": "SmolDocling-256M-preview",
-    "author": "docling-project",
+    "id": "huggingface-gsdf-Counterfeit-V2.5",
+    "slug": "huggingface--gsdf--counterfeit-v2.5",
+    "name": "Counterfeit-V2.5",
+    "author": "gsdf",
     "description": "",
     "tags": [
-      "transformers",
-      "onnx",
+      "diffusers",
       "safetensors",
-      "idefics3",
-      "image-to-text",
-      "image-text-to-text",
-      "general-dialogue-qa",
-      "en",
-      "dataset:ds4sd/SynthCodeNet",
-      "dataset:ds4sd/SynthFormulaNet",
-      "dataset:ds4sd/SynthChartNet",
-      "dataset:HuggingFaceM4/DoclingMatix",
-      "arxiv:2503.11576",
-      "arxiv:2305.03393",
-      "base_model:HuggingFaceTB/SmolVLM-256M-Instruct",
-      "base_model:quantized:HuggingFaceTB/SmolVLM-256M-Instruct",
-      "license:cdla-permissive-2.0",
+      "stable-diffusion",
+      "stable-diffusion-diffusers",
+      "image-generation",
+      "license:creativeml-openrail-m",
+      "autotrain_compatible",
       "endpoints_compatible",
+      "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 1598,
-    "downloads": 196217,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-meta-llama-Llama-3.2-11B-Vision-Instruct",
-    "slug": "huggingface--meta-llama--llama-3.2-11b-vision-instruct",
-    "name": "Llama-3.2-11B-Vision-Instruct",
-    "author": "meta-llama",
-    "description": "",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "mllama",
-      "image-to-text",
-      "facebook",
-      "meta",
-      "pytorch",
-      "llama",
-      "llama-3",
-      "image-text-to-text",
-      "general-dialogue-qa",
-      "en",
-      "de",
-      "fr",
-      "it",
-      "pt",
-      "hi",
-      "es",
-      "th",
-      "arxiv:2204.05149",
-      "license:llama3.2",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "region:us"
-    ],
-    "likes": 1545,
-    "downloads": 207385,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-stepfun-ai-GOT-OCR2-0",
-    "slug": "huggingface--stepfun-ai--got-ocr2-0",
-    "name": "GOT-OCR2_0",
-    "author": "stepfun-ai",
-    "description": "",
-    "tags": [
-      "safetensors",
-      "GOT",
-      "got",
-      "vision-language",
-      "ocr2.0",
-      "custom_code",
-      "image-text-to-text",
-      "multilingual",
-      "arxiv:2409.01704",
-      "arxiv:2405.14295",
-      "arxiv:2312.06109",
-      "license:apache-2.0",
-      "region:us"
-    ],
-    "likes": 1525,
-    "downloads": 28848,
+    "likes": 1577,
+    "downloads": 2985,
     "is_rising_star": false
   },
   {
@@ -21398,6 +21337,42 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-meta-llama-Llama-3.2-11B-Vision-Instruct",
+    "slug": "huggingface--meta-llama--llama-3.2-11b-vision-instruct",
+    "name": "Llama-3.2-11B-Vision-Instruct",
+    "author": "meta-llama",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "mllama",
+      "image-to-text",
+      "facebook",
+      "meta",
+      "pytorch",
+      "llama",
+      "llama-3",
+      "image-text-to-text",
+      "general-dialogue-qa",
+      "en",
+      "de",
+      "fr",
+      "it",
+      "pt",
+      "hi",
+      "es",
+      "th",
+      "arxiv:2204.05149",
+      "license:llama3.2",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 1545,
+    "downloads": 207385,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-microsoft-Phi-4-multimodal-instruct",
     "slug": "huggingface--microsoft--phi-4-multimodal-instruct",
     "name": "Phi-4-multimodal-instruct",
@@ -21451,6 +21426,31 @@
     ],
     "likes": 1541,
     "downloads": 411764,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-stepfun-ai-GOT-OCR2-0",
+    "slug": "huggingface--stepfun-ai--got-ocr2-0",
+    "name": "GOT-OCR2_0",
+    "author": "stepfun-ai",
+    "description": "",
+    "tags": [
+      "safetensors",
+      "GOT",
+      "got",
+      "vision-language",
+      "ocr2.0",
+      "custom_code",
+      "image-text-to-text",
+      "multilingual",
+      "arxiv:2409.01704",
+      "arxiv:2405.14295",
+      "arxiv:2312.06109",
+      "license:apache-2.0",
+      "region:us"
+    ],
+    "likes": 1525,
+    "downloads": 28848,
     "is_rising_star": false
   },
   {
@@ -21546,13 +21546,14 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-Wide ResNet",
-    "slug": "pytorch--pytorch--wide resnet",
-    "name": "Wide ResNet",
+    "id": "pytorch-pytorch-GoogLeNet",
+    "slug": "pytorch--pytorch--googlenet",
+    "name": "GoogLeNet",
     "author": "pytorch",
-    "description": "Wide Residual Networks \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "description": "GoogLeNet was based on a deep convolutional neural network architecture codenamed “Inception” which won ImageNet 2014. \t\t\t\t\t\t \t\t\t\t\t 17.3k",
     "tags": [
-      "pytorch"
+      "pytorch",
+      "code-generation-assistance"
     ],
     "likes": 17300,
     "downloads": 0,
@@ -21598,25 +21599,11 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-GoogLeNet",
-    "slug": "pytorch--pytorch--googlenet",
-    "name": "GoogLeNet",
+    "id": "pytorch-pytorch-Wide ResNet",
+    "slug": "pytorch--pytorch--wide resnet",
+    "name": "Wide ResNet",
     "author": "pytorch",
-    "description": "GoogLeNet was based on a deep convolutional neural network architecture codenamed “Inception” which won ImageNet 2014. \t\t\t\t\t\t \t\t\t\t\t 17.3k",
-    "tags": [
-      "pytorch",
-      "code-generation-assistance"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-ResNext",
-    "slug": "pytorch--pytorch--resnext",
-    "name": "ResNext",
-    "author": "pytorch",
-    "description": "Next generation ResNets, more efficient and accurate \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "description": "Wide Residual Networks \t\t\t\t\t\t \t\t\t\t\t 17.3k",
     "tags": [
       "pytorch"
     ],
@@ -21634,6 +21621,19 @@
       "pytorch"
     ],
     "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-nvidia-FastPitch 2",
+    "slug": "pytorch--nvidia--fastpitch 2",
+    "name": "FastPitch 2",
+    "author": "nvidia",
+    "description": "The FastPitch model for generating mel spectrograms from text \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -21664,6 +21664,19 @@
     "is_rising_star": false
   },
   {
+    "id": "pytorch-pytorch-ResNext",
+    "slug": "pytorch--pytorch--resnext",
+    "name": "ResNext",
+    "author": "pytorch",
+    "description": "Next generation ResNets, more efficient and accurate \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "pytorch-pytorch-ShuffleNet v2",
     "slug": "pytorch--pytorch--shufflenet v2",
     "name": "ShuffleNet v2",
@@ -21677,37 +21690,24 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-nvidia-HiFi GAN",
-    "slug": "pytorch--nvidia--hifi gan",
-    "name": "HiFi GAN",
-    "author": "nvidia",
-    "description": "The HiFi GAN model for generating waveforms from mel spectrograms \t\t\t\t\t\t \t\t\t\t\t 14.6k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-nvidia-FastPitch 2",
-    "slug": "pytorch--nvidia--fastpitch 2",
-    "name": "FastPitch 2",
-    "author": "nvidia",
-    "description": "The FastPitch model for generating mel spectrograms from text \t\t\t\t\t\t \t\t\t\t\t 14.6k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
     "id": "pytorch-nvidia-GPUNet",
     "slug": "pytorch--nvidia--gpunet",
     "name": "GPUNet",
     "author": "nvidia",
     "description": "GPUNet is a new family of Convolutional Neural Networks designed to max out the performance of NVIDIA GPU and TensorRT. \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-nvidia-SE-ResNeXt101",
+    "slug": "pytorch--nvidia--se-resnext101",
+    "name": "SE-ResNeXt101",
+    "author": "nvidia",
+    "description": "ResNeXt with Squeeze-and-Excitation module added, trained with mixed precision using Tensor Cores. \t\t\t\t\t\t \t\t\t\t\t 14.6k",
     "tags": [
       "pytorch"
     ],
@@ -21729,11 +21729,11 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-nvidia-ResNet50",
-    "slug": "pytorch--nvidia--resnet50",
-    "name": "ResNet50",
+    "id": "pytorch-nvidia-HiFi GAN",
+    "slug": "pytorch--nvidia--hifi gan",
+    "name": "HiFi GAN",
     "author": "nvidia",
-    "description": "ResNet50 model trained with mixed precision using Tensor Cores. \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "description": "The HiFi GAN model for generating waveforms from mel spectrograms \t\t\t\t\t\t \t\t\t\t\t 14.6k",
     "tags": [
       "pytorch"
     ],
@@ -21742,11 +21742,11 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-nvidia-Tacotron 2",
-    "slug": "pytorch--nvidia--tacotron 2",
-    "name": "Tacotron 2",
+    "id": "pytorch-nvidia-ResNet50",
+    "slug": "pytorch--nvidia--resnet50",
+    "name": "ResNet50",
     "author": "nvidia",
-    "description": "The Tacotron 2 model for generating mel spectrograms from text \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "description": "ResNet50 model trained with mixed precision using Tensor Cores. \t\t\t\t\t\t \t\t\t\t\t 14.6k",
     "tags": [
       "pytorch"
     ],
@@ -21781,11 +21781,24 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-nvidia-SE-ResNeXt101",
-    "slug": "pytorch--nvidia--se-resnext101",
-    "name": "SE-ResNeXt101",
+    "id": "pytorch-snakers4-Silero Text-To-Speech Models",
+    "slug": "pytorch--snakers4--silero text-to-speech models",
+    "name": "Silero Text-To-Speech Models",
+    "author": "snakers4",
+    "description": "A set of compact enterprise-grade pre-trained TTS Models for multiple languages \t\t\t\t\t\t \t\t\t\t\t 5.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 5600,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-nvidia-Tacotron 2",
+    "slug": "pytorch--nvidia--tacotron 2",
+    "name": "Tacotron 2",
     "author": "nvidia",
-    "description": "ResNeXt with Squeeze-and-Excitation module added, trained with mixed precision using Tensor Cores. \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "description": "The Tacotron 2 model for generating mel spectrograms from text \t\t\t\t\t\t \t\t\t\t\t 14.6k",
     "tags": [
       "pytorch"
     ],
@@ -21803,19 +21816,6 @@
       "pytorch"
     ],
     "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-intelisl-MiDaS",
-    "slug": "pytorch--intelisl--midas",
-    "name": "MiDaS",
-    "author": "intelisl",
-    "description": "MiDaS models for computing relative depth from a single image. \t\t\t\t\t\t \t\t\t\t\t 5.2k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 5200,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -21846,28 +21846,15 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-snakers4-Silero Text-To-Speech Models",
-    "slug": "pytorch--snakers4--silero text-to-speech models",
-    "name": "Silero Text-To-Speech Models",
-    "author": "snakers4",
-    "description": "A set of compact enterprise-grade pre-trained TTS Models for multiple languages \t\t\t\t\t\t \t\t\t\t\t 5.6k",
+    "id": "pytorch-intelisl-MiDaS",
+    "slug": "pytorch--intelisl--midas",
+    "name": "MiDaS",
+    "author": "intelisl",
+    "description": "MiDaS models for computing relative depth from a single image. \t\t\t\t\t\t \t\t\t\t\t 5.2k",
     "tags": [
       "pytorch"
     ],
-    "likes": 5600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-GhostNet",
-    "slug": "pytorch--pytorch--ghostnet",
-    "name": "GhostNet",
-    "author": "pytorch",
-    "description": "Efficient networks by generating more features from cheap operations \t\t\t\t\t\t \t\t\t\t\t 4.3k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 4300,
+    "likes": 5200,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -21881,6 +21868,19 @@
       "pytorch"
     ],
     "likes": 3500,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-GhostNet",
+    "slug": "pytorch--pytorch--ghostnet",
+    "name": "GhostNet",
+    "author": "pytorch",
+    "description": "Efficient networks by generating more features from cheap operations \t\t\t\t\t\t \t\t\t\t\t 4.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 4300,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -22003,32 +22003,6 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-IBN-Net",
-    "slug": "pytorch--pytorch--ibn-net",
-    "name": "IBN-Net",
-    "author": "pytorch",
-    "description": "Networks with domain/appearance invariance \t\t\t\t\t\t \t\t\t\t\t 808",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 808,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-datvuthanh-HybridNets",
-    "slug": "pytorch--datvuthanh--hybridnets",
-    "name": "HybridNets",
-    "author": "datvuthanh",
-    "description": "HybridNets – End2End Perception Network \t\t\t\t\t\t \t\t\t\t\t 658",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 658,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
     "id": "pytorch-sigsep-Open-Unmix",
     "slug": "pytorch--sigsep--open-unmix",
     "name": "Open-Unmix",
@@ -22038,6 +22012,32 @@
       "pytorch"
     ],
     "likes": 1400,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-facebookresearch-ResNext WSL",
+    "slug": "pytorch--facebookresearch--resnext wsl",
+    "name": "ResNext WSL",
+    "author": "facebookresearch",
+    "description": "ResNext models trained with billion scale weakly-supervised data. \t\t\t\t\t\t \t\t\t\t\t 602",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 602,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-IBN-Net",
+    "slug": "pytorch--pytorch--ibn-net",
+    "name": "IBN-Net",
+    "author": "pytorch",
+    "description": "Networks with domain/appearance invariance \t\t\t\t\t\t \t\t\t\t\t 808",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 808,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -22068,28 +22068,15 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-facebookresearch-ResNext WSL",
-    "slug": "pytorch--facebookresearch--resnext wsl",
-    "name": "ResNext WSL",
-    "author": "facebookresearch",
-    "description": "ResNext models trained with billion scale weakly-supervised data. \t\t\t\t\t\t \t\t\t\t\t 602",
+    "id": "pytorch-datvuthanh-HybridNets",
+    "slug": "pytorch--datvuthanh--hybridnets",
+    "name": "HybridNets",
+    "author": "datvuthanh",
+    "description": "HybridNets – End2End Perception Network \t\t\t\t\t\t \t\t\t\t\t 658",
     "tags": [
       "pytorch"
     ],
-    "likes": 602,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-nicolalandro-ntsnet",
-    "slug": "pytorch--nicolalandro--ntsnet",
-    "name": "ntsnet",
-    "author": "nicolalandro",
-    "description": "classify birds using this fine-grained image classifier \t\t\t\t\t\t \t\t\t\t\t 34",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 34,
+    "likes": 658,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -22103,6 +22090,19 @@
       "pytorch"
     ],
     "likes": 370,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-nicolalandro-ntsnet",
+    "slug": "pytorch--nicolalandro--ntsnet",
+    "name": "ntsnet",
+    "author": "nicolalandro",
+    "description": "classify birds using this fine-grained image classifier \t\t\t\t\t\t \t\t\t\t\t 34",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 34,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -22193,66 +22193,23 @@
     "is_rising_star": false
   },
   {
-    "id": "github-R-Projects-Portfolio-Madrid-Real-Estate-Price-Prediction",
-    "slug": "github--r-projects-portfolio--madrid-real-estate-price-prediction",
-    "name": "Madrid-Real-Estate-Price-Prediction",
-    "author": "R-Projects-Portfolio",
-    "description": "This is a Supervised Learning Model which predicts the Price of Real Estate in Madrid, Spain.",
+    "id": "github-freesoul84-100DaysOfMLcode",
+    "slug": "github--freesoul84--100daysofmlcode",
+    "name": "100DaysOfMLcode",
+    "author": "freesoul84",
+    "description": "Machine learning for 100 days",
     "tags": [
       "github",
+      "computer-vision",
+      "emotion-detection",
+      "jupyter-notebook",
       "machine-learning",
       "machine-learning-model",
-      "price-prediction",
-      "r",
-      "r-project",
-      "supervised-learning",
-      "supervised-machine-learning"
+      "naive-bayes",
+      "object-tracking",
+      "recommendation-system"
     ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-aliahmad552-loan-approval-prediction",
-    "slug": "github--aliahmad552--loan-approval-prediction",
-    "name": "loan_approval_prediction",
-    "author": "aliahmad552",
-    "description": "This is a Loan Approval Prediction Web App built with FastAPI (Backend) and HTML, CSS, JavaScript (Frontend). It predicts whether a loan application will be approved or not approved based on user input.",
-    "tags": [
-      "github",
-      "data-science",
-      "data-science-project",
-      "fastapi",
-      "loan-approval",
-      "logistic-regression",
-      "logistic-regression-classifier",
-      "machine-learning",
-      "machine-learning-model",
-      "python"
-    ],
-    "likes": 3,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-nirajan-jha-Predicting-Employee-Churn-Using-Machine-Learning",
-    "slug": "github--nirajan-jha--predicting-employee-churn-using-machine-learning",
-    "name": "Predicting-Employee-Churn-Using-Machine-Learning",
-    "author": "nirajan-jha",
-    "description": "The aim is to build a predictive model that can accurately classify whether the employee is likely to leave or the employee is likely to stay in the company. This allows companies to take proactive measures, such as improving working conditions, offering promotions, or addressing dissatisfaction, to retain valuable employees.",
-    "tags": [
-      "github",
-      "classification",
-      "decision-tree",
-      "logistic-regression",
-      "machine-learning",
-      "machine-learning-model",
-      "model",
-      "python",
-      "random-forest",
-      "supervised-machine-learning"
-    ],
-    "likes": 2,
+    "likes": 7,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -22281,6 +22238,26 @@
     "is_rising_star": false
   },
   {
+    "id": "github-R-Projects-Portfolio-Madrid-Real-Estate-Price-Prediction",
+    "slug": "github--r-projects-portfolio--madrid-real-estate-price-prediction",
+    "name": "Madrid-Real-Estate-Price-Prediction",
+    "author": "R-Projects-Portfolio",
+    "description": "This is a Supervised Learning Model which predicts the Price of Real Estate in Madrid, Spain.",
+    "tags": [
+      "github",
+      "machine-learning",
+      "machine-learning-model",
+      "price-prediction",
+      "r",
+      "r-project",
+      "supervised-learning",
+      "supervised-machine-learning"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "github-balirampansare-car-price-predictor",
     "slug": "github--balirampansare--car-price-predictor",
     "name": "car-price-predictor",
@@ -22295,6 +22272,28 @@
       "python"
     ],
     "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-nirajan-jha-Predicting-Employee-Churn-Using-Machine-Learning",
+    "slug": "github--nirajan-jha--predicting-employee-churn-using-machine-learning",
+    "name": "Predicting-Employee-Churn-Using-Machine-Learning",
+    "author": "nirajan-jha",
+    "description": "The aim is to build a predictive model that can accurately classify whether the employee is likely to leave or the employee is likely to stay in the company. This allows companies to take proactive measures, such as improving working conditions, offering promotions, or addressing dissatisfaction, to retain valuable employees.",
+    "tags": [
+      "github",
+      "classification",
+      "decision-tree",
+      "logistic-regression",
+      "machine-learning",
+      "machine-learning-model",
+      "model",
+      "python",
+      "random-forest",
+      "supervised-machine-learning"
+    ],
+    "likes": 2,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -22321,68 +22320,24 @@
     "is_rising_star": false
   },
   {
-    "id": "github-freesoul84-100DaysOfMLcode",
-    "slug": "github--freesoul84--100daysofmlcode",
-    "name": "100DaysOfMLcode",
-    "author": "freesoul84",
-    "description": "Machine learning for 100 days",
+    "id": "github-aliahmad552-loan-approval-prediction",
+    "slug": "github--aliahmad552--loan-approval-prediction",
+    "name": "loan_approval_prediction",
+    "author": "aliahmad552",
+    "description": "This is a Loan Approval Prediction Web App built with FastAPI (Backend) and HTML, CSS, JavaScript (Frontend). It predicts whether a loan application will be approved or not approved based on user input.",
     "tags": [
       "github",
-      "computer-vision",
-      "emotion-detection",
-      "jupyter-notebook",
+      "data-science",
+      "data-science-project",
+      "fastapi",
+      "loan-approval",
+      "logistic-regression",
+      "logistic-regression-classifier",
       "machine-learning",
       "machine-learning-model",
-      "naive-bayes",
-      "object-tracking",
-      "recommendation-system"
+      "python"
     ],
-    "likes": 7,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-Om29Singh-Diabetes-Prediction",
-    "slug": "github--om29singh--diabetes-prediction",
-    "name": "Diabetes_Prediction",
-    "author": "Om29Singh",
-    "description": "Diabetes Prediction using Machine Learning",
-    "tags": [
-      "github",
-      "jupyter-notebooks",
-      "machine-learning",
-      "machine-learning-model",
-      "prediction",
-      "python3",
-      "supervised-learning-algorithms",
-      "support-vector-machines"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-CTLife-cfDNA-5hmC-LungCancer",
-    "slug": "github--ctlife--cfdna-5hmc-lungcancer",
-    "name": "cfDNA-5hmC_LungCancer",
-    "author": "CTLife",
-    "description": "Plasma cell-free DNA hydroxymethylomes discriminate disease state in EGFR-mutant non-small cell lung cancer.",
-    "tags": [
-      "github",
-      "5hmc",
-      "bioinformatics",
-      "cfdna",
-      "disease-state",
-      "egfr-mutant",
-      "heterogeneity",
-      "liquid-biopsy",
-      "lung-cancer",
-      "machine-learning-model",
-      "non-small-cell-lung-cancer",
-      "nsclc",
-      "prediction"
-    ],
-    "likes": 1,
+    "likes": 3,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -22401,24 +22356,6 @@
       "machine-learning-model",
       "opencv2",
       "python3"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-raghavagps-nagbinder",
-    "slug": "github--raghavagps--nagbinder",
-    "name": "nagbinder",
-    "author": "raghavagps",
-    "description": "A method for predicting NAG interacting residues in a protein from its primary sequence",
-    "tags": [
-      "github",
-      "machine-learning-model",
-      "nag-binding",
-      "nag-interacting",
-      "prediction-algorithm",
-      "protein-bioinformatics"
     ],
     "likes": 1,
     "downloads": 0,
@@ -22451,6 +22388,69 @@
       "tensorflow-text",
       "transformer",
       "translation-localization"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-CTLife-cfDNA-5hmC-LungCancer",
+    "slug": "github--ctlife--cfdna-5hmc-lungcancer",
+    "name": "cfDNA-5hmC_LungCancer",
+    "author": "CTLife",
+    "description": "Plasma cell-free DNA hydroxymethylomes discriminate disease state in EGFR-mutant non-small cell lung cancer.",
+    "tags": [
+      "github",
+      "5hmc",
+      "bioinformatics",
+      "cfdna",
+      "disease-state",
+      "egfr-mutant",
+      "heterogeneity",
+      "liquid-biopsy",
+      "lung-cancer",
+      "machine-learning-model",
+      "non-small-cell-lung-cancer",
+      "nsclc",
+      "prediction"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-Om29Singh-Diabetes-Prediction",
+    "slug": "github--om29singh--diabetes-prediction",
+    "name": "Diabetes_Prediction",
+    "author": "Om29Singh",
+    "description": "Diabetes Prediction using Machine Learning",
+    "tags": [
+      "github",
+      "jupyter-notebooks",
+      "machine-learning",
+      "machine-learning-model",
+      "prediction",
+      "python3",
+      "supervised-learning-algorithms",
+      "support-vector-machines"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-raghavagps-nagbinder",
+    "slug": "github--raghavagps--nagbinder",
+    "name": "nagbinder",
+    "author": "raghavagps",
+    "description": "A method for predicting NAG interacting residues in a protein from its primary sequence",
+    "tags": [
+      "github",
+      "machine-learning-model",
+      "nag-binding",
+      "nag-interacting",
+      "prediction-algorithm",
+      "protein-bioinformatics"
     ],
     "likes": 1,
     "downloads": 0,
@@ -22505,21 +22505,30 @@
     "is_rising_star": false
   },
   {
-    "id": "github-youshen-lim-TalentSol---Applicant-Tracking-System-Application",
-    "slug": "github--youshen-lim--talentsol---applicant-tracking-system-application",
-    "name": "TalentSol---Applicant-Tracking-System-Application",
-    "author": "youshen-lim",
-    "description": "Hobbyist AI/ML project: Transparent AI-powered candidate screening with 4-level data pipeline. React/TypeScript ATS for ML experimentation. Educational only.",
+    "id": "github-qwqoro-ML-Corrupted",
+    "slug": "github--qwqoro--ml-corrupted",
+    "name": "ML-Corrupted",
+    "author": "qwqoro",
+    "description": "📊 [ML] Classification Problem Solution: Guessing the type of a corrupted file",
     "tags": [
       "github",
-      "applicant-tracking-system",
-      "ats",
+      "classification",
+      "classification-model",
+      "classification-models",
+      "classification-problem",
+      "corrupted",
+      "corruption",
+      "file-analysis",
+      "file-analyzer",
+      "file-content",
+      "file-type",
+      "file-type-check",
+      "file-type-detection",
+      "file-types",
+      "forensic-analysis",
       "machine-learning",
       "machine-learning-model",
-      "react",
-      "tailwind",
-      "tailwindcss",
-      "typescript"
+      "machine-learning-models"
     ],
     "likes": 1,
     "downloads": 0,
@@ -22554,32 +22563,40 @@
     "is_rising_star": false
   },
   {
-    "id": "github-qwqoro-ML-Corrupted",
-    "slug": "github--qwqoro--ml-corrupted",
-    "name": "ML-Corrupted",
-    "author": "qwqoro",
-    "description": "📊 [ML] Classification Problem Solution: Guessing the type of a corrupted file",
+    "id": "github-youshen-lim-TalentSol---Applicant-Tracking-System-Application",
+    "slug": "github--youshen-lim--talentsol---applicant-tracking-system-application",
+    "name": "TalentSol---Applicant-Tracking-System-Application",
+    "author": "youshen-lim",
+    "description": "Hobbyist AI/ML project: Transparent AI-powered candidate screening with 4-level data pipeline. React/TypeScript ATS for ML experimentation. Educational only.",
     "tags": [
       "github",
-      "classification",
-      "classification-model",
-      "classification-models",
-      "classification-problem",
-      "corrupted",
-      "corruption",
-      "file-analysis",
-      "file-analyzer",
-      "file-content",
-      "file-type",
-      "file-type-check",
-      "file-type-detection",
-      "file-types",
-      "forensic-analysis",
+      "applicant-tracking-system",
+      "ats",
       "machine-learning",
       "machine-learning-model",
-      "machine-learning-models"
+      "react",
+      "tailwind",
+      "tailwindcss",
+      "typescript"
     ],
     "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-Himasnhu-AT-COX3-ML-Model",
+    "slug": "github--himasnhu-at--cox3-ml-model",
+    "name": "COX3-ML-Model",
+    "author": "Himasnhu-AT",
+    "description": "Building an ML model for detecting if a patient is COVID-19 positive or not. Based on dataset: https://www.kaggle.com/datasets/andyczhao/covidx-cxr2",
+    "tags": [
+      "github",
+      "machine-learning",
+      "machine-learning-algorithms",
+      "machine-learning-model",
+      "model"
+    ],
+    "likes": 0,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -22600,33 +22617,24 @@
     "is_rising_star": false
   },
   {
-    "id": "github-anchalchaturvedi08-Artificial-Intelligence-Internship",
-    "slug": "github--anchalchaturvedi08--artificial-intelligence-internship",
-    "name": "Artificial_Intelligence_Internship",
-    "author": "anchalchaturvedi08",
-    "description": "AI internship projects: Handwritten Digit Recognition using neural networks and Customer Churn Prediction using machine learning models.",
+    "id": "github-EMIIA-cognitive.emiia.ru",
+    "slug": "github--emiia--cognitive.emiia.ru",
+    "name": "cognitive.emiia.ru",
+    "author": "EMIIA",
+    "description": "ЭМИИА | EMIIA | КОГНИТИВНАЯ РАДИООПТИКА | COGNITIVE RADIO OPTICS | РАДИООПТИКА | RADIO OPTICS",
     "tags": [
       "github",
-      "jypyternotebook",
+      "cognitive-radio-optics",
+      "emiia",
+      "emiia-ai",
+      "machine-learning",
+      "machine-learning-algorithms",
+      "machine-learning-mathematics",
       "machine-learning-model",
-      "python"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-Lamiorkor-LyriGenesis",
-    "slug": "github--lamiorkor--lyrigenesis",
-    "name": "LyriGenesis",
-    "author": "Lamiorkor",
-    "description": "LyriGenesis is an Introduction to Artificial Intelligence (AI) Final Project. This is an AI model that takes a word or phrase from a user and uses it to generate song lyrics whose length is also based on another input by the user.",
-    "tags": [
-      "github",
-      "artificial-intelligence",
-      "final-project",
-      "machine-learning-model",
-      "song-lyrics-generator"
+      "machine-learning-models",
+      "machine-vision",
+      "machinelearning",
+      "radio-optics"
     ],
     "likes": 0,
     "downloads": 0,
@@ -22649,19 +22657,16 @@
     "is_rising_star": false
   },
   {
-    "id": "github-LykourgosS-iris-ml-model-microservice",
-    "slug": "github--lykourgoss--iris-ml-model-microservice",
-    "name": "iris-ml-model-microservice",
-    "author": "LykourgosS",
-    "description": "A FastAPI microservice for predicting iris species based on sepal and petal dimensions. This project leverages machine learning to classify iris flowers into their respective species. (mpsp)",
+    "id": "github-anchalchaturvedi08-Artificial-Intelligence-Internship",
+    "slug": "github--anchalchaturvedi08--artificial-intelligence-internship",
+    "name": "Artificial_Intelligence_Internship",
+    "author": "anchalchaturvedi08",
+    "description": "AI internship projects: Handwritten Digit Recognition using neural networks and Customer Churn Prediction using machine learning models.",
     "tags": [
       "github",
-      "docker",
-      "fastapi",
-      "iris-classification",
+      "jypyternotebook",
       "machine-learning-model",
-      "microservice",
-      "rag-knowledge-base-qa"
+      "python"
     ],
     "likes": 0,
     "downloads": 0,
@@ -22702,41 +22707,36 @@
     "is_rising_star": false
   },
   {
-    "id": "github-EMIIA-cognitive.emiia.ru",
-    "slug": "github--emiia--cognitive.emiia.ru",
-    "name": "cognitive.emiia.ru",
-    "author": "EMIIA",
-    "description": "ЭМИИА | EMIIA | КОГНИТИВНАЯ РАДИООПТИКА | COGNITIVE RADIO OPTICS | РАДИООПТИКА | RADIO OPTICS",
+    "id": "github-LykourgosS-iris-ml-model-microservice",
+    "slug": "github--lykourgoss--iris-ml-model-microservice",
+    "name": "iris-ml-model-microservice",
+    "author": "LykourgosS",
+    "description": "A FastAPI microservice for predicting iris species based on sepal and petal dimensions. This project leverages machine learning to classify iris flowers into their respective species. (mpsp)",
     "tags": [
       "github",
-      "cognitive-radio-optics",
-      "emiia",
-      "emiia-ai",
-      "machine-learning",
-      "machine-learning-algorithms",
-      "machine-learning-mathematics",
+      "docker",
+      "fastapi",
+      "iris-classification",
       "machine-learning-model",
-      "machine-learning-models",
-      "machine-vision",
-      "machinelearning",
-      "radio-optics"
+      "microservice",
+      "rag-knowledge-base-qa"
     ],
     "likes": 0,
     "downloads": 0,
     "is_rising_star": false
   },
   {
-    "id": "github-Himasnhu-AT-COX3-ML-Model",
-    "slug": "github--himasnhu-at--cox3-ml-model",
-    "name": "COX3-ML-Model",
-    "author": "Himasnhu-AT",
-    "description": "Building an ML model for detecting if a patient is COVID-19 positive or not. Based on dataset: https://www.kaggle.com/datasets/andyczhao/covidx-cxr2",
+    "id": "github-Lamiorkor-LyriGenesis",
+    "slug": "github--lamiorkor--lyrigenesis",
+    "name": "LyriGenesis",
+    "author": "Lamiorkor",
+    "description": "LyriGenesis is an Introduction to Artificial Intelligence (AI) Final Project. This is an AI model that takes a word or phrase from a user and uses it to generate song lyrics whose length is also based on another input by the user.",
     "tags": [
       "github",
-      "machine-learning",
-      "machine-learning-algorithms",
+      "artificial-intelligence",
+      "final-project",
       "machine-learning-model",
-      "model"
+      "song-lyrics-generator"
     ],
     "likes": 0,
     "downloads": 0,
@@ -22774,6 +22774,22 @@
       "natural-language-processing",
       "pipeline",
       "webapp"
+    ],
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-abhishek-mkumar-telecom-churn-predictor",
+    "slug": "github--abhishek-mkumar--telecom-churn-predictor",
+    "name": "telecom_churn_predictor",
+    "author": "abhishek-mkumar",
+    "description": "A web application powered by a machine learning model predicts customer churn.",
+    "tags": [
+      "github",
+      "flask-api",
+      "javascript",
+      "machine-learning-model"
     ],
     "likes": 0,
     "downloads": 0,
@@ -22887,22 +22903,6 @@
       "machine-learning-model",
       "ml",
       "rag-knowledge-base-qa"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-abhishek-mkumar-telecom-churn-predictor",
-    "slug": "github--abhishek-mkumar--telecom-churn-predictor",
-    "name": "telecom_churn_predictor",
-    "author": "abhishek-mkumar",
-    "description": "A web application powered by a machine learning model predicts customer churn.",
-    "tags": [
-      "github",
-      "flask-api",
-      "javascript",
-      "machine-learning-model"
     ],
     "likes": 0,
     "downloads": 0,
