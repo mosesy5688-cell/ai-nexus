@@ -11,34 +11,41 @@
     "title": "Code Generation & Assistance",
     "slug": "code-generation-assistance",
     "description": "Generate, complete, and explain code.",
-    "count": 101
+    "count": 104
   },
   {
     "id": 7,
     "title": "RAG & Knowledge Base Q&A",
     "slug": "rag-knowledge-base-qa",
     "description": "Retrieval-Augmented Generation for Q&A with external knowledge bases.",
-    "count": 89
+    "count": 91
   },
   {
     "id": 12,
     "title": "Image Generation",
     "slug": "image-generation",
     "description": "Generate images from text descriptions.",
-    "count": 47
+    "count": 48
   },
   {
     "id": 8,
     "title": "Data Analysis & Insights",
     "slug": "data-analysis-insights",
     "description": "Analyze structured data and provide business insights.",
-    "count": 23
+    "count": 24
   },
   {
     "id": 3,
     "title": "Summarization & Extraction",
     "slug": "summarization-extraction",
     "description": "Extract key information or generate summaries from long texts.",
+    "count": 5
+  },
+  {
+    "id": 4,
+    "title": "Translation & Localization",
+    "slug": "translation-localization",
+    "description": "Translate text between multiple languages.",
     "count": 5
   },
   {
@@ -54,12 +61,5 @@
     "slug": "workflow-automation",
     "description": "Automate repetitive tasks and business processes.",
     "count": 4
-  },
-  {
-    "id": 4,
-    "title": "Translation & Localization",
-    "slug": "translation-localization",
-    "description": "Translate text between multiple languages.",
-    "count": 3
   }
 ]

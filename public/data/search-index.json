@@ -18527,28 +18527,136 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-deepseek-ai-DeepSeek-R1",
-    "slug": "huggingface--deepseek-ai--deepseek-r1",
-    "name": "DeepSeek-R1",
-    "author": "deepseek-ai",
-    "description": "Auto-ingested description",
+    "id": "huggingface-bigscience-bloom",
+    "slug": "huggingface--bigscience--bloom",
+    "name": "bloom",
+    "author": "bigscience",
+    "description": "",
     "tags": [
       "transformers",
+      "pytorch",
+      "tensorboard",
       "safetensors",
-      "deepseek_v3",
+      "bloom",
       "text-generation",
-      "general-dialogue-qa",
-      "custom_code",
-      "arxiv:2501.12948",
-      "license:mit",
+      "ak",
+      "ar",
+      "as",
+      "bm",
+      "bn",
+      "ca",
+      "code-generation-assistance",
+      "en",
+      "es",
+      "eu",
+      "fon",
+      "fr",
+      "gu",
+      "hi",
+      "id",
+      "ig",
+      "ki",
+      "kn",
+      "lg",
+      "ln",
+      "ml",
+      "mr",
+      "ne",
+      "nso",
+      "ny",
+      "or",
+      "pa",
+      "pt",
+      "rn",
+      "rw",
+      "sn",
+      "st",
+      "sw",
+      "ta",
+      "te",
+      "tn",
+      "ts",
+      "tum",
+      "tw",
+      "ur",
+      "vi",
+      "wo",
+      "xh",
+      "yo",
+      "zh",
+      "zu",
+      "arxiv:2211.05100",
+      "arxiv:1909.08053",
+      "arxiv:2110.02861",
+      "arxiv:2108.12409",
+      "doi:10.57967/hf/0003",
+      "license:bigscience-bloom-rail-1.0",
+      "model-index",
+      "co2_eq_emissions",
       "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
-      "fp8",
+      "region:us",
+      "deploy:azure"
+    ],
+    "likes": 4961,
+    "downloads": 2389,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-stabilityai-stable-diffusion-3-medium",
+    "slug": "huggingface--stabilityai--stable-diffusion-3-medium",
+    "name": "stable-diffusion-3-medium",
+    "author": "stabilityai",
+    "description": "",
+    "tags": [
+      "diffusion-single-file",
+      "image-generation",
+      "stable-diffusion",
+      "en",
+      "arxiv:2403.03206",
+      "license:other",
       "region:us"
     ],
-    "likes": 12881,
-    "downloads": 1164599,
+    "likes": 4873,
+    "downloads": 11237,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-meta-llama-Llama-3.1-8B-Instruct",
+    "slug": "huggingface--meta-llama--llama-3.1-8b-instruct",
+    "name": "Llama-3.1-8B-Instruct",
+    "author": "meta-llama",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "llama",
+      "text-generation",
+      "facebook",
+      "meta",
+      "pytorch",
+      "llama-3",
+      "general-dialogue-qa",
+      "en",
+      "de",
+      "fr",
+      "it",
+      "pt",
+      "hi",
+      "es",
+      "th",
+      "arxiv:2204.05149",
+      "base_model:meta-llama/Llama-3.1-8B",
+      "base_model:finetune:meta-llama/Llama-3.1-8B",
+      "license:llama3.1",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 5023,
+    "downloads": 5134176,
     "is_rising_star": false
   },
   {
@@ -18556,7 +18664,7 @@
     "slug": "huggingface--black-forest-labs--flux.1-dev",
     "name": "FLUX.1-dev",
     "author": "black-forest-labs",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "diffusers",
       "safetensors",
@@ -18573,11 +18681,37 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-meta-llama-Meta-Llama-3-8B",
+    "slug": "huggingface--meta-llama--meta-llama-3-8b",
+    "name": "Meta-Llama-3-8B",
+    "author": "meta-llama",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "llama",
+      "text-generation",
+      "facebook",
+      "meta",
+      "pytorch",
+      "llama-3",
+      "en",
+      "license:llama3",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 6391,
+    "downloads": 2086585,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-stabilityai-stable-diffusion-xl-base-1.0",
     "slug": "huggingface--stabilityai--stable-diffusion-xl-base-1.0",
     "name": "stable-diffusion-xl-base-1.0",
     "author": "stabilityai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "diffusers",
       "onnx",
@@ -18600,11 +18734,36 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-deepseek-ai-DeepSeek-R1",
+    "slug": "huggingface--deepseek-ai--deepseek-r1",
+    "name": "DeepSeek-R1",
+    "author": "deepseek-ai",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "deepseek_v3",
+      "text-generation",
+      "general-dialogue-qa",
+      "custom_code",
+      "arxiv:2501.12948",
+      "license:mit",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "fp8",
+      "region:us"
+    ],
+    "likes": 12881,
+    "downloads": 1164599,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-CompVis-stable-diffusion-v1-4",
     "slug": "huggingface--compvis--stable-diffusion-v1-4",
     "name": "stable-diffusion-v1-4",
     "author": "CompVis",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "diffusers",
       "safetensors",
@@ -18627,58 +18786,11 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-meta-llama-Meta-Llama-3-8B",
-    "slug": "huggingface--meta-llama--meta-llama-3-8b",
-    "name": "Meta-Llama-3-8B",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "llama",
-      "text-generation",
-      "facebook",
-      "meta",
-      "pytorch",
-      "llama-3",
-      "en",
-      "license:llama3",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "region:us"
-    ],
-    "likes": 6391,
-    "downloads": 2086585,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-hexgrad-Kokoro-82M",
-    "slug": "huggingface--hexgrad--kokoro-82m",
-    "name": "Kokoro-82M",
-    "author": "hexgrad",
-    "description": "Auto-ingested description",
-    "tags": [
-      "text-to-speech",
-      "en",
-      "arxiv:2306.07691",
-      "arxiv:2203.02395",
-      "base_model:yl4579/StyleTTS2-LJSpeech",
-      "base_model:finetune:yl4579/StyleTTS2-LJSpeech",
-      "doi:10.57967/hf/4329",
-      "license:apache-2.0",
-      "region:us"
-    ],
-    "likes": 5325,
-    "downloads": 3848136,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-openai-whisper-large-v3",
     "slug": "huggingface--openai--whisper-large-v3",
     "name": "whisper-large-v3",
     "author": "openai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
@@ -18798,136 +18910,24 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-meta-llama-Llama-3.1-8B-Instruct",
-    "slug": "huggingface--meta-llama--llama-3.1-8b-instruct",
-    "name": "Llama-3.1-8B-Instruct",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "id": "huggingface-hexgrad-Kokoro-82M",
+    "slug": "huggingface--hexgrad--kokoro-82m",
+    "name": "Kokoro-82M",
+    "author": "hexgrad",
+    "description": "",
     "tags": [
-      "transformers",
-      "safetensors",
-      "llama",
-      "text-generation",
-      "facebook",
-      "meta",
-      "pytorch",
-      "llama-3",
-      "general-dialogue-qa",
+      "text-to-speech",
       "en",
-      "de",
-      "fr",
-      "it",
-      "pt",
-      "hi",
-      "es",
-      "th",
-      "arxiv:2204.05149",
-      "base_model:meta-llama/Llama-3.1-8B",
-      "base_model:finetune:meta-llama/Llama-3.1-8B",
-      "license:llama3.1",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
+      "arxiv:2306.07691",
+      "arxiv:2203.02395",
+      "base_model:yl4579/StyleTTS2-LJSpeech",
+      "base_model:finetune:yl4579/StyleTTS2-LJSpeech",
+      "doi:10.57967/hf/4329",
+      "license:apache-2.0",
       "region:us"
     ],
-    "likes": 5022,
-    "downloads": 5134176,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-bigscience-bloom",
-    "slug": "huggingface--bigscience--bloom",
-    "name": "bloom",
-    "author": "bigscience",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "tensorboard",
-      "safetensors",
-      "bloom",
-      "text-generation",
-      "ak",
-      "ar",
-      "as",
-      "bm",
-      "bn",
-      "ca",
-      "code-generation-assistance",
-      "en",
-      "es",
-      "eu",
-      "fon",
-      "fr",
-      "gu",
-      "hi",
-      "id",
-      "ig",
-      "ki",
-      "kn",
-      "lg",
-      "ln",
-      "ml",
-      "mr",
-      "ne",
-      "nso",
-      "ny",
-      "or",
-      "pa",
-      "pt",
-      "rn",
-      "rw",
-      "sn",
-      "st",
-      "sw",
-      "ta",
-      "te",
-      "tn",
-      "ts",
-      "tum",
-      "tw",
-      "ur",
-      "vi",
-      "wo",
-      "xh",
-      "yo",
-      "zh",
-      "zu",
-      "arxiv:2211.05100",
-      "arxiv:1909.08053",
-      "arxiv:2110.02861",
-      "arxiv:2108.12409",
-      "doi:10.57967/hf/0003",
-      "license:bigscience-bloom-rail-1.0",
-      "model-index",
-      "co2_eq_emissions",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
-    ],
-    "likes": 4961,
-    "downloads": 2389,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-stabilityai-stable-diffusion-3-medium",
-    "slug": "huggingface--stabilityai--stable-diffusion-3-medium",
-    "name": "stable-diffusion-3-medium",
-    "author": "stabilityai",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusion-single-file",
-      "image-generation",
-      "stable-diffusion",
-      "en",
-      "arxiv:2403.03206",
-      "license:other",
-      "region:us"
-    ],
-    "likes": 4873,
-    "downloads": 11237,
+    "likes": 5325,
+    "downloads": 3848136,
     "is_rising_star": false
   },
   {
@@ -18935,7 +18935,7 @@
     "slug": "huggingface--meta-llama--llama-2-7b-chat-hf",
     "name": "Llama-2-7b-chat-hf",
     "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
@@ -18959,78 +18959,11 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-mistralai-Mixtral-8x7B-Instruct-v0.1",
-    "slug": "huggingface--mistralai--mixtral-8x7b-instruct-v0.1",
-    "name": "Mixtral-8x7B-Instruct-v0.1",
-    "author": "mistralai",
-    "description": "Auto-ingested description",
-    "tags": [
-      "vllm",
-      "safetensors",
-      "mixtral",
-      "fr",
-      "it",
-      "de",
-      "es",
-      "en",
-      "base_model:mistralai/Mixtral-8x7B-v0.1",
-      "base_model:finetune:mistralai/Mixtral-8x7B-v0.1",
-      "license:apache-2.0",
-      "region:us"
-    ],
-    "likes": 4609,
-    "downloads": 396675,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-black-forest-labs-FLUX.1-schnell",
-    "slug": "huggingface--black-forest-labs--flux.1-schnell",
-    "name": "FLUX.1-schnell",
-    "author": "black-forest-labs",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "image-generation",
-      "flux",
-      "en",
-      "license:apache-2.0",
-      "endpoints_compatible",
-      "diffusers:FluxPipeline",
-      "region:us"
-    ],
-    "likes": 4430,
-    "downloads": 803518,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-meta-llama-Llama-2-7b",
-    "slug": "huggingface--meta-llama--llama-2-7b",
-    "name": "Llama-2-7b",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
-    "tags": [
-      "facebook",
-      "meta",
-      "pytorch",
-      "llama",
-      "llama-2",
-      "text-generation",
-      "en",
-      "arxiv:2307.09288",
-      "license:llama2",
-      "region:us"
-    ],
-    "likes": 4427,
-    "downloads": 463,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-meta-llama-Meta-Llama-3-8B-Instruct",
     "slug": "huggingface--meta-llama--meta-llama-3-8b-instruct",
     "name": "Meta-Llama-3-8B-Instruct",
     "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -19054,11 +18987,78 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-mistralai-Mixtral-8x7B-Instruct-v0.1",
+    "slug": "huggingface--mistralai--mixtral-8x7b-instruct-v0.1",
+    "name": "Mixtral-8x7B-Instruct-v0.1",
+    "author": "mistralai",
+    "description": "",
+    "tags": [
+      "vllm",
+      "safetensors",
+      "mixtral",
+      "fr",
+      "it",
+      "de",
+      "es",
+      "en",
+      "base_model:mistralai/Mixtral-8x7B-v0.1",
+      "base_model:finetune:mistralai/Mixtral-8x7B-v0.1",
+      "license:apache-2.0",
+      "region:us"
+    ],
+    "likes": 4609,
+    "downloads": 396675,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-black-forest-labs-FLUX.1-schnell",
+    "slug": "huggingface--black-forest-labs--flux.1-schnell",
+    "name": "FLUX.1-schnell",
+    "author": "black-forest-labs",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "image-generation",
+      "flux",
+      "en",
+      "license:apache-2.0",
+      "endpoints_compatible",
+      "diffusers:FluxPipeline",
+      "region:us"
+    ],
+    "likes": 4430,
+    "downloads": 803518,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-meta-llama-Llama-2-7b",
+    "slug": "huggingface--meta-llama--llama-2-7b",
+    "name": "Llama-2-7b",
+    "author": "meta-llama",
+    "description": "",
+    "tags": [
+      "facebook",
+      "meta",
+      "pytorch",
+      "llama",
+      "llama-2",
+      "text-generation",
+      "en",
+      "arxiv:2307.09288",
+      "license:llama2",
+      "region:us"
+    ],
+    "likes": 4427,
+    "downloads": 463,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-openai-gpt-oss-120b",
     "slug": "huggingface--openai--gpt-oss-120b",
     "name": "gpt-oss-120b",
     "author": "openai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -19080,11 +19080,37 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-openai-gpt-oss-20b",
+    "slug": "huggingface--openai--gpt-oss-20b",
+    "name": "gpt-oss-20b",
+    "author": "openai",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "gpt_oss",
+      "text-generation",
+      "vllm",
+      "general-dialogue-qa",
+      "arxiv:2508.10925",
+      "license:apache-2.0",
+      "autotrain_compatible",
+      "endpoints_compatible",
+      "8-bit",
+      "mxfp4",
+      "deploy:azure",
+      "region:us"
+    ],
+    "likes": 3990,
+    "downloads": 7028859,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-sentence-transformers-all-MiniLM-L6-v2",
     "slug": "huggingface--sentence-transformers--all-minilm-l6-v2",
     "name": "all-MiniLM-L6-v2",
     "author": "sentence-transformers",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "sentence-transformers",
       "pytorch",
@@ -19140,7 +19166,7 @@
     "slug": "huggingface--mistralai--mistral-7b-v0.1",
     "name": "Mistral-7B-v0.1",
     "author": "mistralai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
@@ -19165,7 +19191,7 @@
     "slug": "huggingface--deepseek-ai--deepseek-v3",
     "name": "DeepSeek-V3",
     "author": "deepseek-ai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -19185,37 +19211,11 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-openai-gpt-oss-20b",
-    "slug": "huggingface--openai--gpt-oss-20b",
-    "name": "gpt-oss-20b",
-    "author": "openai",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "gpt_oss",
-      "text-generation",
-      "vllm",
-      "general-dialogue-qa",
-      "arxiv:2508.10925",
-      "license:apache-2.0",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "8-bit",
-      "mxfp4",
-      "deploy:azure",
-      "region:us"
-    ],
-    "likes": 3990,
-    "downloads": 7028859,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-lllyasviel-ControlNet-v1-1",
     "slug": "huggingface--lllyasviel--controlnet-v1-1",
     "name": "ControlNet-v1-1",
     "author": "lllyasviel",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "license:openrail",
       "region:us"
@@ -19225,69 +19225,11 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-WarriorMama777-OrangeMixs",
-    "slug": "huggingface--warriormama777--orangemixs",
-    "name": "OrangeMixs",
-    "author": "WarriorMama777",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusers",
-      "stable-diffusion",
-      "image-generation",
-      "dataset:Nerfgun3/bad_prompt",
-      "license:creativeml-openrail-m",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "diffusers:StableDiffusionPipeline",
-      "region:us"
-    ],
-    "likes": 3886,
-    "downloads": 8227,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-lllyasviel-ControlNet",
-    "slug": "huggingface--lllyasviel--controlnet",
-    "name": "ControlNet",
-    "author": "lllyasviel",
-    "description": "Auto-ingested description",
-    "tags": [
-      "license:openrail",
-      "region:us"
-    ],
-    "likes": 3767,
-    "downloads": 3,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-deepseek-ai-Janus-Pro-7B",
-    "slug": "huggingface--deepseek-ai--janus-pro-7b",
-    "name": "Janus-Pro-7B",
-    "author": "deepseek-ai",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "multi_modality",
-      "muiltimodal",
-      "image-generation",
-      "unified-model",
-      "any-to-any",
-      "arxiv:2501.17811",
-      "license:mit",
-      "endpoints_compatible",
-      "region:us"
-    ],
-    "likes": 3532,
-    "downloads": 47672,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-microsoft-phi-2",
     "slug": "huggingface--microsoft--phi-2",
     "name": "phi-2",
     "author": "microsoft",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -19308,11 +19250,90 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-WarriorMama777-OrangeMixs",
+    "slug": "huggingface--warriormama777--orangemixs",
+    "name": "OrangeMixs",
+    "author": "WarriorMama777",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "stable-diffusion",
+      "image-generation",
+      "dataset:Nerfgun3/bad_prompt",
+      "license:creativeml-openrail-m",
+      "autotrain_compatible",
+      "endpoints_compatible",
+      "diffusers:StableDiffusionPipeline",
+      "region:us"
+    ],
+    "likes": 3886,
+    "downloads": 8227,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-lllyasviel-ControlNet",
+    "slug": "huggingface--lllyasviel--controlnet",
+    "name": "ControlNet",
+    "author": "lllyasviel",
+    "description": "",
+    "tags": [
+      "license:openrail",
+      "region:us"
+    ],
+    "likes": 3767,
+    "downloads": 3,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-deepseek-ai-Janus-Pro-7B",
+    "slug": "huggingface--deepseek-ai--janus-pro-7b",
+    "name": "Janus-Pro-7B",
+    "author": "deepseek-ai",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "multi_modality",
+      "muiltimodal",
+      "image-generation",
+      "unified-model",
+      "any-to-any",
+      "arxiv:2501.17811",
+      "license:mit",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 3531,
+    "downloads": 47672,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-stabilityai-stable-diffusion-3.5-large",
+    "slug": "huggingface--stabilityai--stable-diffusion-3.5-large",
+    "name": "stable-diffusion-3.5-large",
+    "author": "stabilityai",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "image-generation",
+      "stable-diffusion",
+      "en",
+      "arxiv:2403.03206",
+      "license:other",
+      "diffusers:StableDiffusion3Pipeline",
+      "region:us"
+    ],
+    "likes": 3231,
+    "downloads": 96590,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-google-gemma-7b",
     "slug": "huggingface--google--gemma-7b",
     "name": "gemma-7b",
     "author": "google",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -19354,66 +19375,11 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-stabilityai-stable-diffusion-3.5-large",
-    "slug": "huggingface--stabilityai--stable-diffusion-3.5-large",
-    "name": "stable-diffusion-3.5-large",
-    "author": "stabilityai",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "image-generation",
-      "stable-diffusion",
-      "en",
-      "arxiv:2403.03206",
-      "license:other",
-      "diffusers:StableDiffusion3Pipeline",
-      "region:us"
-    ],
-    "likes": 3231,
-    "downloads": 96590,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-coqui-XTTS-v2",
-    "slug": "huggingface--coqui--xtts-v2",
-    "name": "XTTS-v2",
-    "author": "coqui",
-    "description": "Auto-ingested description",
-    "tags": [
-      "coqui",
-      "text-to-speech",
-      "license:other",
-      "region:us"
-    ],
-    "likes": 3198,
-    "downloads": 5465437,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-stabilityai-stable-video-diffusion-img2vid-xt",
-    "slug": "huggingface--stabilityai--stable-video-diffusion-img2vid-xt",
-    "name": "stable-video-diffusion-img2vid-xt",
-    "author": "stabilityai",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "image-to-video",
-      "license:other",
-      "diffusers:StableVideoDiffusionPipeline",
-      "region:us"
-    ],
-    "likes": 3192,
-    "downloads": 182108,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-prompthero-openjourney",
     "slug": "huggingface--prompthero--openjourney",
     "name": "openjourney",
     "author": "prompthero",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "diffusers",
       "safetensors",
@@ -19432,28 +19398,37 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-deepseek-ai-DeepSeek-V3-0324",
-    "slug": "huggingface--deepseek-ai--deepseek-v3-0324",
-    "name": "DeepSeek-V3-0324",
-    "author": "deepseek-ai",
-    "description": "Auto-ingested description",
+    "id": "huggingface-coqui-XTTS-v2",
+    "slug": "huggingface--coqui--xtts-v2",
+    "name": "XTTS-v2",
+    "author": "coqui",
+    "description": "",
     "tags": [
-      "transformers",
-      "safetensors",
-      "deepseek_v3",
-      "text-generation",
-      "general-dialogue-qa",
-      "custom_code",
-      "arxiv:2412.19437",
-      "license:mit",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "fp8",
+      "coqui",
+      "text-to-speech",
+      "license:other",
       "region:us"
     ],
-    "likes": 3083,
-    "downloads": 169132,
+    "likes": 3198,
+    "downloads": 5465437,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-stabilityai-stable-video-diffusion-img2vid-xt",
+    "slug": "huggingface--stabilityai--stable-video-diffusion-img2vid-xt",
+    "name": "stable-video-diffusion-img2vid-xt",
+    "author": "stabilityai",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "image-to-video",
+      "license:other",
+      "diffusers:StableVideoDiffusionPipeline",
+      "region:us"
+    ],
+    "likes": 3193,
+    "downloads": 182108,
     "is_rising_star": false
   },
   {
@@ -19461,7 +19436,7 @@
     "slug": "huggingface--openai-community--gpt2",
     "name": "gpt2",
     "author": "openai-community",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
@@ -19488,29 +19463,53 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.2",
-    "slug": "huggingface--mistralai--mistral-7b-instruct-v0.2",
-    "name": "Mistral-7B-Instruct-v0.2",
-    "author": "mistralai",
-    "description": "Auto-ingested description",
+    "id": "huggingface-deepseek-ai-DeepSeek-V3-0324",
+    "slug": "huggingface--deepseek-ai--deepseek-v3-0324",
+    "name": "DeepSeek-V3-0324",
+    "author": "deepseek-ai",
+    "description": "",
     "tags": [
       "transformers",
-      "pytorch",
       "safetensors",
-      "mistral",
+      "deepseek_v3",
       "text-generation",
-      "finetuned",
-      "mistral-common",
       "general-dialogue-qa",
-      "arxiv:2310.06825",
-      "license:apache-2.0",
+      "custom_code",
+      "arxiv:2412.19437",
+      "license:mit",
       "autotrain_compatible",
       "text-generation-inference",
-      "deploy:azure",
+      "endpoints_compatible",
+      "fp8",
       "region:us"
     ],
-    "likes": 3018,
-    "downloads": 3725193,
+    "likes": 3083,
+    "downloads": 169132,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-deepseek-ai-DeepSeek-OCR",
+    "slug": "huggingface--deepseek-ai--deepseek-ocr",
+    "name": "DeepSeek-OCR",
+    "author": "deepseek-ai",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "deepseek_vl_v2",
+      "feature-extraction",
+      "deepseek",
+      "vision-language",
+      "ocr",
+      "custom_code",
+      "image-text-to-text",
+      "multilingual",
+      "arxiv:2510.18234",
+      "license:mit",
+      "region:us"
+    ],
+    "likes": 2875,
+    "downloads": 5384942,
     "is_rising_star": false
   },
   {
@@ -19518,7 +19517,7 @@
     "slug": "huggingface--bigcode--starcoder",
     "name": "starcoder",
     "author": "bigcode",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
@@ -19543,56 +19542,29 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-deepseek-ai-DeepSeek-OCR",
-    "slug": "huggingface--deepseek-ai--deepseek-ocr",
-    "name": "DeepSeek-OCR",
-    "author": "deepseek-ai",
-    "description": "Auto-ingested description",
+    "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.2",
+    "slug": "huggingface--mistralai--mistral-7b-instruct-v0.2",
+    "name": "Mistral-7B-Instruct-v0.2",
+    "author": "mistralai",
+    "description": "",
     "tags": [
       "transformers",
+      "pytorch",
       "safetensors",
-      "deepseek_vl_v2",
-      "feature-extraction",
-      "deepseek",
-      "vision-language",
-      "ocr",
-      "custom_code",
-      "image-text-to-text",
-      "multilingual",
-      "arxiv:2510.18234",
-      "license:mit",
-      "region:us"
-    ],
-    "likes": 2875,
-    "downloads": 5384942,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-Qwen-QwQ-32B",
-    "slug": "huggingface--qwen--qwq-32b",
-    "name": "QwQ-32B",
-    "author": "Qwen",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "qwen2",
+      "mistral",
       "text-generation",
+      "finetuned",
+      "mistral-common",
       "general-dialogue-qa",
-      "en",
-      "arxiv:2309.00071",
-      "arxiv:2412.15115",
-      "base_model:Qwen/Qwen2.5-32B",
-      "base_model:finetune:Qwen/Qwen2.5-32B",
+      "arxiv:2310.06825",
       "license:apache-2.0",
       "autotrain_compatible",
       "text-generation-inference",
-      "endpoints_compatible",
       "deploy:azure",
       "region:us"
     ],
-    "likes": 2868,
-    "downloads": 54836,
+    "likes": 3019,
+    "downloads": 3725193,
     "is_rising_star": false
   },
   {
@@ -19600,7 +19572,7 @@
     "slug": "huggingface--zai-org--chatglm-6b",
     "name": "chatglm-6b",
     "author": "zai-org",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
@@ -19621,44 +19593,31 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-CompVis-stable-diffusion-v-1-4-original",
-    "slug": "huggingface--compvis--stable-diffusion-v-1-4-original",
-    "name": "stable-diffusion-v-1-4-original",
-    "author": "CompVis",
-    "description": "Auto-ingested description",
+    "id": "huggingface-Qwen-QwQ-32B",
+    "slug": "huggingface--qwen--qwq-32b",
+    "name": "QwQ-32B",
+    "author": "Qwen",
+    "description": "",
     "tags": [
-      "stable-diffusion",
-      "image-generation",
-      "arxiv:2207.12598",
-      "arxiv:2112.10752",
-      "arxiv:2103.00020",
-      "arxiv:2205.11487",
-      "arxiv:1910.09700",
-      "license:creativeml-openrail-m",
-      "region:us"
-    ],
-    "likes": 2823,
-    "downloads": 3,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-nari-labs-Dia-1.6B",
-    "slug": "huggingface--nari-labs--dia-1.6b",
-    "name": "Dia-1.6B",
-    "author": "nari-labs",
-    "description": "Auto-ingested description",
-    "tags": [
+      "transformers",
       "safetensors",
-      "model_hub_mixin",
-      "pytorch_model_hub_mixin",
-      "text-to-speech",
+      "qwen2",
+      "text-generation",
+      "general-dialogue-qa",
       "en",
-      "arxiv:2305.09636",
+      "arxiv:2309.00071",
+      "arxiv:2412.15115",
+      "base_model:Qwen/Qwen2.5-32B",
+      "base_model:finetune:Qwen/Qwen2.5-32B",
       "license:apache-2.0",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "deploy:azure",
       "region:us"
     ],
-    "likes": 2808,
-    "downloads": 212034,
+    "likes": 2869,
+    "downloads": 54836,
     "is_rising_star": false
   },
   {
@@ -19666,7 +19625,7 @@
     "slug": "huggingface--openai--whisper-large-v3-turbo",
     "name": "whisper-large-v3-turbo",
     "author": "openai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -19784,11 +19743,81 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-CompVis-stable-diffusion-v-1-4-original",
+    "slug": "huggingface--compvis--stable-diffusion-v-1-4-original",
+    "name": "stable-diffusion-v-1-4-original",
+    "author": "CompVis",
+    "description": "",
+    "tags": [
+      "stable-diffusion",
+      "image-generation",
+      "arxiv:2207.12598",
+      "arxiv:2112.10752",
+      "arxiv:2103.00020",
+      "arxiv:2205.11487",
+      "arxiv:1910.09700",
+      "license:creativeml-openrail-m",
+      "region:us"
+    ],
+    "likes": 2823,
+    "downloads": 3,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-nari-labs-Dia-1.6B",
+    "slug": "huggingface--nari-labs--dia-1.6b",
+    "name": "Dia-1.6B",
+    "author": "nari-labs",
+    "description": "",
+    "tags": [
+      "safetensors",
+      "model_hub_mixin",
+      "pytorch_model_hub_mixin",
+      "text-to-speech",
+      "en",
+      "arxiv:2305.09636",
+      "license:apache-2.0",
+      "region:us"
+    ],
+    "likes": 2808,
+    "downloads": 212034,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-BAAI-bge-m3",
+    "slug": "huggingface--baai--bge-m3",
+    "name": "bge-m3",
+    "author": "BAAI",
+    "description": "",
+    "tags": [
+      "sentence-transformers",
+      "pytorch",
+      "onnx",
+      "xlm-roberta",
+      "feature-extraction",
+      "sentence-similarity",
+      "arxiv:2402.03216",
+      "arxiv:2004.04906",
+      "arxiv:2106.14807",
+      "arxiv:2107.05720",
+      "arxiv:2004.12832",
+      "license:mit",
+      "autotrain_compatible",
+      "text-embeddings-inference",
+      "endpoints_compatible",
+      "region:us",
+      "deploy:azure"
+    ],
+    "likes": 2528,
+    "downloads": 7086871,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-meta-llama-Llama-3.3-70B-Instruct",
     "slug": "huggingface--meta-llama--llama-3.3-70b-instruct",
     "name": "Llama-3.3-70B-Instruct",
     "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -19821,32 +19850,23 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-BAAI-bge-m3",
-    "slug": "huggingface--baai--bge-m3",
-    "name": "bge-m3",
-    "author": "BAAI",
-    "description": "Auto-ingested description",
+    "id": "huggingface-stabilityai-sdxl-turbo",
+    "slug": "huggingface--stabilityai--sdxl-turbo",
+    "name": "sdxl-turbo",
+    "author": "stabilityai",
+    "description": "",
     "tags": [
-      "sentence-transformers",
-      "pytorch",
+      "diffusers",
       "onnx",
-      "xlm-roberta",
-      "feature-extraction",
-      "sentence-similarity",
-      "arxiv:2402.03216",
-      "arxiv:2004.04906",
-      "arxiv:2106.14807",
-      "arxiv:2107.05720",
-      "arxiv:2004.12832",
-      "license:mit",
+      "safetensors",
+      "image-generation",
+      "license:other",
       "autotrain_compatible",
-      "text-embeddings-inference",
-      "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "diffusers:StableDiffusionXLPipeline",
+      "region:us"
     ],
-    "likes": 2528,
-    "downloads": 7086871,
+    "likes": 2483,
+    "downloads": 383030,
     "is_rising_star": false
   },
   {
@@ -19854,7 +19874,7 @@
     "slug": "huggingface--google-bert--bert-base-uncased",
     "name": "bert-base-uncased",
     "author": "google-bert",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
@@ -19882,76 +19902,11 @@
     "is_rising_star": true
   },
   {
-    "id": "huggingface-stabilityai-sdxl-turbo",
-    "slug": "huggingface--stabilityai--sdxl-turbo",
-    "name": "sdxl-turbo",
-    "author": "stabilityai",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusers",
-      "onnx",
-      "safetensors",
-      "image-generation",
-      "license:other",
-      "autotrain_compatible",
-      "diffusers:StableDiffusionXLPipeline",
-      "region:us"
-    ],
-    "likes": 2483,
-    "downloads": 383030,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-hakurei-waifu-diffusion",
-    "slug": "huggingface--hakurei--waifu-diffusion",
-    "name": "waifu-diffusion",
-    "author": "hakurei",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "stable-diffusion",
-      "image-generation",
-      "en",
-      "license:creativeml-openrail-m",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "diffusers:StableDiffusionPipeline",
-      "region:us"
-    ],
-    "likes": 2460,
-    "downloads": 3107,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-black-forest-labs-FLUX.1-Kontext-dev",
-    "slug": "huggingface--black-forest-labs--flux.1-kontext-dev",
-    "name": "FLUX.1-Kontext-dev",
-    "author": "black-forest-labs",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "image-generation",
-      "flux",
-      "diffusion-single-file",
-      "image-to-image",
-      "en",
-      "arxiv:2506.15742",
-      "license:other",
-      "diffusers:FluxKontextPipeline",
-      "region:us"
-    ],
-    "likes": 2448,
-    "downloads": 328501,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-tiiuae-falcon-40b",
     "slug": "huggingface--tiiuae--falcon-40b",
     "name": "falcon-40b",
     "author": "tiiuae",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
@@ -19981,11 +19936,73 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-hakurei-waifu-diffusion",
+    "slug": "huggingface--hakurei--waifu-diffusion",
+    "name": "waifu-diffusion",
+    "author": "hakurei",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "stable-diffusion",
+      "image-generation",
+      "en",
+      "license:creativeml-openrail-m",
+      "autotrain_compatible",
+      "endpoints_compatible",
+      "diffusers:StableDiffusionPipeline",
+      "region:us"
+    ],
+    "likes": 2460,
+    "downloads": 3107,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-black-forest-labs-FLUX.1-Kontext-dev",
+    "slug": "huggingface--black-forest-labs--flux.1-kontext-dev",
+    "name": "FLUX.1-Kontext-dev",
+    "author": "black-forest-labs",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "image-generation",
+      "flux",
+      "diffusion-single-file",
+      "image-to-image",
+      "en",
+      "arxiv:2506.15742",
+      "license:other",
+      "diffusers:FluxKontextPipeline",
+      "region:us"
+    ],
+    "likes": 2448,
+    "downloads": 328501,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-xai-org-grok-1",
+    "slug": "huggingface--xai-org--grok-1",
+    "name": "grok-1",
+    "author": "xai-org",
+    "description": "",
+    "tags": [
+      "grok",
+      "grok-1",
+      "text-generation",
+      "license:apache-2.0",
+      "region:us"
+    ],
+    "likes": 2368,
+    "downloads": 785,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-deepseek-ai-DeepSeek-R1-0528",
     "slug": "huggingface--deepseek-ai--deepseek-r1-0528",
     "name": "DeepSeek-R1-0528",
     "author": "deepseek-ai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -20006,20 +20023,23 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-xai-org-grok-1",
-    "slug": "huggingface--xai-org--grok-1",
-    "name": "grok-1",
-    "author": "xai-org",
-    "description": "Auto-ingested description",
+    "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.3",
+    "slug": "huggingface--mistralai--mistral-7b-instruct-v0.3",
+    "name": "Mistral-7B-Instruct-v0.3",
+    "author": "mistralai",
+    "description": "",
     "tags": [
-      "grok",
-      "grok-1",
-      "text-generation",
+      "vllm",
+      "safetensors",
+      "mistral",
+      "mistral-common",
+      "base_model:mistralai/Mistral-7B-v0.3",
+      "base_model:finetune:mistralai/Mistral-7B-v0.3",
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 2368,
-    "downloads": 785,
+    "likes": 2272,
+    "downloads": 974882,
     "is_rising_star": false
   },
   {
@@ -20027,7 +20047,7 @@
     "slug": "huggingface--perplexity-ai--r1-1776",
     "name": "r1-1776",
     "author": "perplexity-ai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -20052,7 +20072,7 @@
     "slug": "huggingface--sesame--csm-1b",
     "name": "csm-1b",
     "author": "sesame",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -20069,23 +20089,25 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.3",
-    "slug": "huggingface--mistralai--mistral-7b-instruct-v0.3",
-    "name": "Mistral-7B-Instruct-v0.3",
-    "author": "mistralai",
-    "description": "Auto-ingested description",
+    "id": "huggingface-Qwen-Qwen-Image",
+    "slug": "huggingface--qwen--qwen-image",
+    "name": "Qwen-Image",
+    "author": "Qwen",
+    "description": "",
     "tags": [
-      "vllm",
+      "diffusers",
       "safetensors",
-      "mistral",
-      "mistral-common",
-      "base_model:mistralai/Mistral-7B-v0.3",
-      "base_model:finetune:mistralai/Mistral-7B-v0.3",
+      "image-generation",
+      "en",
+      "zh",
+      "arxiv:2508.02324",
       "license:apache-2.0",
+      "diffusers:QwenImagePipeline",
+      "deploy:azure",
       "region:us"
     ],
-    "likes": 2272,
-    "downloads": 974882,
+    "likes": 2239,
+    "downloads": 265251,
     "is_rising_star": false
   },
   {
@@ -20093,7 +20115,7 @@
     "slug": "huggingface--moonshotai--kimi-k2-instruct",
     "name": "Kimi-K2-Instruct",
     "author": "moonshotai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -20113,88 +20135,11 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-Qwen-Qwen-Image",
-    "slug": "huggingface--qwen--qwen-image",
-    "name": "Qwen-Image",
-    "author": "Qwen",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "image-generation",
-      "en",
-      "zh",
-      "arxiv:2508.02324",
-      "license:apache-2.0",
-      "diffusers:QwenImagePipeline",
-      "deploy:azure",
-      "region:us"
-    ],
-    "likes": 2239,
-    "downloads": 265251,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-meta-llama-Llama-2-7b-hf",
-    "slug": "huggingface--meta-llama--llama-2-7b-hf",
-    "name": "Llama-2-7b-hf",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "safetensors",
-      "llama",
-      "text-generation",
-      "facebook",
-      "meta",
-      "llama-2",
-      "en",
-      "arxiv:2307.09288",
-      "license:llama2",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "region:us"
-    ],
-    "likes": 2208,
-    "downloads": 590171,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-meta-llama-Llama-2-70b-chat-hf",
-    "slug": "huggingface--meta-llama--llama-2-70b-chat-hf",
-    "name": "Llama-2-70b-chat-hf",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "safetensors",
-      "llama",
-      "text-generation",
-      "facebook",
-      "meta",
-      "llama-2",
-      "general-dialogue-qa",
-      "en",
-      "arxiv:2307.09288",
-      "license:llama2",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "region:us"
-    ],
-    "likes": 2201,
-    "downloads": 12321,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-meta-llama-Llama-3.2-1B",
     "slug": "huggingface--meta-llama--llama-3.2-1b",
     "name": "Llama-3.2-1B",
     "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -20225,11 +20170,87 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-meta-llama-Llama-2-7b-hf",
+    "slug": "huggingface--meta-llama--llama-2-7b-hf",
+    "name": "Llama-2-7b-hf",
+    "author": "meta-llama",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "safetensors",
+      "llama",
+      "text-generation",
+      "facebook",
+      "meta",
+      "llama-2",
+      "en",
+      "arxiv:2307.09288",
+      "license:llama2",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 2208,
+    "downloads": 590171,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-meta-llama-Llama-2-70b-chat-hf",
+    "slug": "huggingface--meta-llama--llama-2-70b-chat-hf",
+    "name": "Llama-2-70b-chat-hf",
+    "author": "meta-llama",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "safetensors",
+      "llama",
+      "text-generation",
+      "facebook",
+      "meta",
+      "llama-2",
+      "general-dialogue-qa",
+      "en",
+      "arxiv:2307.09288",
+      "license:llama2",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 2201,
+    "downloads": 12321,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-Qwen-Qwen-Image-Edit",
+    "slug": "huggingface--qwen--qwen-image-edit",
+    "name": "Qwen-Image-Edit",
+    "author": "Qwen",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "image-to-image",
+      "en",
+      "zh",
+      "arxiv:2508.02324",
+      "license:apache-2.0",
+      "diffusers:QwenImageEditPipeline",
+      "region:us"
+    ],
+    "likes": 2162,
+    "downloads": 130926,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-microsoft-phi-4",
     "slug": "huggingface--microsoft--phi-4",
     "name": "phi-4",
     "author": "microsoft",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -20253,24 +20274,16 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-Qwen-Qwen-Image-Edit",
-    "slug": "huggingface--qwen--qwen-image-edit",
-    "name": "Qwen-Image-Edit",
-    "author": "Qwen",
-    "description": "Auto-ingested description",
+    "id": "huggingface-lllyasviel-sd-control-collection",
+    "slug": "huggingface--lllyasviel--sd-control-collection",
+    "name": "sd_control_collection",
+    "author": "lllyasviel",
+    "description": "",
     "tags": [
-      "diffusers",
-      "safetensors",
-      "image-to-image",
-      "en",
-      "zh",
-      "arxiv:2508.02324",
-      "license:apache-2.0",
-      "diffusers:QwenImageEditPipeline",
       "region:us"
     ],
-    "likes": 2162,
-    "downloads": 130926,
+    "likes": 2072,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
@@ -20278,7 +20291,7 @@
     "slug": "huggingface--bytedance--sdxl-lightning",
     "name": "SDXL-Lightning",
     "author": "ByteDance",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "diffusers",
       "image-generation",
@@ -20296,7 +20309,7 @@
     "slug": "huggingface--tencent--hunyuanvideo",
     "name": "HunyuanVideo",
     "author": "tencent",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "video-generation-editing",
       "arxiv:2412.03603",
@@ -20309,44 +20322,11 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-lllyasviel-sd-control-collection",
-    "slug": "huggingface--lllyasviel--sd-control-collection",
-    "name": "sd_control_collection",
-    "author": "lllyasviel",
-    "description": "Auto-ingested description",
-    "tags": [
-      "region:us"
-    ],
-    "likes": 2072,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-Lightricks-LTX-Video",
-    "slug": "huggingface--lightricks--ltx-video",
-    "name": "LTX-Video",
-    "author": "Lightricks",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "ltx-video",
-      "image-to-video",
-      "en",
-      "license:other",
-      "diffusers:LTXPipeline",
-      "region:us"
-    ],
-    "likes": 2063,
-    "downloads": 256555,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-nvidia-Llama-3.1-Nemotron-70B-Instruct-HF",
     "slug": "huggingface--nvidia--llama-3.1-nemotron-70b-instruct-hf",
     "name": "Llama-3.1-Nemotron-70B-Instruct-HF",
     "author": "nvidia",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -20372,11 +20352,57 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-Lightricks-LTX-Video",
+    "slug": "huggingface--lightricks--ltx-video",
+    "name": "LTX-Video",
+    "author": "Lightricks",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "ltx-video",
+      "image-to-video",
+      "en",
+      "license:other",
+      "diffusers:LTXPipeline",
+      "region:us"
+    ],
+    "likes": 2063,
+    "downloads": 256555,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-microsoft-VibeVoice-1.5B",
+    "slug": "huggingface--microsoft--vibevoice-1.5b",
+    "name": "VibeVoice-1.5B",
+    "author": "microsoft",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "vibevoice",
+      "text-generation",
+      "Podcast",
+      "text-to-speech",
+      "en",
+      "zh",
+      "arxiv:2508.19205",
+      "arxiv:2412.08635",
+      "license:mit",
+      "autotrain_compatible",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 1994,
+    "downloads": 165996,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-zai-org-chatglm2-6b",
     "slug": "huggingface--zai-org--chatglm2-6b",
     "name": "chatglm2-6b",
     "author": "zai-org",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
@@ -20402,7 +20428,7 @@
     "slug": "huggingface--stabilityai--stable-diffusion-xl-refiner-1.0",
     "name": "stable-diffusion-xl-refiner-1.0",
     "author": "stabilityai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "diffusers",
       "safetensors",
@@ -20421,60 +20447,11 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-microsoft-VibeVoice-1.5B",
-    "slug": "huggingface--microsoft--vibevoice-1.5b",
-    "name": "VibeVoice-1.5B",
-    "author": "microsoft",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "vibevoice",
-      "text-generation",
-      "Podcast",
-      "text-to-speech",
-      "en",
-      "zh",
-      "arxiv:2508.19205",
-      "arxiv:2412.08635",
-      "license:mit",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "region:us"
-    ],
-    "likes": 1994,
-    "downloads": 165996,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-databricks-dolly-v2-12b",
-    "slug": "huggingface--databricks--dolly-v2-12b",
-    "name": "dolly-v2-12b",
-    "author": "databricks",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "gpt_neox",
-      "text-generation",
-      "en",
-      "dataset:databricks/databricks-dolly-15k",
-      "license:mit",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "region:us",
-      "deploy:azure"
-    ],
-    "likes": 1956,
-    "downloads": 2450,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-Qwen-Qwen2.5-Coder-32B-Instruct",
     "slug": "huggingface--qwen--qwen2.5-coder-32b-instruct",
     "name": "Qwen2.5-Coder-32B-Instruct",
     "author": "Qwen",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -20503,11 +20480,62 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-databricks-dolly-v2-12b",
+    "slug": "huggingface--databricks--dolly-v2-12b",
+    "name": "dolly-v2-12b",
+    "author": "databricks",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "gpt_neox",
+      "text-generation",
+      "en",
+      "dataset:databricks/databricks-dolly-15k",
+      "license:mit",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "region:us",
+      "deploy:azure"
+    ],
+    "likes": 1956,
+    "downloads": 2450,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-briaai-RMBG-1.4",
+    "slug": "huggingface--briaai--rmbg-1.4",
+    "name": "RMBG-1.4",
+    "author": "briaai",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "onnx",
+      "safetensors",
+      "SegformerForSemanticSegmentation",
+      "image-segmentation",
+      "remove background",
+      "background",
+      "background-removal",
+      "Pytorch",
+      "vision",
+      "legal liability",
+      "transformers.js",
+      "custom_code",
+      "license:other",
+      "region:us"
+    ],
+    "likes": 1891,
+    "downloads": 189188,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-meta-llama-Llama-3.1-8B",
     "slug": "huggingface--meta-llama--llama-3.1-8b",
     "name": "Llama-3.1-8B",
     "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -20541,7 +20569,7 @@
     "slug": "huggingface--openai--clip-vit-large-patch14",
     "name": "clip-vit-large-patch14",
     "author": "openai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
@@ -20561,31 +20589,30 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-briaai-RMBG-1.4",
-    "slug": "huggingface--briaai--rmbg-1.4",
-    "name": "RMBG-1.4",
-    "author": "briaai",
-    "description": "Auto-ingested description",
+    "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.1",
+    "slug": "huggingface--mistralai--mistral-7b-instruct-v0.1",
+    "name": "Mistral-7B-Instruct-v0.1",
+    "author": "mistralai",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
-      "onnx",
       "safetensors",
-      "SegformerForSemanticSegmentation",
-      "image-segmentation",
-      "remove background",
-      "background",
-      "background-removal",
-      "Pytorch",
-      "vision",
-      "legal liability",
-      "transformers.js",
-      "custom_code",
-      "license:other",
+      "mistral",
+      "text-generation",
+      "finetuned",
+      "mistral-common",
+      "general-dialogue-qa",
+      "arxiv:2310.06825",
+      "base_model:mistralai/Mistral-7B-v0.1",
+      "base_model:finetune:mistralai/Mistral-7B-v0.1",
+      "license:apache-2.0",
+      "autotrain_compatible",
+      "text-generation-inference",
       "region:us"
     ],
-    "likes": 1891,
-    "downloads": 189188,
+    "likes": 1814,
+    "downloads": 386022,
     "is_rising_star": false
   },
   {
@@ -20593,7 +20620,7 @@
     "slug": "huggingface--meta-llama--llama-3.2-3b-instruct",
     "name": "Llama-3.2-3B-Instruct",
     "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -20620,7 +20647,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1839,
+    "likes": 1840,
     "downloads": 1669589,
     "is_rising_star": false
   },
@@ -20629,7 +20656,7 @@
     "slug": "huggingface--qwen--qwen2.5-omni-7b",
     "name": "Qwen2.5-Omni-7B",
     "author": "Qwen",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -20647,30 +20674,21 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.1",
-    "slug": "huggingface--mistralai--mistral-7b-instruct-v0.1",
-    "name": "Mistral-7B-Instruct-v0.1",
-    "author": "mistralai",
-    "description": "Auto-ingested description",
+    "id": "huggingface-h94-IP-Adapter-FaceID",
+    "slug": "huggingface--h94--ip-adapter-faceid",
+    "name": "IP-Adapter-FaceID",
+    "author": "h94",
+    "description": "",
     "tags": [
-      "transformers",
-      "pytorch",
-      "safetensors",
-      "mistral",
-      "text-generation",
-      "finetuned",
-      "mistral-common",
-      "general-dialogue-qa",
-      "arxiv:2310.06825",
-      "base_model:mistralai/Mistral-7B-v0.1",
-      "base_model:finetune:mistralai/Mistral-7B-v0.1",
-      "license:apache-2.0",
-      "autotrain_compatible",
-      "text-generation-inference",
+      "diffusers",
+      "image-generation",
+      "stable-diffusion",
+      "en",
+      "arxiv:2308.06721",
       "region:us"
     ],
-    "likes": 1814,
-    "downloads": 386022,
+    "likes": 1785,
+    "downloads": 214557,
     "is_rising_star": false
   },
   {
@@ -20678,7 +20696,7 @@
     "slug": "huggingface--huggingfaceh4--zephyr-7b-beta",
     "name": "zephyr-7b-beta",
     "author": "HuggingFaceH4",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
@@ -20709,21 +20727,27 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-h94-IP-Adapter-FaceID",
-    "slug": "huggingface--h94--ip-adapter-faceid",
-    "name": "IP-Adapter-FaceID",
-    "author": "h94",
-    "description": "Auto-ingested description",
+    "id": "huggingface-mistralai-Mixtral-8x7B-v0.1",
+    "slug": "huggingface--mistralai--mixtral-8x7b-v0.1",
+    "name": "Mixtral-8x7B-v0.1",
+    "author": "mistralai",
+    "description": "",
     "tags": [
-      "diffusers",
-      "image-generation",
-      "stable-diffusion",
+      "vllm",
+      "safetensors",
+      "mixtral",
+      "moe",
+      "mistral-common",
+      "fr",
+      "it",
+      "de",
+      "es",
       "en",
-      "arxiv:2308.06721",
+      "license:apache-2.0",
       "region:us"
     ],
-    "likes": 1785,
-    "downloads": 214557,
+    "likes": 1770,
+    "downloads": 79421,
     "is_rising_star": false
   },
   {
@@ -20731,7 +20755,7 @@
     "slug": "huggingface--kijai--wanvideo-comfy",
     "name": "WanVideo_comfy",
     "author": "Kijai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "diffusion-single-file",
       "comfyui",
@@ -20748,7 +20772,7 @@
     "slug": "huggingface--openai--whisper-large-v2",
     "name": "whisper-large-v2",
     "author": "openai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
@@ -20869,27 +20893,30 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-mistralai-Mixtral-8x7B-v0.1",
-    "slug": "huggingface--mistralai--mixtral-8x7b-v0.1",
-    "name": "Mixtral-8x7B-v0.1",
-    "author": "mistralai",
-    "description": "Auto-ingested description",
+    "id": "huggingface-Qwen-QwQ-32B-Preview",
+    "slug": "huggingface--qwen--qwq-32b-preview",
+    "name": "QwQ-32B-Preview",
+    "author": "Qwen",
+    "description": "",
     "tags": [
-      "vllm",
+      "transformers",
       "safetensors",
-      "mixtral",
-      "moe",
-      "mistral-common",
-      "fr",
-      "it",
-      "de",
-      "es",
+      "qwen2",
+      "text-generation",
+      "general-dialogue-qa",
       "en",
+      "arxiv:2407.10671",
+      "base_model:Qwen/Qwen2.5-32B-Instruct",
+      "base_model:finetune:Qwen/Qwen2.5-32B-Instruct",
       "license:apache-2.0",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "deploy:azure",
       "region:us"
     ],
-    "likes": 1770,
-    "downloads": 79421,
+    "likes": 1741,
+    "downloads": 53159,
     "is_rising_star": false
   },
   {
@@ -20897,7 +20924,7 @@
     "slug": "huggingface--coherelabs--c4ai-command-r-plus",
     "name": "c4ai-command-r-plus",
     "author": "CohereLabs",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -20925,30 +20952,28 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-Qwen-QwQ-32B-Preview",
-    "slug": "huggingface--qwen--qwq-32b-preview",
-    "name": "QwQ-32B-Preview",
-    "author": "Qwen",
-    "description": "Auto-ingested description",
+    "id": "huggingface-mattshumer-Reflection-Llama-3.1-70B",
+    "slug": "huggingface--mattshumer--reflection-llama-3.1-70b",
+    "name": "Reflection-Llama-3.1-70B",
+    "author": "mattshumer",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
-      "qwen2",
+      "llama",
       "text-generation",
       "general-dialogue-qa",
-      "en",
-      "arxiv:2407.10671",
-      "base_model:Qwen/Qwen2.5-32B-Instruct",
-      "base_model:finetune:Qwen/Qwen2.5-32B-Instruct",
-      "license:apache-2.0",
+      "base_model:meta-llama/Llama-3.1-70B-Instruct",
+      "base_model:finetune:meta-llama/Llama-3.1-70B-Instruct",
+      "license:llama3.1",
       "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
-      "deploy:azure",
-      "region:us"
+      "region:us",
+      "deploy:azure"
     ],
-    "likes": 1741,
-    "downloads": 53159,
+    "likes": 1711,
+    "downloads": 138,
     "is_rising_star": false
   },
   {
@@ -20956,7 +20981,7 @@
     "slug": "huggingface--dreamlike-art--dreamlike-photoreal-2.0",
     "name": "dreamlike-photoreal-2.0",
     "author": "dreamlike-art",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "diffusers",
       "safetensors",
@@ -20980,7 +21005,7 @@
     "slug": "huggingface--google--gemma-3-27b-it",
     "name": "gemma-3-27b-it",
     "author": "google",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -21028,28 +21053,24 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-mattshumer-Reflection-Llama-3.1-70B",
-    "slug": "huggingface--mattshumer--reflection-llama-3.1-70b",
-    "name": "Reflection-Llama-3.1-70B",
-    "author": "mattshumer",
-    "description": "Auto-ingested description",
+    "id": "huggingface-microsoft-OmniParser",
+    "slug": "huggingface--microsoft--omniparser",
+    "name": "OmniParser",
+    "author": "microsoft",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
-      "llama",
-      "text-generation",
-      "general-dialogue-qa",
-      "base_model:meta-llama/Llama-3.1-70B-Instruct",
-      "base_model:finetune:meta-llama/Llama-3.1-70B-Instruct",
-      "license:llama3.1",
-      "autotrain_compatible",
-      "text-generation-inference",
+      "blip-2",
+      "image-to-text",
+      "image-text-to-text",
+      "arxiv:2408.00203",
+      "license:mit",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 1711,
-    "downloads": 138,
+    "likes": 1696,
+    "downloads": 376,
     "is_rising_star": false
   },
   {
@@ -21057,7 +21078,7 @@
     "slug": "huggingface--microsoft--florence-2-large",
     "name": "Florence-2-large",
     "author": "microsoft",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "pytorch",
@@ -21077,24 +21098,26 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-microsoft-OmniParser",
-    "slug": "huggingface--microsoft--omniparser",
-    "name": "OmniParser",
-    "author": "microsoft",
-    "description": "Auto-ingested description",
+    "id": "huggingface-tencent-Hunyuan3D-2",
+    "slug": "huggingface--tencent--hunyuan3d-2",
+    "name": "Hunyuan3D-2",
+    "author": "tencent",
+    "description": "",
     "tags": [
-      "transformers",
+      "hunyuan3d-2",
+      "diffusers",
       "safetensors",
-      "blip-2",
-      "image-to-text",
-      "image-text-to-text",
-      "arxiv:2408.00203",
-      "license:mit",
-      "endpoints_compatible",
+      "image-to-3d",
+      "text-to-3d",
+      "en",
+      "zh",
+      "arxiv:2501.12202",
+      "arxiv:2411.02293",
+      "license:other",
       "region:us"
     ],
-    "likes": 1696,
-    "downloads": 376,
+    "likes": 1672,
+    "downloads": 84347,
     "is_rising_star": false
   },
   {
@@ -21102,7 +21125,7 @@
     "slug": "huggingface--microsoft--phi-3-mini-128k-instruct",
     "name": "Phi-3-mini-128k-instruct",
     "author": "microsoft",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -21128,7 +21151,7 @@
     "slug": "huggingface--deepseek-ai--deepseek-v3-base",
     "name": "DeepSeek-V3-Base",
     "author": "deepseek-ai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "safetensors",
       "deepseek_v3",
@@ -21142,34 +21165,11 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-tencent-Hunyuan3D-2",
-    "slug": "huggingface--tencent--hunyuan3d-2",
-    "name": "Hunyuan3D-2",
-    "author": "tencent",
-    "description": "Auto-ingested description",
-    "tags": [
-      "hunyuan3d-2",
-      "diffusers",
-      "safetensors",
-      "image-to-3d",
-      "text-to-3d",
-      "en",
-      "zh",
-      "arxiv:2501.12202",
-      "arxiv:2411.02293",
-      "license:other",
-      "region:us"
-    ],
-    "likes": 1672,
-    "downloads": 84347,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-mistralai-Mistral-Nemo-Instruct-2407",
     "slug": "huggingface--mistralai--mistral-nemo-instruct-2407",
     "name": "Mistral-Nemo-Instruct-2407",
     "author": "mistralai",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "vllm",
       "safetensors",
@@ -21198,7 +21198,7 @@
     "slug": "huggingface--2noise--chattts",
     "name": "ChatTTS",
     "author": "2Noise",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "chat_tts",
       "safetensors",
@@ -21211,11 +21211,33 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-gsdf-Counterfeit-V2.5",
+    "slug": "huggingface--gsdf--counterfeit-v2.5",
+    "name": "Counterfeit-V2.5",
+    "author": "gsdf",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "stable-diffusion",
+      "stable-diffusion-diffusers",
+      "image-generation",
+      "license:creativeml-openrail-m",
+      "autotrain_compatible",
+      "endpoints_compatible",
+      "diffusers:StableDiffusionPipeline",
+      "region:us"
+    ],
+    "likes": 1577,
+    "downloads": 2985,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-xinsir-controlnet-union-sdxl-1.0",
     "slug": "huggingface--xinsir--controlnet-union-sdxl-1.0",
     "name": "controlnet-union-sdxl-1.0",
     "author": "xinsir",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "diffusers",
       "safetensors",
@@ -21235,7 +21257,7 @@
     "slug": "huggingface--docling-project--smoldocling-256m-preview",
     "name": "SmolDocling-256M-preview",
     "author": "docling-project",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "onnx",
@@ -21262,59 +21284,11 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-gsdf-Counterfeit-V2.5",
-    "slug": "huggingface--gsdf--counterfeit-v2.5",
-    "name": "Counterfeit-V2.5",
-    "author": "gsdf",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "stable-diffusion",
-      "stable-diffusion-diffusers",
-      "image-generation",
-      "license:creativeml-openrail-m",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "diffusers:StableDiffusionPipeline",
-      "region:us"
-    ],
-    "likes": 1577,
-    "downloads": 2985,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-nanonets-Nanonets-OCR-s",
-    "slug": "huggingface--nanonets--nanonets-ocr-s",
-    "name": "Nanonets-OCR-s",
-    "author": "nanonets",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "qwen2_5_vl",
-      "image-to-text",
-      "OCR",
-      "pdf2markdown",
-      "image-text-to-text",
-      "general-dialogue-qa",
-      "en",
-      "base_model:Qwen/Qwen2.5-VL-3B-Instruct",
-      "base_model:finetune:Qwen/Qwen2.5-VL-3B-Instruct",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "region:us"
-    ],
-    "likes": 1559,
-    "downloads": 101780,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-meta-llama-Llama-3.2-11B-Vision-Instruct",
     "slug": "huggingface--meta-llama--llama-3.2-11b-vision-instruct",
     "name": "Llama-3.2-11B-Vision-Instruct",
     "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -21346,11 +21320,89 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-stepfun-ai-GOT-OCR2-0",
+    "slug": "huggingface--stepfun-ai--got-ocr2-0",
+    "name": "GOT-OCR2_0",
+    "author": "stepfun-ai",
+    "description": "",
+    "tags": [
+      "safetensors",
+      "GOT",
+      "got",
+      "vision-language",
+      "ocr2.0",
+      "custom_code",
+      "image-text-to-text",
+      "multilingual",
+      "arxiv:2409.01704",
+      "arxiv:2405.14295",
+      "arxiv:2312.06109",
+      "license:apache-2.0",
+      "region:us"
+    ],
+    "likes": 1525,
+    "downloads": 28848,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-EleutherAI-gpt-j-6b",
+    "slug": "huggingface--eleutherai--gpt-j-6b",
+    "name": "gpt-j-6b",
+    "author": "EleutherAI",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "tf",
+      "jax",
+      "gptj",
+      "text-generation",
+      "causal-lm",
+      "en",
+      "dataset:EleutherAI/pile",
+      "arxiv:2104.09864",
+      "arxiv:2101.00027",
+      "license:apache-2.0",
+      "autotrain_compatible",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 1514,
+    "downloads": 159923,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-nanonets-Nanonets-OCR-s",
+    "slug": "huggingface--nanonets--nanonets-ocr-s",
+    "name": "Nanonets-OCR-s",
+    "author": "nanonets",
+    "description": "",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "qwen2_5_vl",
+      "image-to-text",
+      "OCR",
+      "pdf2markdown",
+      "image-text-to-text",
+      "general-dialogue-qa",
+      "en",
+      "base_model:Qwen/Qwen2.5-VL-3B-Instruct",
+      "base_model:finetune:Qwen/Qwen2.5-VL-3B-Instruct",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 1559,
+    "downloads": 101780,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-microsoft-Phi-4-multimodal-instruct",
     "slug": "huggingface--microsoft--phi-4-multimodal-instruct",
     "name": "Phi-4-multimodal-instruct",
     "author": "microsoft",
-    "description": "Auto-ingested description",
+    "description": "",
     "tags": [
       "transformers",
       "safetensors",
@@ -21402,63 +21454,11 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-stepfun-ai-GOT-OCR2-0",
-    "slug": "huggingface--stepfun-ai--got-ocr2-0",
-    "name": "GOT-OCR2_0",
-    "author": "stepfun-ai",
-    "description": "Auto-ingested description",
-    "tags": [
-      "safetensors",
-      "GOT",
-      "got",
-      "vision-language",
-      "ocr2.0",
-      "custom_code",
-      "image-text-to-text",
-      "multilingual",
-      "arxiv:2409.01704",
-      "arxiv:2405.14295",
-      "arxiv:2312.06109",
-      "license:apache-2.0",
-      "region:us"
-    ],
-    "likes": 1524,
-    "downloads": 28848,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-EleutherAI-gpt-j-6b",
-    "slug": "huggingface--eleutherai--gpt-j-6b",
-    "name": "gpt-j-6b",
-    "author": "EleutherAI",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "tf",
-      "jax",
-      "gptj",
-      "text-generation",
-      "causal-lm",
-      "en",
-      "dataset:EleutherAI/pile",
-      "arxiv:2104.09864",
-      "arxiv:2101.00027",
-      "license:apache-2.0",
-      "autotrain_compatible",
-      "endpoints_compatible",
-      "region:us"
-    ],
-    "likes": 1513,
-    "downloads": 159923,
-    "is_rising_star": false
-  },
-  {
     "id": "pytorch-huggingface-PyTorch-Transformers",
     "slug": "pytorch--huggingface--pytorch-transformers",
     "name": "PyTorch-Transformers",
     "author": "huggingface",
-    "description": "Auto-ingested description",
+    "description": "PyTorch implementations of popular NLP Transformers \t\t\t\t\t\t \t\t\t\t\t 153.1k",
     "tags": [
       "pytorch"
     ],
@@ -21467,11 +21467,24 @@
     "is_rising_star": false
   },
   {
+    "id": "pytorch-pytorch-AlexNet",
+    "slug": "pytorch--pytorch--alexnet",
+    "name": "AlexNet",
+    "author": "pytorch",
+    "description": "The 2012 ImageNet winner achieved a top-5 error of 15.3%, more than 10.8 percentage points lower than that of the runner up. \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "pytorch-ultralytics-YOLOv5",
     "slug": "pytorch--ultralytics--yolov5",
     "name": "YOLOv5",
     "author": "ultralytics",
-    "description": "Auto-ingested description",
+    "description": "Ultralytics YOLOv5 🚀 for object detection, instance segmentation and image classification. \t\t\t\t\t\t \t\t\t\t\t 56.2k",
     "tags": [
       "pytorch"
     ],
@@ -21480,80 +21493,29 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-RoBERTa",
-    "slug": "pytorch--pytorch--roberta",
-    "name": "RoBERTa",
-    "author": "pytorch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 32000,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
     "id": "pytorch-pytorch-Transformer (NMT)",
     "slug": "pytorch--pytorch--transformer (nmt)",
     "name": "Transformer (NMT)",
     "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "Transformer models for English-French and English-German translation. \t\t\t\t\t\t \t\t\t\t\t 32.0k",
     "tags": [
-      "pytorch"
+      "pytorch",
+      "translation-localization"
     ],
     "likes": 32000,
     "downloads": 0,
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-MobileNet v2",
-    "slug": "pytorch--pytorch--mobilenet v2",
-    "name": "MobileNet v2",
+    "id": "pytorch-pytorch-RoBERTa",
+    "slug": "pytorch--pytorch--roberta",
+    "name": "RoBERTa",
     "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "A Robustly Optimized BERT Pretraining Approach \t\t\t\t\t\t \t\t\t\t\t 32.0k",
     "tags": [
       "pytorch"
     ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-ResNet",
-    "slug": "pytorch--pytorch--resnet",
-    "name": "ResNet",
-    "author": "pytorch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-ResNext",
-    "slug": "pytorch--pytorch--resnext",
-    "name": "ResNext",
-    "author": "pytorch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-ShuffleNet v2",
-    "slug": "pytorch--pytorch--shufflenet v2",
-    "name": "ShuffleNet v2",
-    "author": "pytorch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
+    "likes": 32000,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -21562,20 +21524,7 @@
     "slug": "pytorch--pytorch--deeplabv3",
     "name": "Deeplabv3",
     "author": "pytorch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-AlexNet",
-    "slug": "pytorch--pytorch--alexnet",
-    "name": "AlexNet",
-    "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "DeepLabV3 models with ResNet-50, ResNet-101 and MobileNet-V3 backbones \t\t\t\t\t\t \t\t\t\t\t 17.3k",
     "tags": [
       "pytorch"
     ],
@@ -21588,46 +21537,7 @@
     "slug": "pytorch--pytorch--squeezenet",
     "name": "SqueezeNet",
     "author": "pytorch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-Densenet",
-    "slug": "pytorch--pytorch--densenet",
-    "name": "Densenet",
-    "author": "pytorch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-vgg-nets",
-    "slug": "pytorch--pytorch--vgg-nets",
-    "name": "vgg-nets",
-    "author": "pytorch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-FCN",
-    "slug": "pytorch--pytorch--fcn",
-    "name": "FCN",
-    "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "Alexnet-level accuracy with 50x fewer parameters. \t\t\t\t\t\t \t\t\t\t\t 17.3k",
     "tags": [
       "pytorch"
     ],
@@ -21640,7 +21550,46 @@
     "slug": "pytorch--pytorch--wide resnet",
     "name": "Wide ResNet",
     "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "Wide Residual Networks \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-Densenet",
+    "slug": "pytorch--pytorch--densenet",
+    "name": "Densenet",
+    "author": "pytorch",
+    "description": "Dense Convolutional Network (DenseNet), connects each layer to every other layer in a feed-forward fashion. \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-vgg-nets",
+    "slug": "pytorch--pytorch--vgg-nets",
+    "name": "vgg-nets",
+    "author": "pytorch",
+    "description": "Award winning ConvNets from 2014 ImageNet ILSVRC challenge \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-FCN",
+    "slug": "pytorch--pytorch--fcn",
+    "name": "FCN",
+    "author": "pytorch",
+    "description": "Fully-Convolutional Network model with ResNet-50 and ResNet-101 backbones \t\t\t\t\t\t \t\t\t\t\t 17.3k",
     "tags": [
       "pytorch"
     ],
@@ -21653,7 +21602,21 @@
     "slug": "pytorch--pytorch--googlenet",
     "name": "GoogLeNet",
     "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "GoogLeNet was based on a deep convolutional neural network architecture codenamed “Inception” which won ImageNet 2014. \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch",
+      "code-generation-assistance"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-ResNext",
+    "slug": "pytorch--pytorch--resnext",
+    "name": "ResNext",
+    "author": "pytorch",
+    "description": "Next generation ResNets, more efficient and accurate \t\t\t\t\t\t \t\t\t\t\t 17.3k",
     "tags": [
       "pytorch"
     ],
@@ -21666,7 +21629,7 @@
     "slug": "pytorch--pytorch--inception-v3",
     "name": "Inception_v3",
     "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "Also called GoogleNetv3, a famous ConvNet trained on ImageNet from 2015 \t\t\t\t\t\t \t\t\t\t\t 17.3k",
     "tags": [
       "pytorch"
     ],
@@ -21675,28 +21638,41 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-nvidia-GPUNet",
-    "slug": "pytorch--nvidia--gpunet",
-    "name": "GPUNet",
-    "author": "nvidia",
-    "description": "Auto-ingested description",
+    "id": "pytorch-pytorch-MobileNet v2",
+    "slug": "pytorch--pytorch--mobilenet v2",
+    "name": "MobileNet v2",
+    "author": "pytorch",
+    "description": "Efficient networks optimized for speed and memory, with residual blocks \t\t\t\t\t\t \t\t\t\t\t 17.3k",
     "tags": [
       "pytorch"
     ],
-    "likes": 14600,
+    "likes": 17300,
     "downloads": 0,
     "is_rising_star": false
   },
   {
-    "id": "pytorch-nvidia-EfficientNet",
-    "slug": "pytorch--nvidia--efficientnet",
-    "name": "EfficientNet",
-    "author": "nvidia",
-    "description": "Auto-ingested description",
+    "id": "pytorch-pytorch-ResNet",
+    "slug": "pytorch--pytorch--resnet",
+    "name": "ResNet",
+    "author": "pytorch",
+    "description": "Deep residual networks pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.3k",
     "tags": [
       "pytorch"
     ],
-    "likes": 14600,
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-ShuffleNet v2",
+    "slug": "pytorch--pytorch--shufflenet v2",
+    "name": "ShuffleNet v2",
+    "author": "pytorch",
+    "description": "An efficient ConvNet optimized for speed and memory, pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -21705,85 +21681,7 @@
     "slug": "pytorch--nvidia--hifi gan",
     "name": "HiFi GAN",
     "author": "nvidia",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-nvidia-ResNet50",
-    "slug": "pytorch--nvidia--resnet50",
-    "name": "ResNet50",
-    "author": "nvidia",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-nvidia-ResNeXt101",
-    "slug": "pytorch--nvidia--resnext101",
-    "name": "ResNeXt101",
-    "author": "nvidia",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-nvidia-SE-ResNeXt101",
-    "slug": "pytorch--nvidia--se-resnext101",
-    "name": "SE-ResNeXt101",
-    "author": "nvidia",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-nvidia-SSD",
-    "slug": "pytorch--nvidia--ssd",
-    "name": "SSD",
-    "author": "nvidia",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-nvidia-Tacotron 2",
-    "slug": "pytorch--nvidia--tacotron 2",
-    "name": "Tacotron 2",
-    "author": "nvidia",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-nvidia-WaveGlow",
-    "slug": "pytorch--nvidia--waveglow",
-    "name": "WaveGlow",
-    "author": "nvidia",
-    "description": "Auto-ingested description",
+    "description": "The HiFi GAN model for generating waveforms from mel spectrograms \t\t\t\t\t\t \t\t\t\t\t 14.6k",
     "tags": [
       "pytorch"
     ],
@@ -21796,7 +21694,7 @@
     "slug": "pytorch--nvidia--fastpitch 2",
     "name": "FastPitch 2",
     "author": "nvidia",
-    "description": "Auto-ingested description",
+    "description": "The FastPitch model for generating mel spectrograms from text \t\t\t\t\t\t \t\t\t\t\t 14.6k",
     "tags": [
       "pytorch"
     ],
@@ -21805,11 +21703,128 @@
     "is_rising_star": false
   },
   {
+    "id": "pytorch-nvidia-GPUNet",
+    "slug": "pytorch--nvidia--gpunet",
+    "name": "GPUNet",
+    "author": "nvidia",
+    "description": "GPUNet is a new family of Convolutional Neural Networks designed to max out the performance of NVIDIA GPU and TensorRT. \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-nvidia-EfficientNet",
+    "slug": "pytorch--nvidia--efficientnet",
+    "name": "EfficientNet",
+    "author": "nvidia",
+    "description": "EfficientNets are a family of image classification models, which achieve state-of-the-art accuracy, being an order-of-magnitude smaller and faster. Trained with mixed precision using Tensor Cores. \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-nvidia-ResNet50",
+    "slug": "pytorch--nvidia--resnet50",
+    "name": "ResNet50",
+    "author": "nvidia",
+    "description": "ResNet50 model trained with mixed precision using Tensor Cores. \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-nvidia-Tacotron 2",
+    "slug": "pytorch--nvidia--tacotron 2",
+    "name": "Tacotron 2",
+    "author": "nvidia",
+    "description": "The Tacotron 2 model for generating mel spectrograms from text \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-nvidia-ResNeXt101",
+    "slug": "pytorch--nvidia--resnext101",
+    "name": "ResNeXt101",
+    "author": "nvidia",
+    "description": "ResNet with bottleneck 3×3 Convolutions substituted by 3×3 Grouped Convolutions, trained with mixed precision using Tensor Cores. \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-nvidia-SSD",
+    "slug": "pytorch--nvidia--ssd",
+    "name": "SSD",
+    "author": "nvidia",
+    "description": "Single Shot MultiBox Detector model for object detection \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-nvidia-SE-ResNeXt101",
+    "slug": "pytorch--nvidia--se-resnext101",
+    "name": "SE-ResNeXt101",
+    "author": "nvidia",
+    "description": "ResNeXt with Squeeze-and-Excitation module added, trained with mixed precision using Tensor Cores. \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-nvidia-WaveGlow",
+    "slug": "pytorch--nvidia--waveglow",
+    "name": "WaveGlow",
+    "author": "nvidia",
+    "description": "WaveGlow model for generating speech from mel spectrograms (generated by Tacotron2) \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-intelisl-MiDaS",
+    "slug": "pytorch--intelisl--midas",
+    "name": "MiDaS",
+    "author": "intelisl",
+    "description": "MiDaS models for computing relative depth from a single image. \t\t\t\t\t\t \t\t\t\t\t 5.2k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 5200,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "pytorch-snakers4-Silero Voice Activity Detector",
     "slug": "pytorch--snakers4--silero voice activity detector",
     "name": "Silero Voice Activity Detector",
     "author": "snakers4",
-    "description": "Auto-ingested description",
+    "description": "Pre-trained Voice Activity Detector \t\t\t\t\t\t \t\t\t\t\t 7.5k",
     "tags": [
       "pytorch"
     ],
@@ -21822,7 +21837,7 @@
     "slug": "pytorch--snakers4--silero speech-to-text models",
     "name": "Silero Speech-To-Text Models",
     "author": "snakers4",
-    "description": "Auto-ingested description",
+    "description": "A set of compact enterprise-grade pre-trained STT Models for multiple languages. \t\t\t\t\t\t \t\t\t\t\t 5.6k",
     "tags": [
       "pytorch"
     ],
@@ -21835,7 +21850,7 @@
     "slug": "pytorch--snakers4--silero text-to-speech models",
     "name": "Silero Text-To-Speech Models",
     "author": "snakers4",
-    "description": "Auto-ingested description",
+    "description": "A set of compact enterprise-grade pre-trained TTS Models for multiple languages \t\t\t\t\t\t \t\t\t\t\t 5.6k",
     "tags": [
       "pytorch"
     ],
@@ -21844,24 +21859,11 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-intelisl-MiDaS",
-    "slug": "pytorch--intelisl--midas",
-    "name": "MiDaS",
-    "author": "intelisl",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 5200,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-SNNMLP",
-    "slug": "pytorch--pytorch--snnmlp",
-    "name": "SNNMLP",
+    "id": "pytorch-pytorch-GhostNet",
+    "slug": "pytorch--pytorch--ghostnet",
+    "name": "GhostNet",
     "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "Efficient networks by generating more features from cheap operations \t\t\t\t\t\t \t\t\t\t\t 4.3k",
     "tags": [
       "pytorch"
     ],
@@ -21870,11 +21872,24 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-GhostNet",
-    "slug": "pytorch--pytorch--ghostnet",
-    "name": "GhostNet",
+    "id": "pytorch-facebookresearch-X3D",
+    "slug": "pytorch--facebookresearch--x3d",
+    "name": "X3D",
+    "author": "facebookresearch",
+    "description": "X3D networks pretrained on the Kinetics 400 dataset \t\t\t\t\t\t \t\t\t\t\t 3.5k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 3500,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-SNNMLP",
+    "slug": "pytorch--pytorch--snnmlp",
+    "name": "SNNMLP",
     "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "Brain-inspired Multilayer Perceptron with Spiking Neurons \t\t\t\t\t\t \t\t\t\t\t 4.3k",
     "tags": [
       "pytorch"
     ],
@@ -21887,7 +21902,7 @@
     "slug": "pytorch--facebookresearch--3d resnet",
     "name": "3D ResNet",
     "author": "facebookresearch",
-    "description": "Auto-ingested description",
+    "description": "Resnet Style Video classification networks pretrained on the Kinetics 400 dataset \t\t\t\t\t\t \t\t\t\t\t 3.5k",
     "tags": [
       "pytorch"
     ],
@@ -21900,20 +21915,7 @@
     "slug": "pytorch--facebookresearch--slowfast",
     "name": "SlowFast",
     "author": "facebookresearch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 3500,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-facebookresearch-X3D",
-    "slug": "pytorch--facebookresearch--x3d",
-    "name": "X3D",
-    "author": "facebookresearch",
-    "description": "Auto-ingested description",
+    "description": "SlowFast networks pretrained on the Kinetics 400 dataset \t\t\t\t\t\t \t\t\t\t\t 3.5k",
     "tags": [
       "pytorch"
     ],
@@ -21926,7 +21928,7 @@
     "slug": "pytorch--pytorch--resnest",
     "name": "ResNeSt",
     "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "A new ResNet variant. \t\t\t\t\t\t \t\t\t\t\t 3.3k",
     "tags": [
       "pytorch"
     ],
@@ -21935,63 +21937,11 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-hustvl-YOLOP",
-    "slug": "pytorch--hustvl--yolop",
-    "name": "YOLOP",
-    "author": "hustvl",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 2100,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-Once-for-All",
-    "slug": "pytorch--pytorch--once-for-all",
-    "name": "Once-for-All",
-    "author": "pytorch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 1900,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-facebookresearch-DCGAN on FashionGen",
-    "slug": "pytorch--facebookresearch--dcgan on fashiongen",
-    "name": "DCGAN on FashionGen",
-    "author": "facebookresearch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 1600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-facebookresearch-Progressive Growing of GANs (PGAN)",
-    "slug": "pytorch--facebookresearch--progressive growing of gans (pgan)",
-    "name": "Progressive Growing of GANs (PGAN)",
-    "author": "facebookresearch",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 1600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
     "id": "pytorch-pytorch-ProxylessNAS",
     "slug": "pytorch--pytorch--proxylessnas",
     "name": "ProxylessNAS",
     "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "Proxylessly specialize CNN architectures for different hardware platforms. \t\t\t\t\t\t \t\t\t\t\t 1.5k",
     "tags": [
       "pytorch"
     ],
@@ -22000,15 +21950,55 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-sigsep-Open-Unmix",
-    "slug": "pytorch--sigsep--open-unmix",
-    "name": "Open-Unmix",
-    "author": "sigsep",
-    "description": "Auto-ingested description",
+    "id": "pytorch-hustvl-YOLOP",
+    "slug": "pytorch--hustvl--yolop",
+    "name": "YOLOP",
+    "author": "hustvl",
+    "description": "YOLOP pretrained on the BDD100K dataset \t\t\t\t\t\t \t\t\t\t\t 2.1k",
     "tags": [
       "pytorch"
     ],
-    "likes": 1400,
+    "likes": 2100,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-facebookresearch-DCGAN on FashionGen",
+    "slug": "pytorch--facebookresearch--dcgan on fashiongen",
+    "name": "DCGAN on FashionGen",
+    "author": "facebookresearch",
+    "description": "A simple generative image model for 64×64 images \t\t\t\t\t\t \t\t\t\t\t 1.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 1600,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-Once-for-All",
+    "slug": "pytorch--pytorch--once-for-all",
+    "name": "Once-for-All",
+    "author": "pytorch",
+    "description": "Once-for-all (OFA) decouples training and search, and achieves efficient inference across various edge devices and resource constraints. \t\t\t\t\t\t \t\t\t\t\t 1.9k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 1900,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-facebookresearch-Progressive Growing of GANs (PGAN)",
+    "slug": "pytorch--facebookresearch--progressive growing of gans (pgan)",
+    "name": "Progressive Growing of GANs (PGAN)",
+    "author": "facebookresearch",
+    "description": "High-quality image generation of fashion, celebrity faces \t\t\t\t\t\t \t\t\t\t\t 1.6k",
+    "tags": [
+      "pytorch",
+      "image-generation"
+    ],
+    "likes": 1600,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -22017,7 +22007,7 @@
     "slug": "pytorch--pytorch--ibn-net",
     "name": "IBN-Net",
     "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "Networks with domain/appearance invariance \t\t\t\t\t\t \t\t\t\t\t 808",
     "tags": [
       "pytorch"
     ],
@@ -22026,11 +22016,37 @@
     "is_rising_star": false
   },
   {
+    "id": "pytorch-datvuthanh-HybridNets",
+    "slug": "pytorch--datvuthanh--hybridnets",
+    "name": "HybridNets",
+    "author": "datvuthanh",
+    "description": "HybridNets – End2End Perception Network \t\t\t\t\t\t \t\t\t\t\t 658",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 658,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-sigsep-Open-Unmix",
+    "slug": "pytorch--sigsep--open-unmix",
+    "name": "Open-Unmix",
+    "author": "sigsep",
+    "description": "Reference implementation for music source separation \t\t\t\t\t\t \t\t\t\t\t 1.4k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 1400,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "pytorch-mateuszbuda-U-Net for brain MRI",
     "slug": "pytorch--mateuszbuda--u-net for brain mri",
     "name": "U-Net for brain MRI",
     "author": "mateuszbuda",
-    "description": "Auto-ingested description",
+    "description": "U-Net with batch normalization for biomedical image segmentation with pretrained weights for abnormality segmentation in brain MRI \t\t\t\t\t\t \t\t\t\t\t 768",
     "tags": [
       "pytorch"
     ],
@@ -22043,7 +22059,7 @@
     "slug": "pytorch--pytorch--meal-v2",
     "name": "MEAL_V2",
     "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "Boosting Tiny and Efficient Models using Knowledge Distillation. \t\t\t\t\t\t \t\t\t\t\t 699",
     "tags": [
       "pytorch"
     ],
@@ -22052,24 +22068,11 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-datvuthanh-HybridNets",
-    "slug": "pytorch--datvuthanh--hybridnets",
-    "name": "HybridNets",
-    "author": "datvuthanh",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 658,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
     "id": "pytorch-facebookresearch-ResNext WSL",
     "slug": "pytorch--facebookresearch--resnext wsl",
     "name": "ResNext WSL",
     "author": "facebookresearch",
-    "description": "Auto-ingested description",
+    "description": "ResNext models trained with billion scale weakly-supervised data. \t\t\t\t\t\t \t\t\t\t\t 602",
     "tags": [
       "pytorch"
     ],
@@ -22078,11 +22081,24 @@
     "is_rising_star": false
   },
   {
+    "id": "pytorch-nicolalandro-ntsnet",
+    "slug": "pytorch--nicolalandro--ntsnet",
+    "name": "ntsnet",
+    "author": "nicolalandro",
+    "description": "classify birds using this fine-grained image classifier \t\t\t\t\t\t \t\t\t\t\t 34",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 34,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "pytorch-pytorch-HarDNet",
     "slug": "pytorch--pytorch--hardnet",
     "name": "HarDNet",
     "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "Harmonic DenseNet pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 370",
     "tags": [
       "pytorch"
     ],
@@ -22095,7 +22111,7 @@
     "slug": "pytorch--facebookresearch--semi-supervised and semi-weakly supervised imagenet models",
     "name": "Semi-supervised and semi-weakly supervised ImageNet Models",
     "author": "facebookresearch",
-    "description": "Auto-ingested description",
+    "description": "ResNet and ResNext models introduced in the “Billion scale semi-supervised learning for image classification” paper \t\t\t\t\t\t \t\t\t\t\t 246",
     "tags": [
       "pytorch"
     ],
@@ -22108,7 +22124,7 @@
     "slug": "pytorch--pytorch--simplenet",
     "name": "SimpleNet",
     "author": "pytorch",
-    "description": "Auto-ingested description",
+    "description": "Lets Keep it simple, Using simple architectures to outperform deeper and more complex architectures \t\t\t\t\t\t \t\t\t\t\t 53",
     "tags": [
       "pytorch"
     ],
@@ -22117,24 +22133,11 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-nicolalandro-ntsnet",
-    "slug": "pytorch--nicolalandro--ntsnet",
-    "name": "ntsnet",
-    "author": "nicolalandro",
-    "description": "Auto-ingested description",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 34,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
     "id": "github-jim-schwoebel-voice-gender-detection",
     "slug": "github--jim-schwoebel--voice-gender-detection",
     "name": "voice_gender_detection",
     "author": "jim-schwoebel",
-    "description": "Auto-ingested description",
+    "description": "♂️♀️  Detect a person's gender from a voice file (90.7% +/- 1.3% accuracy).",
     "tags": [
       "github",
       "gender-classification",
@@ -22165,7 +22168,7 @@
     "slug": "github--irlll--house-rental-prediction-machine-learning",
     "name": "house-rental-prediction-machine-learning",
     "author": "Irlll",
-    "description": "Auto-ingested description",
+    "description": "Proyek pertama predictive analytics untuk membangun model machine learning yang dapat memprediksi harga sewa rumah dan apartement di India.",
     "tags": [
       "github",
       "adaboost",
@@ -22182,30 +22185,30 @@
       "predictive-modeling",
       "random-forest",
       "random-forest-regressor",
-      "regression-models"
+      "regression-models",
+      "data-analysis-insights"
     ],
     "likes": 10,
     "downloads": 0,
     "is_rising_star": false
   },
   {
-    "id": "github-freesoul84-100DaysOfMLcode",
-    "slug": "github--freesoul84--100daysofmlcode",
-    "name": "100DaysOfMLcode",
-    "author": "freesoul84",
-    "description": "Auto-ingested description",
+    "id": "github-R-Projects-Portfolio-Madrid-Real-Estate-Price-Prediction",
+    "slug": "github--r-projects-portfolio--madrid-real-estate-price-prediction",
+    "name": "Madrid-Real-Estate-Price-Prediction",
+    "author": "R-Projects-Portfolio",
+    "description": "This is a Supervised Learning Model which predicts the Price of Real Estate in Madrid, Spain.",
     "tags": [
       "github",
-      "computer-vision",
-      "emotion-detection",
-      "jupyter-notebook",
       "machine-learning",
       "machine-learning-model",
-      "naive-bayes",
-      "object-tracking",
-      "recommendation-system"
+      "price-prediction",
+      "r",
+      "r-project",
+      "supervised-learning",
+      "supervised-machine-learning"
     ],
-    "likes": 7,
+    "likes": 1,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -22214,7 +22217,7 @@
     "slug": "github--aliahmad552--loan-approval-prediction",
     "name": "loan_approval_prediction",
     "author": "aliahmad552",
-    "description": "Auto-ingested description",
+    "description": "This is a Loan Approval Prediction Web App built with FastAPI (Backend) and HTML, CSS, JavaScript (Frontend). It predicts whether a loan application will be approved or not approved based on user input.",
     "tags": [
       "github",
       "data-science",
@@ -22236,7 +22239,7 @@
     "slug": "github--nirajan-jha--predicting-employee-churn-using-machine-learning",
     "name": "Predicting-Employee-Churn-Using-Machine-Learning",
     "author": "nirajan-jha",
-    "description": "Auto-ingested description",
+    "description": "The aim is to build a predictive model that can accurately classify whether the employee is likely to leave or the employee is likely to stay in the company. This allows companies to take proactive measures, such as improving working conditions, offering promotions, or addressing dissatisfaction, to retain valuable employees.",
     "tags": [
       "github",
       "classification",
@@ -22254,91 +22257,11 @@
     "is_rising_star": false
   },
   {
-    "id": "github-twoChar-Flight-Fare-Prediction",
-    "slug": "github--twochar--flight-fare-prediction",
-    "name": "Flight-Fare-Prediction",
-    "author": "twoChar",
-    "description": "Auto-ingested description",
-    "tags": [
-      "github",
-      "flight-fare",
-      "jupyter-notebook",
-      "machine-learning-model",
-      "matplotlib",
-      "numpy",
-      "data-analysis-insights",
-      "python",
-      "scikit-learn",
-      "seaborn"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-R-Projects-Portfolio-Madrid-Real-Estate-Price-Prediction",
-    "slug": "github--r-projects-portfolio--madrid-real-estate-price-prediction",
-    "name": "Madrid-Real-Estate-Price-Prediction",
-    "author": "R-Projects-Portfolio",
-    "description": "Auto-ingested description",
-    "tags": [
-      "github",
-      "machine-learning",
-      "machine-learning-model",
-      "price-prediction",
-      "r",
-      "r-project",
-      "supervised-learning",
-      "supervised-machine-learning"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-Om29Singh-Diabetes-Prediction",
-    "slug": "github--om29singh--diabetes-prediction",
-    "name": "Diabetes_Prediction",
-    "author": "Om29Singh",
-    "description": "Auto-ingested description",
-    "tags": [
-      "github",
-      "jupyter-notebooks",
-      "machine-learning",
-      "machine-learning-model",
-      "prediction",
-      "python3",
-      "supervised-learning-algorithms",
-      "support-vector-machines"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-balirampansare-car-price-predictor",
-    "slug": "github--balirampansare--car-price-predictor",
-    "name": "car-price-predictor",
-    "author": "balirampansare",
-    "description": "Auto-ingested description",
-    "tags": [
-      "github",
-      "flask",
-      "linear-regression",
-      "machine-learning",
-      "machine-learning-model",
-      "python"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
     "id": "github-sciustea-Improve-Machine-Learning-Model-Accuracy-Feature-Engineering-Python",
     "slug": "github--sciustea--improve-machine-learning-model-accuracy-feature-engineering-python",
     "name": "Improve-Machine-Learning-Model-Accuracy_Feature-Engineering_Python",
     "author": "sciustea",
-    "description": "Auto-ingested description",
+    "description": "Splitting the advertising data (advertising.csv) into training and testing data sets, then choosing and training a classification machine learning algorithm;  Getting the accuracy of the ML model;  Using feature engineering skills to create new features and improve my ML model;",
     "tags": [
       "github",
       "classification-algorithm",
@@ -22358,18 +22281,81 @@
     "is_rising_star": false
   },
   {
-    "id": "github-raghavagps-nagbinder",
-    "slug": "github--raghavagps--nagbinder",
-    "name": "nagbinder",
-    "author": "raghavagps",
-    "description": "Auto-ingested description",
+    "id": "github-balirampansare-car-price-predictor",
+    "slug": "github--balirampansare--car-price-predictor",
+    "name": "car-price-predictor",
+    "author": "balirampansare",
+    "description": "Predicts the price of the car based on the input parameter.",
     "tags": [
       "github",
+      "flask",
+      "linear-regression",
+      "machine-learning",
       "machine-learning-model",
-      "nag-binding",
-      "nag-interacting",
-      "prediction-algorithm",
-      "protein-bioinformatics"
+      "python"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-twoChar-Flight-Fare-Prediction",
+    "slug": "github--twochar--flight-fare-prediction",
+    "name": "Flight-Fare-Prediction",
+    "author": "twoChar",
+    "description": "Build a machine learning model that could predict flight fares based on features like airline, journey date, duration, number of stops, and more.Achieved 82% accuracy (R²) with Random Forest on flight fare prediction using real-world airline data.",
+    "tags": [
+      "github",
+      "flight-fare",
+      "jupyter-notebook",
+      "machine-learning-model",
+      "matplotlib",
+      "numpy",
+      "data-analysis-insights",
+      "python",
+      "scikit-learn",
+      "seaborn"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-freesoul84-100DaysOfMLcode",
+    "slug": "github--freesoul84--100daysofmlcode",
+    "name": "100DaysOfMLcode",
+    "author": "freesoul84",
+    "description": "Machine learning for 100 days",
+    "tags": [
+      "github",
+      "computer-vision",
+      "emotion-detection",
+      "jupyter-notebook",
+      "machine-learning",
+      "machine-learning-model",
+      "naive-bayes",
+      "object-tracking",
+      "recommendation-system"
+    ],
+    "likes": 7,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-Om29Singh-Diabetes-Prediction",
+    "slug": "github--om29singh--diabetes-prediction",
+    "name": "Diabetes_Prediction",
+    "author": "Om29Singh",
+    "description": "Diabetes Prediction using Machine Learning",
+    "tags": [
+      "github",
+      "jupyter-notebooks",
+      "machine-learning",
+      "machine-learning-model",
+      "prediction",
+      "python3",
+      "supervised-learning-algorithms",
+      "support-vector-machines"
     ],
     "likes": 1,
     "downloads": 0,
@@ -22380,7 +22366,7 @@
     "slug": "github--ctlife--cfdna-5hmc-lungcancer",
     "name": "cfDNA-5hmC_LungCancer",
     "author": "CTLife",
-    "description": "Auto-ingested description",
+    "description": "Plasma cell-free DNA hydroxymethylomes discriminate disease state in EGFR-mutant non-small cell lung cancer.",
     "tags": [
       "github",
       "5hmc",
@@ -22405,7 +22391,7 @@
     "slug": "github--hrishikeshnikam2000--face-mask-detector",
     "name": "Face_mask_detector",
     "author": "hrishikeshnikam2000",
-    "description": "Auto-ingested description",
+    "description": "A face mask detector using multiple frameworks. ",
     "tags": [
       "github",
       "deep-learning",
@@ -22421,11 +22407,29 @@
     "is_rising_star": false
   },
   {
+    "id": "github-raghavagps-nagbinder",
+    "slug": "github--raghavagps--nagbinder",
+    "name": "nagbinder",
+    "author": "raghavagps",
+    "description": "A method for predicting NAG interacting residues in a protein from its primary sequence",
+    "tags": [
+      "github",
+      "machine-learning-model",
+      "nag-binding",
+      "nag-interacting",
+      "prediction-algorithm",
+      "protein-bioinformatics"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "github-burcgokden-Power-Law-Graph-Transformer",
     "slug": "github--burcgokden--power-law-graph-transformer",
     "name": "Power-Law-Graph-Transformer",
     "author": "burcgokden",
-    "description": "Auto-ingested description",
+    "description": "Implementation of Power Law Graph Transformer for Machine Translation and Representation Learning.",
     "tags": [
       "github",
       "attention",
@@ -22445,7 +22449,34 @@
       "residual-networks",
       "tensorflow",
       "tensorflow-text",
-      "transformer"
+      "transformer",
+      "translation-localization"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-AbhishekRS4-ML-water-potability",
+    "slug": "github--abhishekrs4--ml-water-potability",
+    "name": "ML_water_potability",
+    "author": "AbhishekRS4",
+    "description": "ML model deployment using docker, kubernetes; API deployment with FastAPI; and MLOps using MLFlow for water potability dataset",
+    "tags": [
+      "github",
+      "docker-deployment",
+      "fastapi-docker",
+      "kubernetes-deployment",
+      "machine-learning",
+      "machine-learning-model",
+      "machine-learning-model-deployment",
+      "machine-learning-model-management",
+      "mlflow",
+      "mlflow-model",
+      "mlflow-sklearn",
+      "scikit-learn-python",
+      "water-potability",
+      "water-quality"
     ],
     "likes": 1,
     "downloads": 0,
@@ -22456,7 +22487,7 @@
     "slug": "github--amanchandra100--movies-recommendation-ml-model",
     "name": "Movies_Recommendation_ML_Model",
     "author": "amanchandra100",
-    "description": "Auto-ingested description",
+    "description": "Movies Recommendation System ",
     "tags": [
       "github",
       "deployment",
@@ -22474,11 +22505,60 @@
     "is_rising_star": false
   },
   {
+    "id": "github-youshen-lim-TalentSol---Applicant-Tracking-System-Application",
+    "slug": "github--youshen-lim--talentsol---applicant-tracking-system-application",
+    "name": "TalentSol---Applicant-Tracking-System-Application",
+    "author": "youshen-lim",
+    "description": "Hobbyist AI/ML project: Transparent AI-powered candidate screening with 4-level data pipeline. React/TypeScript ATS for ML experimentation. Educational only.",
+    "tags": [
+      "github",
+      "applicant-tracking-system",
+      "ats",
+      "machine-learning",
+      "machine-learning-model",
+      "react",
+      "tailwind",
+      "tailwindcss",
+      "typescript"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-mtrvn-trieutrg",
+    "slug": "github--mtrvn--trieutrg",
+    "name": "trieutrg",
+    "author": "mtrvn",
+    "description": "Minh-Trieu Truong (Computer Vision Engineer | AI Engineer | Researcher in Computer Vision & NLP)",
+    "tags": [
+      "github",
+      "ai-model-development",
+      "artificial-intelligence",
+      "chatbot-development",
+      "computer-vision",
+      "computer-vision-software",
+      "data-science",
+      "image-classification",
+      "image-processing",
+      "image-processing-software",
+      "image-recognition",
+      "image-segmentation",
+      "machine-learning",
+      "machine-learning-model",
+      "modeling-language",
+      "natural-language-processing"
+    ],
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "github-qwqoro-ML-Corrupted",
     "slug": "github--qwqoro--ml-corrupted",
     "name": "ML-Corrupted",
     "author": "qwqoro",
-    "description": "Auto-ingested description",
+    "description": "📊 [ML] Classification Problem Solution: Guessing the type of a corrupted file",
     "tags": [
       "github",
       "classification",
@@ -22504,102 +22584,11 @@
     "is_rising_star": false
   },
   {
-    "id": "github-AbhishekRS4-ML-water-potability",
-    "slug": "github--abhishekrs4--ml-water-potability",
-    "name": "ML_water_potability",
-    "author": "AbhishekRS4",
-    "description": "Auto-ingested description",
-    "tags": [
-      "github",
-      "docker-deployment",
-      "fastapi-docker",
-      "kubernetes-deployment",
-      "machine-learning",
-      "machine-learning-model",
-      "machine-learning-model-deployment",
-      "machine-learning-model-management",
-      "mlflow",
-      "mlflow-model",
-      "mlflow-sklearn",
-      "scikit-learn-python",
-      "water-potability",
-      "water-quality"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-youshen-lim-TalentSol---Applicant-Tracking-System-Application",
-    "slug": "github--youshen-lim--talentsol---applicant-tracking-system-application",
-    "name": "TalentSol---Applicant-Tracking-System-Application",
-    "author": "youshen-lim",
-    "description": "Auto-ingested description",
-    "tags": [
-      "github",
-      "applicant-tracking-system",
-      "ats",
-      "machine-learning",
-      "machine-learning-model",
-      "react",
-      "tailwind",
-      "tailwindcss",
-      "typescript"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-mtrvn-trieutrg",
-    "slug": "github--mtrvn--trieutrg",
-    "name": "trieutrg",
-    "author": "mtrvn",
-    "description": "Auto-ingested description",
-    "tags": [
-      "github",
-      "ai-model-development",
-      "artificial-intelligence",
-      "chatbot-development",
-      "computer-vision",
-      "computer-vision-software",
-      "data-science",
-      "image-classification",
-      "image-processing",
-      "image-processing-software",
-      "image-recognition",
-      "image-segmentation",
-      "machine-learning",
-      "machine-learning-model",
-      "modeling-language",
-      "natural-language-processing"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-anchalchaturvedi08-Artificial-Intelligence-Internship",
-    "slug": "github--anchalchaturvedi08--artificial-intelligence-internship",
-    "name": "Artificial_Intelligence_Internship",
-    "author": "anchalchaturvedi08",
-    "description": "Auto-ingested description",
-    "tags": [
-      "github",
-      "jypyternotebook",
-      "machine-learning-model",
-      "python"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
     "id": "github-rishabjainX-PoisonAI",
     "slug": "github--rishabjainx--poisonai",
     "name": "PoisonAI",
     "author": "rishabjainX",
-    "description": "Auto-ingested description",
+    "description": "An Image Classification Model trained on 6000+ images of various plants. When an image is uploaded, it returns whether the plant is poisonous or not. Tri-Valley Hacks 2023 project.",
     "tags": [
       "github",
       "artificial-intelligence",
@@ -22611,71 +22600,16 @@
     "is_rising_star": false
   },
   {
-    "id": "github-karimosman89-prediction-powerbi",
-    "slug": "github--karimosman89--prediction-powerbi",
-    "name": "prediction-powerbi",
-    "author": "karimosman89",
-    "description": "Auto-ingested description",
+    "id": "github-anchalchaturvedi08-Artificial-Intelligence-Internship",
+    "slug": "github--anchalchaturvedi08--artificial-intelligence-internship",
+    "name": "Artificial_Intelligence_Internship",
+    "author": "anchalchaturvedi08",
+    "description": "AI internship projects: Handwritten Digit Recognition using neural networks and Customer Churn Prediction using machine learning models.",
     "tags": [
       "github",
-      "azure-sql-database",
-      "dashboards",
-      "exploring-customer-trends",
+      "jypyternotebook",
       "machine-learning-model",
-      "power-bi",
-      "predict-customer",
-      "sql-server"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-Himasnhu-AT-COX3-ML-Model",
-    "slug": "github--himasnhu-at--cox3-ml-model",
-    "name": "COX3-ML-Model",
-    "author": "Himasnhu-AT",
-    "description": "Auto-ingested description",
-    "tags": [
-      "github",
-      "machine-learning",
-      "machine-learning-algorithms",
-      "machine-learning-model",
-      "model"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-NewthingAde-Telecomunication-Compnay-Churn-Model",
-    "slug": "github--newthingade--telecomunication-compnay-churn-model",
-    "name": "Telecomunication_Compnay_Churn_Model",
-    "author": "NewthingAde",
-    "description": "Auto-ingested description",
-    "tags": [
-      "github",
-      "data-science",
-      "machine-learning",
-      "machine-learning-model",
-      "supervised-learning"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-NewthingAde-Attrition-Of-Customer-Machine-Learning-Model",
-    "slug": "github--newthingade--attrition-of-customer-machine-learning-model",
-    "name": "Attrition_Of_Customer_Machine_Learning_Model",
-    "author": "NewthingAde",
-    "description": "Auto-ingested description",
-    "tags": [
-      "github",
-      "data-science",
-      "machine-learning",
-      "machine-learning-model",
-      "machine-learning-models-deployment"
+      "python"
     ],
     "likes": 0,
     "downloads": 0,
@@ -22686,7 +22620,7 @@
     "slug": "github--lamiorkor--lyrigenesis",
     "name": "LyriGenesis",
     "author": "Lamiorkor",
-    "description": "Auto-ingested description",
+    "description": "LyriGenesis is an Introduction to Artificial Intelligence (AI) Final Project. This is an AI model that takes a word or phrase from a user and uses it to generate song lyrics whose length is also based on another input by the user.",
     "tags": [
       "github",
       "artificial-intelligence",
@@ -22703,7 +22637,7 @@
     "slug": "github--gracesianipar--ml-in-the-cloud",
     "name": "ML-in-the-Cloud",
     "author": "gracesianipar",
-    "description": "Auto-ingested description",
+    "description": "Submission detecting cancer using Cloud Run",
     "tags": [
       "github",
       "cloudrun",
@@ -22715,11 +22649,64 @@
     "is_rising_star": false
   },
   {
+    "id": "github-LykourgosS-iris-ml-model-microservice",
+    "slug": "github--lykourgoss--iris-ml-model-microservice",
+    "name": "iris-ml-model-microservice",
+    "author": "LykourgosS",
+    "description": "A FastAPI microservice for predicting iris species based on sepal and petal dimensions. This project leverages machine learning to classify iris flowers into their respective species. (mpsp)",
+    "tags": [
+      "github",
+      "docker",
+      "fastapi",
+      "iris-classification",
+      "machine-learning-model",
+      "microservice",
+      "rag-knowledge-base-qa"
+    ],
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-NewthingAde-Telecomunication-Compnay-Churn-Model",
+    "slug": "github--newthingade--telecomunication-compnay-churn-model",
+    "name": "Telecomunication_Compnay_Churn_Model",
+    "author": "NewthingAde",
+    "description": "This Machine Learning Model Predict behavior to retain customers in a Telecommunication Company. The focus of the project is on customer retention.",
+    "tags": [
+      "github",
+      "data-science",
+      "machine-learning",
+      "machine-learning-model",
+      "supervised-learning"
+    ],
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-NewthingAde-Attrition-Of-Customer-Machine-Learning-Model",
+    "slug": "github--newthingade--attrition-of-customer-machine-learning-model",
+    "name": "Attrition_Of_Customer_Machine_Learning_Model",
+    "author": "NewthingAde",
+    "description": "This Machine Learning Model Predict behavior to retain customers of a credit card services.",
+    "tags": [
+      "github",
+      "data-science",
+      "machine-learning",
+      "machine-learning-model",
+      "machine-learning-models-deployment"
+    ],
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "github-EMIIA-cognitive.emiia.ru",
     "slug": "github--emiia--cognitive.emiia.ru",
     "name": "cognitive.emiia.ru",
     "author": "EMIIA",
-    "description": "Auto-ingested description",
+    "description": "ЭМИИА | EMIIA | КОГНИТИВНАЯ РАДИООПТИКА | COGNITIVE RADIO OPTICS | РАДИООПТИКА | RADIO OPTICS",
     "tags": [
       "github",
       "cognitive-radio-optics",
@@ -22739,18 +22726,37 @@
     "is_rising_star": false
   },
   {
-    "id": "github-LykourgosS-iris-ml-model-microservice",
-    "slug": "github--lykourgoss--iris-ml-model-microservice",
-    "name": "iris-ml-model-microservice",
-    "author": "LykourgosS",
-    "description": "Auto-ingested description",
+    "id": "github-Himasnhu-AT-COX3-ML-Model",
+    "slug": "github--himasnhu-at--cox3-ml-model",
+    "name": "COX3-ML-Model",
+    "author": "Himasnhu-AT",
+    "description": "Building an ML model for detecting if a patient is COVID-19 positive or not. Based on dataset: https://www.kaggle.com/datasets/andyczhao/covidx-cxr2",
     "tags": [
       "github",
-      "docker",
-      "fastapi",
-      "iris-classification",
+      "machine-learning",
+      "machine-learning-algorithms",
       "machine-learning-model",
-      "microservice"
+      "model"
+    ],
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-karimosman89-prediction-powerbi",
+    "slug": "github--karimosman89--prediction-powerbi",
+    "name": "prediction-powerbi",
+    "author": "karimosman89",
+    "description": "This project focuses on building a customer churn prediction model using machine learning and visualizing the results with Power BI. You will use Python for churn prediction and Power BI for generating interactive reports that display key metrics such as churn rate, customer demographics, and predictive insights.",
+    "tags": [
+      "github",
+      "azure-sql-database",
+      "dashboards",
+      "exploring-customer-trends",
+      "machine-learning-model",
+      "power-bi",
+      "predict-customer",
+      "sql-server"
     ],
     "likes": 0,
     "downloads": 0,
@@ -22761,7 +22767,7 @@
     "slug": "github--eparedes90--webapp-disasterresponse",
     "name": "WebApp_DisasterResponse",
     "author": "eparedes90",
-    "description": "Auto-ingested description",
+    "description": "Pipeline Classifier of Messages",
     "tags": [
       "github",
       "machine-learning-model",
@@ -22778,7 +22784,7 @@
     "slug": "github--wlodpawlowski--machine-learning-basic-datasets",
     "name": "machine-learning-basic-datasets",
     "author": "wlodpawlowski",
-    "description": "Auto-ingested description",
+    "description": "Repository which consists different code snippets and projects for my personal lessons recorded at the University of San Francisco in during learning of the Machine Learning.",
     "tags": [
       "github",
       "building-data-products",
@@ -22800,7 +22806,8 @@
       "nlp-machine-learning",
       "random-forest",
       "regularization",
-      "rf"
+      "rf",
+      "code-generation-assistance"
     ],
     "likes": 0,
     "downloads": 0,
@@ -22811,7 +22818,7 @@
     "slug": "github--mpavlovic--toxic-comments-classification",
     "name": "toxic-comments-classification",
     "author": "mpavlovic",
-    "description": "Auto-ingested description",
+    "description": "Deep learning model and code for Toxic Comments Classification Challenge on Kaggle. Simple framework for similar competitions.",
     "tags": [
       "github",
       "convolutional-neural-networks",
@@ -22827,7 +22834,8 @@
       "scikit-learn",
       "tensorflow",
       "text-classification",
-      "toxic-comment-classification"
+      "toxic-comment-classification",
+      "code-generation-assistance"
     ],
     "likes": 0,
     "downloads": 0,
@@ -22838,7 +22846,7 @@
     "slug": "github--danielathome19--classification-model-builder",
     "name": "Classification-Model-Builder",
     "author": "danielathome19",
-    "description": "Auto-ingested description",
+    "description": "Assists in the creation of convolutional neural network models for image classification. Models are generated with the Keras library, wrapped from Python in C# to allow use between languages.",
     "tags": [
       "github",
       "classification",
@@ -22871,13 +22879,14 @@
     "slug": "github--yashmenaria1--credit-card-fraud-detection",
     "name": "Credit-Card-Fraud-Detection",
     "author": "Yashmenaria1",
-    "description": "Auto-ingested description",
+    "description": "The credit card fraud detection model employs a Random Forest Classifier, a robust ensemble learning technique. It analyzes various transaction features to accurately identify fraudulent activities, leveraging the collective decision-making of multiple decision trees to enhance detection accuracy and resilience against data imbalances.",
     "tags": [
       "github",
       "credit-card-fraud-detection",
       "credit-card-validation",
       "machine-learning-model",
-      "ml"
+      "ml",
+      "rag-knowledge-base-qa"
     ],
     "likes": 0,
     "downloads": 0,
@@ -22888,7 +22897,7 @@
     "slug": "github--abhishek-mkumar--telecom-churn-predictor",
     "name": "telecom_churn_predictor",
     "author": "abhishek-mkumar",
-    "description": "Auto-ingested description",
+    "description": "A web application powered by a machine learning model predicts customer churn.",
     "tags": [
       "github",
       "flask-api",
