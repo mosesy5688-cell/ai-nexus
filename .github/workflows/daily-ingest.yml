@@ -43,6 +43,44 @@ jobs:
           echo "Building and running Rust optimizer..."
           (cd tools/rust-img-optimizer && cargo run --release -- --input ../../data/merged.json --upload) > data/upsert.sql
           echo "✅ Data processed and upsert.sql generated"
+      
+      # QUALITY GATE: Verify SQL contains image URLs
+      - name: Validate SQL Output (Quality Gate)
+        run: |
+          echo "🔍 Validating upsert.sql quality..."
+          
+          # Check file exists and has content
+          if [ ! -s data/upsert.sql ]; then
+            echo "❌ FATAL: upsert.sql is missing or empty!"
+            exit 1
+          fi
+          
+          # Check for cover_image_url field
+          if ! grep -q "cover_image_url" data/upsert.sql; then
+            echo "❌ FATAL: SQL does not contain 'cover_image_url' field!"
+            echo "📄 SQL Content:"
+            cat data/upsert.sql
+            exit 1
+          fi
+          
+          # Check for actual image URLs (not NULL)
+          if ! grep -q "https://cdn.free2aitools.com" data/upsert.sql; then
+            echo "❌ FATAL: SQL does not contain valid image URLs (https://cdn.free2aitools.com)!"
+            echo "📄 SQL Content (first 100 lines):"
+            head -n 100 data/upsert.sql
+            echo "..."
+            echo "📊 Statistics:"
+            echo "  Total lines: $(wc -l < data/upsert.sql)"
+            echo "  Lines with cover_image_url: $(grep -c 'cover_image_url' data/upsert.sql || echo 0)"
+            echo "  Lines with NULL: $(grep -c "'NULL'" data/upsert.sql || echo 0)"
+            exit 1
+          fi
+          
+          echo "✅ Quality Gate PASSED: SQL contains valid image URLs"
+          echo "📊 SQL Quality Metrics:"
+          echo "  Total INSERT statements: $(grep -c 'INSERT OR REPLACE' data/upsert.sql || echo 0)"
+          echo "  With image URLs: $(grep -c 'https://cdn.free2aitools.com' data/upsert.sql || echo 0)"
+        
         env:
           R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
           R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}

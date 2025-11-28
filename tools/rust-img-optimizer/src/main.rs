@@ -91,6 +91,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let semaphore = Arc::new(Semaphore::new(10)); // Limit concurrency to 10
+    
+    eprintln!("Starting concurrent image processing for {} models...", models.len());
 
     let mut results = stream::iter(models)
         .map(|model| {
@@ -104,14 +106,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .buffer_unordered(10)
         .collect::<Vec<_>>()
         .await;
+    
+    eprintln!("Image processing completed.");
 
-    // 4. Generate SQL
+    // 4. Generate SQL and count successes
     let mut sql = String::from("-- Auto-generated upsert SQL\n");
+    let mut total_models = 0;
+    let mut models_with_images = 0;
+    
     for res in results {
-        if let Some(stmt) = res {
+        if let Some((stmt, has_image)) = res {
             sql.push_str(&stmt);
+            total_models += 1;
+            if has_image {
+                models_with_images += 1;
+            }
         }
     }
+    
+    eprintln!("📊 SQL Generation Summary:");
+    eprintln!("  Total models processed: {}", total_models);
+    eprintln!("  Models with images: {} ({:.1}%)", models_with_images, (models_with_images as f64 / total_models as f64) * 100.0);
+    eprintln!("  Models without images: {}", total_models - models_with_images);
 
     // 5. Output SQL
     println!("{}", sql);
@@ -120,7 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<String> {
+async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(String, bool)> {
     // Determine Source
     let source = model.source.clone().unwrap_or_else(|| "huggingface".to_string());
 
@@ -144,6 +160,7 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<Stri
 
     // Image Logic
     let mut final_image_url = String::from("NULL");
+    let mut has_image = false;
     
     if let Some(client) = &ctx.r2_client {
         // 1. Determine Source Image URL
@@ -153,6 +170,8 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<Stri
              // Fallback for HF/Other: UI Avatars
              format!("https://ui-avatars.com/api/?name={}&size=512&background=random&color=fff", name)
         };
+        
+        eprintln!("[{}] Downloading from: {}", db_id, src_url);
 
         // 2. Download
         let object_key = format!("models/{}.jpg", db_id);
@@ -175,24 +194,26 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<Stri
                             match result {
                                 Ok(_) => {
                                     // Success! Construct Public URL
-                                    // Note: We wrap in single quotes for SQL
-                                    final_image_url = format!("'{}/{}/{}'", ctx.public_url_prefix, ctx.bucket, object_key);
-                                    // Actually, usually public URL is domain/key. 
-                                    // If we map cdn.free2aitools.com -> bucket, then it is cdn.free2aitools.com/models/id.jpg
-                                    // Let's assume the domain maps to the root of the bucket.
                                     final_image_url = format!("'{}/{}'", ctx.public_url_prefix, object_key);
-                                    eprintln!("Uploaded image for {}", db_id);
+                                    has_image = true;
+                                    eprintln!("[{}] ✅ Image uploaded successfully", db_id);
                                 },
-                                Err(e) => eprintln!("Failed to upload image for {}: {}", db_id, e),
+                                Err(e) => {
+                                    eprintln!("[{}] ❌ R2 upload failed: {}", db_id, e);
+                                },
                             }
                         },
-                        Err(e) => eprintln!("Failed to get bytes for {}: {}", db_id, e),
+                        Err(e) => {
+                            eprintln!("[{}] ❌ Failed to read response bytes: {}", db_id, e);
+                        },
                     }
                 } else {
-                    eprintln!("Failed to download image for {} (status {}): {}", db_id, resp.status(), src_url);
+                    eprintln!("[{}] ❌ HTTP {}: {}", db_id, resp.status(), src_url);
                 }
             },
-            Err(e) => eprintln!("Failed to connect for image {}: {}", db_id, e),
+            Err(e) => {
+                eprintln!("[{}] ❌ Network error: {}", db_id, e);
+            },
         }
     }
 
@@ -218,5 +239,5 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<Stri
         final_image_url
     );
 
-    Some(stmt)
+    Some((stmt, has_image))
 }
