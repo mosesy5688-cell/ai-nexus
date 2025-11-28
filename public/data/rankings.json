@@ -4507,7 +4507,7 @@
       "is_rising_star": true,
       "popularity_score": 14736634.9,
       "links_data": {},
-      "velocity": 6834341.78276756
+      "velocity": 6810205.205737308
     },
     {
       "id": "huggingface-google-bert-bert-base-uncased",
@@ -4613,7 +4613,7 @@
       "is_rising_star": true,
       "popularity_score": 6081040.600000001,
       "links_data": {},
-      "velocity": 2819817.865657112
+      "velocity": 2809859.2254121476
     },
     {
       "id": "PokeeAI/pokee_research_7b",
@@ -4711,7 +4711,7 @@
       "is_rising_star": false,
       "popularity_score": 1012523.7000000001,
       "links_data": {},
-      "velocity": 468822.1661197765
+      "velocity": 467166.4452492499
     },
     {
       "id": "openai-community/gpt2",
@@ -4763,7 +4763,7 @@
       "is_rising_star": false,
       "popularity_score": 1009788.1000000001,
       "links_data": {},
-      "velocity": 467028.9290014126
+      "velocity": 465379.54123613844
     },
     {
       "id": "huggingface-openai-community-gpt2",
@@ -5190,7 +5190,7 @@
       "is_rising_star": false,
       "popularity_score": 704243.9,
       "links_data": {},
-      "velocity": 325528.436474128
+      "velocity": 324378.78045278194
     },
     {
       "id": "huggingface-openai-gpt-oss-20b",
@@ -5284,7 +5284,7 @@
       "is_rising_star": false,
       "popularity_score": 662089.2000000001,
       "links_data": {},
-      "velocity": 305292.4959717139
+      "velocity": 304214.3064283757
     },
     {
       "id": "Kijai/WanVideo_comfy",
@@ -5322,7 +5322,7 @@
       "is_rising_star": false,
       "popularity_score": 646064.6000000001,
       "links_data": {},
-      "velocity": 298887.20291616744
+      "velocity": 297831.63469528436
     },
     {
       "id": "huggingface-Kijai-WanVideo-comfy",
@@ -5689,7 +5689,7 @@
       "is_rising_star": false,
       "popularity_score": 535028.4,
       "links_data": {},
-      "velocity": 246877.85250855488
+      "velocity": 246005.96367221355
     },
     {
       "id": "coqui/XTTS-v2",
@@ -5726,7 +5726,7 @@
       "is_rising_star": false,
       "popularity_score": 532081.9,
       "links_data": {},
-      "velocity": 245350.474297614
+      "velocity": 244483.97964304098
     },
     {
       "id": "meta-llama/Llama-3.1-8B-Instruct",
@@ -5784,7 +5784,7 @@
       "is_rising_star": false,
       "popularity_score": 534363.6,
       "links_data": {},
-      "velocity": 245566.51075405598
+      "velocity": 244699.25313199635
     },
     {
       "id": "huggingface-meta-llama-Llama-3.1-8B-Instruct",
@@ -6258,7 +6258,7 @@
       "is_rising_star": false,
       "popularity_score": 479120.60000000003,
       "links_data": {},
-      "velocity": 219879.18693494363
+      "velocity": 219102.64822770684
     },
     {
       "id": "github-google-gemini-gemini-cli",
@@ -6436,7 +6436,7 @@
       "is_rising_star": false,
       "popularity_score": 440321.60000000003,
       "links_data": {},
-      "velocity": 203008.67413394566
+      "velocity": 202291.71635559775
     },
     {
       "id": "huggingface-openai-whisper-large-v3-turbo",
@@ -6673,7 +6673,7 @@
       "is_rising_star": false,
       "popularity_score": 436426.30000000005,
       "links_data": {},
-      "velocity": 200513.70124650354
+      "velocity": 199805.55486612197
     },
     {
       "id": "github-Shubhamsaboo-awesome-llm-apps",
@@ -6835,7 +6835,7 @@
       "is_rising_star": false,
       "popularity_score": 411948.9,
       "links_data": {},
-      "velocity": 188635.45370134796
+      "velocity": 187969.25726230253
     },
     {
       "id": "huggingface-hexgrad-Kokoro-82M",
@@ -7061,7 +7061,7 @@
       "is_rising_star": false,
       "popularity_score": 378392,
       "links_data": {},
-      "velocity": 174134.56903681377
+      "velocity": 173519.58480383546
     },
     {
       "id": "github-binary-husky-gpt_academic",
@@ -7680,7 +7680,7 @@
       "is_rising_star": false,
       "popularity_score": 328510.2,
       "links_data": {},
-      "velocity": 151376.84244708138
+      "velocity": 150842.23078520445
     },
     {
       "id": "github-FoundationAgents-MetaGPT",
@@ -7920,7 +7920,7 @@
       "is_rising_star": false,
       "popularity_score": 292364.4,
       "links_data": {},
-      "velocity": 132308.48226938015
+      "velocity": 131841.21358783677
     },
     {
       "id": "github-microsoft-autogen",
@@ -8726,7 +8726,7 @@
       "is_rising_star": false,
       "popularity_score": 230148.2,
       "links_data": {},
-      "velocity": 103801.50461830402
+      "velocity": 103434.91291251707
     },
     {
       "id": "github-crewAIInc-crewAI",
@@ -14863,7 +14863,7 @@
       "is_rising_star": true,
       "popularity_score": 14736634.9,
       "links_data": {},
-      "velocity": 6834341.78276756
+      "velocity": 6810205.205737308
     },
     {
       "id": "github-open-webui-open-webui",
@@ -16343,7 +16343,7 @@
       "is_rising_star": true,
       "popularity_score": 6081040.600000001,
       "links_data": {},
-      "velocity": 2819817.865657112
+      "velocity": 2809859.2254121476
     },
     {
       "id": "github-huginn-huginn",
