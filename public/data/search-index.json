@@ -18589,7 +18589,7 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 11918,
+    "likes": 11920,
     "downloads": 1424674,
     "is_rising_star": false
   },
@@ -18617,7 +18617,7 @@
       "deploy:azure"
     ],
     "likes": 7163,
-    "downloads": 2798961,
+    "downloads": 2785170,
     "is_rising_star": false
   },
   {
@@ -18644,7 +18644,7 @@
       "region:us"
     ],
     "likes": 6939,
-    "downloads": 624617,
+    "downloads": 625918,
     "is_rising_star": false
   },
   {
@@ -18811,11 +18811,11 @@
       "arxiv:2212.04356",
       "license:apache-2.0",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "deploy:azure",
+      "region:us"
     ],
     "likes": 5139,
-    "downloads": 4764180,
+    "downloads": 4766734,
     "is_rising_star": false
   },
   {
@@ -18851,7 +18851,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 5020,
+    "likes": 5021,
     "downloads": 5221966,
     "is_rising_star": false
   },
@@ -18929,7 +18929,7 @@
       "deploy:azure"
     ],
     "likes": 4961,
-    "downloads": 2352,
+    "downloads": 2389,
     "is_rising_star": false
   },
   {
@@ -18976,7 +18976,7 @@
       "region:us"
     ],
     "likes": 4660,
-    "downloads": 351808,
+    "downloads": 344024,
     "is_rising_star": false
   },
   {
@@ -19000,7 +19000,7 @@
       "region:us"
     ],
     "likes": 4609,
-    "downloads": 397152,
+    "downloads": 396675,
     "is_rising_star": false
   },
   {
@@ -19022,7 +19022,7 @@
       "region:us"
     ],
     "likes": 4427,
-    "downloads": 470,
+    "downloads": 463,
     "is_rising_star": false
   },
   {
@@ -19042,7 +19042,7 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 4426,
+    "likes": 4427,
     "downloads": 805717,
     "is_rising_star": false
   },
@@ -19096,7 +19096,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 4193,
+    "likes": 4194,
     "downloads": 4317460,
     "is_rising_star": false
   },
@@ -19153,7 +19153,7 @@
       "region:us"
     ],
     "likes": 4161,
-    "downloads": 148188690,
+    "downloads": 147964144,
     "is_rising_star": true
   },
   {
@@ -19178,7 +19178,7 @@
       "region:us"
     ],
     "likes": 4013,
-    "downloads": 467833,
+    "downloads": 461497,
     "is_rising_star": false
   },
   {
@@ -19263,7 +19263,7 @@
       "region:us"
     ],
     "likes": 3886,
-    "downloads": 8194,
+    "downloads": 8227,
     "is_rising_star": false
   },
   {
@@ -19277,7 +19277,7 @@
       "region:us"
     ],
     "likes": 3767,
-    "downloads": 2,
+    "downloads": 3,
     "is_rising_star": false
   },
   {
@@ -19325,7 +19325,7 @@
       "deploy:azure"
     ],
     "likes": 3410,
-    "downloads": 906288,
+    "downloads": 919142,
     "is_rising_star": false
   },
   {
@@ -19407,7 +19407,7 @@
       "license:other",
       "region:us"
     ],
-    "likes": 3196,
+    "likes": 3197,
     "downloads": 5418074,
     "is_rising_star": false
   },
@@ -19426,7 +19426,7 @@
       "region:us"
     ],
     "likes": 3191,
-    "downloads": 174253,
+    "downloads": 182108,
     "is_rising_star": false
   },
   {
@@ -19449,7 +19449,7 @@
       "deploy:azure"
     ],
     "likes": 3172,
-    "downloads": 16148,
+    "downloads": 16218,
     "is_rising_star": false
   },
   {
@@ -19505,7 +19505,7 @@
       "deploy:azure"
     ],
     "likes": 3039,
-    "downloads": 9934564,
+    "downloads": 9762286,
     "is_rising_star": false
   },
   {
@@ -19560,7 +19560,7 @@
       "region:us"
     ],
     "likes": 2905,
-    "downloads": 10693,
+    "downloads": 10365,
     "is_rising_star": false
   },
   {
@@ -19584,7 +19584,7 @@
       "license:mit",
       "region:us"
     ],
-    "likes": 2870,
+    "likes": 2871,
     "downloads": 5368910,
     "is_rising_star": false
   },
@@ -19638,7 +19638,7 @@
       "region:us"
     ],
     "likes": 2867,
-    "downloads": 2106,
+    "downloads": 2100,
     "is_rising_star": false
   },
   {
@@ -19867,7 +19867,7 @@
       "deploy:azure"
     ],
     "likes": 2527,
-    "downloads": 7058209,
+    "downloads": 7086871,
     "is_rising_star": false
   },
   {
@@ -19899,7 +19899,7 @@
       "deploy:azure"
     ],
     "likes": 2488,
-    "downloads": 61239543,
+    "downloads": 60809807,
     "is_rising_star": true
   },
   {
@@ -19919,7 +19919,7 @@
       "region:us"
     ],
     "likes": 2483,
-    "downloads": 376672,
+    "downloads": 383030,
     "is_rising_star": false
   },
   {
@@ -19941,7 +19941,7 @@
       "region:us"
     ],
     "likes": 2460,
-    "downloads": 3154,
+    "downloads": 3107,
     "is_rising_star": false
   },
   {
@@ -19998,7 +19998,7 @@
       "deploy:azure"
     ],
     "likes": 2432,
-    "downloads": 10047,
+    "downloads": 9895,
     "is_rising_star": false
   },
   {
@@ -20179,7 +20179,7 @@
       "region:us"
     ],
     "likes": 2207,
-    "downloads": 610498,
+    "downloads": 590171,
     "is_rising_star": false
   },
   {
@@ -20207,7 +20207,7 @@
       "region:us"
     ],
     "likes": 2201,
-    "downloads": 12130,
+    "downloads": 12321,
     "is_rising_star": false
   },
   {
@@ -20241,7 +20241,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2198,
+    "likes": 2199,
     "downloads": 3275581,
     "is_rising_star": false
   },
@@ -20290,7 +20290,7 @@
       "diffusers:QwenImageEditPipeline",
       "region:us"
     ],
-    "likes": 2161,
+    "likes": 2162,
     "downloads": 141684,
     "is_rising_star": false
   },
@@ -20415,7 +20415,7 @@
       "region:us"
     ],
     "likes": 2056,
-    "downloads": 625560,
+    "downloads": 628072,
     "is_rising_star": false
   },
   {
@@ -20438,7 +20438,7 @@
       "region:us"
     ],
     "likes": 1997,
-    "downloads": 475610,
+    "downloads": 475435,
     "is_rising_star": false
   },
   {
@@ -20487,7 +20487,7 @@
       "deploy:azure"
     ],
     "likes": 1956,
-    "downloads": 2392,
+    "downloads": 2450,
     "is_rising_star": false
   },
   {
@@ -20577,8 +20577,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1906,
-    "downloads": 9677420,
+    "likes": 1907,
+    "downloads": 9535554,
     "is_rising_star": false
   },
   {
@@ -20606,7 +20606,7 @@
       "region:us"
     ],
     "likes": 1891,
-    "downloads": 188933,
+    "downloads": 189188,
     "is_rising_star": false
   },
   {
@@ -20668,6 +20668,33 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.1",
+    "slug": "huggingface--mistralai--mistral-7b-instruct-v0.1",
+    "name": "Mistral-7B-Instruct-v0.1",
+    "author": "mistralai",
+    "description": "Auto-ingested description",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "safetensors",
+      "mistral",
+      "text-generation",
+      "finetuned",
+      "mistral-common",
+      "general-dialogue-qa",
+      "arxiv:2310.06825",
+      "base_model:mistralai/Mistral-7B-v0.1",
+      "base_model:finetune:mistralai/Mistral-7B-v0.1",
+      "license:apache-2.0",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "region:us"
+    ],
+    "likes": 1813,
+    "downloads": 402829,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-HuggingFaceH4-zephyr-7b-beta",
     "slug": "huggingface--huggingfaceh4--zephyr-7b-beta",
     "name": "zephyr-7b-beta",
@@ -20699,34 +20726,7 @@
       "deploy:azure"
     ],
     "likes": 1813,
-    "downloads": 261271,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.1",
-    "slug": "huggingface--mistralai--mistral-7b-instruct-v0.1",
-    "name": "Mistral-7B-Instruct-v0.1",
-    "author": "mistralai",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "safetensors",
-      "mistral",
-      "text-generation",
-      "finetuned",
-      "mistral-common",
-      "general-dialogue-qa",
-      "arxiv:2310.06825",
-      "base_model:mistralai/Mistral-7B-v0.1",
-      "base_model:finetune:mistralai/Mistral-7B-v0.1",
-      "license:apache-2.0",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "region:us"
-    ],
-    "likes": 1812,
-    "downloads": 402829,
+    "downloads": 257484,
     "is_rising_star": false
   },
   {
@@ -20744,7 +20744,7 @@
       "region:us"
     ],
     "likes": 1785,
-    "downloads": 214379,
+    "downloads": 214557,
     "is_rising_star": false
   },
   {
@@ -20869,7 +20869,7 @@
       "deploy:azure"
     ],
     "likes": 1773,
-    "downloads": 306567,
+    "downloads": 298652,
     "is_rising_star": false
   },
   {
@@ -20993,32 +20993,7 @@
       "region:us"
     ],
     "likes": 1719,
-    "downloads": 8264,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-mattshumer-Reflection-Llama-3.1-70B",
-    "slug": "huggingface--mattshumer--reflection-llama-3.1-70b",
-    "name": "Reflection-Llama-3.1-70B",
-    "author": "mattshumer",
-    "description": "Auto-ingested description",
-    "tags": [
-      "transformers",
-      "safetensors",
-      "llama",
-      "text-generation",
-      "general-dialogue-qa",
-      "base_model:meta-llama/Llama-3.1-70B-Instruct",
-      "base_model:finetune:meta-llama/Llama-3.1-70B-Instruct",
-      "license:llama3.1",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
-    ],
-    "likes": 1711,
-    "downloads": 121,
+    "downloads": 8411,
     "is_rising_star": false
   },
   {
@@ -21069,8 +21044,33 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1711,
+    "likes": 1712,
     "downloads": 1125530,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-mattshumer-Reflection-Llama-3.1-70B",
+    "slug": "huggingface--mattshumer--reflection-llama-3.1-70b",
+    "name": "Reflection-Llama-3.1-70B",
+    "author": "mattshumer",
+    "description": "Auto-ingested description",
+    "tags": [
+      "transformers",
+      "safetensors",
+      "llama",
+      "text-generation",
+      "general-dialogue-qa",
+      "base_model:meta-llama/Llama-3.1-70B-Instruct",
+      "base_model:finetune:meta-llama/Llama-3.1-70B-Instruct",
+      "license:llama3.1",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "region:us",
+      "deploy:azure"
+    ],
+    "likes": 1711,
+    "downloads": 121,
     "is_rising_star": false
   },
   {
@@ -21114,7 +21114,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1697,
+    "likes": 1696,
     "downloads": 363,
     "is_rising_star": false
   },
@@ -21247,7 +21247,7 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 1615,
+    "likes": 1616,
     "downloads": 157808,
     "is_rising_star": false
   },
@@ -21301,7 +21301,7 @@
       "region:us"
     ],
     "likes": 1577,
-    "downloads": 2584,
+    "downloads": 2985,
     "is_rising_star": false
   },
   {
@@ -21418,7 +21418,7 @@
       "autotrain_compatible",
       "region:us"
     ],
-    "likes": 1540,
+    "likes": 1541,
     "downloads": 420212,
     "is_rising_star": false
   },
@@ -21471,7 +21471,7 @@
       "region:us"
     ],
     "likes": 1513,
-    "downloads": 165163,
+    "downloads": 159923,
     "is_rising_star": false
   },
   {
