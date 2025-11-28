@@ -2,9 +2,9 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::env;
-use aws_sdk_s3::{Client, Region};
+use aws_sdk_s3::Client;
 use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_s3::types::ByteStream;
+use aws_sdk_s3::primitives::ByteStream;
 use futures::stream::{self, StreamExt};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
@@ -67,9 +67,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let endpoint = format!("https://{}.r2.cloudflarestorage.com", account_id);
         
+        let region_provider = RegionProviderChain::default_provider().or_else("auto");
         let config = aws_config::from_env()
             .endpoint_url(endpoint)
-            .region(Region::new("auto"))
+            .region(region_provider)
             .load()
             .await;
         
