@@ -37,8 +37,6 @@ jobs:
           author_email: 'actions@github.com'
 
       - name: Trigger Deployment
-        uses: benc-uk/workflow-dispatch@v1
-        with:
-          workflow: deploy.yml
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run deploy.yml --ref main
