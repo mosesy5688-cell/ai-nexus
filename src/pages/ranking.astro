@@ -4,7 +4,7 @@ import ModelCard from '@/components/ModelCard.astro';
 import allRankings from '@/data/rankings.json';
 import allKeywords from '@/data/keywords.json';
 
-const { hot, trending, newest, rising, categories, generatedAt } = allRankings;
+const { hot = [], trending = [], newest = [], rising = [], categories = {}, generatedAt = new Date().toISOString() } = allRankings || {};
 
 const pageTitle = "AI Model Leaderboards";
 const pageDescription = "Explore the top AI models ranked by popularity, recent activity, and rising stars in the open-source community.";

@@ -20,9 +20,21 @@ export async function getModelBySlug(slug, locals) {
 
     try {
         // console.log(`[DB] Lookup by slug: ${slug}`);
-        // Try lookup by slug, or fallback to ID (useful if slug is missing or URL uses ID)
+        // 1. Exact match by slug or ID
         const stmt = db.prepare('SELECT * FROM models WHERE slug = ? OR id = ?');
         model = await stmt.bind(slug, slug).first();
+
+        // 2. Smart Fallback: Try prepending 'github-' if not found (common ingestion prefix)
+        if (!model) {
+            const githubSlug = `github--${slug}`;
+            const githubId = `github-${slug}`;
+            // Also try replacing double dashes with single dashes for ID check
+            const normalizedId = slug.replace(/--/g, '-');
+            const githubIdNormalized = `github-${normalizedId}`;
+
+            const stmtFallback = db.prepare('SELECT * FROM models WHERE slug = ? OR id = ? OR id = ? OR id = ?');
+            model = await stmtFallback.bind(githubSlug, githubId, normalizedId, githubIdNormalized).first();
+        }
     } catch (e) {
         console.error("[DB] Error in getModelBySlug:", e);
         throw e;

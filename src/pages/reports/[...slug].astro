@@ -1,4 +1,31 @@
 
+---
+import Layout from '@/layouts/Layout.astro';
+import { marked } from 'marked';
+
+const { slug } = Astro.params;
+
+// In SSR mode, we must fetch data dynamically based on the slug
+const reportModules = import.meta.glob('../../data/report-archives/*.json', { eager: true });
+
+// Normalize keys to match slug
+let report = null;
+for (const path in reportModules) {
+    if (path.includes(slug)) {
+        report = reportModules[path].default;
+        break;
+    }
+}
+
+if (!report) {
+  return Astro.redirect('/404');
+}
+
+const pageTitle = report.title;
+const pageDescription = report.summary.substring(0, 160);
+const contentHtml = marked.parse(report.content);
+---
+
 <Layout title={pageTitle} description={pageDescription}>
   <div class="container mx-auto px-4 py-12">
     <article class="prose dark:prose-invert max-w-4xl mx-auto">
