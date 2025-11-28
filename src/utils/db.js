@@ -20,8 +20,9 @@ export async function getModelBySlug(slug, locals) {
 
     try {
         // console.log(`[DB] Lookup by slug: ${slug}`);
-        const stmt = db.prepare('SELECT * FROM models WHERE slug = ?');
-        model = await stmt.bind(slug).first();
+        // Try lookup by slug, or fallback to ID (useful if slug is missing or URL uses ID)
+        const stmt = db.prepare('SELECT * FROM models WHERE slug = ? OR id = ?');
+        model = await stmt.bind(slug, slug).first();
     } catch (e) {
         console.error("[DB] Error in getModelBySlug:", e);
         throw e;
