@@ -13,8 +13,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GH_PAT }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -33,6 +31,13 @@ jobs:
         uses: EndBug/add-and-commit@v9
         with:
           add: 'src/data/reports.json src/data/report-archives'
-          message: 'docs: add bi-weekly ai report'
+          message: 'docs: add bi-weekly ai report [skip ci]'
           author_name: 'GitHub Actions Bot'
           author_email: 'actions@github.com'
+
+      - name: Trigger Deployment
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: deploy.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main

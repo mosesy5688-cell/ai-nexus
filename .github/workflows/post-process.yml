@@ -16,8 +16,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GH_PAT }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -37,6 +35,13 @@ jobs:
         uses: EndBug/add-and-commit@v9
         with:
           add: 'public/data/*.json'
-          message: 'chore: update rankings and search index'
+          message: 'chore: update rankings and search index [skip ci]'
           author_name: 'GitHub Actions Bot'
           author_email: 'actions@github.com'
+
+      - name: Trigger Deployment
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: deploy.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
