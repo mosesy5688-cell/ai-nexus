@@ -4507,7 +4507,7 @@
       "is_rising_star": true,
       "popularity_score": 14736634.9,
       "links_data": {},
-      "velocity": 7436439.101030322
+      "velocity": 7389076.502108
     },
     {
       "id": "huggingface-google-bert-bert-base-uncased",
@@ -4613,7 +4613,7 @@
       "is_rising_star": true,
       "popularity_score": 6081040.600000001,
       "links_data": {},
-      "velocity": 3068240.439310438
+      "velocity": 3048698.8496665205
     },
     {
       "id": "PokeeAI/pokee_research_7b",
@@ -4711,7 +4711,7 @@
       "is_rising_star": false,
       "popularity_score": 1012523.7000000001,
       "links_data": {},
-      "velocity": 510124.83694531274
+      "velocity": 506875.85452169424
     },
     {
       "id": "openai-community/gpt2",
@@ -4763,7 +4763,7 @@
       "is_rising_star": false,
       "popularity_score": 1009788.1000000001,
       "links_data": {},
-      "velocity": 508173.61778649857
+      "velocity": 504937.06559866533
     },
     {
       "id": "huggingface-openai-community-gpt2",
@@ -5190,7 +5190,7 @@
       "is_rising_star": false,
       "popularity_score": 704243.9,
       "links_data": {},
-      "velocity": 354207.10149400536
+      "velocity": 351951.16035664367
     },
     {
       "id": "huggingface-openai-gpt-oss-20b",
@@ -5284,7 +5284,7 @@
       "is_rising_star": false,
       "popularity_score": 662089.2000000001,
       "links_data": {},
-      "velocity": 332188.3988915527
+      "velocity": 330072.69462912285
     },
     {
       "id": "Kijai/WanVideo_comfy",
@@ -5322,7 +5322,7 @@
       "is_rising_star": false,
       "popularity_score": 646064.6000000001,
       "links_data": {},
-      "velocity": 325218.8071962812
+      "velocity": 323147.4903109123
     },
     {
       "id": "huggingface-Kijai-WanVideo-comfy",
@@ -5689,7 +5689,7 @@
       "is_rising_star": false,
       "popularity_score": 535028.4,
       "links_data": {},
-      "velocity": 268627.4953649701
+      "velocity": 266916.60979868926
     },
     {
       "id": "coqui/XTTS-v2",
@@ -5726,7 +5726,7 @@
       "is_rising_star": false,
       "popularity_score": 532081.9,
       "links_data": {},
-      "velocity": 266965.5569646195
+      "velocity": 265265.25626574893
     },
     {
       "id": "meta-llama/Llama-3.1-8B-Instruct",
@@ -5784,7 +5784,7 @@
       "is_rising_star": false,
       "popularity_score": 534363.6,
       "links_data": {},
-      "velocity": 267200.6259738961
+      "velocity": 265498.8281230884
     },
     {
       "id": "huggingface-meta-llama-Llama-3.1-8B-Instruct",
@@ -6258,7 +6258,7 @@
       "is_rising_star": false,
       "popularity_score": 479120.60000000003,
       "links_data": {},
-      "velocity": 239250.27971949492
+      "velocity": 237726.4973168611
     },
     {
       "id": "github-google-gemini-gemini-cli",
@@ -6436,7 +6436,7 @@
       "is_rising_star": false,
       "popularity_score": 440321.60000000003,
       "links_data": {},
-      "velocity": 220893.49496458174
+      "velocity": 219486.62672234623
     },
     {
       "id": "huggingface-openai-whisper-large-v3-turbo",
@@ -6673,7 +6673,7 @@
       "is_rising_star": false,
       "popularity_score": 436426.30000000005,
       "links_data": {},
-      "velocity": 218178.71795665286
+      "velocity": 216789.14009935068
     },
     {
       "id": "github-Shubhamsaboo-awesome-llm-apps",
@@ -6835,7 +6835,7 @@
       "is_rising_star": false,
       "popularity_score": 411948.9,
       "links_data": {},
-      "velocity": 205254.01104204747
+      "velocity": 203946.7505010668
     },
     {
       "id": "huggingface-hexgrad-Kokoro-82M",
@@ -7061,7 +7061,7 @@
       "is_rising_star": false,
       "popularity_score": 378392,
       "links_data": {},
-      "velocity": 189475.61582178302
+      "velocity": 188268.8477065861
     },
     {
       "id": "github-binary-husky-gpt_academic",
@@ -7680,7 +7680,7 @@
       "is_rising_star": false,
       "popularity_score": 328510.2,
       "links_data": {},
-      "velocity": 164712.96080075903
+      "velocity": 163663.9048132318
     },
     {
       "id": "github-FoundationAgents-MetaGPT",
@@ -7920,7 +7920,7 @@
       "is_rising_star": false,
       "popularity_score": 292364.4,
       "links_data": {},
-      "velocity": 143964.70094996697
+      "velocity": 143047.7913515113
     },
     {
       "id": "github-microsoft-autogen",
@@ -8726,7 +8726,7 @@
       "is_rising_star": false,
       "popularity_score": 230148.2,
       "links_data": {},
-      "velocity": 112946.29274112044
+      "velocity": 112226.93904371437
     },
     {
       "id": "github-crewAIInc-crewAI",
@@ -14758,7 +14758,7 @@
       "is_rising_star": true,
       "popularity_score": 14736634.9,
       "links_data": {},
-      "velocity": 7436439.101030322
+      "velocity": 7389076.502108
     },
     {
       "id": "github-langchain-ai-langchain",
@@ -15952,6 +15952,40 @@
       "velocity": 3190223.3
     },
     {
+      "id": "github-cline-cline",
+      "name": "cline",
+      "author": "cline",
+      "description": "Autonomous coding agent right in your IDE, capable of creating/editing files, executing commands, using the browser, and more with your permission every step of the way.",
+      "tags": [
+        "code-generation-assistance"
+      ],
+      "pipeline_tag": "tool",
+      "seo_summary": "\"Introducing Cline, a cutting-edge AI model designed to revolutionize code-generation assistance. With its advanced technical strengths, Cline provides unparalleled support for software developers, data scientists, and researchers. Its capabilities include generating high-quality code snippets, automating tedious tasks, and accelerating development workflows. Cline's use cases extend to various domains, such as natural language processing, computer vision, and machine learning. Its ability to understand and adapt to complex coding scenarios makes it an invaluable asset for teams working on large-scale projects. With Cline, developers can focus on high-level design and strategy, while the AI model handles the grunt work. By leveraging Cline's code-generation assistance, organizations can significantly reduce development time, improve code quality, and increase productivity. Experience the future of coding with Cline.\"",
+      "seo_status": "done",
+      "link_status": "alive",
+      "last_checked": "2025-11-24 15:24:45",
+      "likes": 2786773,
+      "downloads": 2786773,
+      "cover_image_url": null,
+      "source_url": "https://github.com/cline/cline",
+      "created_at": "2025-11-22T16:51:04.746Z",
+      "first_indexed": "2025-11-22 16:51:09",
+      "related_ids": [
+        "github-x1xhlol-system-prompts-and-models-of-ai-tools",
+        "github-binary-husky-gpt_academic",
+        "github-ansible-ansible",
+        "github-OpenHands-OpenHands",
+        "github-Mintplex-Labs-anything-llm"
+      ],
+      "resources": "[{\"platform\":\"GitHub\",\"url\":\"https://github.com/cline/cline\",\"homepage\":\"https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev\",\"language\":\"TypeScript\",\"forks\":5259,\"open_issues\":906,\"license\":\"Apache License 2.0\"}]",
+      "last_updated": null,
+      "slug": "github--cline--cline",
+      "is_rising_star": true,
+      "popularity_score": 5852223.3,
+      "links_data": {},
+      "velocity": 3065450.3
+    },
+    {
       "id": "google-bert/bert-base-uncased",
       "name": "google-bert/bert-base-uncased",
       "author": "google-bert",
@@ -16002,41 +16036,7 @@
       "is_rising_star": true,
       "popularity_score": 6081040.600000001,
       "links_data": {},
-      "velocity": 3068240.439310438
-    },
-    {
-      "id": "github-cline-cline",
-      "name": "cline",
-      "author": "cline",
-      "description": "Autonomous coding agent right in your IDE, capable of creating/editing files, executing commands, using the browser, and more with your permission every step of the way.",
-      "tags": [
-        "code-generation-assistance"
-      ],
-      "pipeline_tag": "tool",
-      "seo_summary": "\"Introducing Cline, a cutting-edge AI model designed to revolutionize code-generation assistance. With its advanced technical strengths, Cline provides unparalleled support for software developers, data scientists, and researchers. Its capabilities include generating high-quality code snippets, automating tedious tasks, and accelerating development workflows. Cline's use cases extend to various domains, such as natural language processing, computer vision, and machine learning. Its ability to understand and adapt to complex coding scenarios makes it an invaluable asset for teams working on large-scale projects. With Cline, developers can focus on high-level design and strategy, while the AI model handles the grunt work. By leveraging Cline's code-generation assistance, organizations can significantly reduce development time, improve code quality, and increase productivity. Experience the future of coding with Cline.\"",
-      "seo_status": "done",
-      "link_status": "alive",
-      "last_checked": "2025-11-24 15:24:45",
-      "likes": 2786773,
-      "downloads": 2786773,
-      "cover_image_url": null,
-      "source_url": "https://github.com/cline/cline",
-      "created_at": "2025-11-22T16:51:04.746Z",
-      "first_indexed": "2025-11-22 16:51:09",
-      "related_ids": [
-        "github-x1xhlol-system-prompts-and-models-of-ai-tools",
-        "github-binary-husky-gpt_academic",
-        "github-ansible-ansible",
-        "github-OpenHands-OpenHands",
-        "github-Mintplex-Labs-anything-llm"
-      ],
-      "resources": "[{\"platform\":\"GitHub\",\"url\":\"https://github.com/cline/cline\",\"homepage\":\"https://marketplace.visualstudio.com/items?itemName=saoudrizwan.claude-dev\",\"language\":\"TypeScript\",\"forks\":5259,\"open_issues\":906,\"license\":\"Apache License 2.0\"}]",
-      "last_updated": null,
-      "slug": "github--cline--cline",
-      "is_rising_star": true,
-      "popularity_score": 5852223.3,
-      "links_data": {},
-      "velocity": 3065450.3
+      "velocity": 3048698.8496665205
     },
     {
       "id": "github-microsoft-autogen",
