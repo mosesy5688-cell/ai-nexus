@@ -115,8 +115,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut models_with_images = 0;
     
     for res in results {
-        if let Some((stmt, has_image)) = res {
+        if let Some((stmt, has_image, logs)) = res {
             sql.push_str(&stmt);
+            if !logs.is_empty() {
+                sql.push_str(&format!("/* LOGS:\n{}\n*/\n", logs));
+            }
             total_models += 1;
             if has_image {
                 models_with_images += 1;
@@ -136,7 +139,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(String, bool)> {
+async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(String, bool, String)> {
     // Determine Source
     let source = model.source.clone().unwrap_or_else(|| "huggingface".to_string());
 
@@ -158,6 +161,8 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(Str
     let db_id = format!("{}-{}-{}", source, safe_author, safe_name);
     let slug = format!("{}--{}--{}", source, safe_author.to_lowercase(), safe_name.to_lowercase());
 
+    let mut logs = String::new();
+    
     // Image Logic
     let mut final_image_url = String::from("NULL");
     let mut has_image = false;
@@ -172,6 +177,7 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(Str
         };
         
         eprintln!("[{}] Downloading from: {}", db_id, src_url);
+        logs.push_str(&format!("Downloading {} from {}\n", db_id, src_url));
 
         // 2. Download
         let object_key = format!("models/{}.jpg", db_id);
@@ -197,22 +203,27 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(Str
                                     final_image_url = format!("'{}/{}'", ctx.public_url_prefix, object_key);
                                     has_image = true;
                                     eprintln!("[{}] ✅ Image uploaded successfully", db_id);
+                                    logs.push_str("Upload success\n");
                                 },
                                 Err(e) => {
                                     eprintln!("[{}] ❌ R2 upload failed: {}", db_id, e);
+                                    logs.push_str(&format!("Upload failed: {}\n", e));
                                 },
                             }
                         },
                         Err(e) => {
                             eprintln!("[{}] ❌ Failed to read response bytes: {}", db_id, e);
+                            logs.push_str(&format!("Read bytes failed: {}\n", e));
                         },
                     }
                 } else {
                     eprintln!("[{}] ❌ HTTP {}: {}", db_id, resp.status(), src_url);
+                    logs.push_str(&format!("HTTP error: {}\n", resp.status()));
                 }
             },
             Err(e) => {
                 eprintln!("[{}] ❌ Network error: {}", db_id, e);
+                logs.push_str(&format!("Network error: {}\n", e));
             },
         }
     }
@@ -239,5 +250,5 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(Str
         final_image_url
     );
 
-    Some((stmt, has_image))
+    Some((stmt, has_image, logs))
 }
