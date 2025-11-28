@@ -4507,7 +4507,7 @@
       "is_rising_star": true,
       "popularity_score": 14736634.9,
       "links_data": {},
-      "velocity": 6810205.205737308
+      "velocity": 6698474.595682415
     },
     {
       "id": "huggingface-google-bert-bert-base-uncased",
@@ -4613,7 +4613,7 @@
       "is_rising_star": true,
       "popularity_score": 6081040.600000001,
       "links_data": {},
-      "velocity": 2809859.2254121476
+      "velocity": 2763759.6915597487
     },
     {
       "id": "PokeeAI/pokee_research_7b",
@@ -4711,7 +4711,7 @@
       "is_rising_star": false,
       "popularity_score": 1012523.7000000001,
       "links_data": {},
-      "velocity": 467166.4452492499
+      "velocity": 459501.9490486214
     },
     {
       "id": "openai-community/gpt2",
@@ -4763,7 +4763,7 @@
       "is_rising_star": false,
       "popularity_score": 1009788.1000000001,
       "links_data": {},
-      "velocity": 465379.54123613844
+      "velocity": 457744.3616081334
     },
     {
       "id": "huggingface-openai-community-gpt2",
@@ -5190,7 +5190,7 @@
       "is_rising_star": false,
       "popularity_score": 704243.9,
       "links_data": {},
-      "velocity": 324378.78045278194
+      "velocity": 319056.90865392366
     },
     {
       "id": "huggingface-openai-gpt-oss-20b",
@@ -5284,7 +5284,7 @@
       "is_rising_star": false,
       "popularity_score": 662089.2000000001,
       "links_data": {},
-      "velocity": 304214.3064283757
+      "velocity": 299223.26004756574
     },
     {
       "id": "Kijai/WanVideo_comfy",
@@ -5322,7 +5322,7 @@
       "is_rising_star": false,
       "popularity_score": 646064.6000000001,
       "links_data": {},
-      "velocity": 297831.63469528436
+      "velocity": 292945.304660748
     },
     {
       "id": "huggingface-Kijai-WanVideo-comfy",
@@ -5689,7 +5689,7 @@
       "is_rising_star": false,
       "popularity_score": 535028.4,
       "links_data": {},
-      "velocity": 246005.96367221355
+      "velocity": 241969.9037345362
     },
     {
       "id": "coqui/XTTS-v2",
@@ -5726,7 +5726,7 @@
       "is_rising_star": false,
       "popularity_score": 532081.9,
       "links_data": {},
-      "velocity": 244483.97964304098
+      "velocity": 240472.88990801334
     },
     {
       "id": "meta-llama/Llama-3.1-8B-Instruct",
@@ -5784,7 +5784,7 @@
       "is_rising_star": false,
       "popularity_score": 534363.6,
       "links_data": {},
-      "velocity": 244699.25313199635
+      "velocity": 240684.63154476706
     },
     {
       "id": "huggingface-meta-llama-Llama-3.1-8B-Instruct",
@@ -5819,8 +5819,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"Llama-3.1-8B-Instruct\":\n\n\"Meet Llama-3.1-8B-Instruct, a cutting-edge AI model designed for general dialogue and question-answering tasks. Built on the transformer architecture and powered by Safetensors, this model excels in text generation, providing accurate and informative responses in multiple languages, including English, Spanish, French, Italian, Portuguese, Hindi, Thai, and Arabic. With its Meta Llama base model and finetuning capabilities, Llama-3.1-8B-Instruct is perfect for a wide range of use cases, such as chatbots, virtual assistants, and language translation applications. This PyTorch-based model is also compatible with Autotrain, making it easy to integrate into your workflows. With its region-based endpoints in the US, Llama-3.1-8B-Instruct offers fast and reliable text generation inference. Learn more about this innovative AI model and its capabilities, and discover how it can elevate your language processing projects.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 5021,
@@ -6090,8 +6090,8 @@
         "region:us"
       ],
       "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"whisper-large-v3\":\n\n\"Whisper-large-v3 is a state-of-the-art artificial intelligence model for Automatic Speech Recognition (ASR) tasks, leveraging the power of Transformers and PyTorch. With support for 34 languages, including English, Spanish, French, German, Chinese, and more, this model is ideal for a wide range of use cases, from voice assistants to language translation applications. Whisper-large-v3 excels in noisy environments, achieving top-ranked performance on the HF-ASR leaderboard. Its compatibility with JAX and Safetensors enables seamless deployment on various platforms, including Azure. With an Apache-2.0 license, this model is freely available for research and commercial use. Its endpoints are compatible with various deployment scenarios, making it easy to integrate into your project. Whether you're building a voice-controlled smart home system or developing a language translation app, Whisper-large-v3 is an excellent choice for your ASR needs.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 5139,
@@ -6258,7 +6258,7 @@
       "is_rising_star": false,
       "popularity_score": 479120.60000000003,
       "links_data": {},
-      "velocity": 219102.64822770684
+      "velocity": 215507.9734988895
     },
     {
       "id": "github-google-gemini-gemini-cli",
@@ -6436,7 +6436,7 @@
       "is_rising_star": false,
       "popularity_score": 440321.60000000003,
       "links_data": {},
-      "velocity": 202291.71635559775
+      "velocity": 198972.8476585986
     },
     {
       "id": "huggingface-openai-whisper-large-v3-turbo",
@@ -6673,7 +6673,7 @@
       "is_rising_star": false,
       "popularity_score": 436426.30000000005,
       "links_data": {},
-      "velocity": 199805.55486612197
+      "velocity": 196527.47500463107
     },
     {
       "id": "github-Shubhamsaboo-awesome-llm-apps",
@@ -6835,7 +6835,7 @@
       "is_rising_star": false,
       "popularity_score": 411948.9,
       "links_data": {},
-      "velocity": 187969.25726230253
+      "velocity": 184885.36784179157
     },
     {
       "id": "huggingface-hexgrad-Kokoro-82M",
@@ -6854,8 +6854,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-to-speech",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"Kokoro-82M\":\n\n\"Kokoro-82M is a cutting-edge text-to-speech (TTS) AI model designed for seamless conversions between written and spoken languages. Built upon the StyleTTS2-LJSpeech base model, Kokoro-82M boasts impressive technical strengths, as showcased in papers such as arxiv:2306.07691 and arxiv:2203.02395. This model is particularly effective in fine-tuning for specific regions, such as the US, and supports multiple languages, including English. With a license under the Apache-2.0, Kokoro-82M is freely available for use. The model's capabilities make it an ideal solution for various applications, including voice assistants, audiobooks, and language learning tools. Kokoro-82M's high-quality speech synthesis and accurate pronunciation ensure a natural and engaging listening experience. With its robust architecture and fine-tuning capabilities, Kokoro-82M is poised to revolutionize the TTS landscape, providing unparalleled performance and versatility.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 5324,
@@ -7061,7 +7061,7 @@
       "is_rising_star": false,
       "popularity_score": 378392,
       "links_data": {},
-      "velocity": 173519.58480383546
+      "velocity": 170672.76176680406
     },
     {
       "id": "github-binary-husky-gpt_academic",
@@ -7680,7 +7680,7 @@
       "is_rising_star": false,
       "popularity_score": 328510.2,
       "links_data": {},
-      "velocity": 150842.23078520445
+      "velocity": 148367.46035486952
     },
     {
       "id": "github-FoundationAgents-MetaGPT",
@@ -7849,8 +7849,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "text-to-image",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"Unlock the power of image generation with Stable-Diffusion-XL-Base-1.0, a cutting-edge AI model designed for creative applications. Built on top of the popular diffusers framework, this model leverages the strengths of ONNX and safetensors to generate stunning images with unparalleled quality. With its foundation in ArXiv papers [1-5], Stable-Diffusion-XL-Base-1.0 is poised to revolutionize industries such as art, design, and entertainment. This open-source model is licensed under the OpenRail++ license, ensuring seamless integration with AutoTrain and Endpoints. Deployable on Azure's US region, Stable-Diffusion-XL-Base-1.0 is perfect for developers and creatives seeking to push the boundaries of image generation. Explore its capabilities with the StableDiffusionXLPipeline and unlock new possibilities for your projects.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 7163,
@@ -7920,7 +7920,7 @@
       "is_rising_star": false,
       "popularity_score": 292364.4,
       "links_data": {},
-      "velocity": 131841.21358783677
+      "velocity": 129678.18049565675
     },
     {
       "id": "github-microsoft-autogen",
@@ -8726,7 +8726,7 @@
       "is_rising_star": false,
       "popularity_score": 230148.2,
       "links_data": {},
-      "velocity": 103434.91291251707
+      "velocity": 101737.92353091165
     },
     {
       "id": "github-crewAIInc-crewAI",
@@ -8892,8 +8892,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for Meta-Llama-3-8B:\n\n\"Meta-Llama-3-8B is a cutting-edge AI model built on the transformer architecture, developed by Meta AI. This powerful language model excels in text generation, leveraging its 8 billion parameters to produce high-quality outputs. With support for safety tensors, Meta-Llama-3-8B ensures responsible AI deployment. Key strengths include its compatibility with PyTorch and AutoTrain, making it easy to integrate into existing workflows. This model is licensed under the LLaMA-3 license and is regionally available in the US. Use cases include text generation for chatbots, content creation, and data augmentation. Meta-Llama-3-8B's endpoints are compatible with various applications, allowing seamless integration into your projects. Whether you're a developer, researcher, or business user, Meta-Llama-3-8B is an efficient and reliable solution for your text generation needs.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 6390,
@@ -9419,8 +9419,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"DeepSeek-R1 is a cutting-edge AI model designed for text generation and general dialogue-based question answering. Built on the powerful transformer architecture, this model leverages the safety and performance benefits of Safetensors. With its robust training on the DeepSeek_v3 dataset, DeepSeek-R1 excels in generating high-quality text and providing accurate answers to a wide range of questions. The model's custom code allows for seamless integration with AutoTrain, enabling easy training and deployment. Additionally, its compatibility with Endpoints and support for FP8 computing make it an ideal choice for cloud-based inference. With its MIT license and region-specific endpoint in the US, DeepSeek-R1 is an accessible and scalable solution for developers seeking to integrate AI-driven text generation capabilities into their applications.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 12879,
@@ -9461,8 +9461,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-to-image",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for AI model \"FLUX.1-dev\":\n\n\"Introducing FLUX.1-dev, a cutting-edge AI model designed for seamless image generation and diffusion-based processing. Leveraging the power of diffusers, this advanced model excels in generating high-quality images with unparalleled precision. Built on top of safe tensors, FLUX.1-dev ensures robust and reliable performance. With its FluxPipeline architecture, this model is perfectly suited for complex image manipulation and processing tasks. Whether you're a developer, artist, or researcher, FLUX.1-dev is an indispensable tool for exploring the vast possibilities of AI-generated imagery. Compatible with various endpoints, this model is easily integrated into your workflow. License: Other. Region: US. Experience the unparalleled capabilities of FLUX.1-dev and unlock new creative possibilities today!\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 11920,
@@ -9509,8 +9509,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "text-to-image",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"Unlock the power of image generation with Stable-Diffusion-XL-Base-1.0, a cutting-edge AI model designed for creative applications. Built on top of the popular diffusers framework, this model leverages the strengths of ONNX and safetensors to generate stunning images with unparalleled quality. With its foundation in ArXiv papers [1-5], Stable-Diffusion-XL-Base-1.0 is poised to revolutionize industries such as art, design, and entertainment. This open-source model is licensed under the OpenRail++ license, ensuring seamless integration with AutoTrain and Endpoints. Deployable on Azure's US region, Stable-Diffusion-XL-Base-1.0 is perfect for developers and creatives seeking to push the boundaries of image generation. Explore its capabilities with the StableDiffusionXLPipeline and unlock new possibilities for your projects.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 7163,
@@ -9557,8 +9557,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-to-image",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"Stable-Diffusion-v1-4 is a cutting-edge AI model for image generation, leveraging the power of diffusers and safety tensors to produce high-quality visuals. Built upon the foundations of arXiv papers [1-5], this model excels in various use cases, including artistic renderings, image-to-image translation, and data augmentation. With its compatibility with Autotrain and Endpoints, developers can seamlessly integrate Stable-Diffusion-v1-4 into their pipelines. The model's technical strengths lie in its ability to generate realistic images with fine-grained control over details, textures, and colors. Licensed under CreativeML OpenRail-M, this model is free to use for commercial and non-commercial purposes. Regionally available in the US, Stable-Diffusion-v1-4 is an ideal solution for businesses and individuals seeking advanced image generation capabilities.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 6939,
@@ -9604,8 +9604,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for Meta-Llama-3-8B:\n\n\"Meta-Llama-3-8B is a cutting-edge AI model built on the transformer architecture, developed by Meta AI. This powerful language model excels in text generation, leveraging its 8 billion parameters to produce high-quality outputs. With support for safety tensors, Meta-Llama-3-8B ensures responsible AI deployment. Key strengths include its compatibility with PyTorch and AutoTrain, making it easy to integrate into existing workflows. This model is licensed under the LLaMA-3 license and is regionally available in the US. Use cases include text generation for chatbots, content creation, and data augmentation. Meta-Llama-3-8B's endpoints are compatible with various applications, allowing seamless integration into your projects. Whether you're a developer, researcher, or business user, Meta-Llama-3-8B is an efficient and reliable solution for your text generation needs.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 6390,
@@ -9646,8 +9646,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-to-speech",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"Kokoro-82M\":\n\n\"Kokoro-82M is a cutting-edge text-to-speech (TTS) AI model designed for seamless conversions between written and spoken languages. Built upon the StyleTTS2-LJSpeech base model, Kokoro-82M boasts impressive technical strengths, as showcased in papers such as arxiv:2306.07691 and arxiv:2203.02395. This model is particularly effective in fine-tuning for specific regions, such as the US, and supports multiple languages, including English. With a license under the Apache-2.0, Kokoro-82M is freely available for use. The model's capabilities make it an ideal solution for various applications, including voice assistants, audiobooks, and language learning tools. Kokoro-82M's high-quality speech synthesis and accurate pronunciation ensure a natural and engaging listening experience. With its robust architecture and fine-tuning capabilities, Kokoro-82M is poised to revolutionize the TTS landscape, providing unparalleled performance and versatility.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 5324,
@@ -9791,8 +9791,8 @@
         "region:us"
       ],
       "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"whisper-large-v3\":\n\n\"Whisper-large-v3 is a state-of-the-art artificial intelligence model for Automatic Speech Recognition (ASR) tasks, leveraging the power of Transformers and PyTorch. With support for 34 languages, including English, Spanish, French, German, Chinese, and more, this model is ideal for a wide range of use cases, from voice assistants to language translation applications. Whisper-large-v3 excels in noisy environments, achieving top-ranked performance on the HF-ASR leaderboard. Its compatibility with JAX and Safetensors enables seamless deployment on various platforms, including Azure. With an Apache-2.0 license, this model is freely available for research and commercial use. Its endpoints are compatible with various deployment scenarios, making it easy to integrate into your project. Whether you're building a voice-controlled smart home system or developing a language translation app, Whisper-large-v3 is an excellent choice for your ASR needs.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 5139,
@@ -9849,8 +9849,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"Llama-3.1-8B-Instruct\":\n\n\"Meet Llama-3.1-8B-Instruct, a cutting-edge AI model designed for general dialogue and question-answering tasks. Built on the transformer architecture and powered by Safetensors, this model excels in text generation, providing accurate and informative responses in multiple languages, including English, Spanish, French, Italian, Portuguese, Hindi, Thai, and Arabic. With its Meta Llama base model and finetuning capabilities, Llama-3.1-8B-Instruct is perfect for a wide range of use cases, such as chatbots, virtual assistants, and language translation applications. This PyTorch-based model is also compatible with Autotrain, making it easy to integrate into your workflows. With its region-based endpoints in the US, Llama-3.1-8B-Instruct offers fast and reliable text generation inference. Learn more about this innovative AI model and its capabilities, and discover how it can elevate your language processing projects.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 5021,
@@ -9947,8 +9947,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"bloom\":\n\n\"Bloom is a cutting-edge AI model that revolutionizes text generation and code assistance. Built on top of PyTorch and utilizing transformers, Bloom excels in text-to-text tasks, generating human-like responses in multiple languages. With a wide range of supported languages, including AK, AR, AS, BM, BN, CA, and more, Bloom is an ideal solution for multilingual applications. The model's technical strengths include compatibility with TensorBoard, Safetensors, and Azure deployment. Bloom is also compatible with AutoTrain and has endpoints for seamless integration. With a focus on code assistance, Bloom can aid developers in a variety of programming languages, including Python, Java, and C++. As a part of the BigScience initiative, Bloom is licensed under the BigScience-Bloom-Rail-1.0 license and has been trained on a massive dataset, resulting in reduced CO2 emissions. Explore Bloom's capabilities and deploy it in your applications today!\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4961,
@@ -9987,8 +9987,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-to-image",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"Stable Diffusion 3 Medium is a cutting-edge AI model designed for image generation. Built upon the groundbreaking Stable Diffusion framework, this model excels in producing high-quality images with unprecedented precision. Utilizing the diffusion-single-file technique, Stable Diffusion 3 Medium efficiently processes input prompts to generate realistic images. Its technical strengths lie in its ability to handle complex image manipulation tasks, such as text-to-image synthesis and image-to-image translation. This model is particularly suitable for applications in computer-generated art, architecture, and design. With its impressive capabilities, Stable Diffusion 3 Medium is poised to revolutionize the field of image generation. Powered by the innovative research presented in Arxiv:2403.03206, this model is licensed under an \"other\" license and available for use in the US region.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4873,
@@ -10036,8 +10036,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for AI model \"Llama-2-7b-chat-hf\":\n\n\"Llama-2-7b-chat-hf is a cutting-edge AI model developed by Meta AI, built on the transformative power of Transformers and PyTorch. This advanced text-generation model excels in general dialogue and question-answering tasks, leveraging its large-scale training dataset and Safetensors framework. With a 7 billion parameter count, Llama-2-7b-chat-hf boasts impressive capabilities in generating coherent and informative text. This model is ideal for applications such as chatbots, language translation, and content creation. Its Autotrain compatibility enables seamless integration with various systems, while its Endpoints compatibility ensures efficient deployment. With its region-based availability in the US, Llama-2-7b-chat-hf is designed to facilitate a wide range of use cases, from customer support to content generation. By utilizing this model, developers can unlock new possibilities in text-generation inference and accelerate the development of innovative AI-powered applications.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4660,
@@ -10081,8 +10081,8 @@
         "region:us"
       ],
       "pipeline_tag": "other",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"Discover the power of Mixtral-8x7B-Instruct-v0.1, a cutting-edge AI model designed for a wide range of use cases. Built on the Mixtral AI base model, this advanced language processing tool excels in multilingual tasks, supporting French, Italian, German, Spanish, and English. With the Safetensors framework, it ensures robust and reliable performance. This model is perfect for applications requiring high-quality text generation, such as content creation, chatbots, and language translation. Its strong technical strengths include a large-scale 8x7B parameter count, Instruct-v0.1 instruction tuning, and Finetune capabilities. Enjoy the benefits of open-source licensing under Apache 2.0 and deploy it in the US region. Unlock the full potential of your language processing tasks with Mixtral-8x7B-Instruct-v0.1.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4609,
@@ -10124,8 +10124,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for AI model \"Llama-2-7b\":\n\n\"Introducing Llama-2-7b, a cutting-edge text generation AI model developed by Meta AI. Built on the PyTorch framework, this 7-billion parameter model leverages the advancements in the LLaMA-2 architecture to produce high-quality, human-like text. With its impressive capabilities, Llama-2-7b excels in a variety of use cases, including language translation, content creation, and chatbots. The model's ability to generate coherent and context-aware text makes it an ideal solution for applications such as customer service, social media platforms like Facebook, and content creation tools. Backed by the open-source LLaMA-2 license, this model is freely available for research and development. With its robust performance and scalability, Llama-2-7b is poised to revolutionize the world of natural language processing. Learn more about this innovative AI model and its potential applications in the paper published on arXiv:2307.09288.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4427,
@@ -10166,8 +10166,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-to-image",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for AI model \"FLUX.1-schnell\":\n\n\"Unlock the power of AI-generated images with FLUX.1-schnell, a cutting-edge model leveraging diffusers and safetensors for unparalleled image generation capabilities. Built on the Flux framework, this Apache-2.0 licensed model is designed for seamless integration with endpoints and compatible with various diffusers, including FluxPipeline. With a focus on region-specific processing, FLUX.1-schnell excels in tasks such as image-to-image translation, image denoising, and image synthesis. This model's technical strengths lie in its ability to generate high-quality images at scale, making it an ideal solution for applications in computer vision, robotics, and graphic design. Whether you're looking to enhance your product design, generate realistic images for marketing, or develop innovative AI-powered applications, FLUX.1-schnell is the perfect choice. Experience the future of AI-generated images today.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4427,
@@ -10215,8 +10215,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"Meta-Llama-3-8B-Instruct is a cutting-edge AI model designed for text-generation and general dialogueQA tasks. Built on the transformers architecture, this model leverages the power of PyTorch and Meta's Safetensors to deliver accurate and informative responses. With its 8 billion parameters, Meta-Llama-3-8B-Instruct excels in generating coherent and context-specific text for a wide range of applications. This model is particularly suitable for tasks such as chatbots, customer service, and language translation. Additionally, its Autotrain compatibility allows for efficient training and deployment on Azure endpoints. With its region-specific deployment in the US, Meta-Llama-3-8B-Instruct is ready to be integrated into your project. Under the license: Llama3, this model is available for use and further development, making it an ideal choice for innovators and businesses seeking to harness the power of AI for their text-generation needs.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4301,
@@ -14789,6 +14789,54 @@
       "velocity": 6970715.4
     },
     {
+      "id": "github-open-webui-open-webui",
+      "name": "open-webui",
+      "author": "open-webui",
+      "description": "User-friendly AI Interface (Supports Ollama, OpenAI API, ...)",
+      "tags": [
+        "ai",
+        "llm",
+        "llm-ui",
+        "llm-webui",
+        "llms",
+        "mcp",
+        "ollama",
+        "ollama-webui",
+        "open-webui",
+        "openai",
+        "openapi",
+        "rag-knowledge-base-qa",
+        "self-hosted",
+        "ui",
+        "webui"
+      ],
+      "pipeline_tag": "tool",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"open-webui\":\n\n\"Unlock the power of AI with Open-WebUI, a cutting-edge Large Language Model (LLM) UI that empowers developers to build innovative applications. As a self-hosted solution, Open-WebUI allows for seamless integration with your existing infrastructure. With its robust architecture and extensive knowledge base, this AI model excels in various use cases, including natural language processing, text generation, and question answering. Leverage Open-WebUI's advanced capabilities to create custom chatbots, virtual assistants, and intelligent interfaces. Its user-friendly web-based interface (WebUI) makes it easy to interact with and fine-tune your models. Built on top of the OLLAMA framework, Open-WebUI is designed to work seamlessly with the OLLAMA Knowledge Base and QA system. With Open-WebUI, you can unlock new possibilities in AI-driven development and take your projects to the next level.\"",
+      "seo_status": "done",
+      "link_status": "alive",
+      "last_checked": "2025-11-24 15:24:45",
+      "likes": 6147062,
+      "downloads": 6147062,
+      "cover_image_url": null,
+      "source_url": "https://github.com/open-webui/open-webui",
+      "created_at": "2025-11-22T16:51:04.745Z",
+      "first_indexed": "2025-11-22 16:51:09",
+      "related_ids": [
+        "github-infiniflow-ragflow",
+        "github-sigoden-aichat",
+        "github-langgenius-dify",
+        "github-lobehub-lobe-chat",
+        "github-zhayujie-chatgpt-on-wechat"
+      ],
+      "resources": "[{\"platform\":\"GitHub\",\"url\":\"https://github.com/open-webui/open-webui\",\"homepage\":\"https://openwebui.com\",\"language\":\"JavaScript\",\"forks\":16246,\"open_issues\":239,\"license\":\"Other\"}]",
+      "last_updated": null,
+      "slug": "github--open--webui--open--webui",
+      "is_rising_star": true,
+      "popularity_score": 12908830.2,
+      "links_data": {},
+      "velocity": 6761768.2
+    },
+    {
       "id": "sentence-transformers/all-MiniLM-L6-v2",
       "name": "sentence-transformers/all-MiniLM-L6-v2",
       "author": "sentence-transformers",
@@ -14863,55 +14911,7 @@
       "is_rising_star": true,
       "popularity_score": 14736634.9,
       "links_data": {},
-      "velocity": 6810205.205737308
-    },
-    {
-      "id": "github-open-webui-open-webui",
-      "name": "open-webui",
-      "author": "open-webui",
-      "description": "User-friendly AI Interface (Supports Ollama, OpenAI API, ...)",
-      "tags": [
-        "ai",
-        "llm",
-        "llm-ui",
-        "llm-webui",
-        "llms",
-        "mcp",
-        "ollama",
-        "ollama-webui",
-        "open-webui",
-        "openai",
-        "openapi",
-        "rag-knowledge-base-qa",
-        "self-hosted",
-        "ui",
-        "webui"
-      ],
-      "pipeline_tag": "tool",
-      "seo_summary": "Here is a 150-word SEO description for the AI model \"open-webui\":\n\n\"Unlock the power of AI with Open-WebUI, a cutting-edge Large Language Model (LLM) UI that empowers developers to build innovative applications. As a self-hosted solution, Open-WebUI allows for seamless integration with your existing infrastructure. With its robust architecture and extensive knowledge base, this AI model excels in various use cases, including natural language processing, text generation, and question answering. Leverage Open-WebUI's advanced capabilities to create custom chatbots, virtual assistants, and intelligent interfaces. Its user-friendly web-based interface (WebUI) makes it easy to interact with and fine-tune your models. Built on top of the OLLAMA framework, Open-WebUI is designed to work seamlessly with the OLLAMA Knowledge Base and QA system. With Open-WebUI, you can unlock new possibilities in AI-driven development and take your projects to the next level.\"",
-      "seo_status": "done",
-      "link_status": "alive",
-      "last_checked": "2025-11-24 15:24:45",
-      "likes": 6147062,
-      "downloads": 6147062,
-      "cover_image_url": null,
-      "source_url": "https://github.com/open-webui/open-webui",
-      "created_at": "2025-11-22T16:51:04.745Z",
-      "first_indexed": "2025-11-22 16:51:09",
-      "related_ids": [
-        "github-infiniflow-ragflow",
-        "github-sigoden-aichat",
-        "github-langgenius-dify",
-        "github-lobehub-lobe-chat",
-        "github-zhayujie-chatgpt-on-wechat"
-      ],
-      "resources": "[{\"platform\":\"GitHub\",\"url\":\"https://github.com/open-webui/open-webui\",\"homepage\":\"https://openwebui.com\",\"language\":\"JavaScript\",\"forks\":16246,\"open_issues\":239,\"license\":\"Other\"}]",
-      "last_updated": null,
-      "slug": "github--open--webui--open--webui",
-      "is_rising_star": true,
-      "popularity_score": 12908830.2,
-      "links_data": {},
-      "velocity": 6761768.2
+      "velocity": 6698474.595682415
     },
     {
       "id": "huggingface-google-bert-bert-base-uncased",
@@ -16293,59 +16293,6 @@
       "velocity": 2831408.8
     },
     {
-      "id": "google-bert/bert-base-uncased",
-      "name": "google-bert/bert-base-uncased",
-      "author": "google-bert",
-      "description": "Auto-ingested description",
-      "tags": [
-        "transformers",
-        "pytorch",
-        "tf",
-        "jax",
-        "rust",
-        "coreml",
-        "onnx",
-        "safetensors",
-        "bert",
-        "fill-mask",
-        "exbert",
-        "en",
-        "dataset:bookcorpus",
-        "dataset:wikipedia",
-        "arxiv:1810.04805",
-        "license:apache-2.0",
-        "autotrain_compatible",
-        "endpoints_compatible",
-        "region:us",
-        "deploy:azure"
-      ],
-      "pipeline_tag": "fill-mask",
-      "seo_summary": "Here is a 150-word SEO description for the AI model \"google-bert/bert-base-uncased\":\n\n\"Google's BERT-base-uncased is a pre-trained language model that leverages the power of transformers to excel in a wide range of natural language processing tasks. Built on top of the PyTorch and TensorFlow frameworks, this model is compatible with JAX, Rust, CoreML, and ONNX, making it a versatile tool for developers. With its impressive performance on the BookCorpus and Wikipedia datasets, BERT-base-uncased is particularly effective for text classification, sentiment analysis, and language translation. Its ability to handle fill-mask and next-sentence prediction tasks makes it a strong candidate for applications such as language model fine-tuning and text generation. With its open-source Apache-2.0 license and compatibility with Autotrain and Endpoints, BERT-base-uncased is an ideal choice for deploying AI-powered applications on Azure and other cloud platforms. Explore the capabilities of BERT-base-uncased and unlock the potential of your NLP projects.\"",
-      "seo_status": "done",
-      "link_status": "alive",
-      "last_checked": null,
-      "likes": 2487,
-      "downloads": 60760666,
-      "cover_image_url": null,
-      "source_url": null,
-      "created_at": null,
-      "first_indexed": "2025-11-26 03:43:29",
-      "related_ids": [
-        "huggingface-google-bert-bert-base-uncased",
-        "sentence-transformers/all-MiniLM-L6-v2",
-        "openai-community/gpt2",
-        "huggingface-sentence-transformers-all-MiniLM-L6-v2",
-        "huggingface-openai-community-gpt2"
-      ],
-      "resources": null,
-      "last_updated": "2025-11-26 03:43:29",
-      "slug": "google--bert/bert--base--uncased",
-      "is_rising_star": true,
-      "popularity_score": 6081040.600000001,
-      "links_data": {},
-      "velocity": 2809859.2254121476
-    },
-    {
       "id": "github-huginn-huginn",
       "name": "huginn",
       "author": "huginn",
@@ -16477,6 +16424,59 @@
       "popularity_score": 5285639.1,
       "links_data": {},
       "velocity": 2768668.1
+    },
+    {
+      "id": "google-bert/bert-base-uncased",
+      "name": "google-bert/bert-base-uncased",
+      "author": "google-bert",
+      "description": "Auto-ingested description",
+      "tags": [
+        "transformers",
+        "pytorch",
+        "tf",
+        "jax",
+        "rust",
+        "coreml",
+        "onnx",
+        "safetensors",
+        "bert",
+        "fill-mask",
+        "exbert",
+        "en",
+        "dataset:bookcorpus",
+        "dataset:wikipedia",
+        "arxiv:1810.04805",
+        "license:apache-2.0",
+        "autotrain_compatible",
+        "endpoints_compatible",
+        "region:us",
+        "deploy:azure"
+      ],
+      "pipeline_tag": "fill-mask",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"google-bert/bert-base-uncased\":\n\n\"Google's BERT-base-uncased is a pre-trained language model that leverages the power of transformers to excel in a wide range of natural language processing tasks. Built on top of the PyTorch and TensorFlow frameworks, this model is compatible with JAX, Rust, CoreML, and ONNX, making it a versatile tool for developers. With its impressive performance on the BookCorpus and Wikipedia datasets, BERT-base-uncased is particularly effective for text classification, sentiment analysis, and language translation. Its ability to handle fill-mask and next-sentence prediction tasks makes it a strong candidate for applications such as language model fine-tuning and text generation. With its open-source Apache-2.0 license and compatibility with Autotrain and Endpoints, BERT-base-uncased is an ideal choice for deploying AI-powered applications on Azure and other cloud platforms. Explore the capabilities of BERT-base-uncased and unlock the potential of your NLP projects.\"",
+      "seo_status": "done",
+      "link_status": "alive",
+      "last_checked": null,
+      "likes": 2487,
+      "downloads": 60760666,
+      "cover_image_url": null,
+      "source_url": null,
+      "created_at": null,
+      "first_indexed": "2025-11-26 03:43:29",
+      "related_ids": [
+        "huggingface-google-bert-bert-base-uncased",
+        "sentence-transformers/all-MiniLM-L6-v2",
+        "openai-community/gpt2",
+        "huggingface-sentence-transformers-all-MiniLM-L6-v2",
+        "huggingface-openai-community-gpt2"
+      ],
+      "resources": null,
+      "last_updated": "2025-11-26 03:43:29",
+      "slug": "google--bert/bert--base--uncased",
+      "is_rising_star": true,
+      "popularity_score": 6081040.600000001,
+      "links_data": {},
+      "velocity": 2763759.6915597487
     },
     {
       "id": "github-FlowiseAI-Flowise",
