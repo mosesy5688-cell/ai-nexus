@@ -12,4 +12,8 @@ image = "0.24"
 aws-sdk-s3 = "0.28" # For R2 upload
 aws-config = "0.55"
 clap = { version = "4.0", features = ["derive"] }
-sql-builder = "3.1"
+futures = "0.3"
+bytes = "1.4"
+url = "2.4"
+sha2 = "0.10"
+hex = "0.4"

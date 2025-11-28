@@ -1,7 +1,13 @@
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::env;
+use aws_sdk_s3::{Client, Region};
+use aws_config::meta::region::RegionProviderChain;
+use aws_sdk_s3::types::ByteStream;
+use futures::stream::{self, StreamExt};
+use std::sync::Arc;
+use tokio::sync::Semaphore;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -15,16 +21,25 @@ struct Args {
     upload: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 struct Model {
     id: String,
-    likes: i32,
-    downloads: i32,
-    tags: Vec<String>,
+    likes: Option<i32>,
+    downloads: Option<i32>,
+    tags: Option<Vec<String>>,
     pipeline_tag: Option<String>,
     author: Option<String>,
     name: Option<String>,
     source: Option<String>,
+    description: Option<String>,
+    // Optional input image url if collectors provide it later
+    image_url: Option<String>, 
+}
+
+struct ProcessingContext {
+    r2_client: Option<Client>,
+    bucket: String,
+    public_url_prefix: String,
 }
 
 #[tokio::main]
@@ -32,70 +47,175 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     eprintln!("Processing input: {}", args.input);
 
-    // 1. Read JSON
+    // 1. Setup R2 Client
+    let mut r2_client = None;
+    let mut bucket = String::new();
+    let mut account_id = String::new();
+
+    if args.upload {
+        bucket = env::var("R2_BUCKET").expect("R2_BUCKET must be set");
+        account_id = env::var("CLOUDFLARE_ACCOUNT_ID").expect("CLOUDFLARE_ACCOUNT_ID must be set");
+        let access_key = env::var("R2_ACCESS_KEY").expect("R2_ACCESS_KEY must be set");
+        let secret_key = env::var("R2_SECRET_KEY").expect("R2_SECRET_KEY must be set");
+        
+        // Manual credential provider is tricky in older sdk versions, 
+        // relying on env vars AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY is standard.
+        // We will set them for the process.
+        env::set_var("AWS_ACCESS_KEY_ID", access_key);
+        env::set_var("AWS_SECRET_ACCESS_KEY", secret_key);
+        env::set_var("AWS_REGION", "auto");
+
+        let endpoint = format!("https://{}.r2.cloudflarestorage.com", account_id);
+        
+        let config = aws_config::from_env()
+            .endpoint_url(endpoint)
+            .region(Region::new("auto"))
+            .load()
+            .await;
+        
+        r2_client = Some(Client::new(&config));
+        eprintln!("R2 Client initialized for bucket: {}", bucket);
+    }
+
+    // 2. Read JSON
     let data = fs::read_to_string(&args.input)?;
     let models: Vec<Model> = serde_json::from_str(&data)?;
     eprintln!("Found {} models", models.len());
 
-    // 2. Generate SQL
-    let mut sql = String::from("-- Auto-generated upsert SQL\n");
-    
-    for model in models {
-        // Determine Source
-        let source = model.source.clone().unwrap_or_else(|| "huggingface".to_string());
+    // 3. Process Models Concurrently
+    let ctx = Arc::new(ProcessingContext {
+        r2_client,
+        bucket,
+        public_url_prefix: "https://cdn.free2aitools.com".to_string(), // Default assumption
+    });
 
-        // Determine Author and Name
-        // If provided in JSON, use them. Otherwise fallback to ID parsing.
-        let (author, name) = if let (Some(a), Some(n)) = (&model.author, &model.name) {
-            (a.clone(), n.clone())
-        } else {
-            // Fallback: Parse ID (author/name)
-            let parts: Vec<&str> = model.id.split('/').collect();
-            if parts.len() >= 2 {
-                (parts[0].to_string(), parts[1].to_string())
-            } else {
-                ("unknown".to_string(), model.id.clone())
+    let semaphore = Arc::new(Semaphore::new(10)); // Limit concurrency to 10
+
+    let mut results = stream::iter(models)
+        .map(|model| {
+            let ctx = ctx.clone();
+            let sem = semaphore.clone();
+            async move {
+                let _permit = sem.acquire().await.unwrap();
+                process_model(model, ctx).await
             }
-        };
+        })
+        .buffer_unordered(10)
+        .collect::<Vec<_>>()
+        .await;
 
-        // Generate ID: source-author-name (Internal ID)
-        // Sanitize to ensure safe characters for DB ID
-        let safe_author = author.replace('/', "-").replace('_', "-");
-        let safe_name = name.replace('/', "-").replace('_', "-");
-        let db_id = format!("{}-{}-{}", source, safe_author, safe_name);
-        
-        // Generate Slug: source--author--name (URL safe)
-        let slug = format!("{}--{}--{}", source, safe_author.to_lowercase(), safe_name.to_lowercase());
-
-        let pipeline = model.pipeline_tag.clone().unwrap_or_else(|| "other".to_string());
-        let tags_json = serde_json::to_string(&model.tags).unwrap_or("[]".to_string());
-        
-        // Escape strings
-        let safe_desc = "Auto-ingested description"; 
-        
-        let stmt = format!(
-            "INSERT OR REPLACE INTO models (id, slug, name, author, description, tags, pipeline_tag, likes, downloads, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, CURRENT_TIMESTAMP);\n",
-            db_id,
-            slug,
-            name,
-            author,
-            safe_desc,
-            tags_json.replace("'", "''"),
-            pipeline,
-            model.likes,
-            model.downloads
-        );
-        sql.push_str(&stmt);
+    // 4. Generate SQL
+    let mut sql = String::from("-- Auto-generated upsert SQL\n");
+    for res in results {
+        if let Some(stmt) = res {
+            sql.push_str(&stmt);
+        }
     }
 
-    // 3. Output SQL to stdout (for redirection)
+    // 5. Output SQL
     println!("{}", sql);
-    eprintln!("SQL generated and output to stdout");
-
-    if args.upload {
-        eprintln!("Upload flag set - Image processing would happen here.");
-        // Implement R2 upload logic using aws-sdk-s3
-    }
+    eprintln!("SQL generated successfully.");
 
     Ok(())
+}
+
+async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<String> {
+    // Determine Source
+    let source = model.source.clone().unwrap_or_else(|| "huggingface".to_string());
+
+    // Determine Author and Name
+    let (author, name) = if let (Some(a), Some(n)) = (&model.author, &model.name) {
+        (a.clone(), n.clone())
+    } else {
+        let parts: Vec<&str> = model.id.split('/').collect();
+        if parts.len() >= 2 {
+            (parts[0].to_string(), parts[1].to_string())
+        } else {
+            ("unknown".to_string(), model.id.clone())
+        }
+    };
+
+    // Generate IDs
+    let safe_author = author.replace('/', "-").replace('_', "-");
+    let safe_name = name.replace('/', "-").replace('_', "-");
+    let db_id = format!("{}-{}-{}", source, safe_author, safe_name);
+    let slug = format!("{}--{}--{}", source, safe_author.to_lowercase(), safe_name.to_lowercase());
+
+    // Image Logic
+    let mut final_image_url = String::from("NULL");
+    
+    if let Some(client) = &ctx.r2_client {
+        // 1. Determine Source Image URL
+        let src_url = if source == "github" {
+             format!("https://github.com/{}.png", author)
+        } else {
+             // Fallback for HF/Other: UI Avatars
+             format!("https://ui-avatars.com/api/?name={}&size=512&background=random&color=fff", name)
+        };
+
+        // 2. Download
+        let object_key = format!("models/{}.jpg", db_id);
+        
+        // Try download
+        match reqwest::get(&src_url).await {
+            Ok(resp) => {
+                if resp.status().is_success() {
+                    match resp.bytes().await {
+                        Ok(bytes) => {
+                            // 3. Upload to R2
+                            let result = client.put_object()
+                                .bucket(&ctx.bucket)
+                                .key(&object_key)
+                                .body(ByteStream::from(bytes))
+                                .content_type("image/jpeg")
+                                .send()
+                                .await;
+
+                            match result {
+                                Ok(_) => {
+                                    // Success! Construct Public URL
+                                    // Note: We wrap in single quotes for SQL
+                                    final_image_url = format!("'{}/{}/{}'", ctx.public_url_prefix, ctx.bucket, object_key);
+                                    // Actually, usually public URL is domain/key. 
+                                    // If we map cdn.free2aitools.com -> bucket, then it is cdn.free2aitools.com/models/id.jpg
+                                    // Let's assume the domain maps to the root of the bucket.
+                                    final_image_url = format!("'{}/{}'", ctx.public_url_prefix, object_key);
+                                    eprintln!("Uploaded image for {}", db_id);
+                                },
+                                Err(e) => eprintln!("Failed to upload image for {}: {}", db_id, e),
+                            }
+                        },
+                        Err(e) => eprintln!("Failed to get bytes for {}: {}", db_id, e),
+                    }
+                } else {
+                    eprintln!("Failed to download image for {} (status {}): {}", db_id, resp.status(), src_url);
+                }
+            },
+            Err(e) => eprintln!("Failed to connect for image {}: {}", db_id, e),
+        }
+    }
+
+    // Prepare SQL fields
+    let pipeline = model.pipeline_tag.clone().unwrap_or_else(|| "other".to_string());
+    let tags_json = serde_json::to_string(&model.tags.unwrap_or_default()).unwrap_or("[]".to_string());
+    let safe_desc = model.description.unwrap_or_default().replace("'", "''").replace("\n", " ");
+    let likes = model.likes.unwrap_or(0);
+    let downloads = model.downloads.unwrap_or(0);
+
+    // Generate SQL
+    let stmt = format!(
+        "INSERT OR REPLACE INTO models (id, slug, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, {}, CURRENT_TIMESTAMP);\n",
+        db_id,
+        slug,
+        name.replace("'", "''"),
+        author.replace("'", "''"),
+        safe_desc,
+        tags_json.replace("'", "''"),
+        pipeline,
+        likes,
+        downloads,
+        final_image_url
+    );
+
+    Some(stmt)
 }
