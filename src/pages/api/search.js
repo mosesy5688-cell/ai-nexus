@@ -6,6 +6,7 @@ export async function GET({ request, locals }) {
     const tag = url.searchParams.get('tag');
     const sort = url.searchParams.get('sort') || 'likes';
     const source = url.searchParams.get('source');
+    const limit = parseInt(url.searchParams.get('limit') || '12', 10);
 
     const db = locals.runtime?.env?.DB;
 
