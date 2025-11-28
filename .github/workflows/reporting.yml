@@ -31,6 +31,6 @@ jobs:
         uses: EndBug/add-and-commit@v9
         with:
           add: 'src/data/reports.json src/data/report-archives'
-          message: 'docs: add bi-weekly ai report [skip ci]'
+          message: 'docs: add bi-weekly ai report'
           author_name: 'GitHub Actions Bot'
           author_email: 'actions@github.com'
