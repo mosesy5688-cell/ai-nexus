@@ -4416,7 +4416,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "sentence-transformers/all-MiniLM-L6-v2",
         "google-bert/bert-base-uncased",
@@ -4425,7 +4425,7 @@
         "huggingface-openai-community-gpt2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--sentence-transformers--all-minilm-l6-v2",
       "is_rising_star": true,
       "popularity_score": 14827191,
@@ -4507,7 +4507,7 @@
       "is_rising_star": true,
       "popularity_score": 14736634.9,
       "links_data": {},
-      "velocity": 7389076.502108
+      "velocity": 7372670.075360802
     },
     {
       "id": "huggingface-google-bert-bert-base-uncased",
@@ -4546,7 +4546,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "google-bert/bert-base-uncased",
         "sentence-transformers/all-MiniLM-L6-v2",
@@ -4555,7 +4555,7 @@
         "huggingface-openai-community-gpt2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--google-bert--bert-base-uncased",
       "is_rising_star": true,
       "popularity_score": 6128930.300000001,
@@ -4613,7 +4613,7 @@
       "is_rising_star": true,
       "popularity_score": 6081040.600000001,
       "links_data": {},
-      "velocity": 3048698.8496665205
+      "velocity": 3041929.633738516
     },
     {
       "id": "PokeeAI/pokee_research_7b",
@@ -4711,7 +4711,7 @@
       "is_rising_star": false,
       "popularity_score": 1012523.7000000001,
       "links_data": {},
-      "velocity": 506875.85452169424
+      "velocity": 505750.4094296865
     },
     {
       "id": "openai-community/gpt2",
@@ -4763,7 +4763,7 @@
       "is_rising_star": false,
       "popularity_score": 1009788.1000000001,
       "links_data": {},
-      "velocity": 504937.06559866533
+      "velocity": 503815.922384581
     },
     {
       "id": "huggingface-openai-community-gpt2",
@@ -4801,7 +4801,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "openai-community/gpt2",
         "google-bert/bert-base-uncased",
@@ -4810,7 +4810,7 @@
         "HuggingFaceH4/zephyr-7b-beta"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--openai-community--gpt2",
       "is_rising_star": false,
       "popularity_score": 999534.4,
@@ -4846,7 +4846,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "openai/clip-vit-large-patch14",
         "openai-community/gpt2",
@@ -4855,7 +4855,7 @@
         "huggingface-openai-community-gpt2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--openai--clip-vit-large-patch14",
       "is_rising_star": false,
       "popularity_score": 971554,
@@ -5126,7 +5126,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "BAAI/bge-m3",
         "sentence-transformers/all-MiniLM-L6-v2",
@@ -5135,7 +5135,7 @@
         "huggingface-openai-community-gpt2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--baai--bge-m3",
       "is_rising_star": false,
       "popularity_score": 710874.9,
@@ -5190,7 +5190,7 @@
       "is_rising_star": false,
       "popularity_score": 704243.9,
       "links_data": {},
-      "velocity": 351951.16035664367
+      "velocity": 351169.70127588644
     },
     {
       "id": "huggingface-openai-gpt-oss-20b",
@@ -5223,7 +5223,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
@@ -5232,7 +5232,7 @@
         "h2oai/h2o-danube3-4b-chat"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--openai--gpt-oss-20b",
       "is_rising_star": false,
       "popularity_score": 698248.7000000001,
@@ -5284,7 +5284,7 @@
       "is_rising_star": false,
       "popularity_score": 662089.2000000001,
       "links_data": {},
-      "velocity": 330072.69462912285
+      "velocity": 329339.81366840506
     },
     {
       "id": "Kijai/WanVideo_comfy",
@@ -5322,7 +5322,7 @@
       "is_rising_star": false,
       "popularity_score": 646064.6000000001,
       "links_data": {},
-      "velocity": 323147.4903109123
+      "velocity": 322429.9876843407
     },
     {
       "id": "huggingface-Kijai-WanVideo-comfy",
@@ -5346,7 +5346,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "Kijai/WanVideo_comfy",
         "stabilityai/stable-diffusion-3-medium",
@@ -5355,7 +5355,7 @@
         "huggingface-black-forest-labs-FLUX.1-Kontext-dev"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--kijai--wanvideo-comfy",
       "is_rising_star": false,
       "popularity_score": 643537.6000000001,
@@ -5536,7 +5536,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "coqui/XTTS-v2",
         "katanemo/Arch-Router-1.5B",
@@ -5545,7 +5545,7 @@
         "h2oai/h2ogpt-research-oasst1-llama-65b"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--coqui--xtts-v2",
       "is_rising_star": false,
       "popularity_score": 548199.4,
@@ -5629,7 +5629,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "deepseek-ai/DeepSeek-OCR",
         "h2oai/h2ovl-mississippi-2b",
@@ -5638,7 +5638,7 @@
         "microsoft/Florence-2-large"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--deepseek-ai--deepseek-ocr",
       "is_rising_star": false,
       "popularity_score": 542631,
@@ -5689,7 +5689,7 @@
       "is_rising_star": false,
       "popularity_score": 535028.4,
       "links_data": {},
-      "velocity": 266916.60979868926
+      "velocity": 266323.9582264633
     },
     {
       "id": "coqui/XTTS-v2",
@@ -5726,7 +5726,7 @@
       "is_rising_star": false,
       "popularity_score": 532081.9,
       "links_data": {},
-      "velocity": 265265.25626574893
+      "velocity": 264676.271296618
     },
     {
       "id": "meta-llama/Llama-3.1-8B-Instruct",
@@ -5784,7 +5784,7 @@
       "is_rising_star": false,
       "popularity_score": 534363.6,
       "links_data": {},
-      "velocity": 265498.8281230884
+      "velocity": 264909.32453981583
     },
     {
       "id": "huggingface-meta-llama-Llama-3.1-8B-Instruct",
@@ -5819,8 +5819,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": "\"Meet Llama-3.1-8B-Instruct, a cutting-edge AI model designed for text generation and general dialogue QA. Built on top of the transformer architecture and safetensors, this model leverages the power of Meta's Llama-3.1-8B base model, fine-tuned for multilingual capabilities in English, Spanish, French, Italian, Portuguese, Hindi, Thai, and Arabic. With its high-performance capabilities, Llama-3.1-8B-Instruct excels in tasks such as text completion, language translation, and conversation simulations. This model is compatible with PyTorch and AutoTrain, making it an ideal choice for developers and researchers. With its endpoints compatibility and regional availability in the US, Llama-3.1-8B-Instruct is poised to revolutionize the field of natural language processing. Discover its potential in applications like chatbots, virtual assistants, and language translation tools.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 5020,
@@ -5828,7 +5828,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Llama-3.1-8B-Instruct",
         "meta-llama/Llama-3.3-70B-Instruct",
@@ -5837,7 +5837,7 @@
         "huggingface-meta-llama-Llama-3.3-70B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--llama-3.1-8b-instruct",
       "is_rising_star": false,
       "popularity_score": 532236.6000000001,
@@ -6090,8 +6090,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": "Here is a 150-word SEO description for the \"whisper-large-v3\" AI model:\n\n\"Introducing Whisper-Large-V3, a cutting-edge automatic speech recognition (ASR) model built with transformers and powered by PyTorch and JAX. This robust model boasts impressive technical strengths, including compatibility with SafetyTensors and deployment on Azure endpoints. With support for 44 languages, including English, Spanish, French, and many more, Whisper-Large-V3 is an ideal solution for a wide range of applications. Use cases include audio transcription, voice-to-text systems, and language translation. This model's exceptional performance is demonstrated by its top rankings on the HF-ASR Leaderboard. With an Apache-2.0 license and region-specific compatibility, Whisper-Large-V3 is ready for seamless integration into your projects. By leveraging its advanced capabilities, you can unlock new possibilities in audio processing and unlock the full potential of your data.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 5139,
@@ -6099,7 +6099,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "openai/whisper-large-v3",
         "openai/whisper-large-v2",
@@ -6108,7 +6108,7 @@
         "huggingface-openai-whisper-large-v3-turbo"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--openai--whisper-large-v3",
       "is_rising_star": false,
       "popularity_score": 486696,
@@ -6258,7 +6258,7 @@
       "is_rising_star": false,
       "popularity_score": 479120.60000000003,
       "links_data": {},
-      "velocity": 237726.4973168611
+      "velocity": 237198.65836933034
     },
     {
       "id": "github-google-gemini-gemini-cli",
@@ -6436,7 +6436,7 @@
       "is_rising_star": false,
       "popularity_score": 440321.60000000003,
       "links_data": {},
-      "velocity": 219486.62672234623
+      "velocity": 218999.2868954704
     },
     {
       "id": "huggingface-openai-whisper-large-v3-turbo",
@@ -6565,7 +6565,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "openai/whisper-large-v3-turbo",
         "openai/whisper-large-v3",
@@ -6574,7 +6574,7 @@
         "huggingface-openai-whisper-large-v2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--openai--whisper-large-v3-turbo",
       "is_rising_star": false,
       "popularity_score": 439687.5,
@@ -6612,7 +6612,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
@@ -6621,7 +6621,7 @@
         "h2oai/h2o-danube3-4b-chat"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--openai--gpt-oss-120b",
       "is_rising_star": false,
       "popularity_score": 440132,
@@ -6673,7 +6673,7 @@
       "is_rising_star": false,
       "popularity_score": 436426.30000000005,
       "links_data": {},
-      "velocity": 216789.14009935068
+      "velocity": 216307.7896700226
     },
     {
       "id": "github-Shubhamsaboo-awesome-llm-apps",
@@ -6835,7 +6835,7 @@
       "is_rising_star": false,
       "popularity_score": 411948.9,
       "links_data": {},
-      "velocity": 203946.7505010668
+      "velocity": 203493.9148291841
     },
     {
       "id": "huggingface-hexgrad-Kokoro-82M",
@@ -6854,8 +6854,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-to-speech",
-      "seo_summary": "Here is a 150-word SEO description for the AI model \"Kokoro-82M\":\n\nIntroducing Kokoro-82M, a cutting-edge text-to-speech (TTS) model that revolutionizes language synthesis. Built upon the StyleTTS2-LJSpeech base model, Kokoro-82M has been fine-tuned to deliver exceptional speech quality and accuracy. This model is particularly suited for applications requiring nuanced tone, pitch, and emotional expression, making it ideal for dubbing, audiobooks, and voice assistants. With its ability to process both English and Arabic languages, Kokoro-82M is an excellent choice for multilingual projects. Backed by research papers (arxiv:2306.07691, arxiv:2203.02395) and powered by the YL4579/StyleTTS2-LJSpeech model, Kokoro-82M is a reliable and efficient solution for TTS tasks. With a license under Apache-2.0 and deployed in the US region, Kokoro-82M is poised to transform the way we interact with language.",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 5324,
@@ -6863,7 +6863,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "hexgrad/Kokoro-82M",
         "nari-labs/Dia-1.6B",
@@ -6872,7 +6872,7 @@
         "huggingface-sesame-csm-1b"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--hexgrad--kokoro-82m",
       "is_rising_star": false,
       "popularity_score": 403901.2,
@@ -7000,7 +7000,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "mistralai/Mistral-7B-Instruct-v0.2",
         "mistralai/Mistral-7B-Instruct-v0.1",
@@ -7009,7 +7009,7 @@
         "huggingface-mistralai-Mistral-7B-v0.1"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--mistralai--mistral-7b-instruct-v0.2",
       "is_rising_star": false,
       "popularity_score": 381083.80000000005,
@@ -7061,7 +7061,7 @@
       "is_rising_star": false,
       "popularity_score": 378392,
       "links_data": {},
-      "velocity": 188268.8477065861
+      "velocity": 187850.82265869327
     },
     {
       "id": "github-binary-husky-gpt_academic",
@@ -7610,7 +7610,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Llama-3.2-1B",
         "meta-llama/Llama-3.2-3B-Instruct",
@@ -7619,7 +7619,7 @@
         "meta-llama/Llama-3.3-70B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--llama-3.2-1b",
       "is_rising_star": false,
       "popularity_score": 331954.10000000003,
@@ -7680,7 +7680,7 @@
       "is_rising_star": false,
       "popularity_score": 328510.2,
       "links_data": {},
-      "velocity": 163663.9048132318
+      "velocity": 163300.51260038972
     },
     {
       "id": "github-FoundationAgents-MetaGPT",
@@ -7815,8 +7815,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "text-to-image",
-      "seo_summary": "\"Stable-Diffusion-XL-Base-1.0 is a cutting-edge AI model designed for high-quality image generation, deployed on the Azure cloud platform. Leveraging the Stable Diffusion framework, this model excels in generating realistic and diverse images. Built upon the diffusers library, this model is optimized for ONNX and Safetensors formats, ensuring seamless integration with various applications. With its open-source license under OpenRail++, this model is perfect for researchers and developers seeking to advance the field of image generation. Compatible with AutoTrain and Endpoints, this model is easily deployable on Azure, allowing for scalable and efficient image processing. This AI model is particularly useful for applications such as image-to-image translation, image manipulation, and creative visual arts. With its technical strengths and ease of deployment, Stable-Diffusion-XL-Base-1.0 is an ideal choice for those seeking to unlock the potential of image generation.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 7163,
@@ -7824,7 +7824,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "stabilityai/stable-diffusion-xl-base-1.0",
         "stabilityai/stable-diffusion-2-1",
@@ -7833,7 +7833,7 @@
         "huggingface-stabilityai-stable-diffusion-xl-refiner-1.0"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--stabilityai--stable-diffusion-xl-base-1.0",
       "is_rising_star": false,
       "popularity_score": 294222.10000000003,
@@ -7920,7 +7920,7 @@
       "is_rising_star": false,
       "popularity_score": 292364.4,
       "links_data": {},
-      "velocity": 143047.7913515113
+      "velocity": 142730.17343139809
     },
     {
       "id": "github-microsoft-autogen",
@@ -8726,7 +8726,7 @@
       "is_rising_star": false,
       "popularity_score": 230148.2,
       "links_data": {},
-      "velocity": 112226.93904371437
+      "velocity": 111977.75458149402
     },
     {
       "id": "github-crewAIInc-crewAI",
@@ -8892,8 +8892,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": "\"Meta-Llama-3-8B is a cutting-edge AI model developed by Meta, leveraging transformers and safetensors to power advanced text generation capabilities. This PyTorch-based model, part of the LLaMA-3 series, excels in generating human-like text for a wide range of applications. With its 8 billion parameters, Meta-Llama-3-8B is designed for high-performance text generation inference, making it an ideal choice for tasks such as chatbots, language translation, and content creation. Its compatibility with AutoTrain and Endpoints ensures seamless integration with various workflows. Licensed under the LLaMA-3 license, this model is available for use in the US region. Whether you're building a conversational AI or need to generate high-quality text, Meta-Llama-3-8B is an excellent choice, offering unparalleled accuracy and efficiency.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 6390,
@@ -8901,7 +8901,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Meta-Llama-3-8B",
         "meta-llama/Meta-Llama-3-8B-Instruct",
@@ -8910,7 +8910,7 @@
         "meta-llama/Llama-3.3-70B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--meta-llama-3-8b",
       "is_rising_star": false,
       "popularity_score": 223959,
@@ -9419,8 +9419,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": "\"Meet DeepSeek-R1, a cutting-edge AI model designed for text generation, general dialogue QA, and custom code development. Built on top of transformers and safetensors, this powerful model leverages the latest advancements in natural language processing (NLP) to deliver unparalleled results. With its robust architecture and extensive training data, DeepSeek-R1 excels in various applications, including text generation, chatbots, and customer service platforms. The model is also compatible with AutoTrain, Endpoints, and FP8, making it an ideal choice for developers and businesses seeking to integrate AI-driven solutions into their workflows. Backed by the MIT license, DeepSeek-R1 is a reliable and versatile tool for a wide range of use cases, including scientific research, marketing, and education. Learn more about DeepSeek-R1's capabilities and explore its potential for your next project.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 12879,
@@ -9428,7 +9428,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "deepseek-ai/DeepSeek-R1",
         "deepseek-ai/DeepSeek-R1-0528",
@@ -9437,7 +9437,7 @@
         "huggingface-deepseek-ai-DeepSeek-V3-0324"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--deepseek-ai--deepseek-r1",
       "is_rising_star": false,
       "popularity_score": 137517,
@@ -9461,16 +9461,16 @@
         "region:us"
       ],
       "pipeline_tag": "text-to-image",
-      "seo_summary": "Here is a 150-word SEO description for AI model \"FLUX.1-dev\":\n\n\"Introducing FLUX.1-dev, a cutting-edge AI model that revolutionizes image generation and processing. Leveraging advanced diffusers and safetensors, FLUX.1-dev enables the creation of high-quality, realistic images with unparalleled precision. This innovative model is particularly suited for applications in art, design, and media, where accurate and detailed image generation is crucial. With its unique FluxPipeline architecture, FLUX.1-dev can process complex tasks with ease, making it an ideal solution for industries such as entertainment, education, and marketing. Boasting compatibility with various endpoints, FLUX.1-dev is easily deployable and scalable. As an open-source model, FLUX.1-dev is free to use and modify, with a license that fosters collaboration and innovation. Powered by a team of expert engineers, FLUX.1-dev is designed to push the boundaries of AI-driven image generation, offering unparalleled performance and versatility.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 11917,
+      "likes": 11918,
       "downloads": 1424674,
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "black-forest-labs/FLUX.1-dev",
         "black-forest-labs/FLUX.1-schnell",
@@ -9479,12 +9479,12 @@
         "huggingface-black-forest-labs-FLUX.1-Kontext-dev"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--black-forest-labs--flux.1-dev",
       "is_rising_star": false,
-      "popularity_score": 166301.4,
+      "popularity_score": 166303.4,
       "links_data": {},
-      "velocity": 154384.4
+      "velocity": 154385.4
     },
     {
       "id": "huggingface-stabilityai-stable-diffusion-xl-base-1.0",
@@ -9509,8 +9509,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "text-to-image",
-      "seo_summary": "\"Stable-Diffusion-XL-Base-1.0 is a cutting-edge AI model designed for high-quality image generation, deployed on the Azure cloud platform. Leveraging the Stable Diffusion framework, this model excels in generating realistic and diverse images. Built upon the diffusers library, this model is optimized for ONNX and Safetensors formats, ensuring seamless integration with various applications. With its open-source license under OpenRail++, this model is perfect for researchers and developers seeking to advance the field of image generation. Compatible with AutoTrain and Endpoints, this model is easily deployable on Azure, allowing for scalable and efficient image processing. This AI model is particularly useful for applications such as image-to-image translation, image manipulation, and creative visual arts. With its technical strengths and ease of deployment, Stable-Diffusion-XL-Base-1.0 is an ideal choice for those seeking to unlock the potential of image generation.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 7163,
@@ -9518,7 +9518,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "stabilityai/stable-diffusion-xl-base-1.0",
         "stabilityai/stable-diffusion-2-1",
@@ -9527,7 +9527,7 @@
         "huggingface-stabilityai-stable-diffusion-xl-refiner-1.0"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--stabilityai--stable-diffusion-xl-base-1.0",
       "is_rising_star": false,
       "popularity_score": 294222.10000000003,
@@ -9557,8 +9557,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-to-image",
-      "seo_summary": "Here is a 150-word SEO description for the AI model \"stable-diffusion-v1-4\":\n\n\"Introducing Stable-Diffusion-v1-4, a cutting-edge AI model that revolutionizes image generation with unparalleled technical strengths. Built upon the foundation of diffusers and safetensors, this model leverages the power of Stable Diffusion to generate high-quality images with unprecedented precision. With compatibility with AutoTrain and Endpoints, users can effortlessly integrate this model into their workflows. The Stable Diffusion Pipeline, crafted by the creators of the model, ensures seamless deployment and customization. This model is particularly suited for use cases such as image-to-image translation, image editing, and artistic content creation. Backed by multiple research papers, including ArXiv:2207.12598, ArXiv:2112.10752, and more, Stable-Diffusion-v1-4 is a reliable and robust solution for image generation tasks. Licensed under CreativeML OpenRail-M, this model is free to use and explore, empowering developers to push the boundaries of AI-driven creativity.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 6939,
@@ -9566,7 +9566,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "CompVis/stable-diffusion-v1-4",
         "stabilityai/stable-diffusion-2-1",
@@ -9575,7 +9575,7 @@
         "huggingface-gsdf-Counterfeit-V2.5"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--compvis--stable-diffusion-v1-4",
       "is_rising_star": false,
       "popularity_score": 76339.70000000001,
@@ -9604,8 +9604,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": "\"Meta-Llama-3-8B is a cutting-edge AI model developed by Meta, leveraging transformers and safetensors to power advanced text generation capabilities. This PyTorch-based model, part of the LLaMA-3 series, excels in generating human-like text for a wide range of applications. With its 8 billion parameters, Meta-Llama-3-8B is designed for high-performance text generation inference, making it an ideal choice for tasks such as chatbots, language translation, and content creation. Its compatibility with AutoTrain and Endpoints ensures seamless integration with various workflows. Licensed under the LLaMA-3 license, this model is available for use in the US region. Whether you're building a conversational AI or need to generate high-quality text, Meta-Llama-3-8B is an excellent choice, offering unparalleled accuracy and efficiency.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 6390,
@@ -9613,7 +9613,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Meta-Llama-3-8B",
         "meta-llama/Meta-Llama-3-8B-Instruct",
@@ -9622,7 +9622,7 @@
         "meta-llama/Llama-3.3-70B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--meta-llama-3-8b",
       "is_rising_star": false,
       "popularity_score": 223959,
@@ -9646,8 +9646,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-to-speech",
-      "seo_summary": "Here is a 150-word SEO description for the AI model \"Kokoro-82M\":\n\nIntroducing Kokoro-82M, a cutting-edge text-to-speech (TTS) model that revolutionizes language synthesis. Built upon the StyleTTS2-LJSpeech base model, Kokoro-82M has been fine-tuned to deliver exceptional speech quality and accuracy. This model is particularly suited for applications requiring nuanced tone, pitch, and emotional expression, making it ideal for dubbing, audiobooks, and voice assistants. With its ability to process both English and Arabic languages, Kokoro-82M is an excellent choice for multilingual projects. Backed by research papers (arxiv:2306.07691, arxiv:2203.02395) and powered by the YL4579/StyleTTS2-LJSpeech model, Kokoro-82M is a reliable and efficient solution for TTS tasks. With a license under Apache-2.0 and deployed in the US region, Kokoro-82M is poised to transform the way we interact with language.",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 5324,
@@ -9655,7 +9655,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "hexgrad/Kokoro-82M",
         "nari-labs/Dia-1.6B",
@@ -9664,7 +9664,7 @@
         "huggingface-sesame-csm-1b"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--hexgrad--kokoro-82m",
       "is_rising_star": false,
       "popularity_score": 403901.2,
@@ -9791,8 +9791,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": "Here is a 150-word SEO description for the \"whisper-large-v3\" AI model:\n\n\"Introducing Whisper-Large-V3, a cutting-edge automatic speech recognition (ASR) model built with transformers and powered by PyTorch and JAX. This robust model boasts impressive technical strengths, including compatibility with SafetyTensors and deployment on Azure endpoints. With support for 44 languages, including English, Spanish, French, and many more, Whisper-Large-V3 is an ideal solution for a wide range of applications. Use cases include audio transcription, voice-to-text systems, and language translation. This model's exceptional performance is demonstrated by its top rankings on the HF-ASR Leaderboard. With an Apache-2.0 license and region-specific compatibility, Whisper-Large-V3 is ready for seamless integration into your projects. By leveraging its advanced capabilities, you can unlock new possibilities in audio processing and unlock the full potential of your data.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 5139,
@@ -9800,7 +9800,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "openai/whisper-large-v3",
         "openai/whisper-large-v2",
@@ -9809,7 +9809,7 @@
         "huggingface-openai-whisper-large-v3-turbo"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--openai--whisper-large-v3",
       "is_rising_star": false,
       "popularity_score": 486696,
@@ -9849,8 +9849,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": "\"Meet Llama-3.1-8B-Instruct, a cutting-edge AI model designed for text generation and general dialogue QA. Built on top of the transformer architecture and safetensors, this model leverages the power of Meta's Llama-3.1-8B base model, fine-tuned for multilingual capabilities in English, Spanish, French, Italian, Portuguese, Hindi, Thai, and Arabic. With its high-performance capabilities, Llama-3.1-8B-Instruct excels in tasks such as text completion, language translation, and conversation simulations. This model is compatible with PyTorch and AutoTrain, making it an ideal choice for developers and researchers. With its endpoints compatibility and regional availability in the US, Llama-3.1-8B-Instruct is poised to revolutionize the field of natural language processing. Discover its potential in applications like chatbots, virtual assistants, and language translation tools.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 5020,
@@ -9858,7 +9858,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Llama-3.1-8B-Instruct",
         "meta-llama/Llama-3.3-70B-Instruct",
@@ -9867,7 +9867,7 @@
         "huggingface-meta-llama-Llama-3.3-70B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--llama-3.1-8b-instruct",
       "is_rising_star": false,
       "popularity_score": 532236.6000000001,
@@ -9947,8 +9947,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": "Here is a 150-word SEO description for the AI model \"bloom\":\n\n\"Bloom is a revolutionary artificial intelligence model that redefines the boundaries of text generation and code assistance. Built on the transformer architecture and optimized for PyTorch, Bloom excels in tasks such as text-to-text generation, code completion, and language translation. With support for 44 languages, including popular languages like English, Spanish, French, and more, Bloom is the perfect solution for global enterprises and organizations. Its technical strengths include compatibility with TensorBoard and SafeTensors, making it an ideal choice for developers and researchers. Bloom is also autotrain-compatible, allowing for seamless integration with existing workflows. With its region-agnostic deployment capabilities, Bloom can be easily deployed on Azure or other cloud platforms. Moreover, Bloom's low CO2 emissions and competitive pricing make it an eco-friendly and cost-effective solution for text generation and code assistance.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4961,
@@ -9956,7 +9956,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "bigscience/bloom",
         "openai/whisper-large-v3",
@@ -9965,7 +9965,7 @@
         "huggingface-openai-whisper-large-v2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--bigscience--bloom",
       "is_rising_star": false,
       "popularity_score": 10157.2,
@@ -9987,8 +9987,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-to-image",
-      "seo_summary": "\"Meet Stable Diffusion-3 Medium, a cutting-edge AI model revolutionizing image generation. Built upon the groundbreaking research paper 'Diffusion Models Beat GANs on Image Synthesis' (arXiv:2403.03206), this model leverages the power of diffusion-based techniques to produce high-quality images with unparalleled realism. With a focus on medium-level complexity, Stable Diffusion-3 Medium excels in generating a wide range of images, from realistic portraits to fantastical landscapes. By utilizing a single file architecture, this model offers unparalleled flexibility and ease of integration. Perfect for applications in art, design, and entertainment, Stable Diffusion-3 Medium is an essential tool for creatives and developers alike. License: Other. Region: US. Try it today and unlock the full potential of AI-powered image generation!\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4873,
@@ -9996,7 +9996,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "stabilityai/stable-diffusion-3-medium",
         "stabilityai/stable-diffusion-3.5-large",
@@ -10005,7 +10005,7 @@
         "dreamlike-art/dreamlike-photoreal-2.0"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--stabilityai--stable-diffusion-3-medium",
       "is_rising_star": false,
       "popularity_score": 10878.9,
@@ -10036,8 +10036,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": "Here is a 150-word SEO description for the AI model \"Llama-2-7b-chat-hf\":\n\n\"Llama-2-7b-chat-hf is a cutting-edge AI model for text generation, built on the transformer architecture and optimized for PyTorch. This advanced language model is designed for general dialogue and question-answering tasks, with a focus on conversational coherence and accuracy. Leveraging the LLaMA-2 model, this variant has been fine-tuned for improved performance and versatility. With support for multiple languages, including English and Arabic, this model is suitable for a wide range of applications. Experts at Meta, the creators of LLaMA-2, have demonstrated its capabilities in generating coherent and engaging text, making it an excellent choice for tasks such as text summarization, language translation, and content creation. Additionally, this model is compatible with AutoTrain and Endpoints, allowing for seamless integration into various workflows. With its robust technical strengths and extensive use cases, LLaMA-2-7b-chat-hf is an ideal solution for businesses and developers seeking advanced text generation capabilities.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4660,
@@ -10045,7 +10045,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Llama-2-7b-chat-hf",
         "meta-llama/Llama-2-70b-chat-hf",
@@ -10054,7 +10054,7 @@
         "huggingface-meta-llama-Llama-2-7b-hf"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--llama-2-7b-chat-hf",
       "is_rising_star": false,
       "popularity_score": 44500.8,
@@ -10081,8 +10081,8 @@
         "region:us"
       ],
       "pipeline_tag": "other",
-      "seo_summary": "\"Introducing Mixtral-8x7B-Instruct-v0.1, a cutting-edge AI model designed for language understanding and generation tasks. Built on top of the Mixtral-8x7B base model, this v0.1 iteration is equipped with advanced fine-tuning capabilities, allowing for seamless integration with various applications. With support for multiple languages including English, French, Italian, German, and Spanish, this model is ideal for businesses and developers seeking to expand their global reach. Key strengths include its ability to generate human-like responses, understand complex queries, and adapt to specific use cases. Perfect for chatbots, language translation, content creation, and more. Powered by the Apache 2.0 license and hosted in the US region, Mixtral-8x7B-Instruct-v0.1 is a reliable and scalable solution for your AI needs.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4609,
@@ -10090,7 +10090,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "mistralai/Mixtral-8x7B-Instruct-v0.1",
         "mistralai/Mixtral-8x7B-v0.1",
@@ -10099,7 +10099,7 @@
         "huggingface-mistralai-Mistral-Nemo-Instruct-2407"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--mistralai--mixtral-8x7b-instruct-v0.1",
       "is_rising_star": false,
       "popularity_score": 48933.200000000004,
@@ -10124,8 +10124,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": "Meet Llama-2-7b, a cutting-edge AI model developed by Meta AI, powered by PyTorch. This text-generation marvel is built on the foundation of LLaMA-2, a groundbreaking language model that has revolutionized the field of natural language processing. With its 7 billion parameters, Llama-2-7b is an unparalleled tool for generating human-like text, capable of producing coherent and context-specific responses. This AI model excels in various use cases, including chatbots, language translation, and content creation. Its impressive capabilities make it an ideal solution for industries such as customer service, marketing, and education. Backed by the Meta AI's commitment to innovation and the LLaMA-2 license, Llama-2-7b is available for use in the US region. Discover the limitless potential of Llama-2-7b and unlock new possibilities in the world of AI-powered text generation.",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4427,
@@ -10133,7 +10133,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Llama-2-7b-chat-hf",
         "meta-llama/Llama-2-7b",
@@ -10142,7 +10142,7 @@
         "huggingface-meta-llama-Llama-2-7b-chat-hf"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--llama-2-7b",
       "is_rising_star": false,
       "popularity_score": 8901,
@@ -10166,8 +10166,8 @@
         "region:us"
       ],
       "pipeline_tag": "text-to-image",
-      "seo_summary": "\"Introducing FLUX.1-schnell, a cutting-edge AI model designed for high-performance image generation and processing. Built on top of the popular diffusers framework and leveraging safetensors for enhanced stability and security, FLUX.1-schnell excels in a range of applications, including art generation, data augmentation, and content creation. With its FluxPipeline architecture, this model is optimized for seamless integration with various endpoints, making it an ideal choice for developers and researchers. Licensed under Apache 2.0, FLUX.1-schnell is a powerful tool for those seeking to unlock the full potential of AI-driven image processing. By utilizing its advanced capabilities, users can generate high-quality images with unparalleled speed and accuracy. Explore the possibilities with FLUX.1-schnell, available in the US region, and discover a new world of creative possibilities.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4426,
@@ -10175,7 +10175,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "black-forest-labs/FLUX.1-schnell",
         "black-forest-labs/FLUX.1-dev",
@@ -10184,7 +10184,7 @@
         "hakurei/waifu-diffusion"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--black-forest-labs--flux.1-schnell",
       "is_rising_star": false,
       "popularity_score": 89423.70000000001,
@@ -10215,8 +10215,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "text-generation",
-      "seo_summary": "\"Meta-Llama-3-8B-Instruct is a cutting-edge AI model designed for text generation and general dialogue QA tasks. Built on the transformer architecture and utilizing Safetensors, this model excels in generating high-quality text responses. With its massive 8 billion parameter size, Meta-Llama-3-8B-Instruct is particularly effective in handling complex conversation flows and answering open-ended questions. Deployed on PyTorch, this model is compatible with AutoTrain and can be easily integrated into various applications. Key strengths include its ability to generate human-like text, understand and respond to user input, and provide accurate answers to general knowledge questions. With its endpoints compatible with various deployment options, including Azure, Meta-Llama-3-8B-Instruct is an ideal choice for businesses and developers seeking to enhance their text-based interfaces. License: LLaMA-3. Region: US.\"",
-      "seo_status": "done",
+      "seo_summary": null,
+      "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
       "likes": 4301,
@@ -10224,7 +10224,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Meta-Llama-3-8B-Instruct",
         "meta-llama/Meta-Llama-3-8B",
@@ -10233,7 +10233,7 @@
         "meta-llama/Llama-3.2-3B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--meta-llama-3-8b-instruct",
       "is_rising_star": false,
       "popularity_score": 115023.8,
@@ -10271,7 +10271,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
@@ -10280,7 +10280,7 @@
         "h2oai/h2o-danube3-4b-chat"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--openai--gpt-oss-120b",
       "is_rising_star": false,
       "popularity_score": 440132,
@@ -10348,7 +10348,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "sentence-transformers/all-MiniLM-L6-v2",
         "google-bert/bert-base-uncased",
@@ -10357,7 +10357,7 @@
         "huggingface-openai-community-gpt2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--sentence-transformers--all-minilm-l6-v2",
       "is_rising_star": true,
       "popularity_score": 14827191,
@@ -10394,7 +10394,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "mistralai/Mistral-7B-v0.1",
         "mistralai/Mistral-7B-Instruct-v0.2",
@@ -10403,7 +10403,7 @@
         "huggingface-mistralai-Mistral-7B-Instruct-v0.1"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--mistralai--mistral-7b-v0.1",
       "is_rising_star": false,
       "popularity_score": 54809.3,
@@ -10439,7 +10439,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "deepseek-ai/DeepSeek-V3",
         "deepseek-ai/DeepSeek-V3-0324",
@@ -10448,7 +10448,7 @@
         "deepseek-ai/DeepSeek-R1-0528"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--deepseek-ai--deepseek-v3",
       "is_rising_star": false,
       "popularity_score": 62100.200000000004,
@@ -10486,7 +10486,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "openai/gpt-oss-120b",
         "openai/gpt-oss-20b",
@@ -10495,7 +10495,7 @@
         "h2oai/h2o-danube3-4b-chat"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--openai--gpt-oss-20b",
       "is_rising_star": false,
       "popularity_score": 698248.7000000001,
@@ -10521,7 +10521,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "lllyasviel/ControlNet-v1-1",
         "lllyasviel/ControlNet",
@@ -10530,7 +10530,7 @@
         "katanemo/Arch-Router-1.5B"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--lllyasviel--controlnet-v1-1",
       "is_rising_star": false,
       "popularity_score": 7908,
@@ -10563,7 +10563,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "WarriorMama777/OrangeMixs",
         "CompVis/stable-diffusion-v1-4",
@@ -10572,7 +10572,7 @@
         "gsdf/Counterfeit-V2.5"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--warriormama777--orangemixs",
       "is_rising_star": false,
       "popularity_score": 8591.4,
@@ -10598,7 +10598,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "lllyasviel/ControlNet-v1-1",
         "lllyasviel/ControlNet",
@@ -10607,7 +10607,7 @@
         "katanemo/Arch-Router-1.5B"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--lllyasviel--controlnet",
       "is_rising_star": false,
       "popularity_score": 7534.2,
@@ -10642,7 +10642,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "deepseek-ai/Janus-Pro-7B",
         "huggingface-microsoft-Florence-2-large",
@@ -10651,7 +10651,7 @@
         "HuggingFaceH4/zephyr-7b-beta"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--deepseek-ai--janus-pro-7b",
       "is_rising_star": false,
       "popularity_score": 12076.900000000001,
@@ -10688,7 +10688,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "microsoft/phi-2",
         "microsoft/phi-4",
@@ -10697,7 +10697,7 @@
         "microsoft/Phi-3-mini-128k-instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--microsoft--phi-2",
       "is_rising_star": false,
       "popularity_score": 97448.8,
@@ -10755,7 +10755,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "google/gemma-7b",
         "google/gemma-3-27b-it",
@@ -10764,7 +10764,7 @@
         "katanemo/Arch-Router-1.5B"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--google--gemma-7b",
       "is_rising_star": false,
       "popularity_score": 10191.7,
@@ -10797,7 +10797,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "stabilityai/stable-diffusion-3.5-large",
         "dreamlike-art/dreamlike-photoreal-2.0",
@@ -10806,7 +10806,7 @@
         "stabilityai/stable-diffusion-3-medium"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--stabilityai--stable-diffusion-3.5-large",
       "is_rising_star": false,
       "popularity_score": 17049.6,
@@ -10834,7 +10834,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "coqui/XTTS-v2",
         "katanemo/Arch-Router-1.5B",
@@ -10843,7 +10843,7 @@
         "h2oai/h2ogpt-research-oasst1-llama-65b"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--coqui--xtts-v2",
       "is_rising_star": false,
       "popularity_score": 548199.4,
@@ -10873,7 +10873,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "stabilityai/stable-video-diffusion-img2vid-xt",
         "Lightricks/LTX-Video",
@@ -10882,7 +10882,7 @@
         "stabilityai/stable-diffusion-3.5-large"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--stabilityai--stable-video-diffusion-img2vid-xt",
       "is_rising_star": false,
       "popularity_score": 23807.3,
@@ -10917,7 +10917,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "prompthero/openjourney",
         "hakurei/waifu-diffusion",
@@ -10926,7 +10926,7 @@
         "gsdf/Counterfeit-V2.5"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--prompthero--openjourney",
       "is_rising_star": false,
       "popularity_score": 7958.8,
@@ -10963,7 +10963,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "deepseek-ai/DeepSeek-V3-0324",
         "deepseek-ai/DeepSeek-R1",
@@ -10972,7 +10972,7 @@
         "huggingface-deepseek-ai-DeepSeek-R1"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--deepseek-ai--deepseek-v3-0324",
       "is_rising_star": false,
       "popularity_score": 23754.3,
@@ -11015,7 +11015,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "openai-community/gpt2",
         "google-bert/bert-base-uncased",
@@ -11024,7 +11024,7 @@
         "HuggingFaceH4/zephyr-7b-beta"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--openai-community--gpt2",
       "is_rising_star": false,
       "popularity_score": 999534.4,
@@ -11062,7 +11062,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "mistralai/Mistral-7B-Instruct-v0.2",
         "mistralai/Mistral-7B-Instruct-v0.1",
@@ -11071,7 +11071,7 @@
         "huggingface-mistralai-Mistral-7B-v0.1"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--mistralai--mistral-7b-instruct-v0.2",
       "is_rising_star": false,
       "popularity_score": 381083.80000000005,
@@ -11112,7 +11112,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "bigcode/starcoder",
         "bigscience/bloom",
@@ -11121,7 +11121,7 @@
         "HuggingFaceH4/zephyr-7b-beta"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--bigcode--starcoder",
       "is_rising_star": false,
       "popularity_score": 6879.3,
@@ -11158,7 +11158,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "deepseek-ai/DeepSeek-OCR",
         "h2oai/h2ovl-mississippi-2b",
@@ -11167,7 +11167,7 @@
         "microsoft/Florence-2-large"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--deepseek-ai--deepseek-ocr",
       "is_rising_star": false,
       "popularity_score": 542631,
@@ -11207,7 +11207,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "Qwen/QwQ-32B",
         "Qwen/Qwen2.5-Coder-32B-Instruct",
@@ -11216,7 +11216,7 @@
         "huggingface-Qwen-QwQ-32B-Preview"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--qwen--qwq-32b",
       "is_rising_star": false,
       "popularity_score": 11040.2,
@@ -11253,7 +11253,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "zai-org/chatglm-6b",
         "zai-org/chatglm2-6b",
@@ -11262,7 +11262,7 @@
         "OpenMOSS-Team/moss-moon-003-base"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--zai-org--chatglm-6b",
       "is_rising_star": false,
       "popularity_score": 5944.6,
@@ -11295,7 +11295,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "CompVis/stable-diffusion-v1-4",
         "CompVis/stable-diffusion-v-1-4-original",
@@ -11304,7 +11304,7 @@
         "stabilityai/stable-diffusion-2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--compvis--stable-diffusion-v-1-4-original",
       "is_rising_star": false,
       "popularity_score": 5646.3,
@@ -11336,7 +11336,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "nari-labs/Dia-1.6B",
         "sesame/csm-1b",
@@ -11345,7 +11345,7 @@
         "PokeeAI/pokee_research_7b"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--nari-labs--dia-1.6b",
       "is_rising_star": false,
       "popularity_score": 26799.7,
@@ -11479,7 +11479,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "openai/whisper-large-v3-turbo",
         "openai/whisper-large-v3",
@@ -11488,7 +11488,7 @@
         "huggingface-openai-whisper-large-v2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--openai--whisper-large-v3-turbo",
       "is_rising_star": false,
       "popularity_score": 439687.5,
@@ -11537,7 +11537,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Llama-3.3-70B-Instruct",
         "meta-llama/Llama-3.1-8B-Instruct",
@@ -11546,7 +11546,7 @@
         "huggingface-meta-llama-Llama-3.2-3B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--llama-3.3-70b-instruct",
       "is_rising_star": false,
       "popularity_score": 49676.5,
@@ -11587,7 +11587,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "BAAI/bge-m3",
         "sentence-transformers/all-MiniLM-L6-v2",
@@ -11596,7 +11596,7 @@
         "huggingface-openai-community-gpt2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--baai--bge-m3",
       "is_rising_star": false,
       "popularity_score": 710874.9,
@@ -11640,7 +11640,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "google-bert/bert-base-uncased",
         "sentence-transformers/all-MiniLM-L6-v2",
@@ -11649,7 +11649,7 @@
         "huggingface-openai-community-gpt2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--google-bert--bert-base-uncased",
       "is_rising_star": true,
       "popularity_score": 6128930.300000001,
@@ -11681,7 +11681,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "stabilityai/sdxl-turbo",
         "stabilityai/stable-diffusion-xl-base-1.0",
@@ -11690,7 +11690,7 @@
         "huggingface-dreamlike-art-dreamlike-photoreal-2.0"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--stabilityai--sdxl-turbo",
       "is_rising_star": false,
       "popularity_score": 42633.200000000004,
@@ -11724,7 +11724,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "prompthero/openjourney",
         "hakurei/waifu-diffusion",
@@ -11733,7 +11733,7 @@
         "gsdf/Counterfeit-V2.5"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--hakurei--waifu-diffusion",
       "is_rising_star": false,
       "popularity_score": 5235.4,
@@ -11768,7 +11768,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "black-forest-labs/FLUX.1-Kontext-dev",
         "black-forest-labs/FLUX.1-dev",
@@ -11777,7 +11777,7 @@
         "stabilityai/stable-diffusion-3.5-large"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--black-forest-labs--flux.1-kontext-dev",
       "is_rising_star": false,
       "popularity_score": 37743.9,
@@ -11823,7 +11823,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "tiiuae/falcon-40b",
         "meta-llama/Llama-3.1-8B-Instruct",
@@ -11832,7 +11832,7 @@
         "meta-llama/Llama-3.2-1B"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--tiiuae--falcon-40b",
       "is_rising_star": false,
       "popularity_score": 5868.7,
@@ -11869,7 +11869,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "deepseek-ai/DeepSeek-R1",
         "deepseek-ai/DeepSeek-R1-0528",
@@ -11878,7 +11878,7 @@
         "huggingface-deepseek-ai-DeepSeek-V3-0324"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--deepseek-ai--deepseek-r1-0528",
       "is_rising_star": false,
       "popularity_score": 41413.200000000004,
@@ -11907,7 +11907,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "xai-org/grok-1",
         "tomg-group-umd/huginn-0125",
@@ -11916,7 +11916,7 @@
         "inclusionAI/LLaDA2.0-mini-preview"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--xai-org--grok-1",
       "is_rising_star": false,
       "popularity_score": 4810.2,
@@ -11953,7 +11953,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "perplexity-ai/r1-1776",
         "deepseek-ai/DeepSeek-R1",
@@ -11962,7 +11962,7 @@
         "huggingface-deepseek-ai-DeepSeek-R1"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--perplexity-ai--r1-1776",
       "is_rising_star": false,
       "popularity_score": 4810.3,
@@ -11995,7 +11995,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "sesame/csm-1b",
         "PokeeAI/pokee_research_7b",
@@ -12004,7 +12004,7 @@
         "h2oai/h2o-danube3-4b-chat"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--sesame--csm-1b",
       "is_rising_star": false,
       "popularity_score": 6986.5,
@@ -12036,7 +12036,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "mistralai/Mistral-7B-Instruct-v0.3",
         "mistralai/Mistral-Nemo-Instruct-2407",
@@ -12045,7 +12045,7 @@
         "mistralai/Mistral-7B-Instruct-v0.2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--mistralai--mistral-7b-instruct-v0.3",
       "is_rising_star": false,
       "popularity_score": 102325.90000000001,
@@ -12081,7 +12081,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "moonshotai/Kimi-K2-Instruct",
         "deepseek-ai/DeepSeek-R1",
@@ -12090,7 +12090,7 @@
         "deepseek-ai/DeepSeek-R1-0528"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--moonshotai--kimi-k2-instruct",
       "is_rising_star": false,
       "popularity_score": 21961.600000000002,
@@ -12124,7 +12124,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "Qwen/Qwen-Image",
         "Qwen/Qwen-Image-Edit",
@@ -12133,7 +12133,7 @@
         "black-forest-labs/FLUX.1-schnell"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--qwen--qwen-image",
       "is_rising_star": false,
       "popularity_score": 30425.7,
@@ -12172,7 +12172,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Llama-2-7b-chat-hf",
         "meta-llama/Llama-2-7b-hf",
@@ -12181,7 +12181,7 @@
         "huggingface-meta-llama-Llama-2-70b-chat-hf"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--llama-2-7b-hf",
       "is_rising_star": false,
       "popularity_score": 65463.8,
@@ -12221,7 +12221,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Llama-2-7b-chat-hf",
         "meta-llama/Llama-2-70b-chat-hf",
@@ -12230,7 +12230,7 @@
         "huggingface-meta-llama-Llama-2-7b-hf"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--llama-2-70b-chat-hf",
       "is_rising_star": false,
       "popularity_score": 5615,
@@ -12277,7 +12277,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Llama-3.2-1B",
         "meta-llama/Llama-3.2-3B-Instruct",
@@ -12286,7 +12286,7 @@
         "meta-llama/Llama-3.3-70B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--llama-3.2-1b",
       "is_rising_star": false,
       "popularity_score": 331954.10000000003,
@@ -12326,7 +12326,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "microsoft/phi-4",
         "microsoft/Phi-3-mini-128k-instruct",
@@ -12335,7 +12335,7 @@
         "microsoft/phi-2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--microsoft--phi-4",
       "is_rising_star": false,
       "popularity_score": 51219.200000000004,
@@ -12368,7 +12368,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "Qwen/Qwen-Image-Edit",
         "Qwen/Qwen-Image",
@@ -12377,7 +12377,7 @@
         "bczhou/TinyLLaVA-1.5B"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--qwen--qwen-image-edit",
       "is_rising_star": false,
       "popularity_score": 18490.4,
@@ -12407,7 +12407,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "ByteDance/SDXL-Lightning",
         "stabilityai/stable-diffusion-2-1",
@@ -12416,7 +12416,7 @@
         "huggingface-stabilityai-stable-diffusion-xl-base-1.0"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--bytedance--sdxl-lightning",
       "is_rising_star": false,
       "popularity_score": 15830.1,
@@ -12440,12 +12440,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2082,
+      "likes": 2083,
       "downloads": 991,
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "tencent/HunyuanVideo",
         "katanemo/Arch-Router-1.5B",
@@ -12454,12 +12454,12 @@
         "h2oai/h2ogpt-research-oasst1-llama-65b"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--tencent--hunyuanvideo",
       "is_rising_star": false,
-      "popularity_score": 4263.1,
+      "popularity_score": 4265.1,
       "links_data": {},
-      "velocity": 2181.1
+      "velocity": 2182.1
     },
     {
       "id": "huggingface-lllyasviel-sd-control-collection",
@@ -12479,7 +12479,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "tomg-group-umd/huginn-0125",
         "katanemo/Arch-Router-1.5B",
@@ -12488,7 +12488,7 @@
         "OpenMOSS-Team/moss-moon-003-base"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--lllyasviel--sd-control-collection",
       "is_rising_star": false,
       "popularity_score": 4144,
@@ -12520,7 +12520,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "Lightricks/LTX-Video",
         "black-forest-labs/FLUX.1-dev",
@@ -12529,7 +12529,7 @@
         "black-forest-labs/FLUX.1-Kontext-dev"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--lightricks--ltx-video",
       "is_rising_star": false,
       "popularity_score": 29815.2,
@@ -12571,7 +12571,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
         "mattshumer/Reflection-Llama-3.1-70B",
@@ -12580,7 +12580,7 @@
         "huggingface-meta-llama-Llama-3.1-8B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--nvidia--llama-3.1-nemotron-70b-instruct-hf",
       "is_rising_star": false,
       "popularity_score": 5142.8,
@@ -12618,7 +12618,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "zai-org/chatglm2-6b",
         "zai-org/chatglm-6b",
@@ -12627,7 +12627,7 @@
         "OpenMOSS-Team/moss-moon-003-base"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--zai-org--chatglm2-6b",
       "is_rising_star": false,
       "popularity_score": 66668,
@@ -12662,7 +12662,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "stabilityai/stable-diffusion-xl-refiner-1.0",
         "stabilityai/stable-diffusion-xl-base-1.0",
@@ -12671,7 +12671,7 @@
         "stabilityai/stable-diffusion-2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--stabilityai--stable-diffusion-xl-refiner-1.0",
       "is_rising_star": false,
       "popularity_score": 51555,
@@ -12709,7 +12709,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "microsoft/VibeVoice-1.5B",
         "Lamapi/next-1b",
@@ -12718,7 +12718,7 @@
         "Cylingo/Xinyuan-LLM-14B-0428"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--microsoft--vibevoice-1.5b",
       "is_rising_star": false,
       "popularity_score": 20920.2,
@@ -12753,7 +12753,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "databricks/dolly-v2-12b",
         "openai-community/gpt2",
@@ -12762,7 +12762,7 @@
         "huggingface-HuggingFaceH4-zephyr-7b-beta"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--databricks--dolly-v2-12b",
       "is_rising_star": false,
       "popularity_score": 4151.2,
@@ -12807,7 +12807,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "Qwen/Qwen2.5-Coder-32B-Instruct",
         "Qwen/QwQ-32B",
@@ -12816,7 +12816,7 @@
         "huggingface-Qwen-QwQ-32B-Preview"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--qwen--qwen2.5-coder-32b-instruct",
       "is_rising_star": false,
       "popularity_score": 31668.7,
@@ -12857,12 +12857,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1941,
+      "likes": 1942,
       "downloads": 667198,
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Llama-3.1-8B-Instruct",
         "meta-llama/Llama-3.1-8B",
@@ -12871,12 +12871,12 @@
         "meta-llama/Llama-3.2-1B"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--llama-3.1-8b",
       "is_rising_star": false,
-      "popularity_score": 70601.8,
+      "popularity_score": 70603.8,
       "links_data": {},
-      "velocity": 68660.8
+      "velocity": 68661.8
     },
     {
       "id": "huggingface-openai-clip-vit-large-patch14",
@@ -12907,7 +12907,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "openai/clip-vit-large-patch14",
         "openai-community/gpt2",
@@ -12916,7 +12916,7 @@
         "huggingface-openai-community-gpt2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--openai--clip-vit-large-patch14",
       "is_rising_star": false,
       "popularity_score": 971554,
@@ -12956,7 +12956,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "briaai/RMBG-1.4",
         "microsoft/Florence-2-large",
@@ -12965,7 +12965,7 @@
         "openai-community/gpt2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--briaai--rmbg-1.4",
       "is_rising_star": false,
       "popularity_score": 22675.3,
@@ -13008,12 +13008,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1837,
+      "likes": 1839,
       "downloads": 1683545,
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Llama-3.2-3B-Instruct",
         "meta-llama/Llama-3.2-1B",
@@ -13022,12 +13022,12 @@
         "meta-llama/Llama-3.3-70B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--llama-3.2-3b-instruct",
       "is_rising_star": false,
-      "popularity_score": 172028.5,
+      "popularity_score": 172032.5,
       "links_data": {},
-      "velocity": 170191.5
+      "velocity": 170193.5
     },
     {
       "id": "huggingface-Qwen-Qwen2.5-Omni-7B",
@@ -13056,7 +13056,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "Qwen/Qwen2.5-Omni-7B",
         "katanemo/Arch-Router-1.5B",
@@ -13065,7 +13065,7 @@
         "Gen2B/HyGPT-10b-it"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--qwen--qwen2.5-omni-7b",
       "is_rising_star": false,
       "popularity_score": 15862.300000000001,
@@ -13112,7 +13112,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "HuggingFaceH4/zephyr-7b-beta",
         "h2oai/h2o-danube-1.8b-chat",
@@ -13121,7 +13121,7 @@
         "bigscience/bloom"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--huggingfaceh4--zephyr-7b-beta",
       "is_rising_star": false,
       "popularity_score": 29753.100000000002,
@@ -13160,7 +13160,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "mistralai/Mistral-7B-Instruct-v0.1",
         "mistralai/Mistral-7B-Instruct-v0.2",
@@ -13169,7 +13169,7 @@
         "HuggingFaceH4/zephyr-7b-beta"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--mistralai--mistral-7b-instruct-v0.1",
       "is_rising_star": false,
       "popularity_score": 43906.9,
@@ -13199,7 +13199,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "h94/IP-Adapter-FaceID",
         "stabilityai/stable-diffusion-3.5-large",
@@ -13208,7 +13208,7 @@
         "dreamlike-art/dreamlike-photoreal-2.0"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--h94--ip-adapter-faceid",
       "is_rising_star": false,
       "popularity_score": 25007.9,
@@ -13345,7 +13345,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "openai/whisper-large-v2",
         "openai/whisper-large-v3",
@@ -13354,7 +13354,7 @@
         "huggingface-openai-whisper-large-v3-turbo"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--openai--whisper-large-v2",
       "is_rising_star": false,
       "popularity_score": 34202.7,
@@ -13383,7 +13383,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "Kijai/WanVideo_comfy",
         "stabilityai/stable-diffusion-3-medium",
@@ -13392,7 +13392,7 @@
         "huggingface-black-forest-labs-FLUX.1-Kontext-dev"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--kijai--wanvideo-comfy",
       "is_rising_star": false,
       "popularity_score": 643537.6000000001,
@@ -13428,7 +13428,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "mistralai/Mixtral-8x7B-v0.1",
         "mistralai/Mixtral-8x7B-Instruct-v0.1",
@@ -13437,7 +13437,7 @@
         "huggingface-mistralai-Mistral-Nemo-Instruct-2407"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--mistralai--mixtral-8x7b-v0.1",
       "is_rising_star": false,
       "popularity_score": 11560.7,
@@ -13481,7 +13481,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "CohereLabs/c4ai-command-r-plus",
         "Lamapi/next-1b",
@@ -13490,7 +13490,7 @@
         "huggingface-microsoft-Phi-4-multimodal-instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--coherelabs--c4ai-command-r-plus",
       "is_rising_star": false,
       "popularity_score": 3800.2,
@@ -13529,7 +13529,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "Qwen/QwQ-32B-Preview",
         "Qwen/Qwen2.5-Coder-32B-Instruct",
@@ -13538,7 +13538,7 @@
         "huggingface-Qwen-QwQ-32B"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--qwen--qwq-32b-preview",
       "is_rising_star": false,
       "popularity_score": 8068.8,
@@ -13574,7 +13574,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "dreamlike-art/dreamlike-photoreal-2.0",
         "CompVis/stable-diffusion-v1-4",
@@ -13583,7 +13583,7 @@
         "gsdf/Counterfeit-V2.5"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--dreamlike-art--dreamlike-photoreal-2.0",
       "is_rising_star": false,
       "popularity_score": 4264.4,
@@ -13620,7 +13620,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "mattshumer/Reflection-Llama-3.1-70B",
         "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
@@ -13629,7 +13629,7 @@
         "dnotitia/Llama-DNA-1.0-8B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--mattshumer--reflection-llama-3.1-70b",
       "is_rising_star": false,
       "popularity_score": 3434.1,
@@ -13693,7 +13693,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "google/gemma-3-27b-it",
         "google/gemma-7b",
@@ -13702,7 +13702,7 @@
         "bharathkumarK/Gemma3-12b-Indic"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--google--gemma-3-27b-it",
       "is_rising_star": false,
       "popularity_score": 115975,
@@ -13738,7 +13738,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "microsoft/Florence-2-large",
         "Lamapi/next-12b",
@@ -13747,7 +13747,7 @@
         "deepseek-ai/Janus-Pro-7B"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--microsoft--florence-2-large",
       "is_rising_star": false,
       "popularity_score": 84774.1,
@@ -13780,7 +13780,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "microsoft/OmniParser",
         "Lamapi/next-12b",
@@ -13789,7 +13789,7 @@
         "nanonets/Nanonets-OCR-s"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--microsoft--omniparser",
       "is_rising_star": false,
       "popularity_score": 3430.3,
@@ -13827,7 +13827,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "microsoft/Phi-3-mini-128k-instruct",
         "microsoft/phi-4",
@@ -13836,7 +13836,7 @@
         "Lamapi/next-1b"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--microsoft--phi-3-mini-128k-instruct",
       "is_rising_star": false,
       "popularity_score": 36115.2,
@@ -13866,7 +13866,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "deepseek-ai/DeepSeek-V3",
         "deepseek-ai/DeepSeek-V3-0324",
@@ -13875,7 +13875,7 @@
         "huggingface-deepseek-ai-DeepSeek-V3-0324"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--deepseek-ai--deepseek-v3-base",
       "is_rising_star": false,
       "popularity_score": 4127.6,
@@ -13910,7 +13910,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "tencent/Hunyuan3D-2",
         "black-forest-labs/FLUX.1-dev",
@@ -13919,7 +13919,7 @@
         "Qwen/Qwen-Image"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--tencent--hunyuan3d-2",
       "is_rising_star": false,
       "popularity_score": 11847.6,
@@ -13960,7 +13960,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "mistralai/Mistral-Nemo-Instruct-2407",
         "openai/whisper-large-v3",
@@ -13969,7 +13969,7 @@
         "huggingface-openai-whisper-large-v2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--mistralai--mistral-nemo-instruct-2407",
       "is_rising_star": false,
       "popularity_score": 23523.600000000002,
@@ -13998,7 +13998,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "2Noise/ChatTTS",
         "dnotitia/Llama-DNA-1.0-8B-Instruct",
@@ -14007,7 +14007,7 @@
         "CohereLabs/c4ai-command-r-plus"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--2noise--chattts",
       "is_rising_star": false,
       "popularity_score": 3382.1,
@@ -14039,7 +14039,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "xinsir/controlnet-union-sdxl-1.0",
         "black-forest-labs/FLUX.1-schnell",
@@ -14048,7 +14048,7 @@
         "huggingface-Qwen-Qwen-Image"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--xinsir--controlnet-union-sdxl-1.0",
       "is_rising_star": false,
       "popularity_score": 19010.800000000003,
@@ -14091,7 +14091,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "docling-project/SmolDocling-256M-preview",
         "nanonets/Nanonets-OCR-s",
@@ -14100,7 +14100,7 @@
         "huggingface-meta-llama-Llama-3.2-11B-Vision-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--docling-project--smoldocling-256m-preview",
       "is_rising_star": false,
       "popularity_score": 23115,
@@ -14134,7 +14134,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "CompVis/stable-diffusion-v1-4",
         "gsdf/Counterfeit-V2.5",
@@ -14143,7 +14143,7 @@
         "hakurei/waifu-diffusion"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--gsdf--counterfeit-v2.5",
       "is_rising_star": false,
       "popularity_score": 3412.4,
@@ -14181,7 +14181,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "nanonets/Nanonets-OCR-s",
         "meta-llama/Llama-3.2-11B-Vision-Instruct",
@@ -14190,7 +14190,7 @@
         "docling-project/SmolDocling-256M-preview"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--nanonets--nanonets-ocr-s",
       "is_rising_star": false,
       "popularity_score": 14405.7,
@@ -14238,7 +14238,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "meta-llama/Llama-3.2-11B-Vision-Instruct",
         "meta-llama/Llama-3.2-3B-Instruct",
@@ -14247,7 +14247,7 @@
         "meta-llama/Llama-3.3-70B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--meta-llama--llama-3.2-11b-vision-instruct",
       "is_rising_star": false,
       "popularity_score": 24058.100000000002,
@@ -14315,7 +14315,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "microsoft/Phi-4-multimodal-instruct",
         "openai/whisper-large-v3-turbo",
@@ -14324,7 +14324,7 @@
         "Lamapi/next-12b"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--microsoft--phi-4-multimodal-instruct",
       "is_rising_star": false,
       "popularity_score": 45101.200000000004,
@@ -14361,7 +14361,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "stepfun-ai/GOT-OCR2_0",
         "deepseek-ai/DeepSeek-OCR",
@@ -14370,7 +14370,7 @@
         "bczhou/TinyLLaVA-1.5B"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--stepfun-ai--got-ocr2-0",
       "is_rising_star": false,
       "popularity_score": 6145.700000000001,
@@ -14409,7 +14409,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "EleutherAI/gpt-j-6b",
         "openai-community/gpt2",
@@ -14418,7 +14418,7 @@
         "huggingface-openai-community-gpt2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--eleutherai--gpt-j-6b",
       "is_rising_star": false,
       "popularity_score": 19542.3,
@@ -14488,7 +14488,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "sentence-transformers/all-MiniLM-L6-v2",
         "google-bert/bert-base-uncased",
@@ -14497,7 +14497,7 @@
         "huggingface-openai-community-gpt2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--sentence-transformers--all-minilm-l6-v2",
       "is_rising_star": true,
       "popularity_score": 14827191,
@@ -14758,7 +14758,7 @@
       "is_rising_star": true,
       "popularity_score": 14736634.9,
       "links_data": {},
-      "velocity": 7389076.502108
+      "velocity": 7372670.075360802
     },
     {
       "id": "github-langchain-ai-langchain",
@@ -14950,7 +14950,7 @@
       "cover_image_url": null,
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-11-28 02:45:12",
+      "first_indexed": "2025-11-28 03:40:24",
       "related_ids": [
         "google-bert/bert-base-uncased",
         "sentence-transformers/all-MiniLM-L6-v2",
@@ -14959,7 +14959,7 @@
         "huggingface-openai-community-gpt2"
       ],
       "resources": null,
-      "last_updated": "2025-11-28 02:45:12",
+      "last_updated": "2025-11-28 03:40:24",
       "slug": "huggingface--google-bert--bert-base-uncased",
       "is_rising_star": true,
       "popularity_score": 6128930.300000001,
@@ -16036,7 +16036,7 @@
       "is_rising_star": true,
       "popularity_score": 6081040.600000001,
       "links_data": {},
-      "velocity": 3048698.8496665205
+      "velocity": 3041929.633738516
     },
     {
       "id": "github-microsoft-autogen",
