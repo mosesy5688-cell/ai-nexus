@@ -1096,7 +1096,7 @@
     ],
     "likes": 2286100,
     "downloads": 2286100,
-    "is_rising_star": false
+    "is_rising_star": true
   },
   {
     "id": "github-crewAIInc-crewAI",
@@ -1113,7 +1113,7 @@
     ],
     "likes": 2156190,
     "downloads": 2156190,
-    "is_rising_star": false
+    "is_rising_star": true
   },
   {
     "id": "github-ray-project-ray",
@@ -15625,9 +15625,9 @@
   {
     "id": "deepseek-ai/DeepSeek-R1",
     "slug": "deepseek--ai/DeepSeek--R1",
-    "name": "deepseek-ai/DeepSeek-R1",
-    "author": "deepseek-ai",
-    "description": "Auto-ingested description",
+    "name": "DeepSeek-R1",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -15643,16 +15643,16 @@
       "fp8",
       "region:us"
     ],
-    "likes": 12877,
-    "downloads": 1015167,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "black-forest-labs/FLUX.1-dev",
     "slug": "black--forest--labs/FLUX.1--dev",
-    "name": "black-forest-labs/FLUX.1-dev",
-    "author": "black-forest-labs",
-    "description": "Auto-ingested description",
+    "name": "FLUX.1-dev",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -15664,16 +15664,16 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 11902,
-    "downloads": 1469878,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "stabilityai/stable-diffusion-xl-base-1.0",
     "slug": "stabilityai/stable--diffusion--xl--base--1.0",
-    "name": "stabilityai/stable-diffusion-xl-base-1.0",
-    "author": "stabilityai",
-    "description": "Auto-ingested description",
+    "name": "stable-diffusion-xl-base-1.0",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "onnx",
@@ -15688,19 +15688,18 @@
       "autotrain_compatible",
       "endpoints_compatible",
       "diffusers:StableDiffusionXLPipeline",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 7153,
-    "downloads": 2780584,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "CompVis/stable-diffusion-v1-4",
     "slug": "CompVis/stable--diffusion--v1--4",
-    "name": "CompVis/stable-diffusion-v1-4",
-    "author": "CompVis",
-    "description": "Auto-ingested description",
+    "name": "stable-diffusion-v1-4",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -15718,16 +15717,16 @@
       "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 6939,
-    "downloads": 620132,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "meta-llama/Meta-Llama-3-8B",
     "slug": "meta--llama/Meta--Llama--3--8B",
-    "name": "meta-llama/Meta-Llama-3-8B",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "name": "Meta-Llama-3-8B",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -15744,16 +15743,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 6388,
-    "downloads": 2173722,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "hexgrad/Kokoro-82M",
     "slug": "hexgrad/Kokoro--82M",
-    "name": "hexgrad/Kokoro-82M",
-    "author": "hexgrad",
-    "description": "Auto-ingested description",
+    "name": "Kokoro-82M",
+    "author": "Unknown",
+    "description": "A model for text-to-speech.",
     "tags": [
       "text-to-speech",
       "en",
@@ -15765,16 +15764,16 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 5316,
-    "downloads": 4013169,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "openai/whisper-large-v3",
     "slug": "openai/whisper--large--v3",
-    "name": "openai/whisper-large-v3",
-    "author": "openai",
-    "description": "Auto-ingested description",
+    "name": "whisper-large-v3",
+    "author": "Unknown",
+    "description": "A model for automatic-speech-recognition.",
     "tags": [
       "transformers",
       "pytorch",
@@ -15886,19 +15885,18 @@
       "arxiv:2212.04356",
       "license:apache-2.0",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 5137,
-    "downloads": 4688466,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "meta-llama/Llama-3.1-8B-Instruct",
     "slug": "meta--llama/Llama--3.1--8B--Instruct",
-    "name": "meta-llama/Llama-3.1-8B-Instruct",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "name": "Llama-3.1-8B-Instruct",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -15926,16 +15924,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 5007,
-    "downloads": 5243496,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "bigscience/bloom",
     "slug": "bigscience/bloom",
-    "name": "bigscience/bloom",
-    "author": "bigscience",
-    "description": "Auto-ingested description",
+    "name": "bloom",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "pytorch",
@@ -16000,19 +15998,18 @@
       "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 4961,
-    "downloads": 2371,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "stabilityai/stable-diffusion-3-medium",
     "slug": "stabilityai/stable--diffusion--3--medium",
-    "name": "stabilityai/stable-diffusion-3-medium",
-    "author": "stabilityai",
-    "description": "Auto-ingested description",
+    "name": "stable-diffusion-3-medium",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusion-single-file",
       "image-generation",
@@ -16022,16 +16019,16 @@
       "license:other",
       "region:us"
     ],
-    "likes": 4873,
-    "downloads": 11510,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "meta-llama/Llama-2-7b-chat-hf",
     "slug": "meta--llama/Llama--2--7b--chat--hf",
-    "name": "meta-llama/Llama-2-7b-chat-hf",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "name": "Llama-2-7b-chat-hf",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "pytorch",
@@ -16050,16 +16047,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 4658,
-    "downloads": 347022,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "mistralai/Mixtral-8x7B-Instruct-v0.1",
     "slug": "mistralai/Mixtral--8x7B--Instruct--v0.1",
-    "name": "mistralai/Mixtral-8x7B-Instruct-v0.1",
-    "author": "mistralai",
-    "description": "Auto-ingested description",
+    "name": "Mixtral-8x7B-Instruct-v0.1",
+    "author": "Unknown",
+    "description": "A model for various tasks.",
     "tags": [
       "vllm",
       "safetensors",
@@ -16074,16 +16071,16 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 4606,
-    "downloads": 404375,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "meta-llama/Llama-2-7b",
     "slug": "meta--llama/Llama--2--7b",
-    "name": "meta-llama/Llama-2-7b",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "name": "Llama-2-7b",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "facebook",
       "meta",
@@ -16096,16 +16093,16 @@
       "license:llama2",
       "region:us"
     ],
-    "likes": 4426,
-    "downloads": 448,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "black-forest-labs/FLUX.1-schnell",
     "slug": "black--forest--labs/FLUX.1--schnell",
-    "name": "black-forest-labs/FLUX.1-schnell",
-    "author": "black-forest-labs",
-    "description": "Auto-ingested description",
+    "name": "FLUX.1-schnell",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -16117,16 +16114,16 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 4419,
-    "downloads": 805724,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "meta-llama/Meta-Llama-3-8B-Instruct",
     "slug": "meta--llama/Meta--Llama--3--8B--Instruct",
-    "name": "meta-llama/Meta-Llama-3-8B-Instruct",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "name": "Meta-Llama-3-8B-Instruct",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -16142,19 +16139,18 @@
       "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 4300,
-    "downloads": 1042030,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "openai/gpt-oss-120b",
     "slug": "openai/gpt--oss--120b",
-    "name": "openai/gpt-oss-120b",
-    "author": "openai",
-    "description": "Auto-ingested description",
+    "name": "gpt-oss-120b",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -16168,19 +16164,18 @@
       "endpoints_compatible",
       "8-bit",
       "mxfp4",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 4188,
-    "downloads": 4280503,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "sentence-transformers/all-MiniLM-L6-v2",
     "slug": "sentence--transformers/all--MiniLM--L6--v2",
-    "name": "sentence-transformers/all-MiniLM-L6-v2",
-    "author": "sentence-transformers",
-    "description": "Auto-ingested description",
+    "name": "all-MiniLM-L6-v2",
+    "author": "Unknown",
+    "description": "A model for sentence-similarity.",
     "tags": [
       "sentence-transformers",
       "pytorch",
@@ -16224,19 +16219,18 @@
       "autotrain_compatible",
       "text-embeddings-inference",
       "endpoints_compatible",
-      "deploy:azure",
       "region:us"
     ],
-    "likes": 4154,
-    "downloads": 147283269,
-    "is_rising_star": true
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
   },
   {
     "id": "mistralai/Mistral-7B-v0.1",
     "slug": "mistralai/Mistral--7B--v0.1",
-    "name": "mistralai/Mistral-7B-v0.1",
-    "author": "mistralai",
-    "description": "Auto-ingested description",
+    "name": "Mistral-7B-v0.1",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "pytorch",
@@ -16252,16 +16246,16 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 4011,
-    "downloads": 475703,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "deepseek-ai/DeepSeek-V3",
     "slug": "deepseek--ai/DeepSeek--V3",
-    "name": "deepseek-ai/DeepSeek-V3",
-    "author": "deepseek-ai",
-    "description": "Auto-ingested description",
+    "name": "DeepSeek-V3",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -16276,16 +16270,16 @@
       "fp8",
       "region:us"
     ],
-    "likes": 4000,
-    "downloads": 498812,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "openai/gpt-oss-20b",
     "slug": "openai/gpt--oss--20b",
-    "name": "openai/gpt-oss-20b",
-    "author": "openai",
-    "description": "Auto-ingested description",
+    "name": "gpt-oss-20b",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -16299,33 +16293,32 @@
       "endpoints_compatible",
       "8-bit",
       "mxfp4",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 3984,
-    "downloads": 6541212,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "lllyasviel/ControlNet-v1-1",
     "slug": "lllyasviel/ControlNet--v1--1",
-    "name": "lllyasviel/ControlNet-v1-1",
-    "author": "lllyasviel",
-    "description": "Auto-ingested description",
+    "name": "ControlNet-v1-1",
+    "author": "Unknown",
+    "description": "A model for various tasks.",
     "tags": [
       "license:openrail",
       "region:us"
     ],
-    "likes": 3952,
+    "likes": 0,
     "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "WarriorMama777/OrangeMixs",
     "slug": "WarriorMama777/OrangeMixs",
-    "name": "WarriorMama777/OrangeMixs",
-    "author": "WarriorMama777",
-    "description": "Auto-ingested description",
+    "name": "OrangeMixs",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "stable-diffusion",
@@ -16337,30 +16330,30 @@
       "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 3885,
-    "downloads": 8227,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "lllyasviel/ControlNet",
     "slug": "lllyasviel/ControlNet",
-    "name": "lllyasviel/ControlNet",
-    "author": "lllyasviel",
-    "description": "Auto-ingested description",
+    "name": "ControlNet",
+    "author": "Unknown",
+    "description": "A model for various tasks.",
     "tags": [
       "license:openrail",
       "region:us"
     ],
-    "likes": 3766,
-    "downloads": 2,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "deepseek-ai/Janus-Pro-7B",
     "slug": "deepseek--ai/Janus--Pro--7B",
-    "name": "deepseek-ai/Janus-Pro-7B",
-    "author": "deepseek-ai",
-    "description": "Auto-ingested description",
+    "name": "Janus-Pro-7B",
+    "author": "Unknown",
+    "description": "A model for any-to-any.",
     "tags": [
       "transformers",
       "pytorch",
@@ -16374,16 +16367,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 3530,
-    "downloads": 56084,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "microsoft/phi-2",
     "slug": "microsoft/phi--2",
-    "name": "microsoft/phi-2",
-    "author": "microsoft",
-    "description": "Auto-ingested description",
+    "name": "phi-2",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -16396,19 +16389,18 @@
       "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 3410,
-    "downloads": 870722,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "google/gemma-7b",
     "slug": "google/gemma--7b",
-    "name": "google/gemma-7b",
-    "author": "google",
-    "description": "Auto-ingested description",
+    "name": "gemma-7b",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -16445,16 +16437,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 3239,
-    "downloads": 36905,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "stabilityai/stable-diffusion-3.5-large",
     "slug": "stabilityai/stable--diffusion--3.5--large",
-    "name": "stabilityai/stable-diffusion-3.5-large",
-    "author": "stabilityai",
-    "description": "Auto-ingested description",
+    "name": "stable-diffusion-3.5-large",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -16466,32 +16458,32 @@
       "diffusers:StableDiffusion3Pipeline",
       "region:us"
     ],
-    "likes": 3227,
-    "downloads": 132228,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "coqui/XTTS-v2",
     "slug": "coqui/XTTS--v2",
-    "name": "coqui/XTTS-v2",
-    "author": "coqui",
-    "description": "Auto-ingested description",
+    "name": "XTTS-v2",
+    "author": "Unknown",
+    "description": "A model for text-to-speech.",
     "tags": [
       "coqui",
       "text-to-speech",
       "license:other",
       "region:us"
     ],
-    "likes": 3191,
-    "downloads": 5256999,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "stabilityai/stable-video-diffusion-img2vid-xt",
     "slug": "stabilityai/stable--video--diffusion--img2vid--xt",
-    "name": "stabilityai/stable-video-diffusion-img2vid-xt",
-    "author": "stabilityai",
-    "description": "Auto-ingested description",
+    "name": "stable-video-diffusion-img2vid-xt",
+    "author": "Unknown",
+    "description": "A model for image-to-video.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -16500,16 +16492,16 @@
       "diffusers:StableVideoDiffusionPipeline",
       "region:us"
     ],
-    "likes": 3190,
-    "downloads": 164661,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "prompthero/openjourney",
     "slug": "prompthero/openjourney",
-    "name": "prompthero/openjourney",
-    "author": "prompthero",
-    "description": "Auto-ingested description",
+    "name": "openjourney",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -16520,19 +16512,18 @@
       "autotrain_compatible",
       "endpoints_compatible",
       "diffusers:StableDiffusionPipeline",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 3171,
-    "downloads": 15864,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "deepseek-ai/DeepSeek-V3-0324",
     "slug": "deepseek--ai/DeepSeek--V3--0324",
-    "name": "deepseek-ai/DeepSeek-V3-0324",
-    "author": "deepseek-ai",
-    "description": "Auto-ingested description",
+    "name": "DeepSeek-V3-0324",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -16548,16 +16539,16 @@
       "fp8",
       "region:us"
     ],
-    "likes": 3083,
-    "downloads": 174655,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "openai-community/gpt2",
     "slug": "openai--community/gpt2",
-    "name": "openai-community/gpt2",
-    "author": "openai-community",
-    "description": "Auto-ingested description",
+    "name": "gpt2",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "pytorch",
@@ -16576,19 +16567,18 @@
       "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 3035,
-    "downloads": 10037181,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "mistralai/Mistral-7B-Instruct-v0.2",
     "slug": "mistralai/Mistral--7B--Instruct--v0.2",
-    "name": "mistralai/Mistral-7B-Instruct-v0.2",
-    "author": "mistralai",
-    "description": "Auto-ingested description",
+    "name": "Mistral-7B-Instruct-v0.2",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "pytorch",
@@ -16602,19 +16592,18 @@
       "license:apache-2.0",
       "autotrain_compatible",
       "text-generation-inference",
-      "deploy:azure",
       "region:us"
     ],
-    "likes": 3018,
-    "downloads": 3723560,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "bigcode/starcoder",
     "slug": "bigcode/starcoder",
-    "name": "bigcode/starcoder",
-    "author": "bigcode",
-    "description": "Auto-ingested description",
+    "name": "starcoder",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "pytorch",
@@ -16634,16 +16623,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2905,
-    "downloads": 11199,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "Qwen/QwQ-32B",
     "slug": "Qwen/QwQ--32B",
-    "name": "Qwen/QwQ-32B",
-    "author": "Qwen",
-    "description": "Auto-ingested description",
+    "name": "QwQ-32B",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -16659,19 +16648,18 @@
       "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 2868,
-    "downloads": 48301,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "zai-org/chatglm-6b",
     "slug": "zai--org/chatglm--6b",
-    "name": "zai-org/chatglm-6b",
-    "author": "zai-org",
-    "description": "Auto-ingested description",
+    "name": "chatglm-6b",
+    "author": "Unknown",
+    "description": "A model for various tasks.",
     "tags": [
       "transformers",
       "pytorch",
@@ -16687,16 +16675,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2867,
-    "downloads": 2209,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "deepseek-ai/DeepSeek-OCR",
     "slug": "deepseek--ai/DeepSeek--OCR",
-    "name": "deepseek-ai/DeepSeek-OCR",
-    "author": "deepseek-ai",
-    "description": "Auto-ingested description",
+    "name": "DeepSeek-OCR",
+    "author": "Unknown",
+    "description": "A model for image-text-to-text.",
     "tags": [
       "transformers",
       "safetensors",
@@ -16706,22 +16694,23 @@
       "vision-language",
       "ocr",
       "custom_code",
+      "general-dialogue-qa",
       "image-text-to-text",
       "multilingual",
       "arxiv:2510.18234",
       "license:mit",
       "region:us"
     ],
-    "likes": 2845,
-    "downloads": 5293384,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "CompVis/stable-diffusion-v-1-4-original",
     "slug": "CompVis/stable--diffusion--v--1--4--original",
-    "name": "CompVis/stable-diffusion-v-1-4-original",
-    "author": "CompVis",
-    "description": "Auto-ingested description",
+    "name": "stable-diffusion-v-1-4-original",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "stable-diffusion",
       "image-generation",
@@ -16733,16 +16722,16 @@
       "license:creativeml-openrail-m",
       "region:us"
     ],
-    "likes": 2822,
-    "downloads": 3,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "nari-labs/Dia-1.6B",
     "slug": "nari--labs/Dia--1.6B",
-    "name": "nari-labs/Dia-1.6B",
-    "author": "nari-labs",
-    "description": "Auto-ingested description",
+    "name": "Dia-1.6B",
+    "author": "Unknown",
+    "description": "A model for text-to-speech.",
     "tags": [
       "safetensors",
       "model_hub_mixin",
@@ -16753,16 +16742,16 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 2809,
-    "downloads": 211006,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "openai/whisper-large-v3-turbo",
     "slug": "openai/whisper--large--v3--turbo",
-    "name": "openai/whisper-large-v3-turbo",
-    "author": "openai",
-    "description": "Auto-ingested description",
+    "name": "whisper-large-v3-turbo",
+    "author": "Unknown",
+    "description": "A model for automatic-speech-recognition.",
     "tags": [
       "transformers",
       "safetensors",
@@ -16875,16 +16864,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2705,
-    "downloads": 4349116,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "meta-llama/Llama-3.3-70B-Instruct",
     "slug": "meta--llama/Llama--3.3--70B--Instruct",
-    "name": "meta-llama/Llama-3.3-70B-Instruct",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "name": "Llama-3.3-70B-Instruct",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -16912,16 +16901,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2573,
-    "downloads": 486654,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "BAAI/bge-m3",
     "slug": "BAAI/bge--m3",
-    "name": "BAAI/bge-m3",
-    "author": "BAAI",
-    "description": "Auto-ingested description",
+    "name": "bge-m3",
+    "author": "Unknown",
+    "description": "A model for sentence-similarity.",
     "tags": [
       "sentence-transformers",
       "pytorch",
@@ -16938,19 +16927,18 @@
       "autotrain_compatible",
       "text-embeddings-inference",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 2517,
-    "downloads": 6992099,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "google-bert/bert-base-uncased",
     "slug": "google--bert/bert--base--uncased",
-    "name": "google-bert/bert-base-uncased",
-    "author": "google-bert",
-    "description": "Auto-ingested description",
+    "name": "bert-base-uncased",
+    "author": "Unknown",
+    "description": "A model for fill-mask.",
     "tags": [
       "transformers",
       "pytorch",
@@ -16970,19 +16958,18 @@
       "license:apache-2.0",
       "autotrain_compatible",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 2487,
-    "downloads": 60760666,
-    "is_rising_star": true
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
   },
   {
     "id": "stabilityai/sdxl-turbo",
     "slug": "stabilityai/sdxl--turbo",
-    "name": "stabilityai/sdxl-turbo",
-    "author": "stabilityai",
-    "description": "Auto-ingested description",
+    "name": "sdxl-turbo",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "onnx",
@@ -16993,16 +16980,16 @@
       "diffusers:StableDiffusionXLPipeline",
       "region:us"
     ],
-    "likes": 2483,
-    "downloads": 371006,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "hakurei/waifu-diffusion",
     "slug": "hakurei/waifu--diffusion",
-    "name": "hakurei/waifu-diffusion",
-    "author": "hakurei",
-    "description": "Auto-ingested description",
+    "name": "waifu-diffusion",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -17015,16 +17002,16 @@
       "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 2460,
-    "downloads": 3179,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "black-forest-labs/FLUX.1-Kontext-dev",
     "slug": "black--forest--labs/FLUX.1--Kontext--dev",
-    "name": "black-forest-labs/FLUX.1-Kontext-dev",
-    "author": "black-forest-labs",
-    "description": "Auto-ingested description",
+    "name": "FLUX.1-Kontext-dev",
+    "author": "Unknown",
+    "description": "A model for image-to-image.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -17038,16 +17025,16 @@
       "diffusers:FluxKontextPipeline",
       "region:us"
     ],
-    "likes": 2442,
-    "downloads": 322210,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "tiiuae/falcon-40b",
     "slug": "tiiuae/falcon--40b",
-    "name": "tiiuae/falcon-40b",
-    "author": "tiiuae",
-    "description": "Auto-ingested description",
+    "name": "falcon-40b",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "pytorch",
@@ -17069,19 +17056,18 @@
       "license:apache-2.0",
       "autotrain_compatible",
       "text-generation-inference",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 2432,
-    "downloads": 9985,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "deepseek-ai/DeepSeek-R1-0528",
     "slug": "deepseek--ai/DeepSeek--R1--0528",
-    "name": "deepseek-ai/DeepSeek-R1-0528",
-    "author": "deepseek-ai",
-    "description": "Auto-ingested description",
+    "name": "DeepSeek-R1-0528",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -17097,16 +17083,16 @@
       "fp8",
       "region:us"
     ],
-    "likes": 2387,
-    "downloads": 364883,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "xai-org/grok-1",
     "slug": "xai--org/grok--1",
-    "name": "xai-org/grok-1",
-    "author": "xai-org",
-    "description": "Auto-ingested description",
+    "name": "grok-1",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "grok",
       "grok-1",
@@ -17114,16 +17100,16 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 2368,
-    "downloads": 679,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "perplexity-ai/r1-1776",
     "slug": "perplexity--ai/r1--1776",
-    "name": "perplexity-ai/r1-1776",
-    "author": "perplexity-ai",
-    "description": "Auto-ingested description",
+    "name": "r1-1776",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -17139,16 +17125,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2325,
-    "downloads": 1304,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "sesame/csm-1b",
     "slug": "sesame/csm--1b",
-    "name": "sesame/csm-1b",
-    "author": "sesame",
-    "description": "Auto-ingested description",
+    "name": "csm-1b",
+    "author": "Unknown",
+    "description": "A model for text-to-speech.",
     "tags": [
       "transformers",
       "safetensors",
@@ -17160,16 +17146,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2273,
-    "downloads": 22346,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "mistralai/Mistral-7B-Instruct-v0.3",
     "slug": "mistralai/Mistral--7B--Instruct--v0.3",
-    "name": "mistralai/Mistral-7B-Instruct-v0.3",
-    "author": "mistralai",
-    "description": "Auto-ingested description",
+    "name": "Mistral-7B-Instruct-v0.3",
+    "author": "Unknown",
+    "description": "A model for various tasks.",
     "tags": [
       "vllm",
       "safetensors",
@@ -17180,16 +17166,16 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 2269,
-    "downloads": 1040785,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "moonshotai/Kimi-K2-Instruct",
     "slug": "moonshotai/Kimi--K2--Instruct",
-    "name": "moonshotai/Kimi-K2-Instruct",
-    "author": "moonshotai",
-    "description": "Auto-ingested description",
+    "name": "Kimi-K2-Instruct",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -17204,16 +17190,16 @@
       "fp8",
       "region:us"
     ],
-    "likes": 2264,
-    "downloads": 180556,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "Qwen/Qwen-Image",
     "slug": "Qwen/Qwen--Image",
-    "name": "Qwen/Qwen-Image",
-    "author": "Qwen",
-    "description": "Auto-ingested description",
+    "name": "Qwen-Image",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -17223,19 +17209,18 @@
       "arxiv:2508.02324",
       "license:apache-2.0",
       "diffusers:QwenImagePipeline",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 2236,
-    "downloads": 253434,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "meta-llama/Llama-2-7b-hf",
     "slug": "meta--llama/Llama--2--7b--hf",
-    "name": "meta-llama/Llama-2-7b-hf",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "name": "Llama-2-7b-hf",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "pytorch",
@@ -17253,16 +17238,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2205,
-    "downloads": 626115,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "meta-llama/Llama-2-70b-chat-hf",
     "slug": "meta--llama/Llama--2--70b--chat--hf",
-    "name": "meta-llama/Llama-2-70b-chat-hf",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "name": "Llama-2-70b-chat-hf",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "pytorch",
@@ -17281,16 +17266,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2201,
-    "downloads": 11597,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "meta-llama/Llama-3.2-1B",
     "slug": "meta--llama/Llama--3.2--1B",
-    "name": "meta-llama/Llama-3.2-1B",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "name": "Llama-3.2-1B",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -17316,16 +17301,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2194,
-    "downloads": 3241222,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "microsoft/phi-4",
     "slug": "microsoft/phi--4",
-    "name": "microsoft/phi-4",
-    "author": "microsoft",
-    "description": "Auto-ingested description",
+    "name": "phi-4",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -17344,16 +17329,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2189,
-    "downloads": 461196,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "Qwen/Qwen-Image-Edit",
     "slug": "Qwen/Qwen--Image--Edit",
-    "name": "Qwen/Qwen-Image-Edit",
-    "author": "Qwen",
-    "description": "Auto-ingested description",
+    "name": "Qwen-Image-Edit",
+    "author": "Unknown",
+    "description": "A model for image-to-image.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -17365,16 +17350,16 @@
       "diffusers:QwenImageEditPipeline",
       "region:us"
     ],
-    "likes": 2149,
-    "downloads": 136656,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "ByteDance/SDXL-Lightning",
     "slug": "ByteDance/SDXL--Lightning",
-    "name": "ByteDance/SDXL-Lightning",
-    "author": "ByteDance",
-    "description": "Auto-ingested description",
+    "name": "SDXL-Lightning",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "image-generation",
@@ -17383,16 +17368,16 @@
       "license:openrail++",
       "region:us"
     ],
-    "likes": 2107,
-    "downloads": 114144,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "tencent/HunyuanVideo",
     "slug": "tencent/HunyuanVideo",
-    "name": "tencent/HunyuanVideo",
-    "author": "tencent",
-    "description": "Auto-ingested description",
+    "name": "HunyuanVideo",
+    "author": "Unknown",
+    "description": "A model for text-to-video.",
     "tags": [
       "video-generation-editing",
       "arxiv:2412.03603",
@@ -17400,29 +17385,29 @@
       "license:other",
       "region:us"
     ],
-    "likes": 2082,
-    "downloads": 977,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "lllyasviel/sd_control_collection",
     "slug": "lllyasviel/sd_control_collection",
-    "name": "lllyasviel/sd_control_collection",
-    "author": "lllyasviel",
-    "description": "Auto-ingested description",
+    "name": "sd_control_collection",
+    "author": "Unknown",
+    "description": "A model for various tasks.",
     "tags": [
       "region:us"
     ],
-    "likes": 2070,
+    "likes": 0,
     "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "Lightricks/LTX-Video",
     "slug": "Lightricks/LTX--Video",
-    "name": "Lightricks/LTX-Video",
-    "author": "Lightricks",
-    "description": "Auto-ingested description",
+    "name": "LTX-Video",
+    "author": "Unknown",
+    "description": "A model for image-to-video.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -17433,16 +17418,16 @@
       "diffusers:LTXPipeline",
       "region:us"
     ],
-    "likes": 2061,
-    "downloads": 264356,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
     "slug": "nvidia/Llama--3.1--Nemotron--70B--Instruct--HF",
-    "name": "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
-    "author": "nvidia",
-    "description": "Auto-ingested description",
+    "name": "Llama-3.1-Nemotron-70B-Instruct-HF",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -17463,8 +17448,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 2059,
-    "downloads": 9766,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
@@ -17496,9 +17481,9 @@
   {
     "id": "stabilityai/stable-diffusion-xl-refiner-1.0",
     "slug": "stabilityai/stable--diffusion--xl--refiner--1.0",
-    "name": "stabilityai/stable-diffusion-xl-refiner-1.0",
-    "author": "stabilityai",
-    "description": "Auto-ingested description",
+    "name": "stable-diffusion-xl-refiner-1.0",
+    "author": "Unknown",
+    "description": "A model for image-to-image.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -17512,16 +17497,16 @@
       "diffusers:StableDiffusionXLImg2ImgPipeline",
       "region:us"
     ],
-    "likes": 1997,
-    "downloads": 471055,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "microsoft/VibeVoice-1.5B",
     "slug": "microsoft/VibeVoice--1.5B",
-    "name": "microsoft/VibeVoice-1.5B",
-    "author": "microsoft",
-    "description": "Auto-ingested description",
+    "name": "VibeVoice-1.5B",
+    "author": "Unknown",
+    "description": "A model for text-to-speech.",
     "tags": [
       "transformers",
       "safetensors",
@@ -17538,16 +17523,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1990,
-    "downloads": 171457,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "databricks/dolly-v2-12b",
     "slug": "databricks/dolly--v2--12b",
-    "name": "databricks/dolly-v2-12b",
-    "author": "databricks",
-    "description": "Auto-ingested description",
+    "name": "dolly-v2-12b",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "pytorch",
@@ -17558,19 +17543,18 @@
       "license:mit",
       "autotrain_compatible",
       "text-generation-inference",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 1956,
-    "downloads": 2219,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "Qwen/Qwen2.5-Coder-32B-Instruct",
     "slug": "Qwen/Qwen2.5--Coder--32B--Instruct",
-    "name": "Qwen/Qwen2.5-Coder-32B-Instruct",
-    "author": "Qwen",
-    "description": "Auto-ingested description",
+    "name": "Qwen2.5-Coder-32B-Instruct",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -17591,19 +17575,18 @@
       "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 1952,
-    "downloads": 267389,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "meta-llama/Llama-3.1-8B",
     "slug": "meta--llama/Llama--3.1--8B",
-    "name": "meta-llama/Llama-3.1-8B",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "name": "Llama-3.1-8B",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -17628,16 +17611,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1938,
-    "downloads": 653992,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "openai/clip-vit-large-patch14",
     "slug": "openai/clip--vit--large--patch14",
-    "name": "openai/clip-vit-large-patch14",
-    "author": "openai",
-    "description": "Auto-ingested description",
+    "name": "clip-vit-large-patch14",
+    "author": "Unknown",
+    "description": "A model for zero-shot-image-classification.",
     "tags": [
       "transformers",
       "pytorch",
@@ -17652,16 +17635,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1905,
-    "downloads": 10087137,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "briaai/RMBG-1.4",
     "slug": "briaai/RMBG--1.4",
-    "name": "briaai/RMBG-1.4",
-    "author": "briaai",
-    "description": "Auto-ingested description",
+    "name": "RMBG-1.4",
+    "author": "Unknown",
+    "description": "A model for image-segmentation.",
     "tags": [
       "transformers",
       "pytorch",
@@ -17680,16 +17663,16 @@
       "license:other",
       "region:us"
     ],
-    "likes": 1887,
-    "downloads": 197642,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "meta-llama/Llama-3.2-3B-Instruct",
     "slug": "meta--llama/Llama--3.2--3B--Instruct",
-    "name": "meta-llama/Llama-3.2-3B-Instruct",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "name": "Llama-3.2-3B-Instruct",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -17716,16 +17699,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1833,
-    "downloads": 1721346,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "Qwen/Qwen2.5-Omni-7B",
     "slug": "Qwen/Qwen2.5--Omni--7B",
-    "name": "Qwen/Qwen2.5-Omni-7B",
-    "author": "Qwen",
-    "description": "Auto-ingested description",
+    "name": "Qwen2.5-Omni-7B",
+    "author": "Unknown",
+    "description": "A model for any-to-any.",
     "tags": [
       "transformers",
       "safetensors",
@@ -17738,16 +17721,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1823,
-    "downloads": 126441,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "HuggingFaceH4/zephyr-7b-beta",
     "slug": "HuggingFaceH4/zephyr--7b--beta",
-    "name": "HuggingFaceH4/zephyr-7b-beta",
-    "author": "HuggingFaceH4",
-    "description": "Auto-ingested description",
+    "name": "zephyr-7b-beta",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "pytorch",
@@ -17770,19 +17753,18 @@
       "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 1813,
-    "downloads": 261366,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "mistralai/Mistral-7B-Instruct-v0.1",
     "slug": "mistralai/Mistral--7B--Instruct--v0.1",
-    "name": "mistralai/Mistral-7B-Instruct-v0.1",
-    "author": "mistralai",
-    "description": "Auto-ingested description",
+    "name": "Mistral-7B-Instruct-v0.1",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "pytorch",
@@ -17800,16 +17782,16 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 1810,
-    "downloads": 441324,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "h94/IP-Adapter-FaceID",
     "slug": "h94/IP--Adapter--FaceID",
-    "name": "h94/IP-Adapter-FaceID",
-    "author": "h94",
-    "description": "Auto-ingested description",
+    "name": "IP-Adapter-FaceID",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "image-generation",
@@ -17818,16 +17800,16 @@
       "arxiv:2308.06721",
       "region:us"
     ],
-    "likes": 1785,
-    "downloads": 212924,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "openai/whisper-large-v2",
     "slug": "openai/whisper--large--v2",
-    "name": "openai/whisper-large-v2",
-    "author": "openai",
-    "description": "Auto-ingested description",
+    "name": "whisper-large-v2",
+    "author": "Unknown",
+    "description": "A model for automatic-speech-recognition.",
     "tags": [
       "transformers",
       "pytorch",
@@ -17940,19 +17922,18 @@
       "arxiv:2212.04356",
       "license:apache-2.0",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 1773,
-    "downloads": 321616,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "mistralai/Mixtral-8x7B-v0.1",
     "slug": "mistralai/Mixtral--8x7B--v0.1",
-    "name": "mistralai/Mixtral-8x7B-v0.1",
-    "author": "mistralai",
-    "description": "Auto-ingested description",
+    "name": "Mixtral-8x7B-v0.1",
+    "author": "Unknown",
+    "description": "A model for various tasks.",
     "tags": [
       "vllm",
       "safetensors",
@@ -17967,16 +17948,16 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 1769,
-    "downloads": 79414,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "Kijai/WanVideo_comfy",
     "slug": "Kijai/WanVideo_comfy",
-    "name": "Kijai/WanVideo_comfy",
-    "author": "Kijai",
-    "description": "Auto-ingested description",
+    "name": "WanVideo_comfy",
+    "author": "Unknown",
+    "description": "A model for various tasks.",
     "tags": [
       "diffusion-single-file",
       "comfyui",
@@ -17984,16 +17965,16 @@
       "base_model:finetune:Wan-AI/Wan2.1-VACE-1.3B",
       "region:us"
     ],
-    "likes": 1767,
-    "downloads": 6425306,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "CohereLabs/c4ai-command-r-plus",
     "slug": "CohereLabs/c4ai--command--r--plus",
-    "name": "CohereLabs/c4ai-command-r-plus",
-    "author": "CohereLabs",
-    "description": "Auto-ingested description",
+    "name": "c4ai-command-r-plus",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -18016,16 +17997,16 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 1761,
-    "downloads": 2731,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "Qwen/QwQ-32B-Preview",
     "slug": "Qwen/QwQ--32B--Preview",
-    "name": "Qwen/QwQ-32B-Preview",
-    "author": "Qwen",
-    "description": "Auto-ingested description",
+    "name": "QwQ-32B-Preview",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -18040,19 +18021,18 @@
       "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 1741,
-    "downloads": 45615,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "dreamlike-art/dreamlike-photoreal-2.0",
     "slug": "dreamlike--art/dreamlike--photoreal--2.0",
-    "name": "dreamlike-art/dreamlike-photoreal-2.0",
-    "author": "dreamlike-art",
-    "description": "Auto-ingested description",
+    "name": "dreamlike-photoreal-2.0",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -18067,16 +18047,16 @@
       "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 1719,
-    "downloads": 8421,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "mattshumer/Reflection-Llama-3.1-70B",
     "slug": "mattshumer/Reflection--Llama--3.1--70B",
-    "name": "mattshumer/Reflection-Llama-3.1-70B",
-    "author": "mattshumer",
-    "description": "Auto-ingested description",
+    "name": "Reflection-Llama-3.1-70B",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -18089,19 +18069,18 @@
       "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "region:us"
     ],
-    "likes": 1711,
-    "downloads": 130,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "microsoft/Florence-2-large",
     "slug": "microsoft/Florence--2--large",
-    "name": "microsoft/Florence-2-large",
-    "author": "microsoft",
-    "description": "Auto-ingested description",
+    "name": "Florence-2-large",
+    "author": "Unknown",
+    "description": "A model for image-text-to-text.",
     "tags": [
       "transformers",
       "pytorch",
@@ -18115,16 +18094,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1709,
-    "downloads": 833872,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "google/gemma-3-27b-it",
     "slug": "google/gemma--3--27b--it",
-    "name": "google/gemma-3-27b-it",
-    "author": "google",
-    "description": "Auto-ingested description",
+    "name": "gemma-3-27b-it",
+    "author": "Unknown",
+    "description": "A model for image-text-to-text.",
     "tags": [
       "transformers",
       "safetensors",
@@ -18166,8 +18145,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1708,
-    "downloads": 1078475,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
@@ -18194,9 +18173,9 @@
   {
     "id": "microsoft/Phi-3-mini-128k-instruct",
     "slug": "microsoft/Phi--3--mini--128k--instruct",
-    "name": "microsoft/Phi-3-mini-128k-instruct",
-    "author": "microsoft",
-    "description": "Auto-ingested description",
+    "name": "Phi-3-mini-128k-instruct",
+    "author": "Unknown",
+    "description": "A model for text-generation.",
     "tags": [
       "transformers",
       "safetensors",
@@ -18213,16 +18192,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1682,
-    "downloads": 324319,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "deepseek-ai/DeepSeek-V3-Base",
     "slug": "deepseek--ai/DeepSeek--V3--Base",
-    "name": "deepseek-ai/DeepSeek-V3-Base",
-    "author": "deepseek-ai",
-    "description": "Auto-ingested description",
+    "name": "DeepSeek-V3-Base",
+    "author": "Unknown",
+    "description": "A model for various tasks.",
     "tags": [
       "safetensors",
       "deepseek_v3",
@@ -18231,16 +18210,16 @@
       "fp8",
       "region:us"
     ],
-    "likes": 1682,
-    "downloads": 5960,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "tencent/Hunyuan3D-2",
     "slug": "tencent/Hunyuan3D--2",
-    "name": "tencent/Hunyuan3D-2",
-    "author": "tencent",
-    "description": "Auto-ingested description",
+    "name": "Hunyuan3D-2",
+    "author": "Unknown",
+    "description": "A model for image-to-3d.",
     "tags": [
       "hunyuan3d-2",
       "diffusers",
@@ -18254,16 +18233,16 @@
       "license:other",
       "region:us"
     ],
-    "likes": 1671,
-    "downloads": 85837,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "mistralai/Mistral-Nemo-Instruct-2407",
     "slug": "mistralai/Mistral--Nemo--Instruct--2407",
-    "name": "mistralai/Mistral-Nemo-Instruct-2407",
-    "author": "mistralai",
-    "description": "Auto-ingested description",
+    "name": "Mistral-Nemo-Instruct-2407",
+    "author": "Unknown",
+    "description": "A model for various tasks.",
     "tags": [
       "vllm",
       "safetensors",
@@ -18283,8 +18262,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 1627,
-    "downloads": 215796,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
@@ -18307,9 +18286,9 @@
   {
     "id": "xinsir/controlnet-union-sdxl-1.0",
     "slug": "xinsir/controlnet--union--sdxl--1.0",
-    "name": "xinsir/controlnet-union-sdxl-1.0",
-    "author": "xinsir",
-    "description": "Auto-ingested description",
+    "name": "controlnet-union-sdxl-1.0",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -18320,16 +18299,16 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 1614,
-    "downloads": 156859,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "docling-project/SmolDocling-256M-preview",
     "slug": "docling--project/SmolDocling--256M--preview",
-    "name": "docling-project/SmolDocling-256M-preview",
-    "author": "docling-project",
-    "description": "Auto-ingested description",
+    "name": "SmolDocling-256M-preview",
+    "author": "Unknown",
+    "description": "A model for image-text-to-text.",
     "tags": [
       "transformers",
       "onnx",
@@ -18351,16 +18330,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1597,
-    "downloads": 214738,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "gsdf/Counterfeit-V2.5",
     "slug": "gsdf/Counterfeit--V2.5",
-    "name": "gsdf/Counterfeit-V2.5",
-    "author": "gsdf",
-    "description": "Auto-ingested description",
+    "name": "Counterfeit-V2.5",
+    "author": "Unknown",
+    "description": "A model for text-to-image.",
     "tags": [
       "diffusers",
       "safetensors",
@@ -18373,16 +18352,16 @@
       "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 1576,
-    "downloads": 2690,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "nanonets/Nanonets-OCR-s",
     "slug": "nanonets/Nanonets--OCR--s",
-    "name": "nanonets/Nanonets-OCR-s",
-    "author": "nanonets",
-    "description": "Auto-ingested description",
+    "name": "Nanonets-OCR-s",
+    "author": "Unknown",
+    "description": "A model for image-text-to-text.",
     "tags": [
       "transformers",
       "safetensors",
@@ -18399,16 +18378,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1559,
-    "downloads": 118662,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "meta-llama/Llama-3.2-11B-Vision-Instruct",
     "slug": "meta--llama/Llama--3.2--11B--Vision--Instruct",
-    "name": "meta-llama/Llama-3.2-11B-Vision-Instruct",
-    "author": "meta-llama",
-    "description": "Auto-ingested description",
+    "name": "Llama-3.2-11B-Vision-Instruct",
+    "author": "Unknown",
+    "description": "A model for image-text-to-text.",
     "tags": [
       "transformers",
       "safetensors",
@@ -18435,16 +18414,16 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1545,
-    "downloads": 220014,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
     "id": "microsoft/Phi-4-multimodal-instruct",
     "slug": "microsoft/Phi--4--multimodal--instruct",
-    "name": "microsoft/Phi-4-multimodal-instruct",
-    "author": "microsoft",
-    "description": "Auto-ingested description",
+    "name": "Phi-4-multimodal-instruct",
+    "author": "Unknown",
+    "description": "A model for automatic-speech-recognition.",
     "tags": [
       "transformers",
       "safetensors",
@@ -18491,8 +18470,8 @@
       "autotrain_compatible",
       "region:us"
     ],
-    "likes": 1539,
-    "downloads": 442867,
+    "likes": 0,
+    "downloads": 0,
     "is_rising_star": false
   },
   {
@@ -18568,8 +18547,8 @@
       "fp8",
       "region:us"
     ],
-    "likes": 12879,
-    "downloads": 1117590,
+    "likes": 12881,
+    "downloads": 1164599,
     "is_rising_star": false
   },
   {
@@ -18589,8 +18568,8 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 11920,
-    "downloads": 1424674,
+    "likes": 11921,
+    "downloads": 1407316,
     "is_rising_star": false
   },
   {
@@ -18669,8 +18648,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 6390,
-    "downloads": 2111790,
+    "likes": 6391,
+    "downloads": 2086585,
     "is_rising_star": false
   },
   {
@@ -18690,8 +18669,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 5324,
-    "downloads": 3932532,
+    "likes": 5325,
+    "downloads": 3848136,
     "is_rising_star": false
   },
   {
@@ -18814,7 +18793,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 5139,
+    "likes": 5140,
     "downloads": 4766734,
     "is_rising_star": false
   },
@@ -18851,8 +18830,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 5021,
-    "downloads": 5221966,
+    "likes": 5022,
+    "downloads": 5134176,
     "is_rising_star": false
   },
   {
@@ -18948,7 +18927,7 @@
       "region:us"
     ],
     "likes": 4873,
-    "downloads": 11329,
+    "downloads": 11237,
     "is_rising_star": false
   },
   {
@@ -19004,6 +18983,27 @@
     "is_rising_star": false
   },
   {
+    "id": "huggingface-black-forest-labs-FLUX.1-schnell",
+    "slug": "huggingface--black-forest-labs--flux.1-schnell",
+    "name": "FLUX.1-schnell",
+    "author": "black-forest-labs",
+    "description": "Auto-ingested description",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "image-generation",
+      "flux",
+      "en",
+      "license:apache-2.0",
+      "endpoints_compatible",
+      "diffusers:FluxPipeline",
+      "region:us"
+    ],
+    "likes": 4430,
+    "downloads": 803518,
+    "is_rising_star": false
+  },
+  {
     "id": "huggingface-meta-llama-Llama-2-7b",
     "slug": "huggingface--meta-llama--llama-2-7b",
     "name": "Llama-2-7b",
@@ -19023,27 +19023,6 @@
     ],
     "likes": 4427,
     "downloads": 463,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-black-forest-labs-FLUX.1-schnell",
-    "slug": "huggingface--black-forest-labs--flux.1-schnell",
-    "name": "FLUX.1-schnell",
-    "author": "black-forest-labs",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "image-generation",
-      "flux",
-      "en",
-      "license:apache-2.0",
-      "endpoints_compatible",
-      "diffusers:FluxPipeline",
-      "region:us"
-    ],
-    "likes": 4427,
-    "downloads": 805717,
     "is_rising_star": false
   },
   {
@@ -19070,8 +19049,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 4301,
-    "downloads": 1064218,
+    "likes": 4302,
+    "downloads": 1075757,
     "is_rising_star": false
   },
   {
@@ -19096,8 +19075,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 4194,
-    "downloads": 4317460,
+    "likes": 4195,
+    "downloads": 4355071,
     "is_rising_star": false
   },
   {
@@ -19201,8 +19180,8 @@
       "fp8",
       "region:us"
     ],
-    "likes": 4000,
-    "downloads": 541002,
+    "likes": 4001,
+    "downloads": 549757,
     "is_rising_star": false
   },
   {
@@ -19227,8 +19206,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 3989,
-    "downloads": 6902707,
+    "likes": 3990,
+    "downloads": 7028859,
     "is_rising_star": false
   },
   {
@@ -19300,7 +19279,7 @@
       "region:us"
     ],
     "likes": 3532,
-    "downloads": 50129,
+    "downloads": 47672,
     "is_rising_star": false
   },
   {
@@ -19371,7 +19350,7 @@
       "region:us"
     ],
     "likes": 3239,
-    "downloads": 37137,
+    "downloads": 37691,
     "is_rising_star": false
   },
   {
@@ -19392,7 +19371,7 @@
       "region:us"
     ],
     "likes": 3231,
-    "downloads": 105876,
+    "downloads": 96590,
     "is_rising_star": false
   },
   {
@@ -19408,7 +19387,7 @@
       "region:us"
     ],
     "likes": 3197,
-    "downloads": 5418074,
+    "downloads": 5465437,
     "is_rising_star": false
   },
   {
@@ -19425,7 +19404,7 @@
       "diffusers:StableVideoDiffusionPipeline",
       "region:us"
     ],
-    "likes": 3191,
+    "likes": 3192,
     "downloads": 182108,
     "is_rising_star": false
   },
@@ -19474,7 +19453,7 @@
       "region:us"
     ],
     "likes": 3083,
-    "downloads": 175883,
+    "downloads": 169132,
     "is_rising_star": false
   },
   {
@@ -19531,7 +19510,7 @@
       "region:us"
     ],
     "likes": 3018,
-    "downloads": 3750478,
+    "downloads": 3725193,
     "is_rising_star": false
   },
   {
@@ -19584,8 +19563,8 @@
       "license:mit",
       "region:us"
     ],
-    "likes": 2871,
-    "downloads": 5368910,
+    "likes": 2872,
+    "downloads": 5384942,
     "is_rising_star": false
   },
   {
@@ -19613,7 +19592,7 @@
       "region:us"
     ],
     "likes": 2868,
-    "downloads": 53042,
+    "downloads": 54836,
     "is_rising_star": false
   },
   {
@@ -19679,7 +19658,7 @@
       "region:us"
     ],
     "likes": 2808,
-    "downloads": 211837,
+    "downloads": 212034,
     "is_rising_star": false
   },
   {
@@ -19801,7 +19780,7 @@
       "region:us"
     ],
     "likes": 2707,
-    "downloads": 4342735,
+    "downloads": 4372667,
     "is_rising_star": false
   },
   {
@@ -19838,7 +19817,7 @@
       "region:us"
     ],
     "likes": 2575,
-    "downloads": 445265,
+    "downloads": 435023,
     "is_rising_star": false
   },
   {
@@ -19866,7 +19845,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2527,
+    "likes": 2528,
     "downloads": 7086871,
     "is_rising_star": false
   },
@@ -19963,8 +19942,8 @@
       "diffusers:FluxKontextPipeline",
       "region:us"
     ],
-    "likes": 2445,
-    "downloads": 328539,
+    "likes": 2447,
+    "downloads": 328501,
     "is_rising_star": false
   },
   {
@@ -20023,7 +20002,7 @@
       "region:us"
     ],
     "likes": 2387,
-    "downloads": 366392,
+    "downloads": 359803,
     "is_rising_star": false
   },
   {
@@ -20040,7 +20019,7 @@
       "region:us"
     ],
     "likes": 2368,
-    "downloads": 742,
+    "downloads": 785,
     "is_rising_star": false
   },
   {
@@ -20065,7 +20044,7 @@
       "region:us"
     ],
     "likes": 2326,
-    "downloads": 1583,
+    "downloads": 1639,
     "is_rising_star": false
   },
   {
@@ -20086,7 +20065,7 @@
       "region:us"
     ],
     "likes": 2274,
-    "downloads": 24385,
+    "downloads": 25240,
     "is_rising_star": false
   },
   {
@@ -20106,7 +20085,7 @@
       "region:us"
     ],
     "likes": 2271,
-    "downloads": 977839,
+    "downloads": 974882,
     "is_rising_star": false
   },
   {
@@ -20129,8 +20108,8 @@
       "fp8",
       "region:us"
     ],
-    "likes": 2265,
-    "downloads": 174316,
+    "likes": 2266,
+    "downloads": 173329,
     "is_rising_star": false
   },
   {
@@ -20151,8 +20130,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 2238,
-    "downloads": 259497,
+    "likes": 2239,
+    "downloads": 265251,
     "is_rising_star": false
   },
   {
@@ -20178,7 +20157,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2207,
+    "likes": 2208,
     "downloads": 590171,
     "is_rising_star": false
   },
@@ -20242,7 +20221,7 @@
       "region:us"
     ],
     "likes": 2199,
-    "downloads": 3275581,
+    "downloads": 3245555,
     "is_rising_star": false
   },
   {
@@ -20270,7 +20249,7 @@
       "region:us"
     ],
     "likes": 2190,
-    "downloads": 468392,
+    "downloads": 464993,
     "is_rising_star": false
   },
   {
@@ -20291,7 +20270,7 @@
       "region:us"
     ],
     "likes": 2162,
-    "downloads": 141684,
+    "downloads": 130926,
     "is_rising_star": false
   },
   {
@@ -20309,7 +20288,7 @@
       "region:us"
     ],
     "likes": 2107,
-    "downloads": 116161,
+    "downloads": 117467,
     "is_rising_star": false
   },
   {
@@ -20326,7 +20305,7 @@
       "region:us"
     ],
     "likes": 2083,
-    "downloads": 991,
+    "downloads": 1033,
     "is_rising_star": false
   },
   {
@@ -20359,7 +20338,7 @@
       "region:us"
     ],
     "likes": 2063,
-    "downloads": 256892,
+    "downloads": 256555,
     "is_rising_star": false
   },
   {
@@ -20389,7 +20368,7 @@
       "region:us"
     ],
     "likes": 2059,
-    "downloads": 10248,
+    "downloads": 10243,
     "is_rising_star": false
   },
   {
@@ -20463,8 +20442,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1993,
-    "downloads": 169342,
+    "likes": 1994,
+    "downloads": 165996,
     "is_rising_star": false
   },
   {
@@ -20520,7 +20499,7 @@
       "region:us"
     ],
     "likes": 1953,
-    "downloads": 277627,
+    "downloads": 275090,
     "is_rising_star": false
   },
   {
@@ -20554,7 +20533,7 @@
       "region:us"
     ],
     "likes": 1942,
-    "downloads": 667198,
+    "downloads": 668464,
     "is_rising_star": false
   },
   {
@@ -20642,7 +20621,7 @@
       "region:us"
     ],
     "likes": 1839,
-    "downloads": 1683545,
+    "downloads": 1669589,
     "is_rising_star": false
   },
   {
@@ -20664,7 +20643,7 @@
       "region:us"
     ],
     "likes": 1824,
-    "downloads": 122143,
+    "downloads": 121886,
     "is_rising_star": false
   },
   {
@@ -20690,8 +20669,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 1813,
-    "downloads": 402829,
+    "likes": 1814,
+    "downloads": 386022,
     "is_rising_star": false
   },
   {
@@ -20745,6 +20724,23 @@
     ],
     "likes": 1785,
     "downloads": 214557,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-Kijai-WanVideo-comfy",
+    "slug": "huggingface--kijai--wanvideo-comfy",
+    "name": "WanVideo_comfy",
+    "author": "Kijai",
+    "description": "Auto-ingested description",
+    "tags": [
+      "diffusion-single-file",
+      "comfyui",
+      "base_model:Wan-AI/Wan2.1-VACE-1.3B",
+      "base_model:finetune:Wan-AI/Wan2.1-VACE-1.3B",
+      "region:us"
+    ],
+    "likes": 1774,
+    "downloads": 6345602,
     "is_rising_star": false
   },
   {
@@ -20873,23 +20869,6 @@
     "is_rising_star": false
   },
   {
-    "id": "huggingface-Kijai-WanVideo-comfy",
-    "slug": "huggingface--kijai--wanvideo-comfy",
-    "name": "WanVideo_comfy",
-    "author": "Kijai",
-    "description": "Auto-ingested description",
-    "tags": [
-      "diffusion-single-file",
-      "comfyui",
-      "base_model:Wan-AI/Wan2.1-VACE-1.3B",
-      "base_model:finetune:Wan-AI/Wan2.1-VACE-1.3B",
-      "region:us"
-    ],
-    "likes": 1772,
-    "downloads": 6399936,
-    "is_rising_star": false
-  },
-  {
     "id": "huggingface-mistralai-Mixtral-8x7B-v0.1",
     "slug": "huggingface--mistralai--mixtral-8x7b-v0.1",
     "name": "Mixtral-8x7B-v0.1",
@@ -20910,7 +20889,7 @@
       "region:us"
     ],
     "likes": 1770,
-    "downloads": 80207,
+    "downloads": 79421,
     "is_rising_star": false
   },
   {
@@ -20942,7 +20921,7 @@
       "region:us"
     ],
     "likes": 1761,
-    "downloads": 2782,
+    "downloads": 2789,
     "is_rising_star": false
   },
   {
@@ -20969,7 +20948,7 @@
       "region:us"
     ],
     "likes": 1741,
-    "downloads": 45868,
+    "downloads": 53159,
     "is_rising_star": false
   },
   {
@@ -21045,7 +21024,7 @@
       "region:us"
     ],
     "likes": 1712,
-    "downloads": 1125530,
+    "downloads": 1123781,
     "is_rising_star": false
   },
   {
@@ -21070,7 +21049,7 @@
       "deploy:azure"
     ],
     "likes": 1711,
-    "downloads": 121,
+    "downloads": 138,
     "is_rising_star": false
   },
   {
@@ -21094,7 +21073,7 @@
       "region:us"
     ],
     "likes": 1709,
-    "downloads": 813561,
+    "downloads": 805190,
     "is_rising_star": false
   },
   {
@@ -21115,7 +21094,7 @@
       "region:us"
     ],
     "likes": 1696,
-    "downloads": 363,
+    "downloads": 376,
     "is_rising_star": false
   },
   {
@@ -21141,7 +21120,7 @@
       "region:us"
     ],
     "likes": 1682,
-    "downloads": 327512,
+    "downloads": 327283,
     "is_rising_star": false
   },
   {
@@ -21159,7 +21138,7 @@
       "region:us"
     ],
     "likes": 1681,
-    "downloads": 7656,
+    "downloads": 7927,
     "is_rising_star": false
   },
   {
@@ -21182,7 +21161,7 @@
       "region:us"
     ],
     "likes": 1672,
-    "downloads": 85036,
+    "downloads": 84347,
     "is_rising_star": false
   },
   {
@@ -21211,7 +21190,7 @@
       "region:us"
     ],
     "likes": 1629,
-    "downloads": 202656,
+    "downloads": 191213,
     "is_rising_star": false
   },
   {
@@ -21228,7 +21207,7 @@
       "region:us"
     ],
     "likes": 1616,
-    "downloads": 1501,
+    "downloads": 1492,
     "is_rising_star": false
   },
   {
@@ -21248,7 +21227,7 @@
       "region:us"
     ],
     "likes": 1616,
-    "downloads": 157808,
+    "downloads": 157593,
     "is_rising_star": false
   },
   {
@@ -21279,7 +21258,7 @@
       "region:us"
     ],
     "likes": 1598,
-    "downloads": 199190,
+    "downloads": 196217,
     "is_rising_star": false
   },
   {
@@ -21327,7 +21306,7 @@
       "region:us"
     ],
     "likes": 1559,
-    "downloads": 112877,
+    "downloads": 101780,
     "is_rising_star": false
   },
   {
@@ -21363,7 +21342,7 @@
       "region:us"
     ],
     "likes": 1545,
-    "downloads": 209681,
+    "downloads": 207385,
     "is_rising_star": false
   },
   {
@@ -21419,7 +21398,7 @@
       "region:us"
     ],
     "likes": 1541,
-    "downloads": 420212,
+    "downloads": 411764,
     "is_rising_star": false
   },
   {
@@ -21444,7 +21423,7 @@
       "region:us"
     ],
     "likes": 1524,
-    "downloads": 30977,
+    "downloads": 28848,
     "is_rising_star": false
   },
   {
@@ -22275,20 +22254,22 @@
     "is_rising_star": false
   },
   {
-    "id": "github-Om29Singh-Diabetes-Prediction",
-    "slug": "github--om29singh--diabetes-prediction",
-    "name": "Diabetes_Prediction",
-    "author": "Om29Singh",
+    "id": "github-twoChar-Flight-Fare-Prediction",
+    "slug": "github--twochar--flight-fare-prediction",
+    "name": "Flight-Fare-Prediction",
+    "author": "twoChar",
     "description": "Auto-ingested description",
     "tags": [
       "github",
-      "jupyter-notebooks",
-      "machine-learning",
+      "flight-fare",
+      "jupyter-notebook",
       "machine-learning-model",
-      "prediction",
-      "python3",
-      "supervised-learning-algorithms",
-      "support-vector-machines"
+      "matplotlib",
+      "numpy",
+      "data-analysis-insights",
+      "python",
+      "scikit-learn",
+      "seaborn"
     ],
     "likes": 1,
     "downloads": 0,
@@ -22315,22 +22296,20 @@
     "is_rising_star": false
   },
   {
-    "id": "github-twoChar-Flight-Fare-Prediction",
-    "slug": "github--twochar--flight-fare-prediction",
-    "name": "Flight-Fare-Prediction",
-    "author": "twoChar",
+    "id": "github-Om29Singh-Diabetes-Prediction",
+    "slug": "github--om29singh--diabetes-prediction",
+    "name": "Diabetes_Prediction",
+    "author": "Om29Singh",
     "description": "Auto-ingested description",
     "tags": [
       "github",
-      "flight-fare",
-      "jupyter-notebook",
+      "jupyter-notebooks",
+      "machine-learning",
       "machine-learning-model",
-      "matplotlib",
-      "numpy",
-      "data-analysis-insights",
-      "python",
-      "scikit-learn",
-      "seaborn"
+      "prediction",
+      "python3",
+      "supervised-learning-algorithms",
+      "support-vector-machines"
     ],
     "likes": 1,
     "downloads": 0,
@@ -22572,22 +22551,6 @@
     "is_rising_star": false
   },
   {
-    "id": "github-anchalchaturvedi08-Artificial-Intelligence-Internship",
-    "slug": "github--anchalchaturvedi08--artificial-intelligence-internship",
-    "name": "Artificial_Intelligence_Internship",
-    "author": "anchalchaturvedi08",
-    "description": "Auto-ingested description",
-    "tags": [
-      "github",
-      "jypyternotebook",
-      "machine-learning-model",
-      "python"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
     "id": "github-mtrvn-trieutrg",
     "slug": "github--mtrvn--trieutrg",
     "name": "trieutrg",
@@ -22610,6 +22573,22 @@
       "machine-learning-model",
       "modeling-language",
       "natural-language-processing"
+    ],
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-anchalchaturvedi08-Artificial-Intelligence-Internship",
+    "slug": "github--anchalchaturvedi08--artificial-intelligence-internship",
+    "name": "Artificial_Intelligence_Internship",
+    "author": "anchalchaturvedi08",
+    "description": "Auto-ingested description",
+    "tags": [
+      "github",
+      "jypyternotebook",
+      "machine-learning-model",
+      "python"
     ],
     "likes": 0,
     "downloads": 0,
