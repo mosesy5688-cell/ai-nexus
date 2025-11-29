@@ -6,7 +6,7 @@ use std::env;
 use std::fs;
 use std::sync::Arc;
 
-use aws_config::from_env;
+use aws_config::SdkConfig;
 use aws_sdk_s3::config::Credentials;
 use aws_sdk_s3::primitives::ByteStream;
 use aws_sdk_s3::Client;
@@ -71,13 +71,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let endpoint_url = format!("https://{}.r2.cloudflarestorage.com", account_id);
 
-        // Load config matching Cloudflare official example
-        let config = from_env()
+        // Use a pure, manual config builder to avoid conflicts with env vars like AWS_ACCESS_KEY_ID
+        let config = SdkConfig::builder()
             .endpoint_url(endpoint_url)
             .credentials_provider(Credentials::new(access_key, secret_key, None, None, "R2"))
             .region("auto")
-            .load()
-            .await;
+            .build();
 
         let client = Client::new(&config);
         eprintln!("R2 client initialized for bucket: {}", bucket);
