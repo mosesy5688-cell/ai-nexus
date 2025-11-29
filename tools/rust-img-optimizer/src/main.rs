@@ -6,7 +6,7 @@ use std::env;
 use std::fs;
 use std::sync::Arc;
 
-use aws_config::{BehaviorVersion, SdkConfig};
+use aws_config::SdkConfig;
 use aws_credential_types::provider::SharedCredentialsProvider;
 use aws_types::region::Region;
 use aws_sdk_s3::config::Credentials;
@@ -73,15 +73,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let endpoint_url = format!("https://{}.r2.cloudflarestorage.com", account_id);
 
-        // Use a pure, manual config builder to avoid conflicts with env vars like AWS_ACCESS_KEY_ID
+        // Use a pure, manual config builder to avoid conflicts with other env vars
         let config = SdkConfig::builder()
             .endpoint_url(endpoint_url)
-            .behavior_version(BehaviorVersion::latest())
             .credentials_provider(SharedCredentialsProvider::new(Credentials::new(access_key, secret_key, None, None, "R2")))
             .region(Region::new("auto"))
             .build();
 
-        let client = Client::new(&config);
+        let client = Client::from_conf(aws_sdk_s3::Config::from(&config));
         eprintln!("R2 client initialized for bucket: {}", bucket);
         debug_header.push_str("-- R2 Client: Initialized\n");
         Some(client)
