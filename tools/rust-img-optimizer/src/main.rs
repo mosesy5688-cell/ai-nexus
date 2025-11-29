@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::env;
 use aws_sdk_s3::Client;
-use aws_config::meta::region::RegionProviderChain;
+use aws_config::endpoint::Endpoint;
 use aws_sdk_s3::primitives::ByteStream;
 use futures::stream::{self, StreamExt};
 use std::sync::Arc;
@@ -68,12 +68,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let endpoint_url = format!("https://{}.r2.cloudflarestorage.com", account_id);
         
         // Force the endpoint resolver to use our static R2 URL
-        let endpoint = aws_sdk_s3::config::endpoint::Endpoint::immutable(endpoint_url.parse().expect("Valid URI"));
+        let endpoint = Endpoint::immutable(endpoint_url.parse().expect("Valid URI"));
         let sdk_config = aws_config::load_from_env().await;
 
         let config = aws_sdk_s3::Config::builder()
             .endpoint_resolver(endpoint)
-            .credentials_provider(sdk_config.credentials_provider().expect("No credentials provider found"))
+            .credentials_provider(sdk_config.credentials_provider().cloned().expect("No credentials provider found"))
             .region(sdk_config.region().cloned())
             .build();
         
