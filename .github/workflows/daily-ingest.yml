@@ -45,6 +45,9 @@ jobs:
           echo "Building and running Rust optimizer..."
           cd tools/rust-img-optimizer
           cargo run --release -- --input ../../data/merged.json
+          # Move SQL files to repository root data directory
+          mv data/upsert.sql ../../data/upsert.sql
+          mv data/update_urls.sql ../../data/update_urls.sql
           echo "✅ Data processed. Generated upsert.sql and update_urls.sql"
 
       # Step 7: Upload Images to R2
