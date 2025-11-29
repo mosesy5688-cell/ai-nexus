@@ -74,8 +74,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await;
 
         // Build S3-specific config with path-style for R2
-        let s3_config = aws_sdk_s3::config::Builder::new(&config)
+        let s3_config = aws_sdk_s3::config::Builder::from(&config)
             .force_path_style(true)
+            // We must re-apply the endpoint_url on the S3-specific config builder
+            .endpoint_url(endpoint_url)
             .build();
 
         let client = Client::from_conf(s3_config);
