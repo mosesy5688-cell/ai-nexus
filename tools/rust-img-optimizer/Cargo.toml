@@ -8,14 +8,8 @@ clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
-aws-config = { version = "1.5", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.5"
+aws-config = { version = "1.8", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.115"
 reqwest = { version = "0.12", features = ["stream"] }
 futures = "0.3"
 urlencoding = "2.1"
-# --- Retained from previous version ---
-image = "0.24"
-bytes = "1.4"
-url = "2.4"
-sha2 = "0.10"
-hex = "0.4"
