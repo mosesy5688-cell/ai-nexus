@@ -96,8 +96,8 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
             const errorMsgEl = document.getElementById('hot-models-error-msg');
 
             try {
-                // Fetch models that have cover images to ensure visual appeal
-                const response = await fetch('/api/search?limit=12&has_image=true');
+                // Fetch top models by comprehensive ranking (likes)
+                const response = await fetch('/api/search?limit=12');
                 if (!response.ok) throw new Error(`API Error: ${response.status}`);
                 
                 const data = await response.json();
