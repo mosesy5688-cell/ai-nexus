@@ -199,6 +199,7 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(Str
                                 .bucket(&ctx.bucket)
                                 .key(&object_key)
                                 .body(ByteStream::from(bytes))
+                                .content_length(bytes.len() as i64)
                                 .content_type("image/jpeg")
                                 .send()
                                 .await;
