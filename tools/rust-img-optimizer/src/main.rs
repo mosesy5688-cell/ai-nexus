@@ -1,3 +1,5 @@
+// tools/rust-img-optimizer/src/main.rs
+
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -7,8 +9,9 @@ use std::sync::Arc;
 use aws_config::BehaviorVersion;
 use aws_sdk_s3::primitives::ByteStream;
 use aws_sdk_s3::Client;
-use futures::stream::{self, StreamExt};
+use futures::future::join_all;
 use tokio::sync::Semaphore;
+use tokio::task::JoinHandle;
 use urlencoding::encode;
 
 #[derive(Parser, Debug)]
@@ -44,11 +47,71 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     // Debug information header
+    let mut debug_header = String::new();
+    debug_header.push_str(&format!("-- Args: {:?}\n", args));
+    debug_header.push_str(&format!("-- R2_BUCKET env: {:?}\n", env::var("R2_BUCKET")));
+    debug_header.push_str(&format!("-- CLOUDFLARE_ACCOUNT_ID env: {:?}\n", env::var("CLOUDFLARE_ACCOUNT_ID")));
+    debug_header.push_str(&format!("-- R2_PUBLIC_URL_PREFIX env: {:?}\n", env::var("R2_PUBLIC_URL_PREFIX")));
+
+    eprintln!("Processing input file: {}", args.input);
+
+    // ==================== 1. Initialize Cloudflare R2 Client ====================
+    let bucket = env::var("R2_BUCKET").unwrap_or_else(|_| "MISSING_BUCKET".to_string());
+    let account_id = env::var("CLOUDFLARE_ACCOUNT_ID").unwrap_or_else(|_| "MISSING_ID".to_string());
+    let public_url_prefix = env::var("R2_PUBLIC_URL_PREFIX").unwrap_or_else(|_| "https://cdn.free2aitools.com".to_string());
+
+    let r2_client = if bucket != "MISSING_BUCKET"
+        && account_id != "MISSING_ID"
+        && env::var("R2_ACCESS_KEY").is_ok()
+        && env::var("R2_SECRET_KEY").is_ok()
+    {
+        // Set AWS env vars for automatic credential loading
+        env::set_var("AWS_ACCESS_KEY_ID", env::var("R2_ACCESS_KEY")?);
+        env::set_var("AWS_SECRET_ACCESS_KEY", env::var("R2_SECRET_KEY")?);
+        env::set_var("AWS_REGION", "auto");
+
+        let endpoint_url = format!("https://{}.r2.cloudflarestorage.com", account_id);
+
+        // Load config with endpoint override (no manual credentials cloning needed)
+        let base_config = aws_config::defaults(BehaviorVersion::latest())
+            .endpoint_url(endpoint_url.clone())
+            .load()
+            .await;
+
+        // Build S3-specific config with path-style for R2
+        let s3_config = aws_sdk_s3::config::Builder::from(&base_config)
+            .endpoint_url(endpoint_url)
+            .force_path_style(true)
+            .build();
+
+        let client = Client::from_conf(s3_config);
+        eprintln!("R2 client initialized for bucket: {}", bucket);
+        debug_header.push_str("-- R2 Client: Initialized\n");
+        Some(client)
+    } else {
+        eprintln!("R2 credentials missing – skipping image uploads.");
+        debug_header.push_str("-- R2 Client: SKIPPED (Missing credentials)\n");
+        None
+    };
+
+    // ==================== 2. Load JSON data ====================
+    let data = fs::read_to_string(&args.input)?;
+    let models: Vec<Model> = serde_json::from_str(&data)?;
+    eprintln!("Found {} models in the file", models.len());
+
+    // ==================== 3. Process models concurrently ====================
+    let ctx = Arc::new(ProcessingContext {
+        r2_client,
+        bucket: bucket.clone(),
+        public_url_prefix,
+    });
+
     let semaphore = Arc::new(Semaphore::new(10));
 
     eprintln!("Starting concurrent image processing for {} models...", models.len());
 
-    let results = stream::iter(models.into_iter())
+    let handles: Vec<JoinHandle<Option<(String, bool, String)>>> = models
+        .into_iter()
         .map(|model| {
             let ctx = Arc::clone(&ctx);
             let sem = Arc::clone(&semaphore);
@@ -57,9 +120,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 process_model(model, ctx).await
             })
         })
-        .buffer_unordered(10)
-        .collect::<Vec<_>>()
-        .await;
+        .collect();
+
+    let results = join_all(handles).await;
 
     // ==================== 4. Generate SQL output ====================
     let mut sql = String::from("-- Auto-generated upsert SQL\n");
@@ -68,8 +131,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut total_models = 0;
     let mut models_with_images = 0;
 
-    for handle in results {
-        if let Ok(Some((stmt, has_image, logs))) = handle {
+    for result in results {
+        if let Ok(Some((stmt, has_image, logs))) = result {
             sql.push_str(&stmt);
             if !logs.is_empty() {
                 sql.push_str(&format!("/* LOGS:\n{}\n*/\n", logs));
@@ -101,16 +164,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(String, bool, String)> {
-    let source = model.source.clone().unwrap_or_else(|| "huggingface".to_string());
+    let source = model.source.unwrap_or_else(|| "huggingface".to_string());
 
-    let (author, name) = if let (Some(a), Some(n)) = (model.author.clone(), model.name.clone()) {
+    let (author, name) = if let (Some(a), Some(n)) = (model.author, model.name) {
         (a, n)
     } else {
-        let parts: Vec<&str> = model.id.split('/').collect();
+        let parts: Vec<String> = model.id.split('/').map(|s| s.to_string()).collect();
         if parts.len() >= 2 {
-            (parts[0].to_string(), parts[1].to_string())
+            (parts[0].clone(), parts[1].clone())
         } else {
-            ("unknown".to_string(), model.id.clone())
+            ("unknown".to_string(), model.id)
         }
     };
 
@@ -129,7 +192,7 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(Str
     let mut has_image = false;
 
     // ==================== Image download & upload to R2 ====================
-    if ctx.r2_client.is_some() {
+    if let Some(client) = ctx.r2_client.as_ref() {
         let src_url = if source == "github" {
             format!("https://github.com/{}.png", author)
         } else {
@@ -142,16 +205,15 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(Str
         logs.push_str(&format!("Downloading image for {} from {}\n", db_id, src_url));
         eprintln!("[{}] Downloading image...", db_id);
 
-        if let Ok(resp) = reqwest::get(&src_url).await {
+        if let Ok(resp) = reqwest::get(src_url).await {
             if resp.status().is_success() {
                 if let Ok(body) = resp.bytes().await {
                     let object_key = format!("models/{}.jpg", db_id);
 
-                    let client = ctx.r2_client.as_ref().unwrap();
                     let put_result = client
                         .put_object()
-                        .bucket(&ctx.bucket)
-                        .key(&object_key)
+                        .bucket(ctx.bucket.clone())
+                        .key(object_key.clone())
                         .body(ByteStream::from(body.to_vec()))
                         .content_type("image/jpeg")
                         .send()
@@ -182,7 +244,7 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(Str
 
     // ==================== Build SQL statement ====================
     let pipeline = model.pipeline_tag.unwrap_or_else(|| "other".to_string());
-    let tags_json = serde_json::to_string(&model.tags.unwrap_or_default()).unwrap_or("[]".to_string());
+    let tags_json = serde_json::to_string(&model.tags.unwrap_or_default()).unwrap_or_else(|_| "[]".to_string());
     let safe_desc = model.description.unwrap_or_default().replace('\'', "''").replace('\n', " ");
 
     let stmt = format!(
