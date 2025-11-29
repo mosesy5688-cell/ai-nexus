@@ -6,7 +6,7 @@ use std::env;
 use std::fs;
 use std::sync::Arc;
 
-use aws_config::SdkConfig;
+use aws_config::{BehaviorVersion, SdkConfig};
 use aws_credential_types::provider::SharedCredentialsProvider;
 use aws_types::region::Region;
 use aws_sdk_s3::config::Credentials;
@@ -76,6 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Use a pure, manual config builder to avoid conflicts with env vars like AWS_ACCESS_KEY_ID
         let config = SdkConfig::builder()
             .endpoint_url(endpoint_url)
+            .behavior_version(BehaviorVersion::latest())
             .credentials_provider(SharedCredentialsProvider::new(Credentials::new(access_key, secret_key, None, None, "R2")))
             .region(Region::new("auto"))
             .build();
