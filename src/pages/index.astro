@@ -115,6 +115,17 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
                     return `
                     <a href="${modelUrl}" class="block group">
                         <article class="bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 dark:border-gray-700 flex flex-col h-full overflow-hidden">
+                            ${model.cover_image_url ? `
+                            <div class="aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-900 relative">
+                                <img 
+                                    src="${model.cover_image_url}" 
+                                    alt="Cover for ${model.name}" 
+                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    loading="lazy"
+                                    onerror="this.style.display='none'"
+                                />
+                            </div>
+                            ` : ''}
                             <div class="p-5 flex-grow flex flex-col">
                                 <div class="flex justify-between items-start mb-3">
                                     <div class="flex items-center space-x-2">
