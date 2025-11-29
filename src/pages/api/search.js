@@ -6,6 +6,7 @@ export async function GET({ request, locals }) {
     const tag = url.searchParams.get('tag');
     const sort = url.searchParams.get('sort') || 'likes';
     const source = url.searchParams.get('source');
+    const hasImage = url.searchParams.get('has_image') === 'true';
     const limit = parseInt(url.searchParams.get('limit') || '12', 10);
 
     const db = locals.runtime?.env?.DB;
@@ -46,6 +47,11 @@ export async function GET({ request, locals }) {
         if (source) {
             sql += ` AND source = ?`;
             params.push(source.toLowerCase());
+        }
+
+        // Filter for models with images if requested
+        if (hasImage) {
+            sql += ` AND cover_image_url IS NOT NULL AND cover_image_url != 'NULL'`;
         }
 
         // Apply sorting (only if not FTS, or if explicit sort requested)
