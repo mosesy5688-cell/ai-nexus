@@ -35,7 +35,6 @@ struct Model {
 struct ProcessingContext {
     r2_client: Option<Client>,
     bucket: String,
-    endpoint_url: String,
     public_url_prefix: String,
 }
 
@@ -55,7 +54,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut r2_client = None;
     let bucket = env::var("R2_BUCKET").unwrap_or_else(|_| "MISSING_BUCKET".to_string());
     let account_id = env::var("CLOUDFLARE_ACCOUNT_ID").unwrap_or_else(|_| "MISSING_ID".to_string());
-    let mut endpoint_url = String::new();
 
     // ALWAYS try to setup upload
     let access_key = env::var("R2_ACCESS_KEY");
@@ -67,16 +65,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         env::set_var("AWS_SECRET_ACCESS_KEY", secret_key.unwrap());
         env::set_var("AWS_REGION", "auto");
 
-        endpoint_url = format!("https://{}.r2.cloudflarestorage.com", account_id);
+        let endpoint_url = format!("https://{}.r2.cloudflarestorage.com", account_id);
         
-        let region_provider = RegionProviderChain::default_provider().or_else("auto");
-        let config = aws_config::from_env()
-            .endpoint_url(&endpoint_url)
-            .region(region_provider)
-            .load()
-            .await;
+        // Force the endpoint resolver to use our static R2 URL
+        let endpoint = aws_sdk_s3::config::endpoint::Endpoint::immutable(endpoint_url.parse().expect("Valid URI"));
+        let sdk_config = aws_config::load_from_env().await;
+
+        let config = aws_sdk_s3::Config::builder()
+            .endpoint_resolver(endpoint)
+            .credentials_provider(sdk_config.credentials_provider().expect("No credentials provider found"))
+            .region(sdk_config.region().cloned())
+            .build();
         
-        r2_client = Some(Client::new(&config));
+        r2_client = Some(Client::from_conf(config));
         eprintln!("R2 Client initialized for bucket: {}", bucket);
         debug_header.push_str("-- R2 Client: Initialized\n");
     } else {
@@ -93,7 +94,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ctx = Arc::new(ProcessingContext {
         r2_client,
         bucket: bucket.clone(),
-        endpoint_url,
         public_url_prefix: "https://cdn.free2aitools.com".to_string(), // Default assumption
     });
 
@@ -201,7 +201,6 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(Str
                             let bytes_len = bytes.len() as i64;
                             let result = client.put_object()
                                 .bucket(&ctx.bucket)
-                                .endpoint_url(&ctx.endpoint_url)
                                 .key(&object_key)
                                 .body(ByteStream::from(bytes)) // bytes is moved here
                                 .content_length(bytes_len)      // Use the pre-calculated length
