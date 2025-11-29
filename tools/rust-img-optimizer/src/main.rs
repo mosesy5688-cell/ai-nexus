@@ -49,51 +49,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     debug_header.push_str(&format!("-- R2_BUCKET env: {:?}\n", env::var("R2_BUCKET")));
     debug_header.push_str(&format!("-- CLOUDFLARE_ACCOUNT_ID env: {:?}\n", env::var("CLOUDFLARE_ACCOUNT_ID")));
 
-    eprintln!("Processing input file: {}", args.input);
-
-    // ==================== 1. Initialize Cloudflare R2 Client ====================
-    let bucket = env::var("R2_BUCKET").unwrap_or_else(|_| "MISSING_BUCKET".to_string());
-    let account_id = env::var("CLOUDFLARE_ACCOUNT_ID").unwrap_or_else(|_| "MISSING_ID".to_string());
-
-    let r2_client = if bucket != "MISSING_BUCKET"
-        && account_id != "MISSING_ID"
-        && env::var("R2_ACCESS_KEY").is_ok()
-        && env::var("R2_SECRET_KEY").is_ok()
-    {
-        // Set AWS env vars for automatic credential loading
-        env::set_var("AWS_ACCESS_KEY_ID", env::var("R2_ACCESS_KEY")?);
-        env::set_var("AWS_SECRET_ACCESS_KEY", env::var("R2_SECRET_KEY")?);
-        env::set_var("AWS_REGION", "auto");
-
-        let endpoint_url = format!("https://{}.r2.cloudflarestorage.com", account_id);
-
-        // Load config with endpoint override (no manual credentials cloning needed)
-        let config = aws_config::defaults(BehaviorVersion::latest())
-            .endpoint_url(endpoint_url)
-            .load()
-            .await;
-
-        // Build S3-specific config with path-style for R2
-        let s3_config = aws_sdk_s3::config::Builder::from(&config)
-            .force_path_style(true)
-            // We must re-apply the endpoint_url on the S3-specific config builder
-            .endpoint_url(endpoint_url)
-            .build();
-
-        let client = Client::from_conf(s3_config);
-        eprintln!("R2 client initialized for bucket: {}", bucket);
-        debug_header.push_str("-- R2 Client: Initialized\n");
-        Some(client)
-    } else {
-        eprintln!("R2 credentials missing – skipping image uploads.");
-        debug_header.push_str("-- R2 Client: SKIPPED (Missing credentials)\n");
-        None
-    };
-
-    // ==================== 2. Load JSON data ====================
-    let data = fs::read_to_string(&args.input)?;
-    let models: Vec<Model> = serde_json::from_str(&data)?;
-    eprintln!("Found {} models in the file", models.len());
 
     // ==================== 3. Process models concurrently ====================
     let ctx = Arc::new(ProcessingContext {
