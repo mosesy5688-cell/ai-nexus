@@ -43,6 +43,11 @@ jobs:
           echo "Building and running Rust optimizer..."
           (cd tools/rust-img-optimizer && cargo run --release -- --input ../../data/merged.json) > data/upsert.sql
           echo "✅ Data processed and upsert.sql generated"
+        env:
+          R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
+          R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
+          R2_BUCKET: "ai-nexus-assets"
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       
       # QUALITY GATE: Verify SQL contains image URLs
       - name: Validate SQL Output (Quality Gate)
@@ -81,11 +86,6 @@ jobs:
           echo "  Total INSERT statements: $(grep -c 'INSERT OR REPLACE' data/upsert.sql || echo 0)"
           echo "  With image URLs: $(grep -c 'https://cdn.free2aitools.com' data/upsert.sql || echo 0)"
         
-        env:
-          R2_ACCESS_KEY: ${{ secrets.R2_ACCESS_KEY }}
-          R2_SECRET_KEY: ${{ secrets.R2_SECRET_KEY }}
-          R2_BUCKET: "ai-nexus-assets"
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Execute D1 Updates
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
