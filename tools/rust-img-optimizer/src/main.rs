@@ -74,7 +74,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Load config with endpoint override (no manual credentials cloning needed)
         let base_config = aws_config::defaults(BehaviorVersion::latest())
-            .endpoint_url(endpoint_url.clone())
             .load()
             .await;
 

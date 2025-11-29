@@ -38,14 +38,6 @@ jobs:
         run: node scripts/process-raw-data.js
 
       # Step 6: Process Data with Rust (Core Step)
-      - name: Diagnose R2 Connectivity
-        run: |
-          echo "--- Diagnosing R2 Endpoint Connectivity ---"
-          ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_URL="https://${ACCOUNT_ID}.r2.cloudflarestorage.com"
-          echo "--- Running curl verbose connection test to ${R2_URL} ---"
-          curl -v --fail --connect-timeout 15 "${R2_URL}"
-
       - name: Process Data (Rust)
         run: |
           echo "Building and running Rust optimizer..."
