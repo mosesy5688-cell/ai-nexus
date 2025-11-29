@@ -38,6 +38,16 @@ jobs:
         run: node scripts/process-raw-data.js
 
       # Step 6: Process Data with Rust (Core Step)
+      - name: Diagnose R2 Connectivity
+        run: |
+          echo "--- Diagnosing R2 Endpoint Connectivity ---"
+          ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ENDPOINT="${ACCOUNT_ID}.r2.cloudflarestorage.com"
+          echo "Pinging ${R2_ENDPOINT}..."
+          ping -c 4 "${R2_ENDPOINT}"
+          echo "--- Running curl verbose ---"
+          curl -v "https://""${R2_ENDPOINT}"
+
       - name: Process Data (Rust)
         run: |
           echo "Building and running Rust optimizer..."
@@ -61,42 +71,31 @@ jobs:
             exit 1
           fi
           
-          # Check for cover_image_url field
-          if ! grep -q "cover_image_url" data/upsert.sql; then
-            echo "❌ FATAL: SQL does not contain 'cover_image_url' field!"
-            echo "📄 SQL Content:"
-            cat data/upsert.sql
-            exit 1
+          # Strict check: At least 80% of INSERT statements must have a valid image URL
+          TOTAL_INSERTS=$(grep -c 'INSERT OR REPLACE' data/upsert.sql || echo 0)
+          URL_INSERTS=$(grep -c 'https://cdn.free2aitools.com' data/upsert.sql || echo 0)
+          SUCCESS_RATE=0
+          if [ "$TOTAL_INSERTS" -gt 0 ]; then
+            SUCCESS_RATE=$((URL_INSERTS * 100 / TOTAL_INSERTS))
           fi
-          
-          # Check for actual image URLs (not NULL)
-          if ! grep -q "https://cdn.free2aitools.com" data/upsert.sql; then
-            echo "❌ FATAL: SQL does not contain valid image URLs (https://cdn.free2aitools.com)!"
-            echo "📄 SQL Content (first 100 lines):"
-            head -n 100 data/upsert.sql
-            echo "..."
-            echo "📊 Statistics:"
-            echo "  Total lines: $(wc -l < data/upsert.sql)"
-            echo "  Lines with cover_image_url: $(grep -c 'cover_image_url' data/upsert.sql || echo 0)"
-            echo "  Lines with NULL: $(grep -c "'NULL'" data/upsert.sql || echo 0)"
+
+          echo " SQL Quality Metrics:"
+          echo "  Total INSERT statements: $TOTAL_INSERTS"
+          echo "  With image URLs: $URL_INSERTS"
+          echo "  Success Rate: $SUCCESS_RATE%"
+
+          if [ "$SUCCESS_RATE" -lt 80 ]; then
+            echo "❌ FATAL: Image URL success rate ($SUCCESS_RATE%) is below the 80% threshold."
             exit 1
           fi
           
           echo "✅ Quality Gate PASSED: SQL contains valid image URLs"
-          echo "📊 SQL Quality Metrics:"
-          echo "  Total INSERT statements: $(grep -c 'INSERT OR REPLACE' data/upsert.sql || echo 0)"
-          echo "  With image URLs: $(grep -c 'https://cdn.free2aitools.com' data/upsert.sql || echo 0)"
         
       - name: Execute D1 Updates
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          npx wrangler d1 execute ai-nexus-db --remote --command "ALTER TABLE models ADD COLUMN slug TEXT;" || true
-          npx wrangler d1 execute ai-nexus-db --remote --command "ALTER TABLE models ADD COLUMN last_updated TEXT;" || true
-          npx wrangler d1 execute ai-nexus-db --remote --command "ALTER TABLE models ADD COLUMN is_rising_star INTEGER;" || true
-          npx wrangler d1 execute ai-nexus-db --remote --command "ALTER TABLE models ADD COLUMN related_ids TEXT;" || true
-          npx wrangler d1 execute ai-nexus-db --remote --command "ALTER TABLE models ADD COLUMN popularity_score REAL;" || true
           npx wrangler d1 execute ai-nexus-db --remote --file=./data/upsert.sql
 
 
