@@ -52,40 +52,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 1. Setup R2 Client
     let mut r2_client = None;
-    let mut bucket = String::new();
-    let mut account_id = String::new();
+    let bucket = env::var("R2_BUCKET").unwrap_or_else(|_| "MISSING_BUCKET".to_string());
+    let account_id = env::var("CLOUDFLARE_ACCOUNT_ID").unwrap_or_else(|_| "MISSING_ID".to_string());
 
     // ALWAYS try to setup upload
-    {
-        bucket = env::var("R2_BUCKET").unwrap_or_else(|_| "MISSING_BUCKET".to_string());
-        account_id = env::var("CLOUDFLARE_ACCOUNT_ID").unwrap_or_else(|_| "MISSING_ID".to_string());
-        let access_key = env::var("R2_ACCESS_KEY").unwrap_or_else(|_| "MISSING_KEY".to_string());
-        let secret_key = env::var("R2_SECRET_KEY").unwrap_or_else(|_| "MISSING_SECRET".to_string());
-        
-        if bucket != "MISSING_BUCKET" && account_id != "MISSING_ID" && access_key != "MISSING_KEY" {
-            // Manual credential provider is tricky in older sdk versions, 
-            // relying on env vars AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY is standard.
-            // We will set them for the process.
-            env::set_var("AWS_ACCESS_KEY_ID", access_key);
-            env::set_var("AWS_SECRET_ACCESS_KEY", secret_key);
-            env::set_var("AWS_REGION", "auto");
+    let access_key = env::var("R2_ACCESS_KEY");
+    let secret_key = env::var("R2_SECRET_KEY");
+    
+    if bucket != "MISSING_BUCKET" && account_id != "MISSING_ID" && access_key.is_ok() && secret_key.is_ok() {
+        // Set AWS env vars for the SDK to pick them up automatically
+        env::set_var("AWS_ACCESS_KEY_ID", access_key.unwrap());
+        env::set_var("AWS_SECRET_ACCESS_KEY", secret_key.unwrap());
+        env::set_var("AWS_REGION", "auto");
 
-            let endpoint = format!("https://{}.r2.cloudflarestorage.com", account_id);
-            
-            let region_provider = RegionProviderChain::default_provider().or_else("auto");
-            let config = aws_config::from_env()
-                .endpoint_url(endpoint)
-                .region(region_provider)
-                .load()
-                .await;
-            
-            r2_client = Some(Client::new(&config));
-            eprintln!("R2 Client initialized for bucket: {}", bucket);
-            debug_header.push_str("-- R2 Client: Initialized\n");
-        } else {
-            eprintln!("R2 Credentials missing, skipping upload.");
-            debug_header.push_str("-- R2 Client: SKIPPED (Missing credentials)\n");
-        }
+        let endpoint = format!("https://{}.r2.cloudflarestorage.com", account_id);
+        
+        let region_provider = RegionProviderChain::default_provider().or_else("auto");
+        let config = aws_config::from_env()
+            .endpoint_url(endpoint)
+            .region(region_provider)
+            .load()
+            .await;
+        
+        r2_client = Some(Client::new(&config));
+        eprintln!("R2 Client initialized for bucket: {}", bucket);
+        debug_header.push_str("-- R2 Client: Initialized\n");
+    } else {
+        eprintln!("R2 Credentials missing, skipping upload.");
+        debug_header.push_str("-- R2 Client: SKIPPED (Missing credentials)\n");
     }
 
     // 2. Read JSON
@@ -96,7 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 3. Process Models Concurrently
     let ctx = Arc::new(ProcessingContext {
         r2_client,
-        bucket,
+        bucket: bucket.clone(),
         public_url_prefix: "https://cdn.free2aitools.com".to_string(), // Default assumption
     });
 
@@ -104,7 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     eprintln!("Starting concurrent image processing for {} models...", models.len());
 
-    let mut results = stream::iter(models)
+    let results = stream::iter(models)
         .map(|model| {
             let ctx = ctx.clone();
             let sem = semaphore.clone();
