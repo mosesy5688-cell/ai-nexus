@@ -54,7 +54,14 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           echo "Uploading images to R2..."
-          npx wrangler r2 object put "ai-nexus-assets/models/" --file=./data/images/ --recursive --force
+          # Iterate over all jpg files in data/images and upload them one by one
+          for file in data/images/*.jpg; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "Uploading $filename..."
+              npx wrangler r2 object put "ai-nexus-assets/models/$filename" --file="$file"
+            fi
+          done
           echo "✅ Images uploaded successfully"
       
       # QUALITY GATE: Verify SQL contains image URLs
