@@ -6,7 +6,8 @@ use std::env;
 use std::fs;
 use std::sync::Arc;
 
-use aws_config::BehaviorVersion;
+use aws_config::from_env;
+use aws_sdk_s3::config::Credentials;
 use aws_sdk_s3::primitives::ByteStream;
 use aws_sdk_s3::Client;
 use futures::future::join_all;
@@ -65,25 +66,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         && env::var("R2_ACCESS_KEY").is_ok()
         && env::var("R2_SECRET_KEY").is_ok()
     {
-        // Set AWS env vars for automatic credential loading
-        env::set_var("AWS_ACCESS_KEY_ID", env::var("R2_ACCESS_KEY")?);
-        env::set_var("AWS_SECRET_ACCESS_KEY", env::var("R2_SECRET_KEY")?);
-        env::set_var("AWS_REGION", "auto");
+        let access_key = env::var("R2_ACCESS_KEY")?;
+        let secret_key = env::var("R2_SECRET_KEY")?;
 
         let endpoint_url = format!("https://{}.r2.cloudflarestorage.com", account_id);
 
-        // Load config with endpoint override (no manual credentials cloning needed)
-        let base_config = aws_config::defaults(BehaviorVersion::latest())
+        // Load config matching Cloudflare official example
+        let config = from_env()
+            .endpoint_url(endpoint_url)
+            .credentials_provider(Credentials::new(access_key, secret_key, None, None, "R2"))
+            .region("auto")
             .load()
             .await;
 
-        // Build S3-specific config with path-style for R2
-        let s3_config = aws_sdk_s3::config::Builder::from(&base_config)
-            .endpoint_url(endpoint_url)
-            .force_path_style(true)
-            .build();
-
-        let client = Client::from_conf(s3_config);
+        let client = Client::new(&config);
         eprintln!("R2 client initialized for bucket: {}", bucket);
         debug_header.push_str("-- R2 Client: Initialized\n");
         Some(client)
@@ -226,8 +222,8 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(Str
                             eprintln!("[{}] Image uploaded successfully", db_id);
                         }
                         Err(e) => {
-                            logs.push_str(&format!("R2 upload failed: {}\n", e));
-                            eprintln!("[{}] R2 upload error: {}", db_id, e);
+                            logs.push_str(&format!("R2 upload failed: {:?}\n", e));
+                            eprintln!("[{}] R2 upload error: {:?}", db_id, e);
                         }
                     }
                 } else {
