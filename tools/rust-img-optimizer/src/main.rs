@@ -29,7 +29,7 @@ struct Model {
     source: Option<String>,
     description: Option<String>,
     // Optional input image url if collectors provide it later
-    image_url: Option<String>, 
+    image_url: Option<String>,
 }
 
 struct ProcessingContext {
