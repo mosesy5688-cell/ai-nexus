@@ -3,15 +3,11 @@
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::env;
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
+use std::path::Path;
 use std::sync::Arc;
 
-use aws_config::SdkConfig;
-use aws_credential_types::provider::SharedCredentialsProvider;
-use aws_types::region::Region;
-use aws_sdk_s3::config::Credentials;
-use aws_sdk_s3::primitives::ByteStream;
-use aws_sdk_s3::Client;
 use futures::future::join_all;
 use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
@@ -39,12 +35,6 @@ struct Model {
     image_url: Option<String>,
 }
 
-struct ProcessingContext {
-    r2_client: Option<Client>,
-    bucket: String,
-    public_url_prefix: String,
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
@@ -58,87 +48,65 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     eprintln!("Processing input file: {}", args.input);
 
-    // ==================== 1. Initialize Cloudflare R2 Client ====================
-    let bucket = env::var("R2_BUCKET").unwrap_or_else(|_| "MISSING_BUCKET".to_string());
-    let account_id = env::var("CLOUDFLARE_ACCOUNT_ID").unwrap_or_else(|_| "MISSING_ID".to_string());
-    let public_url_prefix = env::var("R2_PUBLIC_URL_PREFIX").unwrap_or_else(|_| "https://cdn.free2aitools.com".to_string());
+    // ==================== Create temporary images directory ====================
+    fs::create_dir_all("data/images")?;
 
-    let r2_client = if bucket != "MISSING_BUCKET"
-        && account_id != "MISSING_ID"
-        && env::var("R2_ACCESS_KEY").is_ok()
-        && env::var("R2_SECRET_KEY").is_ok()
-    {
-        let access_key = env::var("R2_ACCESS_KEY")?;
-        let secret_key = env::var("R2_SECRET_KEY")?;
-
-        let endpoint_url = format!("https://{}.r2.cloudflarestorage.com", account_id);
-
-        // Use a pure, manual config builder to avoid conflicts with other env vars
-        let config = SdkConfig::builder()
-            .endpoint_url(endpoint_url)
-            .credentials_provider(SharedCredentialsProvider::new(Credentials::new(access_key, secret_key, None, None, "R2")))
-            .region(Region::new("auto"))
-            .build();
-
-        let client = Client::from_conf(aws_sdk_s3::Config::from(&config));
-        eprintln!("R2 client initialized for bucket: {}", bucket);
-        debug_header.push_str("-- R2 Client: Initialized\n");
-        Some(client)
-    } else {
-        eprintln!("R2 credentials missing – skipping image uploads.");
-        debug_header.push_str("-- R2 Client: SKIPPED (Missing credentials)\n");
-        None
-    };
-
-    // ==================== 2. Load JSON data ====================
+    // ==================== Load JSON data ====================
     let data = fs::read_to_string(&args.input)?;
     let models: Vec<Model> = serde_json::from_str(&data)?;
     eprintln!("Found {} models in the file", models.len());
 
-    // ==================== 3. Process models concurrently ====================
-    let ctx = Arc::new(ProcessingContext {
-        r2_client,
-        bucket: bucket.clone(),
-        public_url_prefix,
-    });
-
+    // ==================== Process models concurrently ====================
     let semaphore = Arc::new(Semaphore::new(10));
 
     eprintln!("Starting concurrent image processing for {} models...", models.len());
 
-    let handles: Vec<JoinHandle<Option<(String, bool, String)>>> = models
+    let handles: Vec<JoinHandle<Option<(String, Option<String>, String)>>> = models
         .into_iter()
         .map(|model| {
-            let ctx = Arc::clone(&ctx);
             let sem = Arc::clone(&semaphore);
             tokio::spawn(async move {
                 let _permit = sem.acquire().await.unwrap();
-                process_model(model, ctx).await
+                process_model(model).await
             })
         })
         .collect();
 
     let results = join_all(handles).await;
 
-    // ==================== 4. Generate SQL output ====================
-    let mut sql = String::from("-- Auto-generated upsert SQL\n");
-    sql.push_str(&debug_header);
+    // ==================== Generate SQL output ====================
+    let mut upsert_sql = String::from("-- Auto-generated upsert SQL\n");
+    let mut update_sql = String::from("-- Auto-generated update URLs SQL\n");
+    
+    upsert_sql.push_str(&debug_header);
+    update_sql.push_str(&debug_header);
 
     let mut total_models = 0;
     let mut models_with_images = 0;
 
     for result in results {
-        if let Ok(Some((stmt, has_image, logs))) = result {
-            sql.push_str(&stmt);
-            if !logs.is_empty() {
-                sql.push_str(&format!("/* LOGS:\n{}\n*/\n", logs));
-            }
-            total_models += 1;
-            if has_image {
+        if let Ok(Some((upsert_stmt, update_stmt, logs))) = result {
+            upsert_sql.push_str(&upsert_stmt);
+            
+            if let Some(update) = update_stmt {
+                update_sql.push_str(&update);
                 models_with_images += 1;
             }
+
+            if !logs.is_empty() {
+                let log_comment = format!("/* LOGS:\n{}\n*/\n", logs);
+                upsert_sql.push_str(&log_comment);
+                update_sql.push_str(&log_comment);
+            }
+            total_models += 1;
         }
     }
+
+    let mut upsert_file = File::create("data/upsert.sql")?;
+    upsert_file.write_all(upsert_sql.as_bytes())?;
+
+    let mut update_file = File::create("data/update_urls.sql")?;
+    update_file.write_all(update_sql.as_bytes())?;
 
     eprintln!("SQL Generation Summary:");
     eprintln!("  Total models processed: {}", total_models);
@@ -153,23 +121,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     eprintln!("  Models without images: {}", total_models - models_with_images);
 
-    println!("{}", sql);
     eprintln!("SQL generated successfully.");
 
     Ok(())
 }
 
-async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(String, bool, String)> {
-    let source = model.source.unwrap_or_else(|| "huggingface".to_string());
+async fn process_model(model: Model) -> Option<(String, Option<String>, String)> {
+    let source = model.source.clone().unwrap_or_else(|| "huggingface".to_string());
 
-    let (author, name) = if let (Some(a), Some(n)) = (model.author, model.name) {
+    let (author, name) = if let (Some(a), Some(n)) = (model.author.clone(), model.name.clone()) {
         (a, n)
     } else {
         let parts: Vec<String> = model.id.split('/').map(|s| s.to_string()).collect();
         if parts.len() >= 2 {
             (parts[0].clone(), parts[1].clone())
         } else {
-            ("unknown".to_string(), model.id)
+            ("unknown".to_string(), model.id.clone())
         }
     };
 
@@ -184,67 +151,14 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(Str
     );
 
     let mut logs = String::new();
-    let mut final_image_url = "NULL".to_string();
-    let mut has_image = false;
 
-    // ==================== Image download & upload to R2 ====================
-    if let Some(client) = ctx.r2_client.as_ref() {
-        let src_url = if source == "github" {
-            format!("https://github.com/{}.png", author)
-        } else {
-            format!(
-                "https://ui-avatars.com/api/?name={}&size=512&background=random&color=fff",
-                encode(&name)
-            )
-        };
-
-        logs.push_str(&format!("Downloading image for {} from {}\n", db_id, src_url));
-        eprintln!("[{}] Downloading image...", db_id);
-
-        if let Ok(resp) = reqwest::get(src_url).await {
-            if resp.status().is_success() {
-                if let Ok(body) = resp.bytes().await {
-                    let object_key = format!("models/{}.jpg", db_id);
-
-                    let put_result = client
-                        .put_object()
-                        .bucket(ctx.bucket.clone())
-                        .key(object_key.clone())
-                        .body(ByteStream::from(body.to_vec()))
-                        .content_type("image/jpeg")
-                        .send()
-                        .await;
-
-                    match put_result {
-                        Ok(_) => {
-                            final_image_url = format!("'{}/{}'", ctx.public_url_prefix, object_key);
-                            has_image = true;
-                            logs.push_str("Successfully uploaded to R2\n");
-                            eprintln!("[{}] Image uploaded successfully", db_id);
-                        }
-                        Err(e) => {
-                            logs.push_str(&format!("R2 upload failed: {:?}\n", e));
-                            eprintln!("[{}] R2 upload error: {:?}", db_id, e);
-                        }
-                    }
-                } else {
-                    logs.push_str("Failed to read image bytes\n");
-                }
-            } else {
-                logs.push_str(&format!("HTTP error: {}\n", resp.status()));
-            }
-        } else {
-            logs.push_str("Network request failed\n");
-        }
-    }
-
-    // ==================== Build SQL statement ====================
+    // ==================== Build Upsert SQL (Base Data) ====================
     let pipeline = model.pipeline_tag.unwrap_or_else(|| "other".to_string());
-    let tags_json = serde_json::to_string(&model.tags.unwrap_or_default()).unwrap_or_else(|_| "[]".to_string());
+    let tags_json = serde_json::to_string(&model.tags.unwrap_or_default()).unwrap_or("[]".to_string());
     let safe_desc = model.description.unwrap_or_default().replace('\'', "''").replace('\n', " ");
 
-    let stmt = format!(
-        "INSERT OR REPLACE INTO models (id, slug, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, {}, CURRENT_TIMESTAMP);\n",
+    let upsert_stmt = format!(
+        "INSERT OR REPLACE INTO models (id, slug, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, NULL, CURRENT_TIMESTAMP);\n",
         db_id,
         slug,
         name.replace('\'', "''"),
@@ -253,9 +167,52 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(Str
         tags_json.replace('\'', "''"),
         pipeline,
         model.likes.unwrap_or(0),
-        model.downloads.unwrap_or(0),
-        final_image_url
+        model.downloads.unwrap_or(0)
     );
 
-    Some((stmt, has_image, logs))
+    // ==================== Image Download & Update SQL ====================
+    let src_url = if source == "github" {
+        format!("https://github.com/{}.png", author)
+    } else {
+        format!(
+            "https://ui-avatars.com/api/?name={}&size=512&background=random&color=fff",
+            encode(&name)
+        )
+    };
+
+    logs.push_str(&format!("Downloading image for {} from {}\n", db_id, src_url));
+    eprintln!("[{}] Downloading image...", db_id);
+
+    let mut update_stmt = None;
+
+    if let Ok(resp) = reqwest::get(src_url).await {
+        if resp.status().is_success() {
+            if let Ok(body) = resp.bytes().await {
+                let file_path = format!("data/images/{}.jpg", db_id);
+                if let Ok(mut file) = File::create(&file_path) {
+                    if file.write_all(&body).is_ok() {
+                        logs.push_str("Image saved locally\n");
+                        eprintln!("[{}] Image saved to {}", db_id, file_path);
+
+                        update_stmt = Some(format!(
+                            "UPDATE models SET cover_image_url = 'https://cdn.free2aitools.com/models/{}.jpg' WHERE id = '{}';\n",
+                            db_id, db_id
+                        ));
+                    } else {
+                        logs.push_str("Failed to write image file\n");
+                    }
+                } else {
+                    logs.push_str("Failed to create image file\n");
+                }
+            } else {
+                logs.push_str("Failed to read image bytes\n");
+            }
+        } else {
+            logs.push_str(&format!("HTTP error: {}\n", resp.status()));
+        }
+    } else {
+        logs.push_str("Network request failed\n");
+    }
+
+    Some((upsert_stmt, update_stmt, logs))
 }
