@@ -44,19 +44,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     // Debug information header
-    let mut debug_header = String::new();
-    debug_header.push_str(&format!("-- Args: {:?}\n", args));
-    debug_header.push_str(&format!("-- R2_BUCKET env: {:?}\n", env::var("R2_BUCKET")));
-    debug_header.push_str(&format!("-- CLOUDFLARE_ACCOUNT_ID env: {:?}\n", env::var("CLOUDFLARE_ACCOUNT_ID")));
-
-
-    // ==================== 3. Process models concurrently ====================
-    let ctx = Arc::new(ProcessingContext {
-        r2_client,
-        bucket: bucket.clone(),
-        public_url_prefix: "https://cdn.free2aitools.com".to_string(),
-    });
-
     let semaphore = Arc::new(Semaphore::new(10));
 
     eprintln!("Starting concurrent image processing for {} models...", models.len());
