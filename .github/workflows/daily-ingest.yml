@@ -42,11 +42,9 @@ jobs:
         run: |
           echo "--- Diagnosing R2 Endpoint Connectivity ---"
           ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ENDPOINT="${ACCOUNT_ID}.r2.cloudflarestorage.com"
-          echo "Pinging ${R2_ENDPOINT}..."
-          ping -c 4 "${R2_ENDPOINT}"
-          echo "--- Running curl verbose ---"
-          curl -v "https://""${R2_ENDPOINT}"
+          R2_URL="https://${ACCOUNT_ID}.r2.cloudflarestorage.com"
+          echo "--- Running curl verbose connection test to ${R2_URL} ---"
+          curl -v --fail --connect-timeout 15 "${R2_URL}"
 
       - name: Process Data (Rust)
         run: |
