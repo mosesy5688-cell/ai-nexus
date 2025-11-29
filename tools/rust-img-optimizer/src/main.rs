@@ -195,11 +195,12 @@ async fn process_model(model: Model, ctx: Arc<ProcessingContext>) -> Option<(Str
                     match resp.bytes().await {
                         Ok(bytes) => {
                             // 3. Upload to R2
+                            let bytes_len = bytes.len() as i64;
                             let result = client.put_object()
                                 .bucket(&ctx.bucket)
                                 .key(&object_key)
-                                .body(ByteStream::from(bytes))
-                                .content_length(bytes.len() as i64)
+                                .body(ByteStream::from(bytes)) // bytes is moved here
+                                .content_length(bytes_len)      // Use the pre-calculated length
                                 .content_type("image/jpeg")
                                 .send()
                                 .await;
