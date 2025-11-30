@@ -252,7 +252,18 @@ export function findSimilarModels(targetModel, allModels, count = 5) {
     return allModels
         .filter(model => model.id !== targetModel.id)
         .map(model => {
-            const modelTags = model.tags || [];
+            let modelTags = model.tags || [];
+            // Handle raw DB data where tags is a JSON string
+            if (typeof modelTags === 'string') {
+                try {
+                    modelTags = JSON.parse(modelTags);
+                } catch (e) {
+                    modelTags = [];
+                }
+            }
+            // Ensure it's an array
+            if (!Array.isArray(modelTags)) modelTags = [];
+
             const sharedTags = modelTags.filter(tag => targetTags.has(tag));
             return { model, score: sharedTags.length };
         })
