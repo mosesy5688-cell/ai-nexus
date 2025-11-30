@@ -243,25 +243,11 @@ export function prepareCardData(model) {
 
 /**
  * Prepare model data for detail page
- * Updated: 2025-11-30T21:05:00 (Renamed to data-service.js)
  */
-export function findSimilarModels(targetModel, allModels, count = 5) {
-    if (!targetModel || !allModels || !Array.isArray(allModels)) return [];
-
-    // Safely parse targetModel.tags (might be JSON string from DB)
-    let targetTagsArray = targetModel.tags || [];
-    if (typeof targetTagsArray === 'string') {
-        try {
-            targetTagsArray = JSON.parse(targetTagsArray);
-        } catch (e) {
-            targetTagsArray = [];
-        }
-    }
-    if (!Array.isArray(targetTagsArray)) targetTagsArray = [];
-    const targetTags = new Set(targetTagsArray);
-
-    // Transform similar models to card-ready format with proper URLs
-    const similarModels = rawSimilarModels.map(similarModel => prepareCardData(similarModel));
+export function prepareDetailData(rawModel, candidateModels = []) {
+    const normalized = normalizeModelData(rawModel);
+    const validation = validateModelData(normalized);
+    const similarModels = findSimilarModels(normalized, candidateModels, 5);
 
     return {
         ...normalized,
@@ -274,6 +260,29 @@ export function findSimilarModels(targetModel, allModels, count = 5) {
         validation,
         hasIssues: validation.length > 0
     };
+}
+
+/**
+ * Find similar models based on shared tags
+ */
+export function findSimilarModels(targetModel, allModels, count = 5) {
+    if (!targetModel || !allModels || !Array.isArray(allModels)) return [];
+
+    const targetTags = new Set(targetModel.tags || []);
+    if (targetTags.size === 0) return [];
+
+    const scoredModels = allModels
+        .filter(m => m.id !== targetModel.id)
+        .map(m => {
+            const modelTags = new Set(m.tags || []);
+            const intersection = new Set([...targetTags].filter(tag => modelTags.has(tag)));
+            return { model: m, score: intersection.size };
+        })
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score || b.model.downloads - a.model.downloads)
+        .slice(0, count);
+
+    return scoredModels.map(item => prepareCardData(item.model));
 }
 
 /**
