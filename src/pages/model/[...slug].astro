@@ -1,54 +1,32 @@
+---
 export const prerender = false;
+
 import Layout from '../../layouts/Layout.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import SimilarModels from '../../components/SimilarModels.astro';
 import { getModelBySlug } from '../../utils/db';
 import { prepareDetailData, getBestDescription, formatMetric, formatRelativeTime } from '../../utils/frontend-data';
+
 const { slug } = Astro.params;
+
 let model = null;
 let rawModel = null;
 let relatedModels = [];
-let usedFallback = false;
 let error = null;
 let pageTitle = "AI Model Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI model.";
+
 // Fetch model data
 try {
   if (!slug) throw new Error("No slug provided");
+
   rawModel = await getModelBySlug(slug, Astro.locals);
- 
+  
   if (rawModel) {
-    // Parse JSON fields from database if they are strings
-    ['tags', 'resources'].forEach(field => {
-      if (typeof rawModel[field] === 'string') {
-        try {
-          rawModel[field] = JSON.parse(rawModel[field]);
-        } catch (e) {
-          console.warn(`Raw ${field} parse error:`, e);
-          rawModel[field] = [];
-        }
-      }
-      if (!Array.isArray(rawModel[field])) {
-        rawModel[field] = [];
-      }
-    });
-    if (typeof rawModel.links_data === 'string') {
-      try {
-        rawModel.links_data = JSON.parse(rawModel.links_data);
-      } catch (e) {
-        console.warn("Raw links_data parse error:", e);
-        rawModel.links_data = {};
-      }
-    }
-    
-    if (!rawModel.links_data || typeof rawModel.links_data !== 'object') {
-      rawModel.links_data = {};
-    
-    }
     // Fetch candidate models for similarity check
     let candidateModels = [];
     const db = Astro.locals?.runtime?.env?.DB;
-   
+    
     if (db) {
       try {
         // Fetch top 100 models by downloads to serve as a pool for finding similar models
@@ -60,13 +38,14 @@ try {
         console.warn("Candidate models fetch failed:", e);
       }
     }
+
     model = prepareDetailData(rawModel, candidateModels);
-   
+    
     // Fetch related models with fallback
     if (db) {
       try {
         let results = [];
-        usedFallback = true;
+        // 1. Try fetching by pipeline tag
         if (model.pipeline_tag) {
             const stmt = db.prepare(`
             SELECT id, name, author, likes, downloads, cover_image_url, description, pipeline_tag
@@ -77,20 +56,10 @@ try {
             `);
             const data = await stmt.bind(model.pipeline_tag, model.id).all();
             results = data.results || [];
-            if (results.length > 0) {
-                usedFallback = false;
-            } else {
-                const fallbackStmt = db.prepare(`
-                SELECT id, name, author, likes, downloads, cover_image_url, description, pipeline_tag
-                FROM models
-                WHERE id != ?
-                ORDER BY downloads DESC
-                LIMIT 6
-                `);
-                const fallbackData = await fallbackStmt.bind(model.id).all();
-                results = fallbackData.results || [];
-            }
-        } else {
+        }
+
+        // 2. Fallback to popular models if no related found
+        if (results.length === 0) {
             const stmt = db.prepare(`
             SELECT id, name, author, likes, downloads, cover_image_url, description, pipeline_tag
             FROM models
@@ -106,7 +75,7 @@ try {
         console.warn("Related models fetch failed:", e);
       }
     }
-   
+    
     // Set SEO metadata
     pageTitle = `${model.displayName} by ${model.author} — Free AI Tools`;
     pageDescription = getBestDescription(model).substring(0, 160);
@@ -115,57 +84,43 @@ try {
   console.error("Error in model detail page:", e);
   error = e;
 }
-// Use parsed tags directly (assuming array after parsing)
-let tagsArray = Array.isArray(model?.tags) ? model.tags : [];
+
+// Safely parse tags into an array for use in the template
+let tagsArray = [];
+try {
+  if (model?.tags && typeof model.tags === 'string') {
+    tagsArray = JSON.parse(model.tags);
+  }
+} catch (e) { console.warn("Tags parse error:", e); }
 // Prepare resource links
 let resourceLinks = [];
 try {
-  if (model?.source_url && model.link_status !== 'dead') {
+  if (model?.source_url) {
     resourceLinks.push({ label: 'Source Code', url: model.source_url, icon: 'github' });
   }
-  const links_data = model?.links_data || {};
-  if (links_data.docs_url) {
-    resourceLinks.push({ label: 'Documentation', url: links_data.docs_url, icon: 'docs' });
-  }
-  if (links_data.demo_url) {
-    resourceLinks.push({ label: 'Live Demo', url: links_data.demo_url, icon: 'demo' });
+  if (model?.links_data) {
+    if (model.links_data.docs_url) {
+      resourceLinks.push({ label: 'Documentation', url: model.links_data.docs_url, icon: 'docs' });
+    }
+    if (model.links_data.demo_url) {
+      resourceLinks.push({ label: 'Live Demo', url: model.links_data.demo_url, icon: 'demo' });
+    }
   }
 } catch (e) {
   console.warn("Resource links parse error:", e);
 }
-// Use parsed resources directly (assuming array after parsing)
-let parsedResources = model?.resources && model.resources !== '[]' && Array.isArray(model.resources) ? model.resources : [];
-// Prepare schema string
-let schemaString = null;
-if (model) {
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": model.displayName,
-    "description": pageDescription,
-    "author": {
-      "@type": "Person",
-      "name": model.author
-    },
-    "applicationCategory": model.pipeline_tag || "AI Model",
-    "operatingSystem": "Cross-platform",
-    "softwareVersion": model.last_updated,
-    ...(model.likes > 0 ? {
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": Math.min(5, (model.likes / 1000) + 3),
-        "ratingCount": model.likes
-      }
-    } : {}),
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    },
-    "url": `https://free2aitools.com/model/${slug}`
-  };
-  schemaString = JSON.stringify(schema).replace(/</g, '\\u003c');
+
+// Parse resources (files)
+let parsedResources = [];
+try {
+  if (model?.resources && model.resources !== '[]') {
+    const parsed = typeof model.resources === 'string' ? JSON.parse(model.resources) : model.resources;
+    if (Array.isArray(parsed)) parsedResources = parsed;
+  }
+} catch (e) {
+  console.warn("Resources parse error:", e);
 }
+---
 
 <Layout title={pageTitle} description={pageDescription}>
   <main class="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -192,6 +147,7 @@ if (model) {
                   <li><span class="text-gray-900 dark:text-white font-medium truncate max-w-[200px]" itemprop="name">{model.displayName}</span></li>
                 </ol>
               </nav>
+
               {/* Title & Header Info */}
             <div class="flex flex-col md:flex-row gap-6 items-start">
               {model.cover_image_url && (
@@ -216,14 +172,15 @@ if (model) {
             </div>
           </div>
         </div>
+
         {/* Main Content Grid */}
         <div class="container mx-auto px-4 py-12">
           <div class="max-w-7xl mx-auto">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-             
+              
               {/* Left Column: Main Content (2/3) */}
               <div class="md:col-span-2 space-y-8">
-               
+                
                 {/* Description & Metadata Integration */}
                 <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
                   <div class="flex items-center gap-3 mb-6 border-b border-gray-100 dark:border-gray-700 pb-4">
@@ -234,7 +191,7 @@ if (model) {
                     </div>
                     <h2 class="text-2xl font-bold text-gray-900 dark:text-white">About this Model</h2>
                   </div>
-                 
+                  
                   {/* Integrated Metadata List */}
                   <div class="mb-8 p-5 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
                     <ul class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -262,10 +219,11 @@ if (model) {
                         ))}
                     </ul>
                   </div>
+
                   <div class="prose prose-lg dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 leading-relaxed" itemprop="description">
                     <p class="whitespace-pre-wrap">{model.displayDescription}</p>
                   </div>
-                 
+                  
                   {/* SEO Enhancement Indicator */}
                   {model.seo_status === 'done' && model.seo_summary && (
                     <div class="mt-8 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-start gap-3">
@@ -278,6 +236,7 @@ if (model) {
                     </div>
                   )}
                 </section>
+
                 {/* Usage Example Section */}
                 <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
                     <div class="flex items-center justify-between mb-6 border-b border-gray-100 dark:border-gray-700 pb-4">
@@ -290,10 +249,10 @@ if (model) {
                             <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Usage Example</h2>
                         </div>
                     </div>
-                   
+                    
                     <div class="relative group" x-data="{ copied: false }">
                         <div class="absolute top-4 right-4 z-10">
-                            <button
+                            <button 
                                 @click="navigator.clipboard.writeText($refs.codeBlock.innerText); copied = true; setTimeout(() => copied = false, 2000)"
                                 class="flex items-center gap-2 px-3 py-1.5 bg-gray-800 text-white text-xs font-medium rounded-md hover:bg-gray-700 transition-colors shadow-sm"
                             >
@@ -304,51 +263,17 @@ if (model) {
                         </div>
                         <pre class="bg-gray-900 text-gray-100 p-6 rounded-xl overflow-x-auto text-sm font-mono leading-relaxed shadow-inner"><code x-ref="codeBlock">
 from transformers import pipeline
+
 # Load the model
 pipe = pipeline("{model.pipeline_tag || 'text-generation'}", model="{model.id}")
+
 # Run inference
 result = pipe("Hello, world!")
 print(result)
                         </code></pre>
                     </div>
                 </section>
-                {/* External Links */}
-                {resourceLinks.length > 0 && (
-                  <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                      <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-                      </svg>
-                      External Links
-                    </h3>
-                    <ul class="space-y-3">
-                      {resourceLinks.map((link) => (
-                        <li class="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors">
-                          {link.icon === 'github' && (
-                            <svg class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492 .997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                            </svg>
-                          )}
-                          {link.icon === 'docs' && (
-                            <svg class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                            </svg>
-                          )}
-                          {link.icon === 'demo' && (
-                            <svg class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                          )}
-                          <div class="flex-1 min-w-0">
-                            <a href={link.url} target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline font-medium break-all">
-                              {link.label}
-                            </a>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                )}
+
                 {/* Resources & Files */}
                 {parsedResources.length > 0 && (
                   <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
@@ -380,14 +305,15 @@ print(result)
                   </section>
                 )}
               </div>
+
               {/* Right Column: Sticky Sidebar (1/3) */}
               <div class="space-y-6">
                 <div class="sticky top-24 space-y-6">
-                   
+                    
                     {/* Primary CTA Card */}
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
                         <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Get Started</h3>
-                       
+                        
                         {model.link_status === 'dead' ? (
                             <div class="w-full px-6 py-4 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-bold text-lg rounded-xl text-center cursor-not-allowed mb-4 border border-gray-200 dark:border-gray-600">
                                 <span class="flex items-center justify-center gap-2">
@@ -397,9 +323,9 @@ print(result)
                                 <p class="text-xs font-normal mt-1">Source link reported as broken</p>
                             </div>
                         ) : (
-                            <a
-                                href={model.source_url}
-                                target="_blank"
+                            <a 
+                                href={model.source_url} 
+                                target="_blank" 
                                 rel="noopener noreferrer"
                                 class="flex items-center justify-center w-full px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-xl transition-all shadow-md hover:shadow-xl transform hover:-translate-y-0.5 mb-4"
                             >
@@ -418,6 +344,7 @@ print(result)
                             </div>
                         </div>
                     </div>
+
                     {/* Social Sharing */}
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                         <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Share this Model</h3>
@@ -436,6 +363,7 @@ print(result)
                             </a>
                         </div>
                     </div>
+
                     {/* Technical Details */}
                     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                         <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Technical Details</h3>
@@ -454,29 +382,55 @@ print(result)
                             </div>
                         </dl>
                     </div>
+
                 </div>
               </div>
+
             </div>
+
             {/* Similar Models (Tag-based) */}
             <SimilarModels models={model.similarModels} />
+
             {/* Related Models (Pipeline-based) */}
-            {relatedModels.length > 0 && (
             <section class="mt-20 border-t border-gray-200 dark:border-gray-700 pt-12">
                 <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
                   <svg class="w-8 h-8 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
                   </svg>
-                  {usedFallback || !model.pipeline_tag ? "Popular Models" : "Related Models"}
+                  {relatedModels.length > 0 && !model.pipeline_tag ? "Popular Models" : "Related Models"}
                 </h2>
                 <ModelCarousel models={relatedModels} />
             </section>
-            )}
+
           </div>
         </div>
+
         {/* Schema.org Structured Data */}
-        <script type="application/ld+json">
-          {schemaString}
-        </script>
+        <script type="application/ld+json" set:html={JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          "name": model.displayName,
+          "description": pageDescription,
+          "author": {
+            "@type": "Person",
+            "name": model.author
+          },
+          "applicationCategory": model.pipeline_tag || "AI Model",
+          "operatingSystem": "Cross-platform",
+          "softwareVersion": model.last_updated,
+          "aggregateRating": model.likes > 0 ? {
+            "@type": "AggregateRating",
+            "ratingValue": Math.min(5, (model.likes / 1000) + 3),
+            "ratingCount": model.likes
+          } : undefined,
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "url": `https://free2aitools.com/model/${slug}`
+        })} />
+
       </article>
     ) : (
       <div class="container mx-auto px-4 py-12 text-center">
@@ -488,6 +442,7 @@ print(result)
     )}
   </main>
 </Layout>
+
 <style>
   /* Smooth transitions */
   * {
@@ -495,18 +450,18 @@ print(result)
     transition-duration: 200ms;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
- 
+  
   /* Custom scrollbar for code blocks */
   pre::-webkit-scrollbar {
     height: 0.5rem;
     width: 0.5rem;
   }
- 
+  
   pre::-webkit-scrollbar-track {
     background-color: rgba(31, 41, 55, 0.5);
     border-radius: 0.5rem;
   }
- 
+  
   pre::-webkit-scrollbar-thumb {
     background-color: rgba(75, 85, 99, 0.8);
     border-radius: 9999px;
