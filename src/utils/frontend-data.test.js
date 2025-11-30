@@ -2,211 +2,195 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
     normalizeModelData,
-    formatMetric,
-    prepareCardData,
-    generateSlug,
-    parseSlug,
-    getDisplayName,
-    getBestDescription,
-    formatRelativeTime,
-    validateModelData,
-    prepareDetailData,
-    findSimilarModels
-} from './frontend-data.js';
-
-describe('normalizeModelData', () => {
-    describe('Perfect model data', () => {
-        it('should normalize a complete model object with all fields', () => {
-            const perfectModel = {
-                id: 'openai/gpt-4',
-                name: 'GPT-4',
-                author: 'OpenAI',
-                likes: 5000,
-                downloads: 1000000,
-                description: 'Advanced language model',
-                seo_summary: 'GPT-4: State-of-the-art language model',
+    id: 'openai/gpt-4',
+    name: 'GPT-4',
+    author: 'OpenAI',
+    likes: 5000,
+    downloads: 1000000,
+        description: 'Advanced language model',
+            seo_summary: 'GPT-4: State-of-the-art language model',
                 seo_status: 'done',
-                link_status: 'active',
-                pipeline_tag: 'text-generation',
-                license: 'MIT',
-                last_updated: '2024-01-15T10:30:00.000Z',
-                cover_image_url: 'https://example.com/image.png',
-                tags: '["ai", "nlp"]',
-                links_data: '{"github": "https://github.com/openai"}',
-                related_ids: '["model1", "model2"]'
+                    link_status: 'active',
+                        pipeline_tag: 'text-generation',
+                            license: 'MIT',
+                                last_updated: '2024-01-15T10:30:00.000Z',
+                                    cover_image_url: 'https://example.com/image.png',
+                                        tags: '["ai", "nlp"]',
+                                            links_data: '{"github": "https://github.com/openai"}',
+                                                related_ids: '["model1", "model2"]'
             };
 
-            const result = normalizeModelData(perfectModel);
+const result = normalizeModelData(perfectModel);
 
-            expect(result.id).toBe('openai/gpt-4');
-            expect(result.name).toBe('GPT-4');
-            expect(result.author).toBe('OpenAI');
-            expect(result.likes).toBe(5000);
-            expect(result.downloads).toBe(1000000);
-            expect(result.description).toBe('Advanced language model');
-            expect(result.seo_summary).toBe('GPT-4: State-of-the-art language model');
-            expect(result.seo_status).toBe('done');
-            expect(result.link_status).toBe('active');
-            expect(result.pipeline_tag).toBe('text-generation');
-            expect(result.license).toBe('MIT');
-            expect(result.last_updated).toBe('2024-01-15T10:30:00.000Z');
-            expect(result.cover_image_url).toBe('https://example.com/image.png');
-            expect(result.tags).toEqual(['ai', 'nlp']);
-            expect(result.links_data).toEqual({ github: 'https://github.com/openai' });
-            expect(result.related_ids).toEqual(['model1', 'model2']);
+expect(result.id).toBe('openai/gpt-4');
+expect(result.name).toBe('GPT-4');
+expect(result.author).toBe('OpenAI');
+expect(result.likes).toBe(5000);
+expect(result.downloads).toBe(1000000);
+expect(result.description).toBe('Advanced language model');
+expect(result.seo_summary).toBe('GPT-4: State-of-the-art language model');
+expect(result.seo_status).toBe('done');
+expect(result.link_status).toBe('active');
+expect(result.pipeline_tag).toBe('text-generation');
+expect(result.license).toBe('MIT');
+expect(result.last_updated).toBe('2024-01-15T10:30:00.000Z');
+expect(result.cover_image_url).toBe('https://example.com/image.png');
+expect(result.tags).toEqual(['ai', 'nlp']);
+expect(result.links_data).toEqual({ github: 'https://github.com/openai' });
+expect(result.related_ids).toEqual(['model1', 'model2']);
         });
     });
 
-    describe('Missing optional fields', () => {
-        it('should provide fallbacks for missing optional fields', () => {
-            const minimalModel = {
-                id: 'test/model',
-                name: 'Test Model',
-                author: 'Test Author'
-            };
+describe('Missing optional fields', () => {
+    it('should provide fallbacks for missing optional fields', () => {
+        const minimalModel = {
+            id: 'test/model',
+            name: 'Test Model',
+            author: 'Test Author'
+        };
 
-            const result = normalizeModelData(minimalModel);
+        const result = normalizeModelData(minimalModel);
 
-            expect(result.id).toBe('test/model');
-            expect(result.name).toBe('Test Model');
-            expect(result.author).toBe('Test Author');
-            expect(result.likes).toBe(0);
-            expect(result.downloads).toBe(0);
-            expect(result.description).toBe('');
-            expect(result.seo_summary).toBe('');
-            expect(result.seo_status).toBe('pending');
-            expect(result.link_status).toBe('unknown');
-            expect(result.pipeline_tag).toBe('');
-            expect(result.license).toBe('Unknown');
-            expect(result.cover_image_url).toBe('/placeholder-model.png');
-            expect(result.tags).toEqual([]);
-            expect(result.links_data).toEqual({});
-            expect(result.related_ids).toEqual([]);
-        });
+        expect(result.id).toBe('test/model');
+        expect(result.name).toBe('Test Model');
+        expect(result.author).toBe('Test Author');
+        expect(result.likes).toBe(0);
+        expect(result.downloads).toBe(0);
+        expect(result.description).toBe('');
+        expect(result.seo_summary).toBe('');
+        expect(result.seo_status).toBe('pending');
+        expect(result.link_status).toBe('unknown');
+        expect(result.pipeline_tag).toBe('');
+        expect(result.license).toBe('Unknown');
+        expect(result.cover_image_url).toBe('/placeholder-model.png');
+        expect(result.tags).toEqual([]);
+        expect(result.links_data).toEqual({});
+        expect(result.related_ids).toEqual([]);
+    });
+});
+
+describe('last_updated field logic', () => {
+    it('should use last_updated when provided', () => {
+        const model = {
+            id: 'test/model',
+            last_updated: '2024-01-15T10:30:00.000Z'
+        };
+
+        const result = normalizeModelData(model);
+        expect(result.last_updated).toBe('2024-01-15T10:30:00.000Z');
     });
 
-    describe('last_updated field logic', () => {
-        it('should use last_updated when provided', () => {
-            const model = {
-                id: 'test/model',
-                last_updated: '2024-01-15T10:30:00.000Z'
-            };
+    it('should fall back to current date when last_updated is missing', () => {
+        const model = {
+            id: 'test/model'
+        };
 
-            const result = normalizeModelData(model);
-            expect(result.last_updated).toBe('2024-01-15T10:30:00.000Z');
-        });
-
-        it('should fall back to current date when last_updated is missing', () => {
-            const model = {
-                id: 'test/model'
-            };
-
-            const result = normalizeModelData(model);
-            const parsedDate = new Date(result.last_updated);
-            expect(parsedDate).toBeInstanceOf(Date);
-            expect(isNaN(parsedDate.getTime())).toBe(false);
-        });
-
-        it('should NOT use lastUpdated field (removed in refactoring)', () => {
-            const model = {
-                id: 'test/model',
-                lastUpdated: '2024-01-01T00:00:00.000Z' // This should be ignored
-            };
-
-            const result = normalizeModelData(model);
-            // Should fallback to current date, NOT use lastUpdated
-            expect(result.last_updated).not.toBe('2024-01-01T00:00:00.000Z');
-            const parsedDate = new Date(result.last_updated);
-            expect(parsedDate).toBeInstanceOf(Date);
-        });
+        const result = normalizeModelData(model);
+        const parsedDate = new Date(result.last_updated);
+        expect(parsedDate).toBeInstanceOf(Date);
+        expect(isNaN(parsedDate.getTime())).toBe(false);
     });
 
-    describe('Null/undefined model handling', () => {
-        it('should return placeholder for null model', () => {
-            const result = normalizeModelData(null);
+    it('should NOT use lastUpdated field (removed in refactoring)', () => {
+        const model = {
+            id: 'test/model',
+            lastUpdated: '2024-01-01T00:00:00.000Z' // This should be ignored
+        };
 
-            expect(result.id).toBe('placeholder');
-            expect(result.name).toBe('Model Unavailable');
-            expect(result.author).toBe('Unknown');
-            expect(result.description).toContain('currently unavailable');
-            expect(result._isPlaceholder).toBe(true);
-        });
+        const result = normalizeModelData(model);
+        // Should fallback to current date, NOT use lastUpdated
+        expect(result.last_updated).not.toBe('2024-01-01T00:00:00.000Z');
+        const parsedDate = new Date(result.last_updated);
+        expect(parsedDate).toBeInstanceOf(Date);
+    });
+});
 
-        it('should return placeholder for undefined model', () => {
-            const result = normalizeModelData(undefined);
+describe('Null/undefined model handling', () => {
+    it('should return placeholder for null model', () => {
+        const result = normalizeModelData(null);
 
-            expect(result.id).toBe('placeholder');
-            expect(result._isPlaceholder).toBe(true);
-        });
-
-        it('should return placeholder for non-object model', () => {
-            const result = normalizeModelData('not an object');
-
-            expect(result.id).toBe('placeholder');
-            expect(result._isPlaceholder).toBe(true);
-        });
+        expect(result.id).toBe('placeholder');
+        expect(result.name).toBe('Model Unavailable');
+        expect(result.author).toBe('Unknown');
+        expect(result.description).toContain('currently unavailable');
+        expect(result._isPlaceholder).toBe(true);
     });
 
-    describe('Image URL validation', () => {
-        it('should accept absolute HTTPS URLs', () => {
-            const model = {
-                id: 'test/model',
-                cover_image_url: 'https://example.com/image.png'
-            };
+    it('should return placeholder for undefined model', () => {
+        const result = normalizeModelData(undefined);
 
-            const result = normalizeModelData(model);
-            expect(result.cover_image_url).toBe('https://example.com/image.png');
-        });
-
-        it('should accept absolute path starting with /', () => {
-            const model = {
-                id: 'test/model',
-                cover_image_url: '/images/model.png'
-            };
-
-            const result = normalizeModelData(model);
-            expect(result.cover_image_url).toBe('/images/model.png');
-        });
-
-        it('should accept relative path starting with ./', () => {
-            const model = {
-                id: 'test/model',
-                cover_image_url: './images/model.png'
-            };
-
-            const result = normalizeModelData(model);
-            expect(result.cover_image_url).toBe('./images/model.png');
-        });
-
-        it('should accept relative path starting with ../', () => {
-            const model = {
-                id: 'test/model',
-                cover_image_url: '../images/model.png'
-            };
-
-            const result = normalizeModelData(model);
-            expect(result.cover_image_url).toBe('../images/model.png');
-        });
-
-        it('should fallback to placeholder for invalid URLs', () => {
-            const model = {
-                id: 'test/model',
-                cover_image_url: 'not-a-valid-url'
-            };
-
-            const result = normalizeModelData(model);
-            expect(result.cover_image_url).toBe('/placeholder-model.png');
-        });
-
-        it('should fallback to placeholder for missing URL', () => {
-            const model = {
-                id: 'test/model'
-            };
-
-            const result = normalizeModelData(model);
-            expect(result.cover_image_url).toBe('/placeholder-model.png');
-        });
+        expect(result.id).toBe('placeholder');
+        expect(result._isPlaceholder).toBe(true);
     });
+
+    it('should return placeholder for non-object model', () => {
+        const result = normalizeModelData('not an object');
+
+        expect(result.id).toBe('placeholder');
+        expect(result._isPlaceholder).toBe(true);
+    });
+});
+
+describe('Image URL validation', () => {
+    it('should accept absolute HTTPS URLs', () => {
+        const model = {
+            id: 'test/model',
+            cover_image_url: 'https://example.com/image.png'
+        };
+
+        const result = normalizeModelData(model);
+        expect(result.cover_image_url).toBe('https://example.com/image.png');
+    });
+
+    it('should accept absolute path starting with /', () => {
+        const model = {
+            id: 'test/model',
+            cover_image_url: '/images/model.png'
+        };
+
+        const result = normalizeModelData(model);
+        expect(result.cover_image_url).toBe('/images/model.png');
+    });
+
+    it('should accept relative path starting with ./', () => {
+        const model = {
+            id: 'test/model',
+            cover_image_url: './images/model.png'
+        };
+
+        const result = normalizeModelData(model);
+        expect(result.cover_image_url).toBe('./images/model.png');
+    });
+
+    it('should accept relative path starting with ../', () => {
+        const model = {
+            id: 'test/model',
+            cover_image_url: '../images/model.png'
+        };
+
+        const result = normalizeModelData(model);
+        expect(result.cover_image_url).toBe('../images/model.png');
+    });
+
+    it('should fallback to placeholder for invalid URLs', () => {
+        const model = {
+            id: 'test/model',
+            cover_image_url: 'not-a-valid-url'
+        };
+
+        const result = normalizeModelData(model);
+        expect(result.cover_image_url).toBe('/placeholder-model.png');
+    });
+
+    it('should fallback to placeholder for missing URL', () => {
+        const model = {
+            id: 'test/model'
+        };
+
+        const result = normalizeModelData(model);
+        expect(result.cover_image_url).toBe('/placeholder-model.png');
+    });
+});
 });
 
 describe('formatMetric', () => {
