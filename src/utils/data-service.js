@@ -1,4 +1,4 @@
-// src/utils/frontend-data.js
+// src/utils/data-service.js
 /**
  * Frontend Data Coordination Layer
  * Ensures D1 database data is properly formatted for frontend display
@@ -243,41 +243,45 @@ export function prepareCardData(model) {
 
 /**
  * Prepare model data for detail page
- * Updated: 2025-11-30T21:00:00
+ * Updated: 2025-11-30T21:05:00 (Renamed to data-service.js)
  */
 export function findSimilarModels(targetModel, allModels, count = 5) {
     if (!targetModel || !allModels || !Array.isArray(allModels)) return [];
 
-    // Defensive parsing for targetTags
-    let targetTagsSet = new Set();
-    try {
-        let tTags = targetModel.tags;
-        if (typeof tTags === 'string') tTags = JSON.parse(tTags);
-        if (Array.isArray(tTags)) targetTagsSet = new Set(tTags);
-    } catch (e) { /* ignore */ }
-
-    const scored = [];
-    for (const model of allModels) {
-        if (model.id === targetModel.id) continue;
-
-        let score = 0;
+    // Safely parse targetModel.tags (might be JSON string from DB)
+    let targetTagsArray = targetModel.tags || [];
+    if (typeof targetTagsArray === 'string') {
         try {
-            let mTags = model.tags;
-            if (typeof mTags === 'string') mTags = JSON.parse(mTags);
-            if (Array.isArray(mTags)) {
-                // Manual intersection count
-                for (const tag of mTags) {
-                    if (targetTagsSet.has(tag)) score++;
-                }
-            }
-        } catch (e) { /* ignore */ }
-
-        if (score > 0) {
-            scored.push({ model, score });
+            targetTagsArray = JSON.parse(targetTagsArray);
+        } catch (e) {
+            targetTagsArray = [];
         }
     }
+    if (!Array.isArray(targetTagsArray)) targetTagsArray = [];
+    const targetTags = new Set(targetTagsArray);
 
-    return scored.sort((a, b) => b.score - a.score).slice(0, count).map(item => item.model);
+    return allModels
+        .filter(model => model.id !== targetModel.id)
+        .map(model => {
+            let modelTags = model.tags || [];
+            // Handle raw DB data where tags is a JSON string
+            if (typeof modelTags === 'string') {
+                try {
+                    modelTags = JSON.parse(modelTags);
+                } catch (e) {
+                    modelTags = [];
+                }
+            }
+            // Ensure it's an array
+            if (!Array.isArray(modelTags)) modelTags = [];
+
+            const sharedTags = modelTags.filter(tag => targetTags.has(tag));
+            return { model, score: sharedTags.length };
+        })
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, count)
+        .map(item => item.model);
 }
 
 export function prepareDetailData(model, allModels = []) {
