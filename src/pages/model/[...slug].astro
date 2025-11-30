@@ -104,7 +104,7 @@ try {
   error = e;
 }
 // Use parsed tags directly (assuming array after parsing)
-let tagsArray = model?.tags || [];
+let tagsArray = Array.isArray(model?.tags) ? model.tags : [];
 // Prepare resource links
 let resourceLinks = [];
 try {
@@ -124,6 +124,37 @@ try {
 }
 // Use parsed resources directly (assuming array after parsing)
 let parsedResources = model?.resources && model.resources !== '[]' && Array.isArray(model.resources) ? model.resources : [];
+// Prepare schema string
+let schemaString = null;
+if (model) {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": model.displayName,
+    "description": pageDescription,
+    "author": {
+      "@type": "Person",
+      "name": model.author
+    },
+    "applicationCategory": model.pipeline_tag || "AI Model",
+    "operatingSystem": "Cross-platform",
+    "softwareVersion": model.last_updated,
+    ...(model.likes > 0 ? {
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": Math.min(5, (model.likes / 1000) + 3),
+        "ratingCount": model.likes
+      }
+    } : {}),
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "url": `https://free2aitools.com/model/${slug}`
+  };
+  schemaString = JSON.stringify(schema).replace(/</g, '\\u003c');
+}
 
 <Layout title={pageTitle} description={pageDescription}>
   <main class="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -432,30 +463,9 @@ print(result)
           </div>
         </div>
         {/* Schema.org Structured Data */}
-        <script type="application/ld+json" set:html={JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "SoftwareApplication",
-          "name": model.displayName,
-          "description": pageDescription,
-          "author": {
-            "@type": "Person",
-            "name": model.author
-          },
-          "applicationCategory": model.pipeline_tag || "AI Model",
-          "operatingSystem": "Cross-platform",
-          "softwareVersion": model.last_updated,
-          "aggregateRating": model.likes > 0 ? {
-            "@type": "AggregateRating",
-            "ratingValue": Math.min(5, (model.likes / 1000) + 3),
-            "ratingCount": model.likes
-          } : undefined,
-          "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
-          },
-          "url": `https://free2aitools.com/model/${slug}`
-        })} />
+        <script type="application/ld+json">
+          {schemaString}
+        </script>
       </article>
     ) : (
       <div class="container mx-auto px-4 py-12 text-center">
