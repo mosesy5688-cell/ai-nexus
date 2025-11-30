@@ -276,7 +276,10 @@ export function findSimilarModels(targetModel, allModels, count = 5) {
 export function prepareDetailData(model, allModels = []) {
     const normalized = normalizeModelData(model);
     const validation = validateModelData(normalized);
-    const similarModels = findSimilarModels(normalized, allModels, 5);
+    const rawSimilarModels = findSimilarModels(normalized, allModels, 5);
+
+    // Transform similar models to card-ready format with proper URLs
+    const similarModels = rawSimilarModels.map(similarModel => prepareCardData(similarModel));
 
     return {
         ...normalized,
