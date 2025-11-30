@@ -247,7 +247,17 @@ export function prepareCardData(model) {
 export function findSimilarModels(targetModel, allModels, count = 5) {
     if (!targetModel || !allModels || !Array.isArray(allModels)) return [];
 
-    const targetTags = new Set(targetModel.tags || []);
+    // Safely parse targetModel.tags (might be JSON string from DB)
+    let targetTagsArray = targetModel.tags || [];
+    if (typeof targetTagsArray === 'string') {
+        try {
+            targetTagsArray = JSON.parse(targetTagsArray);
+        } catch (e) {
+            targetTagsArray = [];
+        }
+    }
+    if (!Array.isArray(targetTagsArray)) targetTagsArray = [];
+    const targetTags = new Set(targetTagsArray);
 
     return allModels
         .filter(model => model.id !== targetModel.id)
