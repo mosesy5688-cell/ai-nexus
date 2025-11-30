@@ -88,6 +88,79 @@ try {
 // If no model found (and not redirected), show error
 if (!model && !error) {
   error = new Error(`Model not found for slug: "${slug}"`);
+}
+
+// Prepare tags array
+const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
+
+// Prepare resource links
+let resourceLinks = [];
+try {
+  if (model?.source_url) {
+    resourceLinks.push({ label: 'Source Code', url: model.source_url, icon: 'github' });
+  }
+  if (model?.links_data) {
+    if (model.links_data.docs_url) {
+      resourceLinks.push({ label: 'Documentation', url: model.links_data.docs_url, icon: 'docs' });
+    }
+    if (model.links_data.demo_url) {
+      resourceLinks.push({ label: 'Live Demo', url: model.links_data.demo_url, icon: 'demo' });
+    }
+  }
+} catch (e) {
+  console.warn("Resource links parse error:", e);
+}
+
+// Parse resources (files)
+let parsedResources = [];
+try {
+  if (model?.resources && model.resources !== '[]') {
+    const parsed = typeof model.resources === 'string' ? JSON.parse(model.resources) : model.resources;
+    if (Array.isArray(parsed)) parsedResources = parsed;
+  }
+} catch (e) {
+  console.warn("Resources parse error:", e);
+}
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <main class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    {error ? (
+      <div class="container mx-auto px-4 py-12 text-center">
+        <div class="bg-red-50 text-red-800 p-8 rounded-lg max-w-2xl mx-auto">
+          <h1 class="text-3xl font-bold mb-4">Error Loading Model</h1>
+          <p class="text-xl mb-6">{error.message || error}</p>
+          <div class="text-left bg-gray-100 p-4 rounded overflow-auto text-sm font-mono">
+             <p><strong>Slug Received:</strong> "{slug}"</p>
+             <p><strong>Debug Info:</strong> Check if this slug matches the database entry exactly.</p>
+          </div>
+          <a href="/" class="inline-block mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            Return Home
+          </a>
+        </div>
+      </div>
+    ) : (
+          <div class="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+          </div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Model Not Found</h1>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
+          <a href="/" class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Back to Homepage
+          </a>
+        </div>
+      </div>
+    ) : (
+      <article class="pb-16" itemscope itemtype="https://schema.org/SoftwareApplication">
+        
+        {/* Hero Section */}
+        <div class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950/30 border-b border-gray-200 dark:border-gray-700">
+          <div class="container mx-auto px-4 py-8">
             <div class="max-w-7xl mx-auto">
               
               {/* Breadcrumb */}
