@@ -85,13 +85,9 @@ try {
   error = e;
 }
 
-// Safely parse tags into an array for use in the template
-let tagsArray = [];
-try {
-  if (model?.tags && typeof model.tags === 'string') {
-    tagsArray = JSON.parse(model.tags);
-  }
-} catch (e) { console.warn("Tags parse error:", e); }
+// Tags are already parsed by normalizeModelData, just ensure it's an array
+const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
+
 // Prepare resource links
 let resourceLinks = [];
 try {
