@@ -18568,7 +18568,7 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 11923,
+    "likes": 11925,
     "downloads": 1389939,
     "is_rising_star": false
   },
@@ -18595,7 +18595,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 7169,
+    "likes": 7172,
     "downloads": 2771023,
     "is_rising_star": false
   },
@@ -18669,7 +18669,7 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 5326,
+    "likes": 5331,
     "downloads": 3799170,
     "is_rising_star": false
   },
@@ -18793,7 +18793,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 5140,
+    "likes": 5142,
     "downloads": 4783536,
     "is_rising_star": false
   },
@@ -18830,7 +18830,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 5032,
+    "likes": 5036,
     "downloads": 5094095,
     "is_rising_star": false
   },
@@ -18926,7 +18926,7 @@
       "license:other",
       "region:us"
     ],
-    "likes": 4874,
+    "likes": 4875,
     "downloads": 11172,
     "is_rising_star": false
   },
@@ -18999,7 +18999,7 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 4431,
+    "likes": 4432,
     "downloads": 805853,
     "is_rising_star": false
   },
@@ -19049,7 +19049,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 4302,
+    "likes": 4303,
     "downloads": 1096335,
     "is_rising_star": false
   },
@@ -19075,7 +19075,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 4198,
+    "likes": 4199,
     "downloads": 4387789,
     "is_rising_star": false
   },
@@ -19206,7 +19206,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 3994,
+    "likes": 3996,
     "downloads": 7149808,
     "is_rising_star": false
   },
@@ -19370,7 +19370,7 @@
       "diffusers:StableDiffusion3Pipeline",
       "region:us"
     ],
-    "likes": 3235,
+    "likes": 3239,
     "downloads": 92278,
     "is_rising_star": false
   },
@@ -19386,7 +19386,7 @@
       "license:other",
       "region:us"
     ],
-    "likes": 3197,
+    "likes": 3198,
     "downloads": 5474879,
     "is_rising_star": false
   },
@@ -19509,7 +19509,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 3020,
+    "likes": 3021,
     "downloads": 3696618,
     "is_rising_star": false
   },
@@ -19563,7 +19563,7 @@
       "license:mit",
       "region:us"
     ],
-    "likes": 2881,
+    "likes": 2884,
     "downloads": 5437105,
     "is_rising_star": false
   },
@@ -19591,7 +19591,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 2869,
+    "likes": 2868,
     "downloads": 54913,
     "is_rising_star": false
   },
@@ -19816,7 +19816,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2576,
+    "likes": 2577,
     "downloads": 428632,
     "is_rising_star": false
   },
@@ -19845,7 +19845,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2531,
+    "likes": 2533,
     "downloads": 7135261,
     "is_rising_star": false
   },
@@ -19877,7 +19877,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2489,
+    "likes": 2491,
     "downloads": 61036401,
     "is_rising_star": true
   },
@@ -19919,7 +19919,7 @@
       "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 2460,
+    "likes": 2461,
     "downloads": 3117,
     "is_rising_star": false
   },
@@ -20108,7 +20108,7 @@
       "fp8",
       "region:us"
     ],
-    "likes": 2267,
+    "likes": 2268,
     "downloads": 172676,
     "is_rising_star": false
   },
@@ -20130,7 +20130,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 2241,
+    "likes": 2243,
     "downloads": 267953,
     "is_rising_star": false
   },
@@ -20220,7 +20220,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2200,
+    "likes": 2201,
     "downloads": 3240138,
     "is_rising_star": false
   },
@@ -20416,7 +20416,7 @@
       "diffusers:StableDiffusionXLImg2ImgPipeline",
       "region:us"
     ],
-    "likes": 1998,
+    "likes": 1999,
     "downloads": 479854,
     "is_rising_star": false
   },
@@ -20442,7 +20442,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1994,
+    "likes": 1995,
     "downloads": 168440,
     "is_rising_star": false
   },
@@ -20498,7 +20498,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 1953,
+    "likes": 1954,
     "downloads": 274873,
     "is_rising_star": false
   },
@@ -20556,7 +20556,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1909,
+    "likes": 1910,
     "downloads": 9337525,
     "is_rising_star": false
   },
@@ -20620,7 +20620,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1841,
+    "likes": 1842,
     "downloads": 1653662,
     "is_rising_star": false
   },
@@ -21023,8 +21023,32 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1713,
+    "likes": 1715,
     "downloads": 1154254,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-microsoft-Florence-2-large",
+    "slug": "huggingface--microsoft--florence-2-large",
+    "name": "Florence-2-large",
+    "author": "microsoft",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "safetensors",
+      "florence2",
+      "any-to-any",
+      "vision",
+      "image-text-to-text",
+      "custom_code",
+      "arxiv:2311.06242",
+      "license:mit",
+      "endpoints_compatible",
+      "region:us"
+    ],
+    "likes": 1711,
+    "downloads": 799423,
     "is_rising_star": false
   },
   {
@@ -21050,30 +21074,6 @@
     ],
     "likes": 1711,
     "downloads": 162,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-microsoft-Florence-2-large",
-    "slug": "huggingface--microsoft--florence-2-large",
-    "name": "Florence-2-large",
-    "author": "microsoft",
-    "description": "",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "safetensors",
-      "florence2",
-      "any-to-any",
-      "vision",
-      "image-text-to-text",
-      "custom_code",
-      "arxiv:2311.06242",
-      "license:mit",
-      "endpoints_compatible",
-      "region:us"
-    ],
-    "likes": 1710,
-    "downloads": 799423,
     "is_rising_star": false
   },
   {
@@ -21458,11 +21458,11 @@
     "slug": "pytorch--huggingface--pytorch-transformers",
     "name": "PyTorch-Transformers",
     "author": "huggingface",
-    "description": "PyTorch implementations of popular NLP Transformers \t\t\t\t\t\t \t\t\t\t\t 153.1k",
+    "description": "PyTorch implementations of popular NLP Transformers \t\t\t\t\t\t \t\t\t\t\t 153.2k",
     "tags": [
       "pytorch"
     ],
-    "likes": 153100,
+    "likes": 153200,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -21476,19 +21476,6 @@
       "pytorch"
     ],
     "likes": 56200,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-RoBERTa",
-    "slug": "pytorch--pytorch--roberta",
-    "name": "RoBERTa",
-    "author": "pytorch",
-    "description": "A Robustly Optimized BERT Pretraining Approach \t\t\t\t\t\t \t\t\t\t\t 32.0k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 32000,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -21507,81 +21494,15 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-GoogLeNet",
-    "slug": "pytorch--pytorch--googlenet",
-    "name": "GoogLeNet",
+    "id": "pytorch-pytorch-RoBERTa",
+    "slug": "pytorch--pytorch--roberta",
+    "name": "RoBERTa",
     "author": "pytorch",
-    "description": "GoogLeNet was based on a deep convolutional neural network architecture codenamed “Inception” which won ImageNet 2014. \t\t\t\t\t\t \t\t\t\t\t 17.3k",
-    "tags": [
-      "pytorch",
-      "code-generation-assistance"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-Inception-v3",
-    "slug": "pytorch--pytorch--inception-v3",
-    "name": "Inception_v3",
-    "author": "pytorch",
-    "description": "Also called GoogleNetv3, a famous ConvNet trained on ImageNet from 2015 \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "description": "A Robustly Optimized BERT Pretraining Approach \t\t\t\t\t\t \t\t\t\t\t 32.0k",
     "tags": [
       "pytorch"
     ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-MobileNet v2",
-    "slug": "pytorch--pytorch--mobilenet v2",
-    "name": "MobileNet v2",
-    "author": "pytorch",
-    "description": "Efficient networks optimized for speed and memory, with residual blocks \t\t\t\t\t\t \t\t\t\t\t 17.3k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-ResNet",
-    "slug": "pytorch--pytorch--resnet",
-    "name": "ResNet",
-    "author": "pytorch",
-    "description": "Deep residual networks pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.3k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-ResNext",
-    "slug": "pytorch--pytorch--resnext",
-    "name": "ResNext",
-    "author": "pytorch",
-    "description": "Next generation ResNets, more efficient and accurate \t\t\t\t\t\t \t\t\t\t\t 17.3k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-pytorch-ShuffleNet v2",
-    "slug": "pytorch--pytorch--shufflenet v2",
-    "name": "ShuffleNet v2",
-    "author": "pytorch",
-    "description": "An efficient ConvNet optimized for speed and memory, pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.3k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17300,
+    "likes": 32000,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -21669,6 +21590,85 @@
     "name": "Wide ResNet",
     "author": "pytorch",
     "description": "Wide Residual Networks \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-GoogLeNet",
+    "slug": "pytorch--pytorch--googlenet",
+    "name": "GoogLeNet",
+    "author": "pytorch",
+    "description": "GoogLeNet was based on a deep convolutional neural network architecture codenamed “Inception” which won ImageNet 2014. \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch",
+      "code-generation-assistance"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-Inception-v3",
+    "slug": "pytorch--pytorch--inception-v3",
+    "name": "Inception_v3",
+    "author": "pytorch",
+    "description": "Also called GoogleNetv3, a famous ConvNet trained on ImageNet from 2015 \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-MobileNet v2",
+    "slug": "pytorch--pytorch--mobilenet v2",
+    "name": "MobileNet v2",
+    "author": "pytorch",
+    "description": "Efficient networks optimized for speed and memory, with residual blocks \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-ResNet",
+    "slug": "pytorch--pytorch--resnet",
+    "name": "ResNet",
+    "author": "pytorch",
+    "description": "Deep residual networks pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-ResNext",
+    "slug": "pytorch--pytorch--resnext",
+    "name": "ResNext",
+    "author": "pytorch",
+    "description": "Next generation ResNets, more efficient and accurate \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-ShuffleNet v2",
+    "slug": "pytorch--pytorch--shufflenet v2",
+    "name": "ShuffleNet v2",
+    "author": "pytorch",
+    "description": "An efficient ConvNet optimized for speed and memory, pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.3k",
     "tags": [
       "pytorch"
     ],
@@ -21859,11 +21859,11 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-SNNMLP",
-    "slug": "pytorch--pytorch--snnmlp",
-    "name": "SNNMLP",
+    "id": "pytorch-pytorch-GhostNet",
+    "slug": "pytorch--pytorch--ghostnet",
+    "name": "GhostNet",
     "author": "pytorch",
-    "description": "Brain-inspired Multilayer Perceptron with Spiking Neurons \t\t\t\t\t\t \t\t\t\t\t 4.3k",
+    "description": "Efficient networks by generating more features from cheap operations \t\t\t\t\t\t \t\t\t\t\t 4.3k",
     "tags": [
       "pytorch"
     ],
@@ -21872,11 +21872,11 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-GhostNet",
-    "slug": "pytorch--pytorch--ghostnet",
-    "name": "GhostNet",
+    "id": "pytorch-pytorch-SNNMLP",
+    "slug": "pytorch--pytorch--snnmlp",
+    "name": "SNNMLP",
     "author": "pytorch",
-    "description": "Efficient networks by generating more features from cheap operations \t\t\t\t\t\t \t\t\t\t\t 4.3k",
+    "description": "Brain-inspired Multilayer Perceptron with Spiking Neurons \t\t\t\t\t\t \t\t\t\t\t 4.3k",
     "tags": [
       "pytorch"
     ],
@@ -21963,6 +21963,19 @@
     "is_rising_star": false
   },
   {
+    "id": "pytorch-facebookresearch-DCGAN on FashionGen",
+    "slug": "pytorch--facebookresearch--dcgan on fashiongen",
+    "name": "DCGAN on FashionGen",
+    "author": "facebookresearch",
+    "description": "A simple generative image model for 64×64 images \t\t\t\t\t\t \t\t\t\t\t 1.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 1600,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "pytorch-facebookresearch-Progressive Growing of GANs (PGAN)",
     "slug": "pytorch--facebookresearch--progressive growing of gans (pgan)",
     "name": "Progressive Growing of GANs (PGAN)",
@@ -21971,19 +21984,6 @@
     "tags": [
       "pytorch",
       "image-generation"
-    ],
-    "likes": 1600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-facebookresearch-DCGAN on FashionGen",
-    "slug": "pytorch--facebookresearch--dcgan on fashiongen",
-    "name": "DCGAN on FashionGen",
-    "author": "facebookresearch",
-    "description": "A simple generative image model for 64×64 images \t\t\t\t\t\t \t\t\t\t\t 1.6k",
-    "tags": [
-      "pytorch"
     ],
     "likes": 1600,
     "downloads": 0,
@@ -22020,11 +22020,11 @@
     "slug": "pytorch--pytorch--ibn-net",
     "name": "IBN-Net",
     "author": "pytorch",
-    "description": "Networks with domain/appearance invariance \t\t\t\t\t\t \t\t\t\t\t 808",
+    "description": "Networks with domain/appearance invariance \t\t\t\t\t\t \t\t\t\t\t 807",
     "tags": [
       "pytorch"
     ],
-    "likes": 808,
+    "likes": 807,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -22258,26 +22258,6 @@
     "is_rising_star": false
   },
   {
-    "id": "github-R-Projects-Portfolio-Madrid-Real-Estate-Price-Prediction",
-    "slug": "github--r-projects-portfolio--madrid-real-estate-price-prediction",
-    "name": "Madrid-Real-Estate-Price-Prediction",
-    "author": "R-Projects-Portfolio",
-    "description": "This is a Supervised Learning Model which predicts the Price of Real Estate in Madrid, Spain.",
-    "tags": [
-      "github",
-      "machine-learning",
-      "machine-learning-model",
-      "price-prediction",
-      "r",
-      "r-project",
-      "supervised-learning",
-      "supervised-machine-learning"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
     "id": "github-twoChar-Flight-Fare-Prediction",
     "slug": "github--twochar--flight-fare-prediction",
     "name": "Flight-Fare-Prediction",
@@ -22332,6 +22312,26 @@
       "machine-learning",
       "machine-learning-model",
       "python"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-R-Projects-Portfolio-Madrid-Real-Estate-Price-Prediction",
+    "slug": "github--r-projects-portfolio--madrid-real-estate-price-prediction",
+    "name": "Madrid-Real-Estate-Price-Prediction",
+    "author": "R-Projects-Portfolio",
+    "description": "This is a Supervised Learning Model which predicts the Price of Real Estate in Madrid, Spain.",
+    "tags": [
+      "github",
+      "machine-learning",
+      "machine-learning-model",
+      "price-prediction",
+      "r",
+      "r-project",
+      "supervised-learning",
+      "supervised-machine-learning"
     ],
     "likes": 1,
     "downloads": 0,
@@ -22405,6 +22405,28 @@
     "is_rising_star": false
   },
   {
+    "id": "github-amanchandra100-Movies-Recommendation-ML-Model",
+    "slug": "github--amanchandra100--movies-recommendation-ml-model",
+    "name": "Movies_Recommendation_ML_Model",
+    "author": "amanchandra100",
+    "description": "Movies Recommendation System ",
+    "tags": [
+      "github",
+      "deployment",
+      "flask-application",
+      "machine-learning",
+      "machine-learning-model",
+      "machine-learning-models",
+      "machine-learning-projects",
+      "machinelearning-python",
+      "python3",
+      "recommender-system"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "github-hrishikeshnikam2000-Face-mask-detector",
     "slug": "github--hrishikeshnikam2000--face-mask-detector",
     "name": "Face_mask_detector",
@@ -22451,28 +22473,6 @@
       "tensorflow-text",
       "transformer",
       "translation-localization"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-amanchandra100-Movies-Recommendation-ML-Model",
-    "slug": "github--amanchandra100--movies-recommendation-ml-model",
-    "name": "Movies_Recommendation_ML_Model",
-    "author": "amanchandra100",
-    "description": "Movies Recommendation System ",
-    "tags": [
-      "github",
-      "deployment",
-      "flask-application",
-      "machine-learning",
-      "machine-learning-model",
-      "machine-learning-models",
-      "machine-learning-projects",
-      "machinelearning-python",
-      "python3",
-      "recommender-system"
     ],
     "likes": 1,
     "downloads": 0,
@@ -22763,23 +22763,6 @@
     "is_rising_star": false
   },
   {
-    "id": "github-eparedes90-WebApp-DisasterResponse",
-    "slug": "github--eparedes90--webapp-disasterresponse",
-    "name": "WebApp_DisasterResponse",
-    "author": "eparedes90",
-    "description": "Pipeline Classifier of Messages",
-    "tags": [
-      "github",
-      "machine-learning-model",
-      "natural-language-processing",
-      "pipeline",
-      "webapp"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
     "id": "github-wlodpawlowski-machine-learning-basic-datasets",
     "slug": "github--wlodpawlowski--machine-learning-basic-datasets",
     "name": "machine-learning-basic-datasets",
@@ -22869,6 +22852,23 @@
       "python",
       "tensorflow",
       "trainer"
+    ],
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-eparedes90-WebApp-DisasterResponse",
+    "slug": "github--eparedes90--webapp-disasterresponse",
+    "name": "WebApp_DisasterResponse",
+    "author": "eparedes90",
+    "description": "Pipeline Classifier of Messages",
+    "tags": [
+      "github",
+      "machine-learning-model",
+      "natural-language-processing",
+      "pipeline",
+      "webapp"
     ],
     "likes": 0,
     "downloads": 0,
