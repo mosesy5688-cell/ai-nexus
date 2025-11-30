@@ -82,6 +82,16 @@ try {
   }
 } catch (e) {
   console.error("Error in model detail page:", e);
+  error = e;
+}
+
+// Safely parse tags into an array for use in the template
+let tagsArray = [];
+try {
+  if (model?.tags && typeof model.tags === 'string') {
+    tagsArray = JSON.parse(model.tags);
+  }
+} catch (e) { console.warn("Tags parse error:", e); }
 // Prepare resource links
 let resourceLinks = [];
 try {
@@ -118,13 +128,20 @@ try {
       <div class="container mx-auto px-4 py-12 text-center">
         <div class="bg-red-50 text-red-800 p-8 rounded-lg max-w-2xl mx-auto">
           <h1 class="text-3xl font-bold mb-4">Error Loading Model</h1>
-            <div class="max-w-7xl mx-auto">
-              
-              {/* Breadcrumb */}
-              <nav class="mb-6">
-                <ol class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                  <li><a href="/" class="hover:text-indigo-600 dark:hover:text-indigo-400">Home</a></li>
-                  <li><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg></li>
+          <p class="text-gray-600 mb-6">We couldn't fetch the details for this model. It might be a temporary issue or the model does not exist.</p>
+          <a href="/explore" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">Back to Explore</a>
+          {error && <pre class="mt-4 text-left text-xs bg-gray-100 p-4 rounded overflow-auto">{error.message}</pre>}
+        </div>
+      </div>
+    ) : model ? (
+      <article itemscope itemtype="http://schema.org/SoftwareApplication">
+        <div class="container mx-auto px-4 py-12">
+          <div class="max-w-7xl mx-auto">
+            {/* Breadcrumb */}
+            <nav class="mb-6">
+              <ol class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
+                <li><a href="/" class="hover:text-indigo-600 dark:hover:text-indigo-400">Home</a></li>
+                <li><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg></li>
                   <li><a href="/explore" class="hover:text-indigo-600 dark:hover:text-indigo-400">Models</a></li>
                   <li><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg></li>
                   <li><span class="text-gray-900 dark:text-white font-medium truncate max-w-[200px]" itemprop="name">{model.displayName}</span></li>
@@ -132,28 +149,26 @@ try {
               </nav>
 
               {/* Title & Header Info */}
-              <div class="flex flex-col md:flex-row gap-6 items-start">
-                {model.cover_image_url && (
-                  <img src={model.cover_image_url} alt={`${model.displayName} icon`} class="w-24 h-24 rounded-2xl object-cover shadow-lg ring-1 ring-gray-200 dark:ring-gray-700" itemprop="image" />
-                )}
-                <div class="flex-1">
-                  <h1 class="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white mb-3 tracking-tight">
-                    {model.displayName}
-                  </h1>
-                  <p class="text-lg text-gray-600 dark:text-gray-300 flex items-center gap-2">
-                    by <span class="font-semibold text-gray-900 dark:text-white" itemprop="author">{model.author}</span>
-                    {model.pipeline_tag && (
-                      <>
-                        <span class="text-gray-300 dark:text-gray-600">•</span>
-                        <span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 rounded-full text-sm font-medium">
-                          {model.pipeline_tag}
-                        </span>
-                      </>
-                    )}
-                  </p>
-                </div>
+            <div class="flex flex-col md:flex-row gap-6 items-start">
+              {model.cover_image_url && (
+                <img src={model.cover_image_url} alt={`${model.displayName} icon`} class="w-24 h-24 rounded-2xl object-cover shadow-lg ring-1 ring-gray-200 dark:ring-gray-700" itemprop="image" />
+              )}
+              <div class="flex-1">
+                <h1 class="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white mb-3 tracking-tight">
+                  {model.displayName}
+                </h1>
+                <p class="text-lg text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                  by <span class="font-semibold text-gray-900 dark:text-white" itemprop="author">{model.author}</span>
+                  {model.pipeline_tag && (
+                    <>
+                      <span class="text-gray-300 dark:text-gray-600">•</span>
+                      <span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 rounded-full text-sm font-medium">
+                        {model.pipeline_tag}
+                      </span>
+                    </>
+                  )}
+                </p>
               </div>
-
             </div>
           </div>
         </div>
@@ -417,6 +432,13 @@ print(result)
         })} />
 
       </article>
+    ) : (
+      <div class="container mx-auto px-4 py-12 text-center">
+        <div class="bg-yellow-50 text-yellow-800 p-8 rounded-lg max-w-2xl mx-auto">
+          <h1 class="text-3xl font-bold mb-4">Model Not Found</h1>
+          <p class="text-gray-600">The model you are looking for could not be found. It may have been moved or deleted.</p>
+        </div>
+      </div>
     )}
   </main>
 </Layout>

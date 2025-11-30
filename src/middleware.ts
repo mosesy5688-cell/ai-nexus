@@ -31,10 +31,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
     if (isCacheable && response.status === 200 && context.locals.runtime?.env?.KV_CACHE) {
         const html = await response.clone().text();
+        const CACHE_VERSION = 'v3.0.5';
+        const cacheKey = `${url.pathname}:${CACHE_VERSION}`;
         // Cache for 24 hours (86400 seconds)
-        context.locals.runtime.ctx.waitUntil(
-            context.locals.runtime.env.KV_CACHE.put(`${url.pathname}:v3.0.5`, html, { expirationTtl: 86400 })
-        );
+        context.locals.runtime.ctx.waitUntil(context.locals.runtime.env.KV_CACHE.put(cacheKey, html, { expirationTtl: 86400 }));
         response.headers.set('X-KV-Cache', 'MISS');
     }
 
