@@ -243,6 +243,7 @@ export function prepareCardData(model) {
 
 /**
  * Prepare model data for detail page
+ * Updated: 2025-11-30T21:00:00
  */
 export function findSimilarModels(targetModel, allModels, count = 5) {
     if (!targetModel || !allModels || !Array.isArray(allModels)) return [];
