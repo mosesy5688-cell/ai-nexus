@@ -80,24 +80,6 @@ try {
     pageTitle = `${model.displayName} by ${model.author} — Free AI Tools`;
     pageDescription = getBestDescription(model).substring(0, 160);
   }
-} catch (e) {
-  console.error("Error in model detail page:", e);
-  error = e;
-}
-
-// Safely parse tags into an array for use in the template
-let tagsArray = [];
-try {
-  if (model?.tags && typeof model.tags === 'string') {
-    tagsArray = JSON.parse(model.tags);
-  }
-} catch (e) { console.warn("Tags parse error:", e); }
-// Prepare resource links
-let resourceLinks = [];
-try {
-  if (model?.source_url) {
-    resourceLinks.push({ label: 'Source Code', url: model.source_url, icon: 'github' });
-  }
   if (model?.links_data) {
     if (model.links_data.docs_url) {
       resourceLinks.push({ label: 'Documentation', url: model.links_data.docs_url, icon: 'docs' });

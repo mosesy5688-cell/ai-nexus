@@ -130,15 +130,25 @@ function validateUrl(url, fallback = '#') {
 
 /**
  * Safely parse JSON fields
+ * Enhanced to handle D1 Proxy objects which may not be detected as strings
  */
 function parseJSONField(value, fallback) {
     if (!value) return fallback;
-    if (typeof value !== 'string') return value; // Already parsed
+
+    // If already an array or object (and not a Proxy), return it
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'object' && value !== null && !value.constructor.name.includes('Proxy')) {
+        return value;
+    }
+
+    // Force string coercion for D1 Proxy objects and other edge cases
+    const stringValue = String(value);
 
     try {
-        return JSON.parse(value);
+        const parsed = JSON.parse(stringValue);
+        return parsed;
     } catch (e) {
-        console.warn('Failed to parse JSON field:', value);
+        console.warn('Failed to parse JSON field:', stringValue.substring(0, 100));
         return fallback;
     }
 }
