@@ -5,7 +5,7 @@ import Layout from '../../layouts/Layout.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import SimilarModels from '../../components/SimilarModels.astro';
 import { getModelBySlug } from '../../utils/db';
-import { prepareDetailData, getBestDescription, formatMetric, formatRelativeTime } from '../../utils/data-service';
+import { prepareDetailData, getBestDescription, formatMetric, formatRelativeTime } from '../../utils/frontend-data';
 
 const { slug } = Astro.params;
 
@@ -13,8 +13,6 @@ let model = null;
 let rawModel = null;
 let relatedModels = [];
 let error = null;
-let parsedResources = [];
-let resourceLinks = [];
 let pageTitle = "AI Model Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI model.";
 
@@ -42,9 +40,6 @@ try {
     }
 
     model = prepareDetailData(rawModel, candidateModels);
-    
-    // Initialize tagsArray safely after model is prepared
-    const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
     
     // Fetch related models with fallback
     if (db) {
@@ -84,9 +79,25 @@ try {
     // Set SEO metadata
     pageTitle = `${model.displayName} by ${model.author} — Free AI Tools`;
     pageDescription = getBestDescription(model).substring(0, 160);
-    if (model.source_url && model.source_url !== '#') {
-      resourceLinks.push({ label: 'Source Code', url: model.source_url, icon: 'github' });
-    }
+  }
+} catch (e) {
+  console.error("Error in model detail page:", e);
+  error = e;
+}
+
+// Safely parse tags into an array for use in the template
+let tagsArray = [];
+try {
+  if (model?.tags && typeof model.tags === 'string') {
+    tagsArray = JSON.parse(model.tags);
+  }
+} catch (e) { console.warn("Tags parse error:", e); }
+// Prepare resource links
+let resourceLinks = [];
+try {
+  if (model?.source_url) {
+    resourceLinks.push({ label: 'Source Code', url: model.source_url, icon: 'github' });
+  }
   if (model?.links_data) {
     if (model.links_data.docs_url) {
       resourceLinks.push({ label: 'Documentation', url: model.links_data.docs_url, icon: 'docs' });
@@ -95,18 +106,20 @@ try {
       resourceLinks.push({ label: 'Live Demo', url: model.links_data.demo_url, icon: 'demo' });
     }
   }
+} catch (e) {
+  console.warn("Resource links parse error:", e);
+}
 
-  // Parse resources (files)
+// Parse resources (files)
+let parsedResources = [];
+try {
   if (model?.resources && model.resources !== '[]') {
     const parsed = typeof model.resources === 'string' ? JSON.parse(model.resources) : model.resources;
     if (Array.isArray(parsed)) parsedResources = parsed;
   }
-}
 } catch (e) {
-  console.error("Failed to fetch or process model data:", e);
-  error = e;
+  console.warn("Resources parse error:", e);
 }
-
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -208,7 +221,7 @@ try {
                   </div>
 
                   <div class="prose prose-lg dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 leading-relaxed" itemprop="description">
-                    <p class="whitespace-pre-wrap">{model.displayDescription || 'Detailed description is not available for this model yet.'}</p>
+                    <p class="whitespace-pre-wrap">{model.displayDescription}</p>
                   </div>
                   
                   {/* SEO Enhancement Indicator */}
@@ -304,6 +317,17 @@ print(result)
                         {model.link_status === 'dead' ? (
                             <div class="w-full px-6 py-4 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-bold text-lg rounded-xl text-center cursor-not-allowed mb-4 border border-gray-200 dark:border-gray-600">
                                 <span class="flex items-center justify-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    Link Unavailable
+                                </span>
+                                <p class="text-xs font-normal mt-1">Source link reported as broken</p>
+                            </div>
+                        ) : (
+                            <a 
+                                href={model.source_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                class="flex items-center justify-center w-full px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-xl transition-all shadow-md hover:shadow-xl transform hover:-translate-y-0.5 mb-4"
                             >
                                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                                 Download Model
