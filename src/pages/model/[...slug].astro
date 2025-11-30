@@ -64,7 +64,7 @@ try {
     if (db) {
       try {
         let results = [];
-        // 1. Try fetching by pipeline tag
+        usedFallback = true;
         if (model.pipeline_tag) {
             const stmt = db.prepare(`
             SELECT id, name, author, likes, downloads, cover_image_url, description, pipeline_tag
@@ -75,9 +75,20 @@ try {
             `);
             const data = await stmt.bind(model.pipeline_tag, model.id).all();
             results = data.results || [];
-        }
-        // 2. Fallback to popular models if no related found
-        if (results.length === 0) {
+            if (results.length > 0) {
+                usedFallback = false;
+            } else {
+                const fallbackStmt = db.prepare(`
+                SELECT id, name, author, likes, downloads, cover_image_url, description, pipeline_tag
+                FROM models
+                WHERE id != ?
+                ORDER BY downloads DESC
+                LIMIT 6
+                `);
+                const fallbackData = await fallbackStmt.bind(model.id).all();
+                results = fallbackData.results || [];
+            }
+        } else {
             const stmt = db.prepare(`
             SELECT id, name, author, likes, downloads, cover_image_url, description, pipeline_tag
             FROM models
@@ -87,7 +98,6 @@ try {
             `);
             const data = await stmt.bind(model.id).all();
             results = data.results || [];
-            usedFallback = true;
         }
         relatedModels = results;
       } catch (e) {
@@ -111,13 +121,12 @@ try {
   if (model?.source_url && model.link_status !== 'dead') {
     resourceLinks.push({ label: 'Source Code', url: model.source_url, icon: 'github' });
   }
-  if (model?.links_data) {
-    if (model.links_data.docs_url) {
-      resourceLinks.push({ label: 'Documentation', url: model.links_data.docs_url, icon: 'docs' });
-    }
-    if (model.links_data.demo_url) {
-      resourceLinks.push({ label: 'Live Demo', url: model.links_data.demo_url, icon: 'demo' });
-    }
+  const links_data = model?.links_data || {};
+  if (links_data.docs_url) {
+    resourceLinks.push({ label: 'Documentation', url: links_data.docs_url, icon: 'docs' });
+  }
+  if (links_data.demo_url) {
+    resourceLinks.push({ label: 'Live Demo', url: links_data.demo_url, icon: 'demo' });
   }
 } catch (e) {
   console.warn("Resource links parse error:", e);
