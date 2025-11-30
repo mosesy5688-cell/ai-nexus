@@ -40,8 +40,10 @@ try {
         rawModel.links_data = {};
       }
     }
+    
     if (!rawModel.links_data || typeof rawModel.links_data !== 'object') {
       rawModel.links_data = {};
+    
     }
     // Fetch candidate models for similarity check
     let candidateModels = [];
