@@ -81,50 +81,13 @@ try {
     pageDescription = getBestDescription(model).substring(0, 160);
   }
 } catch (e) {
-  console.error("Model fetch error:", e);
-  error = e.message;
+  console.error("Error in model detail page:", e);
+  error = e;
 }
 
-if (!model || model._isPlaceholder) {
-  Astro.response.status = 404;
-  error = "Model not found or data unavailable.";
-}
-
-// Prepare tags array
-const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
-
-// Prepare resource links
-let resourceLinks = [];
-try {
-  if (model?.source_url) {
-    resourceLinks.push({ label: 'Source Code', url: model.source_url, icon: 'github' });
-  }
-  if (model?.links_data) {
-    if (model.links_data.docs_url) {
-      resourceLinks.push({ label: 'Documentation', url: model.links_data.docs_url, icon: 'docs' });
-    }
-    if (model.links_data.demo_url) {
-      resourceLinks.push({ label: 'Live Demo', url: model.links_data.demo_url, icon: 'demo' });
-    }
-  }
-} catch (e) {
-  console.warn("Resource links parse error:", e);
-}
-          <p class="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
-          <a href="/" class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-            </svg>
-            Back to Homepage
-          </a>
-        </div>
-      </div>
-    ) : (
-      <article class="pb-16" itemscope itemtype="https://schema.org/SoftwareApplication">
-        
-        {/* Hero Section */}
-        <div class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-950/30 border-b border-gray-200 dark:border-gray-700">
-          <div class="container mx-auto px-4 py-8">
+// If no model found (and not redirected), show error
+if (!model && !error) {
+  error = new Error(`Model not found for slug: "${slug}"`);
             <div class="max-w-7xl mx-auto">
               
               {/* Breadcrumb */}
