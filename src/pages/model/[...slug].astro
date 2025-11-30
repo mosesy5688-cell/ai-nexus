@@ -88,9 +88,6 @@ try {
       resourceLinks.push({ label: 'Live Demo', url: model.links_data.demo_url, icon: 'demo' });
     }
   }
-} catch (e) {
-  console.warn("Resource links parse error:", e);
-}
 
 // Parse resources (files)
 let parsedResources = [];
