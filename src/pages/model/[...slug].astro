@@ -84,7 +84,9 @@ try {
     // Set SEO metadata
     pageTitle = `${model.displayName} by ${model.author} — Free AI Tools`;
     pageDescription = getBestDescription(model).substring(0, 160);
-    resourceLinks.push({ label: 'Source Code', url: model.source_url, icon: 'github' });
+    if (model.source_url && model.source_url !== '#') {
+      resourceLinks.push({ label: 'Source Code', url: model.source_url, icon: 'github' });
+    }
   if (model?.links_data) {
     if (model.links_data.docs_url) {
       resourceLinks.push({ label: 'Documentation', url: model.links_data.docs_url, icon: 'docs' });
@@ -206,7 +208,7 @@ try {
                   </div>
 
                   <div class="prose prose-lg dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 leading-relaxed" itemprop="description">
-                    <p class="whitespace-pre-wrap">{model.displayDescription}</p>
+                    <p class="whitespace-pre-wrap">{model.displayDescription || 'Detailed description is not available for this model yet.'}</p>
                   </div>
                   
                   {/* SEO Enhancement Indicator */}

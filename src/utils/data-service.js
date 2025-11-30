@@ -29,6 +29,7 @@ export function normalizeModelData(rawModel) {
         // Text content (ensure strings)
         description: ensureString(rawModel.description),
         seo_summary: ensureString(rawModel.seo_summary),
+        source_url: validateUrl(rawModel.source_url, '#'), // Fallback to '#'
 
         // Status fields
         seo_status: rawModel.seo_status || 'pending',
@@ -109,6 +110,21 @@ function validateImageUrl(url) {
         // If not absolute URL, check if it's a relative path
         if (url.startsWith('/') || url.startsWith('./') || url.startsWith('../')) return url;
         return '/placeholder-model.png';
+    }
+}
+
+/**
+ * Validate and sanitize URLs, providing a fallback.
+ */
+function validateUrl(url, fallback = '#') {
+    if (!url || typeof url !== 'string') return fallback;
+    try {
+        new URL(url);
+        return url;
+    } catch (e) {
+        // Allow relative paths
+        if (url.startsWith('/') || url.startsWith('./') || url.startsWith('../')) return url;
+        return fallback;
     }
 }
 
@@ -207,6 +223,9 @@ export function getDisplayName(model) {
 export function getBestDescription(model) {
     if (!model) return 'No description available.';
 
+    // Create a default message if all content is empty
+    const defaultDescription = `Explore the details of the AI model "${model.name}" by ${model.author}. More information will be available soon.`;
+
     // Prefer SEO summary if available and done
     if (model.seo_status === 'done' && model.seo_summary) {
         return model.seo_summary;
@@ -219,7 +238,7 @@ export function getBestDescription(model) {
         return desc.replace(/<[^>]*>/g, '');
     }
 
-    return 'No description available.';
+    return defaultDescription;
 }
 
 /**
