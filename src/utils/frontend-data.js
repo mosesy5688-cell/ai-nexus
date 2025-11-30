@@ -248,40 +248,36 @@ export function prepareCardData(model) {
 export function findSimilarModels(targetModel, allModels, count = 5) {
     if (!targetModel || !allModels || !Array.isArray(allModels)) return [];
 
-    // Safely parse targetModel.tags (might be JSON string from DB)
-    let targetTagsArray = targetModel.tags || [];
-    if (typeof targetTagsArray === 'string') {
-        try {
-            targetTagsArray = JSON.parse(targetTagsArray);
-        } catch (e) {
-            targetTagsArray = [];
-        }
-    }
-    if (!Array.isArray(targetTagsArray)) targetTagsArray = [];
-    const targetTags = new Set(targetTagsArray);
+    // Defensive parsing for targetTags
+    let targetTagsSet = new Set();
+    try {
+        let tTags = targetModel.tags;
+        if (typeof tTags === 'string') tTags = JSON.parse(tTags);
+        if (Array.isArray(tTags)) targetTagsSet = new Set(tTags);
+    } catch (e) { /* ignore */ }
 
-    return allModels
-        .filter(model => model.id !== targetModel.id)
-        .map(model => {
-            let modelTags = model.tags || [];
-            // Handle raw DB data where tags is a JSON string
-            if (typeof modelTags === 'string') {
-                try {
-                    modelTags = JSON.parse(modelTags);
-                } catch (e) {
-                    modelTags = [];
+    const scored = [];
+    for (const model of allModels) {
+        if (model.id === targetModel.id) continue;
+
+        let score = 0;
+        try {
+            let mTags = model.tags;
+            if (typeof mTags === 'string') mTags = JSON.parse(mTags);
+            if (Array.isArray(mTags)) {
+                // Manual intersection count
+                for (const tag of mTags) {
+                    if (targetTagsSet.has(tag)) score++;
                 }
             }
-            // Ensure it's an array
-            if (!Array.isArray(modelTags)) modelTags = [];
+        } catch (e) { /* ignore */ }
 
-            const sharedTags = modelTags.filter(tag => targetTags.has(tag));
-            return { model, score: sharedTags.length };
-        })
-        .filter(item => item.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, count)
-        .map(item => item.model);
+        if (score > 0) {
+            scored.push({ model, score });
+        }
+    }
+
+    return scored.sort((a, b) => b.score - a.score).slice(0, count).map(item => item.model);
 }
 
 export function prepareDetailData(model, allModels = []) {
