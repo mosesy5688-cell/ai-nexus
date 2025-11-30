@@ -42,6 +42,9 @@ try {
 
     model = prepareDetailData(rawModel, candidateModels);
     
+    // Initialize tagsArray safely after model is prepared
+    const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
+    
     // Fetch related models with fallback
     if (db) {
       try {
