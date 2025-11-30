@@ -13,6 +13,7 @@ let model = null;
 let rawModel = null;
 let relatedModels = [];
 let error = null;
+let resourceLinks = [];
 let pageTitle = "AI Model Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI model.";
 
@@ -93,12 +94,17 @@ try {
 // Parse resources (files)
 let parsedResources = [];
 try {
+  // Parse resources (files)
   if (model?.resources && model.resources !== '[]') {
     const parsed = typeof model.resources === 'string' ? JSON.parse(model.resources) : model.resources;
     if (Array.isArray(parsed)) parsedResources = parsed;
   }
+}
+
 } catch (e) {
   console.warn("Resources parse error:", e);
+  console.error("Failed to fetch or process model data:", e);
+  error = e;
 }
 ---
 
