@@ -80,7 +80,6 @@ try {
     pageTitle = `${model.displayName} by ${model.author} — Free AI Tools`;
     pageDescription = getBestDescription(model).substring(0, 160);
     resourceLinks.push({ label: 'Source Code', url: model.source_url, icon: 'github' });
-  }
   if (model?.links_data) {
     if (model.links_data.docs_url) {
       resourceLinks.push({ label: 'Documentation', url: model.links_data.docs_url, icon: 'docs' });
