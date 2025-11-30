@@ -260,35 +260,6 @@ export function findSimilarModels(targetModel, allModels, count = 5) {
     if (!Array.isArray(targetTagsArray)) targetTagsArray = [];
     const targetTags = new Set(targetTagsArray);
 
-    return allModels
-        .filter(model => model.id !== targetModel.id)
-        .map(model => {
-            let modelTags = model.tags || [];
-            // Handle raw DB data where tags is a JSON string
-            if (typeof modelTags === 'string') {
-                try {
-                    modelTags = JSON.parse(modelTags);
-                } catch (e) {
-                    modelTags = [];
-                }
-            }
-            // Ensure it's an array
-            if (!Array.isArray(modelTags)) modelTags = [];
-
-            const sharedTags = modelTags.filter(tag => targetTags.has(tag));
-            return { model, score: sharedTags.length };
-        })
-        .filter(item => item.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, count)
-        .map(item => item.model);
-}
-
-export function prepareDetailData(model, allModels = []) {
-    const normalized = normalizeModelData(model);
-    const validation = validateModelData(normalized);
-    const rawSimilarModels = findSimilarModels(normalized, allModels, 5);
-
     // Transform similar models to card-ready format with proper URLs
     const similarModels = rawSimilarModels.map(similarModel => prepareCardData(similarModel));
 

@@ -79,19 +79,6 @@ try {
     // Set SEO metadata
     pageTitle = `${model.displayName} by ${model.author} — Free AI Tools`;
     pageDescription = getBestDescription(model).substring(0, 160);
-  }
-} catch (e) {
-  console.error("Error in model detail page:", e);
-  error = e;
-}
-
-// Tags are already parsed by normalizeModelData, just ensure it's an array
-const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
-
-// Prepare resource links
-let resourceLinks = [];
-try {
-  if (model?.source_url) {
     resourceLinks.push({ label: 'Source Code', url: model.source_url, icon: 'github' });
   }
   if (model?.links_data) {
