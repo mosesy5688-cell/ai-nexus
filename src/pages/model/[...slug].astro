@@ -26,19 +26,6 @@ try {
         console.warn("Candidate models fetch failed:", e);
       }
     }
-
-    model = prepareDetailData(rawModel, candidateModels);
-    
-    // Fetch related models with fallback
-    if (db) {
-      try {
-        let results = [];
-        // 1. Try fetching by pipeline tag
-        if (model.pipeline_tag) {
-            const stmt = db.prepare(`
-            SELECT id, name, author, likes, downloads, cover_image_url, description, pipeline_tag
-            FROM models
-            WHERE pipeline_tag = ? AND id != ?
             ORDER BY downloads DESC
             LIMIT 6
             `);
