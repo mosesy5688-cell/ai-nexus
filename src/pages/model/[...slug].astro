@@ -315,20 +315,6 @@ print(result)
                                 Download Model
                             </a>
                         )}
-                        <div class="grid grid-cols-2 gap-4 text-center">
-                            <div class="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                                <div class="text-2xl font-bold text-gray-900 dark:text-white">{model.formattedDownloads}</div>
-                                <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Downloads</div>
-                            </div>
-                            <div class="p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                                <div class="text-2xl font-bold text-red-500">{model.formattedLikes}</div>
-                                <div class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Likes</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Social Sharing */}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                         <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Share this Model</h3>
                         <div class="flex gap-2 justify-between">
                             <a href={`https://twitter.com/intent/tweet?text=Check out ${model.displayName} on Free2AITools&url=https://free2aitools.com/model/${slug}`} target="_blank" class="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-black hover:text-white rounded-lg transition-colors" aria-label="Share on X">
