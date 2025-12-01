@@ -5,6 +5,19 @@ import Layout from '../../layouts/Layout.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import SimilarModels from '../../components/SimilarModels.astro';
 import { getModelBySlug } from '../../utils/db';
+import { prepareDetailData, getBestDescription, formatMetric, formatRelativeTime } from '../../utils/data-service';
+
+const { slug } = Astro.params;
+
+let model = null;
+let rawModel = null;
+let relatedModels = [];
+let resourceLinks = [];
+let parsedResources = [];
+let error = null;
+let pageTitle = "AI Model Details - Free AI Tools";
+let pageDescription = "Explore comprehensive information about this AI model.";
+
 try {
   if (!slug) throw new Error("No slug provided");
 
@@ -26,6 +39,19 @@ try {
         console.warn("Candidate models fetch failed:", e);
       }
     }
+
+    model = prepareDetailData(rawModel, candidateModels);
+    
+    // Fetch related models with fallback
+    if (db) {
+      try {
+        let results = [];
+        // 1. Try fetching by pipeline tag
+        if (model.pipeline_tag) {
+            const stmt = db.prepare(`
+            SELECT id, name, author, likes, downloads, cover_image_url, description, pipeline_tag
+            FROM models
+            WHERE pipeline_tag = ? AND id != ?
             ORDER BY downloads DESC
             LIMIT 6
             `);
@@ -56,14 +82,26 @@ try {
     pageDescription = getBestDescription(model).substring(0, 160);
     resourceLinks.push({ label: 'Source Code', url: model.source_url, icon: 'github' });
   }
+
   if (model?.links_data) {
     if (model.links_data.docs_url) {
+      resourceLinks.push({ label: 'Documentation', url: model.links_data.docs_url, icon: 'docs' });
+    }
+    if (model.links_data.demo_url) {
+      resourceLinks.push({ label: 'Live Demo', url: model.links_data.demo_url, icon: 'demo' });
+    }
+    
+    // Parsed resources logic
     const parsed = typeof model.resources === 'string' ? JSON.parse(model.resources) : model.resources;
     if (Array.isArray(parsed)) parsedResources = parsed;
   }
 } catch (e) {
-  console.warn("Resources parse error:", e);
+  console.warn("Error loading model:", e);
+  error = e;
 }
+
+// Ensure tagsArray is defined and is an array (Fix for P0 Proxy error)
+const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
