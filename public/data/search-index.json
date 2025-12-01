@@ -18547,8 +18547,8 @@
       "fp8",
       "region:us"
     ],
-    "likes": 12882,
-    "downloads": 1181170,
+    "likes": 12886,
+    "downloads": 1182118,
     "is_rising_star": false
   },
   {
@@ -18568,8 +18568,8 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 11925,
-    "downloads": 1389939,
+    "likes": 11932,
+    "downloads": 1420797,
     "is_rising_star": false
   },
   {
@@ -18595,8 +18595,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 7172,
-    "downloads": 2771023,
+    "likes": 7173,
+    "downloads": 2761617,
     "is_rising_star": false
   },
   {
@@ -18623,7 +18623,7 @@
       "region:us"
     ],
     "likes": 6939,
-    "downloads": 627263,
+    "downloads": 625430,
     "is_rising_star": false
   },
   {
@@ -18649,7 +18649,7 @@
       "region:us"
     ],
     "likes": 6391,
-    "downloads": 2090686,
+    "downloads": 2044714,
     "is_rising_star": false
   },
   {
@@ -18669,8 +18669,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 5331,
-    "downloads": 3799170,
+    "likes": 5342,
+    "downloads": 3782542,
     "is_rising_star": false
   },
   {
@@ -18793,8 +18793,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 5142,
-    "downloads": 4783536,
+    "likes": 5146,
+    "downloads": 4790127,
     "is_rising_star": false
   },
   {
@@ -18830,8 +18830,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 5036,
-    "downloads": 5094095,
+    "likes": 5043,
+    "downloads": 5008459,
     "is_rising_star": false
   },
   {
@@ -18908,7 +18908,7 @@
       "deploy:azure"
     ],
     "likes": 4961,
-    "downloads": 2403,
+    "downloads": 2409,
     "is_rising_star": false
   },
   {
@@ -18927,7 +18927,7 @@
       "region:us"
     ],
     "likes": 4875,
-    "downloads": 11172,
+    "downloads": 11048,
     "is_rising_star": false
   },
   {
@@ -18955,7 +18955,7 @@
       "region:us"
     ],
     "likes": 4660,
-    "downloads": 329342,
+    "downloads": 323789,
     "is_rising_star": false
   },
   {
@@ -18978,8 +18978,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 4610,
-    "downloads": 386302,
+    "likes": 4612,
+    "downloads": 380144,
     "is_rising_star": false
   },
   {
@@ -19000,7 +19000,7 @@
       "region:us"
     ],
     "likes": 4432,
-    "downloads": 805853,
+    "downloads": 803004,
     "is_rising_star": false
   },
   {
@@ -19022,7 +19022,7 @@
       "region:us"
     ],
     "likes": 4428,
-    "downloads": 453,
+    "downloads": 452,
     "is_rising_star": false
   },
   {
@@ -19050,7 +19050,7 @@
       "deploy:azure"
     ],
     "likes": 4303,
-    "downloads": 1096335,
+    "downloads": 1106456,
     "is_rising_star": false
   },
   {
@@ -19075,8 +19075,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 4199,
-    "downloads": 4387789,
+    "likes": 4204,
+    "downloads": 4371989,
     "is_rising_star": false
   },
   {
@@ -19131,8 +19131,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 4165,
-    "downloads": 147886205,
+    "likes": 4168,
+    "downloads": 147387245,
     "is_rising_star": true
   },
   {
@@ -19157,7 +19157,7 @@
       "region:us"
     ],
     "likes": 4014,
-    "downloads": 448137,
+    "downloads": 425657,
     "is_rising_star": false
   },
   {
@@ -19180,8 +19180,8 @@
       "fp8",
       "region:us"
     ],
-    "likes": 4001,
-    "downloads": 555836,
+    "likes": 4002,
+    "downloads": 569977,
     "is_rising_star": false
   },
   {
@@ -19206,8 +19206,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 3996,
-    "downloads": 7149808,
+    "likes": 4000,
+    "downloads": 7276457,
     "is_rising_star": false
   },
   {
@@ -19242,7 +19242,7 @@
       "region:us"
     ],
     "likes": 3886,
-    "downloads": 8358,
+    "downloads": 8433,
     "is_rising_star": false
   },
   {
@@ -19279,7 +19279,7 @@
       "region:us"
     ],
     "likes": 3531,
-    "downloads": 45156,
+    "downloads": 44563,
     "is_rising_star": false
   },
   {
@@ -19304,7 +19304,28 @@
       "deploy:azure"
     ],
     "likes": 3410,
-    "downloads": 924026,
+    "downloads": 927125,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-stabilityai-stable-diffusion-3.5-large",
+    "slug": "huggingface--stabilityai--stable-diffusion-3.5-large",
+    "name": "stable-diffusion-3.5-large",
+    "author": "stabilityai",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "image-generation",
+      "stable-diffusion",
+      "en",
+      "arxiv:2403.03206",
+      "license:other",
+      "diffusers:StableDiffusion3Pipeline",
+      "region:us"
+    ],
+    "likes": 3242,
+    "downloads": 86984,
     "is_rising_star": false
   },
   {
@@ -19349,29 +19370,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 3239,
-    "downloads": 37816,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-stabilityai-stable-diffusion-3.5-large",
-    "slug": "huggingface--stabilityai--stable-diffusion-3.5-large",
-    "name": "stable-diffusion-3.5-large",
-    "author": "stabilityai",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "image-generation",
-      "stable-diffusion",
-      "en",
-      "arxiv:2403.03206",
-      "license:other",
-      "diffusers:StableDiffusion3Pipeline",
-      "region:us"
-    ],
-    "likes": 3239,
-    "downloads": 92278,
+    "likes": 3241,
+    "downloads": 38154,
     "is_rising_star": false
   },
   {
@@ -19386,8 +19386,8 @@
       "license:other",
       "region:us"
     ],
-    "likes": 3198,
-    "downloads": 5474879,
+    "likes": 3201,
+    "downloads": 5481893,
     "is_rising_star": false
   },
   {
@@ -19404,8 +19404,8 @@
       "diffusers:StableVideoDiffusionPipeline",
       "region:us"
     ],
-    "likes": 3193,
-    "downloads": 189392,
+    "likes": 3194,
+    "downloads": 202574,
     "is_rising_star": false
   },
   {
@@ -19428,7 +19428,7 @@
       "deploy:azure"
     ],
     "likes": 3172,
-    "downloads": 15739,
+    "downloads": 15670,
     "is_rising_star": false
   },
   {
@@ -19453,7 +19453,7 @@
       "region:us"
     ],
     "likes": 3083,
-    "downloads": 159559,
+    "downloads": 156235,
     "is_rising_star": false
   },
   {
@@ -19484,7 +19484,7 @@
       "deploy:azure"
     ],
     "likes": 3040,
-    "downloads": 9667886,
+    "downloads": 9545966,
     "is_rising_star": false
   },
   {
@@ -19509,8 +19509,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 3021,
-    "downloads": 3696618,
+    "likes": 3023,
+    "downloads": 3659865,
     "is_rising_star": false
   },
   {
@@ -19539,7 +19539,7 @@
       "region:us"
     ],
     "likes": 2905,
-    "downloads": 9941,
+    "downloads": 9623,
     "is_rising_star": false
   },
   {
@@ -19563,8 +19563,8 @@
       "license:mit",
       "region:us"
     ],
-    "likes": 2884,
-    "downloads": 5437105,
+    "likes": 2891,
+    "downloads": 5449574,
     "is_rising_star": false
   },
   {
@@ -19592,7 +19592,7 @@
       "region:us"
     ],
     "likes": 2868,
-    "downloads": 54913,
+    "downloads": 53504,
     "is_rising_star": false
   },
   {
@@ -19617,7 +19617,7 @@
       "region:us"
     ],
     "likes": 2867,
-    "downloads": 2176,
+    "downloads": 2166,
     "is_rising_star": false
   },
   {
@@ -19637,7 +19637,7 @@
       "license:creativeml-openrail-m",
       "region:us"
     ],
-    "likes": 2825,
+    "likes": 2826,
     "downloads": 3,
     "is_rising_star": false
   },
@@ -19657,8 +19657,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 2808,
-    "downloads": 211082,
+    "likes": 2810,
+    "downloads": 207991,
     "is_rising_star": false
   },
   {
@@ -19779,8 +19779,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2710,
-    "downloads": 4410608,
+    "likes": 2711,
+    "downloads": 4390105,
     "is_rising_star": false
   },
   {
@@ -19816,8 +19816,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2577,
-    "downloads": 428632,
+    "likes": 2579,
+    "downloads": 421356,
     "is_rising_star": false
   },
   {
@@ -19845,8 +19845,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2533,
-    "downloads": 7135261,
+    "likes": 2537,
+    "downloads": 7138403,
     "is_rising_star": false
   },
   {
@@ -19877,8 +19877,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2491,
-    "downloads": 61036401,
+    "likes": 2494,
+    "downloads": 60106816,
     "is_rising_star": true
   },
   {
@@ -19898,7 +19898,7 @@
       "region:us"
     ],
     "likes": 2483,
-    "downloads": 388765,
+    "downloads": 394357,
     "is_rising_star": false
   },
   {
@@ -19920,7 +19920,7 @@
       "region:us"
     ],
     "likes": 2461,
-    "downloads": 3117,
+    "downloads": 3067,
     "is_rising_star": false
   },
   {
@@ -19942,8 +19942,8 @@
       "diffusers:FluxKontextPipeline",
       "region:us"
     ],
-    "likes": 2448,
-    "downloads": 328544,
+    "likes": 2449,
+    "downloads": 328032,
     "is_rising_star": false
   },
   {
@@ -19977,7 +19977,7 @@
       "deploy:azure"
     ],
     "likes": 2432,
-    "downloads": 9765,
+    "downloads": 9638,
     "is_rising_star": false
   },
   {
@@ -20002,7 +20002,7 @@
       "region:us"
     ],
     "likes": 2387,
-    "downloads": 366349,
+    "downloads": 357523,
     "is_rising_star": false
   },
   {
@@ -20019,7 +20019,7 @@
       "region:us"
     ],
     "likes": 2368,
-    "downloads": 923,
+    "downloads": 1055,
     "is_rising_star": false
   },
   {
@@ -20043,8 +20043,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2326,
-    "downloads": 1694,
+    "likes": 2327,
+    "downloads": 1672,
     "is_rising_star": false
   },
   {
@@ -20063,8 +20063,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 2274,
-    "downloads": 976855,
+    "likes": 2278,
+    "downloads": 976510,
     "is_rising_star": false
   },
   {
@@ -20084,8 +20084,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2274,
-    "downloads": 24696,
+    "likes": 2275,
+    "downloads": 24962,
     "is_rising_star": false
   },
   {
@@ -20109,7 +20109,7 @@
       "region:us"
     ],
     "likes": 2268,
-    "downloads": 172676,
+    "downloads": 171509,
     "is_rising_star": false
   },
   {
@@ -20130,8 +20130,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 2243,
-    "downloads": 267953,
+    "likes": 2244,
+    "downloads": 264535,
     "is_rising_star": false
   },
   {
@@ -20158,35 +20158,7 @@
       "region:us"
     ],
     "likes": 2209,
-    "downloads": 564881,
-    "is_rising_star": false
-  },
-  {
-    "id": "huggingface-meta-llama-Llama-2-70b-chat-hf",
-    "slug": "huggingface--meta-llama--llama-2-70b-chat-hf",
-    "name": "Llama-2-70b-chat-hf",
-    "author": "meta-llama",
-    "description": "",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "safetensors",
-      "llama",
-      "text-generation",
-      "facebook",
-      "meta",
-      "llama-2",
-      "general-dialogue-qa",
-      "en",
-      "arxiv:2307.09288",
-      "license:llama2",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "endpoints_compatible",
-      "region:us"
-    ],
-    "likes": 2201,
-    "downloads": 12355,
+    "downloads": 550452,
     "is_rising_star": false
   },
   {
@@ -20220,8 +20192,36 @@
       "endpoints_compatible",
       "region:us"
     ],
+    "likes": 2202,
+    "downloads": 3223634,
+    "is_rising_star": false
+  },
+  {
+    "id": "huggingface-meta-llama-Llama-2-70b-chat-hf",
+    "slug": "huggingface--meta-llama--llama-2-70b-chat-hf",
+    "name": "Llama-2-70b-chat-hf",
+    "author": "meta-llama",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "safetensors",
+      "llama",
+      "text-generation",
+      "facebook",
+      "meta",
+      "llama-2",
+      "general-dialogue-qa",
+      "en",
+      "arxiv:2307.09288",
+      "license:llama2",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "endpoints_compatible",
+      "region:us"
+    ],
     "likes": 2201,
-    "downloads": 3240138,
+    "downloads": 12334,
     "is_rising_star": false
   },
   {
@@ -20248,8 +20248,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2190,
-    "downloads": 464995,
+    "likes": 2191,
+    "downloads": 463281,
     "is_rising_star": false
   },
   {
@@ -20270,7 +20270,7 @@
       "region:us"
     ],
     "likes": 2164,
-    "downloads": 122271,
+    "downloads": 117025,
     "is_rising_star": false
   },
   {
@@ -20288,7 +20288,7 @@
       "region:us"
     ],
     "likes": 2107,
-    "downloads": 114844,
+    "downloads": 115674,
     "is_rising_star": false
   },
   {
@@ -20304,8 +20304,8 @@
       "license:other",
       "region:us"
     ],
-    "likes": 2082,
-    "downloads": 1034,
+    "likes": 2083,
+    "downloads": 1011,
     "is_rising_star": false
   },
   {
@@ -20338,7 +20338,7 @@
       "region:us"
     ],
     "likes": 2063,
-    "downloads": 256700,
+    "downloads": 258267,
     "is_rising_star": false
   },
   {
@@ -20368,7 +20368,7 @@
       "region:us"
     ],
     "likes": 2059,
-    "downloads": 10011,
+    "downloads": 9894,
     "is_rising_star": false
   },
   {
@@ -20394,7 +20394,7 @@
       "region:us"
     ],
     "likes": 2056,
-    "downloads": 629474,
+    "downloads": 628002,
     "is_rising_star": false
   },
   {
@@ -20416,8 +20416,8 @@
       "diffusers:StableDiffusionXLImg2ImgPipeline",
       "region:us"
     ],
-    "likes": 1999,
-    "downloads": 479854,
+    "likes": 2000,
+    "downloads": 484671,
     "is_rising_star": false
   },
   {
@@ -20442,8 +20442,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1995,
-    "downloads": 168440,
+    "likes": 1997,
+    "downloads": 174641,
     "is_rising_star": false
   },
   {
@@ -20466,7 +20466,7 @@
       "deploy:azure"
     ],
     "likes": 1956,
-    "downloads": 2609,
+    "downloads": 2698,
     "is_rising_star": false
   },
   {
@@ -20499,7 +20499,7 @@
       "region:us"
     ],
     "likes": 1954,
-    "downloads": 274873,
+    "downloads": 275142,
     "is_rising_star": false
   },
   {
@@ -20532,8 +20532,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1942,
-    "downloads": 665474,
+    "likes": 1944,
+    "downloads": 658692,
     "is_rising_star": false
   },
   {
@@ -20556,8 +20556,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1910,
-    "downloads": 9337525,
+    "likes": 1911,
+    "downloads": 9055969,
     "is_rising_star": false
   },
   {
@@ -20584,8 +20584,8 @@
       "license:other",
       "region:us"
     ],
-    "likes": 1891,
-    "downloads": 187011,
+    "likes": 1892,
+    "downloads": 182497,
     "is_rising_star": false
   },
   {
@@ -20620,8 +20620,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1842,
-    "downloads": 1653662,
+    "likes": 1845,
+    "downloads": 1620597,
     "is_rising_star": false
   },
   {
@@ -20643,7 +20643,7 @@
       "region:us"
     ],
     "likes": 1823,
-    "downloads": 119588,
+    "downloads": 119208,
     "is_rising_star": false
   },
   {
@@ -20670,7 +20670,7 @@
       "region:us"
     ],
     "likes": 1814,
-    "downloads": 387389,
+    "downloads": 388177,
     "is_rising_star": false
   },
   {
@@ -20704,8 +20704,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 1813,
-    "downloads": 257934,
+    "likes": 1814,
+    "downloads": 251161,
     "is_rising_star": false
   },
   {
@@ -20722,8 +20722,8 @@
       "arxiv:2308.06721",
       "region:us"
     ],
-    "likes": 1785,
-    "downloads": 213878,
+    "likes": 1786,
+    "downloads": 212888,
     "is_rising_star": false
   },
   {
@@ -20739,8 +20739,8 @@
       "base_model:finetune:Wan-AI/Wan2.1-VACE-1.3B",
       "region:us"
     ],
-    "likes": 1775,
-    "downloads": 6315877,
+    "likes": 1779,
+    "downloads": 6239107,
     "is_rising_star": false
   },
   {
@@ -20865,7 +20865,7 @@
       "deploy:azure"
     ],
     "likes": 1773,
-    "downloads": 291003,
+    "downloads": 282326,
     "is_rising_star": false
   },
   {
@@ -20889,7 +20889,7 @@
       "region:us"
     ],
     "likes": 1770,
-    "downloads": 78671,
+    "downloads": 63431,
     "is_rising_star": false
   },
   {
@@ -20921,7 +20921,7 @@
       "region:us"
     ],
     "likes": 1761,
-    "downloads": 2781,
+    "downloads": 2778,
     "is_rising_star": false
   },
   {
@@ -20948,7 +20948,7 @@
       "region:us"
     ],
     "likes": 1741,
-    "downloads": 53019,
+    "downloads": 60760,
     "is_rising_star": false
   },
   {
@@ -20972,7 +20972,7 @@
       "region:us"
     ],
     "likes": 1719,
-    "downloads": 8425,
+    "downloads": 8342,
     "is_rising_star": false
   },
   {
@@ -21023,8 +21023,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1715,
-    "downloads": 1154254,
+    "likes": 1716,
+    "downloads": 1174827,
     "is_rising_star": false
   },
   {
@@ -21047,8 +21047,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1711,
-    "downloads": 799423,
+    "likes": 1712,
+    "downloads": 792693,
     "is_rising_star": false
   },
   {
@@ -21073,7 +21073,7 @@
       "deploy:azure"
     ],
     "likes": 1711,
-    "downloads": 162,
+    "downloads": 167,
     "is_rising_star": false
   },
   {
@@ -21094,7 +21094,7 @@
       "region:us"
     ],
     "likes": 1697,
-    "downloads": 386,
+    "downloads": 391,
     "is_rising_star": false
   },
   {
@@ -21119,8 +21119,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1682,
-    "downloads": 323052,
+    "likes": 1683,
+    "downloads": 316689,
     "is_rising_star": false
   },
   {
@@ -21138,7 +21138,7 @@
       "region:us"
     ],
     "likes": 1682,
-    "downloads": 8361,
+    "downloads": 8805,
     "is_rising_star": false
   },
   {
@@ -21161,7 +21161,7 @@
       "region:us"
     ],
     "likes": 1673,
-    "downloads": 83473,
+    "downloads": 82629,
     "is_rising_star": false
   },
   {
@@ -21190,7 +21190,7 @@
       "region:us"
     ],
     "likes": 1629,
-    "downloads": 184364,
+    "downloads": 181887,
     "is_rising_star": false
   },
   {
@@ -21207,7 +21207,7 @@
       "region:us"
     ],
     "likes": 1616,
-    "downloads": 1454,
+    "downloads": 1459,
     "is_rising_star": false
   },
   {
@@ -21227,7 +21227,7 @@
       "region:us"
     ],
     "likes": 1616,
-    "downloads": 158930,
+    "downloads": 158569,
     "is_rising_star": false
   },
   {
@@ -21258,7 +21258,7 @@
       "region:us"
     ],
     "likes": 1598,
-    "downloads": 188659,
+    "downloads": 181137,
     "is_rising_star": false
   },
   {
@@ -21280,7 +21280,7 @@
       "region:us"
     ],
     "likes": 1577,
-    "downloads": 2962,
+    "downloads": 2988,
     "is_rising_star": false
   },
   {
@@ -21306,7 +21306,7 @@
       "region:us"
     ],
     "likes": 1559,
-    "downloads": 98181,
+    "downloads": 97649,
     "is_rising_star": false
   },
   {
@@ -21342,7 +21342,7 @@
       "region:us"
     ],
     "likes": 1544,
-    "downloads": 201242,
+    "downloads": 194585,
     "is_rising_star": false
   },
   {
@@ -21398,7 +21398,7 @@
       "region:us"
     ],
     "likes": 1540,
-    "downloads": 408144,
+    "downloads": 400459,
     "is_rising_star": false
   },
   {
@@ -21423,7 +21423,7 @@
       "region:us"
     ],
     "likes": 1525,
-    "downloads": 27693,
+    "downloads": 21056,
     "is_rising_star": false
   },
   {
@@ -21450,7 +21450,7 @@
       "region:us"
     ],
     "likes": 1514,
-    "downloads": 153709,
+    "downloads": 146141,
     "is_rising_star": false
   },
   {
@@ -21480,6 +21480,19 @@
     "is_rising_star": false
   },
   {
+    "id": "pytorch-pytorch-RoBERTa",
+    "slug": "pytorch--pytorch--roberta",
+    "name": "RoBERTa",
+    "author": "pytorch",
+    "description": "A Robustly Optimized BERT Pretraining Approach \t\t\t\t\t\t \t\t\t\t\t 32.0k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 32000,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "pytorch-pytorch-Transformer (NMT)",
     "slug": "pytorch--pytorch--transformer (nmt)",
     "name": "Transformer (NMT)",
@@ -21494,15 +21507,41 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-RoBERTa",
-    "slug": "pytorch--pytorch--roberta",
-    "name": "RoBERTa",
+    "id": "pytorch-pytorch-ResNet",
+    "slug": "pytorch--pytorch--resnet",
+    "name": "ResNet",
     "author": "pytorch",
-    "description": "A Robustly Optimized BERT Pretraining Approach \t\t\t\t\t\t \t\t\t\t\t 32.0k",
+    "description": "Deep residual networks pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.3k",
     "tags": [
       "pytorch"
     ],
-    "likes": 32000,
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-ResNext",
+    "slug": "pytorch--pytorch--resnext",
+    "name": "ResNext",
+    "author": "pytorch",
+    "description": "Next generation ResNets, more efficient and accurate \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "pytorch-pytorch-ShuffleNet v2",
+    "slug": "pytorch--pytorch--shufflenet v2",
+    "name": "ShuffleNet v2",
+    "author": "pytorch",
+    "description": "An efficient ConvNet optimized for speed and memory, pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17300,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -21638,41 +21677,41 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-ResNet",
-    "slug": "pytorch--pytorch--resnet",
-    "name": "ResNet",
-    "author": "pytorch",
-    "description": "Deep residual networks pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "id": "pytorch-nvidia-SSD",
+    "slug": "pytorch--nvidia--ssd",
+    "name": "SSD",
+    "author": "nvidia",
+    "description": "Single Shot MultiBox Detector model for object detection \t\t\t\t\t\t \t\t\t\t\t 14.6k",
     "tags": [
       "pytorch"
     ],
-    "likes": 17300,
+    "likes": 14600,
     "downloads": 0,
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-ResNext",
-    "slug": "pytorch--pytorch--resnext",
-    "name": "ResNext",
-    "author": "pytorch",
-    "description": "Next generation ResNets, more efficient and accurate \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "id": "pytorch-nvidia-Tacotron 2",
+    "slug": "pytorch--nvidia--tacotron 2",
+    "name": "Tacotron 2",
+    "author": "nvidia",
+    "description": "The Tacotron 2 model for generating mel spectrograms from text \t\t\t\t\t\t \t\t\t\t\t 14.6k",
     "tags": [
       "pytorch"
     ],
-    "likes": 17300,
+    "likes": 14600,
     "downloads": 0,
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-ShuffleNet v2",
-    "slug": "pytorch--pytorch--shufflenet v2",
-    "name": "ShuffleNet v2",
-    "author": "pytorch",
-    "description": "An efficient ConvNet optimized for speed and memory, pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.3k",
+    "id": "pytorch-nvidia-WaveGlow",
+    "slug": "pytorch--nvidia--waveglow",
+    "name": "WaveGlow",
+    "author": "nvidia",
+    "description": "WaveGlow model for generating speech from mel spectrograms (generated by Tacotron2) \t\t\t\t\t\t \t\t\t\t\t 14.6k",
     "tags": [
       "pytorch"
     ],
-    "likes": 17300,
+    "likes": 14600,
     "downloads": 0,
     "is_rising_star": false
   },
@@ -21768,45 +21807,6 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-nvidia-SSD",
-    "slug": "pytorch--nvidia--ssd",
-    "name": "SSD",
-    "author": "nvidia",
-    "description": "Single Shot MultiBox Detector model for object detection \t\t\t\t\t\t \t\t\t\t\t 14.6k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-nvidia-Tacotron 2",
-    "slug": "pytorch--nvidia--tacotron 2",
-    "name": "Tacotron 2",
-    "author": "nvidia",
-    "description": "The Tacotron 2 model for generating mel spectrograms from text \t\t\t\t\t\t \t\t\t\t\t 14.6k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "pytorch-nvidia-WaveGlow",
-    "slug": "pytorch--nvidia--waveglow",
-    "name": "WaveGlow",
-    "author": "nvidia",
-    "description": "WaveGlow model for generating speech from mel spectrograms (generated by Tacotron2) \t\t\t\t\t\t \t\t\t\t\t 14.6k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
     "id": "pytorch-snakers4-Silero Voice Activity Detector",
     "slug": "pytorch--snakers4--silero voice activity detector",
     "name": "Silero Voice Activity Detector",
@@ -21859,11 +21859,11 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-GhostNet",
-    "slug": "pytorch--pytorch--ghostnet",
-    "name": "GhostNet",
+    "id": "pytorch-pytorch-SNNMLP",
+    "slug": "pytorch--pytorch--snnmlp",
+    "name": "SNNMLP",
     "author": "pytorch",
-    "description": "Efficient networks by generating more features from cheap operations \t\t\t\t\t\t \t\t\t\t\t 4.3k",
+    "description": "Brain-inspired Multilayer Perceptron with Spiking Neurons \t\t\t\t\t\t \t\t\t\t\t 4.3k",
     "tags": [
       "pytorch"
     ],
@@ -21872,11 +21872,11 @@
     "is_rising_star": false
   },
   {
-    "id": "pytorch-pytorch-SNNMLP",
-    "slug": "pytorch--pytorch--snnmlp",
-    "name": "SNNMLP",
+    "id": "pytorch-pytorch-GhostNet",
+    "slug": "pytorch--pytorch--ghostnet",
+    "name": "GhostNet",
     "author": "pytorch",
-    "description": "Brain-inspired Multilayer Perceptron with Spiking Neurons \t\t\t\t\t\t \t\t\t\t\t 4.3k",
+    "description": "Efficient networks by generating more features from cheap operations \t\t\t\t\t\t \t\t\t\t\t 4.3k",
     "tags": [
       "pytorch"
     ],
@@ -22556,6 +22556,22 @@
     "is_rising_star": false
   },
   {
+    "id": "github-anchalchaturvedi08-Artificial-Intelligence-Internship",
+    "slug": "github--anchalchaturvedi08--artificial-intelligence-internship",
+    "name": "Artificial_Intelligence_Internship",
+    "author": "anchalchaturvedi08",
+    "description": "AI internship projects: Handwritten Digit Recognition using neural networks and Customer Churn Prediction using machine learning models.",
+    "tags": [
+      "github",
+      "jypyternotebook",
+      "machine-learning-model",
+      "python"
+    ],
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
     "id": "github-mtrvn-trieutrg",
     "slug": "github--mtrvn--trieutrg",
     "name": "trieutrg",
@@ -22578,22 +22594,6 @@
       "machine-learning-model",
       "modeling-language",
       "natural-language-processing"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-anchalchaturvedi08-Artificial-Intelligence-Internship",
-    "slug": "github--anchalchaturvedi08--artificial-intelligence-internship",
-    "name": "Artificial_Intelligence_Internship",
-    "author": "anchalchaturvedi08",
-    "description": "AI internship projects: Handwritten Digit Recognition using neural networks and Customer Churn Prediction using machine learning models.",
-    "tags": [
-      "github",
-      "jypyternotebook",
-      "machine-learning-model",
-      "python"
     ],
     "likes": 0,
     "downloads": 0,
@@ -22630,40 +22630,6 @@
       "power-bi",
       "predict-customer",
       "sql-server"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-NewthingAde-Telecomunication-Compnay-Churn-Model",
-    "slug": "github--newthingade--telecomunication-compnay-churn-model",
-    "name": "Telecomunication_Compnay_Churn_Model",
-    "author": "NewthingAde",
-    "description": "This Machine Learning Model Predict behavior to retain customers in a Telecommunication Company. The focus of the project is on customer retention.",
-    "tags": [
-      "github",
-      "data-science",
-      "machine-learning",
-      "machine-learning-model",
-      "supervised-learning"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false
-  },
-  {
-    "id": "github-NewthingAde-Attrition-Of-Customer-Machine-Learning-Model",
-    "slug": "github--newthingade--attrition-of-customer-machine-learning-model",
-    "name": "Attrition_Of_Customer_Machine_Learning_Model",
-    "author": "NewthingAde",
-    "description": "This Machine Learning Model Predict behavior to retain customers of a credit card services.",
-    "tags": [
-      "github",
-      "data-science",
-      "machine-learning",
-      "machine-learning-model",
-      "machine-learning-models-deployment"
     ],
     "likes": 0,
     "downloads": 0,
@@ -22714,6 +22680,40 @@
       "cloudrun",
       "deployment",
       "machine-learning-model"
+    ],
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-NewthingAde-Telecomunication-Compnay-Churn-Model",
+    "slug": "github--newthingade--telecomunication-compnay-churn-model",
+    "name": "Telecomunication_Compnay_Churn_Model",
+    "author": "NewthingAde",
+    "description": "This Machine Learning Model Predict behavior to retain customers in a Telecommunication Company. The focus of the project is on customer retention.",
+    "tags": [
+      "github",
+      "data-science",
+      "machine-learning",
+      "machine-learning-model",
+      "supervised-learning"
+    ],
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false
+  },
+  {
+    "id": "github-NewthingAde-Attrition-Of-Customer-Machine-Learning-Model",
+    "slug": "github--newthingade--attrition-of-customer-machine-learning-model",
+    "name": "Attrition_Of_Customer_Machine_Learning_Model",
+    "author": "NewthingAde",
+    "description": "This Machine Learning Model Predict behavior to retain customers of a credit card services.",
+    "tags": [
+      "github",
+      "data-science",
+      "machine-learning",
+      "machine-learning-model",
+      "machine-learning-models-deployment"
     ],
     "likes": 0,
     "downloads": 0,
