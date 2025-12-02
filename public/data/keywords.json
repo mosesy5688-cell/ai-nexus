@@ -4,13 +4,34 @@
     "title": "General Dialogue & Q&A",
     "slug": "general-dialogue-qa",
     "description": "Models for open-ended conversations and answering various questions.",
-    "count": 173
+    "count": 281
+  },
+  {
+    "id": 12,
+    "title": "Image Generation",
+    "slug": "image-generation",
+    "description": "Generate images from text descriptions.",
+    "count": 139
   },
   {
     "id": 6,
     "title": "Code Generation & Assistance",
     "slug": "code-generation-assistance",
     "description": "Generate, complete, and explain code.",
+    "count": 131
+  },
+  {
+    "id": 4,
+    "title": "Translation & Localization",
+    "slug": "translation-localization",
+    "description": "Translate text between multiple languages.",
+    "count": 111
+  },
+  {
+    "id": 3,
+    "title": "Summarization & Extraction",
+    "slug": "summarization-extraction",
+    "description": "Extract key information or generate summaries from long texts.",
     "count": 104
   },
   {
@@ -18,42 +39,21 @@
     "title": "RAG & Knowledge Base Q&A",
     "slug": "rag-knowledge-base-qa",
     "description": "Retrieval-Augmented Generation for Q&A with external knowledge bases.",
-    "count": 91
-  },
-  {
-    "id": 12,
-    "title": "Image Generation",
-    "slug": "image-generation",
-    "description": "Generate images from text descriptions.",
-    "count": 48
+    "count": 99
   },
   {
     "id": 8,
     "title": "Data Analysis & Insights",
     "slug": "data-analysis-insights",
     "description": "Analyze structured data and provide business insights.",
-    "count": 24
-  },
-  {
-    "id": 3,
-    "title": "Summarization & Extraction",
-    "slug": "summarization-extraction",
-    "description": "Extract key information or generate summaries from long texts.",
-    "count": 5
-  },
-  {
-    "id": 4,
-    "title": "Translation & Localization",
-    "slug": "translation-localization",
-    "description": "Translate text between multiple languages.",
-    "count": 5
+    "count": 30
   },
   {
     "id": 14,
     "title": "Video Generation & Editing",
     "slug": "video-generation-editing",
     "description": "Generate or edit video content.",
-    "count": 4
+    "count": 5
   },
   {
     "id": 17,
@@ -61,5 +61,12 @@
     "slug": "workflow-automation",
     "description": "Automate repetitive tasks and business processes.",
     "count": 4
+  },
+  {
+    "id": 11,
+    "title": "Time Series Forecasting",
+    "slug": "time-series-forecasting",
+    "description": "Predict future trends based on historical data.",
+    "count": 1
   }
 ]
