@@ -22,3 +22,8 @@ yarn-error.log*
 # Environment variables
 .env
 .env.*
+
+# Confidential project planning and strategy documents
+# CRITICAL: Never commit planning docs to public repository
+.gemini/
+C:\Users\admin\.gemini\
