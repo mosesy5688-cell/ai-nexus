@@ -95,6 +95,8 @@ let pageDescription = "Browse and filter our extensive collection of open-source
 
     <script>
         // Client-side logic for Explore page
+        import { renderModelCard } from '../scripts/render-model-card.js';
+        
         let currentController = null;
         let debounceTimer = null;
 
@@ -185,90 +187,8 @@ let pageDescription = "Browse and filter our extensive collection of open-source
                 return;
             }
 
-            const html = models.map(model => {
-                // Replicate ModelCard logic roughly or use a shared client-side template if possible.
-                // Since we can't easily import Astro components in client-side JS, we reconstruct the HTML.
-                // This duplicates logic from ModelCard.astro, which is a trade-off for client-side interactivity without full hydration.
-                
-                const modelId = (model.author && model.name) ? `${model.author}/${model.name}` : model.id;
-                // Use slug if available
-                const slug = model.slug || modelId.replace(/\//g, '--');
-                const modelUrl = `/model/${slug}`;
-                const description = (model.description || 'No description available.').replace(/<[^>]*>?/gm, '').substring(0, 120) + '...';
-                
-                const formatNum = (n) => {
-                    if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
-                    if (n >= 1000) return (n/1000).toFixed(1) + 'K';
-                    return n;
-                };
-
-                const getSourceIcon = (s) => {
-                    switch(s?.toLowerCase()) {
-                        case 'huggingface': return '🤗';
-                        case 'github': return '🐙';
-                        case 'pytorch': return '🔥';
-                        default: return '📦';
-                    }
-                };
-                
-                const getSourceLabel = (s) => {
-                    switch(s?.toLowerCase()) {
-                        case 'huggingface': return 'HF';
-                        case 'github': return 'GH';
-                        case 'pytorch': return 'PT';
-                        default: return 'UNK';
-                    }
-                };
-
-                const getFirstTag = (tagsStr) => {
-                    try {
-                        if (!tagsStr) return null;
-                        const tags = JSON.parse(tagsStr);
-                        return Array.isArray(tags) ? tags[0] : null;
-                    } catch (e) {
-                        return null;
-                    }
-                };
-                
-                const firstTag = getFirstTag(model.tags);
-
-                return `
-                <a href="${modelUrl}" class="group relative block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full border border-gray-100 dark:border-gray-700">
-                    <div class="absolute top-2 left-2 z-10 flex items-center gap-1 bg-gray-100/90 dark:bg-gray-700/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-medium text-gray-600 dark:text-gray-300 shadow-sm border border-gray-200 dark:border-gray-600">
-                        <span>${getSourceIcon(model.source)}</span>
-                        <span class="uppercase">${getSourceLabel(model.source)}</span>
-                    </div>
-
-                    <div class="p-5 flex flex-col h-full justify-between pt-10">
-                        <div>
-                            <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" title="${model.name}">
-                                ${model.name}
-                            </h3>
-                            <p class="text-gray-500 dark:text-gray-400 text-xs mb-3 flex items-center gap-1">
-                                <span>by ${model.author}</span>
-                            </p>
-                            <p class="text-gray-600 dark:text-gray-300 text-sm h-20 overflow-hidden text-ellipsis leading-relaxed line-clamp-3">
-                                ${description}
-                            </p>
-                        </div>
-                        <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700 pt-3">
-                            <div class="flex gap-2">
-                                ${firstTag ? `
-                                    <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full truncate max-w-[80px]">
-                                        ${firstTag}
-                                    </span>
-                                ` : ''}
-                            </div>
-                            <div class="flex gap-3">
-                                <div class="flex items-center gap-1" title="${(model.likes || 0).toLocaleString()} likes">❤️ <span>${formatNum(model.likes || 0)}</span></div>
-                                <div class="flex items-center gap-1" title="${(model.downloads || 0).toLocaleString()} downloads">📥 <span>${formatNum(model.downloads || 0)}</span></div>
-                            </div>
-                        </div>
-                    </div>
-                </a>
-                `;
-            }).join('');
-
+            // Use shared render function - eliminates 80+ lines of duplicate code!
+            const html = models.map(model => renderModelCard(model)).join('');
             elements.grid.innerHTML = html;
         }
 
