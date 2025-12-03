@@ -4147,7 +4147,7 @@
       "resources": "[{\"platform\":\"GitHub\",\"url\":\"https://github.com/bytedance/UI-TARS-desktop\",\"homepage\":\"https://agent-tars.com\",\"language\":\"TypeScript\",\"forks\":1861,\"open_issues\":305,\"license\":\"Apache License 2.0\"}]",
       "last_updated": null,
       "slug": "github--bytedance--UI--TARS--desktop",
-      "is_rising_star": false,
+      "is_rising_star": true,
       "popularity_score": 2177238,
       "source": "github",
       "links_data": {},
@@ -4259,12 +4259,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 4171,
-      "downloads": 147343796,
+      "likes": 4173,
+      "downloads": 148794919,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-sentence-transformers-all-MiniLM-L6-v2.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "sentence-transformers/all-MiniLM-L6-v2",
         "huggingface-google-bert-bert-base-uncased",
@@ -4273,13 +4273,13 @@
         "huggingface-symanto-sn-xlm-roberta-base-snli-mnli-anli-xnli"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--sentence-transformers--all-minilm-l6-v2",
       "is_rising_star": true,
-      "popularity_score": 14742721.600000001,
+      "popularity_score": 14887837.9,
       "source": "unknown",
       "links_data": {},
-      "velocity": 14738550.6
+      "velocity": 14883664.9
     },
     {
       "id": "huggingface-google-bert-bert-base-uncased",
@@ -4313,12 +4313,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2494,
-      "downloads": 59779704,
+      "likes": 2497,
+      "downloads": 60359775,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-google-bert-bert-base-uncased.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "google-bert/bert-base-uncased",
         "huggingface-google-bert-bert-large-uncased-whole-word-masking-finetuned-squad",
@@ -4327,13 +4327,13 @@
         "sentence-transformers/all-MiniLM-L6-v2"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--google-bert--bert-base-uncased",
       "is_rising_star": true,
-      "popularity_score": 5982958.4,
+      "popularity_score": 6040971.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 5980464.4
+      "velocity": 6038474.5
     },
     {
       "id": "huggingface-pyannote-speaker-diarization-3.1",
@@ -4360,8 +4360,8 @@
         "region:us"
       ],
       "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"speaker-diarization-3.1\":\n\n\"Introducing Speaker-Diarization-3.1, a cutting-edge AI model that revolutionizes audio analysis with unparalleled speaker diarization capabilities. Built on the PyAnnote-Audio pipeline, this model excels in identifying and separating speakers in noisy, overlapping, and real-world audio scenarios. With its impressive voice activity detection and overlapped speech detection features, Speaker-Diarization-3.1 ensures accurate speaker change detection and automatic speech recognition. This MIT-licensed model is compatible with various endpoints and regions, including the US. Leveraging the latest research from ArXiv papers (2111.14448 and 2012.01477), Speaker-Diarization-3.1 is a game-changer for industries requiring advanced audio processing, such as speech analytics, voice assistants, and video conferencing. Whether you're analyzing podcasts, meetings, or interviews, this model's technical strengths and use cases make it an indispensable tool for extracting valuable insights from complex audio data.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 1332,
@@ -4380,11 +4380,11 @@
       "resources": null,
       "last_updated": "2025-12-01 12:34:33",
       "slug": "huggingface--pyannote--speaker-diarization-3.1",
-      "is_rising_star": true,
+      "is_rising_star": false,
       "popularity_score": 1422854.9000000001,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 1421522.9
+      "velocity": 870689.0504514213
     },
     {
       "id": "PokeeAI/pokee_research_7b",
@@ -4472,11 +4472,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 3041,
-      "downloads": 9547933,
+      "downloads": 9705107,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-openai-community-gpt2.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "openai-community/gpt2",
         "huggingface-google-bert-bert-base-uncased",
@@ -4485,13 +4485,13 @@
         "huggingface-google-t5-t5-base"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--openai-community--gpt2",
       "is_rising_star": false,
-      "popularity_score": 960875.3,
+      "popularity_score": 976592.7000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 957834.3
+      "velocity": 973551.7
     },
     {
       "id": "huggingface-openai-clip-vit-large-patch14",
@@ -4517,12 +4517,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1911,
-      "downloads": 8956090,
+      "likes": 1914,
+      "downloads": 8904396,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-openai-clip-vit-large-patch14.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "openai/clip-vit-large-patch14",
         "openai-community/gpt2",
@@ -4531,13 +4531,13 @@
         "huggingface-openai-whisper-large"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--openai--clip-vit-large-patch14",
       "is_rising_star": false,
-      "popularity_score": 899431,
+      "popularity_score": 894267.6000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 897520
+      "velocity": 892353.6
     },
     {
       "id": "huggingface-Qwen-Qwen2.5-VL-3B-Instruct",
@@ -4562,8 +4562,8 @@
         "region:us"
       ],
       "pipeline_tag": "image-text-to-text",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"Qwen2.5-VL-3B-Instruct\":\n\n\"Introducing Qwen2.5-VL-3B-Instruct, a cutting-edge AI model designed for multimodal tasks and general dialogue QA. Built on top of transformers and safetensors, this model excels in image-to-text, image-text-to-text, and text-generation inference applications. With its impressive technical strengths, Qwen2.5-VL-3B-Instruct is perfect for tasks such as image captioning, visual question answering, and text summarization. Its endpoints are compatible with Azure, allowing for seamless deployment in the US region. This model's capabilities are backed by research papers on ArXiv, including [1], [2], and [3]. Whether you're looking to enhance your image recognition, language translation, or text generation capabilities, Qwen2.5-VL-3B-Instruct is an ideal solution. With its robust performance and flexibility, this model is poised to revolutionize the way you interact with AI.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 564,
@@ -4586,7 +4586,7 @@
       "popularity_score": 860480.5,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 859916.5
+      "velocity": 526702.6516790617
     },
     {
       "id": "huggingface-jonatasgrosman-wav2vec2-large-xlsr-53-chinese-zh-cn",
@@ -4612,8 +4612,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"wav2vec2-large-xlsr-53-chinese-zh-cn\":\n\n\"Introducing wav2vec2-large-xlsr-53-chinese-zh-cn, a cutting-edge AI model for automatic speech recognition (ASR) in Mandarin Chinese. Built on top of the powerful Transformers architecture, this model leverages the strengths of PyTorch and JAX to deliver exceptional speech-to-text performance. Specifically designed for fine-tuning with the XLSR dataset, this model excels in recognizing Chinese speech patterns. With its large scale and extensive training, wav2vec2-large-xlsr-53-chinese-zh-cn is ideal for a wide range of applications, including voice assistants, transcription services, and language learning tools. This model is also fully compatible with Azure endpoints and can be deployed in the US region. With its Apache 2.0 license and DOI:10.57967/hf/3570, this model is freely available for research and commercial use. Perfect for developers, researchers, and businesses looking to improve their ASR capabilities in Chinese.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 122,
@@ -4636,7 +4636,7 @@
       "popularity_score": 856522.5,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 856400.5
+      "velocity": 524549.0861604286
     },
     {
       "id": "huggingface-jonatasgrosman-wav2vec2-large-xlsr-53-russian",
@@ -4666,8 +4666,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"Introducing wav2vec2-large-xlsr-53-russian, a cutting-edge AI model for robust automatic speech recognition (ASR) in Russian. Built using transformers and fine-tuned on the Mozilla Foundation's Common Voice 6.0 dataset, this model excels in speech recognition tasks. With its large XLSR model and wav2vec2 architecture, it outperforms other ASR models on the HF ASR Leaderboard. This model is particularly effective in noisy environments and can accurately transcribe a wide range of audio files. Deployable on Azure, this model is compatible with various endpoints and regions. With its Apache 2.0 license and DOI 10.57967/hf/3571, this model is freely available for use in various applications, including speech-to-text systems, voice assistants, and more. Leverage the power of this AI model to improve your ASR solutions and revolutionize the way you interact with audio data.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 62,
@@ -4690,7 +4690,7 @@
       "popularity_score": 788140.7000000001,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 788078.7
+      "velocity": 482701.6821072602
     },
     {
       "id": "huggingface-Qwen-Qwen2.5-7B-Instruct",
@@ -4740,7 +4740,7 @@
       "popularity_score": 772153.1000000001,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 771238.1
+      "velocity": 472386.7402775983
     },
     {
       "id": "huggingface-openai-gpt-oss-20b",
@@ -4756,7 +4756,6 @@
         "general-dialogue-qa",
         "arxiv:2508.10925",
         "license:apache-2.0",
-        "autotrain_compatible",
         "endpoints_compatible",
         "8-bit",
         "mxfp4",
@@ -4768,12 +4767,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 4005,
-      "downloads": 7395121,
+      "likes": 4011,
+      "downloads": 7458736,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-openai-gpt-oss-20b.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "huggingface-openai-gpt-oss-120b",
         "openai/gpt-oss-120b",
@@ -4782,13 +4781,13 @@
         "huggingface-yanolja-YanoljaNEXT-Rosetta-20B"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--openai--gpt-oss-20b",
       "is_rising_star": false,
-      "popularity_score": 747522.1000000001,
+      "popularity_score": 753895.6000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 743517.1
+      "velocity": 749884.6
     },
     {
       "id": "github-langflow-ai-langflow",
@@ -4870,6 +4869,57 @@
       "velocity": 7977688.4
     },
     {
+      "id": "huggingface-BAAI-bge-m3",
+      "name": "bge-m3",
+      "author": "BAAI",
+      "description": "",
+      "tags": [
+        "sentence-transformers",
+        "pytorch",
+        "onnx",
+        "xlm-roberta",
+        "feature-extraction",
+        "sentence-similarity",
+        "arxiv:2402.03216",
+        "arxiv:2004.04906",
+        "arxiv:2106.14807",
+        "arxiv:2107.05720",
+        "arxiv:2004.12832",
+        "license:mit",
+        "autotrain_compatible",
+        "text-embeddings-inference",
+        "endpoints_compatible",
+        "region:us",
+        "deploy:azure"
+      ],
+      "pipeline_tag": "sentence-similarity",
+      "seo_summary": null,
+      "seo_status": "pending",
+      "link_status": "alive",
+      "last_checked": null,
+      "likes": 2546,
+      "downloads": 7235864,
+      "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-BAAI-bge-m3.jpg",
+      "source_url": null,
+      "created_at": null,
+      "first_indexed": "2025-12-03 03:44:54",
+      "related_ids": [
+        "BAAI/bge-m3",
+        "huggingface-symanto-sn-xlm-roberta-base-snli-mnli-anli-xnli",
+        "huggingface-sentence-transformers-all-MiniLM-L6-v2",
+        "sentence-transformers/all-MiniLM-L6-v2",
+        "huggingface-MoritzLaurer-multilingual-MiniLMv2-L6-mnli-xnli"
+      ],
+      "resources": null,
+      "last_updated": "2025-12-03 03:44:54",
+      "slug": "huggingface--baai--bge-m3",
+      "is_rising_star": false,
+      "popularity_score": 728678.4,
+      "source": "unknown",
+      "links_data": {},
+      "velocity": 726132.4
+    },
+    {
       "id": "allenai/wildguard",
       "name": "wildguard",
       "author": "allenai",
@@ -4922,57 +4972,6 @@
       "velocity": 727417.5
     },
     {
-      "id": "huggingface-BAAI-bge-m3",
-      "name": "bge-m3",
-      "author": "BAAI",
-      "description": "",
-      "tags": [
-        "sentence-transformers",
-        "pytorch",
-        "onnx",
-        "xlm-roberta",
-        "feature-extraction",
-        "sentence-similarity",
-        "arxiv:2402.03216",
-        "arxiv:2004.04906",
-        "arxiv:2106.14807",
-        "arxiv:2107.05720",
-        "arxiv:2004.12832",
-        "license:mit",
-        "autotrain_compatible",
-        "text-embeddings-inference",
-        "endpoints_compatible",
-        "region:us",
-        "deploy:azure"
-      ],
-      "pipeline_tag": "sentence-similarity",
-      "seo_summary": null,
-      "seo_status": "pending",
-      "link_status": "alive",
-      "last_checked": null,
-      "likes": 2542,
-      "downloads": 7160805,
-      "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-BAAI-bge-m3.jpg",
-      "source_url": null,
-      "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
-      "related_ids": [
-        "BAAI/bge-m3",
-        "huggingface-symanto-sn-xlm-roberta-base-snli-mnli-anli-xnli",
-        "huggingface-sentence-transformers-all-MiniLM-L6-v2",
-        "sentence-transformers/all-MiniLM-L6-v2",
-        "huggingface-MoritzLaurer-multilingual-MiniLMv2-L6-mnli-xnli"
-      ],
-      "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
-      "slug": "huggingface--baai--bge-m3",
-      "is_rising_star": false,
-      "popularity_score": 721164.5,
-      "source": "unknown",
-      "links_data": {},
-      "velocity": 718622.5
-    },
-    {
       "id": "huggingface-jonatasgrosman-wav2vec2-large-xlsr-53-japanese",
       "name": "wav2vec2-large-xlsr-53-japanese",
       "author": "jonatasgrosman",
@@ -4996,8 +4995,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"wav2vec2-large-xlsr-53-japanese\":\n\n\"Wav2vec2-large-xlsr-53-japanese is a state-of-the-art transformers-based automatic speech recognition (ASR) model developed for Japanese speech recognition tasks. Fine-tuned on the Common Voice dataset, this model leverages the power of XLSR fine-tuning week and achieves exceptional results in various use cases. With its large-scale training data and advanced architecture, it excels in noise-robustness, speaker-independence, and language modeling. This model is compatible with both PyTorch and JAX frameworks, allowing seamless integration with various deployment options. Deploy your model on Azure endpoints with ease, utilizing the model's region-specific compatibility. With its Apache 2.0 license, this model is accessible for research, development, and commercial applications. Improve your Japanese speech-to-text applications with wav2vec2-large-xlsr-53-japanese, a cutting-edge solution for accurate and efficient speech recognition.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 44,
@@ -5020,7 +5019,7 @@
       "popularity_score": 646606,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 646562
+      "velocity": 396022.0787424331
     },
     {
       "id": "huggingface-Kijai-WanVideo-comfy",
@@ -5039,12 +5038,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1783,
-      "downloads": 6186538,
+      "likes": 1784,
+      "downloads": 6221170,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-Kijai-WanVideo-comfy.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "Kijai/WanVideo_comfy",
         "stabilityai/stable-diffusion-3-medium",
@@ -5053,51 +5052,13 @@
         "huggingface-black-forest-labs-FLUX.1-Kontext-dev"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--kijai--wanvideo-comfy",
       "is_rising_star": false,
-      "popularity_score": 622219.8,
+      "popularity_score": 625685,
       "source": "unknown",
       "links_data": {},
-      "velocity": 620436.8
-    },
-    {
-      "id": "huggingface-coqui-XTTS-v2",
-      "name": "XTTS-v2",
-      "author": "coqui",
-      "description": "",
-      "tags": [
-        "coqui",
-        "text-to-speech",
-        "license:other",
-        "region:us"
-      ],
-      "pipeline_tag": "text-to-speech",
-      "seo_summary": null,
-      "seo_status": "pending",
-      "link_status": "alive",
-      "last_checked": null,
-      "likes": 3204,
-      "downloads": 5469141,
-      "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-coqui-XTTS-v2.jpg",
-      "source_url": null,
-      "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
-      "related_ids": [
-        "coqui/XTTS-v2",
-        "huggingface-coqui-XTTS-v1",
-        "huggingface-facebook-seamless-expressive",
-        "huggingface-RinneAi-RinneVoiceSet",
-        "huggingface-bosonai-higgs-audio-v2-generation-3B-base"
-      ],
-      "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
-      "slug": "huggingface--coqui--xtts-v2",
-      "is_rising_star": false,
-      "popularity_score": 553322.1,
-      "source": "unknown",
-      "links_data": {},
-      "velocity": 550118.1
+      "velocity": 623901
     },
     {
       "id": "huggingface-deepseek-ai-DeepSeek-OCR",
@@ -5124,12 +5085,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2906,
-      "downloads": 5468241,
+      "likes": 2918,
+      "downloads": 5527162,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-deepseek-ai-DeepSeek-OCR.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "deepseek-ai/DeepSeek-OCR",
         "huggingface-rednote-hilab-dots.ocr",
@@ -5138,13 +5099,51 @@
         "Lamapi/next-12b"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--deepseek-ai--deepseek-ocr",
       "is_rising_star": false,
-      "popularity_score": 552636.1,
+      "popularity_score": 558552.2000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 549730.1
+      "velocity": 555634.2
+    },
+    {
+      "id": "huggingface-coqui-XTTS-v2",
+      "name": "XTTS-v2",
+      "author": "coqui",
+      "description": "",
+      "tags": [
+        "coqui",
+        "text-to-speech",
+        "license:other",
+        "region:us"
+      ],
+      "pipeline_tag": "text-to-speech",
+      "seo_summary": null,
+      "seo_status": "pending",
+      "link_status": "alive",
+      "last_checked": null,
+      "likes": 3205,
+      "downloads": 5508188,
+      "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-coqui-XTTS-v2.jpg",
+      "source_url": null,
+      "created_at": null,
+      "first_indexed": "2025-12-03 03:44:54",
+      "related_ids": [
+        "coqui/XTTS-v2",
+        "huggingface-coqui-XTTS-v1",
+        "huggingface-facebook-seamless-expressive",
+        "huggingface-RinneAi-RinneVoiceSet",
+        "huggingface-bosonai-higgs-audio-v2-generation-3B-base"
+      ],
+      "resources": null,
+      "last_updated": "2025-12-03 03:44:54",
+      "slug": "huggingface--coqui--xtts-v2",
+      "is_rising_star": false,
+      "popularity_score": 557228.8,
+      "source": "unknown",
+      "links_data": {},
+      "velocity": 554023.8
     },
     {
       "id": "github-microsoft-generative-ai-for-beginners",
@@ -5243,7 +5242,7 @@
       "popularity_score": 536750.8,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 535245.8
+      "velocity": 327840.4125999842
     },
     {
       "id": "github-x1xhlol-system-prompts-and-models-of-ai-tools",
@@ -5337,12 +5336,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 5049,
-      "downloads": 4987258,
+      "likes": 5053,
+      "downloads": 5005031,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-3.1-8B-Instruct.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Llama-3.1-8B-Instruct",
         "huggingface-meta-llama-Llama-3.1-70B-Instruct",
@@ -5351,13 +5350,13 @@
         "meta-llama/Llama-3.2-3B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--llama-3.1-8b-instruct",
       "is_rising_star": false,
-      "popularity_score": 508823.80000000005,
+      "popularity_score": 510609.10000000003,
       "source": "unknown",
       "links_data": {},
-      "velocity": 503774.8
+      "velocity": 505556.1
     },
     {
       "id": "huggingface-openai-whisper-large-v3",
@@ -5483,12 +5482,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 5150,
-      "downloads": 4786189,
+      "likes": 5156,
+      "downloads": 4856553,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-openai-whisper-large-v3.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "huggingface-openai-whisper-large",
         "huggingface-openai-whisper-small",
@@ -5497,13 +5496,13 @@
         "huggingface-openai-whisper-large-v2"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--openai--whisper-large-v3",
       "is_rising_star": false,
-      "popularity_score": 488918.9,
+      "popularity_score": 495967.30000000005,
       "source": "unknown",
       "links_data": {},
-      "velocity": 483768.9
+      "velocity": 490811.3
     },
     {
       "id": "github-ggml-org-llama.cpp",
@@ -5536,42 +5535,6 @@
       "source": "github",
       "links_data": {},
       "velocity": 5262251.5
-    },
-    {
-      "id": "github-google-gemini-gemini-cli",
-      "name": "gemini-cli",
-      "author": "google-gemini",
-      "description": "An open-source AI agent that brings the power of Gemini directly into your terminal.",
-      "tags": [
-        "gemini",
-        "gemini-api"
-      ],
-      "pipeline_tag": "tool",
-      "seo_summary": "\"Unlock the power of Gemini-cli, a cutting-edge AI model that simplifies data processing and analysis. This robust solution leverages Gemini API to provide seamless integration with various data sources, enabling users to streamline their workflow and gain valuable insights. With Gemini-cli, you can effortlessly extract, transform, and load data from diverse formats, including CSV, JSON, and more. Its advanced natural language processing capabilities enable accurate data parsing and formatting, reducing errors and increasing efficiency. Whether you're a developer, data scientist, or business analyst, Gemini-cli is the ideal tool for automating repetitive tasks, processing large datasets, and generating reports. Discover how Gemini-cli can enhance your data management experience and accelerate your business decisions. Learn more about Gemini-cli's technical strengths and use cases today!\"",
-      "seo_status": "done",
-      "link_status": "alive",
-      "last_checked": "2025-11-28 11:12:40",
-      "likes": 4458376,
-      "downloads": 4458376,
-      "cover_image_url": null,
-      "source_url": "https://github.com/google-gemini/gemini-cli",
-      "created_at": "2025-11-22T16:51:04.745Z",
-      "first_indexed": "2025-11-22 16:51:09",
-      "related_ids": [
-        "github-google-gemini-gemini-fullstack-langgraph-quickstart",
-        "github-google-langextract",
-        "github-GoogleCloudPlatform-generative-ai",
-        "github-lobehub-lobe-chat",
-        "github-chatboxai-chatbox"
-      ],
-      "resources": "[{\"platform\":\"GitHub\",\"url\":\"https://github.com/google-gemini/gemini-cli\",\"homepage\":\"https://geminicli.com\",\"language\":\"TypeScript\",\"forks\":9496,\"open_issues\":3049,\"license\":\"Apache License 2.0\"}]",
-      "last_updated": null,
-      "slug": "github--google--gemini--gemini--cli",
-      "is_rising_star": true,
-      "popularity_score": 9362589.6,
-      "source": "github",
-      "links_data": {},
-      "velocity": 4904213.6
     },
     {
       "id": "huggingface-openai-whisper-large-v3-turbo",
@@ -5695,12 +5658,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2711,
-      "downloads": 4454714,
+      "likes": 2712,
+      "downloads": 4494148,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-openai-whisper-large-v3-turbo.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "openai/whisper-large-v3-turbo",
         "openai/whisper-large-v3",
@@ -5709,13 +5672,49 @@
         "huggingface-openai-whisper-small"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--openai--whisper-large-v3-turbo",
       "is_rising_star": false,
-      "popularity_score": 450893.4,
+      "popularity_score": 454838.80000000005,
       "source": "unknown",
       "links_data": {},
-      "velocity": 448182.4
+      "velocity": 452126.8
+    },
+    {
+      "id": "github-google-gemini-gemini-cli",
+      "name": "gemini-cli",
+      "author": "google-gemini",
+      "description": "An open-source AI agent that brings the power of Gemini directly into your terminal.",
+      "tags": [
+        "gemini",
+        "gemini-api"
+      ],
+      "pipeline_tag": "tool",
+      "seo_summary": "\"Unlock the power of Gemini-cli, a cutting-edge AI model that simplifies data processing and analysis. This robust solution leverages Gemini API to provide seamless integration with various data sources, enabling users to streamline their workflow and gain valuable insights. With Gemini-cli, you can effortlessly extract, transform, and load data from diverse formats, including CSV, JSON, and more. Its advanced natural language processing capabilities enable accurate data parsing and formatting, reducing errors and increasing efficiency. Whether you're a developer, data scientist, or business analyst, Gemini-cli is the ideal tool for automating repetitive tasks, processing large datasets, and generating reports. Discover how Gemini-cli can enhance your data management experience and accelerate your business decisions. Learn more about Gemini-cli's technical strengths and use cases today!\"",
+      "seo_status": "done",
+      "link_status": "alive",
+      "last_checked": "2025-11-28 11:12:40",
+      "likes": 4458376,
+      "downloads": 4458376,
+      "cover_image_url": null,
+      "source_url": "https://github.com/google-gemini/gemini-cli",
+      "created_at": "2025-11-22T16:51:04.745Z",
+      "first_indexed": "2025-11-22 16:51:09",
+      "related_ids": [
+        "github-google-gemini-gemini-fullstack-langgraph-quickstart",
+        "github-google-langextract",
+        "github-GoogleCloudPlatform-generative-ai",
+        "github-lobehub-lobe-chat",
+        "github-chatboxai-chatbox"
+      ],
+      "resources": "[{\"platform\":\"GitHub\",\"url\":\"https://github.com/google-gemini/gemini-cli\",\"homepage\":\"https://geminicli.com\",\"language\":\"TypeScript\",\"forks\":9496,\"open_issues\":3049,\"license\":\"Apache License 2.0\"}]",
+      "last_updated": null,
+      "slug": "github--google--gemini--gemini--cli",
+      "is_rising_star": true,
+      "popularity_score": 9362589.6,
+      "source": "github",
+      "links_data": {},
+      "velocity": 4904213.6
     },
     {
       "id": "huggingface-openai-gpt-oss-120b",
@@ -5731,24 +5730,23 @@
         "general-dialogue-qa",
         "arxiv:2508.10925",
         "license:apache-2.0",
-        "autotrain_compatible",
         "endpoints_compatible",
         "8-bit",
         "mxfp4",
-        "region:us",
-        "deploy:azure"
+        "deploy:azure",
+        "region:us"
       ],
       "pipeline_tag": "text-generation",
       "seo_summary": null,
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 4205,
-      "downloads": 4363677,
+      "likes": 4209,
+      "downloads": 4407150,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-openai-gpt-oss-120b.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "huggingface-openai-gpt-oss-20b",
         "openai/gpt-oss-120b",
@@ -5757,13 +5755,13 @@
         "huggingface-yanolja-YanoljaNEXT-Rosetta-20B"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--openai--gpt-oss-120b",
       "is_rising_star": false,
-      "popularity_score": 444777.7,
+      "popularity_score": 449133,
       "source": "unknown",
       "links_data": {},
-      "velocity": 440572.7
+      "velocity": 444924
     },
     {
       "id": "github-Shubhamsaboo-awesome-llm-apps",
@@ -5960,8 +5958,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the \"whisper-small\" AI model:\n\n\"Introducing Whisper-Small, a cutting-edge automatic speech recognition (ASR) model that excels in various use cases. Built on top of the Transformer architecture, this PyTorch-based model utilizes advanced techniques such as Safetensors and JAX to deliver exceptional accuracy and efficiency. Whisper-Small boasts impressive performance across multiple languages, including English, Mandarin, Spanish, Russian, Korean, French, Japanese, Portuguese, and many more. With its compatibility with TensorFlow and PyTorch, this model can seamlessly integrate into various ecosystems. Its Apache 2.0 license ensures flexibility and scalability. Whisper-Small's region-agnostic design allows for effortless deployment on Azure and other cloud platforms. This model's impressive performance has been validated through its ranking on the HF-ASR Leaderboard. Whether you're developing a voice assistant, transcribing audio files, or enhancing customer service, Whisper-Small is an ideal choice for your ASR needs.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 488,
@@ -5984,7 +5982,7 @@
       "popularity_score": 387751.60000000003,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 387263.6
+      "velocity": 237200.66427237933
     },
     {
       "id": "h2oai/h2o-danube3-500m-chat",
@@ -6058,12 +6056,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 5347,
-      "downloads": 3797384,
+      "likes": 5348,
+      "downloads": 3805815,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-hexgrad-Kokoro-82M.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "hexgrad/Kokoro-82M",
         "huggingface-hexgrad-Kokoro-82M-v1.1-zh",
@@ -6072,13 +6070,13 @@
         "huggingface-metavoiceio-metavoice-1B-v0.1"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--hexgrad--kokoro-82m",
       "is_rising_star": false,
-      "popularity_score": 390432.4,
+      "popularity_score": 391277.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 385085.4
+      "velocity": 385929.5
     },
     {
       "id": "github-binary-husky-gpt_academic",
@@ -6147,12 +6145,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 3025,
-      "downloads": 3653655,
+      "likes": 3026,
+      "downloads": 3652184,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-mistralai-Mistral-7B-Instruct-v0.2.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "mistralai/Mistral-7B-Instruct-v0.2",
         "mistralai/Mistral-7B-Instruct-v0.1",
@@ -6161,13 +6159,13 @@
         "huggingface-teknium-OpenHermes-2.5-Mistral-7B"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--mistralai--mistral-7b-instruct-v0.2",
       "is_rising_star": false,
-      "popularity_score": 371415.5,
+      "popularity_score": 371270.4,
       "source": "unknown",
       "links_data": {},
-      "velocity": 368390.5
+      "velocity": 368244.4
     },
     {
       "id": "github-lobehub-lobe-chat",
@@ -6244,8 +6242,8 @@
         "region:us"
       ],
       "pipeline_tag": "image-text-to-text",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"Meet Qwen2.5-VL-7B-Instruct, a cutting-edge artificial intelligence model designed to revolutionize image-to-text and text-to-image generation. Built on the powerful transformers architecture, this model excels in multimodal tasks, seamlessly bridging the gap between images and text. Qwen2.5-VL-7B-Instruct is trained on a vast dataset, leveraging the strengths of safetensors to ensure robustness and accuracy. Key use cases include general dialogue QA, text generation, and image-text-to-text translation. With its endpoints compatibility, deploy Qwen2.5-VL-7B-Instruct on Azure in the US region, and unlock the full potential of this innovative AI model. Powered by Apache-2.0 license, this technology is open-source and ready for integration into various applications. Tap into the vast capabilities of Qwen2.5-VL-7B-Instruct and transform the way you interact with images and text.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 1366,
@@ -6268,7 +6266,7 @@
       "popularity_score": 359088,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 357722
+      "velocity": 219106.30388408332
     },
     {
       "id": "github-ansible-ansible",
@@ -6355,7 +6353,7 @@
       "popularity_score": 356915.10000000003,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 355423.1
+      "velocity": 217698.2159440867
     },
     {
       "id": "huggingface-MahmoudAshraf-mms-300m-1130-forced-aligner",
@@ -6508,8 +6506,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"mms-300m-1130-forced-aligner\":\n\n\"MMS-300m-1130-Forced-Aligner is a cutting-edge artificial intelligence model that excels in automatic speech recognition (ASR) and forced alignment tasks. Built on top of the PyTorch framework and leveraging the power of Transformers, Wav2Vec2, and SafeTensors, this model boasts exceptional accuracy and flexibility. With a focus on multilingual support, it can process audio files in over 30 languages, including Afrikaans, Arabic, and Spanish, among others. The model's forced alignment capabilities enable precise timing and alignment of speech to text, making it an ideal solution for various applications such as language learning, speech therapy, and audio editing. Deployed on Azure, this model is accessible and scalable, ensuring seamless integration with your projects. Whether you're working on a research project or developing a commercial application, MMS-300m-1130-Forced-Aligner is the perfect choice for its technical strengths and use cases.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 67,
@@ -6532,7 +6530,7 @@
       "popularity_score": 349618,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 349551
+      "velocity": 214101.53031959228
     },
     {
       "id": "github-PaddlePaddle-PaddleOCR",
@@ -6596,8 +6594,8 @@
         "region:us"
       ],
       "pipeline_tag": "audio-to-audio",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"BigVGAN_v2_22kHz_80band_256x is a cutting-edge AI model designed for neural vocoder tasks, leveraging PyTorch and neural networks to generate high-quality audio. Built upon the innovative architecture presented in arXiv:2206.04658, this model excels in audio-to-audio synthesis, allowing for seamless conversion between audio formats. With a sampling rate of 22kHz and 80 bands, BigVGAN_v2_22kHz_80band_256x offers unparalleled audio fidelity. This model is ideal for applications such as music and speech processing, audio post-production, and speech-to-speech translation. Under the MIT license, BigVGAN_v2_22kHz_80band_256x is accessible for use in the US region and worldwide. With its impressive technical strengths, this AI model is poised to revolutionize the audio generation landscape, empowering developers to create innovative audio applications with unparalleled quality and precision.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 22,
@@ -6620,7 +6618,7 @@
       "popularity_score": 332970.2,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 332948.2
+      "velocity": 203932.24203951264
     },
     {
       "id": "huggingface-meta-llama-Llama-3.2-1B-Instruct",
@@ -6678,7 +6676,7 @@
       "popularity_score": 335004.10000000003,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 333821.1
+      "velocity": 204466.8971422472
     },
     {
       "id": "huggingface-meta-llama-Llama-3.2-1B",
@@ -6715,12 +6713,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2203,
-      "downloads": 3214063,
+      "likes": 2205,
+      "downloads": 3260945,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-3.2-1B.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Llama-3.2-1B",
         "meta-llama/Llama-3.2-3B-Instruct",
@@ -6729,13 +6727,13 @@
         "meta-llama/Llama-3.1-8B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--llama-3.2-1b",
       "is_rising_star": false,
-      "popularity_score": 325812.30000000005,
+      "popularity_score": 330504.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 323609.3
+      "velocity": 328299.5
     },
     {
       "id": "github-unclecode-crawl4ai",
@@ -6873,12 +6871,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 7177,
-      "downloads": 2756179,
+      "likes": 7182,
+      "downloads": 2752124,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-stabilityai-stable-diffusion-xl-base-1.0.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "stabilityai/stable-diffusion-xl-base-1.0",
         "huggingface-stabilityai-stable-diffusion-xl-base-0.9",
@@ -6887,13 +6885,13 @@
         "stabilityai/stable-diffusion-xl-refiner-1.0"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--stabilityai--stable-diffusion-xl-base-1.0",
       "is_rising_star": false,
-      "popularity_score": 289971.9,
+      "popularity_score": 289576.4,
       "source": "unknown",
       "links_data": {},
-      "velocity": 282794.9
+      "velocity": 282394.4
     },
     {
       "id": "github-microsoft-autogen",
@@ -7206,8 +7204,8 @@
         "region:us"
       ],
       "pipeline_tag": "image-to-text",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"blip-image-captioning-base\":\n\n\"Introducing Blip-Image-Captioning-Base, a cutting-edge AI model for image-to-text tasks. Built on the foundation of transformers and optimized for PyTorch and TensorFlow, this model is designed to generate accurate and descriptive captions for images. With its strong performance and flexibility, Blip-Image-Captioning-Base is ideal for a wide range of applications, including visual search, image retrieval, and accessibility solutions. This model is based on the research paper \"BLIP: Robust and Efficient Visual-Text Pre-training\" (arXiv:2201.12086) and is released under the permissive BSD-3-Clause license. With endpoints compatible with various regions, including the US, this model can be easily integrated into your applications. Take advantage of its technical strengths and unleash the power of image captioning with Blip-Image-Captioning-Base.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 816,
@@ -7230,7 +7228,7 @@
       "popularity_score": 253251.6,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 252435.6
+      "velocity": 154617.9191795889
     },
     {
       "id": "huggingface-kresnik-wav2vec2-large-xlsr-korean",
@@ -7253,8 +7251,8 @@
         "region:us"
       ],
       "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"wav2vec2-large-xlsr-korean\":\n\n\"Wav2vec2-large-xlsr-korean is a cutting-edge AI model designed for automatic speech recognition (ASR) tasks in Korean. Built using the transformers framework and trained on the KRESNIK/Zeroth Korean dataset, this model excels in various use cases, such as speech-to-text applications, voice assistants, and language learning tools. With its large-scale pre-training and XLSR (Cross-Lingual Speech Representation) architecture, wav2vec2-large-xlsr-korean achieves state-of-the-art performance in Korean ASR tasks. This model is compatible with PyTorch and can be easily integrated with other frameworks. Additionally, it is licensed under the Apache-2.0 license and is compatible with endpoints in the US region. With its robust technical strengths and versatile applications, wav2vec2-large-xlsr-korean is an ideal choice for developers and researchers seeking to improve Korean speech recognition capabilities.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 54,
@@ -7277,7 +7275,7 @@
       "popularity_score": 251328.5,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 251274.5
+      "velocity": 153906.74030482073
     },
     {
       "id": "OrionStarAI/Orion-14B-Chat",
@@ -7440,8 +7438,8 @@
         "deploy:azure"
       ],
       "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"Wav2vec2-base-960h is a cutting-edge AI model for automatic speech recognition (ASR) tasks, built using the transformer architecture and PyTorch framework. This model leverages the wav2vec2 technique, which has achieved state-of-the-art performance in various ASR benchmarks, including the HF ASR Leaderboard. With a focus on English language recognition, Wav2vec2-base-960h is particularly suited for tasks such as voice assistants, speech-to-text systems, and audio processing applications. This model is compatible with endpoints, allowing for seamless deployment on Azure. By utilizing the LibriSpeech ASR dataset and backed by the Apache 2.0 license, Wav2vec2-base-960h is a reliable and efficient solution for a wide range of audio-based use cases. With its region-specific compatibility in the US, this model is an ideal choice for developers seeking to integrate advanced ASR capabilities into their projects.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 383,
@@ -7464,7 +7462,7 @@
       "popularity_score": 239508.80000000002,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 239125.8
+      "velocity": 146465.6079338831
     },
     {
       "id": "github-anthropics-claude-code",
@@ -7532,8 +7530,8 @@
         "region:us"
       ],
       "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"Introducing Parakeet-tdt-0.6b-v2, a cutting-edge AI model for automatic speech recognition (ASR) powered by NVIDIA's NeMo framework. This Transducer-based model leverages the strengths of FastConformer and Conformer architectures, achieving state-of-the-art performance on various datasets, including NVIDIA's Granary and nemo-asr-set-3.0. With its robustness in recognizing audio inputs, Parakeet-tdt-0.6b-v2 excels in real-world use cases, such as voice assistants, transcription services, and language understanding applications. Built using PyTorch and Fine-Tuned on a wide range of datasets, this model has been published in several research papers, including arXiv:2305.05084, arXiv:2304.06795, and arXiv:2406.00899. Deploy this model in your Azure application with ease, and experience the power of Parakeet-tdt-0.6b-v2 for your ASR needs.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 1371,
@@ -7556,7 +7554,7 @@
       "popularity_score": 227819.80000000002,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 226448.8
+      "velocity": 138700.88948117814
     },
     {
       "id": "huggingface-google-t5-t5-small",
@@ -7620,7 +7618,7 @@
       "popularity_score": 223362.7,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 222854.7
+      "velocity": 136499.48640016548
     },
     {
       "id": "huggingface-stable-diffusion-v1-5-stable-diffusion-v1-5",
@@ -7669,7 +7667,7 @@
       "popularity_score": 219501.40000000002,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 218571.4
+      "velocity": 133875.94721255478
     },
     {
       "id": "github-crewAIInc-crewAI",
@@ -7770,7 +7768,7 @@
       "popularity_score": 214772.1,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 214016.1
+      "velocity": 131085.8049274548
     },
     {
       "id": "byroneverson/Mistral-Small-Instruct-2409-abliterated",
@@ -7825,57 +7823,6 @@
       "velocity": 211913
     },
     {
-      "id": "huggingface-Qwen-Qwen2-VL-2B-Instruct",
-      "name": "Qwen2-VL-2B-Instruct",
-      "author": "Qwen",
-      "description": "",
-      "tags": [
-        "transformers",
-        "safetensors",
-        "qwen2_vl",
-        "image-to-text",
-        "multimodal",
-        "image-text-to-text",
-        "general-dialogue-qa",
-        "en",
-        "arxiv:2409.12191",
-        "arxiv:2308.12966",
-        "base_model:Qwen/Qwen2-VL-2B",
-        "base_model:finetune:Qwen/Qwen2-VL-2B",
-        "license:apache-2.0",
-        "text-generation-inference",
-        "endpoints_compatible",
-        "deploy:azure",
-        "region:us"
-      ],
-      "pipeline_tag": "image-text-to-text",
-      "seo_summary": null,
-      "seo_status": "pending",
-      "link_status": "alive",
-      "last_checked": null,
-      "likes": 470,
-      "downloads": 2043524,
-      "cover_image_url": null,
-      "source_url": null,
-      "created_at": null,
-      "first_indexed": "2025-12-01 12:34:33",
-      "related_ids": [
-        "huggingface-Qwen-Qwen2-VL-7B-Instruct",
-        "huggingface-Qwen-Qwen2.5-VL-7B-Instruct",
-        "huggingface-Qwen-Qwen2-VL-72B-Instruct",
-        "huggingface-Qwen-Qwen2.5-VL-72B-Instruct",
-        "huggingface-Qwen-Qwen2.5-VL-3B-Instruct"
-      ],
-      "resources": null,
-      "last_updated": "2025-12-01 12:34:33",
-      "slug": "huggingface--qwen--qwen2-vl-2b-instruct",
-      "is_rising_star": false,
-      "popularity_score": 205292.40000000002,
-      "source": "huggingface",
-      "links_data": {},
-      "velocity": 204822.4
-    },
-    {
       "id": "huggingface-meta-llama-Meta-Llama-3-8B",
       "name": "Meta-Llama-3-8B",
       "author": "meta-llama",
@@ -7901,12 +7848,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 6393,
-      "downloads": 2026820,
+      "likes": 6394,
+      "downloads": 2062601,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Meta-Llama-3-8B.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Meta-Llama-3-8B",
         "meta-llama/Meta-Llama-3-8B-Instruct",
@@ -7915,13 +7862,64 @@
         "huggingface-meta-llama-Meta-Llama-3-8B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--meta-llama-3-8b",
       "is_rising_star": false,
-      "popularity_score": 215468,
+      "popularity_score": 219048.1,
       "source": "unknown",
       "links_data": {},
-      "velocity": 209075
+      "velocity": 212654.1
+    },
+    {
+      "id": "huggingface-Qwen-Qwen2-VL-2B-Instruct",
+      "name": "Qwen2-VL-2B-Instruct",
+      "author": "Qwen",
+      "description": "",
+      "tags": [
+        "transformers",
+        "safetensors",
+        "qwen2_vl",
+        "image-to-text",
+        "multimodal",
+        "image-text-to-text",
+        "general-dialogue-qa",
+        "en",
+        "arxiv:2409.12191",
+        "arxiv:2308.12966",
+        "base_model:Qwen/Qwen2-VL-2B",
+        "base_model:finetune:Qwen/Qwen2-VL-2B",
+        "license:apache-2.0",
+        "text-generation-inference",
+        "endpoints_compatible",
+        "deploy:azure",
+        "region:us"
+      ],
+      "pipeline_tag": "image-text-to-text",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"Qwen2-VL-2B-Instruct\":\n\n\"Introducing Qwen2-VL-2B-Instruct, a cutting-edge AI model that excels in multimodal tasks such as image-to-text, general dialogue QA, and text generation inference. Built upon the transformer architecture and utilizing Safetensors, this model demonstrates unparalleled performance in diverse applications. With a strong foundation in base models Qwen and Qwen2-VL-2B, Qwen2-VL-2B-Instruct is capable of fine-tuning for specific use cases. This model's technical strengths lie in its ability to generate coherent and informative text, making it an ideal choice for various industries. Deployable on Azure endpoints in the US region, Qwen2-VL-2B-Instruct is licensed under Apache-2.0. Its applications are vast, including but not limited to, generating product descriptions, summarizing articles, and conversational AI systems. With its impressive capabilities and flexibility, Qwen2-VL-2B-Instruct is poised to revolutionize the world of AI and NLP.\"",
+      "seo_status": "done",
+      "link_status": "alive",
+      "last_checked": null,
+      "likes": 470,
+      "downloads": 2043524,
+      "cover_image_url": null,
+      "source_url": null,
+      "created_at": null,
+      "first_indexed": "2025-12-01 12:34:33",
+      "related_ids": [
+        "huggingface-Qwen-Qwen2-VL-7B-Instruct",
+        "huggingface-Qwen-Qwen2.5-VL-7B-Instruct",
+        "huggingface-Qwen-Qwen2-VL-72B-Instruct",
+        "huggingface-Qwen-Qwen2.5-VL-72B-Instruct",
+        "huggingface-Qwen-Qwen2.5-VL-3B-Instruct"
+      ],
+      "resources": null,
+      "last_updated": "2025-12-01 12:34:33",
+      "slug": "huggingface--qwen--qwen2-vl-2b-instruct",
+      "is_rising_star": false,
+      "popularity_score": 205292.40000000002,
+      "source": "huggingface",
+      "links_data": {},
+      "velocity": 125454.62402834398
     },
     {
       "id": "huggingface-Qwen-Qwen3-VL-8B-Instruct",
@@ -7945,8 +7943,8 @@
         "region:us"
       ],
       "pipeline_tag": "image-text-to-text",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"Qwen3-VL-8B-Instruct\":\n\n\"Qwen3-VL-8B-Instruct is a cutting-edge AI model that excels in various applications, including image-to-text and image-text-to-text transformations. Built on the powerful transformers architecture, this model leverages the strengths of safetensors to ensure robust and accurate results. With its impressive general dialogue QA capabilities, Qwen3-VL-8B-Instruct can tackle a wide range of tasks, from answering user queries to generating human-like text. Backed by rigorous research, this model draws from the latest advancements in the field, as seen in publications such as arxiv:2505.09388, arxiv:2502.13923, arxiv:2409.12191, and arxiv:2308.12966. Licensed under Apache 2.0, Qwen3-VL-8B-Instruct is deployable on Azure endpoints, available in the US region. With its technical strengths and versatility, this AI model is an ideal solution for developers, researchers, and businesses seeking to integrate AI-driven capabilities into their applications.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 488,
@@ -7969,7 +7967,7 @@
       "popularity_score": 201411.80000000002,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 200923.8
+      "velocity": 123066.71432102239
     },
     {
       "id": "github-chatboxai-chatbox",
@@ -8155,7 +8153,7 @@
       "popularity_score": 192067.2,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 190595.2
+      "velocity": 116740.40123349316
     },
     {
       "id": "github-karpathy-LLM101n",
@@ -8316,7 +8314,7 @@
       "popularity_score": 187638,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 186175
+      "velocity": 114033.00922397619
     },
     {
       "id": "github-microsoft-qlib",
@@ -8451,7 +8449,7 @@
       "popularity_score": 178782.6,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 177892.6
+      "velocity": 108960.00266779699
     },
     {
       "id": "github-1Panel-dev-1Panel",
@@ -8518,8 +8516,8 @@
         "region:us"
       ],
       "pipeline_tag": "image-text-to-text",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"Qwen3-VL-32B-Instruct is a cutting-edge AI model designed for general dialogue, question-answering, and image-to-text tasks. Built on top of transformer architecture and safetensors, this model excels in generating human-like text responses. Its strength in image-to-text and image-text-to-text conversions makes it an ideal solution for applications such as image description, captioning, and chatbots. With its ability to process and analyze vast amounts of data, Qwen3-VL-32B-Instruct is perfect for tasks that require contextual understanding and accurate information retrieval. This model is compatible with endpoints and can be deployed on Azure in the US region. With its Apache 2.0 license, you can freely use and modify the model to fit your specific needs. Backed by research papers such as arXiv:2505.09388, arXiv:2502.13923, arXiv:2409.12191, and arXiv:2308.12966, Qwen3-VL-32B-Instruct is a reliable and powerful tool for a wide range of applications.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 129,
@@ -8542,7 +8540,7 @@
       "popularity_score": 169572.90000000002,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 169443.9
+      "velocity": 103785.13662761648
     },
     {
       "id": "github-danny-avila-LibreChat",
@@ -8727,8 +8725,8 @@
         "region:us"
       ],
       "pipeline_tag": "image-text-to-text",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "Here is a 150-word SEO description for the AI model \"Qwen2-VL-7B-Instruct\":\n\n\"Qwen2-VL-7B-Instruct is a cutting-edge AI model that excels in various use cases, including image-to-text, multimodal, and general dialogue QA. Built using the powerful Transformers architecture, this model leverages the strengths of safetensors for robust and efficient processing. With a base model of Qwen/Qwen2-VL-7B, Qwen2-VL-7B-Instruct is capable of generating high-quality text and responding to user queries with precision. This model is trained on a large dataset and fine-tuned for optimal performance, making it an ideal solution for text generation inference and deployment. With endpoints compatible with Azure and deployable in the US region, Qwen2-VL-7B-Instruct is a reliable and scalable option for businesses and developers. Licensed under Apache-2.0, this model is open-source and free to use. With its technical strengths and versatility, Qwen2-VL-7B-Instruct is poised to revolutionize the field of AI-powered language processing.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 1243,
@@ -8751,7 +8749,65 @@
       "popularity_score": 165216.80000000002,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 163973.8
+      "velocity": 100434.67623413684
+    },
+    {
+      "id": "huggingface-meta-llama-Llama-3.2-3B-Instruct",
+      "name": "Llama-3.2-3B-Instruct",
+      "author": "meta-llama",
+      "description": "",
+      "tags": [
+        "transformers",
+        "safetensors",
+        "llama",
+        "text-generation",
+        "facebook",
+        "meta",
+        "pytorch",
+        "llama-3",
+        "general-dialogue-qa",
+        "en",
+        "de",
+        "fr",
+        "it",
+        "pt",
+        "hi",
+        "es",
+        "th",
+        "arxiv:2204.05149",
+        "arxiv:2405.16406",
+        "license:llama3.2",
+        "autotrain_compatible",
+        "text-generation-inference",
+        "endpoints_compatible",
+        "region:us"
+      ],
+      "pipeline_tag": "text-generation",
+      "seo_summary": null,
+      "seo_status": "pending",
+      "link_status": "alive",
+      "last_checked": null,
+      "likes": 1852,
+      "downloads": 1623445,
+      "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-3.2-3B-Instruct.jpg",
+      "source_url": null,
+      "created_at": null,
+      "first_indexed": "2025-12-03 03:44:54",
+      "related_ids": [
+        "meta-llama/Llama-3.2-3B-Instruct",
+        "huggingface-meta-llama-Llama-3.2-1B-Instruct",
+        "meta-llama/Llama-3.2-1B",
+        "huggingface-meta-llama-Llama-3.2-1B",
+        "meta-llama/Llama-3.1-8B-Instruct"
+      ],
+      "resources": null,
+      "last_updated": "2025-12-03 03:44:54",
+      "slug": "huggingface--meta-llama--llama-3.2-3b-instruct",
+      "is_rising_star": false,
+      "popularity_score": 166048.5,
+      "source": "unknown",
+      "links_data": {},
+      "velocity": 164196.5
     },
     {
       "id": "huggingface-stabilityai-sd-turbo",
@@ -8791,65 +8847,7 @@
       "popularity_score": 162674.7,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 162246.7
-    },
-    {
-      "id": "huggingface-meta-llama-Llama-3.2-3B-Instruct",
-      "name": "Llama-3.2-3B-Instruct",
-      "author": "meta-llama",
-      "description": "",
-      "tags": [
-        "transformers",
-        "safetensors",
-        "llama",
-        "text-generation",
-        "facebook",
-        "meta",
-        "pytorch",
-        "llama-3",
-        "general-dialogue-qa",
-        "en",
-        "de",
-        "fr",
-        "it",
-        "pt",
-        "hi",
-        "es",
-        "th",
-        "arxiv:2204.05149",
-        "arxiv:2405.16406",
-        "license:llama3.2",
-        "autotrain_compatible",
-        "text-generation-inference",
-        "endpoints_compatible",
-        "region:us"
-      ],
-      "pipeline_tag": "text-generation",
-      "seo_summary": null,
-      "seo_status": "pending",
-      "link_status": "alive",
-      "last_checked": null,
-      "likes": 1850,
-      "downloads": 1610324,
-      "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-3.2-3B-Instruct.jpg",
-      "source_url": null,
-      "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
-      "related_ids": [
-        "meta-llama/Llama-3.2-3B-Instruct",
-        "huggingface-meta-llama-Llama-3.2-1B-Instruct",
-        "meta-llama/Llama-3.2-1B",
-        "huggingface-meta-llama-Llama-3.2-1B",
-        "meta-llama/Llama-3.1-8B-Instruct"
-      ],
-      "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
-      "slug": "huggingface--meta-llama--llama-3.2-3b-instruct",
-      "is_rising_star": false,
-      "popularity_score": 164732.40000000002,
-      "source": "unknown",
-      "links_data": {},
-      "velocity": 162882.4
+      "velocity": 99376.81986120422
     },
     {
       "id": "huggingface-vikhyatk-moondream2",
@@ -8894,7 +8892,7 @@
       "popularity_score": 161614.40000000002,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 160269.4
+      "velocity": 98165.71488395933
     },
     {
       "id": "github-continuedev-continue",
@@ -9002,8 +9000,8 @@
         "region:us"
       ],
       "pipeline_tag": "image-to-text",
-      "seo_summary": null,
-      "seo_status": "pending",
+      "seo_summary": "\"Unlock the power of visual storytelling with Vit-GPT2-Image-Captioning, a cutting-edge AI model that revolutionizes image-to-text generation. Built on top of the PyTorch framework and leveraging the transformer architecture, this model excels in generating accurate and descriptive captions for images. The vision encoder-decoder design enables Vit-GPT2-Image-Captioning to efficiently process visual data and produce human-like text outputs. With its impressive performance, as demonstrated in the paper 'Vit-GPT2-Image-Captioning: A Unified Approach to Image Captioning' (DOI: 10.57967/hf/0222), this model is ideal for applications such as image search, visual content analysis, and multimedia indexing. Under the Apache-2.0 license, Vit-GPT2-Image-Captioning is accessible and compatible with endpoints across regions, including the US. Experience the transformative capabilities of Vit-GPT2-Image-Captioning and unlock new possibilities for image-to-text generation.\"",
+      "seo_status": "done",
       "link_status": "alive",
       "last_checked": null,
       "likes": 920,
@@ -9026,7 +9024,7 @@
       "popularity_score": 158990.1,
       "source": "huggingface",
       "links_data": {},
-      "velocity": 158070.1
+      "velocity": 96818.633926869
     },
     {
       "id": "github-microsoft-graphrag",
@@ -9295,11 +9293,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 12889,
-      "downloads": 1184480,
+      "downloads": 1199185,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-deepseek-ai-DeepSeek-R1.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "deepseek-ai/DeepSeek-R1",
         "deepseek-ai/DeepSeek-R1-0528",
@@ -9308,13 +9306,13 @@
         "deepseek-ai/DeepSeek-V3-0324"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--deepseek-ai--deepseek-r1",
       "is_rising_star": false,
-      "popularity_score": 144226,
+      "popularity_score": 145696.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 131337
+      "velocity": 132807.5
     },
     {
       "id": "huggingface-black-forest-labs-FLUX.1-dev",
@@ -9337,12 +9335,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 11937,
-      "downloads": 1384788,
+      "likes": 11944,
+      "downloads": 1353797,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-black-forest-labs-FLUX.1-dev.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "black-forest-labs/FLUX.1-dev",
         "huggingface-black-forest-labs-FLUX.1-Krea-dev",
@@ -9351,13 +9349,13 @@
         "huggingface-Freepik-flux.1-lite-8B-alpha"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--black-forest-labs--flux.1-dev",
       "is_rising_star": false,
-      "popularity_score": 162352.80000000002,
+      "popularity_score": 159267.7,
       "source": "unknown",
       "links_data": {},
-      "velocity": 150415.8
+      "velocity": 147323.7
     },
     {
       "id": "huggingface-stabilityai-stable-diffusion-xl-base-1.0",
@@ -9386,12 +9384,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 7177,
-      "downloads": 2756179,
+      "likes": 7182,
+      "downloads": 2752124,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-stabilityai-stable-diffusion-xl-base-1.0.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "stabilityai/stable-diffusion-xl-base-1.0",
         "huggingface-stabilityai-stable-diffusion-xl-base-0.9",
@@ -9400,13 +9398,13 @@
         "stabilityai/stable-diffusion-xl-refiner-1.0"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--stabilityai--stable-diffusion-xl-base-1.0",
       "is_rising_star": false,
-      "popularity_score": 289971.9,
+      "popularity_score": 289576.4,
       "source": "unknown",
       "links_data": {},
-      "velocity": 282794.9
+      "velocity": 282394.4
     },
     {
       "id": "huggingface-CompVis-stable-diffusion-v1-4",
@@ -9435,12 +9433,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 6940,
-      "downloads": 627936,
+      "likes": 6941,
+      "downloads": 629451,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-CompVis-stable-diffusion-v1-4.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "CompVis/stable-diffusion-v1-4",
         "huggingface-stable-diffusion-v1-5-stable-diffusion-v1-5",
@@ -9449,13 +9447,13 @@
         "gsdf/Counterfeit-V2.5"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--compvis--stable-diffusion-v1-4",
       "is_rising_star": false,
-      "popularity_score": 76673.6,
+      "popularity_score": 76827.1,
       "source": "unknown",
       "links_data": {},
-      "velocity": 69733.6
+      "velocity": 69886.1
     },
     {
       "id": "huggingface-meta-llama-Meta-Llama-3-8B",
@@ -9483,12 +9481,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 6393,
-      "downloads": 2026820,
+      "likes": 6394,
+      "downloads": 2062601,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Meta-Llama-3-8B.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Meta-Llama-3-8B",
         "meta-llama/Meta-Llama-3-8B-Instruct",
@@ -9497,13 +9495,13 @@
         "huggingface-meta-llama-Meta-Llama-3-8B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--meta-llama-3-8b",
       "is_rising_star": false,
-      "popularity_score": 215468,
+      "popularity_score": 219048.1,
       "source": "unknown",
       "links_data": {},
-      "velocity": 209075
+      "velocity": 212654.1
     },
     {
       "id": "huggingface-hexgrad-Kokoro-82M",
@@ -9526,12 +9524,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 5347,
-      "downloads": 3797384,
+      "likes": 5348,
+      "downloads": 3805815,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-hexgrad-Kokoro-82M.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "hexgrad/Kokoro-82M",
         "huggingface-hexgrad-Kokoro-82M-v1.1-zh",
@@ -9540,13 +9538,13 @@
         "huggingface-metavoiceio-metavoice-1B-v0.1"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--hexgrad--kokoro-82m",
       "is_rising_star": false,
-      "popularity_score": 390432.4,
+      "popularity_score": 391277.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 385085.4
+      "velocity": 385929.5
     },
     {
       "id": "huggingface-openai-whisper-large-v3",
@@ -9672,12 +9670,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 5150,
-      "downloads": 4786189,
+      "likes": 5156,
+      "downloads": 4856553,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-openai-whisper-large-v3.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "huggingface-openai-whisper-large",
         "huggingface-openai-whisper-small",
@@ -9686,13 +9684,13 @@
         "huggingface-openai-whisper-large-v2"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--openai--whisper-large-v3",
       "is_rising_star": false,
-      "popularity_score": 488918.9,
+      "popularity_score": 495967.30000000005,
       "source": "unknown",
       "links_data": {},
-      "velocity": 483768.9
+      "velocity": 490811.3
     },
     {
       "id": "huggingface-meta-llama-Llama-3.1-8B-Instruct",
@@ -9731,12 +9729,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 5049,
-      "downloads": 4987258,
+      "likes": 5053,
+      "downloads": 5005031,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-3.1-8B-Instruct.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Llama-3.1-8B-Instruct",
         "huggingface-meta-llama-Llama-3.1-70B-Instruct",
@@ -9745,13 +9743,13 @@
         "meta-llama/Llama-3.2-3B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--llama-3.1-8b-instruct",
       "is_rising_star": false,
-      "popularity_score": 508823.80000000005,
+      "popularity_score": 510609.10000000003,
       "source": "unknown",
       "links_data": {},
-      "velocity": 503774.8
+      "velocity": 505556.1
     },
     {
       "id": "huggingface-bigscience-bloom",
@@ -9831,11 +9829,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 4961,
-      "downloads": 2437,
+      "downloads": 2520,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-bigscience-bloom.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "bigscience/bloom",
         "huggingface-google-madlad400-3b-mt",
@@ -9844,13 +9842,13 @@
         "huggingface-facebook-nllb-200-distilled-600M"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--bigscience--bloom",
       "is_rising_star": false,
-      "popularity_score": 10165.7,
+      "popularity_score": 10174,
       "source": "unknown",
       "links_data": {},
-      "velocity": 5204.7
+      "velocity": 5213
     },
     {
       "id": "huggingface-stabilityai-stable-diffusion-3-medium",
@@ -9872,11 +9870,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 4875,
-      "downloads": 10927,
+      "downloads": 10930,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-stabilityai-stable-diffusion-3-medium.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "stabilityai/stable-diffusion-3-medium",
         "stabilityai/stable-diffusion-3.5-large",
@@ -9885,13 +9883,13 @@
         "huggingface-stabilityai-stable-diffusion-3-medium-diffusers"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--stabilityai--stable-diffusion-3-medium",
       "is_rising_star": false,
-      "popularity_score": 10842.7,
+      "popularity_score": 10843,
       "source": "unknown",
       "links_data": {},
-      "velocity": 5967.7
+      "velocity": 5968
     },
     {
       "id": "huggingface-meta-llama-Llama-2-7b-chat-hf",
@@ -9921,12 +9919,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 4661,
-      "downloads": 320401,
+      "likes": 4662,
+      "downloads": 325421,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-2-7b-chat-hf.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Llama-2-7b-chat-hf",
         "meta-llama/Llama-2-70b-chat-hf",
@@ -9935,13 +9933,13 @@
         "meta-llama/Llama-2-7b-hf"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--llama-2-7b-chat-hf",
       "is_rising_star": false,
-      "popularity_score": 41362.100000000006,
+      "popularity_score": 41866.100000000006,
       "source": "unknown",
       "links_data": {},
-      "velocity": 36701.1
+      "velocity": 37204.1
     },
     {
       "id": "huggingface-mistralai-Mixtral-8x7B-Instruct-v0.1",
@@ -9967,12 +9965,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 4612,
-      "downloads": 382528,
+      "likes": 4613,
+      "downloads": 387463,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-mistralai-Mixtral-8x7B-Instruct-v0.1.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "mistralai/Mixtral-8x7B-Instruct-v0.1",
         "mistralai/Mixtral-8x7B-v0.1",
@@ -9981,13 +9979,13 @@
         "huggingface-mistralai-Mistral-Nemo-Instruct-2407"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--mistralai--mixtral-8x7b-instruct-v0.1",
       "is_rising_star": false,
-      "popularity_score": 47476.8,
+      "popularity_score": 47972.3,
       "source": "unknown",
       "links_data": {},
-      "velocity": 42864.8
+      "velocity": 43359.3
     },
     {
       "id": "huggingface-black-forest-labs-FLUX.1-schnell",
@@ -10010,12 +10008,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 4434,
-      "downloads": 800754,
+      "likes": 4437,
+      "downloads": 807420,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-black-forest-labs-FLUX.1-schnell.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "black-forest-labs/FLUX.1-schnell",
         "black-forest-labs/FLUX.1-dev",
@@ -10024,13 +10022,13 @@
         "huggingface-black-forest-labs-FLUX.1-dev"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--black-forest-labs--flux.1-schnell",
       "is_rising_star": false,
-      "popularity_score": 88943.40000000001,
+      "popularity_score": 89616,
       "source": "unknown",
       "links_data": {},
-      "velocity": 84509.4
+      "velocity": 85179
     },
     {
       "id": "huggingface-meta-llama-Llama-2-7b",
@@ -10055,11 +10053,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 4429,
-      "downloads": 451,
+      "downloads": 467,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-2-7b.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Llama-2-7b-chat-hf",
         "meta-llama/Llama-2-7b",
@@ -10068,13 +10066,13 @@
         "huggingface-meta-llama-Llama-2-13b-chat-hf"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--llama-2-7b",
       "is_rising_star": false,
-      "popularity_score": 8903.1,
+      "popularity_score": 8904.7,
       "source": "unknown",
       "links_data": {},
-      "velocity": 4474.1
+      "velocity": 4475.7
     },
     {
       "id": "huggingface-meta-llama-Meta-Llama-3-8B-Instruct",
@@ -10104,12 +10102,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 4305,
-      "downloads": 1123388,
+      "likes": 4310,
+      "downloads": 1167036,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Meta-Llama-3-8B-Instruct.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "huggingface-meta-llama-Meta-Llama-3-70B-Instruct",
         "meta-llama/Meta-Llama-3-8B-Instruct",
@@ -10118,13 +10116,13 @@
         "meta-llama/Llama-3.3-70B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--meta-llama-3-8b-instruct",
       "is_rising_star": false,
-      "popularity_score": 120948.8,
+      "popularity_score": 125323.6,
       "source": "unknown",
       "links_data": {},
-      "velocity": 116643.8
+      "velocity": 121013.6
     },
     {
       "id": "huggingface-openai-gpt-oss-120b",
@@ -10140,24 +10138,23 @@
         "general-dialogue-qa",
         "arxiv:2508.10925",
         "license:apache-2.0",
-        "autotrain_compatible",
         "endpoints_compatible",
         "8-bit",
         "mxfp4",
-        "region:us",
-        "deploy:azure"
+        "deploy:azure",
+        "region:us"
       ],
       "pipeline_tag": "text-generation",
       "seo_summary": null,
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 4205,
-      "downloads": 4363677,
+      "likes": 4209,
+      "downloads": 4407150,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-openai-gpt-oss-120b.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "huggingface-openai-gpt-oss-20b",
         "openai/gpt-oss-120b",
@@ -10166,13 +10163,13 @@
         "huggingface-yanolja-YanoljaNEXT-Rosetta-20B"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--openai--gpt-oss-120b",
       "is_rising_star": false,
-      "popularity_score": 444777.7,
+      "popularity_score": 449133,
       "source": "unknown",
       "links_data": {},
-      "velocity": 440572.7
+      "velocity": 444924
     },
     {
       "id": "huggingface-sentence-transformers-all-MiniLM-L6-v2",
@@ -10230,12 +10227,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 4171,
-      "downloads": 147343796,
+      "likes": 4173,
+      "downloads": 148794919,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-sentence-transformers-all-MiniLM-L6-v2.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "sentence-transformers/all-MiniLM-L6-v2",
         "huggingface-google-bert-bert-base-uncased",
@@ -10244,13 +10241,13 @@
         "huggingface-symanto-sn-xlm-roberta-base-snli-mnli-anli-xnli"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--sentence-transformers--all-minilm-l6-v2",
       "is_rising_star": true,
-      "popularity_score": 14742721.600000001,
+      "popularity_score": 14887837.9,
       "source": "unknown",
       "links_data": {},
-      "velocity": 14738550.6
+      "velocity": 14883664.9
     },
     {
       "id": "huggingface-mistralai-Mistral-7B-v0.1",
@@ -10278,11 +10275,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 4015,
-      "downloads": 419268,
+      "downloads": 414200,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-mistralai-Mistral-7B-v0.1.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "mistralai/Mistral-7B-v0.1",
         "mistralai/Mistral-7B-Instruct-v0.2",
@@ -10291,13 +10288,13 @@
         "huggingface-mistralai-Mistral-7B-Instruct-v0.1"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--mistralai--mistral-7b-v0.1",
       "is_rising_star": false,
-      "popularity_score": 49956.8,
+      "popularity_score": 49450,
       "source": "unknown",
       "links_data": {},
-      "velocity": 45941.8
+      "velocity": 45435
     },
     {
       "id": "huggingface-openai-gpt-oss-20b",
@@ -10313,7 +10310,6 @@
         "general-dialogue-qa",
         "arxiv:2508.10925",
         "license:apache-2.0",
-        "autotrain_compatible",
         "endpoints_compatible",
         "8-bit",
         "mxfp4",
@@ -10325,12 +10321,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 4005,
-      "downloads": 7395121,
+      "likes": 4011,
+      "downloads": 7458736,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-openai-gpt-oss-20b.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "huggingface-openai-gpt-oss-120b",
         "openai/gpt-oss-120b",
@@ -10339,13 +10335,13 @@
         "huggingface-yanolja-YanoljaNEXT-Rosetta-20B"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--openai--gpt-oss-20b",
       "is_rising_star": false,
-      "popularity_score": 747522.1000000001,
+      "popularity_score": 753895.6000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 743517.1
+      "velocity": 749884.6
     },
     {
       "id": "huggingface-deepseek-ai-DeepSeek-V3",
@@ -10371,12 +10367,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 4002,
-      "downloads": 598762,
+      "likes": 4003,
+      "downloads": 627015,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-deepseek-ai-DeepSeek-V3.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "deepseek-ai/DeepSeek-V3",
         "deepseek-ai/DeepSeek-V3-0324",
@@ -10385,13 +10381,13 @@
         "deepseek-ai/DeepSeek-R1"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--deepseek-ai--deepseek-v3",
       "is_rising_star": false,
-      "popularity_score": 67880.20000000001,
+      "popularity_score": 70707.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 63878.2
+      "velocity": 66704.5
     },
     {
       "id": "huggingface-lllyasviel-ControlNet-v1-1",
@@ -10407,12 +10403,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 3955,
+      "likes": 3956,
       "downloads": 0,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-lllyasviel-ControlNet-v1-1.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "lllyasviel/ControlNet-v1-1",
         "lllyasviel/ControlNet",
@@ -10421,13 +10417,13 @@
         "huggingface-1358Adrian-so-vits-svc-rvc-models"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--lllyasviel--controlnet-v1-1",
       "is_rising_star": false,
-      "popularity_score": 7910,
+      "popularity_score": 7912,
       "source": "unknown",
       "links_data": {},
-      "velocity": 3955
+      "velocity": 3956
     },
     {
       "id": "huggingface-WarriorMama777-OrangeMixs",
@@ -10451,11 +10447,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 3886,
-      "downloads": 8477,
+      "downloads": 8512,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-WarriorMama777-OrangeMixs.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "WarriorMama777/OrangeMixs",
         "CompVis/stable-diffusion-v1-4",
@@ -10464,13 +10460,13 @@
         "gsdf/Counterfeit-V2.5"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--warriormama777--orangemixs",
       "is_rising_star": false,
-      "popularity_score": 8619.7,
+      "popularity_score": 8623.2,
       "source": "unknown",
       "links_data": {},
-      "velocity": 4733.7
+      "velocity": 4737.2
     },
     {
       "id": "huggingface-lllyasviel-ControlNet",
@@ -10491,7 +10487,7 @@
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-lllyasviel-ControlNet.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "lllyasviel/ControlNet-v1-1",
         "lllyasviel/ControlNet",
@@ -10500,7 +10496,7 @@
         "huggingface-1358Adrian-so-vits-svc-rvc-models"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--lllyasviel--controlnet",
       "is_rising_star": false,
       "popularity_score": 7534.3,
@@ -10532,11 +10528,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 3531,
-      "downloads": 44219,
+      "downloads": 43937,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-deepseek-ai-Janus-Pro-7B.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "deepseek-ai/Janus-Pro-7B",
         "huggingface-deepseek-ai-Janus-Pro-1B",
@@ -10545,13 +10541,13 @@
         "WYNN747/Burmese-GPT"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--deepseek-ai--janus-pro-7b",
       "is_rising_star": false,
-      "popularity_score": 11483.900000000001,
+      "popularity_score": 11455.7,
       "source": "unknown",
       "links_data": {},
-      "velocity": 7952.9
+      "velocity": 7924.7
     },
     {
       "id": "huggingface-microsoft-phi-2",
@@ -10579,11 +10575,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 3410,
-      "downloads": 929832,
+      "downloads": 939044,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-microsoft-phi-2.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "huggingface-microsoft-phi-1-5",
         "microsoft/phi-2",
@@ -10592,13 +10588,13 @@
         "Lamapi/next-1b"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--microsoft--phi-2",
       "is_rising_star": false,
-      "popularity_score": 99803.20000000001,
+      "popularity_score": 100724.40000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 96393.2
+      "velocity": 97314.4
     },
     {
       "id": "huggingface-stabilityai-stable-diffusion-3.5-large",
@@ -10622,11 +10618,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 3242,
-      "downloads": 81247,
+      "downloads": 77184,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-stabilityai-stable-diffusion-3.5-large.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "stabilityai/stable-diffusion-3.5-large",
         "huggingface-stabilityai-stable-diffusion-3.5-medium",
@@ -10635,13 +10631,13 @@
         "dreamlike-art/dreamlike-photoreal-2.0"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--stabilityai--stable-diffusion-3.5-large",
       "is_rising_star": false,
-      "popularity_score": 14608.7,
+      "popularity_score": 14202.400000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 11366.7
+      "velocity": 10960.4
     },
     {
       "id": "huggingface-google-gemma-7b",
@@ -10690,11 +10686,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 3241,
-      "downloads": 38586,
+      "downloads": 39033,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-google-gemma-7b.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "google/gemma-7b",
         "huggingface-google-gemma-7b-it",
@@ -10703,13 +10699,13 @@
         "huggingface-google-gemma-3-270m"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--google--gemma-7b",
       "is_rising_star": false,
-      "popularity_score": 10340.6,
+      "popularity_score": 10385.3,
       "source": "unknown",
       "links_data": {},
-      "velocity": 7099.6
+      "velocity": 7144.3
     },
     {
       "id": "huggingface-coqui-XTTS-v2",
@@ -10727,12 +10723,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 3204,
-      "downloads": 5469141,
+      "likes": 3205,
+      "downloads": 5508188,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-coqui-XTTS-v2.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "coqui/XTTS-v2",
         "huggingface-coqui-XTTS-v1",
@@ -10741,13 +10737,13 @@
         "huggingface-bosonai-higgs-audio-v2-generation-3B-base"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--coqui--xtts-v2",
       "is_rising_star": false,
-      "popularity_score": 553322.1,
+      "popularity_score": 557228.8,
       "source": "unknown",
       "links_data": {},
-      "velocity": 550118.1
+      "velocity": 554023.8
     },
     {
       "id": "huggingface-stabilityai-stable-video-diffusion-img2vid-xt",
@@ -10767,12 +10763,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 3194,
-      "downloads": 210562,
+      "likes": 3195,
+      "downloads": 221964,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-stabilityai-stable-video-diffusion-img2vid-xt.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "stabilityai/stable-video-diffusion-img2vid-xt",
         "Lightricks/LTX-Video",
@@ -10781,13 +10777,13 @@
         "stabilityai/stable-diffusion-3.5-large"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--stabilityai--stable-video-diffusion-img2vid-xt",
       "is_rising_star": false,
-      "popularity_score": 27444.2,
+      "popularity_score": 28586.4,
       "source": "unknown",
       "links_data": {},
-      "velocity": 24250.2
+      "velocity": 25391.4
     },
     {
       "id": "huggingface-prompthero-openjourney",
@@ -10813,11 +10809,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 3173,
-      "downloads": 15821,
+      "downloads": 16166,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-prompthero-openjourney.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "prompthero/openjourney",
         "hakurei/waifu-diffusion",
@@ -10826,13 +10822,13 @@
         "huggingface-DGSpitzer-Cyberpunk-Anime-Diffusion"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--prompthero--openjourney",
       "is_rising_star": false,
-      "popularity_score": 7928.1,
+      "popularity_score": 7962.6,
       "source": "unknown",
       "links_data": {},
-      "velocity": 4755.1
+      "velocity": 4789.6
     },
     {
       "id": "huggingface-deepseek-ai-DeepSeek-V3-0324",
@@ -10860,11 +10856,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 3084,
-      "downloads": 157130,
+      "downloads": 155567,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-deepseek-ai-DeepSeek-V3-0324.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "deepseek-ai/DeepSeek-V3-0324",
         "huggingface-deepseek-ai-DeepSeek-V3.1-Base",
@@ -10873,13 +10869,13 @@
         "deepseek-ai/DeepSeek-R1-0528"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--deepseek-ai--deepseek-v3-0324",
       "is_rising_star": false,
-      "popularity_score": 21881,
+      "popularity_score": 21724.7,
       "source": "unknown",
       "links_data": {},
-      "velocity": 18797
+      "velocity": 18640.7
     },
     {
       "id": "huggingface-openai-community-gpt2",
@@ -10913,11 +10909,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 3041,
-      "downloads": 9547933,
+      "downloads": 9705107,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-openai-community-gpt2.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "openai-community/gpt2",
         "huggingface-google-bert-bert-base-uncased",
@@ -10926,13 +10922,13 @@
         "huggingface-google-t5-t5-base"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--openai-community--gpt2",
       "is_rising_star": false,
-      "popularity_score": 960875.3,
+      "popularity_score": 976592.7000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 957834.3
+      "velocity": 973551.7
     },
     {
       "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.2",
@@ -10960,12 +10956,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 3025,
-      "downloads": 3653655,
+      "likes": 3026,
+      "downloads": 3652184,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-mistralai-Mistral-7B-Instruct-v0.2.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "mistralai/Mistral-7B-Instruct-v0.2",
         "mistralai/Mistral-7B-Instruct-v0.1",
@@ -10974,13 +10970,13 @@
         "huggingface-teknium-OpenHermes-2.5-Mistral-7B"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--mistralai--mistral-7b-instruct-v0.2",
       "is_rising_star": false,
-      "popularity_score": 371415.5,
+      "popularity_score": 371270.4,
       "source": "unknown",
       "links_data": {},
-      "velocity": 368390.5
+      "velocity": 368244.4
     },
     {
       "id": "huggingface-deepseek-ai-DeepSeek-OCR",
@@ -11007,12 +11003,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2906,
-      "downloads": 5468241,
+      "likes": 2918,
+      "downloads": 5527162,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-deepseek-ai-DeepSeek-OCR.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "deepseek-ai/DeepSeek-OCR",
         "huggingface-rednote-hilab-dots.ocr",
@@ -11021,13 +11017,13 @@
         "Lamapi/next-12b"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--deepseek-ai--deepseek-ocr",
       "is_rising_star": false,
-      "popularity_score": 552636.1,
+      "popularity_score": 558552.2000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 549730.1
+      "velocity": 555634.2
     },
     {
       "id": "huggingface-bigcode-starcoder",
@@ -11059,11 +11055,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2905,
-      "downloads": 9508,
+      "downloads": 9615,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-bigcode-starcoder.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "bigcode/starcoder",
         "bigscience/bloom",
@@ -11072,13 +11068,13 @@
         "tiiuae/falcon-40b"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--bigcode--starcoder",
       "is_rising_star": false,
-      "popularity_score": 6760.8,
+      "popularity_score": 6771.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 3855.8
+      "velocity": 3866.5
     },
     {
       "id": "huggingface-Qwen-QwQ-32B",
@@ -11109,11 +11105,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2868,
-      "downloads": 54651,
+      "downloads": 56123,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-Qwen-QwQ-32B.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "Qwen/QwQ-32B",
         "huggingface-Qwen-Qwen2.5-7B-Instruct",
@@ -11122,13 +11118,13 @@
         "huggingface-Qwen-Qwen2.5-72B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--qwen--qwq-32b",
       "is_rising_star": false,
-      "popularity_score": 11201.1,
+      "popularity_score": 11348.3,
       "source": "unknown",
       "links_data": {},
-      "velocity": 8333.1
+      "velocity": 8480.3
     },
     {
       "id": "huggingface-zai-org-chatglm-6b",
@@ -11156,11 +11152,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2867,
-      "downloads": 2135,
+      "downloads": 2128,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-zai-org-chatglm-6b.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "zai-org/chatglm-6b",
         "zai-org/chatglm2-6b",
@@ -11169,13 +11165,13 @@
         "huggingface-baichuan-inc-Baichuan-7B"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--zai-org--chatglm-6b",
       "is_rising_star": false,
-      "popularity_score": 5947.5,
+      "popularity_score": 5946.8,
       "source": "unknown",
       "links_data": {},
-      "velocity": 3080.5
+      "velocity": 3079.8
     },
     {
       "id": "huggingface-CompVis-stable-diffusion-v-1-4-original",
@@ -11198,12 +11194,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2826,
+      "likes": 2827,
       "downloads": 3,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-CompVis-stable-diffusion-v-1-4-original.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "CompVis/stable-diffusion-v1-4",
         "CompVis/stable-diffusion-v-1-4-original",
@@ -11212,13 +11208,13 @@
         "stabilityai/stable-diffusion-2-1"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--compvis--stable-diffusion-v-1-4-original",
       "is_rising_star": false,
-      "popularity_score": 5652.3,
+      "popularity_score": 5654.3,
       "source": "unknown",
       "links_data": {},
-      "velocity": 2826.3
+      "velocity": 2827.3
     },
     {
       "id": "huggingface-nari-labs-Dia-1.6B",
@@ -11241,11 +11237,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2810,
-      "downloads": 202314,
+      "downloads": 195486,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-nari-labs-Dia-1.6B.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "nari-labs/Dia-1.6B",
         "huggingface-nari-labs-Dia-1.6B-0626",
@@ -11254,13 +11250,13 @@
         "huggingface-canopylabs-orpheus-3b-0.1-ft"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--nari-labs--dia-1.6b",
       "is_rising_star": false,
-      "popularity_score": 25851.4,
+      "popularity_score": 25168.600000000002,
       "source": "unknown",
       "links_data": {},
-      "velocity": 23041.4
+      "velocity": 22358.6
     },
     {
       "id": "huggingface-openai-whisper-large-v3-turbo",
@@ -11384,12 +11380,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2711,
-      "downloads": 4454714,
+      "likes": 2712,
+      "downloads": 4494148,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-openai-whisper-large-v3-turbo.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "openai/whisper-large-v3-turbo",
         "openai/whisper-large-v3",
@@ -11398,13 +11394,13 @@
         "huggingface-openai-whisper-small"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--openai--whisper-large-v3-turbo",
       "is_rising_star": false,
-      "popularity_score": 450893.4,
+      "popularity_score": 454838.80000000005,
       "source": "unknown",
       "links_data": {},
-      "velocity": 448182.4
+      "velocity": 452126.8
     },
     {
       "id": "huggingface-meta-llama-Llama-3.3-70B-Instruct",
@@ -11443,12 +11439,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2581,
-      "downloads": 418468,
+      "likes": 2582,
+      "downloads": 419946,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-3.3-70B-Instruct.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Llama-3.3-70B-Instruct",
         "huggingface-meta-llama-Llama-3.1-70B-Instruct",
@@ -11457,13 +11453,13 @@
         "huggingface-meta-llama-Llama-3.2-1B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--llama-3.3-70b-instruct",
       "is_rising_star": false,
-      "popularity_score": 47008.8,
+      "popularity_score": 47158.600000000006,
       "source": "unknown",
       "links_data": {},
-      "velocity": 44427.8
+      "velocity": 44576.6
     },
     {
       "id": "huggingface-BAAI-bge-m3",
@@ -11494,12 +11490,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2542,
-      "downloads": 7160805,
+      "likes": 2546,
+      "downloads": 7235864,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-BAAI-bge-m3.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "BAAI/bge-m3",
         "huggingface-symanto-sn-xlm-roberta-base-snli-mnli-anli-xnli",
@@ -11508,13 +11504,13 @@
         "huggingface-MoritzLaurer-multilingual-MiniLMv2-L6-mnli-xnli"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--baai--bge-m3",
       "is_rising_star": false,
-      "popularity_score": 721164.5,
+      "popularity_score": 728678.4,
       "source": "unknown",
       "links_data": {},
-      "velocity": 718622.5
+      "velocity": 726132.4
     },
     {
       "id": "huggingface-google-bert-bert-base-uncased",
@@ -11548,12 +11544,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2494,
-      "downloads": 59779704,
+      "likes": 2497,
+      "downloads": 60359775,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-google-bert-bert-base-uncased.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "google-bert/bert-base-uncased",
         "huggingface-google-bert-bert-large-uncased-whole-word-masking-finetuned-squad",
@@ -11562,13 +11558,13 @@
         "sentence-transformers/all-MiniLM-L6-v2"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--google-bert--bert-base-uncased",
       "is_rising_star": true,
-      "popularity_score": 5982958.4,
+      "popularity_score": 6040971.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 5980464.4
+      "velocity": 6038474.5
     },
     {
       "id": "huggingface-stabilityai-sdxl-turbo",
@@ -11591,11 +11587,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2485,
-      "downloads": 400334,
+      "downloads": 409451,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-stabilityai-sdxl-turbo.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "stabilityai/sdxl-turbo",
         "stabilityai/stable-diffusion-xl-base-1.0",
@@ -11604,13 +11600,13 @@
         "huggingface-playgroundai-playground-v2.5-1024px-aesthetic"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--stabilityai--sdxl-turbo",
       "is_rising_star": false,
-      "popularity_score": 45003.4,
+      "popularity_score": 45915.100000000006,
       "source": "unknown",
       "links_data": {},
-      "velocity": 42518.4
+      "velocity": 43430.1
     },
     {
       "id": "huggingface-hakurei-waifu-diffusion",
@@ -11635,11 +11631,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2461,
-      "downloads": 3125,
+      "downloads": 3134,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-hakurei-waifu-diffusion.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "prompthero/openjourney",
         "hakurei/waifu-diffusion",
@@ -11648,13 +11644,13 @@
         "huggingface-DGSpitzer-Cyberpunk-Anime-Diffusion"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--hakurei--waifu-diffusion",
       "is_rising_star": false,
-      "popularity_score": 5234.5,
+      "popularity_score": 5235.4,
       "source": "unknown",
       "links_data": {},
-      "velocity": 2773.5
+      "velocity": 2774.4
     },
     {
       "id": "huggingface-black-forest-labs-FLUX.1-Kontext-dev",
@@ -11680,11 +11676,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2452,
-      "downloads": 330097,
+      "downloads": 330293,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-black-forest-labs-FLUX.1-Kontext-dev.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "black-forest-labs/FLUX.1-Kontext-dev",
         "black-forest-labs/FLUX.1-dev",
@@ -11693,13 +11689,13 @@
         "huggingface-Shakker-Labs-AWPortrait-FL"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--black-forest-labs--flux.1-kontext-dev",
       "is_rising_star": false,
-      "popularity_score": 37913.700000000004,
+      "popularity_score": 37933.3,
       "source": "unknown",
       "links_data": {},
-      "velocity": 35461.7
+      "velocity": 35481.3
     },
     {
       "id": "huggingface-tiiuae-falcon-40b",
@@ -11736,11 +11732,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2432,
-      "downloads": 9621,
+      "downloads": 9780,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-tiiuae-falcon-40b.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "tiiuae/falcon-40b",
         "huggingface-tiiuae-falcon-7b",
@@ -11749,13 +11745,13 @@
         "huggingface-tiiuae-falcon-40b-instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--tiiuae--falcon-40b",
       "is_rising_star": false,
-      "popularity_score": 5826.1,
+      "popularity_score": 5842,
       "source": "unknown",
       "links_data": {},
-      "velocity": 3394.1
+      "velocity": 3410
     },
     {
       "id": "huggingface-deepseek-ai-DeepSeek-R1-0528",
@@ -11783,11 +11779,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2386,
-      "downloads": 369043,
+      "downloads": 377714,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-deepseek-ai-DeepSeek-R1-0528.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "deepseek-ai/DeepSeek-R1",
         "deepseek-ai/DeepSeek-R1-0528",
@@ -11796,13 +11792,13 @@
         "deepseek-ai/DeepSeek-V3-0324"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--deepseek-ai--deepseek-r1-0528",
       "is_rising_star": false,
-      "popularity_score": 41676.3,
+      "popularity_score": 42543.4,
       "source": "unknown",
       "links_data": {},
-      "velocity": 39290.3
+      "velocity": 40157.4
     },
     {
       "id": "huggingface-xai-org-grok-1",
@@ -11822,11 +11818,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2368,
-      "downloads": 1182,
+      "downloads": 1305,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-xai-org-grok-1.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "xai-org/grok-1",
         "tomg-group-umd/huginn-0125",
@@ -11835,13 +11831,13 @@
         "inclusionAI/LLaDA2.0-mini-preview"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--xai-org--grok-1",
       "is_rising_star": false,
-      "popularity_score": 4854.2,
+      "popularity_score": 4866.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 2486.2
+      "velocity": 2498.5
     },
     {
       "id": "huggingface-perplexity-ai-r1-1776",
@@ -11868,12 +11864,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2327,
-      "downloads": 1693,
+      "likes": 2328,
+      "downloads": 1868,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-perplexity-ai-r1-1776.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "perplexity-ai/r1-1776",
         "deepseek-ai/DeepSeek-R1",
@@ -11882,13 +11878,13 @@
         "huggingface-deepseek-ai-DeepSeek-V3.1-Base"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--perplexity-ai--r1-1776",
       "is_rising_star": false,
-      "popularity_score": 4823.3,
+      "popularity_score": 4842.8,
       "source": "unknown",
       "links_data": {},
-      "velocity": 2496.3
+      "velocity": 2514.8
     },
     {
       "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.3",
@@ -11910,12 +11906,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2278,
-      "downloads": 1012928,
+      "likes": 2281,
+      "downloads": 1042458,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-mistralai-Mistral-7B-Instruct-v0.3.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "mistralai/Mistral-7B-Instruct-v0.3",
         "mistralai/Mistral-Nemo-Instruct-2407",
@@ -11924,13 +11920,13 @@
         "mistralai/Mistral-7B-Instruct-v0.2"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--mistralai--mistral-7b-instruct-v0.3",
       "is_rising_star": false,
-      "popularity_score": 105848.8,
+      "popularity_score": 108807.8,
       "source": "unknown",
       "links_data": {},
-      "velocity": 103570.8
+      "velocity": 106526.8
     },
     {
       "id": "huggingface-sesame-csm-1b",
@@ -11953,12 +11949,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2276,
-      "downloads": 24999,
+      "likes": 2279,
+      "downloads": 25766,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-sesame-csm-1b.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "sesame/csm-1b",
         "huggingface-maya-research-maya1",
@@ -11967,13 +11963,13 @@
         "huggingface-maya-research-Veena"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--sesame--csm-1b",
       "is_rising_star": false,
-      "popularity_score": 7051.9,
+      "popularity_score": 7134.6,
       "source": "unknown",
       "links_data": {},
-      "velocity": 4775.9
+      "velocity": 4855.6
     },
     {
       "id": "huggingface-moonshotai-Kimi-K2-Instruct",
@@ -12000,11 +11996,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2267,
-      "downloads": 171145,
+      "downloads": 172220,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-moonshotai-Kimi-K2-Instruct.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "moonshotai/Kimi-K2-Instruct",
         "huggingface-moonshotai-Kimi-K2-Thinking",
@@ -12013,13 +12009,13 @@
         "deepseek-ai/DeepSeek-V3-0324"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--moonshotai--kimi-k2-instruct",
       "is_rising_star": false,
-      "popularity_score": 21648.5,
+      "popularity_score": 21756,
       "source": "unknown",
       "links_data": {},
-      "velocity": 19381.5
+      "velocity": 19489
     },
     {
       "id": "huggingface-Qwen-Qwen-Image",
@@ -12043,12 +12039,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2250,
-      "downloads": 264644,
+      "likes": 2255,
+      "downloads": 272615,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-Qwen-Qwen-Image.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "Qwen/Qwen-Image",
         "Qwen/Qwen-Image-Edit",
@@ -12057,13 +12053,13 @@
         "black-forest-labs/FLUX.1-schnell"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--qwen--qwen-image",
       "is_rising_star": false,
-      "popularity_score": 30964.4,
+      "popularity_score": 31771.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 28714.4
+      "velocity": 29516.5
     },
     {
       "id": "huggingface-meta-llama-Llama-2-7b-hf",
@@ -12092,12 +12088,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2209,
-      "downloads": 542361,
+      "likes": 2210,
+      "downloads": 544918,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-2-7b-hf.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Llama-2-7b-chat-hf",
         "meta-llama/Llama-2-7b-hf",
@@ -12106,13 +12102,13 @@
         "huggingface-meta-llama-Llama-2-70b-hf"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--llama-2-7b-hf",
       "is_rising_star": false,
-      "popularity_score": 58654.100000000006,
+      "popularity_score": 58911.8,
       "source": "unknown",
       "links_data": {},
-      "velocity": 56445.1
+      "velocity": 56701.8
     },
     {
       "id": "huggingface-meta-llama-Llama-3.2-1B",
@@ -12149,12 +12145,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2203,
-      "downloads": 3214063,
+      "likes": 2205,
+      "downloads": 3260945,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-3.2-1B.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Llama-3.2-1B",
         "meta-llama/Llama-3.2-3B-Instruct",
@@ -12163,13 +12159,13 @@
         "meta-llama/Llama-3.1-8B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--llama-3.2-1b",
       "is_rising_star": false,
-      "popularity_score": 325812.30000000005,
+      "popularity_score": 330504.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 323609.3
+      "velocity": 328299.5
     },
     {
       "id": "huggingface-meta-llama-Llama-2-70b-chat-hf",
@@ -12199,12 +12195,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2201,
-      "downloads": 11753,
+      "likes": 2202,
+      "downloads": 11559,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-2-70b-chat-hf.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Llama-2-7b-chat-hf",
         "meta-llama/Llama-2-70b-chat-hf",
@@ -12213,13 +12209,13 @@
         "meta-llama/Llama-2-7b-hf"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--llama-2-70b-chat-hf",
       "is_rising_star": false,
-      "popularity_score": 5577.3,
+      "popularity_score": 5559.9,
       "source": "unknown",
       "links_data": {},
-      "velocity": 3376.3
+      "velocity": 3357.9
     },
     {
       "id": "huggingface-microsoft-phi-4",
@@ -12249,12 +12245,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2191,
-      "downloads": 470951,
+      "likes": 2193,
+      "downloads": 479546,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-microsoft-phi-4.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "microsoft/phi-4",
         "microsoft/Phi-3-mini-128k-instruct",
@@ -12263,13 +12259,13 @@
         "Lamapi/next-1b"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--microsoft--phi-4",
       "is_rising_star": false,
-      "popularity_score": 51477.100000000006,
+      "popularity_score": 52340.600000000006,
       "source": "unknown",
       "links_data": {},
-      "velocity": 49286.1
+      "velocity": 50147.6
     },
     {
       "id": "huggingface-Qwen-Qwen-Image-Edit",
@@ -12292,12 +12288,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2166,
-      "downloads": 110281,
+      "likes": 2169,
+      "downloads": 105160,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-Qwen-Qwen-Image-Edit.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "Qwen/Qwen-Image-Edit",
         "Qwen/Qwen-Image",
@@ -12306,13 +12302,13 @@
         "bczhou/TinyLLaVA-3.1B"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--qwen--qwen-image-edit",
       "is_rising_star": false,
-      "popularity_score": 15360.1,
+      "popularity_score": 14854,
       "source": "unknown",
       "links_data": {},
-      "velocity": 13194.1
+      "velocity": 12685
     },
     {
       "id": "huggingface-ByteDance-SDXL-Lightning",
@@ -12333,11 +12329,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2107,
-      "downloads": 116561,
+      "downloads": 118679,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-ByteDance-SDXL-Lightning.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "ByteDance/SDXL-Lightning",
         "stabilityai/stable-diffusion-2-1",
@@ -12346,13 +12342,13 @@
         "huggingface-stabilityai-stable-diffusion-xl-base-1.0"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--bytedance--sdxl-lightning",
       "is_rising_star": false,
-      "popularity_score": 15870.1,
+      "popularity_score": 16081.900000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 13763.1
+      "velocity": 13974.9
     },
     {
       "id": "huggingface-tencent-HunyuanVideo",
@@ -12371,12 +12367,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2084,
-      "downloads": 1001,
+      "likes": 2083,
+      "downloads": 1029,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-tencent-HunyuanVideo.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "tencent/HunyuanVideo",
         "katanemo/Arch-Router-1.5B",
@@ -12385,13 +12381,13 @@
         "h2oai/h2ogpt-research-oasst1-llama-65b"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--tencent--hunyuanvideo",
       "is_rising_star": false,
-      "popularity_score": 4268.1,
+      "popularity_score": 4268.9,
       "source": "unknown",
       "links_data": {},
-      "velocity": 2184.1
+      "velocity": 2185.9
     },
     {
       "id": "huggingface-lllyasviel-sd-control-collection",
@@ -12406,12 +12402,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2072,
+      "likes": 2071,
       "downloads": 0,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-lllyasviel-sd-control-collection.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "tomg-group-umd/huginn-0125",
         "katanemo/Arch-Router-1.5B",
@@ -12420,13 +12416,13 @@
         "OpenMOSS-Team/moss-moon-003-base"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--lllyasviel--sd-control-collection",
       "is_rising_star": false,
-      "popularity_score": 4144,
+      "popularity_score": 4142,
       "source": "unknown",
       "links_data": {},
-      "velocity": 2072
+      "velocity": 2071
     },
     {
       "id": "huggingface-Lightricks-LTX-Video",
@@ -12448,12 +12444,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2064,
-      "downloads": 262103,
+      "likes": 2065,
+      "downloads": 265008,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-Lightricks-LTX-Video.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "Lightricks/LTX-Video",
         "black-forest-labs/FLUX.1-dev",
@@ -12462,13 +12458,13 @@
         "black-forest-labs/FLUX.1-Kontext-dev"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--lightricks--ltx-video",
       "is_rising_star": false,
-      "popularity_score": 30338.300000000003,
+      "popularity_score": 30630.800000000003,
       "source": "unknown",
       "links_data": {},
-      "velocity": 28274.3
+      "velocity": 28565.8
     },
     {
       "id": "huggingface-nvidia-Llama-3.1-Nemotron-70B-Instruct-HF",
@@ -12501,11 +12497,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2059,
-      "downloads": 9899,
+      "downloads": 9877,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-nvidia-Llama-3.1-Nemotron-70B-Instruct-HF.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
         "mattshumer/Reflection-Llama-3.1-70B",
@@ -12514,13 +12510,13 @@
         "huggingface-meta-llama-Llama-3.1-70B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--nvidia--llama-3.1-nemotron-70b-instruct-hf",
       "is_rising_star": false,
-      "popularity_score": 5107.9,
+      "popularity_score": 5105.7,
       "source": "unknown",
       "links_data": {},
-      "velocity": 3048.9
+      "velocity": 3046.7
     },
     {
       "id": "huggingface-zai-org-chatglm2-6b",
@@ -12549,11 +12545,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 2056,
-      "downloads": 627182,
+      "downloads": 628302,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-zai-org-chatglm2-6b.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "zai-org/chatglm2-6b",
         "zai-org/chatglm-6b",
@@ -12562,58 +12558,13 @@
         "huggingface-tiiuae-falcon-40b-instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--zai-org--chatglm2-6b",
       "is_rising_star": false,
-      "popularity_score": 66830.20000000001,
+      "popularity_score": 66942.20000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 64774.2
-    },
-    {
-      "id": "huggingface-stabilityai-stable-diffusion-xl-refiner-1.0",
-      "name": "stable-diffusion-xl-refiner-1.0",
-      "author": "stabilityai",
-      "description": "",
-      "tags": [
-        "diffusers",
-        "safetensors",
-        "stable-diffusion",
-        "image-to-image",
-        "arxiv:2307.01952",
-        "arxiv:2211.01324",
-        "arxiv:2108.01073",
-        "arxiv:2112.10752",
-        "license:openrail++",
-        "diffusers:StableDiffusionXLImg2ImgPipeline",
-        "region:us"
-      ],
-      "pipeline_tag": "image-to-image",
-      "seo_summary": null,
-      "seo_status": "pending",
-      "link_status": "alive",
-      "last_checked": null,
-      "likes": 2000,
-      "downloads": 483575,
-      "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-stabilityai-stable-diffusion-xl-refiner-1.0.jpg",
-      "source_url": null,
-      "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
-      "related_ids": [
-        "stabilityai/stable-diffusion-xl-refiner-1.0",
-        "stabilityai/stable-diffusion-xl-base-1.0",
-        "huggingface-stabilityai-stable-diffusion-xl-base-1.0",
-        "huggingface-stabilityai-stable-diffusion-xl-base-0.9",
-        "stabilityai/stable-diffusion-2-1"
-      ],
-      "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
-      "slug": "huggingface--stabilityai--stable-diffusion-xl-refiner-1.0",
-      "is_rising_star": false,
-      "popularity_score": 52357.5,
-      "source": "unknown",
-      "links_data": {},
-      "velocity": 50357.5
+      "velocity": 64886.2
     },
     {
       "id": "huggingface-microsoft-VibeVoice-1.5B",
@@ -12641,12 +12592,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1999,
-      "downloads": 183393,
+      "likes": 2002,
+      "downloads": 192429,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-microsoft-VibeVoice-1.5B.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "microsoft/VibeVoice-1.5B",
         "huggingface-aoi-ot-VibeVoice-Large",
@@ -12655,13 +12606,58 @@
         "huggingface-zai-org-GLM-4.5"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--microsoft--vibevoice-1.5b",
       "is_rising_star": false,
-      "popularity_score": 22337.3,
+      "popularity_score": 23246.9,
       "source": "unknown",
       "links_data": {},
-      "velocity": 20338.3
+      "velocity": 21244.9
+    },
+    {
+      "id": "huggingface-stabilityai-stable-diffusion-xl-refiner-1.0",
+      "name": "stable-diffusion-xl-refiner-1.0",
+      "author": "stabilityai",
+      "description": "",
+      "tags": [
+        "diffusers",
+        "safetensors",
+        "stable-diffusion",
+        "image-to-image",
+        "arxiv:2307.01952",
+        "arxiv:2211.01324",
+        "arxiv:2108.01073",
+        "arxiv:2112.10752",
+        "license:openrail++",
+        "diffusers:StableDiffusionXLImg2ImgPipeline",
+        "region:us"
+      ],
+      "pipeline_tag": "image-to-image",
+      "seo_summary": null,
+      "seo_status": "pending",
+      "link_status": "alive",
+      "last_checked": null,
+      "likes": 2000,
+      "downloads": 478618,
+      "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-stabilityai-stable-diffusion-xl-refiner-1.0.jpg",
+      "source_url": null,
+      "created_at": null,
+      "first_indexed": "2025-12-03 03:44:54",
+      "related_ids": [
+        "stabilityai/stable-diffusion-xl-refiner-1.0",
+        "stabilityai/stable-diffusion-xl-base-1.0",
+        "huggingface-stabilityai-stable-diffusion-xl-base-1.0",
+        "huggingface-stabilityai-stable-diffusion-xl-base-0.9",
+        "stabilityai/stable-diffusion-2-1"
+      ],
+      "resources": null,
+      "last_updated": "2025-12-03 03:44:54",
+      "slug": "huggingface--stabilityai--stable-diffusion-xl-refiner-1.0",
+      "is_rising_star": false,
+      "popularity_score": 51861.8,
+      "source": "unknown",
+      "links_data": {},
+      "velocity": 49861.8
     },
     {
       "id": "huggingface-databricks-dolly-v2-12b",
@@ -12687,11 +12683,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1956,
-      "downloads": 2651,
+      "downloads": 2633,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-databricks-dolly-v2-12b.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "databricks/dolly-v2-12b",
         "huggingface-openai-community-gpt2",
@@ -12700,13 +12696,13 @@
         "h2oai/h2ogpt-oasst1-512-12b"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--databricks--dolly-v2-12b",
       "is_rising_star": false,
-      "popularity_score": 4177.1,
+      "popularity_score": 4175.3,
       "source": "unknown",
       "links_data": {},
-      "velocity": 2221.1
+      "velocity": 2219.3
     },
     {
       "id": "huggingface-Qwen-Qwen2.5-Coder-32B-Instruct",
@@ -12742,11 +12738,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1954,
-      "downloads": 273658,
+      "downloads": 275254,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-Qwen-Qwen2.5-Coder-32B-Instruct.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "Qwen/Qwen2.5-Coder-32B-Instruct",
         "huggingface-Qwen-Qwen2.5-7B-Instruct",
@@ -12755,13 +12751,13 @@
         "huggingface-Qwen-QwQ-32B-Preview"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--qwen--qwen2.5-coder-32b-instruct",
       "is_rising_star": false,
-      "popularity_score": 31273.800000000003,
+      "popularity_score": 31433.4,
       "source": "unknown",
       "links_data": {},
-      "velocity": 29319.8
+      "velocity": 29479.4
     },
     {
       "id": "huggingface-meta-llama-Llama-3.1-8B",
@@ -12797,12 +12793,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1945,
-      "downloads": 660593,
+      "likes": 1951,
+      "downloads": 676123,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-3.1-8B.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Llama-3.1-8B-Instruct",
         "meta-llama/Llama-3.1-8B",
@@ -12811,13 +12807,13 @@
         "huggingface-meta-llama-Llama-3.1-8B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--llama-3.1-8b",
       "is_rising_star": false,
-      "popularity_score": 69949.3,
+      "popularity_score": 71514.3,
       "source": "unknown",
       "links_data": {},
-      "velocity": 68004.3
+      "velocity": 69563.3
     },
     {
       "id": "huggingface-openai-clip-vit-large-patch14",
@@ -12843,12 +12839,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1911,
-      "downloads": 8956090,
+      "likes": 1914,
+      "downloads": 8904396,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-openai-clip-vit-large-patch14.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "openai/clip-vit-large-patch14",
         "openai-community/gpt2",
@@ -12857,13 +12853,13 @@
         "huggingface-openai-whisper-large"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--openai--clip-vit-large-patch14",
       "is_rising_star": false,
-      "popularity_score": 899431,
+      "popularity_score": 894267.6000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 897520
+      "velocity": 892353.6
     },
     {
       "id": "huggingface-briaai-RMBG-1.4",
@@ -12894,11 +12890,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1893,
-      "downloads": 181032,
+      "downloads": 187453,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-briaai-RMBG-1.4.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "briaai/RMBG-1.4",
         "microsoft/Florence-2-large",
@@ -12907,13 +12903,57 @@
         "huggingface-distil-whisper-distil-medium.en"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--briaai--rmbg-1.4",
       "is_rising_star": false,
-      "popularity_score": 21889.2,
+      "popularity_score": 22531.3,
       "source": "unknown",
       "links_data": {},
-      "velocity": 19996.2
+      "velocity": 20638.3
+    },
+    {
+      "id": "huggingface-Tongyi-MAI-Z-Image-Turbo",
+      "name": "Z-Image-Turbo",
+      "author": "Tongyi-MAI",
+      "description": "",
+      "tags": [
+        "diffusers",
+        "safetensors",
+        "image-generation",
+        "en",
+        "arxiv:2511.22699",
+        "arxiv:2511.22677",
+        "arxiv:2511.13649",
+        "license:apache-2.0",
+        "diffusers:ZImagePipeline",
+        "region:us"
+      ],
+      "pipeline_tag": "text-to-image",
+      "seo_summary": null,
+      "seo_status": "pending",
+      "link_status": "alive",
+      "last_checked": null,
+      "likes": 1873,
+      "downloads": 86570,
+      "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-Tongyi-MAI-Z-Image-Turbo.jpg",
+      "source_url": null,
+      "created_at": null,
+      "first_indexed": "2025-12-03 03:44:54",
+      "related_ids": [
+        "black-forest-labs/FLUX.1-schnell",
+        "Qwen/Qwen-Image",
+        "huggingface-lodestones-Chroma",
+        "huggingface-h94-IP-Adapter",
+        "huggingface-Kwai-Kolors-Kolors"
+      ],
+      "resources": null,
+      "last_updated": "2025-12-03 03:44:54",
+      "slug": "huggingface--tongyi-mai--z-image-turbo",
+      "is_rising_star": false,
+      "popularity_score": 12403,
+      "source": "unknown",
+      "links_data": {},
+      "velocity": 10530
     },
     {
       "id": "huggingface-meta-llama-Llama-3.2-3B-Instruct",
@@ -12951,12 +12991,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1850,
-      "downloads": 1610324,
+      "likes": 1852,
+      "downloads": 1623445,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-3.2-3B-Instruct.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Llama-3.2-3B-Instruct",
         "huggingface-meta-llama-Llama-3.2-1B-Instruct",
@@ -12965,13 +13005,13 @@
         "meta-llama/Llama-3.1-8B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--llama-3.2-3b-instruct",
       "is_rising_star": false,
-      "popularity_score": 164732.40000000002,
+      "popularity_score": 166048.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 162882.4
+      "velocity": 164196.5
     },
     {
       "id": "huggingface-Qwen-Qwen2.5-Omni-7B",
@@ -12996,11 +13036,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1824,
-      "downloads": 121942,
+      "downloads": 125753,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-Qwen-Qwen2.5-Omni-7B.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "Qwen/Qwen2.5-Omni-7B",
         "huggingface-Qwen-Qwen2.5-VL-72B-Instruct",
@@ -13009,13 +13049,13 @@
         "huggingface-HuggingFaceM4-idefics-9b-instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--qwen--qwen2.5-omni-7b",
       "is_rising_star": false,
-      "popularity_score": 15842.2,
+      "popularity_score": 16223.300000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 14018.2
+      "velocity": 14399.3
     },
     {
       "id": "huggingface-mistralai-Mistral-7B-Instruct-v0.1",
@@ -13045,11 +13085,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1814,
-      "downloads": 389241,
+      "downloads": 393861,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-mistralai-Mistral-7B-Instruct-v0.1.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "mistralai/Mistral-7B-Instruct-v0.1",
         "mistralai/Mistral-7B-Instruct-v0.2",
@@ -13058,13 +13098,13 @@
         "mistralai/Mistral-7B-v0.1"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--mistralai--mistral-7b-instruct-v0.1",
       "is_rising_star": false,
-      "popularity_score": 42552.1,
+      "popularity_score": 43014.100000000006,
       "source": "unknown",
       "links_data": {},
-      "velocity": 40738.1
+      "velocity": 41200.1
     },
     {
       "id": "huggingface-HuggingFaceH4-zephyr-7b-beta",
@@ -13102,11 +13142,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1814,
-      "downloads": 246856,
+      "downloads": 246657,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-HuggingFaceH4-zephyr-7b-beta.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "HuggingFaceH4/zephyr-7b-beta",
         "huggingface-HuggingFaceH4-zephyr-7b-alpha",
@@ -13115,13 +13155,13 @@
         "huggingface-TinyLlama-TinyLlama-1.1B-Chat-v1.0"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--huggingfaceh4--zephyr-7b-beta",
       "is_rising_star": false,
-      "popularity_score": 28313.600000000002,
+      "popularity_score": 28293.7,
       "source": "unknown",
       "links_data": {},
-      "velocity": 26499.6
+      "velocity": 26479.7
     },
     {
       "id": "huggingface-h94-IP-Adapter-FaceID",
@@ -13141,12 +13181,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1786,
-      "downloads": 208126,
+      "likes": 1787,
+      "downloads": 209286,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-h94-IP-Adapter-FaceID.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "h94/IP-Adapter-FaceID",
         "huggingface-h94-IP-Adapter",
@@ -13155,13 +13195,13 @@
         "hakurei/waifu-diffusion"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--h94--ip-adapter-faceid",
       "is_rising_star": false,
-      "popularity_score": 24384.600000000002,
+      "popularity_score": 24502.600000000002,
       "source": "unknown",
       "links_data": {},
-      "velocity": 22598.6
+      "velocity": 22715.6
     },
     {
       "id": "huggingface-Kijai-WanVideo-comfy",
@@ -13180,12 +13220,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1783,
-      "downloads": 6186538,
+      "likes": 1784,
+      "downloads": 6221170,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-Kijai-WanVideo-comfy.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "Kijai/WanVideo_comfy",
         "stabilityai/stable-diffusion-3-medium",
@@ -13194,13 +13234,13 @@
         "huggingface-black-forest-labs-FLUX.1-Kontext-dev"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--kijai--wanvideo-comfy",
       "is_rising_star": false,
-      "popularity_score": 622219.8,
+      "popularity_score": 625685,
       "source": "unknown",
       "links_data": {},
-      "velocity": 620436.8
+      "velocity": 623901
     },
     {
       "id": "huggingface-openai-whisper-large-v2",
@@ -13328,11 +13368,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1773,
-      "downloads": 274486,
+      "downloads": 267477,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-openai-whisper-large-v2.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "huggingface-openai-whisper-large",
         "huggingface-openai-whisper-small",
@@ -13341,13 +13381,13 @@
         "openai/whisper-large-v2"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--openai--whisper-large-v2",
       "is_rising_star": false,
-      "popularity_score": 30994.600000000002,
+      "popularity_score": 30293.7,
       "source": "unknown",
       "links_data": {},
-      "velocity": 29221.6
+      "velocity": 28520.7
     },
     {
       "id": "huggingface-mistralai-Mixtral-8x7B-v0.1",
@@ -13374,11 +13414,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1771,
-      "downloads": 51302,
+      "downloads": 52894,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-mistralai-Mixtral-8x7B-v0.1.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "mistralai/Mixtral-8x7B-v0.1",
         "mistralai/Mixtral-8x7B-Instruct-v0.1",
@@ -13387,13 +13427,13 @@
         "huggingface-mistralai-Mistral-Nemo-Instruct-2407"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--mistralai--mixtral-8x7b-v0.1",
       "is_rising_star": false,
-      "popularity_score": 8672.2,
+      "popularity_score": 8831.400000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 6901.2
+      "velocity": 7060.4
     },
     {
       "id": "huggingface-CohereLabs-c4ai-command-r-plus",
@@ -13428,11 +13468,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1762,
-      "downloads": 2762,
+      "downloads": 2831,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-CohereLabs-c4ai-command-r-plus.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "CohereLabs/c4ai-command-r-plus",
         "huggingface-CohereLabs-c4ai-command-r-v01",
@@ -13441,13 +13481,13 @@
         "huggingface-ModelSpace-GemmaX2-28-2B-v0.1"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--coherelabs--c4ai-command-r-plus",
       "is_rising_star": false,
-      "popularity_score": 3800.2,
+      "popularity_score": 3807.1,
       "source": "unknown",
       "links_data": {},
-      "velocity": 2038.2
+      "velocity": 2045.1
     },
     {
       "id": "huggingface-Qwen-QwQ-32B-Preview",
@@ -13477,11 +13517,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1741,
-      "downloads": 75316,
+      "downloads": 80828,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-Qwen-QwQ-32B-Preview.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "Qwen/QwQ-32B-Preview",
         "huggingface-Qwen-Qwen2.5-7B-Instruct",
@@ -13490,13 +13530,13 @@
         "huggingface-Qwen-Qwen2.5-72B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--qwen--qwq-32b-preview",
       "is_rising_star": false,
-      "popularity_score": 11013.6,
+      "popularity_score": 11564.8,
       "source": "unknown",
       "links_data": {},
-      "velocity": 9272.6
+      "velocity": 9823.8
     },
     {
       "id": "huggingface-dreamlike-art-dreamlike-photoreal-2.0",
@@ -13523,11 +13563,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1719,
-      "downloads": 8039,
+      "downloads": 8045,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-dreamlike-art-dreamlike-photoreal-2.0.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "dreamlike-art/dreamlike-photoreal-2.0",
         "huggingface-dreamlike-art-dreamlike-diffusion-1.0",
@@ -13536,13 +13576,13 @@
         "huggingface-xiaolxl-GuoFeng3"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--dreamlike-art--dreamlike-photoreal-2.0",
       "is_rising_star": false,
-      "popularity_score": 4241.9,
+      "popularity_score": 4242.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 2522.9
+      "velocity": 2523.5
     },
     {
       "id": "huggingface-google-gemma-3-27b-it",
@@ -13596,12 +13636,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1716,
-      "downloads": 1208025,
+      "likes": 1718,
+      "downloads": 1240621,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-google-gemma-3-27b-it.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "google/gemma-3-27b-it",
         "huggingface-google-gemma-3-270m",
@@ -13610,13 +13650,13 @@
         "huggingface-google-gemma-3n-E4B"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--google--gemma-3-27b-it",
       "is_rising_star": false,
-      "popularity_score": 124234.5,
+      "popularity_score": 127498.1,
       "source": "unknown",
       "links_data": {},
-      "velocity": 122518.5
+      "velocity": 125780.1
     },
     {
       "id": "huggingface-microsoft-Florence-2-large",
@@ -13642,12 +13682,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1712,
-      "downloads": 789660,
+      "likes": 1713,
+      "downloads": 799739,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-microsoft-Florence-2-large.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "microsoft/Florence-2-large",
         "huggingface-Salesforce-blip2-opt-2.7b",
@@ -13656,57 +13696,13 @@
         "huggingface-Salesforce-instructblip-vicuna-7b"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--microsoft--florence-2-large",
       "is_rising_star": false,
-      "popularity_score": 82390,
+      "popularity_score": 83399.90000000001,
       "source": "unknown",
       "links_data": {},
-      "velocity": 80678
-    },
-    {
-      "id": "huggingface-Tongyi-MAI-Z-Image-Turbo",
-      "name": "Z-Image-Turbo",
-      "author": "Tongyi-MAI",
-      "description": "",
-      "tags": [
-        "diffusers",
-        "safetensors",
-        "image-generation",
-        "en",
-        "arxiv:2511.22699",
-        "arxiv:2511.22677",
-        "arxiv:2511.13649",
-        "license:apache-2.0",
-        "diffusers:ZImagePipeline",
-        "region:us"
-      ],
-      "pipeline_tag": "text-to-image",
-      "seo_summary": null,
-      "seo_status": "pending",
-      "link_status": "alive",
-      "last_checked": null,
-      "likes": 1712,
-      "downloads": 59503,
-      "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-Tongyi-MAI-Z-Image-Turbo.jpg",
-      "source_url": null,
-      "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
-      "related_ids": [
-        "black-forest-labs/FLUX.1-schnell",
-        "Qwen/Qwen-Image",
-        "huggingface-lodestones-Chroma",
-        "huggingface-h94-IP-Adapter",
-        "huggingface-Kwai-Kolors-Kolors"
-      ],
-      "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
-      "slug": "huggingface--tongyi-mai--z-image-turbo",
-      "is_rising_star": false,
-      "popularity_score": 9374.3,
-      "source": "unknown",
-      "links_data": {},
-      "velocity": 7662.3
+      "velocity": 81686.9
     },
     {
       "id": "huggingface-mattshumer-Reflection-Llama-3.1-70B",
@@ -13734,11 +13730,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1711,
-      "downloads": 188,
+      "downloads": 199,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-mattshumer-Reflection-Llama-3.1-70B.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "mattshumer/Reflection-Llama-3.1-70B",
         "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
@@ -13747,13 +13743,13 @@
         "dnotitia/Llama-DNA-1.0-8B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--mattshumer--reflection-llama-3.1-70b",
       "is_rising_star": false,
-      "popularity_score": 3440.8,
+      "popularity_score": 3441.9,
       "source": "unknown",
       "links_data": {},
-      "velocity": 1729.8
+      "velocity": 1730.9
     },
     {
       "id": "huggingface-microsoft-OmniParser",
@@ -13777,11 +13773,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1697,
-      "downloads": 402,
+      "downloads": 411,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-microsoft-OmniParser.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "microsoft/OmniParser",
         "huggingface-Salesforce-blip2-opt-2.7b",
@@ -13790,13 +13786,13 @@
         "huggingface-microsoft-Fara-7B"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--microsoft--omniparser",
       "is_rising_star": false,
-      "popularity_score": 3434.2,
+      "popularity_score": 3435.1,
       "source": "unknown",
       "links_data": {},
-      "velocity": 1737.2
+      "velocity": 1738.1
     },
     {
       "id": "huggingface-microsoft-Phi-3-mini-128k-instruct",
@@ -13825,11 +13821,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1683,
-      "downloads": 309796,
+      "downloads": 302626,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-microsoft-Phi-3-mini-128k-instruct.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "microsoft/Phi-3-mini-128k-instruct",
         "huggingface-microsoft-Phi-3-mini-4k-instruct",
@@ -13838,13 +13834,13 @@
         "huggingface-microsoft-phi-4"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--microsoft--phi-3-mini-128k-instruct",
       "is_rising_star": false,
-      "popularity_score": 34345.600000000006,
+      "popularity_score": 33628.600000000006,
       "source": "unknown",
       "links_data": {},
-      "velocity": 32662.6
+      "velocity": 31945.6
     },
     {
       "id": "huggingface-deepseek-ai-DeepSeek-V3-Base",
@@ -13864,12 +13860,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1682,
-      "downloads": 9241,
+      "likes": 1681,
+      "downloads": 9683,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-deepseek-ai-DeepSeek-V3-Base.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "deepseek-ai/DeepSeek-V3",
         "deepseek-ai/DeepSeek-V3-0324",
@@ -13878,13 +13874,13 @@
         "huggingface-deepseek-ai-DeepSeek-V3"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--deepseek-ai--deepseek-v3-base",
       "is_rising_star": false,
-      "popularity_score": 4288.1,
+      "popularity_score": 4330.3,
       "source": "unknown",
       "links_data": {},
-      "velocity": 2606.1
+      "velocity": 2649.3
     },
     {
       "id": "huggingface-tencent-Hunyuan3D-2",
@@ -13909,12 +13905,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1673,
-      "downloads": 82689,
+      "likes": 1675,
+      "downloads": 83355,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-tencent-Hunyuan3D-2.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "tencent/Hunyuan3D-2",
         "black-forest-labs/FLUX.1-dev",
@@ -13923,13 +13919,13 @@
         "Qwen/Qwen-Image"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--tencent--hunyuan3d-2",
       "is_rising_star": false,
-      "popularity_score": 11614.9,
+      "popularity_score": 11685.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 9941.9
+      "velocity": 10010.5
     },
     {
       "id": "huggingface-mistralai-Mistral-Nemo-Instruct-2407",
@@ -13961,11 +13957,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1629,
-      "downloads": 184950,
+      "downloads": 190008,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-mistralai-Mistral-Nemo-Instruct-2407.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "mistralai/Mistral-Nemo-Instruct-2407",
         "openai/whisper-large-v3",
@@ -13974,13 +13970,13 @@
         "huggingface-openai-whisper-small"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--mistralai--mistral-nemo-instruct-2407",
       "is_rising_star": false,
-      "popularity_score": 21753,
+      "popularity_score": 22258.8,
       "source": "unknown",
       "links_data": {},
-      "velocity": 20124
+      "velocity": 20629.8
     },
     {
       "id": "huggingface-xinsir-controlnet-union-sdxl-1.0",
@@ -14002,12 +13998,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1618,
-      "downloads": 157936,
+      "likes": 1621,
+      "downloads": 157968,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-xinsir-controlnet-union-sdxl-1.0.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "xinsir/controlnet-union-sdxl-1.0",
         "huggingface-Shakker-Labs-FLUX.1-dev-ControlNet-Union-Pro",
@@ -14016,13 +14012,13 @@
         "Qwen/Qwen-Image"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--xinsir--controlnet-union-sdxl-1.0",
       "is_rising_star": false,
-      "popularity_score": 19029.6,
+      "popularity_score": 19038.800000000003,
       "source": "unknown",
       "links_data": {},
-      "velocity": 17411.6
+      "velocity": 17417.8
     },
     {
       "id": "huggingface-2Noise-ChatTTS",
@@ -14042,11 +14038,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1616,
-      "downloads": 1503,
+      "downloads": 1525,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-2Noise-ChatTTS.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "2Noise/ChatTTS",
         "huggingface-facebook-mms-tts-eng",
@@ -14055,13 +14051,13 @@
         "sesame/csm-1b"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--2noise--chattts",
       "is_rising_star": false,
-      "popularity_score": 3382.3,
+      "popularity_score": 3384.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 1766.3
+      "velocity": 1768.5
     },
     {
       "id": "huggingface-docling-project-SmolDocling-256M-preview",
@@ -14095,11 +14091,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1598,
-      "downloads": 174437,
+      "downloads": 169036,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-docling-project-SmolDocling-256M-preview.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "docling-project/SmolDocling-256M-preview",
         "huggingface-ibm-granite-granite-docling-258M",
@@ -14108,13 +14104,13 @@
         "huggingface-HuggingFaceTB-SmolVLM-500M-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--docling-project--smoldocling-256m-preview",
       "is_rising_star": false,
-      "popularity_score": 20639.7,
+      "popularity_score": 20099.600000000002,
       "source": "unknown",
       "links_data": {},
-      "velocity": 19041.7
+      "velocity": 18501.6
     },
     {
       "id": "huggingface-gsdf-Counterfeit-V2.5",
@@ -14139,11 +14135,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1577,
-      "downloads": 3026,
+      "downloads": 3032,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-gsdf-Counterfeit-V2.5.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "CompVis/stable-diffusion-v1-4",
         "gsdf/Counterfeit-V2.5",
@@ -14152,13 +14148,13 @@
         "huggingface-CompVis-stable-diffusion-v1-4"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--gsdf--counterfeit-v2.5",
       "is_rising_star": false,
-      "popularity_score": 3456.6,
+      "popularity_score": 3457.2,
       "source": "unknown",
       "links_data": {},
-      "velocity": 1879.6
+      "velocity": 1880.2
     },
     {
       "id": "huggingface-nanonets-Nanonets-OCR-s",
@@ -14187,11 +14183,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1559,
-      "downloads": 97154,
+      "downloads": 101046,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-nanonets-Nanonets-OCR-s.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "nanonets/Nanonets-OCR-s",
         "huggingface-nanonets-Nanonets-OCR2-3B",
@@ -14200,13 +14196,13 @@
         "huggingface-Qwen-Qwen2.5-VL-3B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--nanonets--nanonets-ocr-s",
       "is_rising_star": false,
-      "popularity_score": 12833.4,
+      "popularity_score": 13222.6,
       "source": "unknown",
       "links_data": {},
-      "velocity": 11274.4
+      "velocity": 11663.6
     },
     {
       "id": "huggingface-meta-llama-Llama-3.2-11B-Vision-Instruct",
@@ -14245,11 +14241,11 @@
       "link_status": "alive",
       "last_checked": null,
       "likes": 1544,
-      "downloads": 188443,
+      "downloads": 182677,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-meta-llama-Llama-3.2-11B-Vision-Instruct.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "meta-llama/Llama-3.2-11B-Vision-Instruct",
         "huggingface-meta-llama-Llama-3.2-90B-Vision-Instruct",
@@ -14258,13 +14254,13 @@
         "meta-llama/Llama-3.2-3B-Instruct"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--meta-llama--llama-3.2-11b-vision-instruct",
       "is_rising_star": false,
-      "popularity_score": 21932.3,
+      "popularity_score": 21355.7,
       "source": "unknown",
       "links_data": {},
-      "velocity": 20388.3
+      "velocity": 19811.7
     },
     {
       "id": "huggingface-microsoft-Phi-4-multimodal-instruct",
@@ -14322,12 +14318,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1541,
-      "downloads": 398517,
+      "likes": 1543,
+      "downloads": 406758,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-microsoft-Phi-4-multimodal-instruct.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "microsoft/Phi-4-multimodal-instruct",
         "openai/whisper-large-v3-turbo",
@@ -14336,13 +14332,13 @@
         "Lamapi/next-1b"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--microsoft--phi-4-multimodal-instruct",
       "is_rising_star": false,
-      "popularity_score": 42933.700000000004,
+      "popularity_score": 43761.8,
       "source": "unknown",
       "links_data": {},
-      "velocity": 41392.7
+      "velocity": 42218.8
     },
     {
       "id": "huggingface-stepfun-ai-GOT-OCR2-0",
@@ -14369,12 +14365,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 1525,
-      "downloads": 18470,
+      "likes": 1526,
+      "downloads": 17117,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-stepfun-ai-GOT-OCR2-0.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "stepfun-ai/GOT-OCR2_0",
         "deepseek-ai/DeepSeek-OCR",
@@ -14383,13 +14379,13 @@
         "bczhou/TinyLLaVA-3.1B"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--stepfun-ai--got-ocr2-0",
       "is_rising_star": false,
-      "popularity_score": 4897,
+      "popularity_score": 4763.7,
       "source": "unknown",
       "links_data": {},
-      "velocity": 3372
+      "velocity": 3237.7
     }
   ],
   "rising": [
@@ -14449,12 +14445,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 4171,
-      "downloads": 147343796,
+      "likes": 4173,
+      "downloads": 148794919,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-sentence-transformers-all-MiniLM-L6-v2.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "sentence-transformers/all-MiniLM-L6-v2",
         "huggingface-google-bert-bert-base-uncased",
@@ -14463,13 +14459,13 @@
         "huggingface-symanto-sn-xlm-roberta-base-snli-mnli-anli-xnli"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--sentence-transformers--all-minilm-l6-v2",
       "is_rising_star": true,
-      "popularity_score": 14742721.600000001,
+      "popularity_score": 14887837.9,
       "source": "unknown",
       "links_data": {},
-      "velocity": 14738550.6
+      "velocity": 14883664.9
     },
     {
       "id": "github-langflow-ai-langflow",
@@ -14582,12 +14578,12 @@
       "seo_status": "pending",
       "link_status": "alive",
       "last_checked": null,
-      "likes": 2494,
-      "downloads": 59779704,
+      "likes": 2497,
+      "downloads": 60359775,
       "cover_image_url": "https://cdn.free2aitools.com/models/huggingface-google-bert-bert-base-uncased.jpg",
       "source_url": null,
       "created_at": null,
-      "first_indexed": "2025-12-02 03:45:51",
+      "first_indexed": "2025-12-03 03:44:54",
       "related_ids": [
         "google-bert/bert-base-uncased",
         "huggingface-google-bert-bert-large-uncased-whole-word-masking-finetuned-squad",
@@ -14596,13 +14592,13 @@
         "sentence-transformers/all-MiniLM-L6-v2"
       ],
       "resources": null,
-      "last_updated": "2025-12-02 03:45:51",
+      "last_updated": "2025-12-03 03:44:54",
       "slug": "huggingface--google-bert--bert-base-uncased",
       "is_rising_star": true,
-      "popularity_score": 5982958.4,
+      "popularity_score": 6040971.5,
       "source": "unknown",
       "links_data": {},
-      "velocity": 5980464.4
+      "velocity": 6038474.5
     },
     {
       "id": "github-microsoft-generative-ai-for-beginners",
@@ -17007,57 +17003,6 @@
       "velocity": 1423453.9
     },
     {
-      "id": "huggingface-pyannote-speaker-diarization-3.1",
-      "name": "speaker-diarization-3.1",
-      "author": "pyannote",
-      "description": "",
-      "tags": [
-        "pyannote-audio",
-        "pyannote",
-        "pyannote-audio-pipeline",
-        "audio",
-        "voice",
-        "speech",
-        "speaker",
-        "speaker-diarization",
-        "speaker-change-detection",
-        "voice-activity-detection",
-        "overlapped-speech-detection",
-        "automatic-speech-recognition",
-        "arxiv:2111.14448",
-        "arxiv:2012.01477",
-        "license:mit",
-        "endpoints_compatible",
-        "region:us"
-      ],
-      "pipeline_tag": "automatic-speech-recognition",
-      "seo_summary": null,
-      "seo_status": "pending",
-      "link_status": "alive",
-      "last_checked": null,
-      "likes": 1332,
-      "downloads": 14201909,
-      "cover_image_url": null,
-      "source_url": null,
-      "created_at": null,
-      "first_indexed": "2025-12-01 12:34:33",
-      "related_ids": [
-        "huggingface-pyannote-speaker-diarization-3.0",
-        "huggingface-pyannote-speaker-diarization",
-        "huggingface-pyannote-speaker-diarization-community-1",
-        "huggingface-pyannote-voice-activity-detection",
-        "huggingface-pyannote-overlapped-speech-detection"
-      ],
-      "resources": null,
-      "last_updated": "2025-12-01 12:34:33",
-      "slug": "huggingface--pyannote--speaker-diarization-3.1",
-      "is_rising_star": true,
-      "popularity_score": 1422854.9000000001,
-      "source": "huggingface",
-      "links_data": {},
-      "velocity": 1421522.9
-    },
-    {
       "id": "github-assafelovic-gpt-researcher",
       "name": "gpt-researcher",
       "author": "assafelovic",
@@ -18629,6 +18574,58 @@
       "source": "github",
       "links_data": {},
       "velocity": 1167366.2
+    },
+    {
+      "id": "github-qax-os-excelize",
+      "name": "excelize",
+      "author": "qax-os",
+      "description": "Go language library for reading and writing Microsoft Excel™ (XLAM / XLSM / XLSX / XLTM / XLTX) spreadsheets",
+      "tags": [
+        "agent",
+        "ai",
+        "data-analysis-insights",
+        "chart",
+        "ecma-376",
+        "excel",
+        "excelize",
+        "formula",
+        "go",
+        "mcp",
+        "microsoft",
+        "office",
+        "ooxml",
+        "spreadsheet",
+        "table",
+        "vba",
+        "xlsx",
+        "xml"
+      ],
+      "pipeline_tag": "tool",
+      "seo_summary": "\"Excelize is a cutting-edge AI model designed to revolutionize data analysis and visualization. Built on top of the Microsoft Office Open XML (OOXML) standard, Excelize enables seamless integration with popular spreadsheet tools like Microsoft Excel. With its advanced analytics capabilities, Excelize helps users uncover hidden insights and trends by processing and visualizing complex data sets. Its technical strengths include support for ECMA-376 (OOXML) file formats, detailed formula parsing, and compatibility with VBA macros. Excelize is ideal for professionals seeking to streamline data analysis, create interactive dashboards, and generate actionable statistics. Its Go-based architecture ensures efficient processing and scalability, making it an excellent choice for businesses, researchers, and developers. Experience the power of AI-driven data analysis with Excelize, and unlock new possibilities for data insights and visualization.\"",
+      "seo_status": "done",
+      "link_status": "alive",
+      "last_checked": "2025-11-28 11:12:48",
+      "likes": 1058177,
+      "downloads": 1058177,
+      "cover_image_url": null,
+      "source_url": "https://github.com/qax-os/excelize",
+      "created_at": "2025-11-22T16:51:04.746Z",
+      "first_indexed": "2025-11-22 16:51:09",
+      "related_ids": [
+        "github-lobehub-lobe-chat",
+        "github-assafelovic-gpt-researcher",
+        "github-vanna-ai-vanna",
+        "github-apache-doris",
+        "github-AstrBotDevs-AstrBot"
+      ],
+      "resources": "[{\"platform\":\"GitHub\",\"url\":\"https://github.com/qax-os/excelize\",\"homepage\":\"https://xuri.me/excelize\",\"language\":\"Go\",\"forks\":1852,\"open_issues\":132,\"license\":\"BSD 3-Clause \\\"New\\\" or \\\"Revised\\\" License\"}]",
+      "last_updated": null,
+      "slug": "github--qax--os--excelize",
+      "is_rising_star": true,
+      "popularity_score": 2222171.7,
+      "source": "github",
+      "links_data": {},
+      "velocity": 1163994.7
     }
   ]
 }

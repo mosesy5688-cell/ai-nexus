@@ -2157,7 +2157,7 @@
     ],
     "likes": 1036780,
     "downloads": 1036780,
-    "is_rising_star": false,
+    "is_rising_star": true,
     "source": "github"
   },
   {
@@ -24231,7 +24231,7 @@
     ],
     "likes": 1332,
     "downloads": 14201909,
-    "is_rising_star": true,
+    "is_rising_star": false,
     "source": "huggingface"
   },
   {
@@ -57506,7 +57506,7 @@
       "region:us"
     ],
     "likes": 12889,
-    "downloads": 1184480,
+    "downloads": 1199185,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57527,8 +57527,8 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 11937,
-    "downloads": 1384788,
+    "likes": 11944,
+    "downloads": 1353797,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57555,8 +57555,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 7177,
-    "downloads": 2756179,
+    "likes": 7182,
+    "downloads": 2752124,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57583,8 +57583,8 @@
       "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 6940,
-    "downloads": 627936,
+    "likes": 6941,
+    "downloads": 629451,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57610,8 +57610,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 6393,
-    "downloads": 2026820,
+    "likes": 6394,
+    "downloads": 2062601,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57632,8 +57632,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 5347,
-    "downloads": 3797384,
+    "likes": 5348,
+    "downloads": 3805815,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57757,8 +57757,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 5150,
-    "downloads": 4786189,
+    "likes": 5156,
+    "downloads": 4856553,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57795,8 +57795,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 5049,
-    "downloads": 4987258,
+    "likes": 5053,
+    "downloads": 5005031,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57874,7 +57874,7 @@
       "deploy:azure"
     ],
     "likes": 4961,
-    "downloads": 2437,
+    "downloads": 2520,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57894,7 +57894,7 @@
       "region:us"
     ],
     "likes": 4875,
-    "downloads": 10927,
+    "downloads": 10930,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57922,8 +57922,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 4661,
-    "downloads": 320401,
+    "likes": 4662,
+    "downloads": 325421,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57947,8 +57947,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 4612,
-    "downloads": 382528,
+    "likes": 4613,
+    "downloads": 387463,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57969,8 +57969,8 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 4434,
-    "downloads": 800754,
+    "likes": 4437,
+    "downloads": 807420,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57993,7 +57993,7 @@
       "region:us"
     ],
     "likes": 4429,
-    "downloads": 451,
+    "downloads": 467,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58021,8 +58021,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 4305,
-    "downloads": 1123388,
+    "likes": 4310,
+    "downloads": 1167036,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58041,15 +58041,14 @@
       "general-dialogue-qa",
       "arxiv:2508.10925",
       "license:apache-2.0",
-      "autotrain_compatible",
       "endpoints_compatible",
       "8-bit",
       "mxfp4",
-      "region:us",
-      "deploy:azure"
+      "deploy:azure",
+      "region:us"
     ],
-    "likes": 4205,
-    "downloads": 4363677,
+    "likes": 4209,
+    "downloads": 4407150,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58105,8 +58104,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 4171,
-    "downloads": 147343796,
+    "likes": 4173,
+    "downloads": 148794919,
     "is_rising_star": true,
     "source": "unknown"
   },
@@ -58132,7 +58131,7 @@
       "region:us"
     ],
     "likes": 4015,
-    "downloads": 419268,
+    "downloads": 414200,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58151,15 +58150,14 @@
       "general-dialogue-qa",
       "arxiv:2508.10925",
       "license:apache-2.0",
-      "autotrain_compatible",
       "endpoints_compatible",
       "8-bit",
       "mxfp4",
       "deploy:azure",
       "region:us"
     ],
-    "likes": 4005,
-    "downloads": 7395121,
+    "likes": 4011,
+    "downloads": 7458736,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58183,8 +58181,8 @@
       "fp8",
       "region:us"
     ],
-    "likes": 4002,
-    "downloads": 598762,
+    "likes": 4003,
+    "downloads": 627015,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58198,7 +58196,7 @@
       "license:openrail",
       "region:us"
     ],
-    "likes": 3955,
+    "likes": 3956,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -58221,7 +58219,7 @@
       "region:us"
     ],
     "likes": 3886,
-    "downloads": 8477,
+    "downloads": 8512,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58260,7 +58258,7 @@
       "region:us"
     ],
     "likes": 3531,
-    "downloads": 44219,
+    "downloads": 43937,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58286,7 +58284,7 @@
       "deploy:azure"
     ],
     "likes": 3410,
-    "downloads": 929832,
+    "downloads": 939044,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58308,7 +58306,7 @@
       "region:us"
     ],
     "likes": 3242,
-    "downloads": 81247,
+    "downloads": 77184,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58355,7 +58353,7 @@
       "region:us"
     ],
     "likes": 3241,
-    "downloads": 38586,
+    "downloads": 39033,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58371,8 +58369,8 @@
       "license:other",
       "region:us"
     ],
-    "likes": 3204,
-    "downloads": 5469141,
+    "likes": 3205,
+    "downloads": 5508188,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58390,8 +58388,8 @@
       "diffusers:StableVideoDiffusionPipeline",
       "region:us"
     ],
-    "likes": 3194,
-    "downloads": 210562,
+    "likes": 3195,
+    "downloads": 221964,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58415,7 +58413,7 @@
       "deploy:azure"
     ],
     "likes": 3173,
-    "downloads": 15821,
+    "downloads": 16166,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58441,7 +58439,7 @@
       "region:us"
     ],
     "likes": 3084,
-    "downloads": 157130,
+    "downloads": 155567,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58473,7 +58471,7 @@
       "deploy:azure"
     ],
     "likes": 3041,
-    "downloads": 9547933,
+    "downloads": 9705107,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58499,8 +58497,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 3025,
-    "downloads": 3653655,
+    "likes": 3026,
+    "downloads": 3652184,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58525,8 +58523,8 @@
       "license:mit",
       "region:us"
     ],
-    "likes": 2906,
-    "downloads": 5468241,
+    "likes": 2918,
+    "downloads": 5527162,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58556,7 +58554,7 @@
       "region:us"
     ],
     "likes": 2905,
-    "downloads": 9508,
+    "downloads": 9615,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58585,7 +58583,7 @@
       "region:us"
     ],
     "likes": 2868,
-    "downloads": 54651,
+    "downloads": 56123,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58611,7 +58609,7 @@
       "region:us"
     ],
     "likes": 2867,
-    "downloads": 2135,
+    "downloads": 2128,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58632,7 +58630,7 @@
       "license:creativeml-openrail-m",
       "region:us"
     ],
-    "likes": 2826,
+    "likes": 2827,
     "downloads": 3,
     "is_rising_star": false,
     "source": "unknown"
@@ -58654,7 +58652,7 @@
       "region:us"
     ],
     "likes": 2810,
-    "downloads": 202314,
+    "downloads": 195486,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58776,8 +58774,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2711,
-    "downloads": 4454714,
+    "likes": 2712,
+    "downloads": 4494148,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58814,8 +58812,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2581,
-    "downloads": 418468,
+    "likes": 2582,
+    "downloads": 419946,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58844,8 +58842,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2542,
-    "downloads": 7160805,
+    "likes": 2546,
+    "downloads": 7235864,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58877,8 +58875,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2494,
-    "downloads": 59779704,
+    "likes": 2497,
+    "downloads": 60359775,
     "is_rising_star": true,
     "source": "unknown"
   },
@@ -58899,7 +58897,7 @@
       "region:us"
     ],
     "likes": 2485,
-    "downloads": 400334,
+    "downloads": 409451,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58922,7 +58920,7 @@
       "region:us"
     ],
     "likes": 2461,
-    "downloads": 3125,
+    "downloads": 3134,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58946,7 +58944,7 @@
       "region:us"
     ],
     "likes": 2452,
-    "downloads": 330097,
+    "downloads": 330293,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58981,7 +58979,7 @@
       "deploy:azure"
     ],
     "likes": 2432,
-    "downloads": 9621,
+    "downloads": 9780,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59007,7 +59005,7 @@
       "region:us"
     ],
     "likes": 2386,
-    "downloads": 369043,
+    "downloads": 377714,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59025,7 +59023,7 @@
       "region:us"
     ],
     "likes": 2368,
-    "downloads": 1182,
+    "downloads": 1305,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59050,8 +59048,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2327,
-    "downloads": 1693,
+    "likes": 2328,
+    "downloads": 1868,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59071,8 +59069,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 2278,
-    "downloads": 1012928,
+    "likes": 2281,
+    "downloads": 1042458,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59093,8 +59091,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2276,
-    "downloads": 24999,
+    "likes": 2279,
+    "downloads": 25766,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59119,7 +59117,7 @@
       "region:us"
     ],
     "likes": 2267,
-    "downloads": 171145,
+    "downloads": 172220,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59141,8 +59139,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 2250,
-    "downloads": 264644,
+    "likes": 2255,
+    "downloads": 272615,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59169,8 +59167,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2209,
-    "downloads": 542361,
+    "likes": 2210,
+    "downloads": 544918,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59205,8 +59203,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2203,
-    "downloads": 3214063,
+    "likes": 2205,
+    "downloads": 3260945,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59234,8 +59232,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2201,
-    "downloads": 11753,
+    "likes": 2202,
+    "downloads": 11559,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59263,8 +59261,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2191,
-    "downloads": 470951,
+    "likes": 2193,
+    "downloads": 479546,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59285,8 +59283,8 @@
       "diffusers:QwenImageEditPipeline",
       "region:us"
     ],
-    "likes": 2166,
-    "downloads": 110281,
+    "likes": 2169,
+    "downloads": 105160,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59305,7 +59303,7 @@
       "region:us"
     ],
     "likes": 2107,
-    "downloads": 116561,
+    "downloads": 118679,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59322,8 +59320,8 @@
       "license:other",
       "region:us"
     ],
-    "likes": 2084,
-    "downloads": 1001,
+    "likes": 2083,
+    "downloads": 1029,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59336,7 +59334,7 @@
     "tags": [
       "region:us"
     ],
-    "likes": 2072,
+    "likes": 2071,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -59357,8 +59355,8 @@
       "diffusers:LTXPipeline",
       "region:us"
     ],
-    "likes": 2064,
-    "downloads": 262103,
+    "likes": 2065,
+    "downloads": 265008,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59389,7 +59387,7 @@
       "region:us"
     ],
     "likes": 2059,
-    "downloads": 9899,
+    "downloads": 9877,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59416,31 +59414,7 @@
       "region:us"
     ],
     "likes": 2056,
-    "downloads": 627182,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "huggingface-stabilityai-stable-diffusion-xl-refiner-1.0",
-    "slug": "huggingface--stabilityai--stable-diffusion-xl-refiner-1.0",
-    "name": "stable-diffusion-xl-refiner-1.0",
-    "author": "stabilityai",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "stable-diffusion",
-      "image-to-image",
-      "arxiv:2307.01952",
-      "arxiv:2211.01324",
-      "arxiv:2108.01073",
-      "arxiv:2112.10752",
-      "license:openrail++",
-      "diffusers:StableDiffusionXLImg2ImgPipeline",
-      "region:us"
-    ],
-    "likes": 2000,
-    "downloads": 483575,
+    "downloads": 628302,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59466,8 +59440,32 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1999,
-    "downloads": 183393,
+    "likes": 2002,
+    "downloads": 192429,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "huggingface-stabilityai-stable-diffusion-xl-refiner-1.0",
+    "slug": "huggingface--stabilityai--stable-diffusion-xl-refiner-1.0",
+    "name": "stable-diffusion-xl-refiner-1.0",
+    "author": "stabilityai",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "stable-diffusion",
+      "image-to-image",
+      "arxiv:2307.01952",
+      "arxiv:2211.01324",
+      "arxiv:2108.01073",
+      "arxiv:2112.10752",
+      "license:openrail++",
+      "diffusers:StableDiffusionXLImg2ImgPipeline",
+      "region:us"
+    ],
+    "likes": 2000,
+    "downloads": 478618,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59491,7 +59489,7 @@
       "deploy:azure"
     ],
     "likes": 1956,
-    "downloads": 2651,
+    "downloads": 2633,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59525,7 +59523,7 @@
       "region:us"
     ],
     "likes": 1954,
-    "downloads": 273658,
+    "downloads": 275254,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59559,8 +59557,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1945,
-    "downloads": 660593,
+    "likes": 1951,
+    "downloads": 676123,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59584,8 +59582,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1911,
-    "downloads": 8956090,
+    "likes": 1914,
+    "downloads": 8904396,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59614,7 +59612,30 @@
       "region:us"
     ],
     "likes": 1893,
-    "downloads": 181032,
+    "downloads": 187453,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "huggingface-Tongyi-MAI-Z-Image-Turbo",
+    "slug": "huggingface--tongyi-mai--z-image-turbo",
+    "name": "Z-Image-Turbo",
+    "author": "Tongyi-MAI",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "image-generation",
+      "en",
+      "arxiv:2511.22699",
+      "arxiv:2511.22677",
+      "arxiv:2511.13649",
+      "license:apache-2.0",
+      "diffusers:ZImagePipeline",
+      "region:us"
+    ],
+    "likes": 1873,
+    "downloads": 86570,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59650,8 +59671,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1850,
-    "downloads": 1610324,
+    "likes": 1852,
+    "downloads": 1623445,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59674,7 +59695,7 @@
       "region:us"
     ],
     "likes": 1824,
-    "downloads": 121942,
+    "downloads": 125753,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59702,7 +59723,7 @@
       "region:us"
     ],
     "likes": 1814,
-    "downloads": 389241,
+    "downloads": 393861,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59738,7 +59759,7 @@
       "deploy:azure"
     ],
     "likes": 1814,
-    "downloads": 246856,
+    "downloads": 246657,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59756,8 +59777,8 @@
       "arxiv:2308.06721",
       "region:us"
     ],
-    "likes": 1786,
-    "downloads": 208126,
+    "likes": 1787,
+    "downloads": 209286,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59774,8 +59795,8 @@
       "base_model:finetune:Wan-AI/Wan2.1-VACE-1.3B",
       "region:us"
     ],
-    "likes": 1783,
-    "downloads": 6186538,
+    "likes": 1784,
+    "downloads": 6221170,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59901,7 +59922,7 @@
       "deploy:azure"
     ],
     "likes": 1773,
-    "downloads": 274486,
+    "downloads": 267477,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59926,7 +59947,7 @@
       "region:us"
     ],
     "likes": 1771,
-    "downloads": 51302,
+    "downloads": 52894,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59959,7 +59980,7 @@
       "region:us"
     ],
     "likes": 1762,
-    "downloads": 2762,
+    "downloads": 2831,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59987,7 +60008,7 @@
       "region:us"
     ],
     "likes": 1741,
-    "downloads": 75316,
+    "downloads": 80828,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60012,7 +60033,7 @@
       "region:us"
     ],
     "likes": 1719,
-    "downloads": 8039,
+    "downloads": 8045,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60064,8 +60085,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1716,
-    "downloads": 1208025,
+    "likes": 1718,
+    "downloads": 1240621,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60089,31 +60110,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1712,
-    "downloads": 789660,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "huggingface-Tongyi-MAI-Z-Image-Turbo",
-    "slug": "huggingface--tongyi-mai--z-image-turbo",
-    "name": "Z-Image-Turbo",
-    "author": "Tongyi-MAI",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "image-generation",
-      "en",
-      "arxiv:2511.22699",
-      "arxiv:2511.22677",
-      "arxiv:2511.13649",
-      "license:apache-2.0",
-      "diffusers:ZImagePipeline",
-      "region:us"
-    ],
-    "likes": 1712,
-    "downloads": 59503,
+    "likes": 1713,
+    "downloads": 799739,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60139,7 +60137,7 @@
       "deploy:azure"
     ],
     "likes": 1711,
-    "downloads": 188,
+    "downloads": 199,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60161,7 +60159,7 @@
       "region:us"
     ],
     "likes": 1697,
-    "downloads": 402,
+    "downloads": 411,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60188,7 +60186,7 @@
       "region:us"
     ],
     "likes": 1683,
-    "downloads": 309796,
+    "downloads": 302626,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60206,8 +60204,8 @@
       "fp8",
       "region:us"
     ],
-    "likes": 1682,
-    "downloads": 9241,
+    "likes": 1681,
+    "downloads": 9683,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60230,8 +60228,8 @@
       "license:other",
       "region:us"
     ],
-    "likes": 1673,
-    "downloads": 82689,
+    "likes": 1675,
+    "downloads": 83355,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60261,7 +60259,7 @@
       "region:us"
     ],
     "likes": 1629,
-    "downloads": 184950,
+    "downloads": 190008,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60281,8 +60279,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 1618,
-    "downloads": 157936,
+    "likes": 1621,
+    "downloads": 157968,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60300,7 +60298,7 @@
       "region:us"
     ],
     "likes": 1616,
-    "downloads": 1503,
+    "downloads": 1525,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60332,7 +60330,7 @@
       "region:us"
     ],
     "likes": 1598,
-    "downloads": 174437,
+    "downloads": 169036,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60355,7 +60353,7 @@
       "region:us"
     ],
     "likes": 1577,
-    "downloads": 3026,
+    "downloads": 3032,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60382,7 +60380,7 @@
       "region:us"
     ],
     "likes": 1559,
-    "downloads": 97154,
+    "downloads": 101046,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60419,7 +60417,7 @@
       "region:us"
     ],
     "likes": 1544,
-    "downloads": 188443,
+    "downloads": 182677,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60475,8 +60473,8 @@
       "autotrain_compatible",
       "region:us"
     ],
-    "likes": 1541,
-    "downloads": 398517,
+    "likes": 1543,
+    "downloads": 406758,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60501,8 +60499,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 1525,
-    "downloads": 18470,
+    "likes": 1526,
+    "downloads": 17117,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60511,11 +60509,11 @@
     "slug": "pytorch--huggingface--pytorch-transformers",
     "name": "PyTorch-Transformers",
     "author": "huggingface",
-    "description": "PyTorch implementations of popular NLP Transformers \t\t\t\t\t\t \t\t\t\t\t 153.2k",
+    "description": "PyTorch implementations of popular NLP Transformers \t\t\t\t\t\t \t\t\t\t\t 153.3k",
     "tags": [
       "pytorch"
     ],
-    "likes": 153200,
+    "likes": 153300,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -60933,11 +60931,11 @@
     "slug": "pytorch--intelisl--midas",
     "name": "MiDaS",
     "author": "intelisl",
-    "description": "MiDaS models for computing relative depth from a single image. \t\t\t\t\t\t \t\t\t\t\t 5.2k",
+    "description": "MiDaS models for computing relative depth from a single image. \t\t\t\t\t\t \t\t\t\t\t 5.3k",
     "tags": [
       "pytorch"
     ],
-    "likes": 5200,
+    "likes": 5300,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -61264,7 +61262,7 @@
       "voice-recognition",
       "workshop-materials"
     ],
-    "likes": 89,
+    "likes": 90,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -61368,27 +61366,6 @@
     "source": "unknown"
   },
   {
-    "id": "github-Om29Singh-Diabetes-Prediction",
-    "slug": "github--om29singh--diabetes-prediction",
-    "name": "Diabetes_Prediction",
-    "author": "Om29Singh",
-    "description": "Diabetes Prediction using Machine Learning",
-    "tags": [
-      "github",
-      "jupyter-notebooks",
-      "machine-learning",
-      "machine-learning-model",
-      "prediction",
-      "python3",
-      "supervised-learning-algorithms",
-      "support-vector-machines"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
     "id": "github-twoChar-Flight-Fare-Prediction",
     "slug": "github--twochar--flight-fare-prediction",
     "name": "Flight-Fare-Prediction",
@@ -61405,6 +61382,27 @@
       "python",
       "scikit-learn",
       "seaborn"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "github-Om29Singh-Diabetes-Prediction",
+    "slug": "github--om29singh--diabetes-prediction",
+    "name": "Diabetes_Prediction",
+    "author": "Om29Singh",
+    "description": "Diabetes Prediction using Machine Learning",
+    "tags": [
+      "github",
+      "jupyter-notebooks",
+      "machine-learning",
+      "machine-learning-model",
+      "prediction",
+      "python3",
+      "supervised-learning-algorithms",
+      "support-vector-machines"
     ],
     "likes": 1,
     "downloads": 0,
@@ -61452,6 +61450,25 @@
     "source": "unknown"
   },
   {
+    "id": "github-raghavagps-nagbinder",
+    "slug": "github--raghavagps--nagbinder",
+    "name": "nagbinder",
+    "author": "raghavagps",
+    "description": "A method for predicting NAG interacting residues in a protein from its primary sequence",
+    "tags": [
+      "github",
+      "machine-learning-model",
+      "nag-binding",
+      "nag-interacting",
+      "prediction-algorithm",
+      "protein-bioinformatics"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
     "id": "github-sciustea-Improve-Machine-Learning-Model-Accuracy-Feature-Engineering-Python",
     "slug": "github--sciustea--improve-machine-learning-model-accuracy-feature-engineering-python",
     "name": "Improve-Machine-Learning-Model-Accuracy_Feature-Engineering_Python",
@@ -61470,25 +61487,6 @@
       "python",
       "testing-data",
       "training-data"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "github-raghavagps-nagbinder",
-    "slug": "github--raghavagps--nagbinder",
-    "name": "nagbinder",
-    "author": "raghavagps",
-    "description": "A method for predicting NAG interacting residues in a protein from its primary sequence",
-    "tags": [
-      "github",
-      "machine-learning-model",
-      "nag-binding",
-      "nag-interacting",
-      "prediction-algorithm",
-      "protein-bioinformatics"
     ],
     "likes": 1,
     "downloads": 0,
@@ -61734,24 +61732,6 @@
     "source": "unknown"
   },
   {
-    "id": "github-Himasnhu-AT-COX3-ML-Model",
-    "slug": "github--himasnhu-at--cox3-ml-model",
-    "name": "COX3-ML-Model",
-    "author": "Himasnhu-AT",
-    "description": "Building an ML model for detecting if a patient is COVID-19 positive or not. Based on dataset: https://www.kaggle.com/datasets/andyczhao/covidx-cxr2",
-    "tags": [
-      "github",
-      "machine-learning",
-      "machine-learning-algorithms",
-      "machine-learning-model",
-      "model"
-    ],
-    "likes": 0,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
     "id": "github-Lamiorkor-LyriGenesis",
     "slug": "github--lamiorkor--lyrigenesis",
     "name": "LyriGenesis",
@@ -61870,6 +61850,24 @@
       "machine-vision",
       "machinelearning",
       "radio-optics"
+    ],
+    "likes": 0,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "github-Himasnhu-AT-COX3-ML-Model",
+    "slug": "github--himasnhu-at--cox3-ml-model",
+    "name": "COX3-ML-Model",
+    "author": "Himasnhu-AT",
+    "description": "Building an ML model for detecting if a patient is COVID-19 positive or not. Based on dataset: https://www.kaggle.com/datasets/andyczhao/covidx-cxr2",
+    "tags": [
+      "github",
+      "machine-learning",
+      "machine-learning-algorithms",
+      "machine-learning-model",
+      "model"
     ],
     "likes": 0,
     "downloads": 0,
