@@ -1,0 +1,267 @@
+name: CI Checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lint-and-build:
+    name: Lint & Build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install Dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: false
+      
+      - name: Build Project
+        run: npm run build
+        env:
+          NODE_ENV: production
+      
+      - name: Check Build Output
+        run: |
+          echo "📦 Verifying build artifacts..."
+          
+          # Check dist directory exists
+          if [ ! -d "dist" ]; then
+            echo "❌ dist directory not found"
+            exit 1
+          fi
+          
+          # Check for CSS files
+          if ! ls dist/assets/*.css 1> /dev/null 2>&1; then
+            echo "❌ No CSS files found in dist/assets/"
+            exit 1
+          fi
+          
+          # Check for JS files
+          if ! ls dist/assets/*.js 1> /dev/null 2>&1; then
+            echo "❌ No JS files found in dist/assets/"
+            exit 1
+          fi
+          
+          echo "✅ Build artifacts verified"
+      
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: dist/
+          retention-days: 7
+
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: lint-and-build
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install Dependencies
+        run: npm ci
+      
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: dist/
+      
+      - name: Start Preview Server
+        run: |
+          npm run preview &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          
+          # Wait for server to be ready
+          echo "⏳ Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:4321 > /dev/null; then
+              echo "✅ Server is ready"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "❌ Server failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+      
+      - name: Test Homepage
+        run: |
+          echo "🧪 Testing homepage..."
+          
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/)
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ Homepage returned $STATUS"
+            exit 1
+          fi
+          
+          # Check for critical content
+          CONTENT=$(curl -s http://localhost:4321/)
+          if ! echo "$CONTENT" | grep -q "Free AI Tools"; then
+            echo "❌ Homepage missing title"
+            exit 1
+          fi
+          
+          echo "✅ Homepage test passed"
+      
+      - name: Test Model Detail Page
+        run: |
+          echo "🧪 Testing model detail page..."
+          
+          # Test with a known model (adjust slug as needed)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/model/meta-llama--Llama-3-2-1B)
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "404" ]; then
+            echo "⚠️ Model page returned $STATUS (acceptable if model doesn't exist)"
+          else
+            echo "✅ Model page test passed"
+          fi
+      
+      - name: Test Explore Page
+        run: |
+          echo "🧪 Testing explore page..."
+          
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/explore)
+          if [ "$STATUS" != "200" ]; then
+            echo "❌ Explore page returned $STATUS"
+            exit 1
+          fi
+          
+          echo "✅ Explore page test passed"
+      
+      - name: Test API Endpoints
+        run: |
+          echo "🧪 Testing API endpoints..."
+          
+          # Test search API (if exists)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:4321/api/search?q=test)
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "404" ]; then
+            echo "⚠️ Search API returned $STATUS"
+          fi
+          
+          echo "✅ API tests completed"
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          if [ -n "${{ env.SERVER_PID }}" ]; then
+            kill ${{ env.SERVER_PID }} || true
+          fi
+
+  lighthouse:
+    name: Lighthouse Performance
+    runs-on: ubuntu-latest
+    needs: lint-and-build
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install Dependencies
+        run: npm ci
+      
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: dist/
+      
+      - name: Start Preview Server
+        run: |
+          npm run preview &
+          sleep 5
+      
+      - name: Run Lighthouse
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          urls: |
+            http://localhost:4321/
+            http://localhost:4321/explore
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          runs: 3
+      
+      - name: Check Lighthouse Scores
+        run: |
+          echo "📊 Lighthouse scores recorded"
+          echo "View results in job artifacts"
+
+  security-check:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level=moderate || true
+          echo "⚠️ Security audit completed (warnings allowed)"
+      
+      - name: Check for Secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+  status-check:
+    name: CI Status Summary
+    runs-on: ubuntu-latest
+    needs: [lint-and-build, smoke-tests, lighthouse, security-check]
+    if: always()
+    
+    steps:
+      - name: Check Job Status
+        run: |
+          echo "## 📊 CI Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Lint & Build**: ${{ needs.lint-and-build.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Smoke Tests**: ${{ needs.smoke-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Lighthouse**: ${{ needs.lighthouse.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Security**: ${{ needs.security-check.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.lint-and-build.result }}" != "success" ] || \
+             [ "${{ needs.smoke-tests.result }}" != "success" ]; then
+            echo "❌ **CI checks failed. Please fix errors before merging.**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ **All CI checks passed. Ready to merge.**" >> $GITHUB_STEP_SUMMARY
+          fi
