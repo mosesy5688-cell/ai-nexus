@@ -4,6 +4,7 @@ export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import SimilarModels from '../../components/SimilarModels.astro';
+import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import { getModelBySlug } from '../../utils/db';
 import { prepareDetailData, getBestDescription, formatMetric, formatRelativeTime } from '../../utils/data-service';
 
@@ -173,7 +174,7 @@ const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
                     </div>
                     <h2 class="text-2xl font-bold text-gray-900 dark:text-white">About this Model</h2>
                   </div>
-                  
+                    <ModelInfoTable model={model} />
                   {/* Integrated Metadata List */}
                   <div class="mb-8 p-5 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
                     <ul class="grid grid-cols-1 sm:grid-cols-2 gap-4">

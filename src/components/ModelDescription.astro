@@ -1,0 +1,63 @@
+---
+// src/components/ModelDescription.astro
+// Description section with metadata tags
+const { model, tagsArray } = Astro.props;
+---
+
+<section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+  <div class="flex items-center gap-3 mb-6 border-b border-gray-100 dark:border-gray-700 pb-4">
+    <div class="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
+      <svg class="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </div>
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">About this Model</h2>
+  </div>
+  
+  <!-- Import ModelInfoTable component here -->
+  <slot name="info-table" />
+  
+  <!-- Integrated Metadata List -->
+  <div class="mb-8 p-5 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700">
+    <ul class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <li class="flex items-start gap-2">
+        <span class="text-sm font-semibold text-gray-500 dark:text-gray-400">License:</span>
+        <span class="text-sm font-medium text-gray-900 dark:text-white">{model.license || "Unknown"}</span>
+      </li>
+      <li class="flex items-start gap-2">
+        <span class="text-sm font-semibold text-gray-500 dark:text-gray-400">Library:</span>
+        <span class="text-sm font-medium text-gray-900 dark:text-white">{model.library_name || "Transformers"}</span>
+      </li>
+      {/* Extracting 'arxiv' tags if any */}
+      {tagsArray.filter(t => t.startsWith('arxiv:')).map(tag => (
+        <li class="flex items-start gap-2">
+          <span class="text-sm font-semibold text-gray-500 dark:text-gray-400">Arxiv:</span>
+          <a href={`https://arxiv.org/abs/${tag.split(':')[1]}`} target="_blank" class="text-sm font-medium text-blue-600 hover:underline">{tag.split(':')[1]}</a>
+        </li>
+      ))}
+      {/* Extracting 'dataset' tags if any */}
+      {tagsArray.filter(t => t.startsWith('dataset:')).slice(0, 3).map(tag => (
+        <li class="flex items-start gap-2">
+          <span class="text-sm font-semibold text-gray-500 dark:text-gray-400">Dataset:</span>
+          <span class="text-sm font-medium text-gray-900 dark:text-white truncate">{tag.split(':')[1]}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+
+  <div class="prose prose-lg dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 leading-relaxed" itemprop="description">
+    <p class="whitespace-pre-wrap">{model.displayDescription}</p>
+  </div>
+  
+  {/* SEO Enhancement Indicator */}
+  {model.seo_status === 'done' && model.seo_summary && (
+    <div class="mt-8 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-start gap-3">
+      <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+      </svg>
+      <p class="text-sm text-emerald-700 dark:text-emerald-300">
+        ✨ <strong>Enhanced Description:</strong> This model description has been optimized with AI-generated summaries for better clarity and discoverability.
+      </p>
+    </div>
+  )}
+</section>
