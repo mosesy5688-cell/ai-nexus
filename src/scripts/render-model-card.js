@@ -34,6 +34,16 @@ export function renderModelCard(model) {
         }
     };
 
+    const getSourceGradient = (source) => {
+        switch (source?.toLowerCase()) {
+            case 'huggingface': return 'from-orange-400 via-yellow-500 to-amber-400';
+            case 'github': return 'from-gray-700 via-gray-800 to-gray-900';
+            case 'pytorch': return 'from-red-500 via-orange-500 to-red-600';
+            case 'replicate': return 'from-indigo-500 via-purple-500 to-pink-500';
+            default: return 'from-blue-500 via-indigo-500 to-purple-600';
+        }
+    };
+
     const getFirstTag = (tagsData) => {
         try {
             if (!tagsData) return null;
@@ -60,23 +70,17 @@ export function renderModelCard(model) {
             <span class="uppercase">${getSourceLabel(model.source)}</span>
         </div>
 
-        ${model.cover_image_url ? `
-        <div class="aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-900 relative">
-            <img 
-                src="${model.cover_image_url}" 
-                alt="Cover for ${model.name}" 
-                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                loading="lazy"
-                onerror="this.style.display='none'"
-            />
-        </div>
-        ` : `
-        <div class="aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
-            <div class="text-4xl opacity-20 select-none">
+        <div class="aspect-video w-full bg-gradient-to-br ${getSourceGradient(model.source)} flex items-center justify-center relative overflow-hidden">
+            <!-- Decorative background pattern -->
+            <div class="absolute inset-0 opacity-10">
+                <div class="absolute top-4 right-4 w-32 h-32 bg-white rounded-full blur-3xl"></div>
+                <div class="absolute bottom-4 left-4 w-24 h-24 bg-white rounded-full blur-2xl"></div>
+            </div>
+            <!-- Main icon -->
+            <div class="text-7xl opacity-90 transform group-hover:scale-110 transition-transform duration-300 relative z-10">
                 ${getSourceIcon(model.source)}
             </div>
         </div>
-        `}
 
         <div class="p-5 flex flex-col h-full justify-between ${model.cover_image_url ? 'pt-4' : 'pt-10'}">
             <div>
