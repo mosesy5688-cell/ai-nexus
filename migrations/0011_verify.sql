@@ -1,0 +1,33 @@
+-- migrations/0011_verify.sql
+-- Verification queries for 0011_add_performance_indexes.sql
+
+-- 1. List all indexes on models table
+SELECT name, sql FROM sqlite_master 
+WHERE type='index' AND tbl_name='models'
+ORDER BY name;
+
+-- Expected output: 6 indexes (idx_models_slug, idx_models_pipeline_tag, etc.)
+
+-- 2. Test query plan for slug lookup (should use idx_models_slug)
+EXPLAIN QUERY PLAN 
+SELECT * FROM models WHERE slug = 'meta-llama--Llama-3-2-1B';
+
+-- Expected: SEARCH models USING INDEX idx_models_slug
+
+-- 3. Test query plan for filtered list (should use idx_pipeline_downloads)
+EXPLAIN QUERY PLAN 
+SELECT * FROM models 
+WHERE pipeline_tag = 'text-generation' 
+ORDER BY downloads DESC 
+LIMIT 20;
+
+-- Expected: SEARCH models USING INDEX idx_pipeline_downloads
+
+-- 4. Test query plan for author page (should use idx_author_updated)
+EXPLAIN QUERY PLAN
+SELECT * FROM models
+WHERE author = 'meta'
+ORDER BY updated_at DESC
+LIMIT 10;
+
+-- Expected: SEARCH models USING INDEX idx_author_updated
