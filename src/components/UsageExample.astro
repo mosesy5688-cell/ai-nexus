@@ -1,0 +1,39 @@
+---
+// src/components/UsageExample.astro
+// Code usage example with copy button
+const { model } = Astro.props;
+---
+
+<section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+  <div class="flex items-center justify-between mb-6 border-b border-gray-100 dark:border-gray-700 pb-4">
+    <div class="flex items-center gap-3">
+      <div class="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
+        <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+        </svg>
+      </div>
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Usage Example</h2>
+    </div>
+  </div>
+  
+  <div class="relative group" x-data="{ copied: false }">
+    <div class="absolute top-4 right-4 z-10">
+      <button 
+        @click="navigator.clipboard.writeText($refs.codeBlock.innerText); copied = true; setTimeout(() => copied = false, 2000)"
+        class="flex items-center gap-2 px-3 py-1.5 bg-gray-800 text-white text-xs font-medium rounded-md hover:bg-gray-700 transition-colors shadow-sm"
+      >
+        <svg x-show="!copied" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+        <svg x-show="copied" class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+      </button>
+    </div>
+    <pre class="bg-gray-900 text-gray-100 p-6 rounded-xl overflow-x-auto text-sm font-mono leading-relaxed shadow-inner"><code x-ref="codeBlock">from transformers import pipeline
+
+# Load the model
+pipe = pipeline("{model.pipeline_tag || 'text-generation'}", model="{model.id}")
+
+# Run inference
+result = pipe("Hello, world!")
+print(result)</code></pre>
+  </div>
+</section>
