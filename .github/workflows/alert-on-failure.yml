@@ -1,0 +1,215 @@
+name: Alert on Workflow Failure
+
+on:
+  workflow_run:
+    workflows: ["Weekly Database Backup", "Deploy to Cloudflare Pages"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  check-and-notify:
+    name: Check Status & Send Alerts
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Get Workflow Details
+        id: workflow
+        run: |
+          echo "name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
+          echo "url=${{ github.event.workflow_run.html_url }}" >> $GITHUB_OUTPUT
+          echo "branch=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
+          echo "sha=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+          echo "actor=${{ github.event.workflow_run.triggering_actor.login }}" >> $GITHUB_OUTPUT
+          echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+      
+      - name: Determine Severity
+        id: severity
+        run: |
+          WORKFLOW_NAME="${{ steps.workflow.outputs.name }}"
+          
+          if [[ "$WORKFLOW_NAME" == *"Backup"* ]]; then
+            echo "level=CRITICAL" >> $GITHUB_OUTPUT
+            echo "emoji=🚨" >> $GITHUB_OUTPUT
+            echo "color=#FF0000" >> $GITHUB_OUTPUT
+          elif [[ "$WORKFLOW_NAME" == *"Deploy"* ]]; then
+            echo "level=HIGH" >> $GITHUB_OUTPUT
+            echo "emoji=⚠️" >> $GITHUB_OUTPUT
+            echo "color=#FFA500" >> $GITHUB_OUTPUT
+          else
+            echo "level=MEDIUM" >> $GITHUB_OUTPUT
+            echo "emoji=⚡" >> $GITHUB_OUTPUT
+            echo "color=#FFFF00" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Send Slack Notification
+        if: vars.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -X POST ${{ vars.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "text": "${{ steps.severity.outputs.emoji }} Workflow Failed: ${{ steps.workflow.outputs.name }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "${{ steps.severity.outputs.emoji }} Workflow Failure Alert"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Workflow:*\n${{ steps.workflow.outputs.name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Severity:*\n${{ steps.severity.outputs.level }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:*\n${{ steps.workflow.outputs.branch }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Triggered By:*\n${{ steps.workflow.outputs.actor }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Time:*\n${{ steps.workflow.outputs.time }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit:*\n<https://github.com/${{ github.repository }}/commit/${{ steps.workflow.outputs.sha }}|${GITHUB_SHA:0:7}>"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "<!channel> Action required!"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Logs"
+                      },
+                      "url": "${{ steps.workflow.outputs.url }}",
+                      "style": "danger"
+                    },
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Repository"
+                      },
+                      "url": "https://github.com/${{ github.repository }}"
+                    }
+                  ]
+                }
+              ]
+            }'
+      
+      - name: Send Email Notification
+        if: vars.NOTIFICATION_EMAIL != ''
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "${{ steps.severity.outputs.emoji }} Workflow Failed: ${{ steps.workflow.outputs.name }}"
+          to: ${{ vars.NOTIFICATION_EMAIL }}
+          from: AI-Nexus Alerts <noreply@free2aitools.com>
+          html_body: |
+            <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+              <div style="max-width: 600px; margin: 0 auto; padding: 20px; border: 2px solid ${{ steps.severity.outputs.color }}; border-radius: 8px;">
+                <h2 style="color: ${{ steps.severity.outputs.color }};">
+                  ${{ steps.severity.outputs.emoji }} Workflow Failure Alert
+                </h2>
+                
+                <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                  <h3 style="margin-top: 0;">Details</h3>
+                  <p><strong>Workflow:</strong> ${{ steps.workflow.outputs.name }}</p>
+                  <p><strong>Severity:</strong> <span style="color: ${{ steps.severity.outputs.color }}; font-weight: bold;">${{ steps.severity.outputs.level }}</span></p>
+                  <p><strong>Branch:</strong> ${{ steps.workflow.outputs.branch }}</p>
+                  <p><strong>Triggered By:</strong> ${{ steps.workflow.outputs.actor }}</p>
+                  <p><strong>Time:</strong> ${{ steps.workflow.outputs.time }}</p>
+                  <p><strong>Commit:</strong> <a href="https://github.com/${{ github.repository }}/commit/${{ steps.workflow.outputs.sha }}">${{ steps.workflow.outputs.sha }}</a></p>
+                </div>
+                
+                <div style="margin: 20px 0;">
+                  <a href="${{ steps.workflow.outputs.url }}" 
+                     style="display: inline-block; padding: 12px 24px; background-color: ${{ steps.severity.outputs.color }}; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                    View Workflow Logs
+                  </a>
+                </div>
+                
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666;">
+                  <p>This is an automated alert from AI-Nexus CI/CD system.</p>
+                  <p>Repository: <a href="https://github.com/${{ github.repository }}">${{ github.repository }}</a></p>
+                </div>
+              </div>
+            </body>
+            </html>
+      
+      - name: Create GitHub Issue (Critical Only)
+        if: steps.severity.outputs.level == 'CRITICAL'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 CRITICAL: ${{ steps.workflow.outputs.name }} Failed`,
+              body: `## Workflow Failure Alert
+              
+              **Severity:** CRITICAL
+              **Workflow:** ${{ steps.workflow.outputs.name }}
+              **Branch:** ${{ steps.workflow.outputs.branch }}
+              **Triggered By:** @${{ steps.workflow.outputs.actor }}
+              **Time:** ${{ steps.workflow.outputs.time }}
+              
+              ### Details
+              
+              - **Run URL:** ${{ steps.workflow.outputs.url }}
+              - **Commit:** ${{ steps.workflow.outputs.sha }}
+              
+              ### Action Required
+              
+              This workflow is critical to system operation. Please investigate and resolve immediately.
+              
+              ### Checklist
+              
+              - [ ] Review workflow logs
+              - [ ] Identify root cause
+              - [ ] Apply fix
+              - [ ] Verify resolution
+              - [ ] Document in post-mortem (if needed)
+              
+              ---
+              *Auto-generated by Alert System*`,
+              labels: ['critical', 'automated-alert', 'workflow-failure']
+            })
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🚨 Alert Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workflow**: ${{ steps.workflow.outputs.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Severity**: ${{ steps.severity.outputs.level }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: Notifications sent" >> $GITHUB_STEP_SUMMARY
+          echo "- **Logs**: [${{ steps.workflow.outputs.url }}](${{ steps.workflow.outputs.url }})" >> $GITHUB_STEP_SUMMARY
