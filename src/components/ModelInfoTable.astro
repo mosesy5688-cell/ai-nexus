@@ -62,6 +62,61 @@ const { model } = Astro.props;
           </td>
         </tr>
       )}
+      {/* GitHub Statistics */}
+      {(model.github_stars || model.github_forks) && (
+        <tr class="bg-blue-50/50 dark:bg-blue-900/10">
+          <td colspan="2" class="px-4 py-2 text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wide">GitHub Statistics</td>
+        </tr>
+      )}
+      {model.github_stars && model.github_stars > 0 && (
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
+          <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900/50">
+            <span class="inline-flex items-center gap-2">
+              <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+              </svg>
+              GitHub Stars
+            </span>
+          </td>
+          <td class="px-4 py-3 text-gray-700 dark:text-gray-300 font-semibold">
+            {model.github_stars.toLocaleString()}
+          </td>
+        </tr>
+      )}
+      {model.github_forks && model.github_forks > 0 && (
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
+          <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900/50">
+            <span class="inline-flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M5 3.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm0 2.122a2.25 2.25 0 10-1.5 0v.878A2.25 2.25 0 005.75 8.5h1.5v2.128a2.251 2.251 0 101.5 0V8.5h1.5a2.25 2.25 0 002.25-2.25v-.878a2.25 2.25 0 10-1.5 0v.878a.75.75 0 01-.75.75h-4.5A.75.75 0 015 6.25v-.878zm3.75 7.378a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm3-8.75a.75.75 0 100-1.5.75.75 0 000 1.5z"/>
+              </svg>
+              GitHub Forks
+            </span>
+          </td>
+          <td class="px-4 py-3 text-gray-700 dark:text-gray-300 font-semibold">
+            {model.github_forks.toLocaleString()}
+          </td>
+        </tr>
+      )}
+      {model.github_last_commit && (
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
+          <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900/50">
+            <span class="inline-flex items-center gap-2">
+              <svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 16 16">
+                <path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"/>
+              </svg>
+              Last Commit
+            </span>
+          </td>
+          <td class="px-4 py-3 text-gray-700 dark:text-gray-300">
+            {new Date(model.github_last_commit).toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'short', 
+              day: 'numeric' 
+            })}
+          </td>
+        </tr>
+      )}
     </tbody>
   </table>
 </div>
