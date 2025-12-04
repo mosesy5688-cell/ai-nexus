@@ -235,6 +235,24 @@ async function updateD1(models) {
     // Doing this in batches to avoid command line length limits
 
     const BATCH_SIZE = 50;
+    const MAX_RETRIES = 3;
+    const INITIAL_DELAY = 2000; // 2 seconds
+
+    async function executeWithRetry(cmd, retries = 0) {
+        try {
+            execSync(cmd, { encoding: 'utf-8' });
+            return true;
+        } catch (e) {
+            if (e.message.includes('503') && retries < MAX_RETRIES) {
+                const delay = INITIAL_DELAY * Math.pow(2, retries);
+                console.warn(`⚠️  D1 API unavailable (503). Retrying in ${delay}ms... (${retries + 1}/${MAX_RETRIES})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return executeWithRetry(cmd, retries + 1);
+            }
+            throw e;
+        }
+    }
+
     for (let i = 0; i < models.length; i += BATCH_SIZE) {
         const batch = models.slice(i, i + BATCH_SIZE);
         const statements = batch.map(m => {
@@ -249,11 +267,15 @@ async function updateD1(models) {
         fs.writeFileSync(tempSqlPath, statements);
 
         try {
-            execSync(`npx wrangler d1 execute ai-nexus-db --remote --file=${tempSqlPath}`);
+            await executeWithRetry(`npx wrangler d1 execute ai-nexus-db --remote --file=${tempSqlPath}`);
+            console.log(`✅ Updated batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(models.length / BATCH_SIZE)}`);
         } catch (e) {
-            console.error(`❌ Failed to update batch ${i}:`, e.message);
+            console.error(`❌ Failed to update batch ${i} after ${MAX_RETRIES} retries:`, e.message);
+        } finally {
+            if (fs.existsSync(tempSqlPath)) {
+                fs.unlinkSync(tempSqlPath);
+            }
         }
-        fs.unlinkSync(tempSqlPath);
     }
 }
 
