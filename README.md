@@ -10,6 +10,7 @@ The website currently has the following core features:
 *   **Data Sources**:
     *   **HuggingFace**: Fetches popular models via API.
     *   **GitHub**: Searches for repositories with specific topics (e.g., `ai-tool`) via API.
+    *   **GitHub Statistics** (NEW): Enriches models with repository statistics (stars, forks, last commit) via GitHub REST API.
     *   **Civitai**: Reads and parses a pre-prepared `civitai.json` file.
     *   **Replicate**: Scrapes popular models from its explore page using web scraping techniques.
 *   **Data Processing**: The script standardizes the raw data fetched, including unifying data structures, filtering NSFW content, deduplicating based on model names, and finally sorting by popularity (e.g., like count).
