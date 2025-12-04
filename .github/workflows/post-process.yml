@@ -33,6 +33,7 @@ jobs:
         run: node scripts/run-post-processing.js
 
       - name: Create Pull Request for Data Updates
+        id: cpr
         uses: peter-evans/create-pull-request@v5
         with:
           commit-message: 'chore: update rankings and search index'
@@ -58,12 +59,8 @@ jobs:
           labels: automated, data-update, automerge
           author: 'GitHub Actions Bot <actions@github.com>'
 
-      - name: Enable Auto-Merge (Optional)
+      - name: Enable Auto-Merge
         if: steps.cpr.outputs.pull-request-number
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr merge ${{ steps.cpr.outputs.pull-request-number }} --auto --squash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run deploy.yml --ref main
+        run: gh pr merge ${{ steps.cpr.outputs.pull-request-number }} --auto --squash
