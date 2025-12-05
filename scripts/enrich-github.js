@@ -111,6 +111,7 @@ async function fetchModelsForEnrichment() {
         FROM models
         WHERE source_url IS NOT NULL 
           AND source_url LIKE '%github.com%'
+          AND github_stars IS NULL
         ORDER BY downloads DESC
         ${limitClause};
     `;

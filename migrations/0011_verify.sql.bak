@@ -23,11 +23,11 @@ LIMIT 20;
 
 -- Expected: SEARCH models USING INDEX idx_pipeline_downloads
 
--- 4. Test query plan for author page (should use idx_author_updated)
+-- 4. Test query plan for author page (should use idx_author_created)
 EXPLAIN QUERY PLAN
 SELECT * FROM models
 WHERE author = 'meta'
-ORDER BY updated_at DESC
+ORDER BY created_at DESC
 LIMIT 10;
 
--- Expected: SEARCH models USING INDEX idx_author_updated
+-- Expected: SEARCH models USING INDEX idx_author_created

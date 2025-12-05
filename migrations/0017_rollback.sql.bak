@@ -1,0 +1,7 @@
+-- Migration rollback: 0017
+-- Description: Remove Papers With Code fields
+
+ALTER TABLE models DROP COLUMN pwc_benchmarks;
+ALTER TABLE models DROP COLUMN pwc_tasks;
+ALTER TABLE models DROP COLUMN pwc_datasets;
+ALTER TABLE models DROP COLUMN pwc_sota_count;

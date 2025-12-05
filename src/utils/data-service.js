@@ -49,6 +49,12 @@ export function normalizeModelData(rawModel) {
         links_data: parseJSONField(rawModel.links_data, {}),
         related_ids: parseJSONField(rawModel.related_ids, []),
 
+        // Papers With Code Data
+        pwc_benchmarks: parseJSONField(rawModel.pwc_benchmarks, []),
+        pwc_tasks: parseJSONField(rawModel.pwc_tasks, []),
+        pwc_datasets: parseJSONField(rawModel.pwc_datasets, []),
+        pwc_sota_count: parseInt(rawModel.pwc_sota_count) || 0,
+
         // Preserve raw data for debugging
         _raw: rawModel
     };
