@@ -4,6 +4,7 @@ export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import SimilarModels from '../../components/SimilarModels.astro';
+import KnowledgeGraph from '../../components/KnowledgeGraph.astro';
 import ModelDescription from '../../components/ModelDescription.astro';
 import UsageExample from '../../components/UsageExample.astro';
 import ResourceList from '../../components/ResourceList.astro';
@@ -246,6 +247,9 @@ const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
 
             {/* Similar Models (Tag-based) */}
             <SimilarModels models={model.similarModels} />
+
+            {/* Knowledge Graph */}
+            <KnowledgeGraph modelId={model.id} />
 
             {/* Related Models (Pipeline-based) */}
             <section class="mt-20 border-t border-gray-200 dark:border-gray-700 pt-12">
