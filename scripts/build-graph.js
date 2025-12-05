@@ -34,19 +34,33 @@ const isRemote = args.includes('--remote');
 const limitArg = args.find(a => a.startsWith('--limit='));
 const limit = limitArg ? parseInt(limitArg.split('=')[1]) : null;
 
-async function executeD1(sql) {
-    const tempFile = path.join(__dirname, `temp_graph_${Date.now()}_${Math.random().toString(36).substring(7)}.sql`);
-    fs.writeFileSync(tempFile, sql);
+async function executeD1(sql, useJson = false, useCommand = false) {
+    // If useCommand is true, we pass the SQL directly via --command
+    // Otherwise we use a temporary file (better for large SQL or batch inserts)
+
+    let command;
+    let tempFile = null;
 
     const targetFlag = isRemote ? '--remote' : '--local';
-    const command = `npx wrangler d1 execute ${CONFIG.DB_NAME} ${targetFlag} --file "${tempFile}"`;
+    const jsonFlag = useJson ? '--json' : '';
+
+    if (useCommand) {
+        // Simple escaping for Windows PowerShell/CMD: wrap in quotes, escape internal quotes?
+        // For simple SELECTs this is usually fine.
+        command = `npx wrangler d1 execute ${CONFIG.DB_NAME} ${targetFlag} ${jsonFlag} --command "${sql}"`;
+    } else {
+        tempFile = path.join(__dirname, `temp_graph_${Date.now()}_${Math.random().toString(36).substring(7)}.sql`);
+        fs.writeFileSync(tempFile, sql);
+        command = `npx wrangler d1 execute ${CONFIG.DB_NAME} ${targetFlag} ${jsonFlag} --file "${tempFile}"`;
+    }
 
     try {
-        const { stdout } = await execPromise(command);
-        if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+        // Increase maxBuffer to 50MB to handle large JSON output
+        const { stdout } = await execPromise(command, { maxBuffer: 1024 * 1024 * 50 });
+        if (tempFile && fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
         return stdout;
     } catch (error) {
-        if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
+        if (tempFile && fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
         throw error;
     }
 }
@@ -54,45 +68,43 @@ async function executeD1(sql) {
 async function fetchModels(limit = null, offset = 0) {
     const limitClause = limit ? `LIMIT ${limit}` : 'LIMIT 1000'; // Default chunk size
     const offsetClause = offset ? `OFFSET ${offset}` : '';
-    const sql = `SELECT * FROM models ${limitClause} ${offsetClause};`;
+    const sql = `SELECT * FROM models ${limitClause} ${offsetClause}`;
 
-    // We need to parse the table output from Wrangler, OR better: use JSON output if possible?
-    // Wrangler d1 execute doesn't output JSON easily via CLI for SELECTs without formatting issues.
-    // For reliability in this script, we'll assume we can get a JSON array if we format the SQLite query to output JSON.
-    // SQLite's json_group_array and json_object are perfect for this.
-
-    // NOTE: This relies on SQLite JSON extension which D1 supports.
-    const jsonSql = `
-        SELECT json_group_array(
-            json_object(
-                'id', id,
-                'name', name,
-                'author', author,
-                'tags', tags,
-                'pipeline_tag', pipeline_tag,
-                'source_url', source_url,
-                'arxiv_id', arxiv_id,
-                'arxiv_category', arxiv_category,
-                'pwc_benchmarks', pwc_benchmarks,
-                'pwc_tasks', pwc_tasks,
-                'pwc_datasets', pwc_datasets
-            )
-        ) as data FROM (SELECT * FROM models ${limitClause} ${offsetClause});
-    `;
-
-    const output = await executeD1(jsonSql);
-    // Parse the output. Wrangler output usually contains a table or the raw string.
-    // We look for the JSON array bracket `[`
-    const jsonStart = output.indexOf('[');
-    const jsonEnd = output.lastIndexOf(']') + 1;
-
-    if (jsonStart === -1 || jsonEnd === 0) return [];
-
+    console.log(`Executing SQL (JSON mode): ${sql}`);
     try {
-        const jsonStr = output.substring(jsonStart, jsonEnd);
-        return JSON.parse(jsonStr);
+        // Use --command for SELECT to ensure we get results back
+        const output = await executeD1(sql, true, true);
+
+        const jsonStart = output.indexOf('[');
+        if (jsonStart === -1) {
+            console.warn("No JSON array found in output:", output.substring(0, 200));
+            return [];
+        }
+
+        const jsonStr = output.substring(jsonStart);
+        const parsed = JSON.parse(jsonStr);
+
+        if (!Array.isArray(parsed)) {
+            console.warn("Parsed JSON is not an array");
+            return [];
+        }
+
+        // Iterate to find the result set that contains actual data
+        for (const item of parsed) {
+            if (item.results && Array.isArray(item.results) && item.results.length > 0) {
+                // Check if the first result looks like a model (has 'id')
+                // NOT stats like "Total queries executed"
+                const sample = item.results[0];
+                if (sample.id || sample.name || sample.source_url) {
+                    return item.results;
+                }
+            }
+        }
+
+        console.warn("No valid model data found in any result set.");
+        return [];
     } catch (e) {
-        console.error("Failed to parse D1 JSON output:", e);
+        console.error("Failed to fetch models:", e);
         return [];
     }
 }
