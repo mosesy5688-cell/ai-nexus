@@ -10,9 +10,11 @@ import '../styles/base.css';
 interface Props {
 	title: string;
 	description?: string;
+    image?: string;
 }
 
-const { title, description = 'A premier, free directory of open-source AI models, tools, and resources, curated for developers, researchers, and enthusiasts.' } = Astro.props;
+const { title, description = 'A premier, free directory of open-source AI models, tools, and resources, curated for developers, researchers, and enthusiasts.', image = '/og-image.jpg' } = Astro.props;
+const resolvedImage = new URL(image, Astro.site || Astro.url.origin);
 ---
 
 <!doctype html>
@@ -35,14 +37,14 @@ const { title, description = 'A premier, free directory of open-source AI models
     <meta property="og:url" content={Astro.url.href}>
     <meta property="og:title" content={title}>
     <meta property="og:description" content={description}>
-    <meta property="og:image" content={new URL('/og-image.jpg', Astro.site || Astro.url.origin)}>
+    <meta property="og:image" content={resolvedImage}>
 
     <!-- Twitter Card Meta Tags -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content={Astro.url.href}>
     <meta property="twitter:title" content={title}>
     <meta property="twitter:description" content={description}>
-    <meta property="twitter:image" content={new URL('/og-image.jpg', Astro.site || Astro.url.origin)}>
+    <meta property="twitter:image" content={resolvedImage}>
 
     <meta name="description" content={description}>
     <title>{title}</title>
