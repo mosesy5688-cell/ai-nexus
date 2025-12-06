@@ -4,71 +4,84 @@ import { getModelBySlug } from '../../../utils/db.js'; // Explicit extension fix
 
 export async function GET({ request, params, locals }) {
     const url = new URL(request.url);
-    const modelId = url.searchParams.get('id');
+    export const prerender = false;
 
-    if (!modelId) {
-        return new Response(JSON.stringify({ error: 'Model ID required' }), { status: 400 });
-    }
+    import { getModelBySlug } from '../../../utils/db.js'; // Explicit extension fix
 
-    // Mock Data for Verification (Until real DB table is populated)
-    // TODO: Replace with real SQL query from `graph_edges` table
+    export async function GET({ request, params, locals }) {
+        const url = new URL(request.url);
+        const modelId = url.searchParams.get('id');
 
-    /* 
-       Real Query Plan:
-       SELECT * FROM graph_edges WHERE source = ? OR target = ?
-    */
+        if (!modelId) {
+            return new Response(JSON.stringify({ error: 'Model ID required' }), { status: 400 });
+        }
 
-    const nodes = [
-        { id: modelId, name: modelId.split('/')[1] || modelId, group: 'main' }
-    ];
-    const links = [];
+        const nodes = new Map();
+        const links = [];
 
-    // Add some dummy connections for visual testing if DB read fails or is empty
-    // In production, we fetch relationships
+        // Add main node
+        const mainNodeId = modelId;
+        nodes.set(mainNodeId, {
+            id: mainNodeId,
+            name: modelId.split('/')[1] || modelId,
+            group: 'main',
+            val: 20
+        });
 
-    // Example: Fetch raw model data to find ArXiv or PWC links to simulate graph
-    // (This is a temporary shim to make the graph work immediately with existing data)
-    try {
-        const db = locals.runtime.env.DB;
-        const stmt = db.prepare('SELECT * FROM models WHERE id = ?').bind(modelId);
-        const model = await stmt.first();
+        try {
+            const db = locals.runtime.env.DB;
 
-        if (model) {
-            // Paper Node
-            if (model.arxiv_id) {
-                const paperId = `arxiv:${model.arxiv_id}`;
-                nodes.push({ id: paperId, name: `ArXiv: ${model.arxiv_id}`, group: 'paper', url: `https://arxiv.org/abs/${model.arxiv_id}` });
-                links.push({ source: modelId, target: paperId, value: 5 });
-            }
+            // URN for the requested model
+            const modelUrn = `urn:model:${modelId}`;
 
-            // Benchmark Nodes
-            if (model.pwc_benchmarks) {
-                try {
-                    const benchmarks = JSON.parse(model.pwc_benchmarks);
-                    benchmarks.slice(0, 5).forEach((b, i) => {
-                        const benchId = `bench:${i}`;
-                        nodes.push({ id: benchId, name: `${b.dataset} (${b.value})`, group: 'benchmark' });
-                        links.push({ source: modelId, target: benchId, value: 3 });
+            // Query edges where this model is source or target
+            const stmt = db.prepare(`
+            SELECT * FROM graph_edges 
+            WHERE source = ? OR target = ? 
+            LIMIT 100
+        `).bind(modelUrn, modelUrn);
+
+            const { results } = await stmt.all();
+
+            for (const edge of results) {
+                // Identify the "other" node
+                const isSource = edge.source === modelUrn;
+                const otherUrn = isSource ? edge.target : edge.source;
+
+                // Helper to parse URN
+                // urn:type:value
+                const parts = otherUrn.split(':');
+                const type = parts[1] || 'unknown';
+                const value = parts.slice(2).join(':');
+
+                // Add node if not exists
+                if (!nodes.has(otherUrn)) {
+                    nodes.set(otherUrn, {
+                        id: otherUrn,
+                        name: value, // TODO: Enhance with real titles lookup if needed
+                        group: type,
+                        val: 5
                     });
-                } catch (e) { }
-            }
+                }
 
-            // Similar models (using pipeline tag as proxy for relationships)
-            if (model.pipeline_tag) {
-                const similarStmt = db.prepare('SELECT id, name FROM models WHERE pipeline_tag = ? AND id != ? LIMIT 5').bind(model.pipeline_tag, modelId);
-                const { results } = await similarStmt.all();
-
-                results.forEach(m => {
-                    nodes.push({ id: m.id, name: m.name, group: 'model' });
-                    links.push({ source: modelId, target: m.id, value: 2 });
+                // Add link
+                links.push({
+                    source: isSource ? mainNodeId : otherUrn,
+                    target: isSource ? otherUrn : mainNodeId,
+                    type: edge.type,
+                    value: 1
                 });
             }
-        }
-    } catch (e) {
-        console.error("Graph data fetch error:", e);
-    }
 
-    return new Response(JSON.stringify({ nodes, links }), {
-        headers: { 'Content-Type': 'application/json' }
-    });
-}
+        } catch (e) {
+            console.error("Graph data fetch error:", e);
+            return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+        }
+
+        return new Response(JSON.stringify({
+            nodes: Array.from(nodes.values()),
+            links
+        }), {
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
