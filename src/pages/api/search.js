@@ -12,6 +12,8 @@ export async function GET({ request, locals }) {
     // Support multi-value source param (e.g. ?source=github&source=huggingface)
     const sources = url.searchParams.getAll('source').map(s => s.toLowerCase());
 
+    const limit = parseInt(url.searchParams.get('limit') || '12', 10);
+
     const db = locals.runtime?.env?.DB;
 
     if (!db) {
