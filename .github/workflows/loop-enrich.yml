@@ -22,7 +22,7 @@ jobs:
             echo "Response: $response"
             
             # Simple check if "No models pending" to stop early
-            if echo "$response" | grep -q "No models pending"; then
+            if echo "$response" | grep -q "No models pending" || false; then
               echo "No more models to enrich. Exiting loop."
               break
             fi
