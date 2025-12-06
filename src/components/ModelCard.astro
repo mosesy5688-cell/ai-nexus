@@ -43,21 +43,7 @@ function getSourceLabel(source) {
         <span class="uppercase">{getSourceLabel(model.source)}</span>
     </div>
 
-    <div class="aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-900 relative">
-        {model.cover_image_url ? (
-            <img 
-                src={model.cover_image_url} 
-                alt={`Cover for ${model.name}`} 
-                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                loading="lazy"
-                onerror="this.style.display='none'"
-            />
-        ) : (
-            <div class="w-full h-full flex items-center justify-center text-4xl opacity-20 select-none">
-                {getSourceIcon(model.source)}
-            </div>
-        )}
-    </div>
+
 
     <div class="p-5 flex flex-col h-full justify-between pt-4">
         <div>
