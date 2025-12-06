@@ -1,0 +1,32 @@
+name: Loop 2 - Auto Enrich Content
+
+on:
+  schedule:
+    # Run every 4 hours
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+jobs:
+  enrich-content:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Enrichment API
+        run: |
+          # Try to enrich 5 models per run
+          for i in {1..5}; do
+            echo "Enrichment Loop $i..."
+            response=$(curl -s -X POST "${{ secrets.SITE_URL }}/api/admin/enrich" \
+              -H "Authorization: Bearer ${{ secrets.ADMIN_SECRET }}" \
+              -H "Content-Type: application/json")
+            
+            echo "Response: $response"
+            
+            # Simple check if "No models pending" to stop early
+            if echo "$response" | grep -q "No models pending"; then
+              echo "No more models to enrich. Exiting loop."
+              break
+            fi
+            
+            # Sleep to be nice to rate limits
+            sleep 5
+          done
