@@ -11,6 +11,7 @@ import ResourceList from '../../components/ResourceList.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import { getModelBySlug } from '../../utils/db';
 import { prepareDetailData, getBestDescription, formatMetric, formatRelativeTime } from '../../utils/data-service';
+import { marked } from 'marked';
 
 const { slug } = Astro.params;
 
@@ -163,8 +164,28 @@ const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
           <div class="max-w-7xl mx-auto">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
               
+
               {/* Left Column: Main Content (2/3) */}
               <div class="md:col-span-2 space-y-8">
+
+                 {/* AI Analysis Section */}
+                 {model.analysis_content && (
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-purple-100 dark:border-purple-900/30 p-8 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-4 opacity-10">
+                            <svg class="w-32 h-32 text-purple-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6a6 6 0 1 0 6 6 6 6 0 0 0-6-6zm0 10a4 4 0 1 1 4-4 4 4 0 0 1-4 4z"/></svg>
+                        </div>
+                        <div class="relative z-10">
+                            <div class="flex items-center gap-2 mb-6">
+                                <span class="px-2 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-bold uppercase tracking-wider rounded">AI Analysis</span>
+                                <span class="text-xs text-gray-400">Updated {new Date(model.last_enriched_at || Date.now()).toLocaleDateString()}</span>
+                            </div>
+                            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Deep Dive Analysis</h2>
+                            <div class="prose prose-purple dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-purple-600">
+                                <Fragment set:html={marked.parse(model.analysis_content)} />
+                            </div>
+                        </div>
+                    </div>
+                 )}
                 
                 {/* Description & Metadata - Componentized */}
                 <ModelDescription model={model} tagsArray={tagsArray}>
