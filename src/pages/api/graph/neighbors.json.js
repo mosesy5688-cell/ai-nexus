@@ -25,21 +25,25 @@ export async function GET({ request, params, locals }) {
     try {
         const db = locals.runtime.env.DB;
 
-        // URN for the requested model
+        // URN for the requested model (default assumption)
         const modelUrn = `urn:model:${modelId}`;
         let searchUrns = [modelUrn];
 
         // Fetch model metadata to construct robust URN (author/name)
-        // This handles mismatch between D1 ID (prefixed) and Graph URN (clean)
         try {
-            const modelStmt = db.prepare('SELECT author, name FROM models WHERE id = ?').bind(modelId);
-            const model = await modelStmt.first();
+            // The 'id' param might be a slug or a real ID, try both using helper
+            const model = await getModelBySlug(modelId, locals);
+
             if (model && model.author && model.name) {
+                // Construct clean URN from canonical data
                 const cleanId = `${model.author}/${model.name}`;
                 const cleanUrn = `urn:model:${cleanId}`;
-                if (cleanUrn !== modelUrn) {
-                    searchUrns.push(cleanUrn);
-                }
+
+                // Also try the raw DB ID if different
+                const rawIdUrn = `urn:model:${model.id}`;
+
+                if (cleanUrn !== modelUrn && !searchUrns.includes(cleanUrn)) searchUrns.push(cleanUrn);
+                if (rawIdUrn !== modelUrn && !searchUrns.includes(rawIdUrn)) searchUrns.push(rawIdUrn);
             }
         } catch (e) {
             console.warn('Failed to resolve robust URN:', e);
