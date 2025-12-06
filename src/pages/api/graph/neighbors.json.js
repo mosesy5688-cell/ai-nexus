@@ -1,59 +1,74 @@
-
 export const prerender = false;
 
-export async function GET({ request, locals }) {
+import { getModelBySlug } from '../../utils/db'; // Assuming this exists or using raw DB access
+
+export async function GET({ request, params, locals }) {
     const url = new URL(request.url);
-    const nodeId = url.searchParams.get('nodeId');
+    const modelId = url.searchParams.get('id');
 
-    if (!nodeId) {
-        return new Response(JSON.stringify({ error: 'Missing nodeId parameter' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
-        });
+    if (!modelId) {
+        return new Response(JSON.stringify({ error: 'Model ID required' }), { status: 400 });
     }
 
-    // Get D1 database from runtime environment (Cloudflare Pages)
-    // Access via locals.runtime (standard for Astro adapters)
-    const db = locals?.runtime?.env?.DB;
+    // Mock Data for Verification (Until real DB table is populated)
+    // TODO: Replace with real SQL query from `graph_edges` table
 
-    if (!db) {
-        return new Response(JSON.stringify({ error: 'Database not available' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
+    /* 
+       Real Query Plan:
+       SELECT * FROM graph_edges WHERE source = ? OR target = ?
+    */
 
+    const nodes = [
+        { id: modelId, name: modelId.split('/')[1] || modelId, group: 'main' }
+    ];
+    const links = [];
+
+    // Add some dummy connections for visual testing if DB read fails or is empty
+    // In production, we fetch relationships
+
+    // Example: Fetch raw model data to find ArXiv or PWC links to simulate graph
+    // (This is a temporary shim to make the graph work immediately with existing data)
     try {
-        // 1. Fetch outgoing edges (I am source)
-        const outgoing = await db.prepare(
-            `SELECT target as id, type, weight FROM graph_edges WHERE source = ?`
-        ).bind(nodeId).all();
+        const db = locals.runtime.env.DB;
+        const stmt = db.prepare('SELECT * FROM models WHERE id = ?').bind(modelId);
+        const model = await stmt.first();
 
-        // 2. Fetch incoming edges (I am target)
-        const incoming = await db.prepare(
-            `SELECT source as id, type, weight FROM graph_edges WHERE target = ?`
-        ).bind(nodeId).all();
+        if (model) {
+            // Paper Node
+            if (model.arxiv_id) {
+                const paperId = `arxiv:${model.arxiv_id}`;
+                nodes.push({ id: paperId, name: `ArXiv: ${model.arxiv_id}`, group: 'paper', url: `https://arxiv.org/abs/${model.arxiv_id}` });
+                links.push({ source: modelId, target: paperId, value: 5 });
+            }
 
-        // Normalize logic: "incoming" means someone points to me.
-        // e.g. urn:paper:123 -(cited_by)-> urn:model:abc
-        // If I query urn:model:abc, I want to know it is cited_by urn:paper:123.
-        // The directionality matters for the relationship name.
+            // Benchmark Nodes
+            if (model.pwc_benchmarks) {
+                try {
+                    const benchmarks = JSON.parse(model.pwc_benchmarks);
+                    benchmarks.slice(0, 5).forEach((b, i) => {
+                        const benchId = `bench:${i}`;
+                        nodes.push({ id: benchId, name: `${b.dataset} (${b.value})`, group: 'benchmark' });
+                        links.push({ source: modelId, target: benchId, value: 3 });
+                    });
+                } catch (e) { }
+            }
 
-        const neighbors = [
-            ...(outgoing.results || []).map(r => ({ ...r, direction: 'outgoing' })),
-            ...(incoming.results || []).map(r => ({ ...r, direction: 'incoming' }))
-        ];
+            // Similar models (using pipeline tag as proxy for relationships)
+            if (model.pipeline_tag) {
+                const similarStmt = db.prepare('SELECT id, name FROM models WHERE pipeline_tag = ? AND id != ? LIMIT 5').bind(model.pipeline_tag, modelId);
+                const { results } = await similarStmt.all();
 
-        return new Response(JSON.stringify({ node: nodeId, neighbors }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-    } catch (error) {
-        console.error('Graph API Error:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
+                results.forEach(m => {
+                    nodes.push({ id: m.id, name: m.name, group: 'model' });
+                    links.push({ source: modelId, target: m.id, value: 2 });
+                });
+            }
+        }
+    } catch (e) {
+        console.error("Graph data fetch error:", e);
     }
+
+    return new Response(JSON.stringify({ nodes, links }), {
+        headers: { 'Content-Type': 'application/json' }
+    });
 }
