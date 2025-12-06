@@ -259,6 +259,16 @@ export function getBestDescription(model) {
     return defaultDescription;
 }
 
+
+/**
+ * Cleanup description text (remove HTML, trim)
+ */
+export function cleanupDescription(text) {
+    if (!text) return '';
+    const str = typeof text === 'string' ? text : String(text);
+    return str.replace(/<[^>]*>/g, '').trim();
+}
+
 /**
  * Prepare model data for card display
  */
