@@ -37,16 +37,16 @@ function getSourceLabel(source) {
         </div>
     )}
     
-    {/* Source Badge */}
-    <div class="absolute top-2 left-2 z-10 flex items-center gap-1 bg-gray-100/90 dark:bg-gray-700/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-medium text-gray-600 dark:text-gray-300 shadow-sm border border-gray-200 dark:border-gray-600">
-        <span>{getSourceIcon(model.source)}</span>
-        <span class="uppercase">{getSourceLabel(model.source)}</span>
-    </div>
-
-
-
-    <div class="p-5 flex flex-col h-full justify-between pt-12">
+    <div class="p-5 flex flex-col h-full justify-between">
         <div>
+            <!-- Source Badge (Relative Flow) -->
+            <div class="mb-3">
+                <span class="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md text-xs font-medium text-gray-600 dark:text-gray-300 shadow-sm border border-gray-200 dark:border-gray-600">
+                    <span>{getSourceIcon(model.source)}</span>
+                    <span class="uppercase">{getSourceLabel(model.source)}</span>
+                </span>
+            </div>
+
             <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" title={model.name}>
                 {model.name}
             </h3>
