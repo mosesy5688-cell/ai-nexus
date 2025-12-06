@@ -1,6 +1,6 @@
 export const prerender = false;
 
-import { getModelBySlug } from '../../utils/db'; // Assuming this exists or using raw DB access
+import { getModelBySlug } from '../../../utils/db'; // Assuming this exists or using raw DB access
 
 export async function GET({ request, params, locals }) {
     const url = new URL(request.url);
