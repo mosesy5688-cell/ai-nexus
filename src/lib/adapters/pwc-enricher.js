@@ -95,13 +95,21 @@ export class PwcEnricher {
                     await new Promise(r => setTimeout(r, this.retryDelay * attempt));
                     return this._fetchWithRetry(url, attempt + 1);
                 }
-                throw new Error(`PWC API returned ${response.status}: ${response.statusText}`);
+                const text = await response.text();
+                throw new Error(`PWC API returned ${response.status}: ${response.statusText} - ${text.substring(0, 100)}`);
+            }
+
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                throw new Error(`PWC API returned non-JSON response: ${text.substring(0, 100)}`);
             }
 
             return await response.json();
         } catch (error) {
             if (attempt <= this.maxRetries) {
-                await new Promise(r => setTimeout(r, this.retryDelay));
+                // Exponential backoff for retries
+                await new Promise(r => setTimeout(r, this.retryDelay * Math.pow(2, attempt - 1)));
                 return this._fetchWithRetry(url, attempt + 1);
             }
             throw error;

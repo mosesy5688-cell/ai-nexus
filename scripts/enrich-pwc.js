@@ -74,7 +74,9 @@ async function getModelsFromD1(limit = 100) {
     query += ` ORDER BY CASE WHEN arxiv_id IS NOT NULL THEN 0 ELSE 1 END, id DESC LIMIT ${limit}`;
 
     const flag = REMOTE ? '--remote' : '--local';
-    const cmd = `npx wrangler d1 execute ai-nexus-db ${flag} --json --command "${query.replace(/"/g, '\\"')}"`;
+    // Flatten query for Windows compatibility
+    const flatQuery = query.replace(/\s+/g, ' ').trim();
+    const cmd = `npx wrangler d1 execute ai-nexus-db ${flag} --json --command "${flatQuery.replace(/"/g, '\\"')}"`;
 
     try {
         const output = await runCommand(cmd);
@@ -115,7 +117,9 @@ async function updateModelInD1(id, data) {
     `;
 
     const flag = REMOTE ? '--remote' : '--local';
-    const cmd = `npx wrangler d1 execute ai-nexus-db ${flag} --command "${query.replace(/"/g, '\\"')}"`;
+    // Flatten query for Windows compatibility
+    const flatQuery = query.replace(/\s+/g, ' ').trim();
+    const cmd = `npx wrangler d1 execute ai-nexus-db ${flag} --command "${flatQuery.replace(/"/g, '\\"')}"`;
 
     await runCommand(cmd);
     console.log(`   ✅ Updated model ${id} in D1`);
