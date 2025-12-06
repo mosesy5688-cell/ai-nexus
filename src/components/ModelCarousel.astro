@@ -16,10 +16,26 @@ const formatNumber = (num: number): string => {
 };
 ---
 
-{models.length > 0 ? (
-  <div class="relative group">
+  <div class="relative group" id={`carousel-${models[0]?.id || 'default'}`}>
+    <!-- Navigation Buttons -->
+    <button 
+      class="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 z-20 bg-white dark:bg-gray-800 rounded-full p-2 shadow-lg border border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hidden md:flex"
+      onclick="this.parentElement.querySelector('.carousel-container').scrollBy({left: -300, behavior: 'smooth'})"
+      aria-label="Scroll Left"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+    </button>
+    
+    <button 
+      class="absolute right-0 top-1/2 -translate-y-1/2 -mr-4 z-20 bg-white dark:bg-gray-800 rounded-full p-2 shadow-lg border border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hidden md:flex"
+      onclick="this.parentElement.querySelector('.carousel-container').scrollBy({left: 300, behavior: 'smooth'})"
+      aria-label="Scroll Right"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+    </button>
+
     <!-- Scroll Container -->
-    <div class="flex overflow-x-auto space-x-4 pb-4 snap-x snap-mandatory scrollbar-hide">
+    <div class="carousel-container flex overflow-x-auto space-x-4 pb-4 snap-x snap-mandatory scrollbar-hide scroll-smooth">
       {models.map((model) => (
         <a 
           href={`/model/${model.slug || model.id.replace('/', '--')}`} 
