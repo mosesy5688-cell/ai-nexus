@@ -181,7 +181,14 @@ const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
                             </div>
                             <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Deep Dive Analysis</h2>
                             <div class="prose prose-purple dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-purple-600">
-                                <Fragment set:html={marked.parse(model.analysis_content)} />
+                                {(() => {
+                                    try {
+                                        return <Fragment set:html={marked.parse(model.analysis_content)} />;
+                                    } catch (e) {
+                                        console.error('Markdown rendering error:', e);
+                                        return <p class="text-red-500 italic">Error rendering content.</p>;
+                                    }
+                                })()}
                             </div>
                         </div>
                     </div>
