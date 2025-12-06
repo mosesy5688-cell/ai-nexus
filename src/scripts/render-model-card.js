@@ -70,19 +70,7 @@ export function renderModelCard(model) {
             <span class="uppercase">${getSourceLabel(model.source)}</span>
         </div>
 
-        <div class="aspect-video w-full bg-gradient-to-br ${getSourceGradient(model.source)} flex items-center justify-center relative overflow-hidden">
-            <!-- Decorative background pattern -->
-            <div class="absolute inset-0 opacity-10">
-                <div class="absolute top-4 right-4 w-32 h-32 bg-white rounded-full blur-3xl"></div>
-                <div class="absolute bottom-4 left-4 w-24 h-24 bg-white rounded-full blur-2xl"></div>
-            </div>
-            <!-- Main icon -->
-            <div class="text-7xl opacity-90 transform group-hover:scale-110 transition-transform duration-300 relative z-10">
-                ${getSourceIcon(model.source)}
-            </div>
-        </div>
-
-        <div class="p-5 flex flex-col h-full justify-between ${model.cover_image_url ? 'pt-4' : 'pt-10'}">
+        <div class="p-5 flex flex-col h-full justify-between pt-10">
             <div>
                 <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" title="${model.name}">
                     ${model.name}
