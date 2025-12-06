@@ -20,17 +20,34 @@ const formatNumber = (num: number): string => {
   <div class="relative group">
     <!-- Scroll Container -->
     <div class="flex overflow-x-auto space-x-4 pb-4 snap-x snap-mandatory scrollbar-hide">
-            <div class="flex items-center justify-between mt-4 text-xs text-gray-500 dark:text-gray-400">
-              <div class="flex items-center">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                </svg>
+      {models.map((model) => (
+        <a 
+          href={`/model/${model.slug || model.id.replace('/', '--')}`} 
+          class="flex-none w-72 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 snap-start border border-gray-100 dark:border-gray-700 block"
+        >
+          <!-- Content (No Image) -->
+          <div class="p-5 flex flex-col h-full justify-between">
+            <div>
+                <h3 class="font-bold text-gray-900 dark:text-white truncate text-lg mb-1" title={model.name}>
+                    {model.name}
+                </h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 truncate mb-4 flex items-center gap-1">
+                    <span>by {model.author}</span>
+                    {model.pipeline_tag && (
+                        <span class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider">
+                            {model.pipeline_tag}
+                        </span>
+                    )}
+                </p>
+            </div>
+            
+            <div class="flex items-center justify-between mt-2 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+              <div class="flex items-center gap-1" title={`${model.likes} likes`}>
+                <span class="text-red-500">❤️</span>
                 <span>{formatNumber(model.likes)}</span>
               </div>
-              <div class="flex items-center">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                </svg>
+              <div class="flex items-center gap-1" title={`${model.downloads} downloads`}>
+                <span class="text-blue-500">📥</span>
                 <span>{formatNumber(model.downloads)}</span>
               </div>
             </div>
