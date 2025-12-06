@@ -35,10 +35,12 @@
 # Hashed assets in /assets/ directory
 /assets/*.css
   Cache-Control: public, max-age=31536000, immutable
+  Content-Type: text/css; charset=utf-8
   X-Content-Type-Options: nosniff
 
 /assets/*.js
   Cache-Control: public, max-age=31536000, immutable
+  Content-Type: text/javascript; charset=utf-8
   X-Content-Type-Options: nosniff
 
 # Astro built assets
