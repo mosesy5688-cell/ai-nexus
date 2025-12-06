@@ -8,6 +8,7 @@ export async function GET({ request, locals }) {
     const minLikes = parseInt(url.searchParams.get('min_likes') || '0', 10);
     const daysAgo = parseInt(url.searchParams.get('days_ago') || '0', 10);
     const hasBenchmarks = url.searchParams.get('has_benchmarks') === 'true';
+    const hasImage = url.searchParams.get('has_image') === 'true';
 
     // Support multi-value source param (e.g. ?source=github&source=huggingface)
     const sources = url.searchParams.getAll('source').map(s => s.toLowerCase());
