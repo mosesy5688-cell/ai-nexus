@@ -27,13 +27,34 @@ export async function GET({ request, params, locals }) {
 
         // URN for the requested model
         const modelUrn = `urn:model:${modelId}`;
+        let searchUrns = [modelUrn];
+
+        // Fetch model metadata to construct robust URN (author/name)
+        // This handles mismatch between D1 ID (prefixed) and Graph URN (clean)
+        try {
+            const modelStmt = db.prepare('SELECT author, name FROM models WHERE id = ?').bind(modelId);
+            const model = await modelStmt.first();
+            if (model && model.author && model.name) {
+                const cleanId = `${model.author}/${model.name}`;
+                const cleanUrn = `urn:model:${cleanId}`;
+                if (cleanUrn !== modelUrn) {
+                    searchUrns.push(cleanUrn);
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to resolve robust URN:', e);
+        }
+
+        // build dynamic placeholders for IN clause
+        const placeholders = searchUrns.map(() => '?').join(',');
+        const queryParams = [...searchUrns, ...searchUrns]; // for source OR target
 
         // Query edges where this model is source or target
         const stmt = db.prepare(`
             SELECT * FROM graph_edges 
-            WHERE source = ? OR target = ? 
+            WHERE source IN (${placeholders}) OR target IN (${placeholders}) 
             LIMIT 100
-        `).bind(modelUrn, modelUrn);
+        `).bind(...queryParams);
 
         const { results } = await stmt.all();
 
