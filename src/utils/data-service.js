@@ -41,8 +41,10 @@ export function normalizeModelData(rawModel) {
         last_updated: rawModel.last_updated || new Date().toISOString(),
         slug: rawModel.slug || generateSlug(rawModel.id), // Use DB slug or fallback
 
-        // Image handling
-        cover_image_url: validateImageUrl(rawModel.cover_image_url),
+        // Image handling - Use R2 CDN for external images
+        cover_image_url: (rawModel.cover_image_url && !rawModel.cover_image_url.startsWith('/'))
+            ? `/api/image/${rawModel.slug || generateSlug(rawModel.id)}`
+            : (validateImageUrl(rawModel.cover_image_url)),
 
         // Parse JSON fields safely
         tags: parseJSONField(rawModel.tags, []),
