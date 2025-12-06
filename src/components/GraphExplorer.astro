@@ -26,192 +26,190 @@ const { modelId } = Astro.props;
     </div>
 </div>
 
-<script type="module">
-    // Import D3 from CDN to avoid heavy bundle (or use local if installed)
-    // We use ES modules from d3-cdn for browser compatibility
-    import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
-
-    const container = document.getElementById('graph-container');
-    if (!container) console.warn('[GraphExplorer] Container not found');
-    
-    const modelId = container?.dataset?.modelId; // Read from DOM
-    if (!modelId) console.error('[GraphExplorer] modelId not found in dataset');
-    
-    // Continue only if we have everything
-    if (container && modelId) {
+<script is:inline src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script is:inline>
+    // D3 is loaded globally from CDN above
+    (function() {
+        const container = document.getElementById('graph-container');
+        if (!container) {
+            console.warn('[GraphExplorer] Container not found');
+            return;
+        }
+        
+        const modelId = container.dataset.modelId;
+        if (!modelId) {
+            console.error('[GraphExplorer] modelId not found in dataset');
+            return;
+        }
+        
         const svg = d3.select("#d3-graph");
         const loading = document.getElementById('graph-loading');
-
-    
-    // Config
-    let width = container.clientWidth;
-    let height = container.clientHeight;
-    
-    // Resize handler
-    window.addEventListener('resize', () => {
-        width = container.clientWidth;
-        height = container.clientHeight;
-        svg.attr("width", width).attr("height", height);
-        simulation.force("center", d3.forceCenter(width / 2, height / 2));
-        simulation.alpha(0.3).restart();
-    });
-
-    // Fetch Data
-    async function loadGraphData() {
-        try {
-            console.log(`[Graph] Loading for ${modelId}`);
-            const response = await fetch(`/api/graph/neighbors.json?id=${encodeURIComponent(modelId)}`);
-            
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`API Error ${response.status}: ${errText.substring(0, 100)}`);
-            }
-            
-            const data = await response.json();
-            
-            // Handle empty data case
-            if (!data.nodes || data.nodes.length === 0) {
-                loading.innerHTML = '<p class="text-gray-500">No relationships mapped yet.</p>';
-                loading.style.display = 'flex'; // Ensure visible
-                return;
-            }
-
-            renderGraph(data);
-            loading.style.opacity = '0';
-            setTimeout(() => loading.style.display = 'none', 300);
-        } catch (error) {
-            console.error("[Graph Error]", error);
-            loading.innerHTML = `<div class="text-center p-4"><p class="text-red-500 font-bold">Failed to load graph</p><p class="text-xs text-red-400 mt-1">${error.message}</p></div>`;
-            loading.style.display = 'flex';
-        }
-    }
-
-    // Force Simulation
-    const simulation = d3.forceSimulation()
-        .force("link", d3.forceLink().id(d => d.id).distance(100))
-        .force("charge", d3.forceManyBody().strength(-300))
-        .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collide", d3.forceCollide(30));
-
-    function renderGraph(data) {
-        // Clear previous
-        svg.selectAll("*").remove();
-
-        const g = svg.append("g");
-
-        // Zoom capability
-        const zoom = d3.zoom()
-            .scaleExtent([0.1, 4])
-            .on("zoom", (event) => {
-                g.attr("transform", event.transform);
-            });
-        svg.call(zoom);
-
-        // Links
-        const link = g.append("g")
-            .attr("stroke", "#999")
-            .attr("stroke-opacity", 0.6)
-            .selectAll("line")
-            .data(data.links)
-            .join("line")
-            .attr("stroke-width", d => Math.sqrt(d.value || 1));
-
-        // Nodes
-        const node = g.append("g")
-            .attr("stroke", "#fff")
-            .attr("stroke-width", 1.5)
-            .selectAll("circle")
-            .data(data.nodes)
-            .join("circle")
-            .attr("r", d => d.id === modelId ? 12 : 8)
-            .attr("fill", d => getNodeColor(d.group))
-            .call(drag(simulation));
-
-        // Labels
-        const labels = g.append("g")
-            .attr("class", "labels")
-            .selectAll("text")
-            .data(data.nodes)
-            .join("text")
-            .attr("dx", 12)
-            .attr("dy", ".35em")
-            .text(d => d.name)
-            .attr("fill", "currentColor")
-            .attr("class", "text-xs font-medium dark:fill-white fill-gray-900 pointer-events-none");
-
-        // Tooltip
-        node.append("title")
-            .text(d => `${d.name} (${d.group})`);
-
-        // Click Event
-        node.on("click", (event, d) => {
-            if (d.group === 'model' && d.id !== modelId) {
-                // Determine URL based on ID format (assuming 'author/name')
-                // Simple slugify or use provided URL if available in data
-                window.location.href = `/model/${d.id.replace(/\//g, '--')}`;
-            } else if (d.url) {
-                window.open(d.url, '_blank');
-            }
+        
+        // Config
+        let width = container.clientWidth;
+        let height = container.clientHeight;
+        
+        // Force Simulation
+        const simulation = d3.forceSimulation()
+            .force("link", d3.forceLink().id(function(d) { return d.id; }).distance(100))
+            .force("charge", d3.forceManyBody().strength(-300))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collide", d3.forceCollide(30));
+        
+        // Resize handler
+        window.addEventListener('resize', function() {
+            width = container.clientWidth;
+            height = container.clientHeight;
+            svg.attr("width", width).attr("height", height);
+            simulation.force("center", d3.forceCenter(width / 2, height / 2));
+            simulation.alpha(0.3).restart();
         });
-
-        // Simulation Tick
-        simulation
-            .nodes(data.nodes)
-            .on("tick", () => {
-                link
-                    .attr("x1", d => d.source.x)
-                    .attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x)
-                    .attr("y2", d => d.target.y);
-
-                node
-                    .attr("cx", d => d.x)
-                    .attr("cy", d => d.y);
-                
-                labels
-                    .attr("x", d => d.x)
-                    .attr("y", d => d.y);
+        
+        // Fetch Data
+        function loadGraphData() {
+            console.log('[Graph] Loading for ' + modelId);
+            fetch('/api/graph/neighbors.json?id=' + encodeURIComponent(modelId))
+                .then(function(response) {
+                    if (!response.ok) {
+                        return response.text().then(function(errText) {
+                            throw new Error('API Error ' + response.status + ': ' + errText.substring(0, 100));
+                        });
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    if (!data.nodes || data.nodes.length === 0) {
+                        loading.innerHTML = '<p class="text-gray-500">No relationships mapped yet.</p>';
+                        loading.style.display = 'flex';
+                        return;
+                    }
+                    renderGraph(data);
+                    loading.style.opacity = '0';
+                    setTimeout(function() { loading.style.display = 'none'; }, 300);
+                })
+                .catch(function(error) {
+                    console.error("[Graph Error]", error);
+                    loading.innerHTML = '<div class="text-center p-4"><p class="text-red-500 font-bold">Failed to load graph</p><p class="text-xs text-red-400 mt-1">' + error.message + '</p></div>';
+                    loading.style.display = 'flex';
+                });
+        }
+        
+        function renderGraph(data) {
+            svg.selectAll("*").remove();
+            
+            var g = svg.append("g");
+            
+            // Zoom capability
+            var zoom = d3.zoom()
+                .scaleExtent([0.1, 4])
+                .on("zoom", function(event) {
+                    g.attr("transform", event.transform);
+                });
+            svg.call(zoom);
+            
+            // Links
+            var link = g.append("g")
+                .attr("stroke", "#999")
+                .attr("stroke-opacity", 0.6)
+                .selectAll("line")
+                .data(data.links)
+                .join("line")
+                .attr("stroke-width", function(d) { return Math.sqrt(d.value || 1); });
+            
+            // Nodes
+            var node = g.append("g")
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 1.5)
+                .selectAll("circle")
+                .data(data.nodes)
+                .join("circle")
+                .attr("r", function(d) { return d.id === modelId ? 12 : 8; })
+                .attr("fill", function(d) { return getNodeColor(d.group); })
+                .call(drag(simulation));
+            
+            // Labels
+            var labels = g.append("g")
+                .attr("class", "labels")
+                .selectAll("text")
+                .data(data.nodes)
+                .join("text")
+                .attr("dx", 12)
+                .attr("dy", ".35em")
+                .text(function(d) { return d.name; })
+                .attr("fill", "currentColor")
+                .attr("class", "text-xs font-medium dark:fill-white fill-gray-900 pointer-events-none");
+            
+            // Tooltip
+            node.append("title")
+                .text(function(d) { return d.name + ' (' + d.group + ')'; });
+            
+            // Click Event
+            node.on("click", function(event, d) {
+                if (d.group === 'model' && d.id !== modelId) {
+                    window.location.href = '/model/' + d.id.replace(/\//g, '--');
+                } else if (d.url) {
+                    window.open(d.url, '_blank');
+                }
             });
-
-        simulation.force("link").links(data.links);
-    }
-
-    function getNodeColor(group) {
-        switch(group) {
-            case 'main': return '#EF4444'; // Red (Current)
-            case 'model': return '#3B82F6'; // Blue
-            case 'paper': return '#8B5CF6'; // Purple
-            case 'benchmark': return '#10B981'; // Green
-            default: return '#6B7280';
+            
+            // Simulation Tick
+            simulation
+                .nodes(data.nodes)
+                .on("tick", function() {
+                    link
+                        .attr("x1", function(d) { return d.source.x; })
+                        .attr("y1", function(d) { return d.source.y; })
+                        .attr("x2", function(d) { return d.target.x; })
+                        .attr("y2", function(d) { return d.target.y; });
+                    
+                    node
+                        .attr("cx", function(d) { return d.x; })
+                        .attr("cy", function(d) { return d.y; });
+                    
+                    labels
+                        .attr("x", function(d) { return d.x; })
+                        .attr("y", function(d) { return d.y; });
+                });
+            
+            simulation.force("link").links(data.links);
         }
-    }
-
-    // Drag behavior
-    function drag(simulation) {
-        function dragstarted(event) {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            event.subject.fx = event.subject.x;
-            event.subject.fy = event.subject.y;
+        
+        function getNodeColor(group) {
+            switch(group) {
+                case 'main': return '#EF4444';
+                case 'model': return '#3B82F6';
+                case 'paper': return '#8B5CF6';
+                case 'benchmark': return '#10B981';
+                default: return '#6B7280';
+            }
         }
-
-        function dragged(event) {
-            event.subject.fx = event.x;
-            event.subject.fy = event.y;
+        
+        function drag(simulation) {
+            function dragstarted(event) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                event.subject.fx = event.subject.x;
+                event.subject.fy = event.subject.y;
+            }
+            
+            function dragged(event) {
+                event.subject.fx = event.x;
+                event.subject.fy = event.y;
+            }
+            
+            function dragended(event) {
+                if (!event.active) simulation.alphaTarget(0);
+                event.subject.fx = null;
+                event.subject.fy = null;
+            }
+            
+            return d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
         }
-
-        function dragended(event) {
-            if (!event.active) simulation.alphaTarget(0);
-            event.subject.fx = null;
-            event.subject.fy = null;
-        }
-
-        return d3.drag()
-            .on("start", dragstarted)
-            .on("drag", dragged)
-            .on("end", dragended);
-    }
-
-    // Load
-    loadGraphData();
-    } // End if (container && modelId)
+        
+        // Load
+        loadGraphData();
+    })();
 </script>
+
