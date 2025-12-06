@@ -26,16 +26,22 @@ const { modelId } = Astro.props;
     </div>
 </div>
 
-<script>
+<script type="module">
     // Import D3 from CDN to avoid heavy bundle (or use local if installed)
     // We use ES modules from d3-cdn for browser compatibility
     import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
 
     const container = document.getElementById('graph-container');
-    const modelId = container.dataset.modelId; // Read from DOM
+    if (!container) console.warn('[GraphExplorer] Container not found');
+    
+    const modelId = container?.dataset?.modelId; // Read from DOM
+    if (!modelId) console.error('[GraphExplorer] modelId not found in dataset');
+    
+    // Continue only if we have everything
+    if (container && modelId) {
+        const svg = d3.select("#d3-graph");
+        const loading = document.getElementById('graph-loading');
 
-    const svg = d3.select("#d3-graph");
-    const loading = document.getElementById('graph-loading');
     
     // Config
     let width = container.clientWidth;
@@ -207,4 +213,5 @@ const { modelId } = Astro.props;
 
     // Load
     loadGraphData();
+    } // End if (container && modelId)
 </script>
