@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import SearchFilters from '../components/SearchFilters.astro';
 import allCategories from '../data/categories.json';
 
 let pageTitle = "Explore AI Models - AI Nexus";
@@ -20,7 +21,7 @@ let pageDescription = "Browse and filter our extensive collection of open-source
                 <div>
                     <label for="explore-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Search</label>
                     <div class="relative">
-                        <input type="text" id="explore-search" placeholder="Keywords..." class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
+                        <input type="text" id="explore-search" placeholder="Keywords (e.g. 'llama', 'vision')..." class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
                         <svg class="w-5 h-5 text-gray-400 absolute right-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                     </div>
                 </div>
@@ -32,39 +33,26 @@ let pageDescription = "Browse and filter our extensive collection of open-source
                         <option value="likes">Most Popular (Likes)</option>
                         <option value="downloads">Most Downloaded</option>
                         <option value="last_updated">Recently Updated</option>
+                        <option value="relevance">Relevance</option>
                     </select>
                 </div>
 
-                <!-- Category Filter -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Categories</label>
-                    <div class="space-y-4 max-h-96 overflow-y-auto pr-2">
-                        {allCategories.map(group => (
-                            <div key={group.group}>
-                                <h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">{group.group}</h4>
-                                <div class="space-y-2 ml-2">
-                                    {group.items.map(category => (
-                                        <label key={category.slug} class="flex items-start space-x-2 cursor-pointer group">
-                                            <input 
-                                                type="checkbox" 
-                                                name="category" 
-                                                value={category.slug} 
-                                                class="mt-0.5 text-blue-600 focus:ring-blue-500 rounded" 
-                                            />
-                                            <span class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                                {category.title}
-                                            </span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                <hr class="border-gray-200 dark:border-gray-700 my-4" />
+
+                <!-- Advanced Filters Component -->
+                <SearchFilters />
+
+                <!-- Legacy Category Filter (kept for backward compat if needed, or remove?) -->
+                <!-- Ideally categories become valid 'tags' search under the hood, but for now keeping UI simple -->
             </aside>
 
             <!-- Main Content -->
             <main class="flex-1">
+                <!-- Active Filters Display -->
+                <div id="active-filters" class="hidden flex flex-wrap gap-2 mb-4">
+                    <!-- Populated by JS -->
+                </div>
+
                 <!-- Loading State with Skeletons -->
                 <div id="explore-loading" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     <!-- Skeleton placeholders (9 cards for explore page) -->
@@ -104,7 +92,7 @@ let pageDescription = "Browse and filter our extensive collection of open-source
                 <!-- No Results -->
                 <div id="explore-no-results" class="hidden text-center py-12">
                     <p class="text-xl text-gray-600 dark:text-gray-400">No models found matching your criteria.</p>
-                    <button id="reset-filters" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <button id="reset-filters-btn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                         Reset Filters
                     </button>
                 </div>
@@ -122,26 +110,66 @@ let pageDescription = "Browse and filter our extensive collection of open-source
         const elements = {
             search: document.getElementById('explore-search'),
             sort: document.getElementById('explore-sort'),
-            categoryInputs: document.querySelectorAll('input[name="category"]'),
+            activeFilters: document.getElementById('active-filters'),
             grid: document.getElementById('explore-grid'),
             loading: document.getElementById('explore-loading'),
             error: document.getElementById('explore-error'),
             errorMsg: document.getElementById('explore-error-msg'),
             noResults: document.getElementById('explore-no-results'),
-            resetBtn: document.getElementById('reset-filters')
+            resetBtn: document.getElementById('reset-filters-btn'), 
+            // New Filter Inputs
+            minLikes: document.getElementById('min-likes'),
+            hasBenchmarks: document.getElementById('has-benchmarks'),
+            sourceInputs: document.querySelectorAll('input[name="source"]'),
+            daysAgoInputs: document.querySelectorAll('input[name="days_ago"]')
         };
 
         function getFilters() {
             const q = elements.search.value.trim();
             const sort = elements.sort.value;
-            const selectedCategories = Array.from(document.querySelectorAll('input[name="category"]:checked'))
-                .map(input => input.value);
-            return { q, sort, categories: selectedCategories };
+            
+            // New Filters
+            const min_likes = elements.minLikes ? elements.minLikes.value : 0;
+            const has_benchmarks = elements.hasBenchmarks ? elements.hasBenchmarks.checked : false;
+            
+            const sources = Array.from(document.querySelectorAll('input[name="source"]:checked')).map(i => i.value);
+            
+            const daysAgoEl = document.querySelector('input[name="days_ago"]:checked');
+            const days_ago = daysAgoEl ? daysAgoEl.value : 0;
+
+            return { q, sort, min_likes, has_benchmarks, sources, days_ago };
+        }
+
+        function updateActiveFiltersDisplay(filters) {
+            if (!elements.activeFilters) return;
+            
+            const chips = [];
+            
+            if (filters.min_likes > 0) chips.push(`Stars > ${filters.min_likes}`);
+            if (filters.has_benchmarks) chips.push('SOTA Only');
+            if (filters.days_ago > 0) {
+                const map = { '7': 'Past Week', '30': 'Past Month', '365': 'Past Year' };
+                chips.push(map[filters.days_ago] || 'Fresh');
+            }
+            filters.sources.forEach(s => chips.push(s)); // Capitalize?
+
+            if (chips.length > 0) {
+                elements.activeFilters.classList.remove('hidden');
+                elements.activeFilters.innerHTML = chips.map(text => `
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                        ${text}
+                    </span>
+                `).join('');
+            } else {
+                elements.activeFilters.classList.add('hidden');
+                elements.activeFilters.innerHTML = '';
+            }
         }
 
         async function fetchModels() {
-            const { q, sort, categories } = getFilters();
-            
+            const filters = getFilters();
+            updateActiveFiltersDisplay(filters);
+
             // Abort previous request
             if (currentController) currentController.abort();
             currentController = new AbortController();
@@ -154,15 +182,16 @@ let pageDescription = "Browse and filter our extensive collection of open-source
 
             try {
                 const params = new URLSearchParams();
-                if (q) params.set('q', q);
-                params.set('sort', sort);
-                // If categories selected, use tag filter (categories are stored as tags)
-                if (categories.length > 0) {
-                    // For multiple categories, we'll fetch with first one and filter client-side
-                    // Or make multiple API calls - for simplicity, using first category
-                    params.set('tag', categories[0]);
-                }
-                params.set('limit', '50'); // Fetch more for explore page
+                if (filters.q) params.set('q', filters.q);
+                params.set('sort', filters.sort);
+                params.set('limit', '50');
+
+                // Add new params
+                if (filters.min_likes > 0) params.set('min_likes', filters.min_likes);
+                if (filters.days_ago > 0) params.set('days_ago', filters.days_ago);
+                if (filters.has_benchmarks) params.set('has_benchmarks', 'true');
+                
+                filters.sources.forEach(s => params.append('source', s));
 
                 const response = await fetch(`/api/search?${params.toString()}`, {
                     signal: currentController.signal
@@ -171,19 +200,7 @@ let pageDescription = "Browse and filter our extensive collection of open-source
                 if (!response.ok) throw new Error(`API Error: ${response.status}`);
                 
                 const data = await response.json();
-                let results = data.results || [];
-                
-                // Client-side filter for multiple categories
-                if (categories.length > 1) {
-                    results = results.filter(model => {
-                        try {
-                            const modelTags = JSON.parse(model.tags || '[]');
-                            return categories.some(cat => modelTags.includes(cat));
-                        } catch (e) {
-                            return false;
-                        }
-                    });
-                }
+                const results = data.results || [];
                 
                 renderModels(results);
 
@@ -206,7 +223,6 @@ let pageDescription = "Browse and filter our extensive collection of open-source
                 return;
             }
 
-            // Use shared render function - eliminates 80+ lines of duplicate code!
             const html = models.map(model => renderModelCard(model)).join('');
             elements.grid.innerHTML = html;
         }
@@ -219,18 +235,28 @@ let pageDescription = "Browse and filter our extensive collection of open-source
 
         elements.sort.addEventListener('change', fetchModels);
         
-        elements.categoryInputs.forEach(input => {
-            input.addEventListener('change', fetchModels);
-        });
+        // New Filter Listeners
+        if (elements.minLikes) elements.minLikes.addEventListener('change', fetchModels); // 'change' for slider only when released, 'input' for realtime
+        if (elements.hasBenchmarks) elements.hasBenchmarks.addEventListener('change', fetchModels);
+        
+        document.querySelectorAll('input[name="source"]').forEach(el => el.addEventListener('change', fetchModels));
+        document.querySelectorAll('input[name="days_ago"]').forEach(el => el.addEventListener('change', fetchModels));
 
-        elements.resetBtn.addEventListener('click', () => {
-            elements.search.value = '';
-            elements.sort.value = 'likes';
-            document.querySelectorAll('input[name="category"]:checked').forEach(input => {
-                input.checked = false;
+        if (elements.resetBtn) {
+            elements.resetBtn.addEventListener('click', () => {
+                elements.search.value = '';
+                elements.sort.value = 'likes';
+                
+                // Reset new filters
+                if(elements.minLikes) { elements.minLikes.value = 0; elements.minLikes.dispatchEvent(new Event('input')) }; 
+                if(elements.hasBenchmarks) elements.hasBenchmarks.checked = false;
+                document.querySelectorAll('input[name="source"]').forEach(el => el.checked = false);
+                const anyTime = document.querySelector('input[name="days_ago"][value="0"]');
+                if (anyTime) anyTime.checked = true;
+
+                fetchModels();
             });
-            fetchModels();
-        });
+        }
 
         // Initial fetch
         fetchModels();

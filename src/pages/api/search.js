@@ -5,9 +5,12 @@ export async function GET({ request, locals }) {
     const query = url.searchParams.get('q');
     const tag = url.searchParams.get('tag');
     const sort = url.searchParams.get('sort') || 'likes';
-    const source = url.searchParams.get('source');
-    const hasImage = url.searchParams.get('has_image') === 'true';
-    const limit = parseInt(url.searchParams.get('limit') || '12', 10);
+    const minLikes = parseInt(url.searchParams.get('min_likes') || '0', 10);
+    const daysAgo = parseInt(url.searchParams.get('days_ago') || '0', 10);
+    const hasBenchmarks = url.searchParams.get('has_benchmarks') === 'true';
+
+    // Support multi-value source param (e.g. ?source=github&source=huggingface)
+    const sources = url.searchParams.getAll('source').map(s => s.toLowerCase());
 
     const db = locals.runtime?.env?.DB;
 
@@ -44,9 +47,29 @@ export async function GET({ request, locals }) {
             params.push(`%${tag}%`);
         }
 
-        if (source) {
-            sql += ` AND source = ?`;
-            params.push(source.toLowerCase());
+        // Multi-Source Filter
+        if (sources.length > 0) {
+            const placeholders = sources.map(() => '?').join(',');
+            sql += ` AND source IN (${placeholders})`;
+            params.push(...sources);
+        }
+
+        // Quality Filter (Min Likes)
+        if (minLikes > 0) {
+            sql += ` AND likes >= ?`;
+            params.push(minLikes);
+        }
+
+        // Freshness Filter (Days Ago)
+        if (daysAgo > 0) {
+            // SQLite datetime calculation
+            sql += ` AND last_updated >= date('now', '-' || ? || ' days')`;
+            params.push(daysAgo);
+        }
+
+        // Benchmark Filter
+        if (hasBenchmarks) {
+            sql += ` AND pwc_sota_count > 0`;
         }
 
         // Filter for models with images if requested
