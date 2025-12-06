@@ -1,6 +1,6 @@
 export const prerender = false;
 
-import { getModelBySlug } from '../../../utils/db'; // Fix build path
+import { getModelBySlug } from '../../../utils/db.js'; // Explicit extension fix
 
 export async function GET({ request, params, locals }) {
     const url = new URL(request.url);
