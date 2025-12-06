@@ -196,7 +196,20 @@ jobs:
       - name: Start Preview Server
         run: |
           npm run preview &
-          sleep 5
+          
+          # Wait for server to be ready
+          echo "⏳ Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:4321 > /dev/null; then
+              echo "✅ Server is ready"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "❌ Server failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
       
       - name: Run Lighthouse
         uses: treosh/lighthouse-ci-action@v11
