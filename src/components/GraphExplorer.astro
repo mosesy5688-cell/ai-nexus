@@ -15,7 +15,7 @@ const { modelId } = Astro.props;
         </div>
     </div>
     
-    <div id="graph-container" class="w-full h-[500px] bg-gray-50 dark:bg-gray-900 rounded-lg overflow-hidden relative cursor-move border border-gray-100 dark:border-gray-800">
+    <div id="graph-container" data-model-id={modelId} class="w-full h-[500px] bg-gray-50 dark:bg-gray-900 rounded-lg overflow-hidden relative cursor-move border border-gray-100 dark:border-gray-800">
         <div id="graph-loading" class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-800/80 z-10 transition-opacity duration-300">
             <div class="flex flex-col items-center">
                 <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
@@ -26,12 +26,14 @@ const { modelId } = Astro.props;
     </div>
 </div>
 
-<script hoist type="module" define:vars={{ modelId }}>
+<script>
     // Import D3 from CDN to avoid heavy bundle (or use local if installed)
     // We use ES modules from d3-cdn for browser compatibility
     import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
 
     const container = document.getElementById('graph-container');
+    const modelId = container.dataset.modelId; // Read from DOM
+
     const svg = d3.select("#d3-graph");
     const loading = document.getElementById('graph-loading');
     
