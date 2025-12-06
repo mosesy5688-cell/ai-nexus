@@ -16,6 +16,7 @@ const formatNumber = (num: number): string => {
 };
 ---
 
+{models.length > 0 ? (
   <div class="relative group" id={`carousel-${models[0]?.id || 'default'}`}>
     <!-- Navigation Buttons -->
     <button 
