@@ -51,14 +51,20 @@ const { modelId } = Astro.props;
     // Fetch Data
     async function loadGraphData() {
         try {
+            console.log(`[Graph] Loading for ${modelId}`);
             const response = await fetch(`/api/graph/neighbors.json?id=${encodeURIComponent(modelId)}`);
-            if (!response.ok) throw new Error('Failed to fetch graph');
+            
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`API Error ${response.status}: ${errText.substring(0, 100)}`);
+            }
             
             const data = await response.json();
             
             // Handle empty data case
             if (!data.nodes || data.nodes.length === 0) {
                 loading.innerHTML = '<p class="text-gray-500">No relationships mapped yet.</p>';
+                loading.style.display = 'flex'; // Ensure visible
                 return;
             }
 
@@ -66,8 +72,9 @@ const { modelId } = Astro.props;
             loading.style.opacity = '0';
             setTimeout(() => loading.style.display = 'none', 300);
         } catch (error) {
-            console.error(error);
-            loading.innerHTML = '<p class="text-red-500">Failed to load graph.</p>';
+            console.error("[Graph Error]", error);
+            loading.innerHTML = `<div class="text-center p-4"><p class="text-red-500 font-bold">Failed to load graph</p><p class="text-xs text-red-400 mt-1">${error.message}</p></div>`;
+            loading.style.display = 'flex';
         }
     }
 
