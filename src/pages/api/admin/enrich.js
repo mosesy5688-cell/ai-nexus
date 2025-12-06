@@ -67,7 +67,13 @@ export async function POST({ request, locals }) {
             ]
         });
 
-        const generatedContent = response.response;
+        // Workers AI response structure can vary slightly
+        // Usually it is { response: "text" } or { result: { response: "text" } }
+        const generatedContent = response.response || (response.result ? response.result.response : null) || JSON.stringify(response);
+
+        if (!generatedContent || generatedContent === '{}') {
+            throw new Error("Empty response from AI model");
+        }
 
         // 5. Save Result
         await db.prepare(`
