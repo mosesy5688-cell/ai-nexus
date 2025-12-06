@@ -11,20 +11,51 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Enrichment API
+        env:
+          SITE_URL: ${{ secrets.SITE_URL || 'https://free2aitools.com' }}
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
         run: |
+          echo "Debug: Checking Secrets..."
+          if [ -z "$ADMIN_SECRET" ]; then
+            echo "::error::ADMIN_SECRET is empty!"
+            exit 1
+          else
+            echo "Debug: ADMIN_SECRET is set."
+          fi
+          
+          echo "Debug: Using SITE_URL=$SITE_URL"
+
           # Try to enrich 5 models per run
           for i in {1..5}; do
             echo "Enrichment Loop $i..."
-            response=$(curl -s -X POST "${{ secrets.SITE_URL }}/api/admin/enrich" \
-              -H "Authorization: Bearer ${{ secrets.ADMIN_SECRET }}" \
-              -H "Content-Type: application/json")
             
-            echo "Response: $response"
+            # Use curl with -v (verbose) and capture http code
+            # Note: We don't use -f because we want to see the error body if 500
+            response=$(curl -s -v -X POST "$SITE_URL/api/admin/enrich" \
+              -H "Authorization: Bearer $ADMIN_SECRET" \
+              -H "Content-Type: application/json" 2>&1)
+            
+            echo "Response Raw:"
+            echo "$response"
             
             # Simple check if "No models pending" to stop early
-            if echo "$response" | grep -q "No models pending" || true; then
+            if echo "$response" | grep -q "No models pending" || echo "$response" | grep -q "No more models"; then
               echo "No more models to enrich. Exiting loop."
               break
+            fi
+            
+            # Check for success
+            if echo "$response" | grep -q '"success":true'; then
+              echo "Enrichment successful."
+            else
+              echo "Enrichment loop finished with non-success response (or error)."
+              # Don't break immediately on unknown errors, try next loop? 
+              # Or break to safe retries?
+              # Let's break if it looks like a fatal HTML error (e.g. cloudflare block)
+              if echo "$response" | grep -q "<html"; then
+                 echo "::error::Received HTML response (likely Cloudflare Block or 500 Page)."
+                 exit 1
+              fi
             fi
             
             # Sleep to be nice to rate limits
