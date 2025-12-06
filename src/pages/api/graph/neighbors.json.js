@@ -1,8 +1,6 @@
 
 export const prerender = false;
 
-import { getRuntime } from "@astrojs/cloudflare/runtime";
-
 export async function GET({ request, locals }) {
     const url = new URL(request.url);
     const nodeId = url.searchParams.get('nodeId');
@@ -15,8 +13,8 @@ export async function GET({ request, locals }) {
     }
 
     // Get D1 database from runtime environment (Cloudflare Pages)
-    const runtime = getRuntime(request);
-    const db = runtime?.env?.DB || locals?.runtime?.env?.DB;
+    // Access via locals.runtime (standard for Astro adapters)
+    const db = locals?.runtime?.env?.DB;
 
     if (!db) {
         return new Response(JSON.stringify({ error: 'Database not available' }), {
