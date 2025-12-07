@@ -1,21 +1,22 @@
 ---
 // src/components/ModelCard.astro
+// Optimized: text-focused, extended description, simpler design
 const { model, isRisingStar } = Astro.props;
 
-// Use the robust slug from the database, fallback to ID replacement only if necessary
+// Use the robust slug from the database
 const modelUrl = `/model/${model.slug || model.id.replace(/\//g, '--')}`;
-const description = model.description?.replace(/<[^>]*>?/gm, '') || 'No description available.';
+const description = model.seo_summary || model.description?.replace(/<[^>]*>?/gm, '') || 'No description available.';
 
 function formatNumber(num) {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num;
+    return num || 0;
 }
 
 function getSourceIcon(source) {
     switch(source?.toLowerCase()) {
         case 'huggingface': return '🤗';
-        case 'github': return '🐙';
+        case 'github': return '⭐';
         case 'pytorch': return '🔥';
         default: return '📦';
     }
@@ -23,51 +24,78 @@ function getSourceIcon(source) {
 
 function getSourceLabel(source) {
     switch(source?.toLowerCase()) {
-        case 'huggingface': return 'HF';
-        case 'github': return 'GH';
-        case 'pytorch': return 'PT';
-        default: return 'UNK';
+        case 'huggingface': return 'Hugging Face';
+        case 'github': return 'GitHub';
+        case 'pytorch': return 'PyTorch';
+        default: return 'Source';
     }
 }
----
-<a href={modelUrl} class="group relative block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full border border-gray-100 dark:border-gray-700">
-    {isRisingStar && (
-        <div class="absolute top-2 right-2 z-10 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full animate-pulse shadow-sm" title="Rising Star">
-            🔥
-        </div>
-    )}
-    
-    <div class="p-5 flex flex-col h-full justify-between">
-        <div>
-            <!-- Source Badge (Relative Flow) -->
-            <div class="mb-3">
-                <span class="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-md text-xs font-medium text-gray-600 dark:text-gray-300 shadow-sm border border-gray-200 dark:border-gray-600">
-                    <span>{getSourceIcon(model.source)}</span>
-                    <span class="uppercase">{getSourceLabel(model.source)}</span>
-                </span>
-            </div>
 
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" title={model.name}>
-                {model.name}
-            </h3>
-            <p class="text-gray-500 dark:text-gray-400 text-xs mb-3 flex items-center gap-1">
-                <span>by {model.author}</span>
-            </p>
-            <p class="text-gray-600 dark:text-gray-300 text-sm h-20 overflow-hidden text-ellipsis leading-relaxed line-clamp-3">
-                {description.substring(0, 120)}...
-            </p>
+// Parse tags if string
+const tagsArray = typeof model.tags === 'string' ? JSON.parse(model.tags || '[]') : (model.tags || []);
+---
+
+<a href={modelUrl} class="group block bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden h-full border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600">
+    <div class="p-5 flex flex-col h-full">
+        <!-- Header: Source + Rising Star -->
+        <div class="flex items-center justify-between mb-3">
+            <span class="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                <span>{getSourceIcon(model.source)}</span>
+                <span>{getSourceLabel(model.source)}</span>
+            </span>
+            {isRisingStar && (
+                <span class="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium">
+                    🔥 Rising
+                </span>
+            )}
         </div>
-        <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700 pt-3">
-             <div class="flex gap-2">
-                {model.tags && model.tags[0] && (
-                    <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full truncate max-w-[80px]">
-                        {model.tags[0]}
-                    </span>
+
+        <!-- Model Name -->
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mb-1" title={model.name}>
+            {model.name}
+        </h3>
+        
+        <!-- Author + Pipeline Tag -->
+        <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-3">
+            <span>by {model.author}</span>
+            {model.pipeline_tag && (
+                <span class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300">
+                    {model.pipeline_tag}
+                </span>
+            )}
+        </div>
+
+        <!-- Description (Extended to 180 chars) -->
+        <p class="text-gray-600 dark:text-gray-300 text-sm leading-relaxed line-clamp-4 flex-grow">
+            {description.substring(0, 180)}{description.length > 180 ? '...' : ''}
+        </p>
+
+        <!-- Footer: Tags + Stats -->
+        <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+            <!-- Tags (up to 2) -->
+            {tagsArray.length > 0 && (
+                <div class="flex flex-wrap gap-1 mb-2">
+                    {tagsArray.slice(0, 2).map((tag) => (
+                        <span class="text-xs px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full truncate max-w-[100px]">
+                            {tag}
+                        </span>
+                    ))}
+                </div>
+            )}
+            
+            <!-- Stats -->
+            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <div class="flex items-center gap-1" title={`${(model.likes || 0).toLocaleString()} likes`}>
+                    ❤️ <span class="font-medium">{formatNumber(model.likes)}</span>
+                </div>
+                <div class="flex items-center gap-1" title={`${(model.downloads || 0).toLocaleString()} downloads`}>
+                    📥 <span class="font-medium">{formatNumber(model.downloads)}</span>
+                </div>
+                {model.github_stars > 0 && (
+                    <div class="flex items-center gap-1" title={`${model.github_stars.toLocaleString()} GitHub stars`}>
+                        ⭐ <span class="font-medium">{formatNumber(model.github_stars)}</span>
+                    </div>
                 )}
-             </div>
-             <div class="flex gap-3">
-                <div class="flex items-center gap-1" title={`${(model.likes || 0).toLocaleString()} likes`}>❤️ <span>{formatNumber(model.likes || 0)}</span></div>
-                <div class="flex items-center gap-1" title={`${(model.downloads || 0).toLocaleString()} downloads`}>📥 <span>{formatNumber(model.downloads || 0)}</span></div>
             </div>
         </div>
     </div>
