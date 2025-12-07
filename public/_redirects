@@ -1,0 +1,4 @@
+# Redirect old CSS hash to new CSS file (fixes Cloudflare cache issue)
+/assets/style.C3QxJPHh.css /assets/style.DF1k9TzD.css 301
+
+# Add more redirects here if needed for future hash mismatches
