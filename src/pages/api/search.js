@@ -75,6 +75,22 @@ export async function GET({ request, locals }) {
             sql += ` AND pwc_sota_count > 0`;
         }
 
+        // License Filter
+        const license = url.searchParams.get('license');
+        if (license) {
+            sql += ` AND LOWER(license) = ?`;
+            params.push(license.toLowerCase());
+        }
+
+        // Multi-Tag Filter (AND logic: all tags must match)
+        const tags = url.searchParams.getAll('tags');
+        if (tags.length > 0) {
+            tags.forEach(t => {
+                sql += ` AND tags LIKE ?`;
+                params.push(`%${t}%`);
+            });
+        }
+
         // Filter for models with images if requested
         if (hasImage) {
             sql += ` AND cover_image_url IS NOT NULL AND cover_image_url != 'NULL'`;
