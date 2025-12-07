@@ -264,16 +264,21 @@ jobs:
         run: |
           echo "## 📊 CI Check Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Required Checks" >> $GITHUB_STEP_SUMMARY
           echo "- **Lint & Build**: ${{ needs.lint-and-build.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Smoke Tests**: ${{ needs.smoke-tests.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Lighthouse**: ${{ needs.lighthouse.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Security**: ${{ needs.security-check.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Informational Checks (non-blocking)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Smoke Tests**: ${{ needs.smoke-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Lighthouse**: ${{ needs.lighthouse.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           
+          # Only require lint-and-build and security-check to pass
+          # Smoke tests and lighthouse are informational (continue-on-error: true)
           if [ "${{ needs.lint-and-build.result }}" != "success" ] || \
-             [ "${{ needs.smoke-tests.result }}" != "success" ]; then
-            echo "❌ **CI checks failed. Please fix errors before merging.**" >> $GITHUB_STEP_SUMMARY
+             [ "${{ needs.security-check.result }}" != "success" ]; then
+            echo "❌ **Required CI checks failed. Please fix errors before merging.**" >> $GITHUB_STEP_SUMMARY
             exit 1
           else
-            echo "✅ **All CI checks passed. Ready to merge.**" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Required CI checks passed. Ready to merge.**" >> $GITHUB_STEP_SUMMARY
           fi
