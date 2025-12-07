@@ -9,8 +9,9 @@ import ModelDescription from '../../components/ModelDescription.astro';
 import UsageExample from '../../components/UsageExample.astro';
 import ResourceList from '../../components/ResourceList.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
+import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
 import { getModelBySlug } from '../../utils/db';
-import { prepareDetailData, getBestDescription, formatMetric, formatRelativeTime } from '../../utils/data-service';
+import { prepareDetailData, getBestDescription, formatMetric, formatRelativeTime, parseJSONField } from '../../utils/data-service';
 import { marked } from 'marked';
 
 const { slug } = Astro.params;
@@ -114,6 +115,21 @@ try {
 
 // Ensure tagsArray is defined and is an array (Fix for P0 Proxy error)
 const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
+
+// Parse commercial_slots JSON for Loop 6 Merchant
+let commercialSlots = [];
+if (model?.commercial_slots) {
+    try {
+        const parsed = typeof model.commercial_slots === 'string' 
+            ? JSON.parse(model.commercial_slots) 
+            : model.commercial_slots;
+        if (Array.isArray(parsed)) {
+            commercialSlots = parsed;
+        }
+    } catch (e) {
+        console.warn('Failed to parse commercial_slots:', e);
+    }
+}
 ---
 
 <Layout title={pageTitle} description={pageDescription} image={model?.cover_image_url}>
@@ -272,6 +288,15 @@ const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
                         </dl>
                     </div>
 
+                    </div>
+
+                    {/* Commercial Recommendations (Loop 6 Merchant) - Desktop */}
+                    {commercialSlots.length > 0 && (
+                        <div class="hidden md:block">
+                            <AffiliateCard slots={commercialSlots} modelName={model.displayName} />
+                        </div>
+                    )}
+
                 </div>
               </div>
 
@@ -282,6 +307,13 @@ const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
 
             {/* Knowledge Graph (Neural Network Explorer) */}
             <GraphExplorer modelId={model.id} />
+
+            {/* Commercial Recommendations (Loop 6 Merchant) - Mobile Only */}
+            {commercialSlots.length > 0 && (
+                <div class="md:hidden mt-8 px-4">
+                    <AffiliateCard slots={commercialSlots} modelName={model.displayName} />
+                </div>
+            )}
 
             {/* Related Models (Pipeline-based) */}
             <section class="mt-20 border-t border-gray-200 dark:border-gray-700 pt-12">
