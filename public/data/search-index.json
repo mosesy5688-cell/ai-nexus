@@ -57505,8 +57505,8 @@
       "fp8",
       "region:us"
     ],
-    "likes": 12889,
-    "downloads": 1199185,
+    "likes": 12895,
+    "downloads": 1214176,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57527,8 +57527,8 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 11944,
-    "downloads": 1353797,
+    "likes": 11972,
+    "downloads": 1219627,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57555,8 +57555,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 7182,
-    "downloads": 2752124,
+    "likes": 7187,
+    "downloads": 2490599,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57583,8 +57583,8 @@
       "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 6941,
-    "downloads": 629451,
+    "likes": 6942,
+    "downloads": 613086,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57610,8 +57610,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 6394,
-    "downloads": 2062601,
+    "likes": 6396,
+    "downloads": 2108151,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57632,8 +57632,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 5348,
-    "downloads": 3805815,
+    "likes": 5365,
+    "downloads": 3858922,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57757,8 +57757,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 5156,
-    "downloads": 4856553,
+    "likes": 5172,
+    "downloads": 4953393,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57795,8 +57795,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 5053,
-    "downloads": 5005031,
+    "likes": 5087,
+    "downloads": 5077031,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57874,7 +57874,7 @@
       "deploy:azure"
     ],
     "likes": 4961,
-    "downloads": 2520,
+    "downloads": 2646,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57893,8 +57893,8 @@
       "license:other",
       "region:us"
     ],
-    "likes": 4875,
-    "downloads": 10930,
+    "likes": 4874,
+    "downloads": 10435,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57922,8 +57922,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 4662,
-    "downloads": 325421,
+    "likes": 4664,
+    "downloads": 326526,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57947,8 +57947,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 4613,
-    "downloads": 387463,
+    "likes": 4616,
+    "downloads": 392548,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57969,8 +57969,8 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 4437,
-    "downloads": 807420,
+    "likes": 4444,
+    "downloads": 787643,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -57992,8 +57992,8 @@
       "license:llama2",
       "region:us"
     ],
-    "likes": 4429,
-    "downloads": 467,
+    "likes": 4431,
+    "downloads": 485,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58021,8 +58021,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 4310,
-    "downloads": 1167036,
+    "likes": 4313,
+    "downloads": 1189715,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58047,8 +58047,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 4209,
-    "downloads": 4407150,
+    "likes": 4218,
+    "downloads": 4483268,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58104,35 +58104,9 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 4173,
-    "downloads": 148794919,
+    "likes": 4192,
+    "downloads": 149109967,
     "is_rising_star": true,
-    "source": "unknown"
-  },
-  {
-    "id": "huggingface-mistralai-Mistral-7B-v0.1",
-    "slug": "huggingface--mistralai--mistral-7b-v0.1",
-    "name": "Mistral-7B-v0.1",
-    "author": "mistralai",
-    "description": "",
-    "tags": [
-      "transformers",
-      "pytorch",
-      "safetensors",
-      "mistral",
-      "text-generation",
-      "pretrained",
-      "mistral-common",
-      "en",
-      "arxiv:2310.06825",
-      "license:apache-2.0",
-      "autotrain_compatible",
-      "text-generation-inference",
-      "region:us"
-    ],
-    "likes": 4015,
-    "downloads": 414200,
-    "is_rising_star": false,
     "source": "unknown"
   },
   {
@@ -58156,8 +58130,34 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 4011,
-    "downloads": 7458736,
+    "likes": 4023,
+    "downloads": 7838822,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "huggingface-mistralai-Mistral-7B-v0.1",
+    "slug": "huggingface--mistralai--mistral-7b-v0.1",
+    "name": "Mistral-7B-v0.1",
+    "author": "mistralai",
+    "description": "",
+    "tags": [
+      "transformers",
+      "pytorch",
+      "safetensors",
+      "mistral",
+      "text-generation",
+      "pretrained",
+      "mistral-common",
+      "en",
+      "arxiv:2310.06825",
+      "license:apache-2.0",
+      "autotrain_compatible",
+      "text-generation-inference",
+      "region:us"
+    ],
+    "likes": 4018,
+    "downloads": 386502,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58181,8 +58181,8 @@
       "fp8",
       "region:us"
     ],
-    "likes": 4003,
-    "downloads": 627015,
+    "likes": 4004,
+    "downloads": 681560,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58196,7 +58196,7 @@
       "license:openrail",
       "region:us"
     ],
-    "likes": 3956,
+    "likes": 3960,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -58219,7 +58219,7 @@
       "region:us"
     ],
     "likes": 3886,
-    "downloads": 8512,
+    "downloads": 8432,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58233,8 +58233,8 @@
       "license:openrail",
       "region:us"
     ],
-    "likes": 3767,
-    "downloads": 3,
+    "likes": 3768,
+    "downloads": 4,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58257,8 +58257,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 3531,
-    "downloads": 43937,
+    "likes": 3532,
+    "downloads": 50092,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58277,14 +58277,13 @@
       "code-generation-assistance",
       "en",
       "license:mit",
-      "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
-      "region:us",
-      "deploy:azure"
+      "deploy:azure",
+      "region:us"
     ],
     "likes": 3410,
-    "downloads": 939044,
+    "downloads": 963559,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58305,8 +58304,8 @@
       "diffusers:StableDiffusion3Pipeline",
       "region:us"
     ],
-    "likes": 3242,
-    "downloads": 77184,
+    "likes": 3252,
+    "downloads": 57449,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58352,8 +58351,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 3241,
-    "downloads": 39033,
+    "likes": 3243,
+    "downloads": 47389,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58369,8 +58368,8 @@
       "license:other",
       "region:us"
     ],
-    "likes": 3205,
-    "downloads": 5508188,
+    "likes": 3213,
+    "downloads": 5802822,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58388,8 +58387,8 @@
       "diffusers:StableVideoDiffusionPipeline",
       "region:us"
     ],
-    "likes": 3195,
-    "downloads": 221964,
+    "likes": 3197,
+    "downloads": 237078,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58412,8 +58411,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 3173,
-    "downloads": 16166,
+    "likes": 3176,
+    "downloads": 16446,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58438,8 +58437,8 @@
       "fp8",
       "region:us"
     ],
-    "likes": 3084,
-    "downloads": 155567,
+    "likes": 3083,
+    "downloads": 143344,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58470,8 +58469,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 3041,
-    "downloads": 9705107,
+    "likes": 3044,
+    "downloads": 9457094,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58497,8 +58496,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 3026,
-    "downloads": 3652184,
+    "likes": 3028,
+    "downloads": 3533905,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58523,8 +58522,8 @@
       "license:mit",
       "region:us"
     ],
-    "likes": 2918,
-    "downloads": 5527162,
+    "likes": 2933,
+    "downloads": 5471823,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58553,8 +58552,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2905,
-    "downloads": 9615,
+    "likes": 2906,
+    "downloads": 8911,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58582,8 +58581,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 2868,
-    "downloads": 56123,
+    "likes": 2869,
+    "downloads": 56832,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58609,7 +58608,7 @@
       "region:us"
     ],
     "likes": 2867,
-    "downloads": 2128,
+    "downloads": 2302,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58630,8 +58629,8 @@
       "license:creativeml-openrail-m",
       "region:us"
     ],
-    "likes": 2827,
-    "downloads": 3,
+    "likes": 2829,
+    "downloads": 4,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58652,7 +58651,7 @@
       "region:us"
     ],
     "likes": 2810,
-    "downloads": 195486,
+    "downloads": 170044,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58774,8 +58773,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2712,
-    "downloads": 4494148,
+    "likes": 2717,
+    "downloads": 4623230,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58807,13 +58806,12 @@
       "base_model:meta-llama/Llama-3.1-70B",
       "base_model:finetune:meta-llama/Llama-3.1-70B",
       "license:llama3.3",
-      "autotrain_compatible",
       "text-generation-inference",
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2582,
-    "downloads": 419946,
+    "likes": 2586,
+    "downloads": 407922,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58842,8 +58840,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2546,
-    "downloads": 7235864,
+    "likes": 2558,
+    "downloads": 7614719,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58875,8 +58873,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2497,
-    "downloads": 60359775,
+    "likes": 2501,
+    "downloads": 59683111,
     "is_rising_star": true,
     "source": "unknown"
   },
@@ -58896,8 +58894,8 @@
       "diffusers:StableDiffusionXLPipeline",
       "region:us"
     ],
-    "likes": 2485,
-    "downloads": 409451,
+    "likes": 2490,
+    "downloads": 439593,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58919,8 +58917,8 @@
       "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 2461,
-    "downloads": 3134,
+    "likes": 2463,
+    "downloads": 3400,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58943,8 +58941,8 @@
       "diffusers:FluxKontextPipeline",
       "region:us"
     ],
-    "likes": 2452,
-    "downloads": 330293,
+    "likes": 2454,
+    "downloads": 315008,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -58979,7 +58977,7 @@
       "deploy:azure"
     ],
     "likes": 2432,
-    "downloads": 9780,
+    "downloads": 9897,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59005,7 +59003,7 @@
       "region:us"
     ],
     "likes": 2386,
-    "downloads": 377714,
+    "downloads": 424834,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59022,8 +59020,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 2368,
-    "downloads": 1305,
+    "likes": 2369,
+    "downloads": 1442,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59049,7 +59047,7 @@
       "region:us"
     ],
     "likes": 2328,
-    "downloads": 1868,
+    "downloads": 1785,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59069,8 +59067,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 2281,
-    "downloads": 1042458,
+    "likes": 2288,
+    "downloads": 1142763,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59091,8 +59089,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2279,
-    "downloads": 25766,
+    "likes": 2283,
+    "downloads": 25635,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59116,8 +59114,8 @@
       "fp8",
       "region:us"
     ],
-    "likes": 2267,
-    "downloads": 172220,
+    "likes": 2270,
+    "downloads": 171619,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59139,8 +59137,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 2255,
-    "downloads": 272615,
+    "likes": 2260,
+    "downloads": 297787,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59167,8 +59165,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2210,
-    "downloads": 544918,
+    "likes": 2211,
+    "downloads": 529858,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59203,8 +59201,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2205,
-    "downloads": 3260945,
+    "likes": 2208,
+    "downloads": 3173378,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59232,8 +59230,31 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2202,
-    "downloads": 11559,
+    "likes": 2201,
+    "downloads": 11298,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "huggingface-Tongyi-MAI-Z-Image-Turbo",
+    "slug": "huggingface--tongyi-mai--z-image-turbo",
+    "name": "Z-Image-Turbo",
+    "author": "Tongyi-MAI",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "image-generation",
+      "en",
+      "arxiv:2511.22699",
+      "arxiv:2511.22677",
+      "arxiv:2511.13649",
+      "license:apache-2.0",
+      "diffusers:ZImagePipeline",
+      "region:us"
+    ],
+    "likes": 2197,
+    "downloads": 169515,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59261,8 +59282,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2193,
-    "downloads": 479546,
+    "likes": 2194,
+    "downloads": 479255,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59283,8 +59304,8 @@
       "diffusers:QwenImageEditPipeline",
       "region:us"
     ],
-    "likes": 2169,
-    "downloads": 105160,
+    "likes": 2171,
+    "downloads": 94130,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59302,8 +59323,8 @@
       "license:openrail++",
       "region:us"
     ],
-    "likes": 2107,
-    "downloads": 118679,
+    "likes": 2110,
+    "downloads": 118365,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59321,7 +59342,7 @@
       "region:us"
     ],
     "likes": 2083,
-    "downloads": 1029,
+    "downloads": 1118,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59334,7 +59355,7 @@
     "tags": [
       "region:us"
     ],
-    "likes": 2071,
+    "likes": 2074,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -59356,7 +59377,7 @@
       "region:us"
     ],
     "likes": 2065,
-    "downloads": 265008,
+    "downloads": 266660,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59387,7 +59408,7 @@
       "region:us"
     ],
     "likes": 2059,
-    "downloads": 9877,
+    "downloads": 9499,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59414,7 +59435,7 @@
       "region:us"
     ],
     "likes": 2056,
-    "downloads": 628302,
+    "downloads": 641268,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59440,8 +59461,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2002,
-    "downloads": 192429,
+    "likes": 2034,
+    "downloads": 288503,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59464,8 +59485,8 @@
       "diffusers:StableDiffusionXLImg2ImgPipeline",
       "region:us"
     ],
-    "likes": 2000,
-    "downloads": 478618,
+    "likes": 2002,
+    "downloads": 466162,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59489,7 +59510,7 @@
       "deploy:azure"
     ],
     "likes": 1956,
-    "downloads": 2633,
+    "downloads": 2642,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59522,8 +59543,8 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 1954,
-    "downloads": 275254,
+    "likes": 1956,
+    "downloads": 277456,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59557,8 +59578,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1951,
-    "downloads": 676123,
+    "likes": 1955,
+    "downloads": 715460,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59582,8 +59603,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1914,
-    "downloads": 8904396,
+    "likes": 1915,
+    "downloads": 8599947,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59611,31 +59632,8 @@
       "license:other",
       "region:us"
     ],
-    "likes": 1893,
-    "downloads": 187453,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "huggingface-Tongyi-MAI-Z-Image-Turbo",
-    "slug": "huggingface--tongyi-mai--z-image-turbo",
-    "name": "Z-Image-Turbo",
-    "author": "Tongyi-MAI",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "image-generation",
-      "en",
-      "arxiv:2511.22699",
-      "arxiv:2511.22677",
-      "arxiv:2511.13649",
-      "license:apache-2.0",
-      "diffusers:ZImagePipeline",
-      "region:us"
-    ],
-    "likes": 1873,
-    "downloads": 86570,
+    "likes": 1897,
+    "downloads": 195691,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59671,8 +59669,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1852,
-    "downloads": 1623445,
+    "likes": 1857,
+    "downloads": 1625202,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59694,8 +59692,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1824,
-    "downloads": 125753,
+    "likes": 1827,
+    "downloads": 136730,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59723,7 +59721,7 @@
       "region:us"
     ],
     "likes": 1814,
-    "downloads": 393861,
+    "downloads": 374954,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59759,7 +59757,25 @@
       "deploy:azure"
     ],
     "likes": 1814,
-    "downloads": 246657,
+    "downloads": 223909,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "huggingface-Kijai-WanVideo-comfy",
+    "slug": "huggingface--kijai--wanvideo-comfy",
+    "name": "WanVideo_comfy",
+    "author": "Kijai",
+    "description": "",
+    "tags": [
+      "diffusion-single-file",
+      "comfyui",
+      "base_model:Wan-AI/Wan2.1-VACE-1.3B",
+      "base_model:finetune:Wan-AI/Wan2.1-VACE-1.3B",
+      "region:us"
+    ],
+    "likes": 1804,
+    "downloads": 6023105,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59777,26 +59793,8 @@
       "arxiv:2308.06721",
       "region:us"
     ],
-    "likes": 1787,
-    "downloads": 209286,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "huggingface-Kijai-WanVideo-comfy",
-    "slug": "huggingface--kijai--wanvideo-comfy",
-    "name": "WanVideo_comfy",
-    "author": "Kijai",
-    "description": "",
-    "tags": [
-      "diffusion-single-file",
-      "comfyui",
-      "base_model:Wan-AI/Wan2.1-VACE-1.3B",
-      "base_model:finetune:Wan-AI/Wan2.1-VACE-1.3B",
-      "region:us"
-    ],
-    "likes": 1784,
-    "downloads": 6221170,
+    "likes": 1791,
+    "downloads": 207631,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59921,8 +59919,8 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 1773,
-    "downloads": 267477,
+    "likes": 1775,
+    "downloads": 210941,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59947,7 +59945,7 @@
       "region:us"
     ],
     "likes": 1771,
-    "downloads": 52894,
+    "downloads": 52139,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -59979,8 +59977,8 @@
       "text-generation-inference",
       "region:us"
     ],
-    "likes": 1762,
-    "downloads": 2831,
+    "likes": 1763,
+    "downloads": 3054,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60008,32 +60006,7 @@
       "region:us"
     ],
     "likes": 1741,
-    "downloads": 80828,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "huggingface-dreamlike-art-dreamlike-photoreal-2.0",
-    "slug": "huggingface--dreamlike-art--dreamlike-photoreal-2.0",
-    "name": "dreamlike-photoreal-2.0",
-    "author": "dreamlike-art",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "stable-diffusion",
-      "stable-diffusion-diffusers",
-      "image-generation",
-      "photorealistic",
-      "photoreal",
-      "en",
-      "license:other",
-      "autotrain_compatible",
-      "diffusers:StableDiffusionPipeline",
-      "region:us"
-    ],
-    "likes": 1719,
-    "downloads": 8045,
+    "downloads": 82134,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60085,8 +60058,33 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1718,
-    "downloads": 1240621,
+    "likes": 1724,
+    "downloads": 1334350,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "huggingface-dreamlike-art-dreamlike-photoreal-2.0",
+    "slug": "huggingface--dreamlike-art--dreamlike-photoreal-2.0",
+    "name": "dreamlike-photoreal-2.0",
+    "author": "dreamlike-art",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "stable-diffusion",
+      "stable-diffusion-diffusers",
+      "image-generation",
+      "photorealistic",
+      "photoreal",
+      "en",
+      "license:other",
+      "autotrain_compatible",
+      "diffusers:StableDiffusionPipeline",
+      "region:us"
+    ],
+    "likes": 1719,
+    "downloads": 7993,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60110,8 +60108,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1713,
-    "downloads": 799739,
+    "likes": 1714,
+    "downloads": 825974,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60137,7 +60135,7 @@
       "deploy:azure"
     ],
     "likes": 1711,
-    "downloads": 199,
+    "downloads": 316,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60159,7 +60157,7 @@
       "region:us"
     ],
     "likes": 1697,
-    "downloads": 411,
+    "downloads": 482,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60185,8 +60183,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1683,
-    "downloads": 302626,
+    "likes": 1684,
+    "downloads": 271286,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60205,7 +60203,7 @@
       "region:us"
     ],
     "likes": 1681,
-    "downloads": 9683,
+    "downloads": 10855,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60228,8 +60226,8 @@
       "license:other",
       "region:us"
     ],
-    "likes": 1675,
-    "downloads": 83355,
+    "likes": 1676,
+    "downloads": 80503,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60258,8 +60256,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 1629,
-    "downloads": 190008,
+    "likes": 1628,
+    "downloads": 209932,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60279,8 +60277,8 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 1621,
-    "downloads": 157968,
+    "likes": 1624,
+    "downloads": 150046,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60297,8 +60295,8 @@
       "license:cc-by-nc-4.0",
       "region:us"
     ],
-    "likes": 1616,
-    "downloads": 1525,
+    "likes": 1617,
+    "downloads": 1459,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60329,8 +60327,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1598,
-    "downloads": 169036,
+    "likes": 1599,
+    "downloads": 145469,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60352,8 +60350,8 @@
       "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 1577,
-    "downloads": 3032,
+    "likes": 1576,
+    "downloads": 3038,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60379,8 +60377,8 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1559,
-    "downloads": 101046,
+    "likes": 1560,
+    "downloads": 107143,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60417,7 +60415,7 @@
       "region:us"
     ],
     "likes": 1544,
-    "downloads": 182677,
+    "downloads": 183200,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60473,8 +60471,8 @@
       "autotrain_compatible",
       "region:us"
     ],
-    "likes": 1543,
-    "downloads": 406758,
+    "likes": 1544,
+    "downloads": 402503,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60500,7 +60498,7 @@
       "region:us"
     ],
     "likes": 1526,
-    "downloads": 17117,
+    "downloads": 15483,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -60509,11 +60507,11 @@
     "slug": "pytorch--huggingface--pytorch-transformers",
     "name": "PyTorch-Transformers",
     "author": "huggingface",
-    "description": "PyTorch implementations of popular NLP Transformers \t\t\t\t\t\t \t\t\t\t\t 153.3k",
+    "description": "PyTorch implementations of popular NLP Transformers \t\t\t\t\t\t \t\t\t\t\t 153.5k",
     "tags": [
       "pytorch"
     ],
-    "likes": 153300,
+    "likes": 153500,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -60523,11 +60521,11 @@
     "slug": "pytorch--ultralytics--yolov5",
     "name": "YOLOv5",
     "author": "ultralytics",
-    "description": "Ultralytics YOLOv5 🚀 for object detection, instance segmentation and image classification. \t\t\t\t\t\t \t\t\t\t\t 56.2k",
+    "description": "Ultralytics YOLOv5 🚀 for object detection, instance segmentation and image classification. \t\t\t\t\t\t \t\t\t\t\t 56.3k",
     "tags": [
       "pytorch"
     ],
-    "likes": 56200,
+    "likes": 56300,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -60557,49 +60555,6 @@
       "translation-localization"
     ],
     "likes": 32000,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "pytorch-pytorch-GoogLeNet",
-    "slug": "pytorch--pytorch--googlenet",
-    "name": "GoogLeNet",
-    "author": "pytorch",
-    "description": "GoogLeNet was based on a deep convolutional neural network architecture codenamed “Inception” which won ImageNet 2014. \t\t\t\t\t\t \t\t\t\t\t 17.4k",
-    "tags": [
-      "pytorch",
-      "code-generation-assistance"
-    ],
-    "likes": 17400,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "pytorch-pytorch-Inception-v3",
-    "slug": "pytorch--pytorch--inception-v3",
-    "name": "Inception_v3",
-    "author": "pytorch",
-    "description": "Also called GoogleNetv3, a famous ConvNet trained on ImageNet from 2015 \t\t\t\t\t\t \t\t\t\t\t 17.4k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17400,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "pytorch-pytorch-MobileNet v2",
-    "slug": "pytorch--pytorch--mobilenet v2",
-    "name": "MobileNet v2",
-    "author": "pytorch",
-    "description": "Efficient networks optimized for speed and memory, with residual blocks \t\t\t\t\t\t \t\t\t\t\t 17.4k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17400,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -60745,6 +60700,91 @@
     "source": "unknown"
   },
   {
+    "id": "pytorch-pytorch-GoogLeNet",
+    "slug": "pytorch--pytorch--googlenet",
+    "name": "GoogLeNet",
+    "author": "pytorch",
+    "description": "GoogLeNet was based on a deep convolutional neural network architecture codenamed “Inception” which won ImageNet 2014. \t\t\t\t\t\t \t\t\t\t\t 17.4k",
+    "tags": [
+      "pytorch",
+      "code-generation-assistance"
+    ],
+    "likes": 17400,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "pytorch-pytorch-Inception-v3",
+    "slug": "pytorch--pytorch--inception-v3",
+    "name": "Inception_v3",
+    "author": "pytorch",
+    "description": "Also called GoogleNetv3, a famous ConvNet trained on ImageNet from 2015 \t\t\t\t\t\t \t\t\t\t\t 17.4k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17400,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "pytorch-pytorch-MobileNet v2",
+    "slug": "pytorch--pytorch--mobilenet v2",
+    "name": "MobileNet v2",
+    "author": "pytorch",
+    "description": "Efficient networks optimized for speed and memory, with residual blocks \t\t\t\t\t\t \t\t\t\t\t 17.4k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17400,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "pytorch-nvidia-SSD",
+    "slug": "pytorch--nvidia--ssd",
+    "name": "SSD",
+    "author": "nvidia",
+    "description": "Single Shot MultiBox Detector model for object detection \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "pytorch-nvidia-Tacotron 2",
+    "slug": "pytorch--nvidia--tacotron 2",
+    "name": "Tacotron 2",
+    "author": "nvidia",
+    "description": "The Tacotron 2 model for generating mel spectrograms from text \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "pytorch-nvidia-WaveGlow",
+    "slug": "pytorch--nvidia--waveglow",
+    "name": "WaveGlow",
+    "author": "nvidia",
+    "description": "WaveGlow model for generating speech from mel spectrograms (generated by Tacotron2) \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
     "id": "pytorch-nvidia-FastPitch 2",
     "slug": "pytorch--nvidia--fastpitch 2",
     "name": "FastPitch 2",
@@ -60843,48 +60883,6 @@
     "source": "unknown"
   },
   {
-    "id": "pytorch-nvidia-SSD",
-    "slug": "pytorch--nvidia--ssd",
-    "name": "SSD",
-    "author": "nvidia",
-    "description": "Single Shot MultiBox Detector model for object detection \t\t\t\t\t\t \t\t\t\t\t 14.6k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "pytorch-nvidia-Tacotron 2",
-    "slug": "pytorch--nvidia--tacotron 2",
-    "name": "Tacotron 2",
-    "author": "nvidia",
-    "description": "The Tacotron 2 model for generating mel spectrograms from text \t\t\t\t\t\t \t\t\t\t\t 14.6k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "pytorch-nvidia-WaveGlow",
-    "slug": "pytorch--nvidia--waveglow",
-    "name": "WaveGlow",
-    "author": "nvidia",
-    "description": "WaveGlow model for generating speech from mel spectrograms (generated by Tacotron2) \t\t\t\t\t\t \t\t\t\t\t 14.6k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
     "id": "pytorch-snakers4-Silero Voice Activity Detector",
     "slug": "pytorch--snakers4--silero voice activity detector",
     "name": "Silero Voice Activity Detector",
@@ -60945,11 +60943,11 @@
     "slug": "pytorch--pytorch--snnmlp",
     "name": "SNNMLP",
     "author": "pytorch",
-    "description": "Brain-inspired Multilayer Perceptron with Spiking Neurons \t\t\t\t\t\t \t\t\t\t\t 4.3k",
+    "description": "Brain-inspired Multilayer Perceptron with Spiking Neurons \t\t\t\t\t\t \t\t\t\t\t 4.4k",
     "tags": [
       "pytorch"
     ],
-    "likes": 4300,
+    "likes": 4400,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -60959,11 +60957,11 @@
     "slug": "pytorch--pytorch--ghostnet",
     "name": "GhostNet",
     "author": "pytorch",
-    "description": "Efficient networks by generating more features from cheap operations \t\t\t\t\t\t \t\t\t\t\t 4.3k",
+    "description": "Efficient networks by generating more features from cheap operations \t\t\t\t\t\t \t\t\t\t\t 4.4k",
     "tags": [
       "pytorch"
     ],
-    "likes": 4300,
+    "likes": 4400,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -61053,6 +61051,20 @@
     "source": "unknown"
   },
   {
+    "id": "pytorch-facebookresearch-DCGAN on FashionGen",
+    "slug": "pytorch--facebookresearch--dcgan on fashiongen",
+    "name": "DCGAN on FashionGen",
+    "author": "facebookresearch",
+    "description": "A simple generative image model for 64×64 images \t\t\t\t\t\t \t\t\t\t\t 1.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 1600,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
     "id": "pytorch-facebookresearch-Progressive Growing of GANs (PGAN)",
     "slug": "pytorch--facebookresearch--progressive growing of gans (pgan)",
     "name": "Progressive Growing of GANs (PGAN)",
@@ -61061,20 +61073,6 @@
     "tags": [
       "pytorch",
       "image-generation"
-    ],
-    "likes": 1600,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "pytorch-facebookresearch-DCGAN on FashionGen",
-    "slug": "pytorch--facebookresearch--dcgan on fashiongen",
-    "name": "DCGAN on FashionGen",
-    "author": "facebookresearch",
-    "description": "A simple generative image model for 64×64 images \t\t\t\t\t\t \t\t\t\t\t 1.6k",
-    "tags": [
-      "pytorch"
     ],
     "likes": 1600,
     "downloads": 0,
@@ -61128,11 +61126,11 @@
     "slug": "pytorch--mateuszbuda--u-net for brain mri",
     "name": "U-Net for brain MRI",
     "author": "mateuszbuda",
-    "description": "U-Net with batch normalization for biomedical image segmentation with pretrained weights for abnormality segmentation in brain MRI \t\t\t\t\t\t \t\t\t\t\t 768",
+    "description": "U-Net with batch normalization for biomedical image segmentation with pretrained weights for abnormality segmentation in brain MRI \t\t\t\t\t\t \t\t\t\t\t 767",
     "tags": [
       "pytorch"
     ],
-    "likes": 768,
+    "likes": 767,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -61366,6 +61364,27 @@
     "source": "unknown"
   },
   {
+    "id": "github-Om29Singh-Diabetes-Prediction",
+    "slug": "github--om29singh--diabetes-prediction",
+    "name": "Diabetes_Prediction",
+    "author": "Om29Singh",
+    "description": "Diabetes Prediction using Machine Learning",
+    "tags": [
+      "github",
+      "jupyter-notebooks",
+      "machine-learning",
+      "machine-learning-model",
+      "prediction",
+      "python3",
+      "supervised-learning-algorithms",
+      "support-vector-machines"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
     "id": "github-twoChar-Flight-Fare-Prediction",
     "slug": "github--twochar--flight-fare-prediction",
     "name": "Flight-Fare-Prediction",
@@ -61382,27 +61401,6 @@
       "python",
       "scikit-learn",
       "seaborn"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "github-Om29Singh-Diabetes-Prediction",
-    "slug": "github--om29singh--diabetes-prediction",
-    "name": "Diabetes_Prediction",
-    "author": "Om29Singh",
-    "description": "Diabetes Prediction using Machine Learning",
-    "tags": [
-      "github",
-      "jupyter-notebooks",
-      "machine-learning",
-      "machine-learning-model",
-      "prediction",
-      "python3",
-      "supervised-learning-algorithms",
-      "support-vector-machines"
     ],
     "likes": 1,
     "downloads": 0,
