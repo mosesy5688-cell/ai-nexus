@@ -28,18 +28,36 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           echo "🔄 Creating D1 backup..."
+          echo "Database: ai-nexus-db"
+          echo "Account ID: ${CLOUDFLARE_ACCOUNT_ID:0:8}..."
           
-          # Create backup and capture output
+          # Run wrangler with verbose output
+          set +e  # Don't exit on error
           BACKUP_OUTPUT=$(wrangler d1 backup create ai-nexus-db --remote 2>&1)
+          BACKUP_EXIT_CODE=$?
+          set -e
+          
+          echo "Wrangler output:"
           echo "$BACKUP_OUTPUT"
+          echo "Exit code: $BACKUP_EXIT_CODE"
+          
+          if [ $BACKUP_EXIT_CODE -ne 0 ]; then
+            echo "❌ Wrangler command failed"
+            echo "::error::D1 backup failed: $BACKUP_OUTPUT"
+            exit 1
+          fi
           
           # Extract backup ID (handle both JSON and text output)
           BACKUP_ID=$(echo "$BACKUP_OUTPUT" | grep -oP 'backup-[a-f0-9\-]+' | head -1 || echo "")
           
           if [ -z "$BACKUP_ID" ]; then
-            echo "❌ Failed to extract backup ID"
-            echo "$BACKUP_OUTPUT"
-            exit 1
+            # Try alternative extraction for newer wrangler output
+            BACKUP_ID=$(echo "$BACKUP_OUTPUT" | grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' | head -1 || echo "")
+          fi
+          
+          if [ -z "$BACKUP_ID" ]; then
+            echo "⚠️ Could not extract backup ID, but command succeeded"
+            BACKUP_ID="unknown-$(date +%Y%m%d%H%M%S)"
           fi
           
           echo "BACKUP_ID=$BACKUP_ID" >> $GITHUB_OUTPUT
