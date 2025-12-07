@@ -1,6 +1,8 @@
 ---
 // src/components/GraphExplorer.astro
 const { modelId } = Astro.props;
+// Build timestamp for cache-busting API requests
+const buildTime = import.meta.env.PUBLIC_BUILD_TIME || Date.now().toString();
 ---
 
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 my-8" id="graph-explorer">
@@ -15,7 +17,7 @@ const { modelId } = Astro.props;
         </div>
     </div>
     
-    <div id="graph-container" data-model-id={modelId} class="w-full h-[300px] bg-gray-50 dark:bg-gray-900 rounded-lg overflow-hidden relative cursor-grab border border-gray-100 dark:border-gray-800">
+    <div id="graph-container" data-model-id={modelId} data-build-time={buildTime} class="w-full h-[300px] bg-gray-50 dark:bg-gray-900 rounded-lg overflow-hidden relative cursor-grab border border-gray-100 dark:border-gray-800">
         <div id="graph-loading" class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-800/80 z-10 transition-opacity duration-300">
             <div class="flex flex-col items-center">
                 <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
@@ -37,6 +39,7 @@ const { modelId } = Astro.props;
         }
         
         const modelId = container.dataset.modelId;
+        const buildTime = container.dataset.buildTime || Date.now();
         if (!modelId) {
             console.error('[GraphExplorer] modelId not found in dataset');
             return;
@@ -68,7 +71,8 @@ const { modelId } = Astro.props;
         // Fetch Data
         function loadGraphData() {
             console.log('[Graph] Loading for ' + modelId);
-            fetch('/api/graph/neighbors.json?id=' + encodeURIComponent(modelId))
+            // Include build time for cache-busting to prevent stale data
+            fetch('/api/graph/neighbors.json?id=' + encodeURIComponent(modelId) + '&v=' + buildTime)
                 .then(function(response) {
                     if (!response.ok) {
                         return response.text().then(function(errText) {

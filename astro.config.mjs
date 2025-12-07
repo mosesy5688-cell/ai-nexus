@@ -7,6 +7,10 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Build timestamp for cache-busting API requests
+const BUILD_TIME = Date.now().toString();
+
+
 export default defineConfig({
   site: 'https://free2aitools.com',
   output: 'server',
@@ -25,6 +29,9 @@ export default defineConfig({
   },
   integrations: [tailwind(), sitemap()],
   vite: {
+    define: {
+      'import.meta.env.PUBLIC_BUILD_TIME': JSON.stringify(BUILD_TIME)
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src')
