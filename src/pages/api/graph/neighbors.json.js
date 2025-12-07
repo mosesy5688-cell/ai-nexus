@@ -1,106 +1,148 @@
 export const prerender = false;
 
-import { getModelBySlug } from '../../../utils/db.js'; // Explicit extension fix
+import { getModelBySlug } from '../../../utils/db.js';
 
-export async function GET({ request, params, locals }) {
+export async function GET({ request, locals }) {
     const url = new URL(request.url);
     const modelId = url.searchParams.get('id');
 
     if (!modelId) {
-        return new Response(JSON.stringify({ error: 'Model ID required' }), { status: 400 });
+        return new Response(JSON.stringify({ error: 'Model ID required' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 
     const nodes = new Map();
     const links = [];
 
-    // Add main node
-    const mainNodeId = modelId;
-    nodes.set(mainNodeId, {
-        id: mainNodeId,
-        name: modelId.split('/')[1] || modelId,
-        group: 'main',
-        val: 20
-    });
-
     try {
-        const db = locals.runtime.env.DB;
-
-        // URN for the requested model (default assumption)
-        const modelUrn = `urn:model:${modelId}`;
-        let searchUrns = [modelUrn];
-
-        // Fetch model metadata to construct robust URN (author/name)
-        try {
-            // The 'id' param might be a slug or a real ID, try both using helper
-            const model = await getModelBySlug(modelId, locals);
-
-            if (model && model.author && model.name) {
-                // Construct clean URN from canonical data
-                const cleanId = `${model.author}/${model.name}`;
-                const cleanUrn = `urn:model:${cleanId}`;
-
-                // Also try the raw DB ID if different
-                const rawIdUrn = `urn:model:${model.id}`;
-
-                if (cleanUrn !== modelUrn && !searchUrns.includes(cleanUrn)) searchUrns.push(cleanUrn);
-                if (rawIdUrn !== modelUrn && !searchUrns.includes(rawIdUrn)) searchUrns.push(rawIdUrn);
-            }
-        } catch (e) {
-            console.warn('Failed to resolve robust URN:', e);
-        }
-
-        // build dynamic placeholders for IN clause
-        const placeholders = searchUrns.map(() => '?').join(',');
-        const queryParams = [...searchUrns, ...searchUrns]; // for source OR target
-
-        // Query edges where this model is source or target
-        const stmt = db.prepare(`
-            SELECT * FROM graph_edges 
-            WHERE source IN (${placeholders}) OR target IN (${placeholders}) 
-            LIMIT 100
-        `).bind(...queryParams);
-
-        const { results } = await stmt.all();
-
-        for (const edge of results) {
-            // Identify the "other" node
-            const isSource = edge.source === modelUrn;
-            const otherUrn = isSource ? edge.target : edge.source;
-
-            // Helper to parse URN
-            // urn:type:value
-            const parts = otherUrn.split(':');
-            const type = parts[1] || 'unknown';
-            const value = parts.slice(2).join(':');
-
-            // Add node if not exists
-            if (!nodes.has(otherUrn)) {
-                nodes.set(otherUrn, {
-                    id: otherUrn,
-                    name: value, // TODO: Enhance with real titles lookup if needed
-                    group: type,
-                    val: 5
-                });
-            }
-
-            // Add link
-            links.push({
-                source: isSource ? mainNodeId : otherUrn,
-                target: isSource ? otherUrn : mainNodeId,
-                type: edge.type,
-                value: 1
+        const db = locals.runtime?.env?.DB;
+        if (!db) {
+            return new Response(JSON.stringify({ nodes: [], links: [] }), {
+                headers: { 'Content-Type': 'application/json' }
             });
         }
 
+        // Fetch main model
+        const model = await getModelBySlug(modelId, locals);
+
+        if (!model) {
+            return new Response(JSON.stringify({ nodes: [], links: [] }), {
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        // Add main node
+        const mainNodeId = model.id;
+        nodes.set(mainNodeId, {
+            id: mainNodeId,
+            name: model.name || modelId.split('/').pop(),
+            group: 'main',
+            slug: model.slug || model.id.replace(/\//g, '--'),
+            val: 20
+        });
+
+        // Use related_ids from model (primary data source)
+        let relatedIds = [];
+        try {
+            if (model.related_ids) {
+                relatedIds = typeof model.related_ids === 'string'
+                    ? JSON.parse(model.related_ids)
+                    : model.related_ids;
+            }
+        } catch (e) {
+            console.warn('[Graph] Failed to parse related_ids:', e);
+        }
+
+        // Fetch related models details
+        if (relatedIds.length > 0) {
+            const placeholders = relatedIds.map(() => '?').join(',');
+            const { results: relatedModels } = await db.prepare(`
+                SELECT id, name, author, pipeline_tag, slug FROM models 
+                WHERE id IN (${placeholders})
+                LIMIT 10
+            `).bind(...relatedIds).all();
+
+            for (const related of relatedModels || []) {
+                const nodeId = related.id;
+
+                // Add node
+                nodes.set(nodeId, {
+                    id: nodeId,
+                    name: related.name || nodeId.split('/').pop(),
+                    group: 'model',
+                    slug: related.slug || related.id.replace(/\//g, '--'),
+                    author: related.author,
+                    pipeline_tag: related.pipeline_tag,
+                    val: 10
+                });
+
+                // Add link
+                links.push({
+                    source: mainNodeId,
+                    target: nodeId,
+                    type: 'related',
+                    value: 1
+                });
+            }
+        }
+
+        // Fallback: If no related_ids, try graph_edges table
+        if (links.length === 0) {
+            try {
+                const { results: edges } = await db.prepare(`
+                    SELECT * FROM graph_edges 
+                    WHERE source LIKE ? OR target LIKE ?
+                    LIMIT 20
+                `).bind(`%${model.id}%`, `%${model.id}%`).all();
+
+                for (const edge of edges || []) {
+                    const isSource = edge.source.includes(model.id);
+                    const otherUrn = isSource ? edge.target : edge.source;
+
+                    const parts = otherUrn.split(':');
+                    const type = parts[1] || 'unknown';
+                    const value = parts.slice(2).join(':');
+
+                    if (!nodes.has(otherUrn)) {
+                        nodes.set(otherUrn, {
+                            id: otherUrn,
+                            name: value.split('/').pop() || value,
+                            group: type,
+                            slug: value.replace(/\//g, '--'),
+                            val: 5
+                        });
+                    }
+
+                    links.push({
+                        source: mainNodeId,
+                        target: otherUrn,
+                        type: edge.type || 'related',
+                        value: 1
+                    });
+                }
+            } catch (e) {
+                // graph_edges table might not exist, ignore
+                console.warn('[Graph] graph_edges query failed:', e.message);
+            }
+        }
+
     } catch (e) {
-        console.error("Graph data fetch error:", e);
-        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+        console.error('[Graph] Error:', e);
+        return new Response(JSON.stringify({ error: e.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 
     return new Response(JSON.stringify({
         nodes: Array.from(nodes.values()),
         links
     }), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=300'
+        }
     });
 }
