@@ -96,10 +96,16 @@ try {
     if (model.links_data.demo_url) {
       resourceLinks.push({ label: 'Live Demo', url: model.links_data.demo_url, icon: 'demo' });
     }
-    
-    // Parsed resources logic
-    const parsed = typeof model.resources === 'string' ? JSON.parse(model.resources) : model.resources;
-    if (Array.isArray(parsed)) parsedResources = parsed;
+  }
+  
+  // Parsed resources logic - always parse if resources field exists
+  if (model?.resources) {
+    try {
+      const parsed = typeof model.resources === 'string' ? JSON.parse(model.resources) : model.resources;
+      if (Array.isArray(parsed)) parsedResources = parsed;
+    } catch (e) {
+      console.warn('Failed to parse resources:', e);
+    }
   }
 } catch (e) {
   console.warn("Error loading model:", e);
