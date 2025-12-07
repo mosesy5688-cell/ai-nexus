@@ -121,7 +121,10 @@ let pageDescription = "Browse and filter our extensive collection of open-source
             minLikes: document.getElementById('min-likes'),
             hasBenchmarks: document.getElementById('has-benchmarks'),
             sourceInputs: document.querySelectorAll('input[name="source"]'),
-            daysAgoInputs: document.querySelectorAll('input[name="days_ago"]')
+            daysAgoInputs: document.querySelectorAll('input[name="days_ago"]'),
+            // Advanced Filters
+            licenseFilter: document.getElementById('license-filter'),
+            tagsInputs: document.querySelectorAll('input[name="tags"]')
         };
 
         function getFilters() {
@@ -137,7 +140,11 @@ let pageDescription = "Browse and filter our extensive collection of open-source
             const daysAgoEl = document.querySelector('input[name="days_ago"]:checked');
             const days_ago = daysAgoEl ? daysAgoEl.value : 0;
 
-            return { q, sort, min_likes, has_benchmarks, sources, days_ago };
+            // Advanced Filters
+            const license = elements.licenseFilter ? elements.licenseFilter.value : '';
+            const tags = Array.from(document.querySelectorAll('input[name="tags"]:checked')).map(i => i.value);
+
+            return { q, sort, min_likes, has_benchmarks, sources, days_ago, license, tags };
         }
 
         function updateActiveFiltersDisplay(filters) {
@@ -151,7 +158,9 @@ let pageDescription = "Browse and filter our extensive collection of open-source
                 const map = { '7': 'Past Week', '30': 'Past Month', '365': 'Past Year' };
                 chips.push(map[filters.days_ago] || 'Fresh');
             }
-            filters.sources.forEach(s => chips.push(s)); // Capitalize?
+            filters.sources.forEach(s => chips.push(s));
+            if (filters.license) chips.push(`License: ${filters.license.toUpperCase()}`);
+            filters.tags.forEach(t => chips.push(t.replace(/-/g, ' ')));
 
             if (chips.length > 0) {
                 elements.activeFilters.classList.remove('hidden');
@@ -192,6 +201,10 @@ let pageDescription = "Browse and filter our extensive collection of open-source
                 if (filters.has_benchmarks) params.set('has_benchmarks', 'true');
                 
                 filters.sources.forEach(s => params.append('source', s));
+
+                // Advanced Filters
+                if (filters.license) params.set('license', filters.license);
+                filters.tags.forEach(t => params.append('tags', t));
 
                 const response = await fetch(`/api/search?${params.toString()}`, {
                     signal: currentController.signal
@@ -241,6 +254,10 @@ let pageDescription = "Browse and filter our extensive collection of open-source
         
         document.querySelectorAll('input[name="source"]').forEach(el => el.addEventListener('change', fetchModels));
         document.querySelectorAll('input[name="days_ago"]').forEach(el => el.addEventListener('change', fetchModels));
+        
+        // Advanced Filter Listeners
+        if (elements.licenseFilter) elements.licenseFilter.addEventListener('change', fetchModels);
+        document.querySelectorAll('input[name="tags"]').forEach(el => el.addEventListener('change', fetchModels));
 
         if (elements.resetBtn) {
             elements.resetBtn.addEventListener('click', () => {
@@ -253,6 +270,10 @@ let pageDescription = "Browse and filter our extensive collection of open-source
                 document.querySelectorAll('input[name="source"]').forEach(el => el.checked = false);
                 const anyTime = document.querySelector('input[name="days_ago"][value="0"]');
                 if (anyTime) anyTime.checked = true;
+                
+                // Reset advanced filters
+                if(elements.licenseFilter) elements.licenseFilter.value = '';
+                document.querySelectorAll('input[name="tags"]').forEach(el => el.checked = false);
 
                 fetchModels();
             });
