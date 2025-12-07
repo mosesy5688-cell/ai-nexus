@@ -1,36 +1,111 @@
 ---
 // src/components/ResourceList.astro
-// External resources and files section
+// Enhanced: displays full source resource information
 const { resources } = Astro.props;
 const hasResources = resources && resources.length > 0;
+
+function formatNumber(num) {
+    if (!num) return '0';
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+}
+
+function getPlatformIcon(platform) {
+    switch(platform?.toLowerCase()) {
+        case 'github': return '🐙';
+        case 'hugging face': return '🤗';
+        case 'pytorch': return '🔥';
+        case 'arxiv': return '📄';
+        default: return '🔗';
+    }
+}
 ---
 
 {hasResources && (
-  <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+  <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
     <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
       <svg class="w-5 h-5 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
         <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
       </svg>
-      Available Resources
+      Source Resources
     </h3>
-    <ul class="space-y-3">
+    
+    <div class="space-y-4">
       {resources.map((resource) => (
-        <li class="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors">
-          <svg class="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-          </svg>
-          <div class="flex-1 min-w-0">
-            <a href={resource.url} target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline font-medium break-all">
-              {resource.url}
+        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-100 dark:border-gray-700">
+          <!-- Platform Header -->
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">{getPlatformIcon(resource.platform)}</span>
+              <span class="font-semibold text-gray-900 dark:text-white">{resource.platform || 'Source'}</span>
+            </div>
+            <a 
+              href={resource.url || resource.homepage} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              View →
             </a>
-            {resource.files && resource.files.length > 0 && (
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Contains {resource.files.length} file{resource.files.length !== 1 ? 's' : ''}
-              </p>
+          </div>
+          
+          <!-- Resource Stats Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            {resource.forks !== undefined && (
+              <div class="flex flex-col">
+                <span class="text-gray-500 dark:text-gray-400 text-xs">Forks</span>
+                <span class="font-medium text-gray-900 dark:text-white">{formatNumber(resource.forks)}</span>
+              </div>
+            )}
+            
+            {resource.open_issues !== undefined && (
+              <div class="flex flex-col">
+                <span class="text-gray-500 dark:text-gray-400 text-xs">Issues</span>
+                <span class="font-medium text-gray-900 dark:text-white">{formatNumber(resource.open_issues)}</span>
+              </div>
+            )}
+            
+            {resource.language && (
+              <div class="flex flex-col">
+                <span class="text-gray-500 dark:text-gray-400 text-xs">Language</span>
+                <span class="font-medium text-gray-900 dark:text-white">{resource.language}</span>
+              </div>
+            )}
+            
+            {resource.license && (
+              <div class="flex flex-col">
+                <span class="text-gray-500 dark:text-gray-400 text-xs">License</span>
+                <span class="font-medium text-gray-900 dark:text-white truncate" title={resource.license}>{resource.license}</span>
+              </div>
             )}
           </div>
-        </li>
+          
+          <!-- Homepage Link -->
+          {resource.homepage && resource.homepage !== resource.url && (
+            <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+              <a 
+                href={resource.homepage} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                class="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+                {resource.homepage}
+              </a>
+            </div>
+          )}
+          
+          <!-- File Count -->
+          {resource.files && resource.files.length > 0 && (
+            <div class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              📁 Contains {resource.files.length} file{resource.files.length !== 1 ? 's' : ''}
+            </div>
+          )}
+        </div>
       ))}
-    </ul>
+    </div>
   </section>
 )}
