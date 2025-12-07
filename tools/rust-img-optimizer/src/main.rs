@@ -51,10 +51,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ==================== Create temporary images directory ====================
     fs::create_dir_all("data/images")?;
 
-    // ==================== Load JSON data ====================
-    let data = fs::read_to_string(&args.input)?;
-    let models: Vec<Model> = serde_json::from_str(&data)?;
-    eprintln!("Found {} models in the file", models.len());
+    // ==================== Load JSON data with robust error handling ====================
+    let data = match fs::read_to_string(&args.input) {
+        Ok(content) => content,
+        Err(e) => {
+            eprintln!("❌ FATAL: Could not read input file '{}': {}", args.input, e);
+            eprintln!("📋 Health Check: FAILED - Input file not accessible");
+            std::process::exit(1);
+        }
+    };
+
+    // Handle empty file gracefully
+    if data.trim().is_empty() {
+        eprintln!("⚠️ WARNING: Input file is empty. Generating empty SQL files.");
+        eprintln!("📋 Health Check: WARN - No models to process");
+        
+        // Generate empty SQL files to prevent downstream failures
+        fs::write("data/upsert.sql", "-- Empty: No models in input\n")?;
+        fs::write("data/update_urls.sql", "-- Empty: No models in input\n")?;
+        return Ok(());
+    }
+
+    let models: Vec<Model> = match serde_json::from_str(&data) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("❌ FATAL: JSON parse error: {}", e);
+            eprintln!("📋 Health Check: FAILED - Malformed JSON");
+            std::process::exit(1);
+        }
+    };
+
+    // Validate we have models
+    if models.is_empty() {
+        eprintln!("⚠️ WARNING: JSON parsed but contains 0 models.");
+        eprintln!("📋 Health Check: WARN - Empty model array");
+        fs::write("data/upsert.sql", "-- Empty: 0 models in array\n")?;
+        fs::write("data/update_urls.sql", "-- Empty: 0 models in array\n")?;
+        return Ok(());
+    }
+
+    eprintln!("✅ Found {} models in the file", models.len());
+    eprintln!("📋 Health Check: OK - Ready to process");
 
     // ==================== Process models concurrently ====================
     let semaphore = Arc::new(Semaphore::new(10));

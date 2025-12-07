@@ -1,9 +1,7 @@
--- Migration: Add fields for AI-generated content (Loop 2)
-ALTER TABLE models ADD COLUMN analysis_content TEXT;
-ALTER TABLE models ADD COLUMN seo_tags TEXT;
-ALTER TABLE models ADD COLUMN last_enriched_at INTEGER;
-ALTER TABLE models ADD COLUMN seo_status TEXT DEFAULT 'pending'; -- pending, processing, done
+-- Migration: 0019_add_content_fields.sql
+-- Status: ALREADY APPLIED (columns existed in production)
+-- Original columns added: analysis_content, seo_tags, last_enriched_at, seo_status
+-- This is a no-op migration to allow migration tracking to proceed
 
-
--- Index for finding pending models quickly
-CREATE INDEX IF NOT EXISTS idx_models_seo_status ON models(seo_status);
+-- No-op: All columns already exist in production database
+SELECT 1;
