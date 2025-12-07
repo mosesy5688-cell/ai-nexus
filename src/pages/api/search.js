@@ -75,11 +75,12 @@ export async function GET({ request, locals }) {
             sql += ` AND pwc_sota_count > 0`;
         }
 
-        // License Filter
+        // License Filter (stored in resources JSON field)
         const license = url.searchParams.get('license');
         if (license) {
-            sql += ` AND LOWER(license) = ?`;
-            params.push(license.toLowerCase());
+            // License is stored in resources JSON, e.g. {"license":"MIT License"}
+            sql += ` AND resources LIKE ?`;
+            params.push(`%"license":"${license}%`);
         }
 
         // Multi-Tag Filter (AND logic: all tags must match)
