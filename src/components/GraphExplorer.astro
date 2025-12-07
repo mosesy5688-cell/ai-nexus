@@ -125,6 +125,7 @@ const { modelId } = Astro.props;
                 .join("circle")
                 .attr("r", function(d) { return d.id === modelId ? 12 : 8; })
                 .attr("fill", function(d) { return getNodeColor(d.group); })
+                .style("cursor", function(d) { return d.group === 'model' ? 'pointer' : 'default'; })
                 .call(drag(simulation));
             
             // Labels
@@ -143,10 +144,12 @@ const { modelId } = Astro.props;
             node.append("title")
                 .text(function(d) { return d.name + ' (' + d.group + ')'; });
             
-            // Click Event
+            // Click Event - Navigate to related models
             node.on("click", function(event, d) {
-                if (d.group === 'model' && d.id !== modelId) {
-                    window.location.href = '/model/' + d.id.replace(/\//g, '--');
+                if (d.group === 'model' && d.slug) {
+                    window.location.href = '/model/' + d.slug;
+                } else if (d.group === 'main') {
+                    // Already on this page, do nothing
                 } else if (d.url) {
                     window.open(d.url, '_blank');
                 }
