@@ -33,6 +33,12 @@ struct Model {
     source: Option<String>,
     description: Option<String>,
     image_url: Option<String>,
+    // V3.1 Schema Fields
+    source_trail: Option<String>,
+    commercial_slots: Option<String>,
+    notebooklm_summary: Option<String>,
+    velocity_score: Option<f64>,
+    last_commercial_at: Option<String>,
 }
 
 #[tokio::main]
@@ -194,8 +200,15 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
     let tags_json = serde_json::to_string(&model.tags.unwrap_or_default()).unwrap_or("[]".to_string());
     let safe_desc = model.description.unwrap_or_default().replace('\'', "''").replace('\n', " ");
 
+    // V3.1 Schema: Handle new fields
+    let source_trail = model.source_trail.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
+    let commercial_slots = model.commercial_slots.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
+    let notebooklm_summary = model.notebooklm_summary.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
+    let velocity_score = model.velocity_score.map(|v| v.to_string()).unwrap_or("NULL".to_string());
+    let last_commercial_at = model.last_commercial_at.clone().map(|s| format!("'{}'", s)).unwrap_or("NULL".to_string());
+
     let upsert_stmt = format!(
-        "INSERT OR REPLACE INTO models (id, slug, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, NULL, CURRENT_TIMESTAMP);\n",
+        "INSERT OR REPLACE INTO models (id, slug, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, source_trail, commercial_slots, notebooklm_summary, velocity_score, last_commercial_at, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, NULL, {}, {}, {}, {}, {}, CURRENT_TIMESTAMP);\n",
         db_id,
         slug,
         name.replace('\'', "''"),
@@ -204,7 +217,12 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
         tags_json.replace('\'', "''"),
         pipeline,
         model.likes.unwrap_or(0),
-        model.downloads.unwrap_or(0)
+        model.downloads.unwrap_or(0),
+        source_trail,
+        commercial_slots,
+        notebooklm_summary,
+        velocity_score,
+        last_commercial_at
     );
 
     // ==================== Image Download & Update SQL ====================

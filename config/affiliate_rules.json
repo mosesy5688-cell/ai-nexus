@@ -1,0 +1,214 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "version": "1.0.0",
+    "description": "Contextual Commerce Rules for AI-Nexus Loop 6 Merchant Engine",
+    "updated_at": "2025-12-07",
+    "rules": [
+        {
+            "id": "cloud-gpu-runpod",
+            "name": "Cloud GPU Recommendation",
+            "description": "Recommend RunPod for large text-generation models",
+            "priority": 100,
+            "match": {
+                "operator": "AND",
+                "conditions": [
+                    {
+                        "field": "pipeline_tag",
+                        "operator": "equals",
+                        "value": "text-generation"
+                    },
+                    {
+                        "field": "size_bytes",
+                        "operator": "gt",
+                        "value": 10737418240
+                    }
+                ]
+            },
+            "slot": {
+                "type": "cloud_gpu",
+                "provider": "RunPod",
+                "title": "Run this model on RunPod",
+                "description": "Large language models need powerful GPUs. RunPod offers A100 and H100 instances starting at $0.39/hr.",
+                "cta_text": "Deploy on RunPod →",
+                "affiliate_url": "https://runpod.io/?ref=free2aitools",
+                "icon": "☁️"
+            },
+            "enabled": true
+        },
+        {
+            "id": "local-hardware-rtx",
+            "name": "Local Hardware Recommendation",
+            "description": "Recommend RTX 4090 for local deployment models",
+            "priority": 90,
+            "match": {
+                "operator": "OR",
+                "conditions": [
+                    {
+                        "field": "tags",
+                        "operator": "contains",
+                        "value": "local"
+                    },
+                    {
+                        "field": "tags",
+                        "operator": "contains",
+                        "value": "gguf"
+                    },
+                    {
+                        "field": "tags",
+                        "operator": "contains",
+                        "value": "quantized"
+                    },
+                    {
+                        "field": "tags",
+                        "operator": "contains",
+                        "value": "llama-cpp"
+                    }
+                ]
+            },
+            "slot": {
+                "type": "hardware",
+                "provider": "Amazon",
+                "title": "Best GPU for Local AI",
+                "description": "The RTX 4090 offers 24GB VRAM and excellent price-to-performance for running LLMs locally.",
+                "cta_text": "Check Price on Amazon →",
+                "affiliate_url": "https://www.amazon.com/s?k=rtx+4090&tag=free2aitools-20",
+                "icon": "🖥️"
+            },
+            "enabled": true
+        },
+        {
+            "id": "api-provider-openrouter",
+            "name": "API Provider Recommendation",
+            "description": "Recommend OpenRouter for API-based access",
+            "priority": 80,
+            "match": {
+                "operator": "OR",
+                "conditions": [
+                    {
+                        "field": "tags",
+                        "operator": "contains",
+                        "value": "api"
+                    },
+                    {
+                        "field": "tags",
+                        "operator": "contains",
+                        "value": "inference"
+                    },
+                    {
+                        "field": "tags",
+                        "operator": "contains",
+                        "value": "endpoints"
+                    }
+                ]
+            },
+            "slot": {
+                "type": "api_provider",
+                "provider": "OpenRouter",
+                "title": "Access via API",
+                "description": "OpenRouter provides unified API access to 100+ models with pay-as-you-go pricing.",
+                "cta_text": "Try on OpenRouter →",
+                "affiliate_url": "https://openrouter.ai/?ref=free2aitools",
+                "icon": "🔌"
+            },
+            "enabled": true
+        },
+        {
+            "id": "image-gen-replicate",
+            "name": "Image Generation Cloud",
+            "description": "Recommend Replicate for image generation models",
+            "priority": 70,
+            "match": {
+                "operator": "OR",
+                "conditions": [
+                    {
+                        "field": "pipeline_tag",
+                        "operator": "equals",
+                        "value": "text-to-image"
+                    },
+                    {
+                        "field": "pipeline_tag",
+                        "operator": "equals",
+                        "value": "image-to-image"
+                    },
+                    {
+                        "field": "tags",
+                        "operator": "contains",
+                        "value": "diffusion"
+                    },
+                    {
+                        "field": "tags",
+                        "operator": "contains",
+                        "value": "stable-diffusion"
+                    }
+                ]
+            },
+            "slot": {
+                "type": "cloud_inference",
+                "provider": "Replicate",
+                "title": "Run Image Models on Replicate",
+                "description": "Replicate hosts popular image generation models with simple API access.",
+                "cta_text": "Try on Replicate →",
+                "affiliate_url": "https://replicate.com/?ref=free2aitools",
+                "icon": "🎨"
+            },
+            "enabled": true
+        },
+        {
+            "id": "audio-speech-elevenlabs",
+            "name": "Audio/Speech Services",
+            "description": "Recommend ElevenLabs for audio/speech models",
+            "priority": 60,
+            "match": {
+                "operator": "OR",
+                "conditions": [
+                    {
+                        "field": "pipeline_tag",
+                        "operator": "equals",
+                        "value": "text-to-speech"
+                    },
+                    {
+                        "field": "pipeline_tag",
+                        "operator": "equals",
+                        "value": "automatic-speech-recognition"
+                    },
+                    {
+                        "field": "tags",
+                        "operator": "contains",
+                        "value": "tts"
+                    },
+                    {
+                        "field": "tags",
+                        "operator": "contains",
+                        "value": "whisper"
+                    }
+                ]
+            },
+            "slot": {
+                "type": "cloud_service",
+                "provider": "ElevenLabs",
+                "title": "Professional Voice AI",
+                "description": "ElevenLabs offers the most natural-sounding AI voices for production use.",
+                "cta_text": "Try ElevenLabs →",
+                "affiliate_url": "https://elevenlabs.io/?ref=free2aitools",
+                "icon": "🎙️"
+            },
+            "enabled": true
+        }
+    ],
+    "defaults": {
+        "fallback_slot": {
+            "type": "generic",
+            "provider": "HuggingFace",
+            "title": "Try on HuggingFace Spaces",
+            "description": "Most models can be tested for free on HuggingFace Spaces.",
+            "cta_text": "Open in Spaces →",
+            "affiliate_url": null,
+            "icon": "🤗"
+        }
+    },
+    "settings": {
+        "max_slots_per_model": 2,
+        "slot_display_probability": 0.8,
+        "a_b_test_enabled": false
+    }
+}
