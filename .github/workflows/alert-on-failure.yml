@@ -2,7 +2,7 @@ name: Alert on Workflow Failure
 
 on:
   workflow_run:
-    workflows: ["Weekly Database Backup", "Deploy to Cloudflare Pages"]
+    workflows: ["Deploy to Cloudflare Pages", "Daily Ingest"]
     types: [completed]
   workflow_dispatch:
 
