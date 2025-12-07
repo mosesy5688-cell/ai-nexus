@@ -4,21 +4,21 @@
     "title": "General Dialogue & Q&A",
     "slug": "general-dialogue-qa",
     "description": "Models for open-ended conversations and answering various questions.",
-    "count": 281
+    "count": 310
   },
   {
     "id": 12,
     "title": "Image Generation",
     "slug": "image-generation",
     "description": "Generate images from text descriptions.",
-    "count": 139
+    "count": 159
   },
   {
     "id": 6,
     "title": "Code Generation & Assistance",
     "slug": "code-generation-assistance",
     "description": "Generate, complete, and explain code.",
-    "count": 131
+    "count": 138
   },
   {
     "id": 4,
@@ -53,7 +53,7 @@
     "title": "Video Generation & Editing",
     "slug": "video-generation-editing",
     "description": "Generate or edit video content.",
-    "count": 5
+    "count": 6
   },
   {
     "id": 17,
