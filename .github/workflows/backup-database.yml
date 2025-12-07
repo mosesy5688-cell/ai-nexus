@@ -1,12 +1,16 @@
 name: Weekly Database Backup
 
+# NOTE: Cloudflare D1 production databases use "Time Travel" for automatic
+# point-in-time recovery (last 30 days on paid, 7 days on free).
+# This workflow exports a manual SQL backup for additional redundancy.
+
 on:
   schedule:
     - cron: '0 3 * * 0'  # Every Sunday at 3 AM UTC (11 AM Beijing Time)
   workflow_dispatch:     # Manual trigger support
 
 jobs:
-  backup-database:
+  export-database:
     runs-on: ubuntu-latest
     
     steps:
@@ -21,96 +25,72 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler@latest
       
-      - name: Create D1 Backup
-        id: backup
+      - name: Export D1 Database
+        id: export
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "🔄 Creating D1 backup..."
+          echo "🔄 Exporting D1 database..."
           echo "Database: ai-nexus-db"
-          echo "Account ID: ${CLOUDFLARE_ACCOUNT_ID:0:8}..."
           
-          # Run wrangler with verbose output
-          set +e  # Don't exit on error
-          BACKUP_OUTPUT=$(wrangler d1 backup create ai-nexus-db --remote 2>&1)
-          BACKUP_EXIT_CODE=$?
-          set -e
-          
-          echo "Wrangler output:"
-          echo "$BACKUP_OUTPUT"
-          echo "Exit code: $BACKUP_EXIT_CODE"
-          
-          if [ $BACKUP_EXIT_CODE -ne 0 ]; then
-            echo "❌ Wrangler command failed"
-            echo "::error::D1 backup failed: $BACKUP_OUTPUT"
-            exit 1
-          fi
-          
-          # Extract backup ID (handle both JSON and text output)
-          BACKUP_ID=$(echo "$BACKUP_OUTPUT" | grep -oP 'backup-[a-f0-9\-]+' | head -1 || echo "")
-          
-          if [ -z "$BACKUP_ID" ]; then
-            # Try alternative extraction for newer wrangler output
-            BACKUP_ID=$(echo "$BACKUP_OUTPUT" | grep -oE '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}' | head -1 || echo "")
-          fi
-          
-          if [ -z "$BACKUP_ID" ]; then
-            echo "⚠️ Could not extract backup ID, but command succeeded"
-            BACKUP_ID="unknown-$(date +%Y%m%d%H%M%S)"
-          fi
-          
-          echo "BACKUP_ID=$BACKUP_ID" >> $GITHUB_OUTPUT
-          echo "✅ Backup created: $BACKUP_ID"
-          
-          # Save backup metadata
+          # Create backups directory
           mkdir -p backups
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          echo "$BACKUP_ID" > "backups/backup-$TIMESTAMP.txt"
-          echo "Backup created at: $(date -u)" >> "backups/backup-$TIMESTAMP.txt"
-          echo "Workflow run: ${{ github.run_id }}" >> "backups/backup-$TIMESTAMP.txt"
-      
-      - name: Verify Backup Exists
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          echo "🔍 Verifying backup..."
-          BACKUP_ID="${{ steps.backup.outputs.BACKUP_ID }}"
+          EXPORT_FILE="backups/ai-nexus-db-$TIMESTAMP.sql"
           
-          # List backups and check if our backup exists
-          BACKUP_LIST=$(wrangler d1 backup list ai-nexus-db --remote 2>&1)
+          # Run wrangler d1 export
+          set +e
+          wrangler d1 export ai-nexus-db --remote --output="$EXPORT_FILE" 2>&1
+          EXPORT_EXIT_CODE=$?
+          set -e
           
-          if echo "$BACKUP_LIST" | grep -q "$BACKUP_ID"; then
-            echo "✅ Backup verified: $BACKUP_ID exists in backup list"
-          else
-            echo "❌ Backup verification failed"
-            echo "Backup list:"
-            echo "$BACKUP_LIST"
+          echo "Exit code: $EXPORT_EXIT_CODE"
+          
+          if [ $EXPORT_EXIT_CODE -ne 0 ]; then
+            echo "❌ Database export failed"
+            echo "::error::D1 export failed with exit code $EXPORT_EXIT_CODE"
             exit 1
           fi
+          
+          # Verify file exists and has content
+          if [ -f "$EXPORT_FILE" ]; then
+            FILE_SIZE=$(stat -c%s "$EXPORT_FILE" 2>/dev/null || stat -f%z "$EXPORT_FILE")
+            echo "✅ Export successful: $EXPORT_FILE ($FILE_SIZE bytes)"
+            echo "EXPORT_FILE=$EXPORT_FILE" >> $GITHUB_OUTPUT
+            echo "FILE_SIZE=$FILE_SIZE" >> $GITHUB_OUTPUT
+            echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Export file not found"
+            exit 1
+          fi
+          
+          # Create metadata
+          echo "Export created at: $(date -u)" >> "backups/backup-$TIMESTAMP.txt"
+          echo "File: $EXPORT_FILE" >> "backups/backup-$TIMESTAMP.txt"
+          echo "Size: $FILE_SIZE bytes" >> "backups/backup-$TIMESTAMP.txt"
+          echo "Workflow run: ${{ github.run_id }}" >> "backups/backup-$TIMESTAMP.txt"
       
-      - name: Upload Backup Metadata
+      - name: Upload Backup Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: backup-metadata-${{ github.run_number }}
+          name: db-export-${{ github.run_number }}
           path: backups/
           retention-days: 90
       
       - name: Notify Success (Slack)
         if: success() && vars.SLACK_WEBHOOK_URL != ''
         run: |
-          BACKUP_ID="${{ steps.backup.outputs.BACKUP_ID }}"
           curl -X POST ${{ vars.SLACK_WEBHOOK_URL }} \
             -H 'Content-Type: application/json' \
             -d "{
-              \"text\": \"✅ Database Backup Successful\",
+              \"text\": \"✅ Database Export Successful\",
               \"blocks\": [
                 {
                   \"type\": \"section\",
                   \"text\": {
                     \"type\": \"mrkdwn\",
-                    \"text\": \"*Database Backup Completed*\n\n• Backup ID: \`$BACKUP_ID\`\n• Time: $(date -u)\n• Workflow: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>\"
+                    \"text\": \"*Database Export Completed*\n\n• File: \`${{ steps.export.outputs.EXPORT_FILE }}\`\n• Size: ${{ steps.export.outputs.FILE_SIZE }} bytes\n• Time: $(date -u)\n• Workflow: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>\"
                   }
                 }
               ]
@@ -122,13 +102,13 @@ jobs:
           curl -X POST ${{ vars.SLACK_WEBHOOK_URL }} \
             -H 'Content-Type: application/json' \
             -d "{
-              \"text\": \"🚨 Database Backup FAILED\",
+              \"text\": \"🚨 Database Export FAILED\",
               \"blocks\": [
                 {
                   \"type\": \"section\",
                   \"text\": {
                     \"type\": \"mrkdwn\",
-                    \"text\": \"*Database Backup Failed*\n\n• Time: $(date -u)\n• Workflow: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>\n• Please check logs immediately!\"
+                    \"text\": \"*Database Export Failed*\n\n• Time: $(date -u)\n• Workflow: <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>\n• Please check logs immediately!\"
                   }
                 }
               ]
@@ -137,9 +117,11 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "## 📊 Backup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Database Export Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Backup ID**: ${{ steps.backup.outputs.BACKUP_ID }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Export File**: ${{ steps.export.outputs.EXPORT_FILE }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **File Size**: ${{ steps.export.outputs.FILE_SIZE }} bytes" >> $GITHUB_STEP_SUMMARY
           echo "- **Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Workflow Run**: [${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note**: D1 Time Travel provides automatic point-in-time recovery." >> $GITHUB_STEP_SUMMARY
