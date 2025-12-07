@@ -25,16 +25,15 @@ jobs:
           npm ci
           # Rust is pre-installed on ubuntu-latest
 
-      # Step 4: Fetch Metadata (Multi-Source)
-      - name: Fetch Model Metadata
+      # Step 4: Multi-Source Fetch with V3.1 Schema Enrichment
+      - name: Fetch & Enrich Model Data (V3.1 Pipeline)
         env:
           CF_PROXY_URL: ${{ secrets.CF_PROXY_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/run-collectors.js
-
-      # Step 5: Process Raw Data (Loop 1.5)
-      - name: Process Raw Data (Loop 1.5)
-        run: node scripts/process-raw-data.js
+        run: |
+          echo "🚀 Running Multi-Source Fetcher with V3.1 Schema support..."
+          node scripts/multi-source-fetcher.js
+          echo "✅ Data fetched with source_trail and commercial_slots"
 
       # Step 6: Process Data with Rust (Core Step)
       - name: Process Data (Rust)
