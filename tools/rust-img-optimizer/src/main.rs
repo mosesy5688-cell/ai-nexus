@@ -228,8 +228,9 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
 
     // V3.2 Schema: Handle new fields
     let entity_type = model.entity_type.as_ref().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("'model'".to_string());
+    // Note: body_content limited to 10KB per model to avoid D1 batch size limits (690 models * 10KB = ~7MB)
     let body_content = model.body_content.as_ref().map(|s| {
-        let truncated = if s.len() > 100000 { &s[..100000] } else { s.as_str() };
+        let truncated = if s.len() > 10000 { &s[..10000] } else { s.as_str() };
         format!("'{}'", truncated.replace('\'', "''").replace('\n', "\\n"))
     }).unwrap_or("NULL".to_string());
     let meta_json = model.meta_json.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
