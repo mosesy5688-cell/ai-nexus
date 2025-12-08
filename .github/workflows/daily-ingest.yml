@@ -127,36 +127,22 @@ jobs:
           
           echo "✅ Quality Gate PASSED: SQL contains valid image URLs"
         
-      # Step 8a: Split SQL into batches for D1 upload (data integrity)
-      - name: Split SQL into Batches
-        run: |
-          echo "📦 Splitting SQL files for batch upload..."
-          node scripts/split-sql-batch.js ./data/upsert.sql ./data/batches/upsert
-          node scripts/split-sql-batch.js ./data/update_urls.sql ./data/batches/update_urls
-          echo "✅ SQL files split successfully"
-
-      # Step 8b: Execute D1 Updates in batches
-      - name: Execute D1 Updates (Batch)
+      # Step 8: Execute D1 Updates (Direct - SQL is now small with R2 content storage)
+      - name: Execute D1 Updates
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "🔄 Executing upsert batches..."
-          for file in ./data/batches/upsert/batch_*.sql; do
-            if [ -f "$file" ]; then
-              echo "  Executing $(basename $file)..."
-              npx wrangler d1 execute ai-nexus-db --remote --file="$file"
-            fi
-          done
+          echo "🔄 Executing D1 updates (R2 stores full content, D1 only metadata)..."
           
-          echo "🔄 Executing update_urls batches..."
-          for file in ./data/batches/update_urls/batch_*.sql; do
-            if [ -f "$file" ]; then
-              echo "  Executing $(basename $file)..."
-              npx wrangler d1 execute ai-nexus-db --remote --file="$file"
-            fi
-          done
+          echo "  📝 Executing upsert.sql..."
+          npx wrangler d1 execute ai-nexus-db --remote --file="./data/upsert.sql"
+          
+          echo "  📝 Executing update_urls.sql..."
+          npx wrangler d1 execute ai-nexus-db --remote --file="./data/update_urls.sql"
+          
           echo "✅ All D1 updates completed"
+
 
       # Step 9: Upload artifacts
       - name: Upload ingest artifacts
@@ -169,4 +155,3 @@ jobs:
             data/merged.json
             data/upsert.sql
             data/update_urls.sql
-            data/batches/
