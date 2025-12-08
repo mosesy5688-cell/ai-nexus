@@ -3,7 +3,7 @@
  * SQL Batch Splitter
  * 
  * Splits large SQL files into smaller batches for D1 upload.
- * D1 has a ~10MB upload limit, so we split into 2MB batches for safety.
+ * D1 has internal limits, using 500KB batches for reliability.
  * 
  * Usage: node scripts/split-sql-batch.js <input.sql> <output-dir>
  * 
@@ -13,7 +13,8 @@
 import fs from 'fs';
 import path from 'path';
 
-const MAX_BATCH_SIZE = 2 * 1024 * 1024; // 2MB per batch
+// 500KB per batch for D1 compatibility (D1 has internal transaction limits)
+const MAX_BATCH_SIZE = 500 * 1024;
 
 function splitSqlFile(inputFile, outputDir) {
     console.log(`📦 Splitting ${inputFile} into batches...`);
