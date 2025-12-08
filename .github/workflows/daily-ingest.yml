@@ -74,6 +74,24 @@ jobs:
           done
           echo "✅ Images uploaded successfully"
       
+      # Step 7b: Upload Docs to R2 (V3.1 Constitution Pillar III: Data Integrity)
+      - name: Upload Docs to R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "📄 Uploading docs to R2 (full README storage)..."
+          doc_count=0
+          for file in data/docs/*.md; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "Uploading $filename..."
+              npx wrangler r2 object put "ai-nexus-assets/docs/$filename" --file="$file" --content-type="text/markdown"
+              doc_count=$((doc_count + 1))
+            fi
+          done
+          echo "✅ Uploaded $doc_count docs to R2"
+      
       # QUALITY GATE: Verify SQL contains image URLs
       - name: Validate SQL Output (Quality Gate)
         run: |
