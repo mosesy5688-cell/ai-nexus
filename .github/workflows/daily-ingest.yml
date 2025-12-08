@@ -25,15 +25,15 @@ jobs:
           npm ci
           # Rust is pre-installed on ubuntu-latest
 
-      # Step 4: Multi-Source Fetch with V3.1 Schema Enrichment
-      - name: Fetch & Enrich Model Data (V3.1 Pipeline)
+      # Step 4: V3.2 Universal Adapter System
+      - name: Fetch & Enrich Model Data (V3.2 Pipeline)
         env:
           CF_PROXY_URL: ${{ secrets.CF_PROXY_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🚀 Running Multi-Source Fetcher with V3.1 Schema support..."
-          node scripts/multi-source-fetcher.js
-          echo "✅ Data fetched with source_trail and commercial_slots"
+          echo "🚀 Running V3.2 Universal Ingestion Pipeline..."
+          node scripts/ingestion/orchestrator.js
+          echo "✅ Data fetched with full README, compliance checks, and quality scores"
 
       # Step 6: Process Data with Rust (Core Step)
       - name: Process Data (Rust)
@@ -49,14 +49,22 @@ jobs:
           mv data/update_urls.sql ../../data/update_urls.sql
           echo "✅ Data processed. Generated upsert.sql and update_urls.sql"
 
-      # Step 7: Upload Images to R2
+      # Step 7: Upload Images to R2 (WebP format - V3.2)
       - name: Upload Images to R2
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           echo "Uploading images to R2..."
-          # Iterate over all jpg files in data/images and upload them one by one
+          # V3.2: Upload WebP images (primary format)
+          for file in data/images/*.webp; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "Uploading $filename..."
+              npx wrangler r2 object put "ai-nexus-assets/models/$filename" --file="$file"
+            fi
+          done
+          # Legacy: Also upload any JPG files for backward compatibility
           for file in data/images/*.jpg; do
             if [ -f "$file" ]; then
               filename=$(basename "$file")
