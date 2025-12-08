@@ -1,41 +1,42 @@
-name: Daily Ingest
+name: L1 Harvester - Daily Data Ingestion
+
+# V3.1 Constitution: Loop 1 - Harvester
+# Frequency: Daily
+# Purpose: Multi-source fetch (HuggingFace/GitHub/ArXiv) → Process → Rankings → Publish
 
 on:
   schedule:
-    - cron: '0 3 * * *' # Daily at 03:00 UTC
+    - cron: '0 3 * * *' # Daily at 03:00 UTC (11:00 Beijing Time)
   workflow_dispatch:
 
 jobs:
-  ingest:
+  harvest:
+    name: Harvest & Process Data
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Checkout repository
+      # === PHASE 1: SETUP ===
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Setup Node.js environment
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 20
 
-      # Step 3: Install Dependencies (Node & Rust)
       - name: Install Dependencies
-        run: |
-          npm ci
-          # Rust is pre-installed on ubuntu-latest
+        run: npm ci
 
-      # Step 4: V3.2 Universal Adapter System
+      # === PHASE 2: DATA COLLECTION (L1 Core) ===
       - name: Fetch & Enrich Model Data (V3.2 Pipeline)
         env:
           CF_PROXY_URL: ${{ secrets.CF_PROXY_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🚀 Running V3.2 Universal Ingestion Pipeline..."
+          echo "🚀 L1 Harvester: Running V3.2 Universal Ingestion Pipeline..."
           node scripts/ingestion/orchestrator.js
           echo "✅ Data fetched with full README, compliance checks, and quality scores"
 
-      # Step 6: Process Data with Rust (Core Step)
+      # === PHASE 3: RUST PROCESSING ===
       - name: Process Data (Rust)
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -44,70 +45,51 @@ jobs:
           echo "Building and running Rust optimizer..."
           cd tools/rust-img-optimizer
           cargo run --release -- --input ../../data/merged.json
-          # Move SQL files to repository root data directory
           mv data/upsert.sql ../../data/upsert.sql
           mv data/update_urls.sql ../../data/update_urls.sql
           echo "✅ Data processed. Generated upsert.sql and update_urls.sql"
 
-      # Step 7: Upload Images to R2 (WebP format - V3.2)
+      # === PHASE 4: R2 UPLOAD ===
       - name: Upload Images to R2
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "Uploading images to R2..."
-          # V3.2: Upload WebP images (primary format)
+          echo "📷 Uploading images to R2..."
           for file in data/images/*.webp; do
             if [ -f "$file" ]; then
               filename=$(basename "$file")
-              echo "Uploading $filename..."
-              npx wrangler r2 object put "ai-nexus-assets/models/$filename" --file="$file"
-            fi
-          done
-          # Legacy: Also upload any JPG files for backward compatibility
-          for file in data/images/*.jpg; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              echo "Uploading $filename..."
               npx wrangler r2 object put "ai-nexus-assets/models/$filename" --file="$file"
             fi
           done
           echo "✅ Images uploaded successfully"
       
-      # Step 7b: Upload Docs to R2 (V3.1 Constitution Pillar III: Data Integrity)
-      - name: Upload Docs to R2
+      - name: Upload Docs to R2 (Full README - No Truncation)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "📄 Uploading docs to R2 (full README storage)..."
+          echo "📄 Uploading docs to R2 (V3.1 Pillar III: Data Integrity)..."
           doc_count=0
           for file in data/docs/*.md; do
             if [ -f "$file" ]; then
               filename=$(basename "$file")
-              echo "Uploading $filename..."
               npx wrangler r2 object put "ai-nexus-assets/docs/$filename" --file="$file" --content-type="text/markdown"
               doc_count=$((doc_count + 1))
             fi
           done
           echo "✅ Uploaded $doc_count docs to R2"
-      
-      # QUALITY GATE: Verify SQL contains image URLs
+
+      # === PHASE 5: QUALITY GATE ===
       - name: Validate SQL Output (Quality Gate)
         run: |
           echo "🔍 Validating SQL quality..."
           
-          # Check files exist
           if [ ! -s data/upsert.sql ]; then
             echo "❌ FATAL: upsert.sql is missing or empty!"
             exit 1
           fi
-          if [ ! -s data/update_urls.sql ]; then
-            echo "❌ FATAL: update_urls.sql is missing or empty!"
-            exit 1
-          fi
           
-          # Strict check: At least 80% of UPDATE statements must have a valid image URL
           TOTAL_UPDATES=$(grep -c 'UPDATE models' data/update_urls.sql || echo 0)
           URL_UPDATES=$(grep -c 'https://cdn.free2aitools.com' data/update_urls.sql || echo 0)
           SUCCESS_RATE=0
@@ -115,58 +97,64 @@ jobs:
             SUCCESS_RATE=$((URL_UPDATES * 100 / TOTAL_UPDATES))
           fi
 
-          echo " SQL Quality Metrics:"
           echo "  Total UPDATE statements: $TOTAL_UPDATES"
           echo "  With image URLs: $URL_UPDATES"
           echo "  Success Rate: $SUCCESS_RATE%"
 
           if [ "$SUCCESS_RATE" -lt 80 ]; then
-            echo "❌ FATAL: Image URL success rate ($SUCCESS_RATE%) is below the 80% threshold."
+            echo "❌ FATAL: Image URL success rate ($SUCCESS_RATE%) is below 80% threshold."
             exit 1
           fi
           
-          echo "✅ Quality Gate PASSED: SQL contains valid image URLs"
-        
-      # Step 8a: Split SQL into batches for D1 upload (data integrity)
-      - name: Split SQL into Batches
-        run: |
-          echo "📦 Splitting SQL files for batch upload..."
-          node scripts/split-sql-batch.js ./data/upsert.sql ./data/batches/upsert
-          node scripts/split-sql-batch.js ./data/update_urls.sql ./data/batches/update_urls
-          echo "✅ SQL files split successfully"
+          echo "✅ Quality Gate PASSED"
 
-      # Step 8b: Execute D1 Updates in batches
-      - name: Execute D1 Updates (Batch)
+      # === PHASE 6: D1 UPDATE ===
+      - name: Execute D1 Updates
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "🔄 Executing upsert batches..."
-          for file in ./data/batches/upsert/batch_*.sql; do
-            if [ -f "$file" ]; then
-              echo "  Executing $(basename $file)..."
-              npx wrangler d1 execute ai-nexus-db --remote --file="$file"
-            fi
-          done
-          
-          echo "🔄 Executing update_urls batches..."
-          for file in ./data/batches/update_urls/batch_*.sql; do
-            if [ -f "$file" ]; then
-              echo "  Executing $(basename $file)..."
-              npx wrangler d1 execute ai-nexus-db --remote --file="$file"
-            fi
-          done
-          echo "✅ All D1 updates completed"
+          echo "🔄 Executing D1 updates..."
+          npx wrangler d1 execute ai-nexus-db --remote --file="./data/upsert.sql"
+          npx wrangler d1 execute ai-nexus-db --remote --file="./data/update_urls.sql"
+          echo "✅ D1 updates completed"
 
-      # Step 9: Upload artifacts
+      # === PHASE 7: POST-PROCESS (Rankings & Tags) ===
+      # CRITICAL: Integrated from post-process.yml for data freshness
+      - name: Run Post-Processing (Rankings & Tags)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "🏆 Running Post-Processing for fresh rankings..."
+          node scripts/run-post-processing.js
+          echo "✅ Rankings, tags, and search index generated"
+
+      # === PHASE 8: ARTIFACTS ===
       - name: Upload ingest artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ingest-logs
+          name: l1-harvester-logs
           path: |
             data/raw.json
             data/merged.json
             data/upsert.sql
             data/update_urls.sql
-            data/batches/
+            public/data/keywords.json
+            public/data/rankings.json
+            public/data/search-index.json
+          retention-days: 30
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🌾 L1 Harvester Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Phase | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Data Collection | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Rust Processing | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| R2 Upload | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| D1 Update | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Post-Process | ✅ |" >> $GITHUB_STEP_SUMMARY

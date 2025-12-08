@@ -37,10 +37,10 @@ if (!fs.existsSync(CONFIG.PUBLIC_DATA_DIR)) {
 function fetchAllModelsFromD1() {
     console.log('📦 Fetching all models from D1...');
     try {
-        // Fetch all models. We might need pagination if it gets too large, but for now fetch all.
-        // Using --json to get structured data
-        const cmd = `npx wrangler d1 execute ai-nexus-db --remote --command "SELECT * FROM models" --json`;
-        const output = execSync(cmd, { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }); // 10MB buffer
+        // V3.1: Select only verified columns that exist in schema (avoid body_content for size)
+        // Core fields: id, name, author, description, tags, pipeline_tag, likes, downloads, slug, last_updated
+        const cmd = `npx wrangler d1 execute ai-nexus-db --remote --command "SELECT id, slug, name, author, description, tags, pipeline_tag, likes, downloads, slug, last_updated FROM models" --json`;
+        const output = execSync(cmd, { encoding: 'utf-8', maxBuffer: 50 * 1024 * 1024 }); // 50MB buffer
         const parsed = JSON.parse(output);
 
         // D1 returns an array of results. Usually results[0].results is the data.
@@ -48,7 +48,6 @@ function fetchAllModelsFromD1() {
             return parsed[0].results.map(row => {
                 // Parse JSON fields
                 try { row.tags = JSON.parse(row.tags); } catch (e) { row.tags = []; }
-                try { row.links_data = JSON.parse(row.links_data); } catch (e) { row.links_data = {}; }
                 try { row.related_ids = JSON.parse(row.related_ids); } catch (e) { row.related_ids = []; }
                 return row;
             });

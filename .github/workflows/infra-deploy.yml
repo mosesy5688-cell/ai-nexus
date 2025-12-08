@@ -1,4 +1,4 @@
-name: Deploy to Cloudflare Pages
+name: Infra Deploy
 
 on:
   # Trigger this workflow on every push to the main branch
