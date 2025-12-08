@@ -1,6 +1,6 @@
 [package]
 name = "rust-img-optimizer"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [dependencies]
@@ -11,3 +11,5 @@ tokio = { version = "1.0", features = ["full"] }
 reqwest = { version = "0.12", default-features = false, features = ["stream", "native-tls"] }
 futures = "0.3"
 urlencoding = "2.1"
+# V3.2: Image processing for WebP conversion and resize
+image = { version = "0.24", default-features = false, features = ["jpeg", "png", "webp", "gif"] }

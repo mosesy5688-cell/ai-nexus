@@ -215,6 +215,35 @@ if (model?.commercial_slots) {
                         </div>
                     </div>
                  )}
+
+                 {/* V3.2: Full Documentation (body_content) */}
+                 {model.body_content && model.body_content.length > 100 && (
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-blue-100 dark:border-blue-900/30 overflow-hidden">
+                        <details class="group" open>
+                            <summary class="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <span class="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-bold uppercase tracking-wider rounded">📄 Documentation</span>
+                                    <span class="text-lg font-bold text-gray-900 dark:text-white">Full README</span>
+                                </div>
+                                <svg class="w-5 h-5 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </summary>
+                            <div class="p-6 pt-0 border-t border-gray-100 dark:border-gray-700">
+                                <div class="prose prose-blue dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-pre:bg-gray-100 dark:prose-pre:bg-gray-900 prose-pre:overflow-x-auto">
+                                    {(() => {
+                                        try {
+                                            return <Fragment set:html={marked.parse(model.body_content)} />;
+                                        } catch (e) {
+                                            console.error('Markdown rendering error:', e);
+                                            return <pre class="whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">{model.body_content}</pre>;
+                                        }
+                                    })()}
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+                 )}
                 
                 {/* Description & Metadata - Componentized */}
                 <ModelDescription model={model} tagsArray={tagsArray}>

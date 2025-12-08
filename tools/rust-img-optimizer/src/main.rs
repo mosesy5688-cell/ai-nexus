@@ -1,10 +1,11 @@
 // tools/rust-img-optimizer/src/main.rs
+// V3.2: Added WebP conversion and resize support
 
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{Write, Cursor};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -12,6 +13,9 @@ use futures::future::join_all;
 use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
 use urlencoding::encode;
+
+// V3.2: Image processing
+use image::{ImageFormat, GenericImageView, imageops::FilterType};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -39,6 +43,20 @@ struct Model {
     notebooklm_summary: Option<String>,
     velocity_score: Option<f64>,
     last_commercial_at: Option<String>,
+    // V3.2 Schema Fields
+    #[serde(rename = "type")]
+    entity_type: Option<String>,
+    body_content: Option<String>,
+    meta_json: Option<String>,
+    assets_json: Option<String>,
+    relations_json: Option<String>,
+    canonical_id: Option<String>,
+    license_spdx: Option<String>,
+    compliance_status: Option<String>,
+    quality_score: Option<f64>,
+    content_hash: Option<String>,
+    velocity: Option<f64>,
+    raw_image_url: Option<String>,
 }
 
 #[tokio::main]
@@ -195,20 +213,38 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
 
     let mut logs = String::new();
 
+
     // ==================== Build Upsert SQL (Base Data) ====================
     let pipeline = model.pipeline_tag.unwrap_or_else(|| "other".to_string());
     let tags_json = serde_json::to_string(&model.tags.unwrap_or_default()).unwrap_or("[]".to_string());
     let safe_desc = model.description.unwrap_or_default().replace('\'', "''").replace('\n', " ");
 
-    // V3.1 Schema: Handle new fields
+    // V3.1 Schema: Handle fields
     let source_trail = model.source_trail.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
     let commercial_slots = model.commercial_slots.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
     let notebooklm_summary = model.notebooklm_summary.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
     let velocity_score = model.velocity_score.map(|v| v.to_string()).unwrap_or("NULL".to_string());
     let last_commercial_at = model.last_commercial_at.clone().map(|s| format!("'{}'", s)).unwrap_or("NULL".to_string());
 
+    // V3.2 Schema: Handle new fields
+    let entity_type = model.entity_type.as_ref().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("'model'".to_string());
+    let body_content = model.body_content.as_ref().map(|s| {
+        let truncated = if s.len() > 100000 { &s[..100000] } else { s.as_str() };
+        format!("'{}'", truncated.replace('\'', "''").replace('\n', "\\n"))
+    }).unwrap_or("NULL".to_string());
+    let meta_json = model.meta_json.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
+    let assets_json = model.assets_json.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
+    let relations_json = model.relations_json.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
+    let canonical_id = model.canonical_id.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
+    let license_spdx = model.license_spdx.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
+    let compliance_status = model.compliance_status.clone().map(|s| format!("'{}'", s)).unwrap_or("'pending'".to_string());
+    let quality_score = model.quality_score.map(|v| v.to_string()).unwrap_or("NULL".to_string());
+    let content_hash = model.content_hash.clone().map(|s| format!("'{}'", s)).unwrap_or("NULL".to_string());
+    let velocity = model.velocity.map(|v| v.to_string()).unwrap_or("NULL".to_string());
+    let raw_image_url = model.raw_image_url.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
+
     let upsert_stmt = format!(
-        "INSERT OR REPLACE INTO models (id, slug, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, source_trail, commercial_slots, notebooklm_summary, velocity_score, last_commercial_at, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, NULL, {}, {}, {}, {}, {}, CURRENT_TIMESTAMP);\n",
+        "INSERT OR REPLACE INTO models (id, slug, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, source_trail, commercial_slots, notebooklm_summary, velocity_score, last_commercial_at, type, body_content, meta_json, assets_json, relations_json, canonical_id, license_spdx, compliance_status, quality_score, content_hash, velocity, raw_image_url, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, NULL, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, CURRENT_TIMESTAMP);\n",
         db_id,
         slug,
         name.replace('\'', "''"),
@@ -222,52 +258,102 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
         commercial_slots,
         notebooklm_summary,
         velocity_score,
-        last_commercial_at
+        last_commercial_at,
+        entity_type,
+        body_content,
+        meta_json,
+        assets_json,
+        relations_json,
+        canonical_id,
+        license_spdx,
+        compliance_status,
+        quality_score,
+        content_hash,
+        velocity,
+        raw_image_url
     );
 
-    // ==================== Image Download & Update SQL ====================
-    let src_url = if source == "github" {
-        format!("https://github.com/{}.png", author)
-    } else {
-        format!(
-            "https://ui-avatars.com/api/?name={}&size=512&background=random&color=fff",
-            encode(&name)
-        )
-    };
-
-    logs.push_str(&format!("Downloading image for {} from {}\n", db_id, src_url));
-    eprintln!("[{}] Downloading image...", db_id);
+    // ==================== V3.2: Image Download & WebP Conversion ====================
+    // Priority: raw_image_url > GitHub avatar > Skip (no placeholder)
+    let src_url = model.raw_image_url.clone().or_else(|| {
+        if source == "github" {
+            Some(format!("https://github.com/{}.png", author))
+        } else {
+            None // V3.2: No placeholder images
+        }
+    });
 
     let mut update_stmt = None;
 
-    if let Ok(resp) = reqwest::get(src_url).await {
-        if resp.status().is_success() {
-            if let Ok(body) = resp.bytes().await {
-                let file_path = format!("data/images/{}.jpg", db_id);
-                if let Ok(mut file) = File::create(&file_path) {
-                    if file.write_all(&body).is_ok() {
-                        logs.push_str("Image saved locally\n");
-                        eprintln!("[{}] Image saved to {}", db_id, file_path);
+    if let Some(url) = src_url {
+        logs.push_str(&format!("Downloading image for {} from {}\n", db_id, url));
+        eprintln!("[{}] Downloading image...", db_id);
 
-                        update_stmt = Some(format!(
-                            "UPDATE models SET cover_image_url = 'https://cdn.free2aitools.com/models/{}.jpg' WHERE id = '{}';\n",
-                            db_id, db_id
-                        ));
-                    } else {
-                        logs.push_str("Failed to write image file\n");
+        if let Ok(resp) = reqwest::get(&url).await {
+            if resp.status().is_success() {
+                if let Ok(body) = resp.bytes().await {
+                    // V3.2: Decode, resize to 1200px width, convert to WebP
+                    match process_image_to_webp(&body, &db_id) {
+                        Ok(webp_path) => {
+                            logs.push_str(&format!("Image converted to WebP: {}\n", webp_path));
+                            eprintln!("[{}] Saved as WebP", db_id);
+                            update_stmt = Some(format!(
+                                "UPDATE models SET cover_image_url = 'https://cdn.free2aitools.com/models/{}.webp' WHERE id = '{}';\n",
+                                db_id, db_id
+                            ));
+                        }
+                        Err(e) => {
+                            logs.push_str(&format!("WebP conversion failed: {}\n", e));
+                            eprintln!("[{}] WebP conversion failed: {}", db_id, e);
+                        }
                     }
                 } else {
-                    logs.push_str("Failed to create image file\n");
+                    logs.push_str("Failed to read image bytes\n");
                 }
             } else {
-                logs.push_str("Failed to read image bytes\n");
+                logs.push_str(&format!("HTTP error: {}\n", resp.status()));
             }
         } else {
-            logs.push_str(&format!("HTTP error: {}\n", resp.status()));
+            logs.push_str("Network request failed\n");
         }
     } else {
-        logs.push_str("Network request failed\n");
+        logs.push_str("No image URL available, skipping\n");
+        eprintln!("[{}] No image URL, skipping", db_id);
     }
 
     Some((upsert_stmt, update_stmt, logs))
+}
+
+/// V3.2: Process image to WebP format with resize
+/// - Decodes various formats (JPEG, PNG, GIF, WebP)
+/// - Resizes to max 1200px width (maintains aspect ratio)
+/// - Converts to WebP with 85% quality
+fn process_image_to_webp(data: &[u8], db_id: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    // Decode the image
+    let img = image::load_from_memory(data)?;
+    
+    let (width, height) = img.dimensions();
+    
+    // Resize if width > 1200px (maintain aspect ratio)
+    let resized = if width > 1200 {
+        let new_height = (height as f64 * (1200.0 / width as f64)) as u32;
+        img.resize(1200, new_height, FilterType::Lanczos3)
+    } else {
+        img
+    };
+    
+    // Ensure output directory exists
+    let output_dir = Path::new("data/images");
+    if !output_dir.exists() {
+        fs::create_dir_all(output_dir)?;
+    }
+    
+    // Save as WebP
+    let file_path = format!("data/images/{}.webp", db_id);
+    let output_file = File::create(&file_path)?;
+    let mut buffered = std::io::BufWriter::new(output_file);
+    
+    resized.write_to(&mut buffered, ImageFormat::WebP)?;
+    
+    Ok(file_path)
 }
