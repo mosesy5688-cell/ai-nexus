@@ -1,0 +1,11 @@
+{
+  "totalBatches": 1,
+  "totalStatements": 257,
+  "batches": [
+    {
+      "file": "batch_001.sql",
+      "statements": 257,
+      "sizeBytes": 111343
+    }
+  ]
+}

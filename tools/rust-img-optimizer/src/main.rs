@@ -228,10 +228,25 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
 
     // V3.2 Schema: Handle new fields
     let entity_type = model.entity_type.as_ref().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("'model'".to_string());
-    // Full body_content (100KB) for data integrity - SQL will be split into batches for D1 upload
+    // Full body_content (100KB) for data integrity - with Unicode sanitization for D1 compatibility
     let body_content = model.body_content.as_ref().map(|s| {
         let truncated = if s.len() > 100000 { &s[..100000] } else { s.as_str() };
-        format!("'{}'", truncated.replace('\'', "''").replace('\n', "\\n"))
+        // Sanitize problematic Unicode chars for D1 SQL parsing
+        let sanitized = truncated
+            .replace('\u{2019}', "'")   // Right single quote → straight quote
+            .replace('\u{2018}', "'")   // Left single quote → straight quote
+            .replace('\u{201C}', "\"")  // Left double quote → straight quote
+            .replace('\u{201D}', "\"")  // Right double quote → straight quote
+            .replace('\u{2013}', "-")   // En dash → hyphen
+            .replace('\u{2014}', "-")   // Em dash → hyphen
+            .replace('\u{2026}', "...")  // Ellipsis → three dots
+            .replace('\u{00A0}', " ")   // Non-breaking space → space
+            .replace('\\', "\\\\")      // Escape backslashes
+            .replace('\'', "''")        // SQL escape single quotes
+            .replace('\n', "\\n")       // Escape newlines
+            .replace('\r', "")          // Remove carriage returns
+            .replace('\x00', "");       // Remove null bytes
+        format!("'{}'", sanitized)
     }).unwrap_or("NULL".to_string());
     let meta_json = model.meta_json.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
     let assets_json = model.assets_json.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());

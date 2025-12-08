@@ -1,0 +1,136 @@
+{
+  "totalBatches": 26,
+  "totalStatements": 691,
+  "batches": [
+    {
+      "file": "batch_001.sql",
+      "statements": 41,
+      "sizeBytes": 510235
+    },
+    {
+      "file": "batch_002.sql",
+      "statements": 39,
+      "sizeBytes": 499505
+    },
+    {
+      "file": "batch_003.sql",
+      "statements": 35,
+      "sizeBytes": 506255
+    },
+    {
+      "file": "batch_004.sql",
+      "statements": 30,
+      "sizeBytes": 499698
+    },
+    {
+      "file": "batch_005.sql",
+      "statements": 33,
+      "sizeBytes": 425003
+    },
+    {
+      "file": "batch_006.sql",
+      "statements": 37,
+      "sizeBytes": 511503
+    },
+    {
+      "file": "batch_007.sql",
+      "statements": 43,
+      "sizeBytes": 488723
+    },
+    {
+      "file": "batch_008.sql",
+      "statements": 33,
+      "sizeBytes": 507223
+    },
+    {
+      "file": "batch_009.sql",
+      "statements": 22,
+      "sizeBytes": 504737
+    },
+    {
+      "file": "batch_010.sql",
+      "statements": 34,
+      "sizeBytes": 511162
+    },
+    {
+      "file": "batch_011.sql",
+      "statements": 40,
+      "sizeBytes": 504209
+    },
+    {
+      "file": "batch_012.sql",
+      "statements": 32,
+      "sizeBytes": 508798
+    },
+    {
+      "file": "batch_013.sql",
+      "statements": 31,
+      "sizeBytes": 506349
+    },
+    {
+      "file": "batch_014.sql",
+      "statements": 33,
+      "sizeBytes": 506036
+    },
+    {
+      "file": "batch_015.sql",
+      "statements": 16,
+      "sizeBytes": 463063
+    },
+    {
+      "file": "batch_016.sql",
+      "statements": 16,
+      "sizeBytes": 508744
+    },
+    {
+      "file": "batch_017.sql",
+      "statements": 25,
+      "sizeBytes": 475572
+    },
+    {
+      "file": "batch_018.sql",
+      "statements": 14,
+      "sizeBytes": 501176
+    },
+    {
+      "file": "batch_019.sql",
+      "statements": 15,
+      "sizeBytes": 504491
+    },
+    {
+      "file": "batch_020.sql",
+      "statements": 18,
+      "sizeBytes": 461602
+    },
+    {
+      "file": "batch_021.sql",
+      "statements": 19,
+      "sizeBytes": 484345
+    },
+    {
+      "file": "batch_022.sql",
+      "statements": 14,
+      "sizeBytes": 433975
+    },
+    {
+      "file": "batch_023.sql",
+      "statements": 15,
+      "sizeBytes": 498452
+    },
+    {
+      "file": "batch_024.sql",
+      "statements": 11,
+      "sizeBytes": 491841
+    },
+    {
+      "file": "batch_025.sql",
+      "statements": 22,
+      "sizeBytes": 506878
+    },
+    {
+      "file": "batch_026.sql",
+      "statements": 23,
+      "sizeBytes": 383740
+    }
+  ]
+}

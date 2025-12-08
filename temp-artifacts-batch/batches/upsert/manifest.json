@@ -1,0 +1,41 @@
+{
+  "totalBatches": 7,
+  "totalStatements": 692,
+  "batches": [
+    {
+      "file": "batch_001.sql",
+      "statements": 155,
+      "sizeBytes": 2092176
+    },
+    {
+      "file": "batch_002.sql",
+      "statements": 154,
+      "sizeBytes": 2067037
+    },
+    {
+      "file": "batch_003.sql",
+      "statements": 123,
+      "sizeBytes": 2094780
+    },
+    {
+      "file": "batch_004.sql",
+      "statements": 105,
+      "sizeBytes": 2094076
+    },
+    {
+      "file": "batch_005.sql",
+      "statements": 70,
+      "sizeBytes": 2059310
+    },
+    {
+      "file": "batch_006.sql",
+      "statements": 76,
+      "sizeBytes": 2076994
+    },
+    {
+      "file": "batch_007.sql",
+      "statements": 9,
+      "sizeBytes": 237886
+    }
+  ]
+}
