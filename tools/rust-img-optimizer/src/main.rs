@@ -72,8 +72,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     eprintln!("Processing input file: {}", args.input);
 
-    // ==================== Create temporary images directory ====================
+    // ==================== Create temporary directories ====================
     fs::create_dir_all("data/images")?;
+    fs::create_dir_all("data/docs")?;  // V3.1: For full README storage to R2
 
     // ==================== Load JSON data with robust error handling ====================
     let data = match fs::read_to_string(&args.input) {
@@ -228,24 +229,41 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
 
     // V3.2 Schema: Handle new fields
     let entity_type = model.entity_type.as_ref().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("'model'".to_string());
-    // Full body_content (100KB) for data integrity - with Unicode sanitization for D1 compatibility
-    let body_content = model.body_content.as_ref().map(|s| {
-        let truncated = if s.len() > 100000 { &s[..100000] } else { s.as_str() };
-        // Sanitize problematic Unicode chars for D1 SQL parsing
-        let sanitized = truncated
-            .replace('\u{2019}', "'")   // Right single quote → straight quote
-            .replace('\u{2018}', "'")   // Left single quote → straight quote
-            .replace('\u{201C}', "\"")  // Left double quote → straight quote
-            .replace('\u{201D}', "\"")  // Right double quote → straight quote
-            .replace('\u{2013}', "-")   // En dash → hyphen
-            .replace('\u{2014}', "-")   // Em dash → hyphen
-            .replace('\u{2026}', "...")  // Ellipsis → three dots
-            .replace('\u{00A0}', " ")   // Non-breaking space → space
-            .replace('\\', "\\\\")      // Escape backslashes
-            .replace('\'', "''")        // SQL escape single quotes
-            .replace('\n', "\\n")       // Escape newlines
-            .replace('\r', "")          // Remove carriage returns
-            .replace('\x00', "");       // Remove null bytes
+    
+    // V3.1 Constitution Pillar III: Data Integrity - Full content to R2, no truncation
+    // Write body_content to .md file for R2 upload, store URL reference in D1
+    let r2_url_prefix = env::var("R2_PUBLIC_URL_PREFIX").unwrap_or_else(|_| "https://cdn.free2aitools.com".to_string());
+    let body_content_url = if let Some(content) = &model.body_content {
+        if !content.trim().is_empty() {
+            // Write full content to .md file (NO TRUNCATION)
+            let doc_path = format!("data/docs/{}.md", db_id);
+            match fs::write(&doc_path, content) {
+                Ok(_) => {
+                    logs.push_str(&format!("Saved full README to {}\n", doc_path));
+                    format!("'{}/docs/{}.md'", r2_url_prefix, db_id)
+                },
+                Err(e) => {
+                    logs.push_str(&format!("Failed to write doc {}: {}\n", doc_path, e));
+                    "NULL".to_string()
+                }
+            }
+        } else {
+            "NULL".to_string()
+        }
+    } else {
+        "NULL".to_string()
+    };
+    
+    // Extract first 5KB for FTS5 search index (stored in D1 for search capability)
+    let search_text = model.body_content.as_ref().map(|s| {
+        let truncated = if s.len() > 5000 { &s[..5000] } else { s.as_str() };
+        // Only ASCII for D1 compatibility
+        let sanitized: String = truncated.chars()
+            .filter(|c| c.is_ascii())
+            .collect::<String>()
+            .replace('\'', "''")
+            .replace('\n', " ")
+            .replace('\r', "");
         format!("'{}'", sanitized)
     }).unwrap_or("NULL".to_string());
     let meta_json = model.meta_json.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
@@ -260,7 +278,7 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
     let raw_image_url = model.raw_image_url.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
 
     let upsert_stmt = format!(
-        "INSERT OR REPLACE INTO models (id, slug, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, source_trail, commercial_slots, notebooklm_summary, velocity_score, last_commercial_at, type, body_content, meta_json, assets_json, relations_json, canonical_id, license_spdx, compliance_status, quality_score, content_hash, velocity, raw_image_url, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, NULL, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, CURRENT_TIMESTAMP);\n",
+        "INSERT OR REPLACE INTO models (id, slug, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, source_trail, commercial_slots, notebooklm_summary, velocity_score, last_commercial_at, type, body_content, body_content_url, meta_json, assets_json, relations_json, canonical_id, license_spdx, compliance_status, quality_score, content_hash, velocity, raw_image_url, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, NULL, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, CURRENT_TIMESTAMP);\n",
         db_id,
         slug,
         name.replace('\'', "''"),
@@ -276,7 +294,8 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
         velocity_score,
         last_commercial_at,
         entity_type,
-        body_content,
+        search_text,         // body_content now stores search_text (5KB for FTS5)
+        body_content_url,    // NEW: R2 URL for full content
         meta_json,
         assets_json,
         relations_json,
