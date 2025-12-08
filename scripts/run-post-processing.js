@@ -37,8 +37,9 @@ if (!fs.existsSync(CONFIG.PUBLIC_DATA_DIR)) {
 function fetchAllModelsFromD1() {
     console.log('📦 Fetching all models from D1...');
     try {
-        // V3.1: Select only fields needed for post-processing (avoid body_content for ENOBUFS)
-        const cmd = `npx wrangler d1 execute ai-nexus-db --remote --command "SELECT id, slug, name, author, description, tags, pipeline_tag, likes, downloads, last_updated, source, is_rising_star, related_ids" --json`;
+        // V3.1: Select only verified columns that exist in schema (avoid body_content for size)
+        // Core fields: id, name, author, description, tags, pipeline_tag, likes, downloads, slug, last_updated
+        const cmd = `npx wrangler d1 execute ai-nexus-db --remote --command "SELECT id, slug, name, author, description, tags, pipeline_tag, likes, downloads, slug, last_updated FROM models" --json`;
         const output = execSync(cmd, { encoding: 'utf-8', maxBuffer: 50 * 1024 * 1024 }); // 50MB buffer
         const parsed = JSON.parse(output);
 
