@@ -60545,7 +60545,7 @@
       "diffusers:FluxPipeline",
       "region:us"
     ],
-    "likes": 11975,
+    "likes": 11976,
     "downloads": 1181833,
     "is_rising_star": false,
     "source": "unknown"
@@ -60601,7 +60601,7 @@
       "diffusers:StableDiffusionPipeline",
       "region:us"
     ],
-    "likes": 6942,
+    "likes": 6943,
     "downloads": 614531,
     "is_rising_star": false,
     "source": "unknown"
@@ -60628,7 +60628,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 6396,
+    "likes": 6397,
     "downloads": 2102762,
     "is_rising_star": false,
     "source": "unknown"
@@ -60650,7 +60650,7 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 5369,
+    "likes": 5371,
     "downloads": 3939716,
     "is_rising_star": false,
     "source": "unknown"
@@ -60775,7 +60775,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 5173,
+    "likes": 5176,
     "downloads": 5020393,
     "is_rising_star": false,
     "source": "unknown"
@@ -60813,7 +60813,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 5090,
+    "likes": 5093,
     "downloads": 5087532,
     "is_rising_star": false,
     "source": "unknown"
@@ -60911,7 +60911,7 @@
       "license:other",
       "region:us"
     ],
-    "likes": 4874,
+    "likes": 4876,
     "downloads": 10434,
     "is_rising_star": false,
     "source": "unknown"
@@ -60940,7 +60940,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 4664,
+    "likes": 4665,
     "downloads": 323761,
     "is_rising_star": false,
     "source": "unknown"
@@ -60965,7 +60965,7 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 4616,
+    "likes": 4617,
     "downloads": 376116,
     "is_rising_star": false,
     "source": "unknown"
@@ -61039,7 +61039,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 4313,
+    "likes": 4314,
     "downloads": 1205895,
     "is_rising_star": false,
     "source": "unknown"
@@ -61065,7 +61065,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 4220,
+    "likes": 4222,
     "downloads": 4510069,
     "is_rising_star": false,
     "source": "unknown"
@@ -61122,7 +61122,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 4194,
+    "likes": 4196,
     "downloads": 149695930,
     "is_rising_star": true,
     "source": "unknown"
@@ -61148,7 +61148,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 4023,
+    "likes": 4026,
     "downloads": 7953782,
     "is_rising_star": false,
     "source": "unknown"
@@ -61275,7 +61275,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 3533,
+    "likes": 3534,
     "downloads": 51697,
     "is_rising_star": false,
     "source": "unknown"
@@ -61322,7 +61322,7 @@
       "diffusers:StableDiffusion3Pipeline",
       "region:us"
     ],
-    "likes": 3253,
+    "likes": 3254,
     "downloads": 53709,
     "is_rising_star": false,
     "source": "unknown"
@@ -61405,7 +61405,7 @@
       "diffusers:StableVideoDiffusionPipeline",
       "region:us"
     ],
-    "likes": 3198,
+    "likes": 3199,
     "downloads": 236929,
     "is_rising_star": false,
     "source": "unknown"
@@ -61599,7 +61599,7 @@
       "deploy:azure",
       "region:us"
     ],
-    "likes": 2869,
+    "likes": 2870,
     "downloads": 56602,
     "is_rising_star": false,
     "source": "unknown"
@@ -61828,7 +61828,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2587,
+    "likes": 2589,
     "downloads": 410213,
     "is_rising_star": false,
     "source": "unknown"
@@ -61858,7 +61858,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2559,
+    "likes": 2561,
     "downloads": 7787339,
     "is_rising_star": false,
     "source": "unknown"
@@ -61891,7 +61891,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 2502,
+    "likes": 2503,
     "downloads": 59305254,
     "is_rising_star": true,
     "source": "unknown"
@@ -61959,7 +61959,7 @@
       "diffusers:FluxKontextPipeline",
       "region:us"
     ],
-    "likes": 2454,
+    "likes": 2455,
     "downloads": 318455,
     "is_rising_star": false,
     "source": "unknown"
@@ -62064,7 +62064,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2328,
+    "likes": 2329,
     "downloads": 1773,
     "is_rising_star": false,
     "source": "unknown"
@@ -62085,7 +62085,7 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 2288,
+    "likes": 2290,
     "downloads": 1150182,
     "is_rising_star": false,
     "source": "unknown"
@@ -62138,29 +62138,6 @@
     "source": "unknown"
   },
   {
-    "id": "huggingface-Qwen-Qwen-Qwen-Image",
-    "slug": "huggingface--qwen--qwen-qwen-image",
-    "name": "Qwen/Qwen-Image",
-    "author": "Qwen",
-    "description": "",
-    "tags": [
-      "diffusers",
-      "safetensors",
-      "image-generation",
-      "en",
-      "zh",
-      "arxiv:2508.02324",
-      "license:apache-2.0",
-      "diffusers:QwenImagePipeline",
-      "deploy:azure",
-      "region:us"
-    ],
-    "likes": 2260,
-    "downloads": 301866,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
     "id": "huggingface-Tongyi-MAI-Tongyi-MAI-Z-Image-Turbo",
     "slug": "huggingface--tongyi-mai--tongyi-mai-z-image-turbo",
     "name": "Tongyi-MAI/Z-Image-Turbo",
@@ -62178,8 +62155,31 @@
       "diffusers:ZImagePipeline",
       "region:us"
     ],
-    "likes": 2234,
+    "likes": 2267,
     "downloads": 186951,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "huggingface-Qwen-Qwen-Qwen-Image",
+    "slug": "huggingface--qwen--qwen-qwen-image",
+    "name": "Qwen/Qwen-Image",
+    "author": "Qwen",
+    "description": "",
+    "tags": [
+      "diffusers",
+      "safetensors",
+      "image-generation",
+      "en",
+      "zh",
+      "arxiv:2508.02324",
+      "license:apache-2.0",
+      "diffusers:QwenImagePipeline",
+      "deploy:azure",
+      "region:us"
+    ],
+    "likes": 2263,
+    "downloads": 301866,
     "is_rising_star": false,
     "source": "unknown"
   },
@@ -62300,7 +62300,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2193,
+    "likes": 2194,
     "downloads": 480425,
     "is_rising_star": false,
     "source": "unknown"
@@ -62322,7 +62322,7 @@
       "diffusers:QwenImageEditPipeline",
       "region:us"
     ],
-    "likes": 2171,
+    "likes": 2172,
     "downloads": 93287,
     "is_rising_star": false,
     "source": "unknown"
@@ -62394,7 +62394,7 @@
       "diffusers:LTXPipeline",
       "region:us"
     ],
-    "likes": 2064,
+    "likes": 2065,
     "downloads": 270497,
     "is_rising_star": false,
     "source": "unknown"
@@ -62478,7 +62478,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 2036,
+    "likes": 2040,
     "downloads": 311979,
     "is_rising_star": false,
     "source": "unknown"
@@ -62791,7 +62791,7 @@
       "base_model:finetune:Wan-AI/Wan2.1-VACE-1.3B",
       "region:us"
     ],
-    "likes": 1806,
+    "likes": 1809,
     "downloads": 6035764,
     "is_rising_star": false,
     "source": "unknown"
@@ -62936,7 +62936,7 @@
       "region:us",
       "deploy:azure"
     ],
-    "likes": 1775,
+    "likes": 1777,
     "downloads": 197440,
     "is_rising_star": false,
     "source": "unknown"
@@ -63075,7 +63075,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1724,
+    "likes": 1725,
     "downloads": 1373243,
     "is_rising_star": false,
     "source": "unknown"
@@ -63125,7 +63125,7 @@
       "endpoints_compatible",
       "region:us"
     ],
-    "likes": 1714,
+    "likes": 1715,
     "downloads": 823488,
     "is_rising_star": false,
     "source": "unknown"
@@ -63294,7 +63294,7 @@
       "license:apache-2.0",
       "region:us"
     ],
-    "likes": 1624,
+    "likes": 1625,
     "downloads": 149628,
     "is_rising_star": false,
     "source": "unknown"
@@ -63312,7 +63312,7 @@
       "license:cc-by-nc-4.0",
       "region:us"
     ],
-    "likes": 1617,
+    "likes": 1618,
     "downloads": 1476,
     "is_rising_star": false,
     "source": "unknown"
@@ -63524,11 +63524,11 @@
     "slug": "pytorch--huggingface--pytorch-transformers",
     "name": "PyTorch-Transformers",
     "author": "huggingface",
-    "description": "PyTorch implementations of popular NLP Transformers \t\t\t\t\t\t \t\t\t\t\t 153.5k",
+    "description": "PyTorch implementations of popular NLP Transformers \t\t\t\t\t\t \t\t\t\t\t 153.6k",
     "tags": [
       "pytorch"
     ],
-    "likes": 153500,
+    "likes": 153600,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -63543,20 +63543,6 @@
       "pytorch"
     ],
     "likes": 56300,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "pytorch-pytorch-RoBERTa",
-    "slug": "pytorch--pytorch--roberta",
-    "name": "RoBERTa",
-    "author": "pytorch",
-    "description": "A Robustly Optimized BERT Pretraining Approach \t\t\t\t\t\t \t\t\t\t\t 32.0k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 32000,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -63577,57 +63563,15 @@
     "source": "unknown"
   },
   {
-    "id": "pytorch-pytorch-MobileNet v2",
-    "slug": "pytorch--pytorch--mobilenet v2",
-    "name": "MobileNet v2",
+    "id": "pytorch-pytorch-RoBERTa",
+    "slug": "pytorch--pytorch--roberta",
+    "name": "RoBERTa",
     "author": "pytorch",
-    "description": "Efficient networks optimized for speed and memory, with residual blocks \t\t\t\t\t\t \t\t\t\t\t 17.4k",
+    "description": "A Robustly Optimized BERT Pretraining Approach \t\t\t\t\t\t \t\t\t\t\t 32.0k",
     "tags": [
       "pytorch"
     ],
-    "likes": 17400,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "pytorch-pytorch-ResNet",
-    "slug": "pytorch--pytorch--resnet",
-    "name": "ResNet",
-    "author": "pytorch",
-    "description": "Deep residual networks pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.4k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17400,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "pytorch-pytorch-ResNext",
-    "slug": "pytorch--pytorch--resnext",
-    "name": "ResNext",
-    "author": "pytorch",
-    "description": "Next generation ResNets, more efficient and accurate \t\t\t\t\t\t \t\t\t\t\t 17.4k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17400,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
-    "id": "pytorch-pytorch-ShuffleNet v2",
-    "slug": "pytorch--pytorch--shufflenet v2",
-    "name": "ShuffleNet v2",
-    "author": "pytorch",
-    "description": "An efficient ConvNet optimized for speed and memory, pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.4k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 17400,
+    "likes": 32000,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -63760,6 +63704,76 @@
     "source": "unknown"
   },
   {
+    "id": "pytorch-pytorch-MobileNet v2",
+    "slug": "pytorch--pytorch--mobilenet v2",
+    "name": "MobileNet v2",
+    "author": "pytorch",
+    "description": "Efficient networks optimized for speed and memory, with residual blocks \t\t\t\t\t\t \t\t\t\t\t 17.4k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17400,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "pytorch-pytorch-ResNet",
+    "slug": "pytorch--pytorch--resnet",
+    "name": "ResNet",
+    "author": "pytorch",
+    "description": "Deep residual networks pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.4k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17400,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "pytorch-pytorch-ResNext",
+    "slug": "pytorch--pytorch--resnext",
+    "name": "ResNext",
+    "author": "pytorch",
+    "description": "Next generation ResNets, more efficient and accurate \t\t\t\t\t\t \t\t\t\t\t 17.4k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17400,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "pytorch-pytorch-ShuffleNet v2",
+    "slug": "pytorch--pytorch--shufflenet v2",
+    "name": "ShuffleNet v2",
+    "author": "pytorch",
+    "description": "An efficient ConvNet optimized for speed and memory, pre-trained on ImageNet \t\t\t\t\t\t \t\t\t\t\t 17.4k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 17400,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "pytorch-nvidia-FastPitch 2",
+    "slug": "pytorch--nvidia--fastpitch 2",
+    "name": "FastPitch 2",
+    "author": "nvidia",
+    "description": "The FastPitch model for generating mel spectrograms from text \t\t\t\t\t\t \t\t\t\t\t 14.6k",
+    "tags": [
+      "pytorch"
+    ],
+    "likes": 14600,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
     "id": "pytorch-nvidia-GPUNet",
     "slug": "pytorch--nvidia--gpunet",
     "name": "GPUNet",
@@ -63886,20 +63900,6 @@
     "source": "unknown"
   },
   {
-    "id": "pytorch-nvidia-FastPitch 2",
-    "slug": "pytorch--nvidia--fastpitch 2",
-    "name": "FastPitch 2",
-    "author": "nvidia",
-    "description": "The FastPitch model for generating mel spectrograms from text \t\t\t\t\t\t \t\t\t\t\t 14.6k",
-    "tags": [
-      "pytorch"
-    ],
-    "likes": 14600,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
     "id": "pytorch-snakers4-Silero Voice Activity Detector",
     "slug": "pytorch--snakers4--silero voice activity detector",
     "name": "Silero Voice Activity Detector",
@@ -63918,11 +63918,11 @@
     "slug": "pytorch--snakers4--silero speech-to-text models",
     "name": "Silero Speech-To-Text Models",
     "author": "snakers4",
-    "description": "A set of compact enterprise-grade pre-trained STT Models for multiple languages. \t\t\t\t\t\t \t\t\t\t\t 5.6k",
+    "description": "A set of compact enterprise-grade pre-trained STT Models for multiple languages. \t\t\t\t\t\t \t\t\t\t\t 5.7k",
     "tags": [
       "pytorch"
     ],
-    "likes": 5600,
+    "likes": 5700,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -63932,11 +63932,11 @@
     "slug": "pytorch--snakers4--silero text-to-speech models",
     "name": "Silero Text-To-Speech Models",
     "author": "snakers4",
-    "description": "A set of compact enterprise-grade pre-trained TTS Models for multiple languages \t\t\t\t\t\t \t\t\t\t\t 5.6k",
+    "description": "A set of compact enterprise-grade pre-trained TTS Models for multiple languages \t\t\t\t\t\t \t\t\t\t\t 5.7k",
     "tags": [
       "pytorch"
     ],
-    "likes": 5600,
+    "likes": 5700,
     "downloads": 0,
     "is_rising_star": false,
     "source": "unknown"
@@ -63956,11 +63956,11 @@
     "source": "unknown"
   },
   {
-    "id": "pytorch-pytorch-SNNMLP",
-    "slug": "pytorch--pytorch--snnmlp",
-    "name": "SNNMLP",
+    "id": "pytorch-pytorch-GhostNet",
+    "slug": "pytorch--pytorch--ghostnet",
+    "name": "GhostNet",
     "author": "pytorch",
-    "description": "Brain-inspired Multilayer Perceptron with Spiking Neurons \t\t\t\t\t\t \t\t\t\t\t 4.4k",
+    "description": "Efficient networks by generating more features from cheap operations \t\t\t\t\t\t \t\t\t\t\t 4.4k",
     "tags": [
       "pytorch"
     ],
@@ -63970,11 +63970,11 @@
     "source": "unknown"
   },
   {
-    "id": "pytorch-pytorch-GhostNet",
-    "slug": "pytorch--pytorch--ghostnet",
-    "name": "GhostNet",
+    "id": "pytorch-pytorch-SNNMLP",
+    "slug": "pytorch--pytorch--snnmlp",
+    "name": "SNNMLP",
     "author": "pytorch",
-    "description": "Efficient networks by generating more features from cheap operations \t\t\t\t\t\t \t\t\t\t\t 4.4k",
+    "description": "Brain-inspired Multilayer Perceptron with Spiking Neurons \t\t\t\t\t\t \t\t\t\t\t 4.4k",
     "tags": [
       "pytorch"
     ],
@@ -64381,29 +64381,6 @@
     "source": "unknown"
   },
   {
-    "id": "github-twoChar-Flight-Fare-Prediction",
-    "slug": "github--twochar--flight-fare-prediction",
-    "name": "Flight-Fare-Prediction",
-    "author": "twoChar",
-    "description": "Build a machine learning model that could predict flight fares based on features like airline, journey date, duration, number of stops, and more.Achieved 82% accuracy (R²) with Random Forest on flight fare prediction using real-world airline data.",
-    "tags": [
-      "github",
-      "flight-fare",
-      "jupyter-notebook",
-      "machine-learning-model",
-      "matplotlib",
-      "numpy",
-      "data-analysis-insights",
-      "python",
-      "scikit-learn",
-      "seaborn"
-    ],
-    "likes": 1,
-    "downloads": 0,
-    "is_rising_star": false,
-    "source": "unknown"
-  },
-  {
     "id": "github-R-Projects-Portfolio-Madrid-Real-Estate-Price-Prediction",
     "slug": "github--r-projects-portfolio--madrid-real-estate-price-prediction",
     "name": "Madrid-Real-Estate-Price-Prediction",
@@ -64437,6 +64414,29 @@
       "machine-learning",
       "machine-learning-model",
       "python"
+    ],
+    "likes": 1,
+    "downloads": 0,
+    "is_rising_star": false,
+    "source": "unknown"
+  },
+  {
+    "id": "github-twoChar-Flight-Fare-Prediction",
+    "slug": "github--twochar--flight-fare-prediction",
+    "name": "Flight-Fare-Prediction",
+    "author": "twoChar",
+    "description": "Build a machine learning model that could predict flight fares based on features like airline, journey date, duration, number of stops, and more.Achieved 82% accuracy (R²) with Random Forest on flight fare prediction using real-world airline data.",
+    "tags": [
+      "github",
+      "flight-fare",
+      "jupyter-notebook",
+      "machine-learning-model",
+      "matplotlib",
+      "numpy",
+      "data-analysis-insights",
+      "python",
+      "scikit-learn",
+      "seaborn"
     ],
     "likes": 1,
     "downloads": 0,
