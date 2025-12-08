@@ -1,10 +1,11 @@
-name: Alert on Workflow Failure
+name: Infra Alert - Failure Notifications
 
 on:
   workflow_run:
-    workflows: ["Deploy to Cloudflare Pages", "Daily Ingest"]
+    workflows: ["Infra Deploy", "L1 Harvester - Daily Data Ingestion", "L3 Guardian - Weekly Maintenance"]
     types: [completed]
   workflow_dispatch:
+
 
 jobs:
   check-and-notify:

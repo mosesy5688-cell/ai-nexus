@@ -1,0 +1,100 @@
+name: L7 Archivist - Monthly Data Governance
+
+# V3.1 Constitution: Loop 7 - Archivist
+# Frequency: Monthly (1st of each month)
+# Purpose: Data Integrity Check → R2/D1 Consistency → Historical Archive
+
+on:
+  schedule:
+    - cron: '0 2 1 * *'  # Every 1st of month at 02:00 UTC
+  workflow_dispatch:
+
+jobs:
+  archive:
+    name: Data Governance & Archive
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      # === TASK 1: CONTENT HASH VERIFICATION ===
+      - name: Verify Data Integrity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "🔐 L7 Archivist: Verifying content hashes..."
+          # TODO: Implement content_hash verification
+          # Compare stored hashes with recalculated hashes
+          echo "ℹ️ Hash verification pending implementation"
+
+      # === TASK 2: R2/D1 CONSISTENCY CHECK ===
+      - name: Check R2/D1 Consistency
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "🔍 L7 Archivist: Checking R2/D1 consistency..."
+          # TODO: Compare D1 body_content_url with actual R2 files
+          # Flag missing or orphan files
+          echo "ℹ️ Consistency check pending implementation"
+
+      # === TASK 3: STORAGE COST ANALYSIS ===
+      - name: Analyze Storage Costs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "💰 L7 Archivist: Analyzing storage costs..."
+          # TODO: Calculate R2 storage usage
+          # Generate cost projection report
+          echo "ℹ️ Cost analysis pending implementation"
+
+      # === TASK 4: HISTORICAL ARCHIVE ===
+      - name: Archive Historical Data
+        run: |
+          echo "📦 L7 Archivist: Archiving historical data..."
+          # TODO: Implement data archival strategy
+          # Move old records to cold storage
+          echo "ℹ️ Historical archive pending implementation"
+
+      - name: Generate Governance Report
+        run: |
+          echo "📋 Generating governance report..."
+          mkdir -p public/data
+          cat > public/data/governance-report.json << 'EOF'
+          {
+            "generated_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "status": "skeleton",
+            "checks": {
+              "hash_verification": "pending",
+              "r2_d1_consistency": "pending",
+              "storage_analysis": "pending",
+              "archival": "pending"
+            }
+          }
+          EOF
+          echo "✅ Governance report generated"
+
+      - name: Summary
+        run: |
+          echo "## 📁 L7 Archivist Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Monthly data governance cycle completed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Task | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Hash Verification | 🔜 Pending |" >> $GITHUB_STEP_SUMMARY
+          echo "| R2/D1 Consistency | 🔜 Pending |" >> $GITHUB_STEP_SUMMARY
+          echo "| Storage Analysis | 🔜 Pending |" >> $GITHUB_STEP_SUMMARY
+          echo "| Historical Archive | 🔜 Pending |" >> $GITHUB_STEP_SUMMARY

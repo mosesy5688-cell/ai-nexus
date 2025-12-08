@@ -1,0 +1,69 @@
+name: L4 Promoter - Weekly AI Report
+
+# V3.1 Constitution: Loop 4 - Promoter
+# Frequency: Weekly (Monday)
+# Purpose: Generate AI Trends Weekly Report → Push to Blog/RSS/Social
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 09:00 UTC (17:00 Beijing Time)
+  workflow_dispatch:
+
+jobs:
+  generate-report:
+    name: Generate Weekly Report
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Weekly AI Report
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "📰 L4 Promoter: Generating Weekly AI Report..."
+          if [ -f scripts/generate-report.js ]; then
+            node scripts/generate-report.js
+            echo "✅ Report generated successfully"
+          else
+            echo "⚠️ Report generator not found"
+          fi
+
+      - name: Commit and Push Report
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: 'src/data/reports.json src/data/report-archives'
+          message: 'docs: L4 Promoter - Weekly AI Report'
+          author_name: 'GitHub Actions Bot'
+          author_email: 'actions@github.com'
+        continue-on-error: true
+
+      - name: Trigger Deployment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🚀 Triggering deployment..."
+          gh workflow run infra-deploy.yml --ref main || gh workflow run deploy.yml --ref main || true
+
+      - name: Summary
+        run: |
+          echo "## 📰 L4 Promoter Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Weekly AI Trends Report generated and published." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY

@@ -1,4 +1,4 @@
-name: CI Checks
+name: Infra CI - Lint & Build
 
 on:
   pull_request:
