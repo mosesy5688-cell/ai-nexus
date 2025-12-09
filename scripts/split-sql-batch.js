@@ -16,6 +16,58 @@ import path from 'path';
 // 500KB per batch for D1 compatibility (D1 has internal transaction limits)
 const MAX_BATCH_SIZE = 500 * 1024;
 
+/**
+ * Split SQL content into individual statements, respecting quoted strings
+ * This prevents splitting inside string literals that contain semicolons
+ */
+function splitSqlStatements(content) {
+    const statements = [];
+    let currentStatement = '';
+    let inSingleQuote = false;
+    let escapeNext = false;
+
+    for (let i = 0; i < content.length; i++) {
+        const char = content[i];
+
+        if (escapeNext) {
+            currentStatement += char;
+            escapeNext = false;
+            continue;
+        }
+
+        // Handle escape sequences ('' in SQL)
+        if (char === "'" && content[i + 1] === "'") {
+            currentStatement += "''";
+            i++; // Skip next quote
+            continue;
+        }
+
+        // Toggle quote state
+        if (char === "'") {
+            inSingleQuote = !inSingleQuote;
+        }
+
+        // Check for statement end (semicolon outside quotes)
+        if (char === ';' && !inSingleQuote) {
+            const trimmed = currentStatement.trim();
+            if (trimmed.length > 0) {
+                statements.push(trimmed);
+            }
+            currentStatement = '';
+        } else {
+            currentStatement += char;
+        }
+    }
+
+    // Add final statement if exists
+    const trimmed = currentStatement.trim();
+    if (trimmed.length > 0) {
+        statements.push(trimmed);
+    }
+
+    return statements;
+}
+
 function splitSqlFile(inputFile, outputDir) {
     console.log(`📦 Splitting ${inputFile} into batches...`);
 
@@ -30,7 +82,9 @@ function splitSqlFile(inputFile, outputDir) {
     }
 
     const content = fs.readFileSync(inputFile, 'utf8');
-    const statements = content.split(/;\s*\n/).filter(s => s.trim().length > 0);
+
+    // Smart SQL splitting that respects quoted strings
+    const statements = splitSqlStatements(content);
 
     console.log(`   Total statements: ${statements.length}`);
 
