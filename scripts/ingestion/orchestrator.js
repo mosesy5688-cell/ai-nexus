@@ -25,19 +25,19 @@ const OUTPUT_FILE = path.join(OUTPUT_DIR, 'merged.json');
 
 /**
  * Default ingestion configuration
- * Sprint 2: Added multi-source support
- * NOTE: Conservative limits for first run (avoid 6h GitHub Actions timeout)
+ * Sprint 3 Phase 0: Grand Reset & Core Ingestion (5,000 entities)
+ * Target: HF Models 3000 + GitHub 1500 + Datasets 500 = 5000
  */
 const DEFAULT_CONFIG = {
     sources: {
-        // Tier 1: Core Sources (Priority)
-        huggingface: { enabled: true, options: { limit: 500 } },
+        // Tier 1: Core Sources (Sprint 3 Production Limits)
+        huggingface: { enabled: true, options: { limit: 3000 } },
         'huggingface-datasets': { enabled: true, options: { limit: 500 } },
-        github: { enabled: true, options: { limit: 100 } },
+        github: { enabled: true, options: { limit: 1500 } },
 
-        // Tier 2: Academic Sources (Conservative for first run)
-        arxiv: { enabled: true, options: { limit: 100, category: 'cs.AI OR cs.LG' } },
-        paperswithcode: { enabled: true, options: { limit: 100 } }
+        // Tier 2: Academic Sources
+        arxiv: { enabled: true, options: { limit: 300, category: 'cs.AI OR cs.LG OR cs.CL OR cs.CV' } },
+        paperswithcode: { enabled: true, options: { limit: 200 } }
     },
     deduplication: {
         enabled: true,
