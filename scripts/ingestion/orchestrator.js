@@ -25,11 +25,18 @@ const OUTPUT_FILE = path.join(OUTPUT_DIR, 'merged.json');
 
 /**
  * Default ingestion configuration
+ * Sprint 2: Added multi-source support
  */
 const DEFAULT_CONFIG = {
     sources: {
+        // Tier 1: Core Sources
         huggingface: { enabled: true, options: { limit: 500 } },
-        github: { enabled: true, options: { limit: 200 } }
+        'huggingface-datasets': { enabled: true, options: { limit: 300 } },
+        github: { enabled: true, options: { limit: 200 } },
+
+        // Tier 2: Academic Sources (Sprint 2)
+        arxiv: { enabled: true, options: { limit: 200, category: 'cs.AI OR cs.LG OR cs.CL' } },
+        paperswithcode: { enabled: true, options: { limit: 200 } }
     },
     deduplication: {
         enabled: true,
