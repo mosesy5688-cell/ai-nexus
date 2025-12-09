@@ -1,0 +1,203 @@
+---
+/**
+ * FNI Methodology Page
+ * 
+ * Constitution V3.3 Pillar VII: Fair Index Standard
+ * 
+ * Key Principle: Radical Transparency - Open algorithm, open data, open methodology
+ */
+
+import Layout from '@/layouts/Layout.astro';
+
+const pageTitle = "FNI 评测方法论 | Free2AI Nexus Index";
+const pageDescription = "了解 Free2AI Nexus Index (FNI) 的评测方法论。我们如何客观、透明、公正地评估开源 AI 模型的综合影响力。";
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <main class="max-w-4xl mx-auto px-4 py-12">
+    <!-- Hero -->
+    <div class="text-center mb-12">
+      <h1 class="text-4xl md:text-5xl font-black text-gray-900 dark:text-white mb-4">
+        ⚖️ Free2AI Nexus Index
+      </h1>
+      <p class="text-xl text-gray-600 dark:text-gray-400">
+        开源 AI 领域的综合影响力指数
+      </p>
+      <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">
+        The S&P 500 of Open-Source AI
+      </p>
+    </div>
+
+    <!-- Mission Statement -->
+    <section class="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl p-8 mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+        🎯 我们的使命
+      </h2>
+      <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
+        FNI (Free2AI Nexus Index) 不是另一个排行榜。它是一个<strong>客观、透明、可验证</strong>的综合评估指数。
+        我们相信：<span class="font-semibold text-blue-600 dark:text-blue-400">公信力 = 可解释性</span>。
+        只有当我们能清晰地告诉用户"为什么它是第一名"时，我们才是权威。
+      </p>
+    </section>
+
+    <!-- The Formula -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+        <span>📐</span> 计算公式
+      </h2>
+      
+      <div class="bg-gray-900 text-white rounded-xl p-6 font-mono text-center text-xl mb-6">
+        FNI = P × 30% + V × 30% + C × 40%
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        <!-- P: Popularity -->
+        <div class="bg-blue-50 dark:bg-blue-900/30 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+          <div class="text-3xl mb-2">🔥</div>
+          <h3 class="text-lg font-bold text-blue-800 dark:text-blue-300 mb-2">P - 热度 (30%)</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            社区认可度的客观量化
+          </p>
+          <ul class="text-xs text-gray-500 dark:text-gray-500 space-y-1">
+            <li>• HuggingFace Likes</li>
+            <li>• 下载量 (Downloads)</li>
+            <li>• GitHub Stars</li>
+          </ul>
+        </div>
+
+        <!-- V: Velocity -->
+        <div class="bg-green-50 dark:bg-green-900/30 rounded-xl p-6 border border-green-200 dark:border-green-800">
+          <div class="text-3xl mb-2">🚀</div>
+          <h3 class="text-lg font-bold text-green-800 dark:text-green-300 mb-2">V - 趋势 (30%)</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            近期增长的动态捕捉
+          </p>
+          <ul class="text-xs text-gray-500 dark:text-gray-500 space-y-1">
+            <li>• 7日增长率</li>
+            <li>• 社区活跃度</li>
+            <li>• 潜力股识别</li>
+          </ul>
+        </div>
+
+        <!-- C: Credibility -->
+        <div class="bg-purple-50 dark:bg-purple-900/30 rounded-xl p-6 border border-purple-200 dark:border-purple-800">
+          <div class="text-3xl mb-2">🛡️</div>
+          <h3 class="text-lg font-bold text-purple-800 dark:text-purple-300 mb-2">C - 可信度 (40%)</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            学术与工程的双重背书
+          </p>
+          <ul class="text-xs text-gray-500 dark:text-gray-500 space-y-1">
+            <li>• ArXiv 论文关联</li>
+            <li>• README 完整性</li>
+            <li>• 作者/机构信誉</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Three Pillars of Trust -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+        <span>🏛️</span> 公正性三大支柱
+      </h2>
+
+      <div class="space-y-6">
+        <!-- Pillar 1 -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-2xl">📜</span> 司法级溯源 (Forensic Data Traceability)
+          </h3>
+          <p class="text-gray-600 dark:text-gray-400">
+            所有数据都有完整的审计链 (source_trail)。当您质疑排名时，我们可以展示原始数据快照、采集时间和内容哈希。
+            <strong>数据可追溯，结论可验证。</strong>
+          </p>
+        </div>
+
+        <!-- Pillar 2 -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-2xl">⚖️</span> 绝对中立 (Radical Neutrality)
+          </h3>
+          <p class="text-gray-600 dark:text-gray-400">
+            FNI 评分系统 (L5 Analyst) 与商业推荐系统 (L6 Merchant) <strong>物理隔离</strong>。
+            我们明确禁止"付费提升排名"。商业推荐基于技术匹配，而非竞价。
+          </p>
+        </div>
+
+        <!-- Pillar 3 -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md border border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+            <span class="text-2xl">🔮</span> 全息视角 (Holistic Perspective)
+          </h3>
+          <p class="text-gray-600 dark:text-gray-400">
+            我们不只看"跑分"。一个 benchmark 分数很高但文档写得极烂的模型，在 FNI 中会被适当降权。
+            我们关注<strong>真实世界的可用性</strong>，而非实验室里的理想指标。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Anti-Manipulation -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+        <span>🛡️</span> 抗操纵机制
+      </h2>
+      
+      <div class="bg-red-50 dark:bg-red-900/20 rounded-xl p-6 border border-red-200 dark:border-red-800">
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          我们通过多维度交叉验证检测异常行为：
+        </p>
+        <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-2">
+          <li class="flex items-center gap-2">
+            <span class="text-red-500">❌</span>
+            <span><strong>异常增长检测</strong>：7日增长超过均值10倍触发警报</span>
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="text-red-500">❌</span>
+            <span><strong>比例异常检测</strong>：下载/点赞比例超出合理范围</span>
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="text-red-500">❌</span>
+            <span><strong>内容匹配检测</strong>：高热度但无实质内容</span>
+          </li>
+        </ul>
+        <p class="text-xs text-gray-500 dark:text-gray-500 mt-4">
+          异常模型会被标记并进行人工审核，分数会被适当降权。
+        </p>
+      </div>
+    </section>
+
+    <!-- Open Source Commitment -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+        <span>🔓</span> 开源承诺
+      </h2>
+      
+      <div class="bg-gray-100 dark:bg-gray-800 rounded-xl p-6">
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+          FNI 的计算逻辑完全开源：
+        </p>
+        <div class="bg-gray-900 text-green-400 rounded-lg p-4 font-mono text-sm overflow-x-auto">
+          <code>// github.com/mosesy5688-cell/ai-nexus/scripts/calculate-fni.js</code>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-500 mt-4">
+          任何人都可以审计我们的算法，提出改进建议。透明是信任的基石。
+        </p>
+      </div>
+    </section>
+
+    <!-- Footer CTA -->
+    <section class="text-center bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
+      <h2 class="text-2xl font-bold mb-4">
+        公信力是我们的货币<br/>
+        可解释性是我们的护城河
+      </h2>
+      <p class="text-blue-100 mb-6">
+        Public trust is our currency. Explainability is our moat.
+      </p>
+      <a href="/" class="inline-block bg-white text-blue-600 font-bold px-8 py-3 rounded-lg hover:bg-blue-50 transition-colors">
+        探索模型库 →
+      </a>
+    </section>
+  </main>
+</Layout>
