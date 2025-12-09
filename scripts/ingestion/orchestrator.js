@@ -25,11 +25,19 @@ const OUTPUT_FILE = path.join(OUTPUT_DIR, 'merged.json');
 
 /**
  * Default ingestion configuration
+ * Sprint 2: Added multi-source support
+ * NOTE: Conservative limits for first run (avoid 6h GitHub Actions timeout)
  */
 const DEFAULT_CONFIG = {
     sources: {
+        // Tier 1: Core Sources (Priority)
         huggingface: { enabled: true, options: { limit: 500 } },
-        github: { enabled: true, options: { limit: 200 } }
+        'huggingface-datasets': { enabled: true, options: { limit: 500 } },
+        github: { enabled: true, options: { limit: 100 } },
+
+        // Tier 2: Academic Sources (Conservative for first run)
+        arxiv: { enabled: true, options: { limit: 100, category: 'cs.AI OR cs.LG' } },
+        paperswithcode: { enabled: true, options: { limit: 100 } }
     },
     deduplication: {
         enabled: true,
