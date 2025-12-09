@@ -108,37 +108,69 @@ jobs:
           
           echo "✅ Quality Gate PASSED"
 
-      # === PHASE 6: D1 UPDATE (WITH BATCH SPLITTING) ===
-      - name: Execute D1 Updates
+      # === PHASE 6: D1 UPDATE (TRANSACTIONAL MICRO-BATCHES) ===
+      # Optimized per Architect review:
+      # - Transaction wrapping: BEGIN/COMMIT for atomicity + 10x speed
+      # - 50 rows/batch: Conservative for FTS5 CPU overhead
+      # - Retry logic: 3 attempts with 5s cooldown
+      # - Breathing room: 2s between batches
+      - name: Execute D1 Updates (Batched with Retry)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "🔄 Executing D1 updates with batch splitting..."
+          echo "🔄 Executing D1 updates with transactional micro-batches..."
           
-          # Split large SQL files into batches (500KB each)
+          # Split SQL files into transaction-wrapped batches (50 rows, 100KB max)
           node scripts/split-sql-batch.js ./data/upsert.sql ./data/upsert_batches
           node scripts/split-sql-batch.js ./data/update_urls.sql ./data/url_batches
           
-          # Execute upsert batches
+          # Function to execute batch with retry
+          execute_with_retry() {
+            local batch=$1
+            local max_attempts=3
+            
+            for i in $(seq 1 $max_attempts); do
+              echo "   Executing $(basename $batch) (attempt $i/$max_attempts)..."
+              if npx wrangler d1 execute ai-nexus-db --remote --file="$batch"; then
+                echo "   ✅ Success: $(basename $batch)"
+                return 0
+              else
+                echo "   ⚠️ Failed: $(basename $batch) (attempt $i/$max_attempts)"
+                if [ $i -eq $max_attempts ]; then
+                  echo "   ❌ FATAL: Failed after $max_attempts attempts"
+                  return 1
+                fi
+                echo "   ⏳ Cooling down for 5 seconds..."
+                sleep 5
+              fi
+            done
+          }
+          
+          # Execute upsert batches with retry and breathing room
           echo "📦 Executing upsert batches..."
           for batch in ./data/upsert_batches/batch_*.sql; do
             if [ -f "$batch" ]; then
-              echo "   Executing $(basename $batch)..."
-              npx wrangler d1 execute ai-nexus-db --remote --file="$batch"
+              if ! execute_with_retry "$batch"; then
+                exit 1
+              fi
+              # Breathing room for D1 between batches
+              sleep 2
             fi
           done
           
-          # Execute URL update batches
+          # Execute URL update batches with retry and breathing room
           echo "📦 Executing URL update batches..."
           for batch in ./data/url_batches/batch_*.sql; do
             if [ -f "$batch" ]; then
-              echo "   Executing $(basename $batch)..."
-              npx wrangler d1 execute ai-nexus-db --remote --file="$batch"
+              if ! execute_with_retry "$batch"; then
+                exit 1
+              fi
+              sleep 2
             fi
           done
           
-          echo "✅ D1 updates completed"
+          echo "✅ D1 updates completed successfully"
 
       # === PHASE 7: POST-PROCESS (Rankings & Tags) ===
       # CRITICAL: Integrated from post-process.yml for data freshness
