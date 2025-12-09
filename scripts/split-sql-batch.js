@@ -113,13 +113,10 @@ function splitSqlFile(inputFile, outputDir) {
     function writeBatch() {
         if (currentBatch.length === 0) return;
 
-        // ✨ MAGIC SAUCE: Wrap in Transaction ✨
-        // This provides: 1) Atomicity 2) 10x speed boost 3) Reduced disk I/O
-        const batchContent = [
-            'BEGIN TRANSACTION;',
-            ...currentBatch,
-            'COMMIT;'
-        ].join('\n');
+        // Note: D1 wrangler execute does NOT support SQL-level transactions
+        // (BEGIN TRANSACTION/COMMIT). D1 handles atomicity internally.
+        // We keep micro-batch limits (50 rows, 100KB) for D1 stability.
+        const batchContent = currentBatch.join('\n');
 
         const fileName = `batch_${String(batchNumber).padStart(3, '0')}.sql`;
         const filePath = path.join(outputDir, fileName);
