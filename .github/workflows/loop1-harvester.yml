@@ -150,11 +150,12 @@ jobs:
           # Execute upsert batches with retry and breathing room
           echo "📦 Executing upsert batches..."
           for batch in ./data/upsert_batches/batch_*.sql; do
-            # Check existence and size (skip empty/small files < 25 bytes)
+            # Check existence and size
+            # Valid INSERT header is >350 chars, so any valid batch must be >500 bytes
             if [ -f "$batch" ]; then
               FILE_SIZE=$(wc -c <"$batch")
-              if [ "$FILE_SIZE" -lt 25 ]; then
-                echo "   ⚠️ Skipping empty/small batch: $(basename $batch) ($FILE_SIZE bytes)"
+              if [ "$FILE_SIZE" -lt 500 ]; then
+                echo "   ⚠️ Skipping small/invalid batch: $(basename $batch) ($FILE_SIZE bytes)"
                 continue
               fi
               
@@ -171,8 +172,8 @@ jobs:
           for batch in ./data/url_batches/batch_*.sql; do
             if [ -f "$batch" ]; then
               FILE_SIZE=$(wc -c <"$batch")
-              if [ "$FILE_SIZE" -lt 25 ]; then
-                echo "   ⚠️ Skipping empty/small batch: $(basename $batch) ($FILE_SIZE bytes)"
+              if [ "$FILE_SIZE" -lt 500 ]; then
+                echo "   ⚠️ Skipping small/invalid batch: $(basename $batch) ($FILE_SIZE bytes)"
                 continue
               fi
 
