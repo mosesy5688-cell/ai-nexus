@@ -17,6 +17,45 @@ use urlencoding::encode;
 // V3.2: Image processing
 use image::{ImageFormat, GenericImageView, imageops::FilterType};
 
+/// Safely escape a string for SQL insertion
+/// Handles: single quotes, backslashes, newlines, control chars, and non-ASCII
+fn escape_sql_string(s: &str) -> String {
+    let mut result = String::with_capacity(s.len() * 2);
+    
+    for c in s.chars() {
+        match c {
+            // Escape single quotes (SQL standard: '' for literal ')
+            '\'' => result.push_str("''"),
+            // Remove backslashes (can cause issues in some SQL contexts)
+            '\\' => result.push(' '),
+            // Replace newlines/carriage returns with spaces
+            '\n' | '\r' => result.push(' '),
+            // Replace tabs with spaces
+            '\t' => result.push(' '),
+            // Remove null bytes and other control characters
+            c if c.is_control() => {}
+            // Keep ASCII printable characters
+            c if c.is_ascii() => result.push(c),
+            // Remove non-ASCII characters for D1 compatibility
+            _ => {}
+        }
+    }
+    
+    // Collapse multiple spaces into one
+    result
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Wrap string in SQL quotes with escaping, or return NULL
+fn sql_string_or_null(s: &Option<String>) -> String {
+    match s {
+        Some(val) if !val.trim().is_empty() => format!("'{}'", escape_sql_string(val)),
+        _ => "NULL".to_string()
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -218,17 +257,17 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
     // ==================== Build Upsert SQL (Base Data) ====================
     let pipeline = model.pipeline_tag.unwrap_or_else(|| "other".to_string());
     let tags_json = serde_json::to_string(&model.tags.unwrap_or_default()).unwrap_or("[]".to_string());
-    let safe_desc = model.description.unwrap_or_default().replace('\'', "''").replace('\n', " ");
+    let safe_desc = escape_sql_string(&model.description.unwrap_or_default());
 
-    // V3.1 Schema: Handle fields
-    let source_trail = model.source_trail.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
-    let commercial_slots = model.commercial_slots.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
-    let notebooklm_summary = model.notebooklm_summary.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
+    // V3.1 Schema: Handle fields with proper escaping
+    let source_trail = sql_string_or_null(&model.source_trail);
+    let commercial_slots = sql_string_or_null(&model.commercial_slots);
+    let notebooklm_summary = sql_string_or_null(&model.notebooklm_summary);
     let velocity_score = model.velocity_score.map(|v| v.to_string()).unwrap_or("NULL".to_string());
-    let last_commercial_at = model.last_commercial_at.clone().map(|s| format!("'{}'", s)).unwrap_or("NULL".to_string());
+    let last_commercial_at = model.last_commercial_at.clone().map(|s| format!("'{}'", escape_sql_string(&s))).unwrap_or("NULL".to_string());
 
     // V3.2 Schema: Handle new fields
-    let entity_type = model.entity_type.as_ref().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("'model'".to_string());
+    let entity_type = model.entity_type.as_ref().map(|s| format!("'{}'", escape_sql_string(s))).unwrap_or("'model'".to_string());
     
     // V3.1 Constitution Pillar III: Data Integrity - Full content to R2, no truncation
     // Write body_content to .md file for R2 upload, store URL reference in D1
@@ -257,35 +296,30 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
     // Extract first 5KB for FTS5 search index (stored in D1 for search capability)
     let search_text = model.body_content.as_ref().map(|s| {
         let truncated = if s.len() > 5000 { &s[..5000] } else { s.as_str() };
-        // Only ASCII for D1 compatibility
-        let sanitized: String = truncated.chars()
-            .filter(|c| c.is_ascii())
-            .collect::<String>()
-            .replace('\'', "''")
-            .replace('\n', " ")
-            .replace('\r', "");
-        format!("'{}'", sanitized)
+        format!("'{}'", escape_sql_string(truncated))
     }).unwrap_or("NULL".to_string());
-    let meta_json = model.meta_json.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
-    let assets_json = model.assets_json.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
-    let relations_json = model.relations_json.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
-    let canonical_id = model.canonical_id.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
-    let license_spdx = model.license_spdx.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
-    let compliance_status = model.compliance_status.clone().map(|s| format!("'{}'", s)).unwrap_or("'pending'".to_string());
+    
+    // Use escape_sql_string for all JSON and string fields
+    let meta_json = sql_string_or_null(&model.meta_json);
+    let assets_json = sql_string_or_null(&model.assets_json);
+    let relations_json = sql_string_or_null(&model.relations_json);
+    let canonical_id = sql_string_or_null(&model.canonical_id);
+    let license_spdx = sql_string_or_null(&model.license_spdx);
+    let compliance_status = model.compliance_status.clone().map(|s| format!("'{}'", escape_sql_string(&s))).unwrap_or("'pending'".to_string());
     let quality_score = model.quality_score.map(|v| v.to_string()).unwrap_or("NULL".to_string());
     let content_hash = model.content_hash.clone().map(|s| format!("'{}'", s)).unwrap_or("NULL".to_string());
     let velocity = model.velocity.map(|v| v.to_string()).unwrap_or("NULL".to_string());
-    let raw_image_url = model.raw_image_url.clone().map(|s| format!("'{}'", s.replace('\'', "''"))).unwrap_or("NULL".to_string());
+    let raw_image_url = sql_string_or_null(&model.raw_image_url);
 
     let upsert_stmt = format!(
         "INSERT OR REPLACE INTO models (id, slug, name, author, description, tags, pipeline_tag, likes, downloads, cover_image_url, source_trail, commercial_slots, notebooklm_summary, velocity_score, last_commercial_at, type, body_content, body_content_url, meta_json, assets_json, relations_json, canonical_id, license_spdx, compliance_status, quality_score, content_hash, velocity, raw_image_url, last_updated) VALUES ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, NULL, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, CURRENT_TIMESTAMP);\n",
-        db_id,
-        slug,
-        name.replace('\'', "''"),
-        author.replace('\'', "''"),
+        escape_sql_string(&db_id),
+        escape_sql_string(&slug),
+        escape_sql_string(&name),
+        escape_sql_string(&author),
         safe_desc,
-        tags_json.replace('\'', "''"),
-        pipeline,
+        escape_sql_string(&tags_json),
+        escape_sql_string(&pipeline),
         model.likes.unwrap_or(0),
         model.downloads.unwrap_or(0),
         source_trail,
