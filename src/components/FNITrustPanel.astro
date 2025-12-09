@@ -1,0 +1,154 @@
+---
+/**
+ * FNI Trust Panel Component
+ * 
+ * Constitution V3.3 Pillar VII: Fair Index Standard
+ * Key Principle: Explainability - "Show the why, not just the score"
+ * 
+ * V3.3 Data Expansion: Added U (Utility) dimension for Runtime Ecosystem
+ * Displays bar chart with P/V/C/U, commentary, and verification footer.
+ */
+
+interface Props {
+  fniScore: number;
+  fniPercentile: number;
+  fniP: number;
+  fniV: number;
+  fniC: number;
+  fniU?: number;  // V3.3 Data Expansion
+  fniCommentary?: string;
+  fniCalculatedAt?: string;
+  modelName: string;
+}
+
+const { 
+  fniScore = 0, 
+  fniPercentile = 0, 
+  fniP = 0, 
+  fniV = 0, 
+  fniC = 0,
+  fniU = 0,  // V3.3 Data Expansion
+  fniCommentary = '',
+  fniCalculatedAt = '',
+  modelName = ''
+} = Astro.props;
+
+// Calculate bar chart percentages (simple CSS-based approach)
+const maxScore = 100;
+const pPercent = (fniP / maxScore) * 100;
+const vPercent = (fniV / maxScore) * 100;
+const cPercent = (fniC / maxScore) * 100;
+const uPercent = (fniU / maxScore) * 100;  // V3.3 Data Expansion
+
+// Format date
+const formattedDate = fniCalculatedAt 
+  ? new Date(fniCalculatedAt).toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  : '未计算';
+---
+
+<div class="fni-trust-panel bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+      <span class="text-2xl">⚖️</span>
+      Free2AI Nexus Index
+    </h3>
+    <a href="/methodology" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">
+      评测方法论 →
+    </a>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <!-- Left: Score & Radar -->
+    <div class="text-center">
+      <!-- Big Score -->
+      <div class="mb-4">
+        <div class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+          {fniScore.toFixed(1)}
+        </div>
+        <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Top {100 - fniPercentile}% 综合影响力
+        </div>
+      </div>
+
+      <!-- Simple Bar Chart (CSS-based) -->
+      <div class="space-y-3 text-left">
+        <!-- Popularity -->
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-gray-600 dark:text-gray-400">🔥 热度 (P)</span>
+            <span class="font-semibold text-blue-600">{fniP.toFixed(0)}</span>
+          </div>
+          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-500" style={`width: ${pPercent}%`}></div>
+          </div>
+        </div>
+
+        <!-- Velocity -->
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-gray-600 dark:text-gray-400">🚀 趋势 (V)</span>
+            <span class="font-semibold text-green-600">{fniV.toFixed(0)}</span>
+          </div>
+          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all duration-500" style={`width: ${vPercent}%`}></div>
+          </div>
+        </div>
+
+        <!-- Credibility -->
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-gray-600 dark:text-gray-400">🛡️ 可信度 (C)</span>
+            <span class="font-semibold text-purple-600">{fniC.toFixed(0)}</span>
+          </div>
+          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-purple-400 to-purple-600 rounded-full transition-all duration-500" style={`width: ${cPercent}%`}></div>
+          </div>
+        </div>
+
+        <!-- Utility (V3.3 Data Expansion) -->
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-gray-600 dark:text-gray-400">🔧 实用性 (U)</span>
+            <span class="font-semibold text-orange-600">{fniU.toFixed(0)}</span>
+          </div>
+          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full transition-all duration-500" style={`width: ${uPercent}%`}></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Commentary (The WHY) -->
+    <div class="flex flex-col">
+      <div class="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600 flex-1">
+        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1">
+          <span>💬</span> AI 评语
+        </h4>
+        <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+          {fniCommentary || `${modelName} 的 FNI 评分正在计算中...`}
+        </p>
+      </div>
+
+      <!-- Verification Footer -->
+      <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-500">
+          <span class="flex items-center gap-1">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+            </svg>
+            数据已验证
+          </span>
+          <span>评测日期: {formattedDate}</span>
+        </div>
+        <div class="text-[10px] text-gray-400 dark:text-gray-600 mt-1">
+          Free2AI Nexus Index | 公正・透明・可解释
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

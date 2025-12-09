@@ -10,6 +10,8 @@ import UsageExample from '../../components/UsageExample.astro';
 import ResourceList from '../../components/ResourceList.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
+import FNIBadge from '../../components/FNIBadge.astro';
+import FNITrustPanel from '../../components/FNITrustPanel.astro';
 import { getModelBySlug } from '../../utils/db';
 import { prepareDetailData, getBestDescription, formatMetric, formatRelativeTime, parseJSONField } from '../../utils/data-service';
 import { marked } from 'marked';
@@ -162,9 +164,22 @@ if (model?.commercial_slots) {
             <div class="flex flex-col md:flex-row gap-6 items-start">
 
               <div class="flex-1">
-                <h1 class="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white mb-3 tracking-tight">
-                  {model.displayName}
-                </h1>
+                <div class="flex items-center gap-3 mb-3">
+                  <h1 class="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white tracking-tight">
+                    {model.displayName}
+                  </h1>
+                  {/* FNI Badge - Constitution V3.3 Pillar VII */}
+                  {(model.fni_score || model.fni_percentile) && (
+                    <FNIBadge 
+                      fniScore={model.fni_score || 0}
+                      fniPercentile={model.fni_percentile || 0}
+                      fniP={model.fni_p || 0}
+                      fniV={model.fni_v || 0}
+                      fniC={model.fni_c || 0}
+                      size="md"
+                    />
+                  )}
+                </div>
                 <p class="text-lg text-gray-600 dark:text-gray-300 flex items-center gap-2">
                   by <span class="font-semibold text-gray-900 dark:text-white" itemprop="author">{model.author}</span>
                   {model.pipeline_tag && (
@@ -214,6 +229,21 @@ if (model?.commercial_slots) {
                             </div>
                         </div>
                     </div>
+                 )}
+
+                 {/* FNI Trust Panel - Constitution V3.3 Pillar VII */}
+                 {(model.fni_score || model.fni_percentile) && (
+                    <FNITrustPanel 
+                      fniScore={model.fni_score || 0}
+                      fniPercentile={model.fni_percentile || 0}
+                      fniP={model.fni_p || 0}
+                      fniV={model.fni_v || 0}
+                      fniC={model.fni_c || 0}
+                      fniU={model.fni_u || 0}
+                      fniCommentary={model.fni_commentary || ''}
+                      fniCalculatedAt={model.fni_calculated_at || ''}
+                      modelName={model.displayName}
+                    />
                  )}
 
                  {/* V3.2: Full Documentation (body_content) */}

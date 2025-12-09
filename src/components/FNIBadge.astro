@@ -1,0 +1,114 @@
+---
+/**
+ * FNI Badge Component
+ * 
+ * Constitution V3.3 Pillar VII: Fair Index Standard
+ * 
+ * Displays the FNI percentile rank with tooltip showing raw score.
+ * Strategy: Use percentile for badge, raw score in tooltip.
+ */
+
+interface Props {
+  fniScore: number;
+  fniPercentile: number;
+  fniP?: number;
+  fniV?: number;
+  fniC?: number;
+  size?: 'sm' | 'md' | 'lg';
+}
+
+const { 
+  fniScore = 0, 
+  fniPercentile = 0, 
+  fniP = 0, 
+  fniV = 0, 
+  fniC = 0,
+  size = 'md' 
+} = Astro.props;
+
+// Determine badge color based on percentile
+function getBadgeColor(percentile: number): string {
+  if (percentile >= 95) return 'from-yellow-400 to-amber-500'; // Elite
+  if (percentile >= 90) return 'from-purple-500 to-indigo-600'; // Top 10%
+  if (percentile >= 75) return 'from-blue-500 to-cyan-500'; // Top 25%
+  if (percentile >= 50) return 'from-green-500 to-emerald-500'; // Top 50%
+  return 'from-gray-400 to-gray-500'; // Lower 50%
+}
+
+function getBadgeLabel(percentile: number): string {
+  if (percentile >= 95) return '🏆 Elite';
+  if (percentile >= 90) return '🥇 Top 10%';
+  if (percentile >= 75) return '🥈 Top 25%';
+  if (percentile >= 50) return '📊 Top 50%';
+  return '📉 Emerging';
+}
+
+function getBadgeEmoji(percentile: number): string {
+  if (percentile >= 95) return '🏆';
+  if (percentile >= 90) return '🥇';
+  if (percentile >= 75) return '🥈';
+  if (percentile >= 50) return '🥉';
+  return '📊';
+}
+
+const badgeColor = getBadgeColor(fniPercentile);
+const badgeLabel = getBadgeLabel(fniPercentile);
+
+const sizeClasses = {
+  sm: 'px-2 py-1 text-xs',
+  md: 'px-3 py-1.5 text-sm',
+  lg: 'px-4 py-2 text-base'
+};
+---
+
+<div class="fni-badge-container relative inline-block group">
+  <!-- Main Badge -->
+  <div class={`
+    fni-badge inline-flex items-center gap-1.5 
+    bg-gradient-to-r ${badgeColor} 
+    text-white font-bold rounded-full shadow-lg
+    ${sizeClasses[size]}
+    cursor-help transition-all duration-300
+    hover:scale-105 hover:shadow-xl
+  `}>
+    <span class="fni-label">{badgeLabel}</span>
+  </div>
+
+  <!-- Tooltip (shows on hover) -->
+  <div class="fni-tooltip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 
+              opacity-0 group-hover:opacity-100 transition-opacity duration-200
+              pointer-events-none z-50">
+    <div class="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl
+                min-w-[180px]">
+      <div class="font-bold text-center mb-2 border-b border-gray-700 pb-1">
+        FNI Score: {fniScore.toFixed(1)}
+      </div>
+      <div class="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <div class="text-blue-400 font-semibold">{fniP.toFixed(0)}</div>
+          <div class="text-gray-400 text-[10px]">热度</div>
+        </div>
+        <div>
+          <div class="text-green-400 font-semibold">{fniV.toFixed(0)}</div>
+          <div class="text-gray-400 text-[10px]">趋势</div>
+        </div>
+        <div>
+          <div class="text-purple-400 font-semibold">{fniC.toFixed(0)}</div>
+          <div class="text-gray-400 text-[10px]">可信</div>
+        </div>
+      </div>
+      <div class="text-center mt-2 text-[10px] text-gray-400">
+        Free2AI Nexus Index
+      </div>
+    </div>
+    <!-- Tooltip Arrow -->
+    <div class="absolute top-full left-1/2 -translate-x-1/2 
+                border-4 border-transparent border-t-gray-900"></div>
+  </div>
+</div>
+
+<style>
+  .fni-badge-container:hover .fni-tooltip {
+    opacity: 1;
+  }
+</style>

@@ -21,6 +21,12 @@ on:
         required: false
         default: 'all'
 
+# Concurrency control: Only one L2 Enricher can run at a time
+# New runs will cancel older in-progress runs to avoid duplicate work
+concurrency:
+  group: l2-enricher
+  cancel-in-progress: true
+
 jobs:
   enrich:
     name: Enrich Content
