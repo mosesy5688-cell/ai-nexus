@@ -108,15 +108,36 @@ jobs:
           
           echo "✅ Quality Gate PASSED"
 
-      # === PHASE 6: D1 UPDATE ===
+      # === PHASE 6: D1 UPDATE (WITH BATCH SPLITTING) ===
       - name: Execute D1 Updates
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "🔄 Executing D1 updates..."
-          npx wrangler d1 execute ai-nexus-db --remote --file="./data/upsert.sql"
-          npx wrangler d1 execute ai-nexus-db --remote --file="./data/update_urls.sql"
+          echo "🔄 Executing D1 updates with batch splitting..."
+          
+          # Split large SQL files into batches (500KB each)
+          node scripts/split-sql-batch.js ./data/upsert.sql ./data/upsert_batches
+          node scripts/split-sql-batch.js ./data/update_urls.sql ./data/url_batches
+          
+          # Execute upsert batches
+          echo "📦 Executing upsert batches..."
+          for batch in ./data/upsert_batches/batch_*.sql; do
+            if [ -f "$batch" ]; then
+              echo "   Executing $(basename $batch)..."
+              npx wrangler d1 execute ai-nexus-db --remote --file="$batch"
+            fi
+          done
+          
+          # Execute URL update batches
+          echo "📦 Executing URL update batches..."
+          for batch in ./data/url_batches/batch_*.sql; do
+            if [ -f "$batch" ]; then
+              echo "   Executing $(basename $batch)..."
+              npx wrangler d1 execute ai-nexus-db --remote --file="$batch"
+            fi
+          done
+          
           echo "✅ D1 updates completed"
 
       # === PHASE 7: POST-PROCESS (Rankings & Tags) ===
