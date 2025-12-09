@@ -183,7 +183,58 @@ export class HuggingFaceAdapter extends BaseAdapter {
         entity.compliance_status = this.getComplianceStatus(entity);
         entity.quality_score = this.calculateQualityScore(entity);
 
+        // V3.3 Data Expansion: GGUF Detection
+        const ggufInfo = this.detectGGUF(raw);
+        entity.has_gguf = ggufInfo.hasGGUF;
+        entity.gguf_variants = ggufInfo.variants;
+
         return entity;
+    }
+
+    /**
+     * Detect GGUF files in model repository
+     * V3.3 Data Expansion - "Runtime First" Strategy
+     */
+    detectGGUF(raw) {
+        const siblings = raw.siblings || [];
+        const ggufFiles = siblings.filter(f =>
+            f.rfilename && f.rfilename.toLowerCase().endsWith('.gguf')
+        );
+
+        if (ggufFiles.length === 0) {
+            return { hasGGUF: false, variants: [] };
+        }
+
+        // Extract quantization variants from filenames
+        // e.g., "model-Q4_K_M.gguf" -> "Q4_K_M"
+        const variants = [];
+        const quantPattern = /[_-](Q[0-9]+[_A-Z]*|F16|F32|BF16)/gi;
+
+        for (const file of ggufFiles) {
+            const matches = file.rfilename.match(quantPattern);
+            if (matches) {
+                matches.forEach(m => {
+                    const variant = m.replace(/^[_-]/, '').toUpperCase();
+                    if (!variants.includes(variant)) {
+                        variants.push(variant);
+                    }
+                });
+            }
+        }
+
+        // Sort by quality (F16 > Q8 > Q6 > Q5 > Q4 > Q3 > Q2)
+        const quantOrder = ['F32', 'F16', 'BF16', 'Q8', 'Q6', 'Q5', 'Q4', 'Q3', 'Q2'];
+        variants.sort((a, b) => {
+            const aOrder = quantOrder.findIndex(q => a.startsWith(q));
+            const bOrder = quantOrder.findIndex(q => b.startsWith(q));
+            return aOrder - bOrder;
+        });
+
+        return {
+            hasGGUF: true,
+            variants: variants.slice(0, 10), // Limit to 10 variants
+            fileCount: ggufFiles.length
+        };
     }
 
     /**
