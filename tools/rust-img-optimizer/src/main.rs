@@ -293,9 +293,12 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
         "NULL".to_string()
     };
     
-    // Extract first 5KB for FTS5 search index (stored in D1 for search capability)
+    // Extract first 1KB for FTS5 search index (stored in D1 for search capability)
+    // Reduced from 5KB to 1KB per architect recommendation: 
+    // - First 1000 chars contain 90% of search-relevant info (name, architecture, features)
+    // - Reduces D1 batch load by 5x, hitting the "sweet spot" of 50-100KB/transaction
     let search_text = model.body_content.as_ref().map(|s| {
-        let truncated = if s.len() > 5000 { &s[..5000] } else { s.as_str() };
+        let truncated = if s.len() > 1000 { &s[..1000] } else { s.as_str() };
         format!("'{}'", escape_sql_string(truncated))
     }).unwrap_or("NULL".to_string());
     
