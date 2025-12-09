@@ -111,8 +111,12 @@ function splitSqlFile(inputFile, outputDir) {
     const batches = [];
 
     function writeBatch() {
-        // Filter out empty/whitespace-only statements
-        const validStatements = currentBatch.filter(s => s.trim().length > 0);
+        // Strict Filter: Statements must be non-empty AND start with INSERT/UPDATE
+        // This eliminates garbage, hanging comments, or malformed fragments
+        const validStatements = currentBatch.filter(s => {
+            const up = s.trim().toUpperCase();
+            return up.startsWith('INSERT') || up.startsWith('UPDATE');
+        });
 
         if (validStatements.length === 0) return;
 
