@@ -108,6 +108,20 @@ jobs:
           
           echo "✅ Quality Gate PASSED"
 
+      # === PHASE 5B: R2-FIRST LAKEHOUSE BATCH GENERATION ===
+      # V3.3 Architecture: Generate JSON batches for parameterized D1 ingestion
+      # Benefits:
+      # - Bypasses SQL parsing limits
+      # - Enables batch() with prepared statements
+      # - 10x faster than raw SQL execution
+      - name: Generate JSON Batches for R2-First Lakehouse
+        run: |
+          echo "📦 R2-First Lakehouse: Generating JSON batches..."
+          node scripts/prepare-ingest-batches.js
+          
+          batch_count=$(ls -1 data/ingest/batch_*.json 2>/dev/null | wc -l)
+          echo "✅ Generated $batch_count JSON batches for R2 upload"
+
       # === PHASE 6: D1 UPDATE (TRANSACTIONAL MICRO-BATCHES) ===
       # Optimized per Architect review:
       # - Transaction wrapping: BEGIN/COMMIT for atomicity + 10x speed
