@@ -111,12 +111,15 @@ function splitSqlFile(inputFile, outputDir) {
     const batches = [];
 
     function writeBatch() {
-        if (currentBatch.length === 0) return;
+        // Filter out empty/whitespace-only statements
+        const validStatements = currentBatch.filter(s => s.trim().length > 0);
+
+        if (validStatements.length === 0) return;
 
         // Note: D1 wrangler execute does NOT support SQL-level transactions
         // (BEGIN TRANSACTION/COMMIT). D1 handles atomicity internally.
         // We keep micro-batch limits (50 rows, 100KB) for D1 stability.
-        const batchContent = currentBatch.join('\n');
+        const batchContent = validStatements.join('\n');
 
         const fileName = `batch_${String(batchNumber).padStart(3, '0')}.sql`;
         const filePath = path.join(outputDir, fileName);
