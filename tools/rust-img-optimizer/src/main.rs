@@ -317,7 +317,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 None
             },
             search_text: model.body_content.as_ref().map(|s| {
-                if s.len() > 1000 { s[..1000].to_string() } else { s.clone() }
+                // UTF-8 safe truncation: use chars() iterator instead of byte slice
+                s.chars().take(1000).collect::<String>()
             }),
             meta_json: model.meta_json.clone(),
             assets_json: model.assets_json.clone(),
