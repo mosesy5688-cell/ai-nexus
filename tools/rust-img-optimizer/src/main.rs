@@ -98,6 +98,42 @@ struct Model {
     raw_image_url: Option<String>,
 }
 
+/// Lightweight model for D1 ingestion (excludes body_content for <50KB JSON files)
+/// Used by R2-First Lakehouse architecture
+#[derive(Debug, Serialize, Clone)]
+struct D1Model {
+    id: String,
+    slug: String,
+    name: String,
+    author: String,
+    description: String,
+    tags: String,  // JSON string
+    pipeline_tag: String,
+    likes: i32,
+    downloads: i32,
+    cover_image_url: Option<String>,
+    // V3.1 Fields
+    source_trail: Option<String>,
+    commercial_slots: Option<String>,
+    notebooklm_summary: Option<String>,
+    velocity_score: Option<f64>,
+    last_commercial_at: Option<String>,
+    // V3.2 Fields
+    entity_type: String,
+    body_content_url: Option<String>,  // R2 URL, NOT the content itself
+    search_text: Option<String>,       // 1KB snippet for FTS5
+    meta_json: Option<String>,
+    assets_json: Option<String>,
+    relations_json: Option<String>,
+    canonical_id: Option<String>,
+    license_spdx: Option<String>,
+    compliance_status: String,
+    quality_score: Option<f64>,
+    content_hash: Option<String>,
+    velocity: Option<f64>,
+    raw_image_url: Option<String>,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
@@ -114,6 +150,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ==================== Create temporary directories ====================
     fs::create_dir_all("data/images")?;
     fs::create_dir_all("data/docs")?;  // V3.1: For full README storage to R2
+    fs::create_dir_all("data/ingest")?; // V3.2: For JSON batch output (R2-First Lakehouse)
 
     // ==================== Load JSON data with robust error handling ====================
     let data = match fs::read_to_string(&args.input) {
@@ -223,6 +260,99 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("  Models without images: {}", total_models - models_with_images);
 
     eprintln!("SQL generated successfully.");
+
+    // ==================== R2-First Lakehouse: Generate JSON Batches ====================
+    // V3.2 Architecture: Output lightweight JSON for Worker-based D1 ingestion
+    // Benefits: 1) Bypasses D1 SQL parsing limits 2) Internal CF network 3) Parameterized queries
+    
+    eprintln!("\n🏗️ R2-First Lakehouse: Generating JSON batches...");
+    
+    let r2_url_prefix = env::var("R2_PUBLIC_URL_PREFIX").unwrap_or_else(|_| "https://cdn.free2aitools.com".to_string());
+    let mut d1_models: Vec<D1Model> = Vec::new();
+    
+    // Re-process models for D1Model JSON output
+    let data = fs::read_to_string(&args.input)?;
+    let models: Vec<Model> = serde_json::from_str(&data)?;
+    
+    for model in models {
+        let source = model.source.clone().unwrap_or_else(|| "huggingface".to_string());
+        
+        let (author, name) = if let (Some(a), Some(n)) = (model.author.clone(), model.name.clone()) {
+            (a, n)
+        } else {
+            let parts: Vec<String> = model.id.split('/').map(|s| s.to_string()).collect();
+            if parts.len() >= 2 {
+                (parts[0].clone(), parts[1].clone())
+            } else {
+                ("unknown".to_string(), model.id.clone())
+            }
+        };
+        
+        let safe_author = author.replace(['/', '_'], "-");
+        let safe_name = name.replace(['/', '_'], "-");
+        let db_id = format!("{}-{}-{}", source, safe_author, safe_name);
+        let slug = format!("{}--{}--{}", source, safe_author.to_lowercase(), safe_name.to_lowercase());
+        
+        // Build D1Model (lightweight, no body_content)
+        let d1_model = D1Model {
+            id: db_id.clone(),
+            slug,
+            name: name.clone(),
+            author: author.clone(),
+            description: model.description.clone().unwrap_or_default(),
+            tags: serde_json::to_string(&model.tags.clone().unwrap_or_default()).unwrap_or("[]".to_string()),
+            pipeline_tag: model.pipeline_tag.clone().unwrap_or_else(|| "other".to_string()),
+            likes: model.likes.unwrap_or(0),
+            downloads: model.downloads.unwrap_or(0),
+            cover_image_url: Some(format!("{}/models/{}.webp", r2_url_prefix, db_id)),
+            source_trail: model.source_trail.clone(),
+            commercial_slots: model.commercial_slots.clone(),
+            notebooklm_summary: model.notebooklm_summary.clone(),
+            velocity_score: model.velocity_score,
+            last_commercial_at: model.last_commercial_at.clone(),
+            entity_type: model.entity_type.clone().unwrap_or_else(|| "model".to_string()),
+            body_content_url: if model.body_content.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false) {
+                Some(format!("{}/docs/{}.md", r2_url_prefix, db_id))
+            } else {
+                None
+            },
+            search_text: model.body_content.as_ref().map(|s| {
+                if s.len() > 1000 { s[..1000].to_string() } else { s.clone() }
+            }),
+            meta_json: model.meta_json.clone(),
+            assets_json: model.assets_json.clone(),
+            relations_json: model.relations_json.clone(),
+            canonical_id: model.canonical_id.clone(),
+            license_spdx: model.license_spdx.clone(),
+            compliance_status: model.compliance_status.clone().unwrap_or_else(|| "pending".to_string()),
+            quality_score: model.quality_score,
+            content_hash: model.content_hash.clone(),
+            velocity: model.velocity,
+            raw_image_url: model.raw_image_url.clone(),
+        };
+        
+        d1_models.push(d1_model);
+    }
+    
+    // Output JSON batches (25 items per file)
+    const BATCH_SIZE: usize = 25;
+    let mut batch_count = 0;
+    
+    for chunk in d1_models.chunks(BATCH_SIZE) {
+        let batch_filename = format!("data/ingest/batch_{:03}.json", batch_count);
+        let json = serde_json::to_string_pretty(chunk)?;
+        fs::write(&batch_filename, &json)?;
+        
+        let size_kb = json.len() as f64 / 1024.0;
+        eprintln!("  📦 {} ({} items, {:.1} KB)", batch_filename, chunk.len(), size_kb);
+        
+        batch_count += 1;
+    }
+    
+    eprintln!("✅ JSON Generation Summary:");
+    eprintln!("  Total batches: {}", batch_count);
+    eprintln!("  Total models: {}", d1_models.len());
+    eprintln!("  Batch size: {} items", BATCH_SIZE);
 
     Ok(())
 }
