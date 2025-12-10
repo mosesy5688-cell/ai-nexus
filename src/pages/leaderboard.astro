@@ -15,6 +15,7 @@ const pageDescription = "The official Fair Nexus Index (FNI) rankings. Discover 
 // Fetch top models by FNI score from D1
 let topModels = [];
 let error = null;
+let dbUnavailable = false;
 
 try {
   const db = Astro.locals?.runtime?.env?.DB;
@@ -32,6 +33,9 @@ try {
       LIMIT 100
     `).all();
     topModels = result.results || [];
+  } else {
+    // DB not available (edge build or local dev without wrangler)
+    dbUnavailable = true;
   }
 } catch (e) {
   console.error('[FNI Leaderboard] Error:', e);
@@ -86,10 +90,13 @@ try {
         <h2 class="text-2xl font-bold mb-4">Error Loading Rankings</h2>
         <p>We couldn't fetch the FNI leaderboard. Please try again later.</p>
       </div>
-    ) : topModels.length === 0 ? (
+    ) : dbUnavailable || topModels.length === 0 ? (
       <div class="text-center py-16">
         <p class="text-2xl font-semibold text-gray-700 dark:text-gray-200">No FNI-scored models yet.</p>
-        <p class="text-gray-500 dark:text-gray-400 mt-2">FNI scores are calculated daily. Check back tomorrow!</p>
+        <p class="text-gray-500 dark:text-gray-400 mt-2">FNI scores are calculated daily. Check back soon!</p>
+        <a href="/explore" class="inline-block mt-6 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors">
+          Explore All Models
+        </a>
       </div>
     ) : (
       <div class="mb-16">
