@@ -57,6 +57,15 @@ export function normalizeModelData(rawModel) {
         pwc_datasets: parseJSONField(rawModel.pwc_datasets, []),
         pwc_sota_count: parseInt(rawModel.pwc_sota_count) || 0,
 
+        // FNI Data - Constitution V4.1 Pillar VII: Fair Index
+        fni_score: parseFloat(rawModel.fni_score) || 0,
+        fni_p: parseFloat(rawModel.fni_p) || 0,
+        fni_v: parseFloat(rawModel.fni_v) || 0,
+        fni_c: parseFloat(rawModel.fni_c) || 0,
+        fni_u: parseFloat(rawModel.fni_u) || 0,
+        fni_percentile: parseFloat(rawModel.fni_percentile) || 0,
+        fni_calculated_at: rawModel.fni_calculated_at || null,
+
         // Preserve raw data for debugging
         _raw: rawModel
     };
