@@ -63,11 +63,12 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
 
             console.log(`[Ingest] Found ${jsonFiles.length} files to process`);
 
-            // Process first file (adaptive batch)
+            // V4.1 HUNGRY MODE: Process up to 20 files per run (was 1)
+            const MAX_FILES_PER_RUN = 20;
             let totalModels = 0;
             let filesProcessed = 0;
 
-            for (const fileObj of jsonFiles.slice(0, 1)) { // Process one at a time for now
+            for (const fileObj of jsonFiles.slice(0, MAX_FILES_PER_RUN)) { // Process up to 20 files per run
                 try {
                     console.log(`[Ingest] Fetching ${fileObj.key}...`);
                     const file = await env.R2_ASSETS.get(fileObj.key);
@@ -221,16 +222,19 @@ function cleanModel(model: any): any {
     return {
         id: id,
         slug: slug,
-        name: cleanText(model.name || model.id || ''),
+        name: cleanText(model.title || model.name || model.id || ''),
         author: model.author || '',
         description: cleanText(model.description || ''),
         tags: JSON.stringify(model.tags || (model.pipeline_tag ? [model.pipeline_tag] : [])),
-        likes: model.likes || 0,
+        likes: model.popularity || model.likes || 0,
         downloads: model.downloads || 0,
-        cover_image_url: model.cover_image_url || '',
+        // V4.1 Fix: Match orchestrator field names
+        cover_image_url: model.raw_image_url || model.cover_image_url || '',
         body_content_url: model.body_content_url || '',
-        source_trail: JSON.stringify(model.source_trail || { source: 'huggingface', fetched_at: new Date().toISOString() }),
-        license_spdx: model.license || '',
+        source_trail: typeof model.source_trail === 'string'
+            ? model.source_trail
+            : JSON.stringify(model.source_trail || { source: 'huggingface', fetched_at: new Date().toISOString() }),
+        license_spdx: model.license_spdx || model.license || '',
         has_ollama: model.has_ollama ? 1 : 0,
         has_gguf: model.has_gguf ? 1 : 0,
         last_updated: new Date().toISOString()
@@ -314,7 +318,27 @@ export default {
             }
         }
 
-        return new Response('Unified Workflow V4.1\n\nEndpoints:\n- /debug-r2 - Debug R2 listing', {
+        // Manual trigger endpoint for force flush
+        if (url.pathname === '/trigger') {
+            try {
+                console.log('[Trigger] Manual workflow trigger...');
+                const instance = await env.UNIFIED_WORKFLOW.create();
+                return new Response(JSON.stringify({
+                    status: 'triggered',
+                    instanceId: instance.id,
+                    message: 'Unified Workflow instance created. Check logs for progress.'
+                }, null, 2), {
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            } catch (error) {
+                return new Response(JSON.stringify({ error: String(error) }), {
+                    status: 500,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+        }
+
+        return new Response('Unified Workflow V4.1 (Hungry Mode)\n\nEndpoints:\n- /debug-r2 - Debug R2 listing\n- /trigger - Manual workflow trigger', {
             headers: { 'Content-Type': 'text/plain' }
         });
     },
