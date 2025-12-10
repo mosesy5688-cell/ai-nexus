@@ -30,16 +30,19 @@ const OUTPUT_FILE = path.join(OUTPUT_DIR, 'merged.json');
  */
 const DEFAULT_CONFIG = {
     sources: {
-        // V4.1 Realistic Limits (with rate limiting)
-        // With HF_TOKEN: ~2000 in 10min
-        // Without: ~500 in 10min
-        huggingface: { enabled: true, options: { limit: 2000 } },
-        'huggingface-datasets': { enabled: true, options: { limit: 500 } },
-        github: { enabled: true, options: { limit: 1500 } },
+        // V4.1 Phase 3: Operation 10K
+        // Target: 15,500 raw → ~10,000 after dedup
+        huggingface: { enabled: true, options: { limit: 8000 } },
+        'huggingface-datasets': { enabled: true, options: { limit: 1500 } },
+        github: { enabled: true, options: { limit: 3000 } },
 
-        // Tier 2: Academic Sources (3s delay required)
-        arxiv: { enabled: true, options: { limit: 500, category: 'cs.AI OR cs.LG OR cs.CL OR cs.CV' } },
-        // PWC often blocks automated requests - disabled for now
+        // Academic Sources (3s delay required)
+        arxiv: { enabled: true, options: { limit: 2000, category: 'cs.AI OR cs.LG OR cs.CL OR cs.CV' } },
+
+        // Ollama Registry (NEW for Phase 3)
+        ollama: { enabled: true, options: { limit: 1000 } },
+
+        // PWC disabled (Cloudflare protection)
         paperswithcode: { enabled: false, options: { limit: 200 } }
     },
     deduplication: {
