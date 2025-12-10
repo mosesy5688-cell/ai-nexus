@@ -58,7 +58,7 @@ jobs:
       # PHASE 3: RUST IMAGE PROCESSING (Optional - if images exist)
       # ============================================================
       - name: Setup Rust (if images need processing)
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-toolchain@stable
         if: hashFiles('data/images_to_process.json') != ''
 
       - name: Process Images with Rust
