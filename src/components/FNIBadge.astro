@@ -14,6 +14,7 @@ interface Props {
   fniP?: number;
   fniV?: number;
   fniC?: number;
+  fniU?: number;  // V3.3: Utility dimension
   size?: 'sm' | 'md' | 'lg';
 }
 
@@ -23,6 +24,7 @@ const {
   fniP = 0, 
   fniV = 0, 
   fniC = 0,
+  fniU = 0,  // V3.3: Utility dimension
   size = 'md' 
 } = Astro.props;
 
@@ -83,7 +85,7 @@ const sizeClasses = {
       <div class="font-bold text-center mb-2 border-b border-gray-700 pb-1">
         FNI Score: {fniScore.toFixed(1)}
       </div>
-      <div class="grid grid-cols-3 gap-2 text-center">
+      <div class="grid grid-cols-4 gap-2 text-center">
         <div>
           <div class="text-blue-400 font-semibold">{fniP.toFixed(0)}</div>
           <div class="text-gray-400 text-[10px]">Pop</div>
@@ -95,6 +97,10 @@ const sizeClasses = {
         <div>
           <div class="text-purple-400 font-semibold">{fniC.toFixed(0)}</div>
           <div class="text-gray-400 text-[10px]">Cred</div>
+        </div>
+        <div>
+          <div class="text-orange-400 font-semibold">{fniU.toFixed(0)}</div>
+          <div class="text-gray-400 text-[10px]">Util</div>
         </div>
       </div>
       <div class="text-center mt-2 text-[10px] text-gray-400">
