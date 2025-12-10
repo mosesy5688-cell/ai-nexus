@@ -153,11 +153,33 @@ export class BaseAdapter {
 
     /**
      * Normalize license to SPDX ID
+     * V4.1: Handle object-type licenses (e.g., {name: 'apache-2.0'})
      */
     normalizeLicense(rawLicense) {
         if (!rawLicense) return null;
-        const key = rawLicense.toLowerCase().trim();
-        return LICENSE_MAP[key] || rawLicense;
+
+        // Handle object-type licenses (HuggingFace sometimes returns objects)
+        let licenseStr;
+        if (typeof rawLicense === 'string') {
+            licenseStr = rawLicense;
+        } else if (typeof rawLicense === 'object' && rawLicense !== null) {
+            // Handle {name: "license"} or {id: "license"} or {spdx_id: "license"}
+            licenseStr = rawLicense.name || rawLicense.id || rawLicense.spdx_id ||
+                (rawLicense.license ? String(rawLicense.license) : null);
+            if (!licenseStr) {
+                // Last resort: stringify the object
+                try {
+                    licenseStr = JSON.stringify(rawLicense);
+                } catch {
+                    return 'Unknown';
+                }
+            }
+        } else {
+            return 'Unknown';
+        }
+
+        const key = licenseStr.toLowerCase().trim();
+        return LICENSE_MAP[key] || licenseStr;
     }
 
     /**
