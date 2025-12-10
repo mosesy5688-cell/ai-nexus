@@ -1,0 +1,37 @@
+# V4.1 Unified Workflow Configuration
+# Single Cron, Multiple Tasks: Ingest + FNI + Monitoring
+
+name = "ai-nexus-unified-workflow"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Cron Trigger: Every 5 minutes
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Workflow Definition
+[[workflows]]
+name = "unified-workflow"
+binding = "UNIFIED_WORKFLOW"
+class_name = "UnifiedWorkflow"
+
+# D1 Database Binding
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-nexus-db"
+database_id = "adac7bc9-46a9-40b4-b609-28479221a17d"
+
+# R2 Bucket Binding
+[[r2_buckets]]
+binding = "R2_ASSETS"
+bucket_name = "ai-nexus-assets"
+
+# Observability: Enable Workers Logs for debugging
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
