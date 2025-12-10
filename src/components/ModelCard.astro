@@ -3,8 +3,9 @@
 // Optimized: text-focused, extended description, simpler design
 const { model, isRisingStar } = Astro.props;
 
-// Use the robust slug from the database
-const modelUrl = `/model/${model.slug || model.id.replace(/\//g, '--')}`;
+// Use the robust slug from the database, or encode the ID for URL safety
+// Model IDs may contain colons (hf-dataset:deepmind:code_contests) which need encoding
+const modelUrl = `/model/${encodeURIComponent(model.slug || model.id)}`;
 const description = model.seo_summary || model.description?.replace(/<[^>]*>?/gm, '') || 'No description available.';
 
 function formatNumber(num) {

@@ -17,8 +17,11 @@ export async function getModelBySlug(slug, locals) {
 
     if (!slug) return null;
 
-    // 1. Try KV cache first
-    const cachedModel = await getCachedModel(slug, kvCache);
+    // URL decode the slug (handles %3A for colons, %2F for slashes, etc.)
+    const decodedSlug = decodeURIComponent(slug);
+
+    // 1. Try KV cache first (use decoded slug for cache key)
+    const cachedModel = await getCachedModel(decodedSlug, kvCache);
     if (cachedModel) {
         return cachedModel;
     }
@@ -29,13 +32,13 @@ export async function getModelBySlug(slug, locals) {
     try {
         // Exact match by slug or ID (Case Insensitive)
         const stmt = db.prepare('SELECT * FROM models WHERE slug = ? OR id = ? OR slug = ? COLLATE NOCASE OR id = ? COLLATE NOCASE');
-        model = await stmt.bind(slug, slug, slug, slug).first();
+        model = await stmt.bind(decodedSlug, decodedSlug, decodedSlug, decodedSlug).first();
 
         // Smart Fallback: Try prepending 'github-' if not found
         if (!model) {
-            const githubSlug = `github--${slug}`;
-            const githubId = `github-${slug}`;
-            const normalizedId = slug.replace(/--/g, '-');
+            const githubSlug = `github--${decodedSlug}`;
+            const githubId = `github-${decodedSlug}`;
+            const normalizedId = decodedSlug.replace(/--/g, '-');
             const githubIdNormalized = `github-${normalizedId}`;
 
             const stmtFallback = db.prepare(`
@@ -53,9 +56,9 @@ export async function getModelBySlug(slug, locals) {
         throw e;
     }
 
-    // 3. Store in cache for future requests
+    // 3. Store in cache for future requests (use decoded slug as cache key)
     if (model) {
-        await setCachedModel(slug, model, kvCache);
+        await setCachedModel(decodedSlug, model, kvCache);
     }
 
     return model;
