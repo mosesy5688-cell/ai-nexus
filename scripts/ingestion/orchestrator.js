@@ -30,14 +30,14 @@ const OUTPUT_FILE = path.join(OUTPUT_DIR, 'merged.json');
  */
 const DEFAULT_CONFIG = {
     sources: {
-        // Tier 1: Core Sources (Sprint 3 Production Limits)
-        huggingface: { enabled: true, options: { limit: 3000 } },
-        'huggingface-datasets': { enabled: true, options: { limit: 500 } },
-        github: { enabled: true, options: { limit: 1500 } },
+        // V4.1 Operation 10K: Target 10,500 entities
+        huggingface: { enabled: true, options: { limit: 5000 } },
+        'huggingface-datasets': { enabled: true, options: { limit: 1500 } },
+        github: { enabled: true, options: { limit: 2000 } },
 
         // Tier 2: Academic Sources
-        arxiv: { enabled: true, options: { limit: 300, category: 'cs.AI OR cs.LG OR cs.CL OR cs.CV' } },
-        paperswithcode: { enabled: true, options: { limit: 200 } }
+        arxiv: { enabled: true, options: { limit: 1500, category: 'cs.AI OR cs.LG OR cs.CL OR cs.CV' } },
+        paperswithcode: { enabled: true, options: { limit: 500 } }
     },
     deduplication: {
         enabled: true,
