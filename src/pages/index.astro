@@ -82,6 +82,29 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
                 </div>
             </section>
 
+            <!-- Sprint 4: Trending Section (Velocity-based) -->
+            <section class="mb-16">
+                <div class="flex items-center justify-center gap-3 mb-8">
+                    <h2 class="text-3xl font-bold text-center">🚀 Trending This Week</h2>
+                    <span class="px-3 py-1 bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs font-bold rounded-full uppercase tracking-wide">Rising Stars</span>
+                </div>
+                <p class="text-center text-gray-500 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
+                    Models with the highest velocity - climbing fast in downloads and likes
+                </p>
+                <!-- Loading State -->
+                <div id="trending-loading" class="flex justify-center items-center py-12">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                </div>
+                <!-- Grid -->
+                <div id="trending-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 hidden">
+                    <!-- Populated by client-side JS -->
+                </div>
+                <!-- Empty State -->
+                <div id="trending-empty" class="hidden text-center py-8">
+                    <p class="text-gray-500">Velocity data is accumulating. Check back tomorrow!</p>
+                </div>
+            </section>
+
             <!-- Divider -->
             <hr class="my-16 border-gray-200 dark:border-gray-700" />
 
@@ -143,6 +166,39 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
             }
         }
 
+        // Sprint 4: Function to fetch and render trending models
+        async function loadTrendingModels() {
+            const loadingEl = document.getElementById('trending-loading');
+            const gridEl = document.getElementById('trending-grid');
+            const emptyEl = document.getElementById('trending-empty');
+
+            try {
+                const response = await fetch('/api/trending.json');
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                
+                const data = await response.json();
+                const models = data.models || [];
+
+                loadingEl.classList.add('hidden');
+
+                if (models.length === 0) {
+                    emptyEl.classList.remove('hidden');
+                    return;
+                }
+
+                // Use shared render function for consistency
+                const html = models.map(model => renderModelCard(model)).join('');
+
+                gridEl.innerHTML = html;
+                gridEl.classList.remove('hidden');
+
+            } catch (e) {
+                console.error("Failed to load trending models:", e);
+                loadingEl.classList.add('hidden');
+                emptyEl.classList.remove('hidden');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             // Parse URL parameters from the client side to handle SSG/static hosting correctly
             const urlParams = new URLSearchParams(window.location.search);
@@ -155,9 +211,10 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
                 isExplorePage: false
             });
 
-            // Load hot models if no search query or tag
+            // Load hot models and trending if no search query or tag
             if (!initialQuery && !initialTag) {
                 loadHotModels();
+                loadTrendingModels();  // Sprint 4: Load trending section
             }
         });
     </script>

@@ -92,10 +92,18 @@ const formattedDate = fniCalculatedAt
         <div>
           <div class="flex justify-between text-xs mb-1">
             <span class="text-gray-600 dark:text-gray-400">🚀 Velocity (V)</span>
-            <span class="font-semibold text-green-600">{fniV.toFixed(0)}</span>
+            {fniV > 0 ? (
+              <span class="font-semibold text-green-600">{fniV.toFixed(0)}</span>
+            ) : (
+              <span class="text-gray-400 italic text-xs">Accumulating...</span>
+            )}
           </div>
           <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div class="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all duration-500" style={`width: ${vPercent}%`}></div>
+            {fniV > 0 ? (
+              <div class="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all duration-500" style={`width: ${vPercent}%`}></div>
+            ) : (
+              <div class="h-full bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse" style="width: 100%"></div>
+            )}
           </div>
         </div>
 
