@@ -191,6 +191,25 @@ if (model?.commercial_slots) {
                     </>
                   )}
                 </p>
+                
+                {/* Tags Section - Sprint 4: Fix Category Classification */}
+                {tagsArray.length > 0 && (
+                  <div class="flex flex-wrap gap-2 mt-4">
+                    {tagsArray.slice(0, 10).map((tag: string) => (
+                      <a 
+                        href={`/explore?tag=${encodeURIComponent(tag)}`}
+                        class="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-sm hover:bg-indigo-100 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+                      >
+                        {tag}
+                      </a>
+                    ))}
+                    {tagsArray.length > 10 && (
+                      <span class="px-3 py-1 bg-gray-50 dark:bg-gray-700 text-gray-500 rounded-full text-sm">
+                        +{tagsArray.length - 10} more
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
