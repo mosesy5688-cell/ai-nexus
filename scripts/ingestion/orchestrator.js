@@ -30,14 +30,17 @@ const OUTPUT_FILE = path.join(OUTPUT_DIR, 'merged.json');
  */
 const DEFAULT_CONFIG = {
     sources: {
-        // V4.1 Operation 10K: Target 10,500 entities
-        huggingface: { enabled: true, options: { limit: 5000 } },
-        'huggingface-datasets': { enabled: true, options: { limit: 1500 } },
-        github: { enabled: true, options: { limit: 2000 } },
+        // V4.1 Realistic Limits (with rate limiting)
+        // With HF_TOKEN: ~2000 in 10min
+        // Without: ~500 in 10min
+        huggingface: { enabled: true, options: { limit: 2000 } },
+        'huggingface-datasets': { enabled: true, options: { limit: 500 } },
+        github: { enabled: true, options: { limit: 1500 } },
 
-        // Tier 2: Academic Sources
-        arxiv: { enabled: true, options: { limit: 1500, category: 'cs.AI OR cs.LG OR cs.CL OR cs.CV' } },
-        paperswithcode: { enabled: true, options: { limit: 500 } }
+        // Tier 2: Academic Sources (3s delay required)
+        arxiv: { enabled: true, options: { limit: 500, category: 'cs.AI OR cs.LG OR cs.CL OR cs.CV' } },
+        // PWC often blocks automated requests - disabled for now
+        paperswithcode: { enabled: false, options: { limit: 200 } }
     },
     deduplication: {
         enabled: true,
