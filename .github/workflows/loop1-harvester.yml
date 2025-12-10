@@ -87,7 +87,7 @@ jobs:
             for file in data/images/*.webp; do
               if [ -f "$file" ]; then
                 filename=$(basename "$file")
-                npx wrangler r2 object put "ai-nexus-assets/models/$filename" --file="$file"
+                npx wrangler r2 object put "ai-nexus-assets/models/$filename" --file="$file" --remote
               fi
             done
             echo "✅ Images uploaded"
@@ -106,7 +106,7 @@ jobs:
             for file in data/docs/*.md; do
               if [ -f "$file" ]; then
                 filename=$(basename "$file")
-                npx wrangler r2 object put "ai-nexus-assets/docs/$filename" --file="$file" --content-type="text/markdown"
+                npx wrangler r2 object put "ai-nexus-assets/docs/$filename" --file="$file" --content-type="text/markdown" --remote
                 doc_count=$((doc_count + 1))
               fi
             done
@@ -149,7 +149,7 @@ jobs:
             if [ -f "$batch_file" ]; then
               batch_name=$(basename "$batch_file" .json)
               r2_key="raw-data/${TIMESTAMP}_${batch_name}.json"
-              npx wrangler r2 object put "ai-nexus-assets/$r2_key" --file="$batch_file" --content-type="application/json"
+              npx wrangler r2 object put "ai-nexus-assets/$r2_key" --file="$batch_file" --content-type="application/json" --remote
               echo "✅ Uploaded: $r2_key"
             fi
           done
