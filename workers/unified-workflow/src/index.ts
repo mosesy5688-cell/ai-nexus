@@ -136,6 +136,16 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
 
             console.log(`[FNI] Running ${mode.toUpperCase()} calculation (hour=${hour})`);
 
+            // On full recalc, take a daily snapshot first
+            if (isFullRecalc) {
+                console.log('[FNI] Taking daily snapshot for Velocity tracking...');
+                await env.DB.prepare(`
+                    INSERT INTO models_history (model_id, downloads, likes)
+                    SELECT id, downloads, likes FROM models
+                `).run();
+                console.log('[FNI] Snapshot complete');
+            }
+
             const query = isFullRecalc
                 ? `SELECT id, downloads, likes, license_spdx, body_content_url, 
                    source_trail, has_ollama, has_gguf FROM models`
@@ -150,8 +160,24 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                 return { modelsCalculated: 0, mode };
             }
 
+            // Fetch historical data for velocity calculation
+            const historyMap = new Map<string, { downloads: number; likes: number }>();
+            if (isFullRecalc) {
+                const history = await env.DB.prepare(`
+                    SELECT model_id, downloads, likes 
+                    FROM models_history 
+                    WHERE recorded_at < datetime('now', '-6 days')
+                    AND recorded_at > datetime('now', '-8 days')
+                `).all();
+                for (const h of (history.results || []) as any[]) {
+                    historyMap.set(h.model_id, { downloads: h.downloads || 0, likes: h.likes || 0 });
+                }
+                console.log(`[FNI] Found ${historyMap.size} models with 7-day history`);
+            }
+
             const updates = models.results.map((m: any) => {
-                const fni = computeFNI(m);
+                const oldData = historyMap.get(m.id);
+                const fni = computeFNI(m, oldData);
                 return env.DB.prepare(`
                     UPDATE models SET 
                         fni_score = ?, fni_p = ?, fni_v = ?, fni_c = ?, fni_u = ?
@@ -244,8 +270,14 @@ function cleanModel(model: any): any {
 /**
  * Compute FNI scores using V4.1 canonical weights
  * FNI = P × 25% + V × 25% + C × 30% + U × 20%
+ * 
+ * @param model - Current model data
+ * @param oldData - Optional 7-day old data for velocity calculation
  */
-function computeFNI(model: any): { score: number; p: number; v: number; c: number; u: number } {
+function computeFNI(
+    model: any,
+    oldData?: { downloads: number; likes: number }
+): { score: number; p: number; v: number; c: number; u: number } {
     // P: Popularity (25%) - based on downloads and likes
     const downloads = model.downloads || 0;
     const likes = model.likes || 0;
@@ -255,8 +287,16 @@ function computeFNI(model: any): { score: number; p: number; v: number; c: numbe
         (Math.min(likes / maxLikes, 1) * 40 + Math.min(downloads / maxDownloads, 1) * 60)
     );
 
-    // V: Velocity (25%) - placeholder for 7-day growth
-    const v = 0; // Requires historical data to calculate
+    // V: Velocity (25%) - 7-day growth rate
+    let v = 0;
+    if (oldData) {
+        const downloadGrowth = downloads - (oldData.downloads || 0);
+        const likeGrowth = likes - (oldData.likes || 0);
+        // Normalize: 100K downloads/week = 100, 10K likes/week = 100
+        const downloadVelocity = Math.min(100, (downloadGrowth / 100000) * 100);
+        const likeVelocity = Math.min(100, (likeGrowth / 10000) * 100);
+        v = Math.max(0, (downloadVelocity * 0.7 + likeVelocity * 0.3));
+    }
 
     // C: Credibility (30%) - documentation, license, source trail
     let c = 0;
@@ -275,7 +315,7 @@ function computeFNI(model: any): { score: number; p: number; v: number; c: numbe
     return {
         score: Math.min(100, Math.round(score)),
         p: Math.round(p),
-        v,
+        v: Math.round(v),
         c,
         u
     };
