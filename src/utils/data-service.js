@@ -66,6 +66,11 @@ export function normalizeModelData(rawModel) {
         fni_percentile: parseFloat(rawModel.fni_percentile) || 0,
         fni_calculated_at: rawModel.fni_calculated_at || null,
 
+        // Runtime Ecosystem - Sprint 4: Runtime Badges
+        has_ollama: rawModel.has_ollama === 1 || rawModel.has_ollama === true,
+        has_gguf: rawModel.has_gguf === 1 || rawModel.has_gguf === true,
+        ollama_id: rawModel.ollama_id || null,
+
         // Preserve raw data for debugging
         _raw: rawModel
     };
