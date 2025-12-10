@@ -1,48 +1,134 @@
 ---
-import Layout from '@/layouts/Layout.astro';
-import ModelCard from '@/components/ModelCard.astro';
-import rankings from '@/data/rankings.json';
+// src/pages/leaderboard.astro
+// Sprint 4: FNI-focused Top 100 Leaderboard (distinct from /ranking)
+// Pillar VII: Fair Nexus Index - The Official FNI Rankings
 
-const pageTitle = "AI Model Leaderboards";
-const pageDescription = "Discover the top-performing and trending open-source AI models across various categories.";
+export const prerender = false;
 
-const { hot, trending, newest, rising } = rankings;
+import Layout from '../layouts/Layout.astro';
+import ModelCard from '../components/ModelCard.astro';
+import FNIBadge from '../components/FNIBadge.astro';
 
-const leaderboardSections = [
-    { title: "🔥 Hot Models", description: "Most liked models by the community.", models: hot.slice(0, 12) },
-    { title: "🚀 Trending Models", description: "Models with the highest download counts.", models: trending.slice(0, 12) },
-    { title: "✨ New & Noteworthy", description: "The latest models added to the hub.", models: newest.slice(0, 12) },
-    { title: "🌟 Rising Stars", description: "Models showing rapid growth in popularity.", models: rising.slice(0, 12) }
-];
+const pageTitle = "FNI Top 100 - Fair Nexus Index Leaderboard";
+const pageDescription = "The official Fair Nexus Index (FNI) rankings. Discover top AI models ranked by our transparent, multi-dimensional scoring system.";
+
+// Fetch top models by FNI score from D1
+let topModels = [];
+let error = null;
+
+try {
+  const db = Astro.locals?.runtime?.env?.DB;
+  if (db) {
+    const result = await db.prepare(`
+      SELECT 
+        id, slug, name, author, description,
+        downloads, likes, license,
+        fni_score, fni_p, fni_v, fni_c, fni_u, fni_percentile,
+        has_ollama, has_gguf, ollama_id,
+        cover_image_url, pipeline_tag, last_updated
+      FROM models 
+      WHERE fni_score > 0
+      ORDER BY fni_score DESC 
+      LIMIT 100
+    `).all();
+    topModels = result.results || [];
+  }
+} catch (e) {
+  console.error('[FNI Leaderboard] Error:', e);
+  error = e;
+}
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
-    <div class="container mx-auto px-4 py-12">
-        <!-- Main Page Header -->
-        <header class="text-center mb-12">
-            <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">AI Model Leaderboards</h1>
-            <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-3xl mx-auto">
-                Stay updated with the most popular, trending, and newest models in the open-source AI ecosystem.
-            </p>
-        </header>
+  <div class="container mx-auto px-4 py-12">
+    <!-- Page Header -->
+    <header class="text-center mb-12">
+      <div class="flex justify-center items-center gap-3 mb-4">
+        <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">FNI Top 100</h1>
+        <span class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm font-bold rounded-full">Official Rankings</span>
+      </div>
+      <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-3xl mx-auto">
+        The definitive ranking of open-source AI models using our transparent, multi-dimensional Fair Nexus Index.
+      </p>
+      <a href="/methodology" class="inline-flex items-center gap-2 mt-4 text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 font-medium">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Learn how we calculate FNI scores
+      </a>
+    </header>
 
-        {leaderboardSections.map(section => (
-            <section class="mb-16">
-                <div class="text-center mb-8">
-                    <h2 class="text-3xl font-bold text-gray-900 dark:text-white">{section.title}</h2>
-                    <p class="mt-2 text-lg text-gray-500 dark:text-gray-400">{section.description}</p>
-                </div>
-                {section.models && section.models.length > 0 ? (
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {section.models.map(model => (
-                            <ModelCard model={model} isRisingStar={model.is_rising_star} />
-                        ))}
-                    </div>
-                ) : (
-                    <p class="text-center text-gray-500 dark:text-gray-400">No models to display in this category yet.</p>
-                )}
-            </section>
-        ))}
+    <!-- FNI Legend -->
+    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 mb-12 max-w-4xl mx-auto">
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 text-center">FNI Scoring Dimensions</h3>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 bg-blue-500 rounded-full"></span>
+          <span><strong>P</strong> - Popularity (25%)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+          <span><strong>V</strong> - Velocity (25%)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 bg-purple-500 rounded-full"></span>
+          <span><strong>C</strong> - Credibility (30%)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 bg-orange-500 rounded-full"></span>
+          <span><strong>U</strong> - Utility (20%)</span>
+        </div>
+      </div>
     </div>
-</Layout>
 
+    {error ? (
+      <div class="bg-red-50 text-red-800 p-8 rounded-lg max-w-2xl mx-auto text-center">
+        <h2 class="text-2xl font-bold mb-4">Error Loading Rankings</h2>
+        <p>We couldn't fetch the FNI leaderboard. Please try again later.</p>
+      </div>
+    ) : topModels.length === 0 ? (
+      <div class="text-center py-16">
+        <p class="text-2xl font-semibold text-gray-700 dark:text-gray-200">No FNI-scored models yet.</p>
+        <p class="text-gray-500 dark:text-gray-400 mt-2">FNI scores are calculated daily. Check back tomorrow!</p>
+      </div>
+    ) : (
+      <div class="mb-16">
+        <!-- Top 10 Featured -->
+        <section class="mb-16">
+          <h2 class="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8">🏆 Top 10 Models</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+            {topModels.slice(0, 10).map((model, index) => (
+              <div class="relative">
+                <div class={`absolute -top-3 -left-3 w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-lg z-10 ${
+                  index === 0 ? 'bg-yellow-500' : 
+                  index === 1 ? 'bg-gray-400' : 
+                  index === 2 ? 'bg-amber-600' : 'bg-indigo-500'
+                }`}>
+                  {index + 1}
+                </div>
+                <ModelCard model={model} />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <!-- Remaining 11-100 -->
+        {topModels.length > 10 && (
+          <section>
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Positions 11-100</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {topModels.slice(10).map((model, index) => (
+                <div class="relative">
+                  <div class="absolute -top-2 -left-2 w-6 h-6 bg-gray-500 rounded-full flex items-center justify-center text-xs font-bold text-white shadow z-10">
+                    {index + 11}
+                  </div>
+                  <ModelCard model={model} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    )}
+  </div>
+</Layout>
