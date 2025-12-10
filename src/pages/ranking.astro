@@ -1,22 +1,76 @@
 ---
-import Layout from '@/layouts/Layout.astro';
-import ModelCard from '@/components/ModelCard.astro';
-import allRankings from '@/data/rankings.json';
-import allKeywords from '@/data/keywords.json';
+// src/pages/ranking.astro
+// Sprint 4 Phase 5: Dynamic Rankings from D1 (Single Source of Truth)
+// V4.1 Constitution: No Static JSON - Direct D1 Queries
 
-const { hot = [], trending = [], newest = [], rising = [], categories = {}, generatedAt = new Date().toISOString() } = allRankings || {};
+export const prerender = false;
+
+import Layout from '../layouts/Layout.astro';
+import ModelCard from '../components/ModelCard.astro';
 
 const pageTitle = "AI Model Leaderboards";
 const pageDescription = "Explore the top AI models ranked by popularity, recent activity, and rising stars in the open-source community.";
 
-// Helper to get keyword title from slug
-const keywordMap = new Map(allKeywords.map(k => [k.slug, k.title]));
+// Access D1 via runtime env
+const db = Astro.locals?.runtime?.env?.DB;
+
+// Initialize ranking arrays
+let hot = [];
+let trending = [];
+let newest = [];
+let rising = [];
+let error = null;
+
+try {
+    if (db) {
+        // Hot Models: By likes (Popularity)
+        const hotResult = await db.prepare(`
+            SELECT * FROM models 
+            WHERE likes > 0
+            ORDER BY likes DESC 
+            LIMIT 12
+        `).all();
+        hot = hotResult.results || [];
+
+        // Trending Models: By downloads
+        const trendingResult = await db.prepare(`
+            SELECT * FROM models 
+            WHERE downloads > 0
+            ORDER BY downloads DESC 
+            LIMIT 12
+        `).all();
+        trending = trendingResult.results || [];
+
+        // Newest Models: By last_updated
+        const newestResult = await db.prepare(`
+            SELECT * FROM models 
+            WHERE last_updated IS NOT NULL
+            ORDER BY last_updated DESC 
+            LIMIT 12
+        `).all();
+        newest = newestResult.results || [];
+
+        // Rising Stars: By FNI score (overall quality)
+        const risingResult = await db.prepare(`
+            SELECT * FROM models 
+            WHERE fni_score > 0
+            ORDER BY fni_score DESC 
+            LIMIT 12
+        `).all();
+        rising = risingResult.results || [];
+    }
+} catch (e) {
+    console.error('[Rankings] D1 Query Error:', e);
+    error = e;
+}
+
+const generatedAt = new Date().toISOString();
 
 const mainRankings = [
-    { title: "🔥 Hot Models", description: "Ranked by community likes.", models: hot },
-    { title: "🚀 Trending Models", description: "Ranked by community downloads.", models: trending },
-    { title: "✨ Newest Models", description: "The most recently updated or added models.", models: newest },
-    { title: "🌟 Rising Stars", description: "Models showing high velocity and recent traction.", models: rising }
+    { title: "🔥 Hot Models", description: "Most liked by the community.", models: hot },
+    { title: "🚀 Trending Models", description: "Highest download counts.", models: trending },
+    { title: "✨ Newest Models", description: "Recently updated or added.", models: newest },
+    { title: "🌟 Rising Stars", description: "Top FNI scores - Quality + Momentum.", models: rising }
 ];
 ---
 
@@ -25,43 +79,48 @@ const mainRankings = [
         <header class="text-center mb-12">
             <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">AI Model Leaderboards</h1>
             <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-3xl mx-auto">
-                Discover top-performing and trending open-source AI models across various categories.
+                Discover top-performing and trending open-source AI models. Rankings are live from our database.
             </p>
             <p class="text-sm text-gray-400 dark:text-gray-500 mt-2">
-                Last updated: {new Date(generatedAt).toLocaleString()}
+                <span class="inline-flex items-center gap-1">
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    Live Data · Updated: {new Date(generatedAt).toLocaleString()}
+                </span>
             </p>
         </header>
 
-        <!-- Main Rankings -->
-        {mainRankings.map(ranking => (
-            <section class="mb-16">
-                <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">{ranking.title}</h2>
-                <p class="text-gray-500 dark:text-gray-400 mb-6">{ranking.description}</p>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {ranking.models.slice(0, 8).map(model => (
-                        <ModelCard model={model} isRisingStar={model.is_rising_star} />
-                    ))}
-                </div>
-            </section>
-        ))}
-
-        <!-- Category Rankings -->
-        {categories && Object.keys(categories).length > 0 && (
-            <section class="mb-16">
-                 <h2 class="text-4xl font-bold text-center text-gray-900 dark:text-white mb-12">Top Models by Category</h2>
-                {Object.entries(categories).map(([slug, models]) => (
-                    <div class="mb-12">
-                        <h3 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4 border-l-4 border-blue-500 pl-4">
-                            {keywordMap.get(slug) || slug}
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {models.slice(0, 4).map(model => (
-                                <ModelCard model={model} isRisingStar={model.is_rising_star} />
-                            ))}
-                        </div>
-                    </div>
+        {error ? (
+            <div class="bg-red-50 text-red-800 p-8 rounded-lg max-w-2xl mx-auto text-center">
+                <h2 class="text-2xl font-bold mb-4">Error Loading Rankings</h2>
+                <p>We couldn't fetch the rankings. Please try again later.</p>
+            </div>
+        ) : (
+            <>
+                {/* Main Rankings */}
+                {mainRankings.map(ranking => (
+                    <section class="mb-16">
+                        <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">{ranking.title}</h2>
+                        <p class="text-gray-500 dark:text-gray-400 mb-6">{ranking.description}</p>
+                        {ranking.models.length > 0 ? (
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                {ranking.models.slice(0, 8).map(model => (
+                                    <ModelCard model={model} />
+                                ))}
+                            </div>
+                        ) : (
+                            <p class="text-gray-400 text-center py-8">No models in this category yet.</p>
+                        )}
+                    </section>
                 ))}
-            </section>
+            </>
         )}
+
+        {/* Info Banner */}
+        <div class="mt-12 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 text-center">
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+                Rankings are calculated using the <a href="/methodology" class="text-indigo-600 hover:underline font-semibold">FNI Methodology</a> – 
+                a transparent, multi-dimensional scoring system.
+            </p>
+        </div>
     </div>
 </Layout>
