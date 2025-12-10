@@ -75,10 +75,11 @@ export class HuggingFaceAdapter extends BaseAdapter {
         }
 
         // Fetch full details for each model (with rate limiting)
-        console.log(`🔄 [HuggingFace] Fetching full details with rate limiting...`);
+        console.log(`🔄 [HuggingFace] Fetching full details with LOW & SLOW rate limiting...`);
         const fullModels = [];
-        const batchSize = this.hfToken ? 8 : 3; // Higher concurrency with auth
-        const delayMs = this.hfToken ? 300 : 800; // Faster with auth
+        // V4.1 Operation 10k: Reduced concurrency and increased delay to avoid 429s
+        const batchSize = this.hfToken ? 5 : 2; // Lower concurrency for stability
+        const delayMs = this.hfToken ? 800 : 1500; // Slower but avoids rate limits
 
         for (let i = 0; i < models.length; i += batchSize) {
             const batch = models.slice(i, i + batchSize);

@@ -83,7 +83,7 @@ export class GitHubAdapter extends BaseAdapter {
                 }
 
                 console.log(`   Found ${repos.length} repos for topic: ${topic}`);
-                await this.delay(1000); // Rate limiting
+                await this.delay(1500); // V4.1 Operation 10k: Increased delay to avoid rate limits
             } catch (error) {
                 console.warn(`   ⚠️ Error searching ${topic}: ${error.message}`);
             }
@@ -107,8 +107,8 @@ export class GitHubAdapter extends BaseAdapter {
                 console.log(`   Progress: ${Math.min(i + batchSize, allRepos.length)}/${allRepos.length}`);
             }
 
-            // Delay to avoid rate limiting
-            await this.delay(500);
+            // V4.1 Operation 10k: Increased delay to avoid rate limits
+            await this.delay(1000);
         }
 
         console.log(`✅ [GitHub] Fetched ${fullRepos.length} complete repositories`);
