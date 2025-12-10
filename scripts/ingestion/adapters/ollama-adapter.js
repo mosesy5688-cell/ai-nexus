@@ -95,7 +95,7 @@ export class OllamaAdapter extends BaseAdapter {
             title: raw.name || ollamaId,
             description: `Ollama model: ${ollamaId}. Run locally with: ollama run ${ollamaId}`,
             body_content: '',
-            tags: this.normalizeTags(['ollama', 'local-deployment']),
+            tags: ['ollama', 'local-deployment'],  // Inline to avoid 'this' context issues
 
             // Metadata
             author: 'ollama',
