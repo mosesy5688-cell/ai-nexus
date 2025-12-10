@@ -78,6 +78,61 @@ export class OllamaAdapter extends BaseAdapter {
     }
 
     /**
+     * Normalize Ollama model data to unified schema
+     * Required by BaseAdapter contract
+     */
+    normalize(raw) {
+        const ollamaId = raw.ollama_id || raw.name || 'unknown';
+
+        return {
+            // Identity
+            id: `ollama/${ollamaId}`,
+            type: 'model',
+            source: 'ollama',
+            source_url: raw.source_url || `https://ollama.com/library/${ollamaId}`,
+
+            // Content
+            title: raw.name || ollamaId,
+            description: `Ollama model: ${ollamaId}. Run locally with: ollama run ${ollamaId}`,
+            body_content: '',
+            tags: this.normalizeTags(['ollama', 'local-deployment']),
+
+            // Metadata
+            author: 'ollama',
+            license_spdx: null,
+            meta_json: JSON.stringify({
+                ollama: {
+                    id: ollamaId,
+                    url: raw.source_url,
+                    is_fallback: raw.is_fallback || false
+                }
+            }),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+
+            // Metrics
+            popularity: raw.pulls || 0,
+            downloads: raw.pulls || 0,
+
+            // Assets
+            raw_image_url: null,
+
+            // Relations
+            relations: [],
+
+            // Ollama-specific flags
+            has_ollama: true,
+            ollama_id: ollamaId,
+            ollama_pulls: raw.pulls || 0,
+
+            // System fields
+            content_hash: null,
+            compliance_status: null,
+            quality_score: null
+        };
+    }
+
+    /**
      * Fetch Ollama library (structured data)
      */
     async fetchOllamaLibrary() {
