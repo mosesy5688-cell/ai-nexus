@@ -42,21 +42,53 @@ export class ArXivAdapter extends BaseAdapter {
 
         console.log(`📥 [ArXiv] Fetching top ${limit} papers from ${category}...`);
 
-        // ArXiv API query
-        const query = encodeURIComponent(`cat:${category}`);
-        const url = `${ARXIV_API_BASE}?search_query=${query}&start=0&max_results=${limit}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
+        // ArXiv API recommends 3 second delay between requests
+        // Fetch in smaller batches to avoid 429
+        const batchSize = 100;
+        const allPapers = [];
 
-        const response = await fetch(url);
+        for (let start = 0; start < limit; start += batchSize) {
+            const currentLimit = Math.min(batchSize, limit - start);
+            const query = encodeURIComponent(`cat:${category}`);
+            const url = `${ARXIV_API_BASE}?search_query=${query}&start=${start}&max_results=${currentLimit}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
 
-        if (!response.ok) {
-            throw new Error(`ArXiv API error: ${response.status}`);
+            try {
+                const response = await fetch(url, {
+                    headers: { 'User-Agent': 'Free2AITools/1.0' }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 429) {
+                        console.warn(`   ⚠️ [ArXiv] Rate limited, backing off 5 seconds...`);
+                        await this.delay(5000);
+                        start -= batchSize; // Retry this batch
+                        continue;
+                    }
+                    throw new Error(`ArXiv API error: ${response.status}`);
+                }
+
+                const xmlText = await response.text();
+                const papers = this.parseArxivXML(xmlText);
+                allPapers.push(...papers);
+
+                console.log(`   [ArXiv] Batch ${start / batchSize + 1}: ${papers.length} papers (total: ${allPapers.length})`);
+
+                // ArXiv recommends 3 second delay between requests
+                if (start + batchSize < limit) {
+                    await this.delay(3000);
+                }
+            } catch (error) {
+                console.warn(`   ⚠️ [ArXiv] Batch error: ${error.message}`);
+                break;
+            }
         }
 
-        const xmlText = await response.text();
-        const papers = this.parseArxivXML(xmlText);
+        console.log(`✅ [ArXiv] Fetched ${allPapers.length} papers total`);
+        return allPapers;
+    }
 
-        console.log(`✅ [ArXiv] Fetched ${papers.length} papers`);
-        return papers;
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     /**

@@ -17,11 +17,27 @@ const HF_RAW_BASE = 'https://huggingface.co';
 
 /**
  * HuggingFace Adapter Implementation
+ * V4.1: Added HF_TOKEN support and rate limiting
  */
 export class HuggingFaceAdapter extends BaseAdapter {
     constructor() {
         super('huggingface');
         this.entityTypes = ['model', 'dataset', 'space'];
+        this.hfToken = process.env.HF_TOKEN || null;
+    }
+
+    /**
+     * Get headers with optional HF_TOKEN authentication
+     */
+    getHeaders() {
+        const headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'Free2AITools/1.0'
+        };
+        if (this.hfToken) {
+            headers['Authorization'] = `Bearer ${this.hfToken}`;
+        }
+        return headers;
     }
 
     /**
@@ -41,9 +57,8 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
         console.log(`📥 [HuggingFace] Fetching top ${limit} models by ${sort}...`);
 
-        // Fetch model list
         const listUrl = `${HF_API_BASE}/models?sort=${sort}&direction=${direction}&limit=${limit}`;
-        const response = await fetch(listUrl);
+        const response = await fetch(listUrl, { headers: this.getHeaders() });
 
         if (!response.ok) {
             throw new Error(`HuggingFace API error: ${response.status}`);
@@ -51,15 +66,19 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
         const models = await response.json();
         console.log(`📦 [HuggingFace] Got ${models.length} models from list`);
+        if (this.hfToken) {
+            console.log(`🔑 [HuggingFace] Using authenticated requests (HF_TOKEN)`);
+        }
 
         if (!full) {
             return models;
         }
 
         // Fetch full details for each model (with rate limiting)
-        console.log(`🔄 [HuggingFace] Fetching full details...`);
+        console.log(`🔄 [HuggingFace] Fetching full details with rate limiting...`);
         const fullModels = [];
-        const batchSize = 10; // Concurrent requests per batch
+        const batchSize = this.hfToken ? 8 : 3; // Higher concurrency with auth
+        const delayMs = this.hfToken ? 300 : 800; // Faster with auth
 
         for (let i = 0; i < models.length; i += batchSize) {
             const batch = models.slice(i, i + batchSize);
@@ -73,9 +92,9 @@ export class HuggingFaceAdapter extends BaseAdapter {
                 console.log(`   Progress: ${Math.min(i + batchSize, models.length)}/${models.length}`);
             }
 
-            // Small delay to avoid rate limiting
+            // Rate limiting delay
             if (i + batchSize < models.length) {
-                await this.delay(100);
+                await this.delay(delayMs);
             }
         }
 
@@ -88,11 +107,15 @@ export class HuggingFaceAdapter extends BaseAdapter {
      */
     async fetchFullModel(modelId) {
         try {
-            // Fetch API data
+            // Fetch API data with auth headers
             const apiUrl = `${HF_API_BASE}/models/${modelId}`;
-            const apiResponse = await fetch(apiUrl);
+            const apiResponse = await fetch(apiUrl, { headers: this.getHeaders() });
 
             if (!apiResponse.ok) {
+                if (apiResponse.status === 429) {
+                    console.warn(`   ⚠️ Rate limited for ${modelId}, backing off...`);
+                    await this.delay(2000); // Extra delay on rate limit
+                }
                 console.warn(`   ⚠️ API failed for ${modelId}: ${apiResponse.status}`);
                 return null;
             }
