@@ -227,62 +227,62 @@ function getAnomalyMultiplier(flags) {
 
 /**
  * Generate auto-commentary explaining the score
- * V3.3: Added Utility dimension commentary
+ * V4.1: English version per Constitution mandate
  */
 function generateCommentary(model, P, V, C, U, score, percentile, flags) {
-    let commentary = `该模型 FNI 得分 ${score.toFixed(1)}（Top ${100 - percentile}%）。`;
+    let commentary = `This model scores ${score.toFixed(1)} (Top ${100 - percentile}%).`;
 
     const strengths = [];
     const weaknesses = [];
 
     // Identify strengths and weaknesses
-    if (P >= 80) strengths.push('社区认可度极高');
-    else if (P <= 40) weaknesses.push('社区关注度较低');
+    if (P >= 80) strengths.push('extremely high community recognition');
+    else if (P <= 40) weaknesses.push('low community attention');
 
-    if (V >= 80) strengths.push('近期增长迅猛');
-    else if (V <= 40) weaknesses.push('增长趋势平缓');
+    if (V >= 80) strengths.push('rapid recent growth');
+    else if (V <= 40) weaknesses.push('slow growth trend');
 
-    if (C >= 80) strengths.push('学术可信度高');
-    else if (C <= 40) weaknesses.push('缺乏学术背书');
+    if (C >= 80) strengths.push('high academic credibility');
+    else if (C <= 40) weaknesses.push('lacks academic endorsement');
 
     // V3.3 Utility commentary
     if (U >= 50) {
-        if (model.has_ollama) strengths.push('支持 Ollama 一键部署');
-        else if (model.has_gguf) strengths.push('提供 GGUF 量化版本');
-        else strengths.push('本地部署友好');
+        if (model.has_ollama) strengths.push('supports Ollama one-click deployment');
+        else if (model.has_gguf) strengths.push('provides GGUF quantization');
+        else strengths.push('local deployment friendly');
     } else if (U <= 20) {
-        weaknesses.push('本地部署门槛较高');
+        weaknesses.push('higher local deployment barrier');
     }
 
     // Build commentary
     if (strengths.length > 0) {
-        commentary += `凭借${strengths.join('、')}，`;
+        commentary += ` With ${strengths.join(', ')},`;
     }
 
     if (weaknesses.length > 0 && strengths.length > 0) {
-        commentary += `虽然${weaknesses.join('、')}，`;
+        commentary += ` although ${weaknesses.join(', ')},`;
     } else if (weaknesses.length > 0) {
-        commentary += `由于${weaknesses.join('、')}，`;
+        commentary += ` Due to ${weaknesses.join(', ')},`;
     }
 
     // Scenario recommendation
     if (score >= 85) {
-        commentary += '它是企业落地的稳妥之选。';
+        commentary += ' it is a reliable choice for enterprise deployment.';
     } else if (U >= 50 && P <= 50) {
-        commentary += '非常适合个人开发者本地部署体验。';
+        commentary += ' ideal for individual developers to deploy locally.';
     } else if (V >= 70 && P <= 50) {
-        commentary += '它是值得关注的潜力股。';
+        commentary += ' it is a rising star worth watching.';
     } else if (P >= 70 && C <= 50) {
-        commentary += '适合快速原型验证，生产部署需谨慎。';
+        commentary += ' suitable for rapid prototyping, production use requires caution.';
     } else if (C >= 70) {
-        commentary += '学术研究参考价值较高。';
+        commentary += ' has high academic research reference value.';
     } else {
-        commentary += '建议结合具体场景评估。';
+        commentary += ' recommend evaluating based on specific use case.';
     }
 
     // Anomaly warning
     if (flags.length > 0) {
-        commentary += `（注意：检测到数据异常标志）`;
+        commentary += ` (Note: data anomaly flags detected)`;
     }
 
     return commentary;
@@ -429,7 +429,7 @@ async function main() {
     console.log('');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('  FNI Calculation Complete');
-    console.log('  公信力 = 可解释性 | Public trust is our currency.');
+    console.log('  Public trust is our currency. Explainability is our moat.');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 

@@ -48,16 +48,16 @@ const pageDescription = "Learn about the Free2AI Nexus Index (FNI) methodology. 
       </h2>
       
       <div class="bg-gray-900 text-white rounded-xl p-6 font-mono text-center text-xl mb-6">
-        FNI = P × 30% + V × 30% + C × 40%
+        FNI = P × 25% + V × 25% + C × 30% + U × 20%
       </div>
 
-      <div class="grid md:grid-cols-3 gap-6">
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
         <!-- P: Popularity -->
         <div class="bg-blue-50 dark:bg-blue-900/30 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
           <div class="text-3xl mb-2">🔥</div>
-          <h3 class="text-lg font-bold text-blue-800 dark:text-blue-300 mb-2">P - Popularity (30%)</h3>
+          <h3 class="text-lg font-bold text-blue-800 dark:text-blue-300 mb-2">P - Popularity (25%)</h3>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Objective quantification of community recognition
+            Community recognition
           </p>
           <ul class="text-xs text-gray-500 dark:text-gray-500 space-y-1">
             <li>• HuggingFace Likes</li>
@@ -69,9 +69,9 @@ const pageDescription = "Learn about the Free2AI Nexus Index (FNI) methodology. 
         <!-- V: Velocity -->
         <div class="bg-green-50 dark:bg-green-900/30 rounded-xl p-6 border border-green-200 dark:border-green-800">
           <div class="text-3xl mb-2">🚀</div>
-          <h3 class="text-lg font-bold text-green-800 dark:text-green-300 mb-2">V - Velocity (30%)</h3>
+          <h3 class="text-lg font-bold text-green-800 dark:text-green-300 mb-2">V - Velocity (25%)</h3>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Dynamic capture of recent growth trends
+            Recent growth trends
           </p>
           <ul class="text-xs text-gray-500 dark:text-gray-500 space-y-1">
             <li>• 7-day growth rate</li>
@@ -83,14 +83,28 @@ const pageDescription = "Learn about the Free2AI Nexus Index (FNI) methodology. 
         <!-- C: Credibility -->
         <div class="bg-purple-50 dark:bg-purple-900/30 rounded-xl p-6 border border-purple-200 dark:border-purple-800">
           <div class="text-3xl mb-2">🛡️</div>
-          <h3 class="text-lg font-bold text-purple-800 dark:text-purple-300 mb-2">C - Credibility (40%)</h3>
+          <h3 class="text-lg font-bold text-purple-800 dark:text-purple-300 mb-2">C - Credibility (30%)</h3>
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-            Dual endorsement from academia and engineering
+            Academic & engineering endorsement
           </p>
           <ul class="text-xs text-gray-500 dark:text-gray-500 space-y-1">
             <li>• ArXiv paper association</li>
             <li>• README completeness</li>
             <li>• Author/institution reputation</li>
+          </ul>
+        </div>
+
+        <!-- U: Utility -->
+        <div class="bg-orange-50 dark:bg-orange-900/30 rounded-xl p-6 border border-orange-200 dark:border-orange-800">
+          <div class="text-3xl mb-2">🔧</div>
+          <h3 class="text-lg font-bold text-orange-800 dark:text-orange-300 mb-2">U - Utility (20%)</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Real-world usability
+          </p>
+          <ul class="text-xs text-gray-500 dark:text-gray-500 space-y-1">
+            <li>• Ollama support</li>
+            <li>• GGUF format</li>
+            <li>• Runtime ecosystem</li>
           </ul>
         </div>
       </div>
