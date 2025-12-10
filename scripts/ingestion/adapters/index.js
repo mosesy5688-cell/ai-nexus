@@ -12,6 +12,7 @@ import { GitHubAdapter } from './github-adapter.js';
 import { DatasetsAdapter } from './datasets-adapter.js';
 import { ArXivAdapter } from './arxiv-adapter.js';
 import { PapersWithCodeAdapter } from './pwc-adapter.js';
+import { OllamaAdapter } from './ollama-adapter.js';
 
 // Export base for extension
 export { BaseAdapter, NSFW_KEYWORDS, LICENSE_MAP } from './base-adapter.js';
@@ -22,17 +23,21 @@ export { GitHubAdapter } from './github-adapter.js';
 export { DatasetsAdapter } from './datasets-adapter.js';
 export { ArXivAdapter } from './arxiv-adapter.js';
 export { PapersWithCodeAdapter } from './pwc-adapter.js';
+export { OllamaAdapter } from './ollama-adapter.js';
 
-// Registered adapters (Sprint 2 - Multi-source)
+// Registered adapters (V4.1 Phase 3 - Multi-source)
 export const adapters = {
     // Tier 1: Core Sources
     'huggingface': new HuggingFaceAdapter(),
     'huggingface-datasets': new DatasetsAdapter(),
     'github': new GitHubAdapter(),
 
-    // Tier 2: Academic Sources (Sprint 2)
+    // Tier 2: Academic Sources
     'arxiv': new ArXivAdapter(),
     'paperswithcode': new PapersWithCodeAdapter(),
+
+    // Tier 3: Ecosystem Sources (Phase 3)
+    'ollama': new OllamaAdapter(),
 };
 
 /**
