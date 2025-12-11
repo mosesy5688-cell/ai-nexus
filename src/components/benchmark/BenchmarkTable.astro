@@ -48,6 +48,11 @@ function getRankBadge(rank: number): string {
   if (rank === 3) return '🥉';
   return `#${rank}`;
 }
+
+// Convert model name to URL-safe slug (e.g., "Qwen/Qwen2.5-72B-Instruct" -> "Qwen-Qwen2.5-72B-Instruct")
+function toModelSlug(modelName: string): string {
+  return encodeURIComponent(modelName.replace(/\//g, '-'));
+}
 ---
 
 <div class="benchmark-table-wrapper">
@@ -74,7 +79,7 @@ function getRankBadge(rank: number): string {
             </td>
           )}
           <td class="col-model">
-            <a href={`/model/${b.umid}`} class="model-link">
+            <a href={`/model/${toModelSlug(b.name)}`} class="model-link">
               {b.name}
             </a>
           </td>

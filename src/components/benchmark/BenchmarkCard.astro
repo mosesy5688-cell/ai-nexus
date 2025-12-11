@@ -31,6 +31,14 @@ const {
   compact = false
 } = Astro.props;
 
+// Convert model name to URL-safe slug (e.g., "Qwen/Qwen2.5-72B-Instruct" -> "Qwen-Qwen2.5-72B-Instruct")
+function toModelSlug(modelName: string): string {
+  // Replace / with - for URL safety, keep other characters
+  return encodeURIComponent(modelName.replace(/\//g, '-'));
+}
+
+const modelSlug = toModelSlug(name);
+
 // Score color mapping
 function getScoreColor(score: number | undefined): string {
   if (!score) return 'text-gray-400';
@@ -49,7 +57,7 @@ function getBarWidth(score: number | undefined): string {
 
 <div class={`benchmark-card ${compact ? 'compact' : ''}`}>
   <div class="card-header">
-    <a href={`/model/${umid}`} class="model-name">{name}</a>
+    <a href={`/model/${modelSlug}`} class="model-name">{name}</a>
     {quality_flag === 'ok' && <span class="quality-badge ok">✓</span>}
     {quality_flag !== 'ok' && <span class="quality-badge warn">⚠</span>}
   </div>
