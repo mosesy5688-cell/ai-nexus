@@ -1,0 +1,225 @@
+---
+/**
+ * BenchmarkTable Component
+ * V4.4 Phase 3 - Interactive leaderboard table
+ */
+
+interface BenchmarkRecord {
+  umid: string;
+  name: string;
+  mmlu?: number;
+  humaneval?: number;
+  hellaswag?: number;
+  arc_challenge?: number;
+  avg_score: number;
+  quality_flag?: string;
+}
+
+interface Props {
+  benchmarks: BenchmarkRecord[];
+  showRank?: boolean;
+  sortBy?: 'avg_score' | 'mmlu' | 'humaneval' | 'hellaswag' | 'arc_challenge';
+  limit?: number;
+}
+
+const { 
+  benchmarks, 
+  showRank = true,
+  sortBy = 'avg_score',
+  limit = 50
+} = Astro.props;
+
+// Sort benchmarks
+const sortedBenchmarks = [...benchmarks]
+  .sort((a, b) => (b[sortBy] || 0) - (a[sortBy] || 0))
+  .slice(0, limit);
+
+function getScoreClass(score: number | undefined): string {
+  if (!score) return 'score-na';
+  if (score >= 80) return 'score-excellent';
+  if (score >= 70) return 'score-good';
+  if (score >= 60) return 'score-fair';
+  return 'score-low';
+}
+
+function getRankBadge(rank: number): string {
+  if (rank === 1) return '🥇';
+  if (rank === 2) return '🥈';
+  if (rank === 3) return '🥉';
+  return `#${rank}`;
+}
+---
+
+<div class="benchmark-table-wrapper">
+  <table class="benchmark-table">
+    <thead>
+      <tr>
+        {showRank && <th class="col-rank">Rank</th>}
+        <th class="col-model">Model</th>
+        <th class="col-score sortable" data-sort="mmlu">MMLU</th>
+        <th class="col-score sortable" data-sort="humaneval">HumanEval</th>
+        <th class="col-score sortable" data-sort="hellaswag">HellaSwag</th>
+        <th class="col-score sortable" data-sort="arc_challenge">ARC</th>
+        <th class="col-avg sortable active" data-sort="avg_score">Average</th>
+      </tr>
+    </thead>
+    <tbody>
+      {sortedBenchmarks.map((b, index) => (
+        <tr class="benchmark-row">
+          {showRank && (
+            <td class="col-rank">
+              <span class={`rank-badge rank-${index + 1}`}>
+                {getRankBadge(index + 1)}
+              </span>
+            </td>
+          )}
+          <td class="col-model">
+            <a href={`/model/${b.umid}`} class="model-link">
+              {b.name}
+            </a>
+          </td>
+          <td class={`col-score ${getScoreClass(b.mmlu)}`}>
+            {b.mmlu?.toFixed(1) || '-'}
+          </td>
+          <td class={`col-score ${getScoreClass(b.humaneval)}`}>
+            {b.humaneval?.toFixed(1) || '-'}
+          </td>
+          <td class={`col-score ${getScoreClass(b.hellaswag)}`}>
+            {b.hellaswag?.toFixed(1) || '-'}
+          </td>
+          <td class={`col-score ${getScoreClass(b.arc_challenge)}`}>
+            {b.arc_challenge?.toFixed(1) || '-'}
+          </td>
+          <td class={`col-avg ${getScoreClass(b.avg_score)}`}>
+            <strong>{b.avg_score.toFixed(1)}</strong>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .benchmark-table-wrapper {
+    overflow-x: auto;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+  }
+
+  .benchmark-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+
+  thead tr {
+    background: rgba(99, 102, 241, 0.15);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+  }
+
+  th {
+    padding: 1rem 0.75rem;
+    text-align: left;
+    color: #94a3b8;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+
+  th.sortable {
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+
+  th.sortable:hover {
+    color: #818cf8;
+  }
+
+  th.sortable.active {
+    color: #818cf8;
+  }
+
+  th.sortable::after {
+    content: ' ↕';
+    opacity: 0.4;
+  }
+
+  th.sortable.active::after {
+    content: ' ↓';
+    opacity: 1;
+  }
+
+  .benchmark-row {
+    border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+    transition: background 0.2s;
+  }
+
+  .benchmark-row:hover {
+    background: rgba(99, 102, 241, 0.1);
+  }
+
+  td {
+    padding: 0.875rem 0.75rem;
+  }
+
+  .col-rank {
+    width: 60px;
+    text-align: center;
+  }
+
+  .rank-badge {
+    font-weight: 600;
+  }
+
+  .rank-1 { font-size: 1.25rem; }
+  .rank-2 { font-size: 1.2rem; }
+  .rank-3 { font-size: 1.15rem; }
+
+  .col-model {
+    min-width: 200px;
+  }
+
+  .model-link {
+    color: #e2e8f0;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+  }
+
+  .model-link:hover {
+    color: #818cf8;
+  }
+
+  .col-score, .col-avg {
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .col-avg {
+    font-weight: 600;
+  }
+
+  /* Score colors */
+  .score-excellent { color: #4ade80; }
+  .score-good { color: #60a5fa; }
+  .score-fair { color: #facc15; }
+  .score-low { color: #f87171; }
+  .score-na { color: #64748b; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .benchmark-table {
+      font-size: 0.8rem;
+    }
+    
+    th, td {
+      padding: 0.625rem 0.5rem;
+    }
+    
+    .col-model {
+      min-width: 150px;
+    }
+  }
+</style>

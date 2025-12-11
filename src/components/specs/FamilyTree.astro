@@ -1,0 +1,253 @@
+---
+/**
+ * FamilyTree Component
+ * V4.4 Phase 3 - Neural Explorer Architecture Family Visualization
+ */
+
+interface FamilyMember {
+  umid: string;
+  name: string;
+  params_billions?: number;
+  isBase?: boolean;
+}
+
+interface Props {
+  family: string;
+  members: FamilyMember[];
+  currentModelId?: string;
+  compact?: boolean;
+}
+
+const { 
+  family, 
+  members = [], 
+  currentModelId,
+  compact = false
+} = Astro.props;
+
+// Sort members by params (largest first, base model at top)
+const sortedMembers = [...members].sort((a, b) => {
+  if (a.isBase) return -1;
+  if (b.isBase) return 1;
+  return (b.params_billions || 0) - (a.params_billions || 0);
+});
+
+// Get family icon
+const familyIcons: Record<string, string> = {
+  'llama': '🦙',
+  'qwen': '🤖',
+  'mistral': '🌪️',
+  'gemma': '💎',
+  'phi': 'Φ',
+  'falcon': '🦅',
+  'deepseek': '🔍',
+  'yi': '🌟',
+  'internlm': '🧠',
+  'mamba': '🐍',
+  'rwkv': '♾️'
+};
+
+const icon = familyIcons[family?.toLowerCase()] || '🤖';
+---
+
+<div class={`family-tree ${compact ? 'compact' : ''}`}>
+  <div class="tree-header">
+    <span class="family-icon">{icon}</span>
+    <h4 class="family-name">{family?.charAt(0).toUpperCase() + family?.slice(1)} Family</h4>
+    <span class="member-count">{members.length} models</span>
+  </div>
+  
+  <div class="tree-container">
+    <ul class="tree-list">
+      {sortedMembers.map((member, index) => {
+        const isCurrent = member.umid === currentModelId;
+        const isFirst = index === 0;
+        return (
+          <li class={`tree-item ${isCurrent ? 'current' : ''} ${isFirst ? 'base' : ''}`}>
+            <div class="tree-branch">
+              {!isFirst && <span class="branch-line">├──</span>}
+              {isFirst && <span class="branch-line root">●</span>}
+            </div>
+            <a href={`/model/${member.umid}`} class="member-link">
+              <span class="member-name">{member.name.split('/').pop()}</span>
+              {member.params_billions && (
+                <span class="member-params">{member.params_billions}B</span>
+              )}
+              {isCurrent && <span class="current-badge">← You are here</span>}
+              {member.isBase && <span class="base-badge">Base</span>}
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+  
+  {!compact && members.length > 5 && (
+    <button class="btn-show-all" id={`show-all-${family}`}>
+      Show all {members.length} models
+    </button>
+  )}
+</div>
+
+<style>
+  .family-tree {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: all 0.3s ease;
+  }
+
+  .family-tree:hover {
+    border-color: rgba(99, 102, 241, 0.5);
+  }
+
+  .family-tree.compact {
+    padding: 1rem;
+  }
+
+  .tree-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+  }
+
+  .family-icon {
+    font-size: 1.5rem;
+  }
+
+  .compact .family-icon {
+    font-size: 1.25rem;
+  }
+
+  .family-name {
+    color: #e2e8f0;
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+    flex: 1;
+  }
+
+  .member-count {
+    color: #64748b;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    background: rgba(51, 65, 85, 0.5);
+    border-radius: 9999px;
+  }
+
+  .tree-container {
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
+  }
+
+  .compact .tree-container {
+    max-height: 180px;
+  }
+
+  .tree-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .tree-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+    transition: background 0.2s;
+  }
+
+  .tree-item:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 6px;
+  }
+
+  .tree-item.current {
+    background: rgba(99, 102, 241, 0.15);
+    border-radius: 6px;
+  }
+
+  .tree-branch {
+    width: 30px;
+    flex-shrink: 0;
+    color: #4b5563;
+    font-family: monospace;
+  }
+
+  .branch-line.root {
+    color: #6366f1;
+    font-size: 0.875rem;
+  }
+
+  .member-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #e2e8f0;
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: color 0.2s;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .member-link:hover {
+    color: #818cf8;
+  }
+
+  .member-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .member-params {
+    color: #64748b;
+    font-size: 0.75rem;
+    padding: 0.125rem 0.375rem;
+    background: rgba(51, 65, 85, 0.5);
+    border-radius: 4px;
+  }
+
+  .current-badge {
+    color: #818cf8;
+    font-size: 0.7rem;
+    font-weight: 500;
+  }
+
+  .base-badge {
+    color: #4ade80;
+    font-size: 0.65rem;
+    padding: 0.125rem 0.375rem;
+    background: rgba(74, 222, 128, 0.15);
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .btn-show-all {
+    display: block;
+    width: 100%;
+    margin-top: 0.75rem;
+    padding: 0.5rem;
+    background: transparent;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: #818cf8;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-show-all:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: #6366f1;
+  }
+</style>

@@ -1,0 +1,159 @@
+{
+    "version": "4.3.2",
+    "generated_at": "2025-12-11T20:30:00Z",
+    "ttl": 3600,
+    "source": "open_llm_leaderboard",
+    "count": 15,
+    "data": [
+        {
+            "umid": "qwen-qwen2-5-72b",
+            "name": "Qwen/Qwen2.5-72B-Instruct",
+            "mmlu": 85.3,
+            "humaneval": 87.2,
+            "hellaswag": 87.9,
+            "arc_challenge": 72.5,
+            "avg_score": 81.5,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "meta-llama-llama-3-3-70b",
+            "name": "meta-llama/Llama-3.3-70B-Instruct",
+            "mmlu": 83.4,
+            "humaneval": 82.0,
+            "hellaswag": 87.2,
+            "arc_challenge": 71.8,
+            "avg_score": 80.6,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "meta-llama-llama-3-1-70b",
+            "name": "meta-llama/Llama-3.1-70B-Instruct",
+            "mmlu": 82.0,
+            "humaneval": 80.5,
+            "hellaswag": 86.4,
+            "arc_challenge": 70.2,
+            "avg_score": 79.4,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "mistralai-mistral-large",
+            "name": "mistralai/Mistral-Large-Instruct-2411",
+            "mmlu": 81.2,
+            "humaneval": 83.0,
+            "hellaswag": 85.1,
+            "arc_challenge": 68.9,
+            "avg_score": 78.4,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "deepseek-ai-deepseek-v2-5",
+            "name": "deepseek-ai/DeepSeek-V2.5",
+            "mmlu": 79.8,
+            "humaneval": 85.3,
+            "hellaswag": 84.6,
+            "arc_challenge": 67.5,
+            "avg_score": 77.8,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "cohereforai-c4ai-command",
+            "name": "CohereForAI/c4ai-command-r-plus",
+            "mmlu": 75.6,
+            "humaneval": 74.3,
+            "hellaswag": 80.5,
+            "arc_challenge": 64.2,
+            "avg_score": 73.4,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "01-ai-yi-1-5-34b",
+            "name": "01-ai/Yi-1.5-34B-Chat",
+            "mmlu": 76.2,
+            "humaneval": 73.8,
+            "hellaswag": 81.9,
+            "arc_challenge": 65.1,
+            "avg_score": 73.2,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "qwen-qwen2-5-7b",
+            "name": "Qwen/Qwen2.5-7B-Instruct",
+            "mmlu": 74.2,
+            "humaneval": 75.8,
+            "hellaswag": 81.3,
+            "arc_challenge": 63.8,
+            "avg_score": 72.9,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "internlm-internlm2-5-20b",
+            "name": "internlm/internlm2_5-20b-chat",
+            "mmlu": 74.9,
+            "humaneval": 72.1,
+            "hellaswag": 80.2,
+            "arc_challenge": 63.5,
+            "avg_score": 71.7,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "meta-llama-llama-3-1-8b",
+            "name": "meta-llama/Llama-3.1-8B-Instruct",
+            "mmlu": 72.8,
+            "humaneval": 72.5,
+            "hellaswag": 79.6,
+            "arc_challenge": 61.5,
+            "avg_score": 70.8,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "microsoft-phi-3-medium",
+            "name": "microsoft/Phi-3-medium-128k-instruct",
+            "mmlu": 73.8,
+            "humaneval": 71.5,
+            "hellaswag": 77.8,
+            "arc_challenge": 62.7,
+            "avg_score": 70.6,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "google-gemma-2-9b",
+            "name": "google/gemma-2-9b-it",
+            "mmlu": 71.5,
+            "humaneval": 68.9,
+            "hellaswag": 78.2,
+            "arc_challenge": 60.4,
+            "avg_score": 69.4,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "mistralai-mistral-7b",
+            "name": "mistralai/Mistral-7B-Instruct-v0.3",
+            "mmlu": 68.5,
+            "humaneval": 65.2,
+            "hellaswag": 76.4,
+            "arc_challenge": 58.9,
+            "avg_score": 66.9,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "nexusflow-starling-lm-7b",
+            "name": "Nexusflow/Starling-LM-7B-beta",
+            "mmlu": 65.8,
+            "humaneval": 62.4,
+            "hellaswag": 74.5,
+            "arc_challenge": 57.3,
+            "avg_score": 64.7,
+            "quality_flag": "ok"
+        },
+        {
+            "umid": "openchat-openchat-3-5",
+            "name": "openchat/openchat-3.5-0106",
+            "mmlu": 64.2,
+            "humaneval": 61.8,
+            "hellaswag": 73.8,
+            "arc_challenge": 56.1,
+            "avg_score": 63.5,
+            "quality_flag": "ok"
+        }
+    ]
+}

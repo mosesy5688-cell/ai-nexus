@@ -1,0 +1,134 @@
+---
+/**
+ * SEO Schema Component
+ * V4.4 Phase 3 - JSON-LD structured data for model pages
+ * 
+ * Implements schema.org Product type with custom AI model properties
+ */
+
+interface BenchmarkData {
+  mmlu?: number;
+  humaneval?: number;
+  hellaswag?: number;
+  arc_challenge?: number;
+  avg_score?: number;
+}
+
+interface SpecsData {
+  params_billions?: number;
+  context_length?: number;
+  architecture?: string;
+  architecture_family?: string;
+}
+
+interface Props {
+  name: string;
+  author: string;
+  description?: string;
+  version?: string;
+  dateCreated?: string;
+  dateModified?: string;
+  license?: string;
+  url: string;
+  imageUrl?: string;
+  downloads?: number;
+  likes?: number;
+  benchmark?: BenchmarkData;
+  specs?: SpecsData;
+  alternateNames?: string[];
+}
+
+const {
+  name,
+  author,
+  description,
+  version,
+  dateCreated,
+  dateModified,
+  license,
+  url,
+  imageUrl,
+  downloads,
+  likes,
+  benchmark,
+  specs,
+  alternateNames = []
+} = Astro.props;
+
+// Build JSON-LD schema
+const schema = {
+  "@context": "https://schema.org/",
+  "@type": "SoftwareApplication",
+  "name": name,
+  "alternateName": alternateNames,
+  "applicationCategory": "AI Model",
+  "operatingSystem": "Cross-platform",
+  "author": {
+    "@type": "Organization",
+    "name": author
+  },
+  "description": description || `${name} - AI model by ${author}`,
+  "url": url,
+  ...(imageUrl && { "image": imageUrl }),
+  ...(license && { "license": license }),
+  ...(version && { "softwareVersion": version }),
+  ...(dateCreated && { "dateCreated": dateCreated }),
+  ...(dateModified && { "dateModified": dateModified }),
+  ...(downloads && {
+    "interactionStatistic": {
+      "@type": "InteractionCounter",
+      "interactionType": "https://schema.org/DownloadAction",
+      "userInteractionCount": downloads
+    }
+  }),
+  ...(likes && {
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": Math.min(5, (likes / 1000) + 3),
+      "ratingCount": likes,
+      "bestRating": 5,
+      "worstRating": 1
+    }
+  }),
+  "additionalProperty": [
+    ...(benchmark?.mmlu ? [{
+      "@type": "PropertyValue",
+      "name": "MMLU Score",
+      "value": benchmark.mmlu.toString()
+    }] : []),
+    ...(benchmark?.humaneval ? [{
+      "@type": "PropertyValue",
+      "name": "HumanEval Score",
+      "value": benchmark.humaneval.toString()
+    }] : []),
+    ...(benchmark?.avg_score ? [{
+      "@type": "PropertyValue",
+      "name": "Benchmark Average",
+      "value": benchmark.avg_score.toString()
+    }] : []),
+    ...(specs?.params_billions ? [{
+      "@type": "PropertyValue",
+      "name": "Parameters",
+      "value": `${specs.params_billions}B`
+    }] : []),
+    ...(specs?.context_length ? [{
+      "@type": "PropertyValue",
+      "name": "Context Length",
+      "value": specs.context_length.toString()
+    }] : []),
+    ...(specs?.architecture_family ? [{
+      "@type": "PropertyValue",
+      "name": "Architecture Family",
+      "value": specs.architecture_family
+    }] : [])
+  ].filter(p => p)
+};
+
+// Clean up empty arrays
+if (schema.alternateName?.length === 0) delete schema.alternateName;
+if (schema.additionalProperty?.length === 0) delete schema.additionalProperty;
+
+const schemaString = JSON.stringify(schema, null, 0);
+---
+
+<script type="application/ld+json" set:html={schemaString} />
