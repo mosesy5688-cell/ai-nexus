@@ -1,11 +1,12 @@
 /**
- * Operation Sentinel - Pre-Production Audit Script
+ * Operation Sentinel V2 - Pre-Production Audit Script
  * 
- * Constitution V4.1 Quality Assurance
+ * Constitution V4.1 Compliance Verification
  * 
  * Modules:
  * - Module A: Spider - Core link integrity check
  * - Module B: Inspector - Constitution compliance verification  
+ * - Module B+: Deep Link Verifier - Source URL logic validation
  * - Module C: Hammer - API stress test
  */
 
@@ -15,14 +16,35 @@ import { performance } from 'perf_hooks';
 
 const BASE_URL = process.env.AUDIT_URL || 'https://free2aitools.com';
 const ENDPOINTS = ['/', '/ranking', '/explore', '/methodology', '/about', '/compliance'];
-const SAMPLE_MODEL = '/model/hf-dataset%3Adeepmind%3Acode_contests';
 
-console.log('🛡️ Starting Operation Sentinel...');
+// Test candidates for Deep Link Verification
+const TEST_MODELS = [
+    {
+        id: 'arxiv:2512.07814v1',
+        slug: 'arxiv%3A2512.07814v1',
+        source: 'arxiv',
+        expectedDomain: 'arxiv.org'
+    },
+    {
+        id: 'hf-dataset:facebear:xvla-soft-fold',
+        slug: 'hf-dataset%3Afacebear%3Axvla-soft-fold',
+        source: 'huggingface',
+        expectedDomain: 'huggingface.co'
+    }
+];
+
+console.log('🛡️ Starting Operation Sentinel V2...');
 console.log(`📍 Target: ${BASE_URL}`);
 console.log('');
 
 async function runAudit() {
-    const report = { brokenLinks: [], violations: [], perf: {}, passes: [] };
+    const report = {
+        brokenLinks: [],
+        violations: [],
+        linkVerification: [],
+        perf: {},
+        passes: []
+    };
 
     // --- MODULE A: The Spider (Integrity) ---
     console.log('🕷️ Module A: Checking Core Links...');
@@ -42,48 +64,37 @@ async function runAudit() {
 
     // --- MODULE B: The Inspector (Constitution Compliance) ---
     console.log('🧐 Module B: Verifying V4.1 Features...');
+    const sampleModel = TEST_MODELS[0];
     try {
-        const { data } = await axios.get(BASE_URL + SAMPLE_MODEL, { timeout: 15000 });
+        const { data } = await axios.get(`${BASE_URL}/model/${sampleModel.slug}`, { timeout: 15000 });
         const $ = cheerio.load(data);
 
         // Check 1: FNI Trust Panel (Pillar VII)
         const hasFNIPanel = $('[class*="fni"]').length > 0 ||
-            $('text:contains("FNI")').length > 0 ||
-            data.includes('Free2AI Nexus Index');
+            data.includes('Free2AI Nexus Index') ||
+            data.includes('FNI Score');
         if (hasFNIPanel) {
             report.passes.push('✅ FNI Trust Panel detected');
         } else {
             report.violations.push('⚠️ Missing FNI Trust Panel (Pillar VII)');
         }
 
-        // Check 2: Source URL (Download button)
-        const hasSourceLink = $('a[target="_blank"]').length > 0 ||
-            data.includes('huggingface.co');
-        if (hasSourceLink) {
-            report.passes.push('✅ Source URL link detected');
-        } else {
-            report.violations.push('⚠️ Missing Source URL/Download link');
-        }
-
-        // Check 3: Footer Methodology Link (Pillar VII Trust)
-        const hasMethodologyLink = $('footer a[href="/methodology"]').length > 0 ||
-            data.includes('href="/methodology"');
+        // Check 2: Check Footer Links
+        const hasMethodologyLink = data.includes('href="/methodology"');
         if (hasMethodologyLink) {
             report.passes.push('✅ Footer Methodology link present');
         } else {
             report.violations.push('⚠️ Missing Methodology Link in Footer');
         }
 
-        // Check 4: Footer Compliance Link
-        const hasComplianceLink = $('footer a[href="/compliance"]').length > 0 ||
-            data.includes('href="/compliance"');
+        const hasComplianceLink = data.includes('href="/compliance"');
         if (hasComplianceLink) {
             report.passes.push('✅ Footer Compliance link present');
         } else {
             report.violations.push('⚠️ Missing Compliance Link in Footer');
         }
 
-        // Check 5: FNI Badge with 4 dimensions (P/V/C/U)
+        // Check 3: FNI Badge with 4 dimensions (P/V/C/U)
         const hasFNIBadge = data.includes('Pop') && data.includes('Vel') &&
             data.includes('Cred') && data.includes('Util');
         if (hasFNIBadge) {
@@ -95,7 +106,68 @@ async function runAudit() {
     } catch (e) {
         report.violations.push(`❌ Could not fetch model page for inspection: ${e.message}`);
     }
-    console.log(`   Ran ${5} compliance checks\n`);
+    console.log(`   Ran compliance checks\n`);
+
+    // --- MODULE B+: Deep Link Verifier (NEW in V2) ---
+    console.log('🔗 Module B+: Deep Link Verification...');
+    for (const model of TEST_MODELS) {
+        try {
+            const url = `${BASE_URL}/model/${model.slug}`;
+            const { data } = await axios.get(url, { timeout: 15000 });
+            const $ = cheerio.load(data);
+
+            // Find the Download/Source button - look for external links
+            const downloadLinks = $('a[target="_blank"]').toArray();
+            let foundCorrectLink = false;
+            let foundHref = 'none';
+
+            for (const link of downloadLinks) {
+                const href = $(link).attr('href') || '';
+                if (href.includes(model.expectedDomain)) {
+                    foundCorrectLink = true;
+                    foundHref = href;
+                    break;
+                }
+                // Also capture what we did find for debugging
+                if (href.includes('http') && !foundHref.includes('http')) {
+                    foundHref = href;
+                }
+            }
+
+            if (foundCorrectLink) {
+                report.linkVerification.push({
+                    model: model.id,
+                    source: model.source,
+                    expected: model.expectedDomain,
+                    found: foundHref,
+                    status: '✅ PASS'
+                });
+                console.log(`   ✅ ${model.id}: ${model.source} → ${model.expectedDomain} verified`);
+            } else {
+                report.linkVerification.push({
+                    model: model.id,
+                    source: model.source,
+                    expected: model.expectedDomain,
+                    found: foundHref,
+                    status: '❌ FAIL'
+                });
+                report.violations.push(`❌ CRITICAL: ${model.id} (${model.source}) links to ${foundHref} instead of ${model.expectedDomain}`);
+                console.log(`   ❌ ${model.id}: Expected ${model.expectedDomain} but found ${foundHref}`);
+            }
+
+        } catch (e) {
+            report.linkVerification.push({
+                model: model.id,
+                source: model.source,
+                expected: model.expectedDomain,
+                found: 'ERROR',
+                status: '❌ ERROR'
+            });
+            report.violations.push(`❌ Could not verify ${model.id}: ${e.message}`);
+            console.log(`   ❌ ${model.id}: Error - ${e.message}`);
+        }
+    }
+    console.log('');
 
     // --- MODULE C: The Hammer (Stress Test) ---
     console.log('🔨 Module C: Stress Testing Trending API...');
@@ -125,7 +197,7 @@ async function runAudit() {
 
     // --- FINAL REPORT ---
     console.log('═══════════════════════════════════════════════════════');
-    console.log('📊 SENTINEL REPORT');
+    console.log('📊 SENTINEL V2 REPORT');
     console.log('═══════════════════════════════════════════════════════\n');
 
     console.log('🔗 Link Integrity:');
@@ -139,10 +211,19 @@ async function runAudit() {
 
     console.log('📋 Constitution Compliance:');
     report.passes.forEach(p => console.log(`   ${p}`));
-    if (report.violations.length > 0) {
-        report.violations.forEach(v => console.log(`   ${v}`));
-    }
     console.log('');
+
+    console.log('🔗 Deep Link Verification (V2 NEW):');
+    report.linkVerification.forEach(v => {
+        console.log(`   ${v.status} ${v.model} (${v.source}) → ${v.found}`);
+    });
+    console.log('');
+
+    if (report.violations.length > 0) {
+        console.log('⚠️ Violations:');
+        report.violations.forEach(v => console.log(`   ${v}`));
+        console.log('');
+    }
 
     console.log('⚡ Performance (Trending API):');
     console.log(`   Total Requests: ${report.perf.totalRequests}`);
