@@ -1,141 +1,411 @@
 ---
-// src/pages/leaderboard.astro
-// Sprint 4: FNI-focused Top 100 Leaderboard (distinct from /ranking)
-// Pillar VII: Fair Nexus Index - The Official FNI Rankings
+/**
+ * Benchmark Leaderboard Page
+ * V4.4 Phase 3 - Constitution Compliant (D1 Reads = 0)
+ * 
+ * Uses /cache/benchmarks.json for all data
+ * Combines FNI ranking with benchmark scores
+ */
 
 export const prerender = false;
 
 import Layout from '../layouts/Layout.astro';
-import ModelCard from '../components/ModelCard.astro';
-import FNIBadge from '../components/FNIBadge.astro';
+import BenchmarkTable from '../components/benchmark/BenchmarkTable.astro';
+import BenchmarkCard from '../components/benchmark/BenchmarkCard.astro';
+import DataFreshness from '../components/common/DataFreshness.astro';
 
-const pageTitle = "FNI Top 100 - Fair Nexus Index Leaderboard";
-const pageDescription = "The official Fair Nexus Index (FNI) rankings. Discover top AI models ranked by our transparent, multi-dimensional scoring system.";
+const pageTitle = "AI Model Benchmark Leaderboard - Free2AITools";
+const pageDescription = "Compare AI models by benchmark scores: MMLU, HumanEval, HellaSwag, ARC. Transparent, data-driven rankings.";
 
-// Fetch top models by FNI score from D1
-let topModels = [];
+// Load benchmark data from cache (V4.4 - no D1 reads)
+let benchmarkData = null;
+let dataSource = 'cdn';
+let freshness = null;
 let error = null;
-let dbUnavailable = false;
 
 try {
-  const db = Astro.locals?.runtime?.env?.DB;
-  if (db) {
-    const result = await db.prepare(`
-      SELECT 
-        id, slug, name, author, description,
-        downloads, likes, license,
-        fni_score, fni_p, fni_v, fni_c, fni_u, fni_percentile,
-        has_ollama, has_gguf, ollama_id,
-        cover_image_url, pipeline_tag, last_updated
-      FROM models 
-      WHERE fni_score > 0
-      ORDER BY fni_score DESC 
-      LIMIT 100
-    `).all();
-    topModels = result.results || [];
-  } else {
-    // DB not available (edge build or local dev without wrangler)
-    dbUnavailable = true;
+  const res = await fetch(new URL('/cache/benchmarks.json', Astro.url.origin));
+  if (res.ok) {
+    benchmarkData = await res.json();
+    freshness = benchmarkData.generated_at;
+    dataSource = 'cdn';
   }
 } catch (e) {
-  console.error('[FNI Leaderboard] Error:', e);
+  console.error('[Leaderboard] Cache fetch error:', e);
   error = e;
 }
+
+// Extract and sort benchmarks
+const benchmarks = benchmarkData?.data || [];
+const sortedByAvg = [...benchmarks].sort((a, b) => b.avg_score - a.avg_score);
+const top3 = sortedByAvg.slice(0, 3);
+const remaining = sortedByAvg.slice(3);
+
+// Architecture families for filter
+const families = [...new Set(benchmarks.map(b => {
+  // Extract family from umid (e.g., 'qwen-qwen2-5-72b' -> 'qwen')
+  return b.umid?.split('-')[0] || 'unknown';
+}))].filter(f => f !== 'unknown');
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
-  <div class="container mx-auto px-4 py-12">
-    <!-- Page Header -->
-    <header class="text-center mb-12">
-      <div class="flex justify-center items-center gap-3 mb-4">
-        <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">FNI Top 100</h1>
-        <span class="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm font-bold rounded-full">Official Rankings</span>
+  <div class="leaderboard-container">
+    <!-- Hero Header -->
+    <header class="hero-header">
+      <div class="hero-content">
+        <h1 class="hero-title">
+          <span class="emoji">🏆</span>
+          AI Model Benchmark Leaderboard
+        </h1>
+        <p class="hero-subtitle">
+          Compare the world's best open-source AI models by standardized benchmark scores
+        </p>
+        <DataFreshness timestamp={freshness} source={dataSource} />
       </div>
-      <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-3xl mx-auto">
-        The definitive ranking of open-source AI models using our transparent, multi-dimensional Fair Nexus Index.
-      </p>
-      <a href="/methodology" class="inline-flex items-center gap-2 mt-4 text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 font-medium">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        Learn how we calculate FNI scores
-      </a>
     </header>
 
-    <!-- FNI Legend -->
-    <div class="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 mb-12 max-w-4xl mx-auto">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 text-center">FNI Scoring Dimensions</h3>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-        <div class="flex items-center gap-2">
-          <span class="w-3 h-3 bg-blue-500 rounded-full"></span>
-          <span><strong>P</strong> - Popularity (25%)</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="w-3 h-3 bg-green-500 rounded-full"></span>
-          <span><strong>V</strong> - Velocity (25%)</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="w-3 h-3 bg-purple-500 rounded-full"></span>
-          <span><strong>C</strong> - Credibility (30%)</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="w-3 h-3 bg-orange-500 rounded-full"></span>
-          <span><strong>U</strong> - Utility (20%)</span>
-        </div>
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label>Architecture Family</label>
+        <select id="family-filter" class="filter-select">
+          <option value="">All Families</option>
+          {families.map(f => (
+            <option value={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</option>
+          ))}
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label>Sort By</label>
+        <select id="sort-filter" class="filter-select">
+          <option value="avg_score">Average Score</option>
+          <option value="mmlu">MMLU</option>
+          <option value="humaneval">HumanEval</option>
+          <option value="hellaswag">HellaSwag</option>
+          <option value="arc_challenge">ARC-Challenge</option>
+        </select>
+      </div>
+      
+      <div class="filter-actions">
+        <a href="/compare" class="btn-compare">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          Compare Models
+        </a>
       </div>
     </div>
 
-    {error ? (
-      <div class="bg-red-50 text-red-800 p-8 rounded-lg max-w-2xl mx-auto text-center">
-        <h2 class="text-2xl font-bold mb-4">Error Loading Rankings</h2>
-        <p>We couldn't fetch the FNI leaderboard. Please try again later.</p>
-      </div>
-    ) : dbUnavailable || topModels.length === 0 ? (
-      <div class="text-center py-16">
-        <p class="text-2xl font-semibold text-gray-700 dark:text-gray-200">No FNI-scored models yet.</p>
-        <p class="text-gray-500 dark:text-gray-400 mt-2">FNI scores are calculated daily. Check back soon!</p>
-        <a href="/explore" class="inline-block mt-6 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors">
-          Explore All Models
-        </a>
+    {error || benchmarks.length === 0 ? (
+      <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <h2>Benchmark Data Loading...</h2>
+        <p>Benchmark scores are updated daily. Check back soon!</p>
+        <a href="/explore" class="btn-primary">Explore All Models</a>
       </div>
     ) : (
-      <div class="mb-16">
-        <!-- Top 10 Featured -->
-        <section class="mb-16">
-          <h2 class="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8">🏆 Top 10 Models</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-            {topModels.slice(0, 10).map((model, index) => (
-              <div class="relative">
-                <div class={`absolute -top-3 -left-3 w-8 h-8 rounded-full flex items-center justify-center font-bold text-white shadow-lg z-10 ${
-                  index === 0 ? 'bg-yellow-500' : 
-                  index === 1 ? 'bg-gray-400' : 
-                  index === 2 ? 'bg-amber-600' : 'bg-indigo-500'
-                }`}>
-                  {index + 1}
+      <>
+        <!-- Top 3 Podium -->
+        <section class="podium-section">
+          <h2 class="section-title">🥇 Top Performers</h2>
+          <div class="podium-grid">
+            {top3.map((b, index) => (
+              <div class={`podium-item podium-${index + 1}`}>
+                <div class="rank-medal">
+                  {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
                 </div>
-                <ModelCard model={model} />
+                <BenchmarkCard 
+                  umid={b.umid}
+                  name={b.name}
+                  mmlu={b.mmlu}
+                  humaneval={b.humaneval}
+                  hellaswag={b.hellaswag}
+                  arc_challenge={b.arc_challenge}
+                  avg_score={b.avg_score}
+                  quality_flag={b.quality_flag}
+                />
               </div>
             ))}
           </div>
         </section>
 
-        <!-- Remaining 11-100 -->
-        {topModels.length > 10 && (
-          <section>
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Positions 11-100</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {topModels.slice(10).map((model, index) => (
-                <div class="relative">
-                  <div class="absolute -top-2 -left-2 w-6 h-6 bg-gray-500 rounded-full flex items-center justify-center text-xs font-bold text-white shadow z-10">
-                    {index + 11}
-                  </div>
-                  <ModelCard model={model} />
-                </div>
-              ))}
+        <!-- Full Leaderboard Table -->
+        <section class="table-section">
+          <h2 class="section-title">📊 Full Rankings</h2>
+          <BenchmarkTable 
+            benchmarks={sortedByAvg}
+            showRank={true}
+            sortBy="avg_score"
+          />
+        </section>
+
+        <!-- Legend -->
+        <section class="legend-section">
+          <h3>Benchmark Metrics Explained</h3>
+          <div class="legend-grid">
+            <div class="legend-item">
+              <span class="legend-metric">MMLU</span>
+              <span class="legend-desc">Massive Multitask Language Understanding - tests knowledge across 57 subjects</span>
             </div>
-          </section>
-        )}
-      </div>
+            <div class="legend-item">
+              <span class="legend-metric">HumanEval</span>
+              <span class="legend-desc">Code generation benchmark - evaluates Python programming ability</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-metric">HellaSwag</span>
+              <span class="legend-desc">Commonsense reasoning about physical situations</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-metric">ARC</span>
+              <span class="legend-desc">AI2 Reasoning Challenge - grade-school science questions</span>
+            </div>
+          </div>
+        </section>
+      </>
     )}
   </div>
 </Layout>
+
+<style>
+  .leaderboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+  }
+
+  /* Hero */
+  .hero-header {
+    text-align: center;
+    padding: 3rem 1rem;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+    border-radius: 20px;
+    margin-bottom: 2rem;
+  }
+
+  .hero-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #f8fafc;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .emoji {
+    font-size: 2.5rem;
+  }
+
+  .hero-subtitle {
+    color: #94a3b8;
+    font-size: 1.125rem;
+    max-width: 600px;
+    margin: 0 auto 1.5rem;
+  }
+
+  /* Filter Bar */
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+    padding: 1.5rem;
+    background: rgba(30, 41, 59, 0.6);
+    border-radius: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .filter-group label {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .filter-select {
+    padding: 0.625rem 1rem;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-size: 0.875rem;
+    min-width: 160px;
+    cursor: pointer;
+  }
+
+  .filter-select:focus {
+    outline: none;
+    border-color: #818cf8;
+  }
+
+  .filter-actions {
+    margin-left: auto;
+  }
+
+  .btn-compare {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .btn-compare:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  }
+
+  .btn-compare .icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Sections */
+  .section-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 1.5rem;
+  }
+
+  /* Podium */
+  .podium-section {
+    margin-bottom: 3rem;
+  }
+
+  .podium-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .podium-item {
+    position: relative;
+  }
+
+  .rank-medal {
+    position: absolute;
+    top: -12px;
+    left: -12px;
+    font-size: 2rem;
+    z-index: 10;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+
+  .podium-1 { order: 1; }
+  .podium-2 { order: 2; }
+  .podium-3 { order: 3; }
+
+  @media (min-width: 1024px) {
+    .podium-1 { order: 2; transform: scale(1.05); }
+    .podium-2 { order: 1; }
+    .podium-3 { order: 3; }
+  }
+
+  /* Table Section */
+  .table-section {
+    margin-bottom: 3rem;
+  }
+
+  /* Legend */
+  .legend-section {
+    padding: 1.5rem;
+    background: rgba(30, 41, 59, 0.4);
+    border-radius: 12px;
+  }
+
+  .legend-section h3 {
+    color: #e2e8f0;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .legend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+
+  .legend-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .legend-metric {
+    color: #818cf8;
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
+  .legend-desc {
+    color: #94a3b8;
+    font-size: 0.8rem;
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+  }
+
+  .empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+  }
+
+  .empty-state h2 {
+    color: #e2e8f0;
+    margin-bottom: 0.5rem;
+  }
+
+  .empty-state p {
+    color: #94a3b8;
+    margin-bottom: 1.5rem;
+  }
+
+  .btn-primary {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background: #6366f1;
+    color: white;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .hero-title {
+      font-size: 1.75rem;
+      flex-direction: column;
+    }
+
+    .filter-bar {
+      flex-direction: column;
+    }
+
+    .filter-actions {
+      margin-left: 0;
+      width: 100%;
+    }
+
+    .btn-compare {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>

@@ -12,6 +12,10 @@ import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
 import FNIBadge from '../../components/FNIBadge.astro';
 import FNITrustPanel from '../../components/FNITrustPanel.astro';
+// V4.4 Phase 3 Components
+import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
+import SpecsTable from '../../components/specs/SpecsTable.astro';
+import DeployabilityBadge from '../../components/specs/DeployabilityBadge.astro';
 import { getModelBySlug } from '../../utils/db';
 import { prepareDetailData, getBestDescription, formatMetric, formatRelativeTime, parseJSONField } from '../../utils/data-service';
 import { marked } from 'marked';
@@ -366,6 +370,47 @@ if (model?.commercial_slots) {
                             </div>
                         </dl>
                     </div>
+
+                    {/* V4.4 Phase 3: Benchmark Performance */}
+                    {model.has_benchmarks && (
+                      <div class="v44-benchmark-section">
+                        <BenchmarkCard 
+                          umid={model.umid || model.id}
+                          name={model.displayName}
+                          mmlu={model.mmlu}
+                          humaneval={model.humaneval}
+                          hellaswag={model.hellaswag}
+                          arc_challenge={model.arc_challenge}
+                          avg_score={model.benchmark_avg || 0}
+                          quality_flag="ok"
+                          compact={true}
+                        />
+                      </div>
+                    )}
+
+                    {/* V4.4 Phase 3: Model Specifications */}
+                    {(model.params_billions || model.context_length || model.architecture_family) && (
+                      <SpecsTable 
+                        params_billions={model.params_billions}
+                        context_length={model.context_length}
+                        vocab_size={model.vocab_size}
+                        hidden_size={model.hidden_size}
+                        num_layers={model.num_layers}
+                        architecture={model.architecture}
+                        architecture_family={model.architecture_family}
+                        deploy_score={model.deploy_score}
+                      />
+                    )}
+
+                    {/* V4.4 Phase 3: Deployability Badge */}
+                    <DeployabilityBadge 
+                      deploy_score={model.deploy_score}
+                      has_gguf={model.has_gguf}
+                      has_ollama={model.has_ollama}
+                      ollama_id={model.ollama_id}
+                      context_length={model.context_length || 0}
+                      params_billions={model.params_billions || 0}
+                    />
 
                     </div>
 

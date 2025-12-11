@@ -1,0 +1,107 @@
+{
+    "version": "4.3.2",
+    "generated_at": "2025-12-11T20:30:00Z",
+    "ttl": 3600,
+    "source": "huggingface_config",
+    "count": 9,
+    "data": [
+        {
+            "umid": "qwen-qwen2-5-72b",
+            "name": "Qwen/Qwen2.5-72B-Instruct",
+            "params_billions": 72.0,
+            "context_length": 32768,
+            "architecture_family": "qwen",
+            "deploy_score": 0.3
+        },
+        {
+            "umid": "meta-llama-llama-3-1-70b",
+            "name": "meta-llama/Llama-3.1-70B-Instruct",
+            "params_billions": 70.0,
+            "context_length": 8192,
+            "architecture_family": "llama",
+            "deploy_score": 0.2
+        },
+        {
+            "umid": "mistralai-mistral-large",
+            "name": "mistralai/Mistral-Large-Instruct-2411",
+            "params_billions": 123.0,
+            "context_length": 32768,
+            "architecture_family": "mistral",
+            "deploy_score": 0.2
+        },
+        {
+            "umid": "deepseek-ai-deepseek-v2-5",
+            "name": "deepseek-ai/DeepSeek-V2.5",
+            "params_billions": 236.0,
+            "context_length": 128000,
+            "architecture_family": "deepseek",
+            "deploy_score": 0.2
+        },
+        {
+            "umid": "microsoft-phi-3-medium",
+            "name": "microsoft/Phi-3-medium-128k-instruct",
+            "params_billions": 14.0,
+            "context_length": 128000,
+            "architecture_family": "phi",
+            "deploy_score": 0.4
+        },
+        {
+            "umid": "google-gemma-2-9b",
+            "name": "google/gemma-2-9b-it",
+            "params_billions": 9.0,
+            "context_length": 8192,
+            "architecture_family": "gemma",
+            "deploy_score": 0.3
+        },
+        {
+            "umid": "qwen-qwen2-5-7b",
+            "name": "Qwen/Qwen2.5-7B-Instruct",
+            "params_billions": 5.8,
+            "context_length": 32768,
+            "architecture_family": "qwen",
+            "deploy_score": 0.4
+        },
+        {
+            "umid": "mistralai-mistral-7b",
+            "name": "mistralai/Mistral-7B-Instruct-v0.3",
+            "params_billions": 6.0,
+            "context_length": 32768,
+            "architecture_family": "mistral",
+            "deploy_score": 0.4
+        },
+        {
+            "umid": "meta-llama-llama-3-1-8b",
+            "name": "meta-llama/Llama-3.1-8B-Instruct",
+            "params_billions": 8.0,
+            "context_length": 8192,
+            "architecture_family": "llama",
+            "deploy_score": 0.3
+        }
+    ],
+    "architecture_families": [
+        {
+            "family": "qwen",
+            "count": 2
+        },
+        {
+            "family": "llama",
+            "count": 2
+        },
+        {
+            "family": "mistral",
+            "count": 2
+        },
+        {
+            "family": "deepseek",
+            "count": 1
+        },
+        {
+            "family": "phi",
+            "count": 1
+        },
+        {
+            "family": "gemma",
+            "count": 1
+        }
+    ]
+}

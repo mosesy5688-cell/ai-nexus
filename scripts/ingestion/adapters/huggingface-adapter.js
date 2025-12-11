@@ -16,8 +16,20 @@ const HF_API_BASE = 'https://huggingface.co/api';
 const HF_RAW_BASE = 'https://huggingface.co';
 
 /**
+ * V4.3.1 Multi-Strategy Collection
+ * Use different sort strategies to collect more models
+ */
+const COLLECTION_STRATEGIES = [
+    { sort: 'likes', direction: -1, name: 'Most Liked' },
+    { sort: 'downloads', direction: -1, name: 'Most Downloaded' },
+    { sort: 'lastModified', direction: -1, name: 'Recently Updated' },
+    { sort: 'createdAt', direction: -1, name: 'Newest Created' },
+];
+
+/**
  * HuggingFace Adapter Implementation
  * V4.1: Added HF_TOKEN support and rate limiting
+ * V4.3.1: Added multi-strategy collection for bypassing API limits
  */
 export class HuggingFaceAdapter extends BaseAdapter {
     constructor() {
@@ -102,6 +114,100 @@ export class HuggingFaceAdapter extends BaseAdapter {
         console.log(`✅ [HuggingFace] Fetched ${fullModels.length} complete models`);
         return fullModels;
     }
+
+    /**
+     * V4.3.1 Multi-Strategy Collection
+     * Fetches models using multiple sort strategies to collect more unique models
+     * @param {Object} options
+     * @param {number} options.limitPerStrategy - Models per strategy (default: 1000)
+     * @param {number[]} options.strategyIndices - Which strategies to use (default: all)
+     * @param {Set} options.existingIds - Skip models already collected
+     * @param {boolean} options.full - Fetch full details (default: true)
+     */
+    async fetchMultiStrategy(options = {}) {
+        const {
+            limitPerStrategy = 1000,
+            strategyIndices = [0, 1, 2, 3],
+            existingIds = new Set(),
+            full = true
+        } = options;
+
+        const collectedIds = new Set(existingIds);
+        const allModels = [];
+
+        for (const strategyIndex of strategyIndices) {
+            if (strategyIndex >= COLLECTION_STRATEGIES.length) continue;
+
+            const strategy = COLLECTION_STRATEGIES[strategyIndex];
+            console.log(`\n📥 [HuggingFace] Strategy ${strategyIndex + 1}/4: ${strategy.name}`);
+            console.log(`   Sort: ${strategy.sort}, Direction: ${strategy.direction}`);
+
+            try {
+                const listUrl = `${HF_API_BASE}/models?sort=${strategy.sort}&direction=${strategy.direction}&limit=${limitPerStrategy}`;
+                const response = await fetch(listUrl, { headers: this.getHeaders() });
+
+                if (!response.ok) {
+                    console.warn(`   ⚠️ API error: ${response.status}, skipping strategy`);
+                    continue;
+                }
+
+                const models = await response.json();
+                console.log(`   📦 Got ${models.length} models from API`);
+
+                // Filter out duplicates
+                const newModels = models.filter(m => {
+                    const id = m.modelId || m.id;
+                    if (collectedIds.has(id)) return false;
+                    collectedIds.add(id);
+                    return true;
+                });
+
+                console.log(`   🆕 ${newModels.length} unique models (${models.length - newModels.length} duplicates skipped)`);
+
+                if (full && newModels.length > 0) {
+                    // Fetch full details with rate limiting
+                    const batchSize = this.hfToken ? 5 : 2;
+                    const delayMs = this.hfToken ? 800 : 1500;
+
+                    for (let i = 0; i < newModels.length; i += batchSize) {
+                        const batch = newModels.slice(i, i + batchSize);
+                        const batchResults = await Promise.all(
+                            batch.map(m => this.fetchFullModel(m.modelId || m.id))
+                        );
+                        allModels.push(...batchResults.filter(m => m !== null));
+
+                        if ((i + batchSize) % 100 === 0) {
+                            console.log(`   Progress: ${Math.min(i + batchSize, newModels.length)}/${newModels.length}`);
+                        }
+
+                        if (i + batchSize < newModels.length) {
+                            await this.delay(delayMs);
+                        }
+                    }
+                } else {
+                    allModels.push(...newModels);
+                }
+
+                // Delay between strategies to avoid rate limits
+                await this.delay(2000);
+
+            } catch (error) {
+                console.error(`   ❌ Strategy ${strategy.name} failed: ${error.message}`);
+            }
+        }
+
+        console.log(`\n✅ [HuggingFace] Multi-strategy total: ${allModels.length} unique models`);
+        return {
+            models: allModels,
+            collectedIds: Array.from(collectedIds),
+            stats: {
+                strategies_used: strategyIndices.length,
+                unique_models: allModels.length,
+                duplicates_skipped: collectedIds.size - allModels.length
+            }
+        };
+    }
+
 
     /**
      * Fetch complete model details including README

@@ -1,0 +1,202 @@
+---
+/**
+ * DeployabilityBadge Component
+ * V4.4 Phase 3 - Shows model deployment readiness
+ * 
+ * Formula (V4.4):
+ * DeployScore = 0.25*GGUF + 0.25*Ollama + 0.20*(ctx/32000) + 0.15*(1/params) + 0.15*quant
+ */
+
+interface Props {
+  deploy_score?: number;
+  has_gguf?: boolean;
+  has_ollama?: boolean;
+  ollama_id?: string;
+  context_length?: number;
+  params_billions?: number;
+  compact?: boolean;
+}
+
+const { 
+  deploy_score = 0,
+  has_gguf = false,
+  has_ollama = false,
+  ollama_id,
+  context_length = 0,
+  params_billions = 0,
+  compact = false
+} = Astro.props;
+
+// Score breakdown
+const ggufScore = has_gguf ? 0.25 : 0;
+const ollamaScore = has_ollama ? 0.25 : 0;
+const contextScore = Math.min(0.20, (context_length / 160000));
+const sizeScore = params_billions < 10 ? 0.15 : params_billions < 40 ? 0.10 : 0.05;
+
+// Final score (use provided or calculate)
+const finalScore = deploy_score || (ggufScore + ollamaScore + contextScore + sizeScore);
+
+function getScoreLevel(score: number): { label: string; color: string } {
+  if (score >= 0.7) return { label: 'Excellent', color: 'excellent' };
+  if (score >= 0.5) return { label: 'Good', color: 'good' };
+  if (score >= 0.3) return { label: 'Fair', color: 'fair' };
+  return { label: 'Complex', color: 'low' };
+}
+
+const level = getScoreLevel(finalScore);
+---
+
+<div class={`deployability-badge ${compact ? 'compact' : ''}`}>
+  <div class="badge-header">
+    <span class="badge-icon">⚡</span>
+    <span class="badge-title">Deployability</span>
+    <span class={`badge-score ${level.color}`}>{(finalScore * 100).toFixed(0)}%</span>
+  </div>
+  
+  {!compact && (
+    <div class="badge-breakdown">
+      <div class={`factor ${has_gguf ? 'active' : ''}`}>
+        <span class="factor-icon">{has_gguf ? '✅' : '❌'}</span>
+        <span class="factor-label">GGUF</span>
+        <span class="factor-score">+{(ggufScore * 100).toFixed(0)}%</span>
+      </div>
+      
+      <div class={`factor ${has_ollama ? 'active' : ''}`}>
+        <span class="factor-icon">{has_ollama ? '✅' : '❌'}</span>
+        <span class="factor-label">Ollama</span>
+        <span class="factor-score">+{(ollamaScore * 100).toFixed(0)}%</span>
+      </div>
+      
+      <div class={`factor ${context_length > 8192 ? 'active' : ''}`}>
+        <span class="factor-icon">{context_length > 8192 ? '✅' : '⚠️'}</span>
+        <span class="factor-label">Context {context_length > 0 ? `${Math.round(context_length/1000)}K` : ''}</span>
+        <span class="factor-score">+{(contextScore * 100).toFixed(0)}%</span>
+      </div>
+      
+      <div class={`factor ${params_billions < 10 ? 'active' : ''}`}>
+        <span class="factor-icon">{params_billions < 10 ? '✅' : params_billions < 40 ? '⚠️' : '❌'}</span>
+        <span class="factor-label">Size {params_billions}B</span>
+        <span class="factor-score">+{(sizeScore * 100).toFixed(0)}%</span>
+      </div>
+    </div>
+  )}
+  
+  {has_ollama && ollama_id && (
+    <div class="quick-run">
+      <code>ollama run {ollama_id}</code>
+    </div>
+  )}
+</div>
+
+<style>
+  .deployability-badge {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+
+  .deployability-badge.compact {
+    padding: 0.75rem;
+  }
+
+  .badge-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .compact .badge-header {
+    margin-bottom: 0;
+  }
+
+  .badge-icon {
+    font-size: 1.25rem;
+  }
+
+  .badge-title {
+    color: #e2e8f0;
+    font-weight: 600;
+    font-size: 0.9rem;
+    flex: 1;
+  }
+
+  .badge-score {
+    font-size: 1.25rem;
+    font-weight: 700;
+    padding: 0.25rem 0.75rem;
+    border-radius: 8px;
+  }
+
+  .badge-score.excellent {
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.15);
+  }
+
+  .badge-score.good {
+    color: #60a5fa;
+    background: rgba(96, 165, 250, 0.15);
+  }
+
+  .badge-score.fair {
+    color: #facc15;
+    background: rgba(250, 204, 21, 0.15);
+  }
+
+  .badge-score.low {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.15);
+  }
+
+  .badge-breakdown {
+    display: grid;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .factor {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.5rem;
+    background: rgba(51, 65, 85, 0.3);
+    border-radius: 6px;
+    opacity: 0.6;
+  }
+
+  .factor.active {
+    opacity: 1;
+    background: rgba(99, 102, 241, 0.1);
+  }
+
+  .factor-icon {
+    font-size: 0.875rem;
+  }
+
+  .factor-label {
+    color: #94a3b8;
+    font-size: 0.8rem;
+    flex: 1;
+  }
+
+  .factor-score {
+    color: #4ade80;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .quick-run {
+    padding: 0.625rem 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+
+  .quick-run code {
+    color: #4ade80;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+</style>

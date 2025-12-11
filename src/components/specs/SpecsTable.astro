@@ -1,0 +1,200 @@
+---
+/**
+ * SpecsTable Component
+ * V4.4 Phase 3 - Model specifications display
+ */
+
+interface Props {
+  params_billions?: number;
+  context_length?: number;
+  vocab_size?: number;
+  hidden_size?: number;
+  num_layers?: number;
+  architecture?: string;
+  architecture_family?: string;
+  deploy_score?: number;
+}
+
+const { 
+  params_billions,
+  context_length,
+  vocab_size,
+  hidden_size,
+  num_layers,
+  architecture,
+  architecture_family,
+  deploy_score
+} = Astro.props;
+
+function formatNumber(n: number | undefined): string {
+  if (!n) return '-';
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return n.toLocaleString();
+}
+
+function getArchitectureIcon(family: string | undefined): string {
+  const icons: Record<string, string> = {
+    'llama': '🦙',
+    'qwen': '🤖',
+    'mistral': '🌪️',
+    'gemma': '💎',
+    'phi': 'Φ',
+    'falcon': '🦅',
+    'deepseek': '🔍',
+    'yi': '🌟',
+    'internlm': '🧠',
+    'mamba': '🐍',
+    'rwkv': '♾️'
+  };
+  return icons[family?.toLowerCase() || ''] || '🔧';
+}
+---
+
+<div class="specs-table">
+  <h3 class="specs-title">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+    </svg>
+    Model Specifications
+  </h3>
+  
+  <div class="specs-grid">
+    {params_billions && (
+      <div class="spec-row">
+        <span class="spec-label">Parameters</span>
+        <span class="spec-value highlight">{params_billions}B</span>
+      </div>
+    )}
+    
+    {context_length && (
+      <div class="spec-row">
+        <span class="spec-label">Context Length</span>
+        <span class="spec-value">{formatNumber(context_length)} tokens</span>
+      </div>
+    )}
+    
+    {architecture_family && (
+      <div class="spec-row">
+        <span class="spec-label">Architecture Family</span>
+        <span class="spec-value family-badge">
+          {getArchitectureIcon(architecture_family)} {architecture_family}
+        </span>
+      </div>
+    )}
+    
+    {architecture && (
+      <div class="spec-row">
+        <span class="spec-label">Architecture</span>
+        <span class="spec-value mono">{architecture}</span>
+      </div>
+    )}
+    
+    {vocab_size && (
+      <div class="spec-row">
+        <span class="spec-label">Vocab Size</span>
+        <span class="spec-value">{formatNumber(vocab_size)}</span>
+      </div>
+    )}
+    
+    {hidden_size && (
+      <div class="spec-row">
+        <span class="spec-label">Hidden Size</span>
+        <span class="spec-value">{formatNumber(hidden_size)}</span>
+      </div>
+    )}
+    
+    {num_layers && (
+      <div class="spec-row">
+        <span class="spec-label">Layers</span>
+        <span class="spec-value">{num_layers}</span>
+      </div>
+    )}
+    
+    {deploy_score !== undefined && (
+      <div class="spec-row">
+        <span class="spec-label">Deploy Score</span>
+        <span class="spec-value deploy-score">
+          {(deploy_score * 100).toFixed(0)}%
+        </span>
+      </div>
+    )}
+  </div>
+</div>
+
+<style>
+  .specs-table {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+  }
+
+  .specs-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #e2e8f0;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+  }
+
+  .specs-title .icon {
+    width: 20px;
+    height: 20px;
+    color: #818cf8;
+  }
+
+  .specs-grid {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .spec-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+  }
+
+  .spec-row:last-child {
+    border-bottom: none;
+  }
+
+  .spec-label {
+    color: #94a3b8;
+    font-size: 0.875rem;
+  }
+
+  .spec-value {
+    color: #e2e8f0;
+    font-weight: 500;
+    font-size: 0.875rem;
+  }
+
+  .spec-value.highlight {
+    color: #818cf8;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .spec-value.mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+  }
+
+  .spec-value.family-badge {
+    padding: 0.25rem 0.5rem;
+    background: rgba(99, 102, 241, 0.2);
+    border-radius: 6px;
+  }
+
+  .spec-value.deploy-score {
+    color: #4ade80;
+    font-weight: 600;
+  }
+</style>

@@ -1,0 +1,217 @@
+---
+/**
+ * BenchmarkCard Component
+ * V4.4 Phase 3 - Displays single model benchmark scores
+ */
+
+interface Props {
+  umid: string;
+  name: string;
+  mmlu?: number;
+  humaneval?: number;
+  truthfulqa?: number;
+  hellaswag?: number;
+  arc_challenge?: number;
+  winogrande?: number;
+  gsm8k?: number;
+  avg_score: number;
+  quality_flag?: 'ok' | 'suspect' | 'invalid';
+  compact?: boolean;
+}
+
+const { 
+  umid,
+  name, 
+  mmlu, 
+  humaneval, 
+  hellaswag, 
+  arc_challenge,
+  avg_score,
+  quality_flag = 'ok',
+  compact = false
+} = Astro.props;
+
+// Score color mapping
+function getScoreColor(score: number | undefined): string {
+  if (!score) return 'text-gray-400';
+  if (score >= 80) return 'text-green-400';
+  if (score >= 70) return 'text-blue-400';
+  if (score >= 60) return 'text-yellow-400';
+  return 'text-red-400';
+}
+
+// Score bar width
+function getBarWidth(score: number | undefined): string {
+  if (!score) return '0%';
+  return `${Math.min(100, score)}%`;
+}
+---
+
+<div class={`benchmark-card ${compact ? 'compact' : ''}`}>
+  <div class="card-header">
+    <a href={`/model/${umid}`} class="model-name">{name}</a>
+    {quality_flag === 'ok' && <span class="quality-badge ok">✓</span>}
+    {quality_flag !== 'ok' && <span class="quality-badge warn">⚠</span>}
+  </div>
+  
+  <div class="avg-score">
+    <span class="label">Average</span>
+    <span class={`score ${getScoreColor(avg_score)}`}>{avg_score.toFixed(1)}</span>
+  </div>
+  
+  {!compact && (
+    <div class="metrics-grid">
+      <div class="metric">
+        <span class="metric-label">MMLU</span>
+        <div class="metric-bar">
+          <div class="bar-fill" style={`width: ${getBarWidth(mmlu)}`}></div>
+        </div>
+        <span class={`metric-value ${getScoreColor(mmlu)}`}>{mmlu?.toFixed(1) || '-'}</span>
+      </div>
+      
+      <div class="metric">
+        <span class="metric-label">HumanEval</span>
+        <div class="metric-bar">
+          <div class="bar-fill" style={`width: ${getBarWidth(humaneval)}`}></div>
+        </div>
+        <span class={`metric-value ${getScoreColor(humaneval)}`}>{humaneval?.toFixed(1) || '-'}</span>
+      </div>
+      
+      <div class="metric">
+        <span class="metric-label">HellaSwag</span>
+        <div class="metric-bar">
+          <div class="bar-fill" style={`width: ${getBarWidth(hellaswag)}`}></div>
+        </div>
+        <span class={`metric-value ${getScoreColor(hellaswag)}`}>{hellaswag?.toFixed(1) || '-'}</span>
+      </div>
+      
+      <div class="metric">
+        <span class="metric-label">ARC</span>
+        <div class="metric-bar">
+          <div class="bar-fill" style={`width: ${getBarWidth(arc_challenge)}`}></div>
+        </div>
+        <span class={`metric-value ${getScoreColor(arc_challenge)}`}>{arc_challenge?.toFixed(1) || '-'}</span>
+      </div>
+    </div>
+  )}
+</div>
+
+<style>
+  .benchmark-card {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+  }
+  
+  .benchmark-card:hover {
+    border-color: rgba(99, 102, 241, 0.6);
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.2);
+    transform: translateY(-2px);
+  }
+  
+  .benchmark-card.compact {
+    padding: 1rem;
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .model-name {
+    color: #e2e8f0;
+    font-weight: 600;
+    font-size: 1.1rem;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  
+  .model-name:hover {
+    color: #818cf8;
+  }
+
+  .quality-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+  }
+  
+  .quality-badge.ok {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+  }
+  
+  .quality-badge.warn {
+    background: rgba(234, 179, 8, 0.2);
+    color: #eab308;
+  }
+
+  .avg-score {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+  }
+
+  .avg-score .label {
+    color: #94a3b8;
+    font-size: 0.875rem;
+  }
+
+  .avg-score .score {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  .metrics-grid {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .metric {
+    display: grid;
+    grid-template-columns: 80px 1fr 50px;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .metric-label {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+  }
+
+  .metric-bar {
+    height: 6px;
+    background: rgba(51, 65, 85, 0.5);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #818cf8);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+
+  .metric-value {
+    text-align: right;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  /* Color utilities */
+  .text-green-400 { color: #4ade80; }
+  .text-blue-400 { color: #60a5fa; }
+  .text-yellow-400 { color: #facc15; }
+  .text-red-400 { color: #f87171; }
+  .text-gray-400 { color: #9ca3af; }
+</style>
