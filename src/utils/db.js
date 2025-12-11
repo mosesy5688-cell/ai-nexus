@@ -30,9 +30,14 @@ export async function getModelBySlug(slug, locals) {
     let model = null;
 
     try {
-        // Exact match by slug or ID (Case Insensitive)
-        const stmt = db.prepare('SELECT * FROM models WHERE slug = ? OR id = ? OR slug = ? COLLATE NOCASE OR id = ? COLLATE NOCASE');
-        model = await stmt.bind(decodedSlug, decodedSlug, decodedSlug, decodedSlug).first();
+        // V4.3.2 Constitution: UMID is the unique model identifier
+        // Query by slug, id, OR umid (Case Insensitive)
+        const stmt = db.prepare(`
+            SELECT * FROM models 
+            WHERE slug = ? OR id = ? OR umid = ?
+            OR slug = ? COLLATE NOCASE OR id = ? COLLATE NOCASE OR umid = ? COLLATE NOCASE
+        `);
+        model = await stmt.bind(decodedSlug, decodedSlug, decodedSlug, decodedSlug, decodedSlug, decodedSlug).first();
 
         // Smart Fallback: Try prepending 'github-' if not found
         if (!model) {
