@@ -1,125 +1,91 @@
 ---
-// src/pages/ranking.astro
-// Sprint 4 Phase 5: Dynamic Rankings from D1 (Single Source of Truth)
-// V4.1 Constitution: No Static JSON - Direct D1 Queries
+/**
+ * Ranking Page - V4.3.2 Constitution Compliant
+ * Uses L8 Precompute cache JSON (D1 reads = 0)
+ */
 
-export const prerender = false;
+export const prerender = true;
 
 import Layout from '../layouts/Layout.astro';
 import ModelCard from '../components/ModelCard.astro';
+import DataFreshness from '../components/common/DataFreshness.astro';
 
-const pageTitle = "AI Model Leaderboards";
-const pageDescription = "Explore the top AI models ranked by popularity, recent activity, and rising stars in the open-source community.";
+const pageTitle = "AI Model Rankings";
+const pageDescription = "Explore the top AI models ranked by popularity, trending, and FNI scores.";
 
-// Access D1 via runtime env
-const db = Astro.locals?.runtime?.env?.DB;
-
-// Initialize ranking arrays
-let hot = [];
-let trending = [];
-let newest = [];
-let rising = [];
-let error = null;
+// V4.3.2 Constitution: Load from L8 Precompute cache (D1 reads = 0)
+let trendingData = { data: [], generated_at: null };
+let benchmarksData = { data: [], generated_at: null };
 
 try {
-    if (db) {
-        // Hot Models: By likes (Popularity)
-        const hotResult = await db.prepare(`
-            SELECT * FROM models 
-            WHERE likes > 0
-            ORDER BY likes DESC 
-            LIMIT 12
-        `).all();
-        hot = hotResult.results || [];
-
-        // Trending Models: By downloads
-        const trendingResult = await db.prepare(`
-            SELECT * FROM models 
-            WHERE downloads > 0
-            ORDER BY downloads DESC 
-            LIMIT 12
-        `).all();
-        trending = trendingResult.results || [];
-
-        // Newest Models: By last_updated
-        const newestResult = await db.prepare(`
-            SELECT * FROM models 
-            WHERE last_updated IS NOT NULL
-            ORDER BY last_updated DESC 
-            LIMIT 12
-        `).all();
-        newest = newestResult.results || [];
-
-        // Rising Stars: By FNI score (overall quality)
-        const risingResult = await db.prepare(`
-            SELECT * FROM models 
-            WHERE fni_score > 0
-            ORDER BY fni_score DESC 
-            LIMIT 12
-        `).all();
-        rising = risingResult.results || [];
+    // Load trending models from cache
+    const trendingResponse = await fetch(new URL('/cache/trending_weekly.json', Astro.url.origin));
+    if (trendingResponse.ok) {
+        trendingData = await trendingResponse.json();
+    }
+    
+    // Load benchmark data for rising stars
+    const benchResponse = await fetch(new URL('/cache/benchmarks.json', Astro.url.origin));
+    if (benchResponse.ok) {
+        benchmarksData = await benchResponse.json();
     }
 } catch (e) {
-    console.error('[Rankings] D1 Query Error:', e);
-    error = e;
+    console.error('[Rankings] Cache fetch error:', e);
 }
 
-const generatedAt = new Date().toISOString();
+// Process data for different ranking categories
+const hot = trendingData.data?.slice(0, 12) || [];
+const trending = trendingData.data?.filter(m => m.downloads > 0).sort((a,b) => b.downloads - a.downloads).slice(0, 12) || [];
+const newest = trendingData.data?.filter(m => m.last_updated).sort((a,b) => new Date(b.last_updated) - new Date(a.last_updated)).slice(0, 12) || [];
+const rising = benchmarksData.data?.slice(0, 12) || [];
+
+const generatedAt = trendingData.generated_at || new Date().toISOString();
 
 const mainRankings = [
-    { title: "🔥 Hot Models", description: "Most liked by the community.", models: hot },
-    { title: "🚀 Trending Models", description: "Highest download counts.", models: trending },
-    { title: "✨ Newest Models", description: "Recently updated or added.", models: newest },
-    { title: "🌟 Rising Stars", description: "Top FNI scores - Quality + Momentum.", models: rising }
+    { title: "🔥 Hot Models", description: "Most popular in the community.", models: hot },
+    { title: "🚀 Trending", description: "Highest download counts.", models: trending },
+    { title: "✨ Newest", description: "Recently updated.", models: newest },
+    { title: "🌟 Rising Stars", description: "Top benchmark performers.", models: rising, isBenchmark: true }
 ];
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
     <div class="container mx-auto px-4 py-12">
         <header class="text-center mb-12">
-            <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">AI Model Leaderboards</h1>
+            <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">AI Model Rankings</h1>
             <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-3xl mx-auto">
-                Discover top-performing and trending open-source AI models. Rankings are live from our database.
+                Discover top-performing open-source AI models. Data from precomputed caches.
             </p>
-            <p class="text-sm text-gray-400 dark:text-gray-500 mt-2">
-                <span class="inline-flex items-center gap-1">
-                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    Live Data · Updated: {new Date(generatedAt).toLocaleString()}
-                </span>
-            </p>
+            <DataFreshness timestamp={generatedAt} source="L8 Precompute" />
         </header>
 
-        {error ? (
-            <div class="bg-red-50 text-red-800 p-8 rounded-lg max-w-2xl mx-auto text-center">
-                <h2 class="text-2xl font-bold mb-4">Error Loading Rankings</h2>
-                <p>We couldn't fetch the rankings. Please try again later.</p>
-            </div>
-        ) : (
-            <>
-                {/* Main Rankings */}
-                {mainRankings.map(ranking => (
-                    <section class="mb-16">
-                        <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">{ranking.title}</h2>
-                        <p class="text-gray-500 dark:text-gray-400 mb-6">{ranking.description}</p>
-                        {ranking.models.length > 0 ? (
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                {ranking.models.slice(0, 8).map(model => (
-                                    <ModelCard model={model} />
-                                ))}
-                            </div>
-                        ) : (
-                            <p class="text-gray-400 text-center py-8">No models in this category yet.</p>
-                        )}
-                    </section>
-                ))}
-            </>
-        )}
+        {mainRankings.map(ranking => (
+            <section class="mb-16">
+                <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">{ranking.title}</h2>
+                <p class="text-gray-500 dark:text-gray-400 mb-6">{ranking.description}</p>
+                {ranking.models.length > 0 ? (
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {ranking.models.slice(0, 8).map(model => (
+                            ranking.isBenchmark ? (
+                                <a href={`/model/${model.umid}`} class="block p-4 bg-gray-800 rounded-lg hover:bg-gray-700 transition">
+                                    <div class="font-semibold text-white">{model.name}</div>
+                                    <div class="text-sm text-gray-400">Avg: {model.avg_score?.toFixed(1)}</div>
+                                </a>
+                            ) : (
+                                <ModelCard model={model} />
+                            )
+                        ))}
+                    </div>
+                ) : (
+                    <p class="text-gray-400 text-center py-8">No models in this category yet.</p>
+                )}
+            </section>
+        ))}
 
-        {/* Info Banner */}
         <div class="mt-12 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 text-center">
             <p class="text-sm text-gray-600 dark:text-gray-400">
-                Rankings are calculated using the <a href="/methodology" class="text-indigo-600 hover:underline font-semibold">FNI Methodology</a> – 
-                a transparent, multi-dimensional scoring system.
+                Rankings use the <a href="/methodology" class="text-indigo-600 hover:underline font-semibold">FNI Methodology</a> – 
+                a transparent, multi-dimensional scoring system. V4.3.2 Constitution compliant.
             </p>
         </div>
     </div>
