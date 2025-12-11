@@ -1,11 +1,10 @@
-# === Development Phase: Aggressive Revalidation ===
-# Force browser to check for new HTML content on every load
-/*
-  Cache-Control: no-cache, no-store, must-revalidate
-  Pragma: no-cache
-  Expires: 0
+# === Production Phase: Standard Caching ===
+# Cache HTML for 1 hour, assets immutable
 
-# Keep caching static assets (Images/CSS/JS) to maintain speed
+/*
+  Cache-Control: public, max-age=3600
+
+# Keep static assets immutable for maximum performance
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 /_astro/*
