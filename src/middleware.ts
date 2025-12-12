@@ -13,7 +13,7 @@ import { defineMiddleware } from "astro:middleware";
  * - Writes: 1,000/day (only hot pages cached)
  */
 
-const CACHE_VERSION = 'v3.0.7';
+const CACHE_VERSION = 'v3.1.0';
 const MIN_VISITS_TO_CACHE = 3; // Visit threshold
 const CACHE_TTL = 86400; // 24 hours
 

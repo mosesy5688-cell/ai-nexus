@@ -33,10 +33,6 @@ let resolution = null;
 let pageTitle = "AI Model Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI model.";
 
-// Debug: Check DB availability BEFORE calling resolveToModel
-const dbBeforeCall = !!Astro.locals?.runtime?.env?.DB;
-const envKeysBeforeCall = Astro.locals?.runtime?.env ? Object.keys(Astro.locals.runtime.env).join(', ') : 'none';
-
 try {
   if (!slug) throw new Error("No slug provided");
   
@@ -230,19 +226,6 @@ const hasBench = Boolean(
         <div class="bg-yellow-50 text-yellow-800 p-8 rounded-lg max-w-2xl mx-auto">
           <h1 class="text-3xl font-bold mb-4">Model Not Found</h1>
           <p class="text-gray-600 mb-6">The model you are looking for does not exist or has been removed.</p>
-          <div class="text-xs text-gray-400 mb-4 font-mono bg-gray-100 p-2 rounded text-left">
-            slug: {slug}<br/>
-            resolution: {resolution ? JSON.stringify(resolution) : 'null'}<br/>
-            <strong>BEFORE CALL:</strong><br/>
-            dbBeforeCall: {dbBeforeCall}<br/>
-            envKeysBeforeCall: {envKeysBeforeCall}<br/>
-            <strong>AT RENDER:</strong><br/>
-            hasLocals: {!!Astro.locals}<br/>
-            hasRuntime: {!!Astro.locals?.runtime}<br/>
-            hasEnv: {!!Astro.locals?.runtime?.env}<br/>
-            hasDB: {!!Astro.locals?.runtime?.env?.DB}<br/>
-            envKeys: {Astro.locals?.runtime?.env ? Object.keys(Astro.locals.runtime.env).join(', ') : 'none'}
-          </div>
           <a href="/explore" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">Browse Models</a>
         </div>
       </div>
