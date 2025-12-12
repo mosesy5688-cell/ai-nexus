@@ -11,9 +11,10 @@ interface Props {
 	title: string;
 	description?: string;
     image?: string;
+    jsonld?: object;
 }
 
-const { title, description = 'A premier, free directory of open-source AI models, tools, and resources, curated for developers, researchers, and enthusiasts.', image = '/og-image.jpg' } = Astro.props;
+const { title, description = 'A premier, free directory of open-source AI models, tools, and resources, curated for developers, researchers, and enthusiasts.', image = '/og-image.jpg', jsonld } = Astro.props;
 const resolvedImage = new URL(image, Astro.site || Astro.url.origin);
 ---
 
@@ -66,6 +67,11 @@ const resolvedImage = new URL(image, Astro.site || Astro.url.origin);
 
     <!-- Global Alpine.js loaded for TabbedContent & ModelCarousel -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- JSON-LD Schema (Constitution V4.3.2 SEO Requirement) -->
+    {jsonld && (
+        <script type="application/ld+json" set:html={JSON.stringify(jsonld)} />
+    )}
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans antialiased flex flex-col min-h-screen">
     <!-- Google Tag Manager (noscript) -->
