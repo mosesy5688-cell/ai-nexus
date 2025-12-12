@@ -44,9 +44,17 @@ try {
   const resolved = await resolveToModel(slug, Astro.locals);
   resolution = resolved.resolution;
   
+  console.log(`[Model Page V4.5] slug=${slug}, resolved.model exists=${!!resolved.model}, resolution=${JSON.stringify(resolution)}`);
+  
   if (resolved.model) {
     // Phase 2: Detail Builder (single data aggregation)
-    detail = await buildModelDetail(resolved.model, Astro.locals);
+    try {
+      detail = await buildModelDetail(resolved.model, Astro.locals);
+      console.log(`[Model Page V4.5] detail exists=${!!detail}`);
+    } catch (buildErr) {
+      console.error("[Model Page V4.5] buildModelDetail error:", buildErr);
+      error = buildErr;
+    }
   }
 } catch (e) {
   console.error("[Model Page V4.5] Error:", e);
