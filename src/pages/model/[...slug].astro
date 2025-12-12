@@ -19,8 +19,8 @@ import DeployabilityBadge from '../../components/specs/DeployabilityBadge.astro'
 import ResourceList from '../../components/ResourceList.astro';
 import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
 
-// Use existing db.js which already has UMID resolver support
-import { getModelBySlug } from '../../utils/db';
+// Use resolveToModel which has 12-rule normalization (same as API endpoint)
+import { resolveToModel } from '../../utils/umid-resolver';
 
 // For [...slug] rest routes, slug is an array - join it to get the full path
 const slugParam = Astro.params.slug;
@@ -30,6 +30,7 @@ const slug = Array.isArray(slugParam) ? slugParam.join('/') : slugParam;
 let model = null;
 let error = null;
 let similarModels = [];
+let resolution = null;
 
 // SEO defaults
 let pageTitle = "AI Model Details - Free AI Tools";
@@ -38,8 +39,10 @@ let pageDescription = "Explore comprehensive information about this AI model.";
 try {
   if (!slug) throw new Error("No slug provided");
   
-  // Use existing getModelBySlug (already has UMID resolver)
-  model = await getModelBySlug(slug, Astro.locals);
+  // Use resolveToModel (12-rule normalization + UMID resolver)
+  const result = await resolveToModel(slug, Astro.locals);
+  model = result.model;
+  resolution = result.resolution;
   
   if (model) {
     // Set SEO
