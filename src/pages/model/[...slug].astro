@@ -33,6 +33,10 @@ let resolution = null;
 let pageTitle = "AI Model Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI model.";
 
+// Debug: Check DB availability BEFORE calling resolveToModel
+const dbBeforeCall = !!Astro.locals?.runtime?.env?.DB;
+const envKeysBeforeCall = Astro.locals?.runtime?.env ? Object.keys(Astro.locals.runtime.env).join(', ') : 'none';
+
 try {
   if (!slug) throw new Error("No slug provided");
   
@@ -229,6 +233,10 @@ const hasBench = Boolean(
           <div class="text-xs text-gray-400 mb-4 font-mono bg-gray-100 p-2 rounded text-left">
             slug: {slug}<br/>
             resolution: {resolution ? JSON.stringify(resolution) : 'null'}<br/>
+            <strong>BEFORE CALL:</strong><br/>
+            dbBeforeCall: {dbBeforeCall}<br/>
+            envKeysBeforeCall: {envKeysBeforeCall}<br/>
+            <strong>AT RENDER:</strong><br/>
             hasLocals: {!!Astro.locals}<br/>
             hasRuntime: {!!Astro.locals?.runtime}<br/>
             hasEnv: {!!Astro.locals?.runtime?.env}<br/>
