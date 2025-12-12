@@ -2,80 +2,86 @@
 export const prerender = false;
 
 /**
- * Model Detail Page V4.5 (S-Grade)
+ * Model Detail Page V4.5 (S-Grade) - Simplified for debugging
  * Constitution V4.3.2 Compliant
- * 
- * Architecture:
- * Phase 1: UMID Resolver entry
- * Phase 2: Detail Builder (single data aggregation)
- * Phase 3: Pure view layer (no logic)
  */
 
 import Layout from '../../layouts/Layout.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
-import SimilarModels from '../../components/SimilarModels.astro';
 import GraphExplorer from '../../components/GraphExplorer.astro';
-import ModelDescription from '../../components/ModelDescription.astro';
-import UsageExample from '../../components/UsageExample.astro';
-import ResourceList from '../../components/ResourceList.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
-import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
 import FNIBadge from '../../components/FNIBadge.astro';
 import FNITrustPanel from '../../components/FNITrustPanel.astro';
 import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
 import SpecsTable from '../../components/specs/SpecsTable.astro';
 import DeployabilityBadge from '../../components/specs/DeployabilityBadge.astro';
+import ResourceList from '../../components/ResourceList.astro';
+import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
 
-// V4.5 Core Infrastructure
+// V4.5 Core - only use resolver, skip builder for now
 import { resolveToModel } from '../../utils/umid-resolver';
-import { buildModelDetail, safeParseJSON } from '../../utils/model-detail-builder';
 
 const { slug } = Astro.params;
 
-// Phase 1: UMID Resolver
-let detail = null;
+// Variables
+let model = null;
 let resolution = null;
 let error = null;
+let similarModels = [];
+
+// SEO defaults
+let pageTitle = "AI Model Details - Free AI Tools";
+let pageDescription = "Explore comprehensive information about this AI model.";
 
 try {
   if (!slug) throw new Error("No slug provided");
   
-  // V4.5: Use UMID Resolver (12-rule normalization + KV cache)
+  // V4.5: Use UMID Resolver
   const resolved = await resolveToModel(slug, Astro.locals);
   resolution = resolved.resolution;
+  model = resolved.model;
   
-  console.log(`[Model Page V4.5] slug=${slug}, resolved.model exists=${!!resolved.model}, resolution=${JSON.stringify(resolution)}`);
-  
-  if (resolved.model) {
-    // Phase 2: Detail Builder (single data aggregation)
-    try {
-      detail = await buildModelDetail(resolved.model, Astro.locals);
-      console.log(`[Model Page V4.5] detail exists=${!!detail}`);
-    } catch (buildErr) {
-      console.error("[Model Page V4.5] buildModelDetail error:", buildErr);
-      error = buildErr;
+  if (model) {
+    // Set SEO
+    pageTitle = `${model.name || model.canonical_name || 'Model'} by ${model.author || 'Unknown'} | Free AI Tools`;
+    pageDescription = (model.description || 'AI model details').substring(0, 160);
+    
+    // Fetch similar models (simplified)
+    const db = Astro.locals?.runtime?.env?.DB;
+    if (db && model.pipeline_tag) {
+      try {
+        const result = await db.prepare(`
+          SELECT id, name, author, likes, downloads, cover_image_url, fni_score
+          FROM models
+          WHERE pipeline_tag = ? AND id != ?
+          ORDER BY downloads DESC
+          LIMIT 6
+        `).bind(model.pipeline_tag, model.id).all();
+        similarModels = result?.results || [];
+      } catch (e) {
+        console.warn("Similar models fetch failed:", e);
+      }
     }
   }
 } catch (e) {
-  console.error("[Model Page V4.5] Error:", e);
+  console.error("[Model Page] Error:", e);
   error = e;
 }
 
-// Phase 3: Pure view layer - only read from detail object
-const model = detail?.model;
-const seo = detail?.seo || { 
-  title: "AI Model Details - Free AI Tools", 
-  description: "Explore comprehensive information about this AI model.",
-  jsonLd: null
-};
+// Safe JSON parsing helper
+function safeJSON(val, fallback = []) {
+  if (!val) return fallback;
+  if (typeof val === 'object') return val;
+  try { return JSON.parse(val); } catch { return fallback; }
+}
+
+// Parse model fields safely
+const tags = model ? safeJSON(model.tags, []) : [];
+const resources = model ? safeJSON(model.resources, []) : [];
+const coverImage = model?.cover_image_url || '/default-model.png';
 ---
 
-<Layout title={seo.title} description={seo.description}>
-  <!-- JSON-LD SEO (S-Grade with Dataset schema) -->
-  {seo.jsonLd && (
-    <script type="application/ld+json" set:html={JSON.stringify(seo.jsonLd)} />
-  )}
-
+<Layout title={pageTitle} description={pageDescription}>
   <main class="model-detail-page bg-gray-50 dark:bg-gray-900 min-h-screen">
     {error ? (
       <!-- Error State -->
@@ -86,7 +92,7 @@ const seo = detail?.seo || {
           <a href="/explore" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">Browse Models</a>
         </div>
       </div>
-    ) : detail ? (
+    ) : model ? (
       <!-- Model Detail View -->
       <article class="container mx-auto px-4 py-8 max-w-7xl">
         
@@ -96,8 +102,8 @@ const seo = detail?.seo || {
             <!-- Model Image -->
             <div class="w-full lg:w-64 flex-shrink-0">
               <img 
-                src={detail.coverImage} 
-                alt={detail.displayName}
+                src={coverImage} 
+                alt={model.name || 'Model'}
                 class="w-full rounded-xl shadow-lg bg-gray-200"
                 loading="eager"
               />
@@ -107,26 +113,26 @@ const seo = detail?.seo || {
             <div class="flex-1">
               <div class="flex flex-wrap items-center gap-3 mb-2">
                 <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">
-                  {detail.displayName}
+                  {model.name || model.canonical_name || 'Unknown Model'}
                 </h1>
                 <FNIBadge 
-                  score={detail.fni.score} 
-                  percentile={detail.fni.percentile}
-                  dimensions={{ p: detail.fni.p, v: detail.fni.v, c: detail.fni.c, u: detail.fni.u }}
+                  score={model.fni_score || 0} 
+                  percentile={model.fni_percentile || 0}
+                  dimensions={{ p: model.fni_p || 0, v: model.fni_v || 0, c: model.fni_c || 0, u: model.fni_u || 0 }}
                 />
-                {detail.deployScore > 0 && (
-                  <DeployabilityBadge score={detail.deployScore} />
+                {model.deploy_score > 0 && (
+                  <DeployabilityBadge score={model.deploy_score} />
                 )}
               </div>
               
               <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">
-                by <span class="font-semibold">{detail.author}</span>
+                by <span class="font-semibold">{model.author || 'Unknown'}</span>
               </p>
               
               <!-- Tags -->
-              {detail.tags.length > 0 && (
+              {Array.isArray(tags) && tags.length > 0 && (
                 <div class="flex flex-wrap gap-2 mb-4">
-                  {detail.tags.slice(0, 8).map((tag: string) => (
+                  {tags.slice(0, 8).map((tag: string) => (
                     <a 
                       href={`/explore?tag=${encodeURIComponent(tag)}`}
                       class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full text-sm hover:bg-indigo-200 transition-colors"
@@ -139,28 +145,28 @@ const seo = detail?.seo || {
               
               <!-- Quick Stats -->
               <div class="flex flex-wrap gap-6 text-sm text-gray-600 dark:text-gray-400">
-                {model?.downloads && (
+                {model.downloads && (
                   <span>📥 {Number(model.downloads).toLocaleString()} downloads</span>
                 )}
-                {model?.likes && (
+                {model.likes && (
                   <span>❤️ {Number(model.likes).toLocaleString()} likes</span>
                 )}
-                {detail.lastUpdated && (
-                  <span>🕐 Updated {new Date(detail.lastUpdated).toLocaleDateString()}</span>
+                {model.last_updated && (
+                  <span>🕐 Updated {new Date(model.last_updated).toLocaleDateString()}</span>
                 )}
               </div>
             </div>
           </div>
         </header>
 
-        <!-- Benchmark Card (if available) -->
-        {detail.benchmarks?.has_benchmarks && (
+        <!-- Benchmark Card -->
+        {model.has_benchmarks && (
           <section class="mb-8">
             <BenchmarkCard 
-              mmlu={detail.benchmarks.mmlu}
-              hellaswag={detail.benchmarks.hellaswag}
-              arc={detail.benchmarks.arc}
-              avgScore={detail.benchmarks.avg_score}
+              mmlu={model.benchmark_mmlu}
+              hellaswag={model.benchmark_hellaswag}
+              arc={model.benchmark_arc}
+              avgScore={model.benchmark_avg}
             />
           </section>
         )}
@@ -168,53 +174,47 @@ const seo = detail?.seo || {
         <!-- Main Content Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          <!-- Main Column (2/3) -->
+          <!-- Main Column -->
           <div class="lg:col-span-2 space-y-8">
             
             <!-- FNI Trust Panel -->
             <FNITrustPanel 
-              score={detail.fni.score}
-              percentile={detail.fni.percentile}
-              dimensions={{ p: detail.fni.p, v: detail.fni.v, c: detail.fni.c, u: detail.fni.u }}
-              commentary={detail.fni.commentary}
+              score={model.fni_score || 0}
+              percentile={model.fni_percentile || 0}
+              dimensions={{ p: model.fni_p || 0, v: model.fni_v || 0, c: model.fni_c || 0, u: model.fni_u || 0 }}
+              commentary={model.fni_commentary}
             />
             
-            <!-- Description / README -->
-            {detail.readmeHtml && (
+            <!-- Description -->
+            {model.description && (
               <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
                 <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">About</h2>
-                <div class="prose dark:prose-invert max-w-none" set:html={detail.readmeHtml} />
-              </section>
-            )}
-            
-            <!-- Analysis Content -->
-            {detail.analysisHtml && (
-              <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
-                <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">🔬 AI Analysis</h2>
-                <div class="prose dark:prose-invert max-w-none" set:html={detail.analysisHtml} />
+                <div class="prose dark:prose-invert max-w-none">
+                  <p class="whitespace-pre-wrap">{model.description.substring(0, 2000)}</p>
+                </div>
               </section>
             )}
             
             <!-- Resources -->
-            {detail.resources.length > 0 && (
-              <ResourceList resources={detail.resources} sourceUrl={detail.sourceUrl} />
+            {Array.isArray(resources) && resources.length > 0 && (
+              <ResourceList resources={resources} sourceUrl={model.source_url} />
             )}
           </div>
           
-          <!-- Sidebar (1/3) -->
+          <!-- Sidebar -->
           <aside class="space-y-6">
             
             <!-- Specs Table -->
-            {(detail.specs?.params || detail.specs?.context_length) && (
+            {(model.params_billions || model.context_length) && (
               <SpecsTable 
-                params={detail.specs.params}
-                contextLength={detail.specs.context_length}
-                hasGguf={detail.specs.has_gguf}
-                ggufVariants={detail.specs.gguf_variants}
-                hasOllama={detail.specs.has_ollama}
-                ollamaId={detail.specs.ollama_id}
-                ollamaPulls={detail.specs.ollama_pulls}
-                license={detail.specs.license}
+                params={model.params_billions}
+                contextLength={model.context_length}
+                hasGguf={model.has_gguf}
+                ggufVariants={safeJSON(model.gguf_variants, [])}
+                hasOllama={model.has_ollama}
+                ollamaId={model.ollama_id}
+                ollamaPulls={model.ollama_pulls}
+                license={model.license_spdx}
               />
             )}
             
@@ -222,32 +222,15 @@ const seo = detail?.seo || {
             <ModelInfoTable model={model} />
             
             <!-- Graph Explorer -->
-            <GraphExplorer modelId={model?.id} modelName={detail.displayName} />
-            
-            <!-- Commercial Slots -->
-            {detail.commercialSlots.length > 0 && (
-              <div class="space-y-4">
-                {detail.commercialSlots.map((slot: any) => (
-                  <AffiliateCard slot={slot} />
-                ))}
-              </div>
-            )}
+            <GraphExplorer modelId={model.id} modelName={model.name} />
           </aside>
         </div>
 
         <!-- Similar Models -->
-        {detail.similarModels.length > 0 && (
+        {similarModels.length > 0 && (
           <section class="mt-12">
             <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Similar Models</h2>
-            <ModelCarousel models={detail.similarModels} />
-          </section>
-        )}
-
-        <!-- Related Models -->
-        {detail.relatedModels.length > 0 && (
-          <section class="mt-12">
-            <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Related Models</h2>
-            <ModelCarousel models={detail.relatedModels} />
+            <ModelCarousel models={similarModels} />
           </section>
         )}
 
@@ -258,6 +241,7 @@ const seo = detail?.seo || {
         <div class="bg-yellow-50 text-yellow-800 p-8 rounded-lg max-w-2xl mx-auto">
           <h1 class="text-3xl font-bold mb-4">Model Not Found</h1>
           <p class="text-gray-600 mb-6">The model you are looking for does not exist or has been removed.</p>
+          <p class="text-sm text-gray-500 mb-4">Resolution: {JSON.stringify(resolution)}</p>
           <a href="/explore" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">Browse Models</a>
         </div>
       </div>
@@ -278,24 +262,5 @@ const seo = detail?.seo || {
     max-width: 100%;
     height: auto;
     border-radius: 0.5rem;
-  }
-  
-  .prose pre {
-    background: #1e293b;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    overflow-x: auto;
-  }
-  
-  .prose code {
-    background: rgba(99, 102, 241, 0.1);
-    padding: 0.125rem 0.25rem;
-    border-radius: 0.25rem;
-    font-size: 0.875em;
-  }
-  
-  .prose pre code {
-    background: transparent;
-    padding: 0;
   }
 </style>
