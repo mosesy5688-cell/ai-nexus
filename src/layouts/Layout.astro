@@ -31,6 +31,12 @@ const resolvedImage = new URL(image, Astro.site || Astro.url.origin);
     <meta name="viewport" content="width=device-width">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     
+    <!-- V4.5 Performance: Preconnect to external origins for faster FCP -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://www.googletagmanager.com" crossorigin>
+    <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossorigin>
+    <link rel="dns-prefetch" href="https://huggingface.co">
+    <link rel="dns-prefetch" href="https://github.com">
     
     <!-- Open Graph Meta Tags -->
     <meta property="og:type" content="website">
