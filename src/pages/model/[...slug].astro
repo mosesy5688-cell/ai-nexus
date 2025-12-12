@@ -1,6 +1,16 @@
 ---
 export const prerender = false;
 
+/**
+ * Model Detail Page V4.5 (S-Grade)
+ * Constitution V4.3.2 Compliant
+ * 
+ * Architecture:
+ * Phase 1: UMID Resolver entry
+ * Phase 2: Detail Builder (single data aggregation)
+ * Phase 3: Pure view layer (no logic)
+ */
+
 import Layout from '../../layouts/Layout.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import SimilarModels from '../../components/SimilarModels.astro';
@@ -12,478 +22,230 @@ import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
 import FNIBadge from '../../components/FNIBadge.astro';
 import FNITrustPanel from '../../components/FNITrustPanel.astro';
-// V4.4 Phase 3 Components
 import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
 import SpecsTable from '../../components/specs/SpecsTable.astro';
 import DeployabilityBadge from '../../components/specs/DeployabilityBadge.astro';
-import { getModelBySlug } from '../../utils/db';
-import { prepareDetailData, getBestDescription, formatMetric, formatRelativeTime, parseJSONField } from '../../utils/data-service';
-import { marked } from 'marked';
+
+// V4.5 Core Infrastructure
+import { resolveToModel } from '../../utils/umid-resolver';
+import { buildModelDetail, safeParseJSON } from '../../utils/model-detail-builder';
 
 const { slug } = Astro.params;
 
-let model = null;
-let rawModel = null;
-let relatedModels = [];
-let resourceLinks = [];
-let parsedResources = [];
+// Phase 1: UMID Resolver
+let detail = null;
+let resolution = null;
 let error = null;
-let pageTitle = "AI Model Details - Free AI Tools";
-let pageDescription = "Explore comprehensive information about this AI model.";
 
 try {
   if (!slug) throw new Error("No slug provided");
-
-  rawModel = await getModelBySlug(slug, Astro.locals);
   
-  // DEBUG: Log to trace Model Not Found issue
-  console.log(`[MODEL PAGE DEBUG] slug: ${slug}, rawModel exists: ${!!rawModel}, rawModel.id: ${rawModel?.id}`);
+  // V4.5: Use UMID Resolver (12-rule normalization + KV cache)
+  const resolved = await resolveToModel(slug, Astro.locals);
+  resolution = resolved.resolution;
   
-  if (rawModel) {
-    // Fetch candidate models for similarity check
-    let candidateModels = [];
-    const db = Astro.locals?.runtime?.env?.DB;
-    
-    if (db) {
-      try {
-        // Fetch top 100 models by downloads to serve as a pool for finding similar models
-        // This is a performance compromise to avoid fetching ALL models
-        const stmt = db.prepare('SELECT * FROM models ORDER BY downloads DESC LIMIT 100');
-        const { results } = await stmt.all();
-        candidateModels = results || [];
-      } catch (e) {
-        console.warn("Candidate models fetch failed:", e);
-      }
-    }
-
-    model = prepareDetailData(rawModel, candidateModels);
-    
-    // Fetch related models with fallback
-    if (db) {
-      try {
-        let results = [];
-        // 1. Try fetching by pipeline tag
-        if (model.pipeline_tag) {
-            const stmt = db.prepare(`
-            SELECT id, name, author, likes, downloads, cover_image_url, description, pipeline_tag
-            FROM models
-            WHERE pipeline_tag = ? AND id != ?
-            ORDER BY downloads DESC
-            LIMIT 6
-            `);
-            const data = await stmt.bind(model.pipeline_tag, model.id).all();
-            results = data.results || [];
-        }
-
-        // 2. Fallback to popular models if no related found
-        if (results.length === 0) {
-            const stmt = db.prepare(`
-            SELECT id, name, author, likes, downloads, cover_image_url, description, pipeline_tag
-            FROM models
-            WHERE id != ?
-            ORDER BY downloads DESC
-            LIMIT 6
-            `);
-            const data = await stmt.bind(model.id).all();
-            results = data.results || [];
-        }
-        relatedModels = results;
-      } catch (e) {
-        console.warn("Related models fetch failed:", e);
-      }
-    }
-    
-    // Set SEO metadata
-    pageTitle = `${model.displayName} by ${model.author} — Free AI Tools`;
-    pageDescription = getBestDescription(model).substring(0, 160);
-    resourceLinks.push({ label: 'Source Code', url: model.source_url, icon: 'github' });
-  }
-
-  if (model?.links_data) {
-    if (model.links_data.docs_url) {
-      resourceLinks.push({ label: 'Documentation', url: model.links_data.docs_url, icon: 'docs' });
-    }
-    if (model.links_data.demo_url) {
-      resourceLinks.push({ label: 'Live Demo', url: model.links_data.demo_url, icon: 'demo' });
-    }
-  }
-  
-  // Parsed resources logic - always parse if resources field exists
-  if (model?.resources) {
-    try {
-      const parsed = typeof model.resources === 'string' ? JSON.parse(model.resources) : model.resources;
-      if (Array.isArray(parsed)) parsedResources = parsed;
-    } catch (e) {
-      console.warn('Failed to parse resources:', e);
-    }
+  if (resolved.model) {
+    // Phase 2: Detail Builder (single data aggregation)
+    detail = await buildModelDetail(resolved.model, Astro.locals);
   }
 } catch (e) {
-  console.warn("Error loading model:", e);
+  console.error("[Model Page V4.5] Error:", e);
   error = e;
 }
 
-// Ensure tagsArray is defined and is an array (Fix for P0 Proxy error)
-const tagsArray = Array.isArray(model?.tags) ? model.tags : [];
-
-// Parse commercial_slots JSON for Loop 6 Merchant
-let commercialSlots = [];
-if (model?.commercial_slots) {
-    try {
-        const parsed = typeof model.commercial_slots === 'string' 
-            ? JSON.parse(model.commercial_slots) 
-            : model.commercial_slots;
-        if (Array.isArray(parsed)) {
-            commercialSlots = parsed;
-        }
-    } catch (e) {
-        console.warn('Failed to parse commercial_slots:', e);
-    }
-}
+// Phase 3: Pure view layer - only read from detail object
+const model = detail?.model;
+const seo = detail?.seo || { 
+  title: "AI Model Details - Free AI Tools", 
+  description: "Explore comprehensive information about this AI model.",
+  jsonLd: null
+};
 ---
 
-<Layout title={pageTitle} description={pageDescription} image={model?.cover_image_url}>
-  <main class="min-h-screen bg-gray-50 dark:bg-gray-900">
+<Layout title={seo.title} description={seo.description}>
+  <!-- JSON-LD SEO (S-Grade with Dataset schema) -->
+  {seo.jsonLd && (
+    <script type="application/ld+json" set:html={JSON.stringify(seo.jsonLd)} />
+  )}
+
+  <main class="model-detail-page bg-gray-50 dark:bg-gray-900 min-h-screen">
     {error ? (
+      <!-- Error State -->
       <div class="container mx-auto px-4 py-12 text-center">
         <div class="bg-red-50 text-red-800 p-8 rounded-lg max-w-2xl mx-auto">
           <h1 class="text-3xl font-bold mb-4">Error Loading Model</h1>
-          <p class="text-gray-600 mb-6">We couldn't fetch the details for this model. It might be a temporary issue or the model does not exist.</p>
-          <a href="/explore" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">Back to Explore</a>
-          {error && <pre class="mt-4 text-left text-xs bg-gray-100 p-4 rounded overflow-auto">{error.message}</pre>}
+          <p class="text-gray-600 mb-6">{error.message}</p>
+          <a href="/explore" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">Browse Models</a>
         </div>
       </div>
-    ) : model ? (
-      <article itemscope itemtype="http://schema.org/SoftwareApplication">
-        <div class="container mx-auto px-4 py-12">
-          <div class="max-w-7xl mx-auto">
-            {/* Breadcrumb */}
-            <nav class="mb-6">
-              <ol class="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-                <li><a href="/" class="hover:text-indigo-600 dark:hover:text-indigo-400">Home</a></li>
-                <li><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg></li>
-                  <li><a href="/explore" class="hover:text-indigo-600 dark:hover:text-indigo-400">Models</a></li>
-                  <li><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg></li>
-                  <li><span class="text-gray-900 dark:text-white font-medium truncate max-w-[200px]" itemprop="name">{model.displayName}</span></li>
-                </ol>
-              </nav>
-
-              {/* Title & Header Info */}
-            <div class="flex flex-col md:flex-row gap-6 items-start">
-
-              <div class="flex-1">
-                <div class="flex items-center gap-3 mb-3">
-                  <h1 class="text-3xl md:text-5xl font-bold text-gray-900 dark:text-white tracking-tight">
-                    {model.displayName}
-                  </h1>
-                  {/* FNI Badge - Constitution V3.3 Pillar VII */}
-                  {(model.fni_score || model.fni_percentile) && (
-                    <FNIBadge 
-                      fniScore={model.fni_score || 0}
-                      fniPercentile={model.fni_percentile || 0}
-                      fniP={model.fni_p || 0}
-                      fniV={model.fni_v || 0}
-                      fniC={model.fni_c || 0}
-                      fniU={model.fni_u || 0}
-                      size="md"
-                    />
-                  )}
+    ) : detail ? (
+      <!-- Model Detail View -->
+      <article class="container mx-auto px-4 py-8 max-w-7xl">
+        
+        <!-- Hero Section -->
+        <header class="mb-8">
+          <div class="flex flex-col lg:flex-row gap-6 items-start">
+            <!-- Model Image -->
+            <div class="w-full lg:w-64 flex-shrink-0">
+              <img 
+                src={detail.coverImage} 
+                alt={detail.displayName}
+                class="w-full rounded-xl shadow-lg bg-gray-200"
+                loading="eager"
+              />
+            </div>
+            
+            <!-- Model Info -->
+            <div class="flex-1">
+              <div class="flex flex-wrap items-center gap-3 mb-2">
+                <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">
+                  {detail.displayName}
+                </h1>
+                <FNIBadge 
+                  score={detail.fni.score} 
+                  percentile={detail.fni.percentile}
+                  dimensions={{ p: detail.fni.p, v: detail.fni.v, c: detail.fni.c, u: detail.fni.u }}
+                />
+                {detail.deployScore > 0 && (
+                  <DeployabilityBadge score={detail.deployScore} />
+                )}
+              </div>
+              
+              <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">
+                by <span class="font-semibold">{detail.author}</span>
+              </p>
+              
+              <!-- Tags -->
+              {detail.tags.length > 0 && (
+                <div class="flex flex-wrap gap-2 mb-4">
+                  {detail.tags.slice(0, 8).map((tag: string) => (
+                    <a 
+                      href={`/explore?tag=${encodeURIComponent(tag)}`}
+                      class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full text-sm hover:bg-indigo-200 transition-colors"
+                    >
+                      {tag}
+                    </a>
+                  ))}
                 </div>
-                <p class="text-lg text-gray-600 dark:text-gray-300 flex items-center gap-2">
-                  by <span class="font-semibold text-gray-900 dark:text-white" itemprop="author">{model.author}</span>
-                  {model.pipeline_tag && (
-                    <>
-                      <span class="text-gray-300 dark:text-gray-600">•</span>
-                      <span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 rounded-full text-sm font-medium">
-                        {model.pipeline_tag}
-                      </span>
-                    </>
-                  )}
-                </p>
-                
-                {/* Tags Section - Sprint 4: Fix Category Classification */}
-                {tagsArray.length > 0 && (
-                  <div class="flex flex-wrap gap-2 mt-4">
-                    {tagsArray.slice(0, 10).map((tag: string) => (
-                      <a 
-                        href={`/explore?tag=${encodeURIComponent(tag)}`}
-                        class="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-sm hover:bg-indigo-100 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
-                      >
-                        {tag}
-                      </a>
-                    ))}
-                    {tagsArray.length > 10 && (
-                      <span class="px-3 py-1 bg-gray-50 dark:bg-gray-700 text-gray-500 rounded-full text-sm">
-                        +{tagsArray.length - 10} more
-                      </span>
-                    )}
-                  </div>
+              )}
+              
+              <!-- Quick Stats -->
+              <div class="flex flex-wrap gap-6 text-sm text-gray-600 dark:text-gray-400">
+                {model?.downloads && (
+                  <span>📥 {Number(model.downloads).toLocaleString()} downloads</span>
+                )}
+                {model?.likes && (
+                  <span>❤️ {Number(model.likes).toLocaleString()} likes</span>
+                )}
+                {detail.lastUpdated && (
+                  <span>🕐 Updated {new Date(detail.lastUpdated).toLocaleDateString()}</span>
                 )}
               </div>
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* Main Content Grid */}
-        <div class="container mx-auto px-4 py-12">
-          <div class="max-w-7xl mx-auto">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-              
+        <!-- Benchmark Card (if available) -->
+        {detail.benchmarks?.has_benchmarks && (
+          <section class="mb-8">
+            <BenchmarkCard 
+              mmlu={detail.benchmarks.mmlu}
+              hellaswag={detail.benchmarks.hellaswag}
+              arc={detail.benchmarks.arc}
+              avgScore={detail.benchmarks.avg_score}
+            />
+          </section>
+        )}
 
-              {/* Left Column: Main Content (2/3) */}
-              <div class="md:col-span-2 space-y-8">
-
-                 {/* AI Analysis Section */}
-                 {model.analysis_content && (
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-purple-100 dark:border-purple-900/30 p-8 relative overflow-hidden">
-                        <div class="absolute top-0 right-0 p-4 opacity-10">
-                            <svg class="w-32 h-32 text-purple-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6a6 6 0 1 0 6 6 6 6 0 0 0-6-6zm0 10a4 4 0 1 1 4-4 4 4 0 0 1-4 4z"/></svg>
-                        </div>
-                        <div class="relative z-10">
-                            <div class="flex items-center gap-2 mb-6">
-                                <span class="px-2 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-bold uppercase tracking-wider rounded">AI Analysis</span>
-                                <span class="text-xs text-gray-400">Updated {new Date(model.last_enriched_at || Date.now()).toLocaleDateString()}</span>
-                            </div>
-                            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Deep Dive Analysis</h2>
-                            <div class="prose prose-purple dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-purple-600">
-                                {(() => {
-                                    try {
-                                        return <Fragment set:html={marked.parse(model.analysis_content)} />;
-                                    } catch (e) {
-                                        console.error('Markdown rendering error:', e);
-                                        return <p class="text-red-500 italic">Error rendering content.</p>;
-                                    }
-                                })()}
-                            </div>
-                        </div>
-                    </div>
-                 )}
-
-                 {/* FNI Trust Panel - Constitution V3.3 Pillar VII */}
-                 {(model.fni_score || model.fni_percentile) && (
-                    <FNITrustPanel 
-                      fniScore={model.fni_score || 0}
-                      fniPercentile={model.fni_percentile || 0}
-                      fniP={model.fni_p || 0}
-                      fniV={model.fni_v || 0}
-                      fniC={model.fni_c || 0}
-                      fniU={model.fni_u || 0}
-                      fniCommentary={model.fni_commentary || ''}
-                      fniCalculatedAt={model.fni_calculated_at || ''}
-                      modelName={model.displayName}
-                    />
-                 )}
-
-                 {/* V3.2: Full Documentation (body_content) */}
-                 {model.body_content && model.body_content.length > 100 && (
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-blue-100 dark:border-blue-900/30 overflow-hidden">
-                        <details class="group" open>
-                            <summary class="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                <div class="flex items-center gap-3">
-                                    <span class="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-bold uppercase tracking-wider rounded">📄 Documentation</span>
-                                    <span class="text-lg font-bold text-gray-900 dark:text-white">Full README</span>
-                                </div>
-                                <svg class="w-5 h-5 text-gray-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
-                            </summary>
-                            <div class="p-6 pt-0 border-t border-gray-100 dark:border-gray-700">
-                                <div class="prose prose-blue dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-pre:bg-gray-100 dark:prose-pre:bg-gray-900 prose-pre:overflow-x-auto">
-                                    {(() => {
-                                        try {
-                                            return <Fragment set:html={marked.parse(model.body_content)} />;
-                                        } catch (e) {
-                                            console.error('Markdown rendering error:', e);
-                                            return <pre class="whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">{model.body_content}</pre>;
-                                        }
-                                    })()}
-                                </div>
-                            </div>
-                        </details>
-                    </div>
-                 )}
-                
-                {/* Description & Metadata - Componentized */}
-                <ModelDescription model={model} tagsArray={tagsArray}>
-                  <ModelInfoTable slot="info-table" model={model} />
-                </ModelDescription>
-
-                <UsageExample model={model} />
-                <ResourceList resources={parsedResources} />
-              </div>
-
-              {/* Right Column: Sticky Sidebar (1/3) */}
-              <div class="space-y-6">
-                <div class="sticky top-24 space-y-6">
-                    
-                    {/* Primary CTA Card */}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Get Started</h3>
-                        
-                        {model.link_status === 'dead' ? (
-                            <div class="w-full px-6 py-4 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-bold text-lg rounded-xl text-center cursor-not-allowed mb-4 border border-gray-200 dark:border-gray-600">
-                                <span class="flex items-center justify-center gap-2">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                    Link Unavailable
-                                </span>
-                                <p class="text-xs font-normal mt-1">Source link reported as broken</p>
-                            </div>
-                        ) : (
-                            <a 
-                                href={model.source_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                class="flex items-center justify-center w-full px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-lg rounded-xl transition-all shadow-md hover:shadow-xl transform hover:-translate-y-0.5 mb-4"
-                            >
-                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                                Download Model
-                            </a>
-                        )}
-                        <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Share this Model</h3>
-                        <div class="flex gap-2 justify-between">
-                            <a href={`https://twitter.com/intent/tweet?text=Check out ${model.displayName} on Free2AITools&url=https://free2aitools.com/model/${slug}`} target="_blank" class="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-black hover:text-white rounded-lg transition-colors" aria-label="Share on X">
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                            </a>
-                            <a href={`https://www.facebook.com/sharer/sharer.php?u=https://free2aitools.com/model/${slug}`} target="_blank" class="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-blue-600 hover:text-white rounded-lg transition-colors" aria-label="Share on Facebook">
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                            </a>
-                            <a href={`https://www.reddit.com/submit?url=https://free2aitools.com/model/${slug}&title=${model.displayName}`} target="_blank" class="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-orange-600 hover:text-white rounded-lg transition-colors" aria-label="Share on Reddit">
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm6.066 9.645c.183.996.137 2.092-.23 3.088a5.5 5.5 0 01-2.44 2.878c-1.05.658-2.27.987-3.53.953s-2.465-.422-3.473-1.127a5.5 5.5 0 01-2.088-2.766c-.35-.996-.35-2.092-.09-3.088.26-.996.73-1.908 1.37-2.65-.09-.274-.137-.575-.137-.877 0-.823.366-1.6.996-2.125.63-.524 1.462-.767 2.27-.658.137.027.274.064.402.11.996-.767 2.18-1.2 3.41-1.227 1.19-.027 2.356.356 3.335 1.073.128-.046.265-.082.402-.11.808-.11 1.64.134 2.27.658.63.524.996 1.301.996 2.125 0 .302-.046.603-.137.877.64.742 1.11 1.654 1.37 2.65z"/></svg>
-                            </a>
-                            <a href={`https://www.linkedin.com/sharing/share-offsite/?url=https://free2aitools.com/model/${slug}`} target="_blank" class="p-3 bg-gray-100 dark:bg-gray-700 hover:bg-blue-700 hover:text-white rounded-lg transition-colors" aria-label="Share on LinkedIn">
-                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
-                            </a>
-                        </div>
-                    </div>
-
-                    {/* Technical Details */}
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                        <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4">Technical Details</h3>
-                        <dl class="space-y-3">
-                            <div class="flex justify-between">
-                                <dt class="text-sm text-gray-600 dark:text-gray-400">Model ID</dt>
-                                <dd class="text-sm font-mono text-gray-900 dark:text-white truncate max-w-[150px]" title={model.id}>{model.id}</dd>
-                            </div>
-                            <div class="flex justify-between">
-                                <dt class="text-sm text-gray-600 dark:text-gray-400">Last Updated</dt>
-                                <dd class="text-sm font-medium text-gray-900 dark:text-white">{model.relativeTime}</dd>
-                            </div>
-                            <div class="flex justify-between">
-                                <dt class="text-sm text-gray-600 dark:text-gray-400">Created</dt>
-                                <dd class="text-sm font-medium text-gray-900 dark:text-white">{model.created_at ? formatRelativeTime(model.created_at) : 'Unknown'}</dd>
-                            </div>
-                        </dl>
-                    </div>
-
-                    {/* V4.4 Phase 3: Benchmark Performance */}
-                    {model.has_benchmarks && (
-                      <div class="v44-benchmark-section">
-                        <BenchmarkCard 
-                          umid={model.umid || model.id}
-                          name={model.displayName}
-                          mmlu={model.mmlu}
-                          humaneval={model.humaneval}
-                          hellaswag={model.hellaswag}
-                          arc_challenge={model.arc_challenge}
-                          avg_score={model.benchmark_avg || 0}
-                          quality_flag="ok"
-                          compact={true}
-                        />
-                      </div>
-                    )}
-
-                    {/* V4.4 Phase 3: Model Specifications */}
-                    {(model.params_billions || model.context_length || model.architecture_family) && (
-                      <SpecsTable 
-                        params_billions={model.params_billions}
-                        context_length={model.context_length}
-                        vocab_size={model.vocab_size}
-                        hidden_size={model.hidden_size}
-                        num_layers={model.num_layers}
-                        architecture={model.architecture}
-                        architecture_family={model.architecture_family}
-                        deploy_score={model.deploy_score}
-                      />
-                    )}
-
-                    {/* V4.4 Phase 3: Deployability Badge */}
-                    <DeployabilityBadge 
-                      deploy_score={model.deploy_score}
-                      has_gguf={model.has_gguf}
-                      has_ollama={model.has_ollama}
-                      ollama_id={model.ollama_id}
-                      context_length={model.context_length || 0}
-                      params_billions={model.params_billions || 0}
-                    />
-
-                    </div>
-
-                    {/* Commercial Recommendations (Loop 6 Merchant) - Desktop */}
-                    {commercialSlots.length > 0 && (
-                        <div class="hidden md:block">
-                            <AffiliateCard slots={commercialSlots} modelName={model.displayName} />
-                        </div>
-                    )}
-
-                </div>
-              </div>
-
-            </div>
-
-            {/* Similar Models (Tag-based) */}
-            <SimilarModels models={model.similarModels} />
-
-            {/* Knowledge Graph (Neural Network Explorer) */}
-            <GraphExplorer modelId={model.id} />
-
-            {/* Commercial Recommendations (Loop 6 Merchant) - Mobile Only */}
-            {commercialSlots.length > 0 && (
-                <div class="md:hidden mt-8 px-4">
-                    <AffiliateCard slots={commercialSlots} modelName={model.displayName} />
-                </div>
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          <!-- Main Column (2/3) -->
+          <div class="lg:col-span-2 space-y-8">
+            
+            <!-- FNI Trust Panel -->
+            <FNITrustPanel 
+              score={detail.fni.score}
+              percentile={detail.fni.percentile}
+              dimensions={{ p: detail.fni.p, v: detail.fni.v, c: detail.fni.c, u: detail.fni.u }}
+              commentary={detail.fni.commentary}
+            />
+            
+            <!-- Description / README -->
+            {detail.readmeHtml && (
+              <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+                <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">About</h2>
+                <div class="prose dark:prose-invert max-w-none" set:html={detail.readmeHtml} />
+              </section>
             )}
-
-            {/* Related Models (Pipeline-based) */}
-            <section class="mt-20 border-t border-gray-200 dark:border-gray-700 pt-12">
-                <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
-                  <svg class="w-8 h-8 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
-                  </svg>
-                  {relatedModels.length > 0 && !model.pipeline_tag ? "Popular Models" : "Related Models"}
-                </h2>
-                <ModelCarousel models={relatedModels} />
-            </section>
-
+            
+            <!-- Analysis Content -->
+            {detail.analysisHtml && (
+              <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+                <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">🔬 AI Analysis</h2>
+                <div class="prose dark:prose-invert max-w-none" set:html={detail.analysisHtml} />
+              </section>
+            )}
+            
+            <!-- Resources -->
+            {detail.resources.length > 0 && (
+              <ResourceList resources={detail.resources} sourceUrl={detail.sourceUrl} />
+            )}
           </div>
+          
+          <!-- Sidebar (1/3) -->
+          <aside class="space-y-6">
+            
+            <!-- Specs Table -->
+            {(detail.specs?.params || detail.specs?.context_length) && (
+              <SpecsTable 
+                params={detail.specs.params}
+                contextLength={detail.specs.context_length}
+                hasGguf={detail.specs.has_gguf}
+                ggufVariants={detail.specs.gguf_variants}
+                hasOllama={detail.specs.has_ollama}
+                ollamaId={detail.specs.ollama_id}
+                ollamaPulls={detail.specs.ollama_pulls}
+                license={detail.specs.license}
+              />
+            )}
+            
+            <!-- Model Info Table -->
+            <ModelInfoTable model={model} />
+            
+            <!-- Graph Explorer -->
+            <GraphExplorer modelId={model?.id} modelName={detail.displayName} />
+            
+            <!-- Commercial Slots -->
+            {detail.commercialSlots.length > 0 && (
+              <div class="space-y-4">
+                {detail.commercialSlots.map((slot: any) => (
+                  <AffiliateCard slot={slot} />
+                ))}
+              </div>
+            )}
+          </aside>
         </div>
 
-        {/* Schema.org Structured Data */}
-        <script type="application/ld+json" set:html={JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "SoftwareApplication",
-          "name": model.displayName,
-          "description": pageDescription,
-          "author": {
-            "@type": "Person",
-            "name": model.author
-          },
-          "applicationCategory": model.pipeline_tag || "AI Model",
-          "operatingSystem": "Cross-platform",
-          "softwareVersion": model.last_updated,
-          "aggregateRating": model.likes > 0 ? {
-            "@type": "AggregateRating",
-            "ratingValue": Math.min(5, (model.likes / 1000) + 3),
-            "ratingCount": model.likes
-          } : undefined,
-          "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
-          },
-          "url": `https://free2aitools.com/model/${slug}`
-        })} />
+        <!-- Similar Models -->
+        {detail.similarModels.length > 0 && (
+          <section class="mt-12">
+            <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Similar Models</h2>
+            <ModelCarousel models={detail.similarModels} />
+          </section>
+        )}
+
+        <!-- Related Models -->
+        {detail.relatedModels.length > 0 && (
+          <section class="mt-12">
+            <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Related Models</h2>
+            <ModelCarousel models={detail.relatedModels} />
+          </section>
+        )}
 
       </article>
     ) : (
+      <!-- Model Not Found -->
       <div class="container mx-auto px-4 py-12 text-center">
         <div class="bg-yellow-50 text-yellow-800 p-8 rounded-lg max-w-2xl mx-auto">
           <h1 class="text-3xl font-bold mb-4">Model Not Found</h1>
@@ -496,25 +258,36 @@ if (model?.commercial_slots) {
 </Layout>
 
 <style>
-  .transition-colors {
-    transition-property: background-color, border-color, color, fill, stroke, transform, box-shadow;
-    transition-duration: 200ms;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  .model-detail-page {
+    padding-top: 1rem;
   }
   
-  /* Custom scrollbar for code blocks */
-  pre::-webkit-scrollbar {
-    height: 0.5rem;
-    width: 0.5rem;
+  .prose {
+    max-width: none;
   }
   
-  pre::-webkit-scrollbar-track {
-    background-color: rgba(31, 41, 55, 0.5);
+  .prose img {
+    max-width: 100%;
+    height: auto;
     border-radius: 0.5rem;
   }
   
-  pre::-webkit-scrollbar-thumb {
-    background-color: rgba(75, 85, 99, 0.8);
-    border-radius: 9999px;
+  .prose pre {
+    background: #1e293b;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    overflow-x: auto;
+  }
+  
+  .prose code {
+    background: rgba(99, 102, 241, 0.1);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 0.875em;
+  }
+  
+  .prose pre code {
+    background: transparent;
+    padding: 0;
   }
 </style>
