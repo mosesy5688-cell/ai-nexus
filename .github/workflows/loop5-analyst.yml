@@ -1,0 +1,149 @@
+name: L5 Analyst - Daily Metrics Snapshot
+
+# V4.3.1 Constitution: Loop 5 - Analyst
+# Frequency: Daily at 00:00 UTC
+# Purpose: Snapshot model metrics to models_history for FNI Velocity
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Daily at 00:00 UTC
+  workflow_dispatch:     # Manual trigger for testing
+
+concurrency:
+  group: l5-analyst
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    name: Daily Metrics Snapshot
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      # ============================================================
+      # TASK 1: SNAPSHOT CURRENT METRICS TO MODELS_HISTORY
+      # ============================================================
+      - name: Execute Daily Snapshot
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "📸 L5 Analyst: Creating daily metrics snapshot..."
+          echo "Date: $(date -u +%Y-%m-%d)"
+          
+          # Execute snapshot SQL via wrangler
+          wrangler d1 execute ai-nexus-db --remote --command "
+            INSERT INTO models_history (model_id, umid, downloads, likes, fni_score, snapshot_date)
+            SELECT 
+              id,
+              umid,
+              downloads,
+              likes,
+              fni_score,
+              date('now')
+            FROM models
+            WHERE umid IS NOT NULL
+            ON CONFLICT(model_id, snapshot_date) DO UPDATE SET
+              downloads = excluded.downloads,
+              likes = excluded.likes,
+              fni_score = excluded.fni_score;
+          "
+          
+          echo "✅ Snapshot completed"
+
+      # ============================================================
+      # TASK 2: CALCULATE FNI VELOCITY (V DIMENSION)
+      # ============================================================
+      - name: Calculate FNI Velocity
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "📈 L5 Analyst: Calculating FNI Velocity..."
+          
+          # Calculate 7-day velocity
+          wrangler d1 execute ai-nexus-db --remote --command "
+            UPDATE models SET fni_v = (
+              SELECT CASE 
+                WHEN prev.downloads > 0 AND prev.downloads IS NOT NULL THEN 
+                  ROUND(((curr.downloads - prev.downloads) * 1.0 / prev.downloads) * 100, 2)
+                ELSE 0
+              END
+              FROM models_history curr
+              LEFT JOIN models_history prev 
+                ON curr.model_id = prev.model_id
+                AND prev.snapshot_date = date('now', '-7 days')
+              WHERE curr.model_id = models.id
+                AND curr.snapshot_date = date('now')
+              LIMIT 1
+            )
+            WHERE umid IS NOT NULL;
+          "
+          
+          echo "✅ Velocity calculation completed"
+
+      # ============================================================
+      # TASK 3: VERIFY SNAPSHOT
+      # ============================================================
+      - name: Verify Snapshot
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "🔍 L5 Analyst: Verifying snapshot..."
+          
+          # Count today's snapshots
+          wrangler d1 execute ai-nexus-db --remote --command "
+            SELECT 
+              snapshot_date,
+              COUNT(*) as record_count,
+              SUM(downloads) as total_downloads,
+              AVG(fni_score) as avg_fni
+            FROM models_history
+            WHERE snapshot_date = date('now')
+            GROUP BY snapshot_date;
+          "
+          
+          echo "✅ Verification completed"
+
+      # ============================================================
+      # TASK 4: CLEANUP OLD HISTORY (Keep 90 days)
+      # ============================================================
+      - name: Cleanup Old History
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "🧹 L5 Analyst: Cleaning up old history (>90 days)..."
+          
+          wrangler d1 execute ai-nexus-db --remote --command "
+            DELETE FROM models_history
+            WHERE snapshot_date < date('now', '-90 days');
+          "
+          
+          echo "✅ Cleanup completed"
+
+      - name: Generate Summary
+        run: |
+          echo "## 📊 L5 Analyst Daily Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u +%Y-%m-%d)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Task | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Metrics Snapshot | ✅ Complete |" >> $GITHUB_STEP_SUMMARY
+          echo "| Velocity Calculation | ✅ Complete |" >> $GITHUB_STEP_SUMMARY
+          echo "| Snapshot Verification | ✅ Complete |" >> $GITHUB_STEP_SUMMARY
+          echo "| History Cleanup | ✅ Complete |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "*Next run: Tomorrow at 00:00 UTC*" >> $GITHUB_STEP_SUMMARY
