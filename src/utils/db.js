@@ -1,10 +1,12 @@
 // src/utils/db.js
+// V4.3.2 Constitution: UMID Resolution Layer
 import { getCachedModel, setCachedModel } from './cache.js';
 
 /**
- * Helper to fetch a model record from Cloudflare D1 by slug.
+ * Helper to fetch a model record from Cloudflare D1.
+ * Uses UMID Resolution Layer as primary lookup mechanism.
+ * Falls back to direct ID/slug lookup if resolver miss.
  * Uses KV cache with cache-first pattern for performance.
- * Returns the raw row object (or null if not found).
  */
 export async function getModelBySlug(slug, locals) {
     // Access the D1 DB and KV Cache via the runtime env
@@ -19,53 +21,96 @@ export async function getModelBySlug(slug, locals) {
 
     // URL decode the slug (handles %3A for colons, %2F for slashes, etc.)
     const decodedSlug = decodeURIComponent(slug);
+    const slugNorm = decodedSlug.toString().trim();
 
     // 1. Try KV cache first (use decoded slug for cache key)
-    const cachedModel = await getCachedModel(decodedSlug, kvCache);
+    const cachedModel = await getCachedModel(slugNorm, kvCache);
     if (cachedModel) {
         return cachedModel;
     }
 
-    // 2. Cache miss - query D1
     let model = null;
 
     try {
-        // V4.3.2 Constitution: UMID is the unique model identifier
-        // Query by slug, id, OR umid (Case Insensitive)
+        // ═══════════════════════════════════════════════════════════════════
+        // UMID RESOLUTION LAYER (V4.3.2 Constitution Compliant)
+        // Single Source of Truth for all external ID mappings
+        // ═══════════════════════════════════════════════════════════════════
+
+        // Step 1: Query umid_resolver for canonical_umid mapping
+        const resolverRow = await db.prepare(`
+            SELECT canonical_umid FROM umid_resolver
+            WHERE LOWER(source_id) = LOWER(?)
+            LIMIT 1
+        `).bind(slugNorm).first();
+
+        if (resolverRow?.canonical_umid && resolverRow.canonical_umid !== '') {
+            // Found in resolver - lookup model by canonical UMID
+            model = await db.prepare(`
+                SELECT * FROM models WHERE umid = ? LIMIT 1
+            `).bind(resolverRow.canonical_umid).first();
+
+            if (model) {
+                // Cache and return
+                await setCachedModel(slugNorm, model, kvCache);
+                return model;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // FALLBACK: Direct lookup (slug, id, umid, canonical_name)
+        // For cases where resolver doesn't have mapping yet
+        // ═══════════════════════════════════════════════════════════════════
+
         const stmt = db.prepare(`
             SELECT * FROM models 
-            WHERE slug = ? OR id = ? OR umid = ?
-            OR slug = ? COLLATE NOCASE OR id = ? COLLATE NOCASE OR umid = ? COLLATE NOCASE
+            WHERE LOWER(slug) = LOWER(?)
+               OR LOWER(id) = LOWER(?)
+               OR LOWER(umid) = LOWER(?)
+               OR LOWER(canonical_name) = LOWER(?)
+            LIMIT 1
         `);
-        model = await stmt.bind(decodedSlug, decodedSlug, decodedSlug, decodedSlug, decodedSlug, decodedSlug).first();
+        model = await stmt.bind(slugNorm, slugNorm, slugNorm, slugNorm).first();
 
-        // Smart Fallback: Try prepending 'github-' if not found
+        // Smart Fallback: Try github prefix variations
         if (!model) {
-            const githubSlug = `github--${decodedSlug}`;
-            const githubId = `github-${decodedSlug}`;
-            const normalizedId = decodedSlug.replace(/--/g, '-');
-            const githubIdNormalized = `github-${normalizedId}`;
+            const githubSlug = `github--${slugNorm}`;
+            const githubId = `github-${slugNorm}`;
+            const normalizedId = slugNorm.replace(/--/g, '-');
 
             const stmtFallback = db.prepare(`
                 SELECT * FROM models 
-                WHERE slug = ? OR id = ? OR id = ? OR id = ?
-                OR slug = ? COLLATE NOCASE OR id = ? COLLATE NOCASE
+                WHERE LOWER(slug) = LOWER(?)
+                   OR LOWER(id) = LOWER(?)
+                   OR LOWER(id) = LOWER(?)
+                LIMIT 1
             `);
-            model = await stmtFallback.bind(
-                githubSlug, githubId, normalizedId, githubIdNormalized,
-                githubSlug, githubId
-            ).first();
+            model = await stmtFallback.bind(githubSlug, githubId, normalizedId).first();
         }
+
     } catch (e) {
-        console.error("[DB] Error in getModelBySlug:", e);
-        throw e;
+        // Handle case where umid_resolver table doesn't exist yet
+        if (e.message && e.message.includes('umid_resolver')) {
+            console.warn('[DB] umid_resolver table not found, using fallback lookup');
+            // Fallback to original query
+            const stmt = db.prepare(`
+                SELECT * FROM models 
+                WHERE LOWER(slug) = LOWER(?)
+                   OR LOWER(id) = LOWER(?)
+                   OR LOWER(umid) = LOWER(?)
+                LIMIT 1
+            `);
+            model = await stmt.bind(slugNorm, slugNorm, slugNorm).first();
+        } else {
+            console.error("[DB] Error in getModelBySlug:", e);
+            throw e;
+        }
     }
 
-    // 3. Store in cache for future requests (use decoded slug as cache key)
+    // Store in cache for future requests
     if (model) {
-        await setCachedModel(decodedSlug, model, kvCache);
+        await setCachedModel(slugNorm, model, kvCache);
     }
 
     return model;
 }
-
