@@ -36,6 +36,9 @@ try {
 
   rawModel = await getModelBySlug(slug, Astro.locals);
   
+  // DEBUG: Log to trace Model Not Found issue
+  console.log(`[MODEL PAGE DEBUG] slug: ${slug}, rawModel exists: ${!!rawModel}, rawModel.id: ${rawModel?.id}`);
+  
   if (rawModel) {
     // Fetch candidate models for similarity check
     let candidateModels = [];
