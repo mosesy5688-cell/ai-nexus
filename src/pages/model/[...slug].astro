@@ -228,7 +228,12 @@ const hasBench = Boolean(
           <p class="text-gray-600 mb-6">The model you are looking for does not exist or has been removed.</p>
           <div class="text-xs text-gray-400 mb-4 font-mono bg-gray-100 p-2 rounded text-left">
             slug: {slug}<br/>
-            resolution: {resolution ? JSON.stringify(resolution) : 'null'}
+            resolution: {resolution ? JSON.stringify(resolution) : 'null'}<br/>
+            hasLocals: {!!Astro.locals}<br/>
+            hasRuntime: {!!Astro.locals?.runtime}<br/>
+            hasEnv: {!!Astro.locals?.runtime?.env}<br/>
+            hasDB: {!!Astro.locals?.runtime?.env?.DB}<br/>
+            envKeys: {Astro.locals?.runtime?.env ? Object.keys(Astro.locals.runtime.env).join(', ') : 'none'}
           </div>
           <a href="/explore" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">Browse Models</a>
         </div>
