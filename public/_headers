@@ -4,6 +4,10 @@
 /*
   Cache-Control: public, max-age=3600
 
+# Model detail pages - no cache to ensure fresh dynamic content
+/model/*
+  Cache-Control: no-cache, no-store, must-revalidate
+
 # Keep static assets immutable for maximum performance
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
