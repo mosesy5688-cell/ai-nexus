@@ -2,8 +2,9 @@
 export const prerender = false;
 
 /**
- * Model Detail Page V4.5 (S-Grade) - Simplified for debugging
+ * Model Detail Page V4.5
  * Constitution V4.3.2 Compliant
+ * Uses db.js getModelBySlug (already has UMID resolver support)
  */
 
 import Layout from '../../layouts/Layout.astro';
@@ -18,14 +19,13 @@ import DeployabilityBadge from '../../components/specs/DeployabilityBadge.astro'
 import ResourceList from '../../components/ResourceList.astro';
 import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
 
-// V4.5 Core - only use resolver, skip builder for now
-import { resolveToModel } from '../../utils/umid-resolver';
+// Use existing db.js which already has UMID resolver support
+import { getModelBySlug } from '../../utils/db';
 
 const { slug } = Astro.params;
 
 // Variables
 let model = null;
-let resolution = null;
 let error = null;
 let similarModels = [];
 
@@ -36,17 +36,15 @@ let pageDescription = "Explore comprehensive information about this AI model.";
 try {
   if (!slug) throw new Error("No slug provided");
   
-  // V4.5: Use UMID Resolver
-  const resolved = await resolveToModel(slug, Astro.locals);
-  resolution = resolved.resolution;
-  model = resolved.model;
+  // Use existing getModelBySlug (already has UMID resolver)
+  model = await getModelBySlug(slug, Astro.locals);
   
   if (model) {
     // Set SEO
     pageTitle = `${model.name || model.canonical_name || 'Model'} by ${model.author || 'Unknown'} | Free AI Tools`;
-    pageDescription = (model.description || 'AI model details').substring(0, 160);
+    pageDescription = (model.description || 'AI model details').substring(0, 160).replace(/---[\s\S]*?---/g, '').replace(/[#*`]/g, '');
     
-    // Fetch similar models (simplified)
+    // Fetch similar models
     const db = Astro.locals?.runtime?.env?.DB;
     if (db && model.pipeline_tag) {
       try {
@@ -190,7 +188,7 @@ const coverImage = model?.cover_image_url || '/default-model.png';
               <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
                 <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">About</h2>
                 <div class="prose dark:prose-invert max-w-none">
-                  <p class="whitespace-pre-wrap">{model.description.substring(0, 2000)}</p>
+                  <p class="whitespace-pre-wrap">{model.description.substring(0, 2000).replace(/---[\s\S]*?---/g, '')}</p>
                 </div>
               </section>
             )}
@@ -241,7 +239,7 @@ const coverImage = model?.cover_image_url || '/default-model.png';
         <div class="bg-yellow-50 text-yellow-800 p-8 rounded-lg max-w-2xl mx-auto">
           <h1 class="text-3xl font-bold mb-4">Model Not Found</h1>
           <p class="text-gray-600 mb-6">The model you are looking for does not exist or has been removed.</p>
-          <p class="text-sm text-gray-500 mb-4">Resolution: {JSON.stringify(resolution)}</p>
+          <p class="text-sm text-gray-500 mb-4">Slug: {slug}</p>
           <a href="/explore" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">Browse Models</a>
         </div>
       </div>
