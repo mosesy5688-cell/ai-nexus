@@ -22,7 +22,9 @@ import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
 // Use existing db.js which already has UMID resolver support
 import { getModelBySlug } from '../../utils/db';
 
-const { slug } = Astro.params;
+// For [...slug] rest routes, slug is an array - join it to get the full path
+const slugParam = Astro.params.slug;
+const slug = Array.isArray(slugParam) ? slugParam.join('/') : slugParam;
 
 // Variables
 let model = null;
