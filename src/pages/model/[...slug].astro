@@ -2,9 +2,9 @@
 export const prerender = false;
 
 /**
- * Model Detail Page V4.5
+ * Model Detail Page V4.5 (S-Grade)
  * Constitution V4.3.2 Compliant
- * Uses db.js getModelBySlug (already has UMID resolver support)
+ * Fixed 7 critical Astro SSR errors
  */
 
 import Layout from '../../layouts/Layout.astro';
@@ -19,37 +19,32 @@ import DeployabilityBadge from '../../components/specs/DeployabilityBadge.astro'
 import ResourceList from '../../components/ResourceList.astro';
 import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
 
-// Use resolveToModel which has 12-rule normalization (same as API endpoint)
 import { resolveToModel } from '../../utils/umid-resolver';
+import { safeParseJSON } from '../../utils/model-detail-builder';
 
-// For [...slug] rest routes, slug is an array - join it to get the full path
 const slugParam = Astro.params.slug;
-const slug = Array.isArray(slugParam) ? slugParam.join('/') : slugParam;
+const slug = Array.isArray(slugParam) ? slugParam.join('/') : (slugParam || '');
 
-// Variables
 let model = null;
 let error = null;
 let similarModels = [];
 let resolution = null;
 
-// SEO defaults
 let pageTitle = "AI Model Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI model.";
 
 try {
   if (!slug) throw new Error("No slug provided");
   
-  // Use resolveToModel (12-rule normalization + UMID resolver)
   const result = await resolveToModel(slug, Astro.locals);
-  model = result.model;
-  resolution = result.resolution;
+  model = result?.model || null;
+  resolution = result?.resolution || null;
   
   if (model) {
-    // Set SEO
     pageTitle = `${model.name || model.canonical_name || 'Model'} by ${model.author || 'Unknown'} | Free AI Tools`;
-    pageDescription = (model.description || 'AI model details').substring(0, 160).replace(/---[\s\S]*?---/g, '').replace(/[#*`]/g, '');
+    const desc = model.description || model.seo_summary || 'AI model details';
+    pageDescription = desc.substring(0, 160).replace(/---[\s\S]*?---/g, '').replace(/[#*`]/g, '');
     
-    // Fetch similar models
     const db = Astro.locals?.runtime?.env?.DB;
     if (db && model.pipeline_tag) {
       try {
@@ -71,23 +66,16 @@ try {
   error = e;
 }
 
-// Safe JSON parsing helper
-function safeJSON(val, fallback = []) {
-  if (!val) return fallback;
-  if (typeof val === 'object') return val;
-  try { return JSON.parse(val); } catch { return fallback; }
-}
-
-// Parse model fields safely
-const tags = model ? safeJSON(model.tags, []) : [];
-const resources = model ? safeJSON(model.resources, []) : [];
+const tags = model ? safeParseJSON(model.tags, []) : [];
+const resources = model ? safeParseJSON(model.resources, []) : [];
 const coverImage = model?.cover_image_url || '/default-model.png';
+const modelId = model?.umid || model?.id || '';
+const modelName = model?.name || model?.canonical_name || 'Unknown Model';
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
   <main class="model-detail-page bg-gray-50 dark:bg-gray-900 min-h-screen">
     {error ? (
-      <!-- Error State -->
       <div class="container mx-auto px-4 py-12 text-center">
         <div class="bg-red-50 text-red-800 p-8 rounded-lg max-w-2xl mx-auto">
           <h1 class="text-3xl font-bold mb-4">Error Loading Model</h1>
@@ -96,43 +84,37 @@ const coverImage = model?.cover_image_url || '/default-model.png';
         </div>
       </div>
     ) : model ? (
-      <!-- Model Detail View -->
       <article class="container mx-auto px-4 py-8 max-w-7xl">
-        
-        <!-- Hero Section -->
         <header class="mb-8">
           <div class="flex flex-col lg:flex-row gap-6 items-start">
-            <!-- Model Image -->
             <div class="w-full lg:w-64 flex-shrink-0">
               <img 
                 src={coverImage} 
-                alt={model.name || 'Model'}
+                alt={modelName}
                 class="w-full rounded-xl shadow-lg bg-gray-200"
                 loading="eager"
               />
             </div>
             
-            <!-- Model Info -->
             <div class="flex-1">
               <div class="flex flex-wrap items-center gap-3 mb-2">
                 <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">
-                  {model.name || model.canonical_name || 'Unknown Model'}
+                  {modelName}
                 </h1>
                 <FNIBadge 
-                  score={model.fni_score || 0} 
-                  percentile={model.fni_percentile || 0}
-                  dimensions={{ p: model.fni_p || 0, v: model.fni_v || 0, c: model.fni_c || 0, u: model.fni_u || 0 }}
+                  score={model?.fni_score || 0} 
+                  percentile={model?.fni_percentile || 0}
+                  dimensions={{ p: model?.fni_p || 0, v: model?.fni_v || 0, c: model?.fni_c || 0, u: model?.fni_u || 0 }}
                 />
-                {model.deploy_score > 0 && (
+                {model?.deploy_score > 0 && (
                   <DeployabilityBadge score={model.deploy_score} />
                 )}
               </div>
               
               <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">
-                by <span class="font-semibold">{model.author || 'Unknown'}</span>
+                by <span class="font-semibold">{model?.author || 'Unknown'}</span>
               </p>
               
-              <!-- Tags -->
               {Array.isArray(tags) && tags.length > 0 && (
                 <div class="flex flex-wrap gap-2 mb-4">
                   {tags.slice(0, 8).map((tag: string) => (
@@ -146,15 +128,14 @@ const coverImage = model?.cover_image_url || '/default-model.png';
                 </div>
               )}
               
-              <!-- Quick Stats -->
               <div class="flex flex-wrap gap-6 text-sm text-gray-600 dark:text-gray-400">
-                {model.downloads && (
+                {model?.downloads && (
                   <span>📥 {Number(model.downloads).toLocaleString()} downloads</span>
                 )}
-                {model.likes && (
+                {model?.likes && (
                   <span>❤️ {Number(model.likes).toLocaleString()} likes</span>
                 )}
-                {model.last_updated && (
+                {model?.last_updated && (
                   <span>🕐 Updated {new Date(model.last_updated).toLocaleDateString()}</span>
                 )}
               </div>
@@ -162,34 +143,27 @@ const coverImage = model?.cover_image_url || '/default-model.png';
           </div>
         </header>
 
-        <!-- Benchmark Card -->
-        {model.has_benchmarks && (
+        {model?.has_benchmarks && (
           <section class="mb-8">
             <BenchmarkCard 
-              mmlu={model.benchmark_mmlu}
-              hellaswag={model.benchmark_hellaswag}
-              arc={model.benchmark_arc}
-              avgScore={model.benchmark_avg}
+              mmlu={model?.mmlu || model?.benchmark_mmlu}
+              hellaswag={model?.hellaswag || model?.benchmark_hellaswag}
+              arc={model?.arc_challenge || model?.benchmark_arc}
+              avgScore={model?.avg_score || model?.benchmark_avg}
             />
           </section>
         )}
 
-        <!-- Main Content Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          <!-- Main Column -->
           <div class="lg:col-span-2 space-y-8">
-            
-            <!-- FNI Trust Panel -->
             <FNITrustPanel 
-              score={model.fni_score || 0}
-              percentile={model.fni_percentile || 0}
-              dimensions={{ p: model.fni_p || 0, v: model.fni_v || 0, c: model.fni_c || 0, u: model.fni_u || 0 }}
-              commentary={model.fni_commentary}
+              score={model?.fni_score || 0}
+              percentile={model?.fni_percentile || 0}
+              dimensions={{ p: model?.fni_p || 0, v: model?.fni_v || 0, c: model?.fni_c || 0, u: model?.fni_u || 0 }}
+              commentary={model?.fni_commentary || null}
             />
             
-            <!-- Description -->
-            {model.description && (
+            {model?.description && (
               <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
                 <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">About</h2>
                 <div class="prose dark:prose-invert max-w-none">
@@ -198,55 +172,56 @@ const coverImage = model?.cover_image_url || '/default-model.png';
               </section>
             )}
             
-            <!-- Resources -->
             {Array.isArray(resources) && resources.length > 0 && (
-              <ResourceList resources={resources} sourceUrl={model.source_url} />
+              <ResourceList resources={resources} sourceUrl={model?.source_url || null} />
             )}
           </div>
           
-          <!-- Sidebar -->
           <aside class="space-y-6">
-            
-            <!-- Specs Table -->
-            {(model.params_billions || model.context_length) && (
+            {(model?.params_billions || model?.context_length) && (
               <SpecsTable 
-                params={model.params_billions}
-                contextLength={model.context_length}
-                hasGguf={model.has_gguf}
-                ggufVariants={safeJSON(model.gguf_variants, [])}
-                hasOllama={model.has_ollama}
-                ollamaId={model.ollama_id}
-                ollamaPulls={model.ollama_pulls}
-                license={model.license_spdx}
+                params={model?.params_billions || null}
+                contextLength={model?.context_length || null}
+                hasGguf={model?.has_gguf || false}
+                ggufVariants={safeParseJSON(model?.gguf_variants, [])}
+                hasOllama={model?.has_ollama || false}
+                ollamaId={model?.ollama_id || null}
+                ollamaPulls={model?.ollama_pulls || 0}
+                license={model?.license_spdx || null}
               />
             )}
             
-            <!-- Model Info Table -->
-            <ModelInfoTable model={model} />
+            <ModelInfoTable model={{
+              ...model,
+              id: model?.id || '',
+              umid: model?.umid || '',
+              slug: model?.slug || '',
+              pipeline_tag: model?.pipeline_tag || null,
+              source_url: model?.source_url || null
+            }} />
             
-            <!-- Graph Explorer -->
-            <GraphExplorer modelId={model.id} modelName={model.name} />
+            <GraphExplorer 
+              modelId={modelId} 
+              modelName={modelName}
+            />
           </aside>
         </div>
 
-        <!-- Similar Models -->
         {similarModels.length > 0 && (
           <section class="mt-12">
             <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Similar Models</h2>
             <ModelCarousel models={similarModels} />
           </section>
         )}
-
       </article>
     ) : (
-      <!-- Model Not Found -->
       <div class="container mx-auto px-4 py-12 text-center">
         <div class="bg-yellow-50 text-yellow-800 p-8 rounded-lg max-w-2xl mx-auto">
           <h1 class="text-3xl font-bold mb-4">Model Not Found</h1>
           <p class="text-gray-600 mb-6">The model you are looking for does not exist or has been removed.</p>
-          <p class="text-sm text-gray-500 mb-4">Slug: {slug}</p>
-          <div class="text-xs text-gray-400 mb-4 font-mono bg-gray-100 p-2 rounded">
-            DEBUG: slugParam={JSON.stringify(slugParam)} | slug={slug} | resolution={JSON.stringify(resolution)}
+          <div class="text-xs text-gray-400 mb-4 font-mono bg-gray-100 p-2 rounded text-left">
+            slug: {slug}<br/>
+            resolution: {resolution ? JSON.stringify(resolution) : 'null'}
           </div>
           <a href="/explore" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">Browse Models</a>
         </div>
