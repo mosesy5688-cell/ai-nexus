@@ -21,8 +21,9 @@ function createModelCardHTML(model) {
         console.warn('Model missing id:', model);
         return ''; // Skip models without ID
     }
-    const modelId = (model.author && model.name) ? `${model.author}/${model.name}` : model.id;
-    const modelUrl = `/model/${modelId.replace(/\//g, '--')}`;
+    // V4.5: Use model.slug for UMID-compatible links (same as render-model-card.js)
+    const slug = model.slug || model.id;
+    const modelUrl = `/model/${encodeURIComponent(slug)}`;
     // Handle description: could be null or contain HTML
     const rawDesc = model.description || 'No description available.';
     const cleanDesc = rawDesc.replace(/<[^>]*>?/gm, '');
