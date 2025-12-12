@@ -245,6 +245,9 @@ const coverImage = model?.cover_image_url || '/default-model.png';
           <h1 class="text-3xl font-bold mb-4">Model Not Found</h1>
           <p class="text-gray-600 mb-6">The model you are looking for does not exist or has been removed.</p>
           <p class="text-sm text-gray-500 mb-4">Slug: {slug}</p>
+          <div class="text-xs text-gray-400 mb-4 font-mono bg-gray-100 p-2 rounded">
+            DEBUG: slugParam={JSON.stringify(slugParam)} | slug={slug} | resolution={JSON.stringify(resolution)}
+          </div>
           <a href="/explore" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">Browse Models</a>
         </div>
       </div>
