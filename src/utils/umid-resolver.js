@@ -58,6 +58,24 @@ export function normalizeSlug(slug) {
 }
 
 /**
+ * Canonicalize a slug to ensure UMID compatibility
+ * Uses 12-rule normalization to convert any slug format to canonical form
+ * @param {string} slug - Input slug in any format
+ * @returns {string} - Canonical UMID-compatible slug
+ */
+export function canonicalizeSlug(slug) {
+    if (!slug || typeof slug !== 'string') return '';
+
+    // Apply normalization
+    let canonical = normalizeSlug(slug);
+
+    // Remove common prefixes that shouldn't be in canonical form
+    canonical = canonical.replace(/^(huggingface-|github-|arxiv-)/, '');
+
+    return canonical;
+}
+
+/**
  * Check if string is an ArXiv ID pattern
  * @param {string} str - String to check
  * @returns {boolean}

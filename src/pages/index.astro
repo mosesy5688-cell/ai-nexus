@@ -1,27 +1,47 @@
 ---
+// src/pages/index.astro
+// Constitution V4.3.2 Compliant - Homepage
+
+// Core imports
 import Layout from '../layouts/Layout.astro';
 import CategoryGroup from '../components/CategoryGroup.astro';
 import allCategories from '../data/categories.json';
 
+// V4.3.2 Constitution Core Requirements
+import { buildIndexSEO } from '../utils/seo-schema.js';
+
+// URL parameters
 const url = Astro.url;
 const initialQuery = url.searchParams.get('q') || '';
 const initialTag = url.searchParams.get('tag') || '';
 
-let pageTitle = "Free AI Tools: Your Hub for Open-Source AI";
-let pageDescription = "Discover, explore, and stay updated with the latest open-source AI models, tools, and research. Your gateway to the world of open AI.";
+// SEO - Constitution Required
+const pageTitle = "Free AI Tools – Explore the Entire Open-Source AI Ecosystem";
+const pageDescription = "Discover open-source AI models, benchmarks, FNI rankings, categories, and comprehensive research. Updated daily with UMID-verified data.";
+
+// Build JSON-LD (Constitution SEO requirement)
+const seoSchema = buildIndexSEO();
 ---
 
-<Layout title={pageTitle} description={pageDescription}>
-    <div class="container mx-auto px-4 py-12" id="home-container" data-initial-query={initialQuery} data-initial-tag={initialTag}>
+<Layout title={pageTitle} description={pageDescription} jsonld={seoSchema}>
+
+    <div 
+        class="container mx-auto px-4 py-12" 
+        id="home-container" 
+        data-initial-query={initialQuery} 
+        data-initial-tag={initialTag}
+    >
         <!-- Main Page Header -->
         <header class="text-center mb-12">
-            <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">Discover the World of Open Source AI</h1>
+            <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">
+                Explore the Open-Source AI Universe
+            </h1>
             <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-4xl mx-auto">
-                Your single destination to search, filter, and explore the latest open-source AI models.
+                The fastest way to search, filter, and compare the entire open AI ecosystem.
             </p>
         </header>
 
-        <!-- Search and Filter Section -->
+        <!-- Search Bar (Sticky) -->
         <div class="mb-8 flex flex-col md:flex-row gap-4 items-center sticky top-[65px] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-4 z-30 max-w-4xl mx-auto w-full">
             <div id="search-container" class="w-full">
                 <form id="search-form" class="w-full" onsubmit="return false;">
@@ -30,37 +50,51 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
                             type="search"
                             id="search-box"
                             name="q"
-                            placeholder="Search for models, e.g., 'llama', 'image generation'..."
+                            placeholder="Search any model… e.g., llama, embedding, image generation"
                             class="w-full p-4 pl-12 text-lg border border-gray-300 dark:border-gray-600 rounded-full bg-white dark:bg-gray-800 focus:ring-blue-500 focus:border-blue-500 shadow-lg"
                             aria-label="Search AI Models"
                             value={initialQuery}
                         />
                         <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
                         </div>
                     </div>
                 </form>
             </div>
         </div>
 
+        <!-- Static Content Container -->
         <div id="static-content-container" class="hidden">
+            
             <!-- Hot Models Section -->
             <section class="mb-16">
                 <h2 class="text-3xl font-bold text-center mb-8">🔥 Hot Models</h2>
-                <!-- Loading State with Skeletons -->
+                
+                <!-- Loading State with Skeletons (Constitution: FNI badge slots required) -->
                 <div id="hot-models-loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    <!-- Skeleton placeholders (12 cards to match the API limit) -->
                     {Array.from({length: 12}).map(() => (
                         <div class="skeleton-card animate-pulse bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-100 dark:border-gray-700">
                             <div class="aspect-video w-full bg-gray-200 dark:bg-gray-700"></div>
                             <div class="p-5 space-y-4">
+                                <!-- Title -->
                                 <div class="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                                <!-- Author -->
                                 <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                                <!-- Description lines -->
                                 <div class="space-y-2">
                                     <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
                                     <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
                                 </div>
-                                <div class="flex justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
+                                <!-- Constitution: FNI + Deploy Score badge slots -->
+                                <div class="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                    <div class="h-5 w-16 bg-blue-100 dark:bg-blue-900/30 rounded"></div>
+                                    <div class="h-5 w-14 bg-green-100 dark:bg-green-900/30 rounded"></div>
+                                    <div class="h-5 w-12 bg-gray-100 dark:bg-gray-700 rounded"></div>
+                                </div>
+                                <!-- Stats row -->
+                                <div class="flex justify-between pt-2">
                                     <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
                                     <div class="flex gap-3">
                                         <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
@@ -71,14 +105,16 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
                         </div>
                     ))}
                 </div>
+                
                 <!-- Error State -->
                 <div id="hot-models-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
                     <strong class="font-bold">Error:</strong>
                     <span class="block sm:inline" id="hot-models-error-msg"></span>
                 </div>
-                <!-- Grid -->
+                
+                <!-- Hot Models Grid -->
                 <div id="hot-models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
-                    <!-- Populated by client-side JS -->
+                    <!-- Populated by client-side JS with FNI-sorted models -->
                 </div>
             </section>
 
@@ -96,11 +132,11 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
 
         <!-- Search Results Grid (initially hidden) -->
         <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
-            <!-- This grid will be populated by search.js -->
+            <!-- Populated by search.js -->
         </div>
         <div id="no-results" class="text-center py-16 hidden">
             <p class="text-2xl font-semibold text-gray-700 dark:text-gray-200">No models found.</p>
-            <p class="text-gray-500 dark:text-gray-400 mt-2">Try adjusting your search criteria.</p>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Try a different search term.</p>
         </div>
     </div>
 
@@ -108,7 +144,7 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
         import { initializeSearch } from '../scripts/search.js';
         import { renderModelCard } from '../scripts/render-model-card.js';
         
-        // Function to fetch and render hot models
+        // Function to fetch and render hot models (Constitution: FNI-sorted)
         async function loadHotModels() {
             const loadingEl = document.getElementById('hot-models-loading');
             const gridEl = document.getElementById('hot-models-grid');
@@ -116,19 +152,19 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
             const errorMsgEl = document.getElementById('hot-models-error-msg');
 
             try {
-                // Fetch top models by comprehensive ranking (likes)
-                const response = await fetch('/api/search?limit=12');
+                // Constitution V4.3.2: Use trending API for FNI-sorted results
+                const response = await fetch('/api/trending.json?limit=12');
                 if (!response.ok) throw new Error(`API Error: ${response.status}`);
                 
                 const data = await response.json();
-                const models = data.results || [];
+                const models = data.results || data || [];
 
                 if (models.length === 0) {
-                    loadingEl.innerHTML = '<p class="text-gray-500">No hot models found.</p>';
+                    loadingEl.innerHTML = '<p class="col-span-full text-center text-gray-500">No hot models found.</p>';
                     return;
                 }
 
-                // Use shared render function for consistency
+                // Render with UMID-compatible slugs
                 const html = models.map(model => renderModelCard(model)).join('');
 
                 gridEl.innerHTML = html;
@@ -144,7 +180,7 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Parse URL parameters from the client side to handle SSG/static hosting correctly
+            // Parse URL parameters from the client side
             const urlParams = new URLSearchParams(window.location.search);
             const initialQuery = urlParams.get('q') || '';
             const initialTag = urlParams.get('tag') || '';
@@ -161,4 +197,5 @@ let pageDescription = "Discover, explore, and stay updated with the latest open-
             }
         });
     </script>
+
 </Layout>
