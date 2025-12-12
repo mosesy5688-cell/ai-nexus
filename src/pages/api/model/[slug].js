@@ -1,7 +1,12 @@
 // src/pages/api/model/[slug].js
+/**
+ * Model API V4.5 (S-Grade)
+ * Constitution V4.3.2 Compliant - UMID Resolver Integration
+ */
 export const prerender = false;
 
-import { getModelBySlug } from '../../../utils/db';
+import { resolveToModel } from '../../../utils/umid-resolver';
+import { safeParseJSON } from '../../../utils/model-detail-builder';
 
 export async function GET({ params, locals }) {
     try {
@@ -14,35 +19,28 @@ export async function GET({ params, locals }) {
             });
         }
 
-        // Fetch raw data
-        const model = await getModelBySlug(slug, locals);
+        // V4.5: Use UMID Resolver (12-rule normalization + KV cache)
+        const { model, resolution } = await resolveToModel(slug, locals);
 
         if (!model || typeof model !== 'object' || !model.id || !model.name) {
-            return new Response(JSON.stringify({ error: 'Model not found' }), {
+            return new Response(JSON.stringify({
+                error: 'Model not found',
+                resolution // Include resolution info for debugging
+            }), {
                 status: 404,
                 headers: { 'Content-Type': 'application/json' }
             });
         }
 
-        // [Defensive Check] Handle description (prevent it from being an object)
+        // [Defensive Check] Handle description
         if (typeof model.description !== 'string') {
             model.description = model.description ? String(model.description) : "";
         }
 
-        // Parse related_ids
-        let relatedIds = [];
-        if (model.related_ids) {
-            try {
-                const parsed = JSON.parse(model.related_ids);
-                if (Array.isArray(parsed)) {
-                    relatedIds = parsed;
-                }
-            } catch (e) {
-                console.warn("Failed to parse related_ids JSON:", e);
-            }
-        }
+        // Parse related_ids safely
+        const relatedIds = safeParseJSON(model.related_ids, []);
 
-        // 🔥 SMART FALLBACK: If no related_ids, get top models in same category
+        // Fetch related models
         let relatedModels = [];
         if (relatedIds.length === 0 && model.pipeline_tag) {
             try {
@@ -66,7 +64,8 @@ export async function GET({ params, locals }) {
         return new Response(JSON.stringify({
             model,
             relatedIds,
-            relatedModels
+            relatedModels,
+            resolution // V4.5: Include resolution info
         }), {
             headers: {
                 'Content-Type': 'application/json',
