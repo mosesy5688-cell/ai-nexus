@@ -294,11 +294,11 @@ export async function resolveToModel(slug, locals) {
         }
 
         // Step 5: Fuzzy match (Levenshtein distance ≤ 2)
-        // Get candidate canonical_names for fuzzy matching
+        // V4.6: Reduced candidate pool from 1000 to 200 for performance
         const candidates = await db.prepare(`
             SELECT umid, canonical_name FROM models
             WHERE canonical_name IS NOT NULL
-            LIMIT 1000
+            LIMIT 200
         `).all();
 
         if (candidates?.results) {
@@ -342,7 +342,7 @@ export async function resolveToModel(slug, locals) {
 }
 
 /**
- * Helper to cache resolver result (S-Grade: 1 hour TTL)
+ * Helper to cache resolver result (V4.6: Extended to 24h for SSR performance)
  * @param {string} cacheKey - Cache key
  * @param {object} result - Result to cache
  * @param {object} kvCache - KV binding
@@ -352,7 +352,7 @@ async function cacheResolverResult(cacheKey, result, kvCache) {
 
     try {
         await kvCache.put(cacheKey, JSON.stringify(result), {
-            expirationTtl: 3600 // 1 hour
+            expirationTtl: 86400 // V4.6: 24 hours (was 1 hour)
         });
         console.log(`[UMID Resolver] Cache SET: ${cacheKey}`);
     } catch (e) {
