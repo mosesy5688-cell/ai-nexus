@@ -128,126 +128,130 @@ export class ModelScopeAdapter extends BaseAdapter {
             return allModels.slice(0, limit);
         }
 
-        /**
-         * V4.3.1: Check if model is safe for work
-         */
-        isSafeForWork(model) {
-            const text = `${model.Name || ''} ${model.Description || ''} ${model.ChineseName || ''}`.toLowerCase();
-
-            for (const keyword of NSFW_KEYWORDS) {
-                if (text.includes(keyword.toLowerCase())) {
-                    return false;
-                }
-            }
-
-            // Check tags if present
-            const tags = model.Tags || [];
-            for (const tag of tags) {
-                const tagName = typeof tag === 'string' ? tag : tag.Name || '';
-                if (NSFW_KEYWORDS.includes(tagName.toLowerCase())) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        /**
-         * Normalize ModelScope model to UnifiedEntity
-         */
-        normalize(raw) {
-            // Build ID
-            const modelPath = raw.Path || raw.Name || `${raw.Namespace}/${raw.Name}`;
-            const id = `modelscope:${modelPath}`;
-            const slug = `modelscope-${this.slugify(modelPath)}`;
-
-            // Extract tags
-            const rawTags = raw.Tags || [];
-            const tags = rawTags.map(t => typeof t === 'string' ? t : t.Name).filter(Boolean);
-            tags.push('modelscope');
-            if (raw.ChineseName) tags.push('chinese');
-
-            // Determine pipeline_tag
-            const taskType = raw.Task || raw.Tasks?.[0] || 'unknown';
-            const pipelineTag = TASK_TYPE_MAP[taskType] || taskType;
-
-            // Get cover image
-            const coverImage = raw.CoverUrl || raw.Avatar || null;
-
-            // Build description (prefer English, fallback to Chinese)
-            const description = this.truncate(
-                raw.Description || raw.ChineseDescription || raw.Summary || '',
-                500
-            );
-
-            return {
-                id,
-                slug,
-                name: raw.Name || raw.ChineseName,
-                author: raw.Namespace || raw.Owner || 'modelscope',
-                description,
-                body_content: raw.Description || raw.ChineseDescription || '',
-                tags: JSON.stringify(tags),
-                pipeline_tag: pipelineTag,
-
-                // Source tracking (V4.3.1 Constitution)
-                source: 'modelscope',
-                source_url: `https://modelscope.cn/models/${modelPath}`,
-                source_trail: JSON.stringify({
-                    source: 'modelscope',
-                    source_id: modelPath,
-                    harvested_at: new Date().toISOString(),
-                    harvester_version: 'L1-v4.3.1'
-                }),
-
-                // Metrics
-                downloads: raw.Downloads || raw.DownloadCount || 0,
-                likes: raw.Stars || raw.Likes || 0,
-
-                // Model info
-                license: raw.License || 'apache-2.0',
-
-                // Media
-                cover_image_url: coverImage,
-
-                // Version info
-                last_updated: raw.UpdateTime || raw.LastModifiedTime,
-                created_at: raw.CreatedTime,
-
-                // Chinese model flag
-                is_chinese: !!raw.ChineseName,
-                chinese_name: raw.ChineseName || null,
-
-                // Compliance
-                compliance_status: 'approved'
-            };
-        }
-
-        /**
-         * Helper: Create URL-safe slug
-         */
-        slugify(text) {
-            return text
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-|-$/g, '')
-                .slice(0, 50);
-        }
-
-        /**
-         * Helper: Truncate text
-         */
-        truncate(text, maxLength) {
-            if (!text || text.length <= maxLength) return text;
-            return text.slice(0, maxLength - 3) + '...';
-        }
-
-        /**
-         * Helper: Delay for rate limiting
-         */
-        delay(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
+        console.log(`✅ [ModelScope] Fetched ${allModels.length} models`);
+        return allModels.slice(0, limit);
     }
+
+    /**
+     * V4.3.1: Check if model is safe for work
+     */
+    isSafeForWork(model) {
+        const text = `${model.Name || ''} ${model.Description || ''} ${model.ChineseName || ''}`.toLowerCase();
+
+        for (const keyword of NSFW_KEYWORDS) {
+            if (text.includes(keyword.toLowerCase())) {
+                return false;
+            }
+        }
+
+        // Check tags if present
+        const tags = model.Tags || [];
+        for (const tag of tags) {
+            const tagName = typeof tag === 'string' ? tag : tag.Name || '';
+            if (NSFW_KEYWORDS.includes(tagName.toLowerCase())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Normalize ModelScope model to UnifiedEntity
+     */
+    normalize(raw) {
+        // Build ID
+        const modelPath = raw.Path || raw.Name || `${raw.Namespace}/${raw.Name}`;
+        const id = `modelscope:${modelPath}`;
+        const slug = `modelscope-${this.slugify(modelPath)}`;
+
+        // Extract tags
+        const rawTags = raw.Tags || [];
+        const tags = rawTags.map(t => typeof t === 'string' ? t : t.Name).filter(Boolean);
+        tags.push('modelscope');
+        if (raw.ChineseName) tags.push('chinese');
+
+        // Determine pipeline_tag
+        const taskType = raw.Task || raw.Tasks?.[0] || 'unknown';
+        const pipelineTag = TASK_TYPE_MAP[taskType] || taskType;
+
+        // Get cover image
+        const coverImage = raw.CoverUrl || raw.Avatar || null;
+
+        // Build description (prefer English, fallback to Chinese)
+        const description = this.truncate(
+            raw.Description || raw.ChineseDescription || raw.Summary || '',
+            500
+        );
+
+        return {
+            id,
+            slug,
+            name: raw.Name || raw.ChineseName,
+            author: raw.Namespace || raw.Owner || 'modelscope',
+            description,
+            body_content: raw.Description || raw.ChineseDescription || '',
+            tags: JSON.stringify(tags),
+            pipeline_tag: pipelineTag,
+
+            // Source tracking (V4.3.1 Constitution)
+            source: 'modelscope',
+            source_url: `https://modelscope.cn/models/${modelPath}`,
+            source_trail: JSON.stringify({
+                source: 'modelscope',
+                source_id: modelPath,
+                harvested_at: new Date().toISOString(),
+                harvester_version: 'L1-v4.3.1'
+            }),
+
+            // Metrics
+            downloads: raw.Downloads || raw.DownloadCount || 0,
+            likes: raw.Stars || raw.Likes || 0,
+
+            // Model info
+            license: raw.License || 'apache-2.0',
+
+            // Media
+            cover_image_url: coverImage,
+
+            // Version info
+            last_updated: raw.UpdateTime || raw.LastModifiedTime,
+            created_at: raw.CreatedTime,
+
+            // Chinese model flag
+            is_chinese: !!raw.ChineseName,
+            chinese_name: raw.ChineseName || null,
+
+            // Compliance
+            compliance_status: 'approved'
+        };
+    }
+
+    /**
+     * Helper: Create URL-safe slug
+     */
+    slugify(text) {
+        return text
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '')
+            .slice(0, 50);
+    }
+
+    /**
+     * Helper: Truncate text
+     */
+    truncate(text, maxLength) {
+        if (!text || text.length <= maxLength) return text;
+        return text.slice(0, maxLength - 3) + '...';
+    }
+
+    /**
+     * Helper: Delay for rate limiting
+     */
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
 
 export default ModelScopeAdapter;
