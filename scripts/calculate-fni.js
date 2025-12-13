@@ -316,6 +316,41 @@ function calculateFNI(model, allModels) {
 }
 
 /**
+ * V4 Stable: Check FNI stability (>20% variance detection)
+ * C2: Divide-zero protection added
+ * @param {Object} model - Current model with fni_score
+ * @param {number} previousFNI - Previous FNI score
+ * @returns {Object} - Stability result with status
+ */
+function checkFNIStability(model, previousFNI) {
+    // V4 Stable: Divide-zero protection (MANDATORY)
+    if (!previousFNI || previousFNI === 0 || isNaN(previousFNI)) {
+        return { stable: true, delta: 0, status: 'new' };
+    }
+
+    const currentFNI = model.fni_score || 0;
+    const delta = Math.abs(currentFNI - previousFNI) / previousFNI;
+
+    if (delta > 0.20) {
+        // Flag as unstable
+        model.fni_status = 'unstable';
+        model.fni_anomaly_flags = JSON.stringify({
+            reason: 'variance_exceeded',
+            delta: (delta * 100).toFixed(1) + '%',
+            previous: previousFNI,
+            current: currentFNI
+        });
+
+        console.warn(`[FNI-STABILITY] ${model.id || model.umid} variance ${(delta * 100).toFixed(1)}% > 20%`);
+
+        return { stable: false, delta, status: 'unstable' };
+    }
+
+    model.fni_status = 'stable';
+    return { stable: true, delta, status: 'stable' };
+}
+
+/**
  * Calculate percentile rankings
  */
 function calculatePercentiles(models) {
