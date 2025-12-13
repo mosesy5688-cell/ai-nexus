@@ -37,12 +37,12 @@ config({ path: path.join(__dirname, '../.dev.vars') });
 
 const CONFIG = {
     // Weight configuration (must sum to 1.0)
-    // V3.3 Data Expansion: Added U dimension
+    // V4.7 Constitution: FNI = 0.3P + 0.3V + 0.2C + 0.2U
     WEIGHTS: {
-        P: 0.25,  // Popularity
-        V: 0.25,  // Velocity
-        C: 0.30,  // Credibility (highest for fairness)
-        U: 0.20   // Utility (Runtime Ecosystem)
+        P: 0.30,  // Popularity (V4.7)
+        V: 0.30,  // Velocity (V4.7)
+        C: 0.20,  // Credibility (V4.7)
+        U: 0.20   // Utility (V4.7)
     },
 
     // Normalization baselines (based on data distribution)
