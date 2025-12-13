@@ -28,6 +28,10 @@ let slug = Array.isArray(slugParam) ? slugParam.join('/') : (slugParam || '');
 // Decode URL-encoded characters like %3A → : for hf-dataset:deepmind:code_contests
 slug = decodeURIComponent(slug);
 
+// Debug: trace actual slug value (check in browser dev tools Network tab)
+Astro.response.headers.set('X-Debug-Slug', slug || 'EMPTY');
+Astro.response.headers.set('X-Debug-SlugParam', JSON.stringify(slugParam) || 'NULL');
+
 let model = null;
 let error = null;
 let similarModels = [];
