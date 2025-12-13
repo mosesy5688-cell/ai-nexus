@@ -1,0 +1,22 @@
+name = "l9-guardian"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Constitutional compliance markers
+# - Guardian Law: SYNC < 5ms
+# - Art.IX-Batch: KV batch writes
+# - Art.IX-Metrics: P95 monitoring
+
+[[kv_namespaces]]
+binding = "KV_CACHE"
+id = "24a9a70c8676477c98bf4a02f3b75b05"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-nexus-db"
+database_id = "adac7bc9-46a9-40b4-b609-28479221a17d"
+
+# Routes - L9 Guardian should be the first line of defense
+# Deploy as a separate worker and route all traffic through it
+# OR integrate into Pages Functions middleware
