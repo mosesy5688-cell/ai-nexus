@@ -224,6 +224,65 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
             console.log(`[Monitor] Logged successfully`);
         });
 
+        // ---------------------------------------------------------
+        // STEP 4: L8 PRECOMPUTE (Every 6 hours)
+        // Generate cache files for read-only frontend
+        // ---------------------------------------------------------
+        const hour = new Date().getUTCHours();
+        if (hour % 6 === 0) { // Run at 0, 6, 12, 18 UTC
+            await step.do('precompute-cache', async () => {
+                console.log('[L8] Starting cache precompute...');
+
+                // Trending models (top 100 by FNI)
+                const trending = await env.DB.prepare(`
+                    SELECT id, slug, name, author, fni_score, downloads, likes,
+                           cover_image_url, tags, has_ollama, has_gguf
+                    FROM models 
+                    WHERE fni_score IS NOT NULL
+                    ORDER BY fni_score DESC 
+                    LIMIT 100
+                `).all();
+
+                if (trending.results && trending.results.length > 0) {
+                    await env.R2_ASSETS.put('cache/trending.json',
+                        JSON.stringify({
+                            generated_at: new Date().toISOString(),
+                            version: 'V4.7',
+                            count: trending.results.length,
+                            models: trending.results
+                        }, null, 2),
+                        { httpMetadata: { contentType: 'application/json' } }
+                    );
+                    console.log(`[L8] Trending cache: ${trending.results.length} models`);
+                }
+
+                // Leaderboard (top 50 with benchmarks)
+                const leaderboard = await env.DB.prepare(`
+                    SELECT m.id, m.slug, m.name, m.author, m.fni_score,
+                           m.params_billions, m.vram_gb, m.has_ollama
+                    FROM models m
+                    WHERE m.fni_score IS NOT NULL
+                    ORDER BY m.fni_score DESC
+                    LIMIT 50
+                `).all();
+
+                if (leaderboard.results && leaderboard.results.length > 0) {
+                    await env.R2_ASSETS.put('cache/leaderboard.json',
+                        JSON.stringify({
+                            generated_at: new Date().toISOString(),
+                            version: 'V4.7',
+                            count: leaderboard.results.length,
+                            models: leaderboard.results
+                        }, null, 2),
+                        { httpMetadata: { contentType: 'application/json' } }
+                    );
+                    console.log(`[L8] Leaderboard cache: ${leaderboard.results.length} models`);
+                }
+
+                console.log('[L8] Cache precompute complete');
+            });
+        }
+
         return result;
     }
 }
