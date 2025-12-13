@@ -1,0 +1,101 @@
+---
+import Layout from './Layout.astro';
+
+const { frontmatter } = Astro.props;
+---
+
+<Layout title={frontmatter.title + ' | AI Knowledge'} description={`Learn about ${frontmatter.title} - AI model architecture and concepts`}>
+  <main class="knowledge-page">
+    <article class="knowledge-content">
+      <header class="knowledge-header">
+        <nav class="breadcrumb">
+          <a href="/">Home</a> / <a href="/knowledge">Knowledge</a> / <span>{frontmatter.title}</span>
+        </nav>
+        <h1>{frontmatter.title}</h1>
+      </header>
+      
+      <div class="prose">
+        <slot />
+      </div>
+      
+      <footer class="knowledge-footer">
+        <a href="/knowledge">← Back to Knowledge Base</a>
+      </footer>
+    </article>
+  </main>
+</Layout>
+
+<style>
+  .knowledge-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+  
+  .knowledge-header {
+    margin-bottom: 2rem;
+  }
+  
+  .breadcrumb {
+    font-size: 0.875rem;
+    color: var(--text-muted, #666);
+    margin-bottom: 1rem;
+  }
+  
+  .breadcrumb a {
+    color: var(--link-color, #0066cc);
+    text-decoration: none;
+  }
+  
+  .breadcrumb a:hover {
+    text-decoration: underline;
+  }
+  
+  .prose {
+    line-height: 1.7;
+  }
+  
+  .prose h2 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+  }
+  
+  .prose h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .prose pre {
+    background: var(--code-bg, #f4f4f4);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+  }
+  
+  .prose table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+  }
+  
+  .prose th, .prose td {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color, #ddd);
+    text-align: left;
+  }
+  
+  .prose th {
+    background: var(--table-header-bg, #f0f0f0);
+  }
+  
+  .knowledge-footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color, #ddd);
+  }
+  
+  .knowledge-footer a {
+    color: var(--link-color, #0066cc);
+    text-decoration: none;
+  }
+</style>
