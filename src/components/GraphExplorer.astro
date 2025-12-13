@@ -28,9 +28,11 @@ const buildTime = import.meta.env.PUBLIC_BUILD_TIME || Date.now().toString();
     </div>
 </div>
 
-<script is:inline src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<!-- V4.6 Performance: Defer D3.js to not block LCP -->
+<script defer src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script is:inline>
-    // D3 is loaded globally from CDN above
+    // D3 is loaded globally from CDN above (deferred)
+    // Use Intersection Observer for lazy initialization
     (function() {
         const container = document.getElementById('graph-container');
         if (!container) {
