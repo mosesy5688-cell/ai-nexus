@@ -34,12 +34,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
         const cachedHTML = await context.locals.runtime.env.KV_CACHE.get(cacheKey);
 
         if (cachedHTML && typeof cachedHTML === 'string') {
-            // Cache hit - return immediately
+            // Cache hit - return immediately with browser caching
             return new Response(cachedHTML, {
                 headers: {
                     'Content-Type': 'text/html',
                     'X-Cache': 'HIT',
-                    'X-Cache-Key': cacheKey
+                    'X-Cache-Key': cacheKey,
+                    'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400' // V4.6: Browser caching
                 }
             });
         }
