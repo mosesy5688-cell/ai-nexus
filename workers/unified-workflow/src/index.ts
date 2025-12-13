@@ -268,8 +268,8 @@ function cleanModel(model: any): any {
 }
 
 /**
- * Compute FNI scores using V4.1 canonical weights
- * FNI = P × 25% + V × 25% + C × 30% + U × 20%
+ * Compute FNI scores using V4.7 canonical weights
+ * FNI = P × 30% + V × 30% + C × 20% + U × 20%
  * 
  * @param model - Current model data
  * @param oldData - Optional 7-day old data for velocity calculation
@@ -278,7 +278,7 @@ function computeFNI(
     model: any,
     oldData?: { downloads: number; likes: number }
 ): { score: number; p: number; v: number; c: number; u: number } {
-    // P: Popularity (25%) - based on downloads and likes
+    // P: Popularity (30%) - based on downloads and likes
     const downloads = model.downloads || 0;
     const likes = model.likes || 0;
     const maxDownloads = 1000000;
@@ -287,7 +287,7 @@ function computeFNI(
         (Math.min(likes / maxLikes, 1) * 40 + Math.min(downloads / maxDownloads, 1) * 60)
     );
 
-    // V: Velocity (25%) - 7-day growth rate
+    // V: Velocity (30%) - 7-day growth rate
     let v = 0;
     if (oldData) {
         const downloadGrowth = downloads - (oldData.downloads || 0);
@@ -298,7 +298,7 @@ function computeFNI(
         v = Math.max(0, (downloadVelocity * 0.7 + likeVelocity * 0.3));
     }
 
-    // C: Credibility (30%) - documentation, license, source trail
+    // C: Credibility (20%) - documentation, license, source trail
     let c = 0;
     if (model.license_spdx) c += 30;
     if (model.body_content_url) c += 40;
@@ -309,8 +309,8 @@ function computeFNI(
     if (model.has_ollama) u += 50;
     if (model.has_gguf) u += 50;
 
-    // Weighted sum: P×25% + V×25% + C×30% + U×20%
-    const score = (p * 0.25) + (v * 0.25) + (c * 0.30) + (u * 0.20);
+    // V4.7 Constitution: P×30% + V×30% + C×20% + U×20%
+    const score = (p * 0.30) + (v * 0.30) + (c * 0.20) + (u * 0.20);
 
     return {
         score: Math.min(100, Math.round(score)),
