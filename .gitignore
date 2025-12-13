@@ -27,3 +27,8 @@ yarn-error.log*
 # CRITICAL: Never commit planning docs to public repository
 .gemini/
 C:\Users\admin\.gemini\
+
+# Constitution V4.3.2 - Project Highest Law (CONFIDENTIAL)
+# This document contains internal architecture and strategy information
+docs/CONSTITUTION_V4.3.2.md
+**/CONSTITUTION*.md
