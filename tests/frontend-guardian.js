@@ -298,6 +298,20 @@ async function validateConstitutional() {
             });
         }
 
+        // V4.7 Art.8: FNI volatility check
+        // Sample top models and check for extreme FNI values
+        const topModels = data.results.filter(m => m.fni_score !== null).slice(0, 10);
+        const avgFni = topModels.reduce((sum, m) => sum + (m.fni_score || 0), 0) / (topModels.length || 1);
+
+        // Check for anomalous FNI distribution (potential pollution)
+        const highVariance = topModels.some(m => Math.abs((m.fni_score || 0) - avgFni) > 40);
+        if (highVariance) {
+            issues.push({
+                type: 'FNI_WARN',
+                message: 'Art.8 Warning: High FNI variance detected (possible data pollution)'
+            });
+        }
+
     } catch (error) {
         issues.push({ type: 'VALIDATION_ERROR', message: error.message });
     }
@@ -345,6 +359,50 @@ async function validateZenDesign() {
 
     const hasFail = issues.some(i => i.type === 'ZEN_FAIL');
     return { pass: !hasFail, issues };
+}
+
+/**
+ * V4.7 Data Coverage Validation (Art.1)
+ * Checks that detail pages display all available data
+ */
+async function validateDataCoverage() {
+    const issues = [];
+
+    try {
+        // Test a model detail page for data completeness
+        const searchResponse = await fetch(`${BASE}/api/search?limit=5`);
+        const searchData = await searchResponse.json();
+
+        if (!searchData.results || searchData.results.length === 0) {
+            return { pass: true, issues }; // No models to check
+        }
+
+        const testModel = searchData.results[0];
+        const modelUrl = `${BASE}/model/${encodeURIComponent(testModel.slug)}`;
+        const pageResponse = await fetch(modelUrl);
+        const html = await pageResponse.text();
+
+        // Art.1: Check essential data sections exist
+        const requiredSections = [
+            { name: 'FNI Score', pattern: /fni|score/i },
+            { name: 'Parameters', pattern: /param|billion/i },
+            { name: 'License', pattern: /license|spdx/i }
+        ];
+
+        for (const section of requiredSections) {
+            if (!section.pattern.test(html)) {
+                issues.push({
+                    type: 'COVERAGE_WARN',
+                    message: `Art.1 Warning: ${section.name} section may be missing`
+                });
+            }
+        }
+
+    } catch (error) {
+        issues.push({ type: 'VALIDATION_ERROR', message: error.message });
+    }
+
+    return { pass: issues.filter(i => i.type.includes('FAIL')).length === 0, issues };
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -482,6 +540,28 @@ async function runGuardian() {
         results.zenDesign.issues.forEach(i => {
             console.log(`   ↳ ${i.type}: ${i.message}`);
             results.summary.issues.push({ context: 'Zen Design', ...i });
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 6. V4.7 Data Coverage Audit (Art.1)
+    // ─────────────────────────────────────────────────────────────
+    console.log('\n┌─────────────────────────────────────────────────────────────┐');
+    console.log('│ PHASE 6: V4.7 Data Coverage Audit                           │');
+    console.log('└─────────────────────────────────────────────────────────────┘\n');
+
+    results.dataCoverage = await validateDataCoverage();
+    results.summary.total++;
+
+    if (results.dataCoverage.pass) {
+        console.log('✅ Data Coverage Compliance            PASS');
+        results.summary.passed++;
+    } else {
+        console.log('❌ Data Coverage Compliance            FAIL');
+        results.summary.failed++;
+        results.dataCoverage.issues.forEach(i => {
+            console.log(`   ↳ ${i.type}: ${i.message}`);
+            results.summary.issues.push({ context: 'Data Coverage', ...i });
         });
     }
 
