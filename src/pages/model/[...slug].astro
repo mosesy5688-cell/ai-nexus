@@ -37,7 +37,9 @@ let pageDescription = "Explore comprehensive information about this AI model.";
 try {
   if (!slug) throw new Error("No slug provided");
   
+  console.log(`[Model Page] Resolving slug: "${slug}"`);
   const result = await resolveToModel(slug, Astro.locals);
+  console.log(`[Model Page] Resolution result:`, result?.resolution?.source, result?.model?.id);
   model = result?.model || null;
   resolution = result?.resolution || null;
   
