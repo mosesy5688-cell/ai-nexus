@@ -24,7 +24,9 @@ import { resolveToModel } from '../../utils/umid-resolver';
 import { safeParseJSON } from '../../utils/model-detail-builder';
 
 const slugParam = Astro.params.slug;
-const slug = Array.isArray(slugParam) ? slugParam.join('/') : (slugParam || '');
+let slug = Array.isArray(slugParam) ? slugParam.join('/') : (slugParam || '');
+// Decode URL-encoded characters like %3A → : for hf-dataset:deepmind:code_contests
+slug = decodeURIComponent(slug);
 
 let model = null;
 let error = null;
