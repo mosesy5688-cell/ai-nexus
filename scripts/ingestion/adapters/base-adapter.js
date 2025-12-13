@@ -132,12 +132,13 @@ export class BaseAdapter {
     // ============================================================
 
     /**
-     * Generate unique ID in format: {source}:{author}:{name}
+     * Generate unique ID in format: {source}--{author}--{name}
+     * V4.7: Use double-dash instead of colon for URL-safe slugs
      */
     generateId(author, name) {
         const safeAuthor = this.sanitizeName(author);
         const safeName = this.sanitizeName(name);
-        return `${this.sourceName}:${safeAuthor}:${safeName}`;
+        return `${this.sourceName}--${safeAuthor}--${safeName}`;
     }
 
     /**
