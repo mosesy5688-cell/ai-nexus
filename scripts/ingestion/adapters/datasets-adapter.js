@@ -233,7 +233,8 @@ export class DatasetsAdapter extends BaseAdapter {
     generateDatasetId(author, name) {
         const safeAuthor = this.sanitizeName(author);
         const safeName = this.sanitizeName(name);
-        return `hf-dataset:${safeAuthor}:${safeName}`;
+        // V4.7: Use double-dash instead of colon for URL-safe slugs
+        return `hf-dataset--${safeAuthor}--${safeName}`;
     }
 
     parseDatasetId(datasetId) {

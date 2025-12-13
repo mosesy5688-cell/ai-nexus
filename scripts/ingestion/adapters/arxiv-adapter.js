@@ -174,7 +174,8 @@ export class ArXivAdapter extends BaseAdapter {
 
         const entity = {
             // Identity
-            id: `arxiv:${arxivId}`,
+            // V4.7: Use double-dash instead of colon for URL-safe slugs
+            id: `arxiv--${arxivId}`,
             type: 'paper',
             source: 'arxiv',
             source_url: `https://arxiv.org/abs/${arxivId}`,
