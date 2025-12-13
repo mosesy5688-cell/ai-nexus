@@ -203,6 +203,20 @@ export async function resolveToModel(slug, locals) {
     const variants = generateVariants(normalized);
 
     try {
+        // Step 0: Try exact original slug first (for hf-dataset:author:name format)
+        const exactModel = await db.prepare(`
+            SELECT * FROM models WHERE LOWER(slug) = LOWER(?) LIMIT 1
+        `).bind(slug).first();
+
+        if (exactModel) {
+            const result = {
+                model: exactModel,
+                resolution: { source: 'exact-slug', confidence: 1.0 }
+            };
+            await cacheResolverResult(cacheKey, result, kvCache);
+            return result;
+        }
+
         // Step 1: Try umid_resolver table (highest confidence)
         for (const variant of variants) {
             const resolverResult = await db.prepare(`
