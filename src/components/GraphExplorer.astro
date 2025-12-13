@@ -31,21 +31,22 @@ const buildTime = import.meta.env.PUBLIC_BUILD_TIME || Date.now().toString();
 <!-- V4.6 Performance: Defer D3.js to not block LCP -->
 <script defer src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script is:inline>
-    // D3 is loaded globally from CDN above (deferred)
-    // Use Intersection Observer for lazy initialization
+    // V4 Stable D1: requestIdleCallback + Intersection Observer for true idle loading
+    // Only initialize when: 1) browser is idle AND 2) component is visible
     (function() {
-        const container = document.getElementById('graph-container');
-        if (!container) {
-            console.warn('[GraphExplorer] Container not found');
-            return;
-        }
-        
-        const modelId = container.dataset.modelId;
-        const buildTime = container.dataset.buildTime || Date.now();
-        if (!modelId) {
-            console.error('[GraphExplorer] modelId not found in dataset');
-            return;
-        }
+        function initGraphExplorer() {
+            const container = document.getElementById('graph-container');
+            if (!container) {
+                console.warn('[GraphExplorer] Container not found');
+                return;
+            }
+            
+            const modelId = container.dataset.modelId;
+            const buildTime = container.dataset.buildTime || Date.now();
+            if (!modelId) {
+                console.error('[GraphExplorer] modelId not found in dataset');
+                return;
+            }
         
         const svg = d3.select("#d3-graph");
         const loading = document.getElementById('graph-loading');
@@ -223,6 +224,35 @@ const buildTime = import.meta.env.PUBLIC_BUILD_TIME || Date.now().toString();
         
         // Load
         loadGraphData();
+        }
+        
+        // V4 Stable D1: Only initialize when visible AND browser is idle
+        const scheduleInit = function() {
+            const explorer = document.getElementById('graph-explorer');
+            if (!explorer) return;
+            
+            // Use Intersection Observer for visibility detection
+            const observer = new IntersectionObserver(function(entries) {
+                if (entries[0].isIntersecting) {
+                    observer.disconnect();
+                    // Use requestIdleCallback for true idle loading
+                    if ('requestIdleCallback' in window) {
+                        requestIdleCallback(initGraphExplorer, { timeout: 3000 });
+                    } else {
+                        setTimeout(initGraphExplorer, 200);
+                    }
+                }
+            }, { rootMargin: '100px' });
+            
+            observer.observe(explorer);
+        };
+        
+        // Wait for D3 to load before scheduling
+        if (typeof d3 !== 'undefined') {
+            scheduleInit();
+        } else {
+            window.addEventListener('load', scheduleInit);
+        }
     })();
 </script>
 
