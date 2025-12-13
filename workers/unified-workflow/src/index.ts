@@ -283,6 +283,60 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
             });
         }
 
+        // ---------------------------------------------------------
+        // STEP 5: WEEKLY REPORT (Monday only)
+        // Generate weekly trending report for users
+        // ---------------------------------------------------------
+        const dayOfWeek = new Date().getUTCDay();
+        if (dayOfWeek === 1 && hour >= 0 && hour < 1) { // Monday 00:00-01:00 UTC
+            await step.do('generate-weekly-report', async () => {
+                console.log('[Report] Generating weekly report...');
+
+                // Get week number
+                const now = new Date();
+                const startOfYear = new Date(now.getUTCFullYear(), 0, 1);
+                const weekNum = Math.ceil((((now.getTime() - startOfYear.getTime()) / 86400000) + startOfYear.getUTCDay() + 1) / 7);
+                const reportKey = `reports/${now.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}.json`;
+
+                // Get top trending models
+                const trending = await env.DB.prepare(`
+                    SELECT id, slug, name, author, fni_score, downloads, likes
+                    FROM models 
+                    WHERE fni_score IS NOT NULL
+                    ORDER BY fni_score DESC 
+                    LIMIT 20
+                `).all();
+
+                // Get new models this week
+                const newModels = await env.DB.prepare(`
+                    SELECT id, slug, name, author
+                    FROM models 
+                    WHERE last_updated > datetime('now', '-7 days')
+                    ORDER BY last_updated DESC
+                    LIMIT 10
+                `).all();
+
+                const report = {
+                    generated_at: now.toISOString(),
+                    week: `${now.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`,
+                    version: 'V4.7',
+                    top_trending: trending.results || [],
+                    new_models: newModels.results || [],
+                    summary: {
+                        total_trending: (trending.results || []).length,
+                        total_new: (newModels.results || []).length
+                    }
+                };
+
+                await env.R2_ASSETS.put(reportKey,
+                    JSON.stringify(report, null, 2),
+                    { httpMetadata: { contentType: 'application/json' } }
+                );
+
+                console.log(`[Report] Weekly report saved: ${reportKey}`);
+            });
+        }
+
         return result;
     }
 }

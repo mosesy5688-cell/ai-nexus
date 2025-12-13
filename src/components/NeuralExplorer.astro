@@ -1,0 +1,211 @@
+---
+/**
+ * Neural Network Explorer Component
+ * V4.7 Art.1 Compliant - Static Learning View
+ * 
+ * Displays model architecture information for learning purposes.
+ * No WebGL, no dynamic computation, pure static visualization.
+ */
+
+interface Props {
+    model: {
+        name: string;
+        architecture?: string;
+        params_billions?: number;
+        context_length?: number;
+        num_layers?: number;
+        hidden_size?: number;
+    };
+}
+
+const { model } = Astro.props;
+
+// Architecture family mapping
+const architectureInfo: Record<string, { icon: string; layers: string[]; description: string }> = {
+    'transformer': {
+        icon: '🔄',
+        layers: ['Embedding', 'Multi-Head Attention', 'Feed-Forward', 'Layer Norm', 'Output'],
+        description: 'Standard transformer architecture with self-attention mechanism'
+    },
+    'llama': {
+        icon: '🦙',
+        layers: ['RoPE Embedding', 'Grouped Query Attention', 'SwiGLU FFN', 'RMSNorm', 'LM Head'],
+        description: 'Meta LLaMA architecture with RoPE and GQA'
+    },
+    'mistral': {
+        icon: '💨',
+        layers: ['RoPE Embedding', 'Sliding Window Attention', 'SwiGLU FFN', 'RMSNorm', 'LM Head'],
+        description: 'Mistral architecture with sliding window attention'
+    },
+    'moe': {
+        icon: '🎭',
+        layers: ['Embedding', 'Attention', 'Expert Router', 'Top-K Experts', 'Output'],
+        description: 'Mixture of Experts with conditional computation'
+    },
+    'default': {
+        icon: '🧠',
+        layers: ['Input Layer', 'Hidden Layers', 'Attention', 'Output Layer'],
+        description: 'Neural network architecture'
+    }
+};
+
+// Determine architecture type
+const archType = (model.architecture || 'default').toLowerCase();
+const archInfo = architectureInfo[archType] || architectureInfo['default'];
+---
+
+<section class="neural-explorer">
+    <h3 class="explorer-title">
+        <span class="icon">{archInfo.icon}</span>
+        Architecture Explorer
+    </h3>
+    
+    <p class="arch-description">{archInfo.description}</p>
+    
+    <div class="layers-diagram">
+        {archInfo.layers.map((layer, index) => (
+            <div class="layer-block">
+                <span class="layer-number">{index + 1}</span>
+                <span class="layer-name">{layer}</span>
+            </div>
+        ))}
+    </div>
+    
+    <div class="specs-grid">
+        {model.params_billions && (
+            <div class="spec-item">
+                <span class="spec-label">Parameters</span>
+                <span class="spec-value">{model.params_billions}B</span>
+            </div>
+        )}
+        {model.context_length && (
+            <div class="spec-item">
+                <span class="spec-label">Context</span>
+                <span class="spec-value">{model.context_length.toLocaleString()}</span>
+            </div>
+        )}
+        {model.num_layers && (
+            <div class="spec-item">
+                <span class="spec-label">Layers</span>
+                <span class="spec-value">{model.num_layers}</span>
+            </div>
+        )}
+        {model.hidden_size && (
+            <div class="spec-item">
+                <span class="spec-label">Hidden Size</span>
+                <span class="spec-value">{model.hidden_size}</span>
+            </div>
+        )}
+    </div>
+    
+    <div class="learn-more">
+        <a href="/knowledge/transformer">Learn about Transformers →</a>
+        {archType.includes('moe') && <a href="/knowledge/moe">Learn about MoE →</a>}
+    </div>
+</section>
+
+<style>
+    .neural-explorer {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+    }
+    
+    .explorer-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #e2e8f0;
+        font-size: 1.25rem;
+        margin: 0 0 0.5rem;
+    }
+    
+    .icon {
+        font-size: 1.5rem;
+    }
+    
+    .arch-description {
+        color: #94a3b8;
+        font-size: 0.875rem;
+        margin: 0 0 1rem;
+    }
+    
+    .layers-diagram {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .layer-block {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(99, 102, 241, 0.15);
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+    
+    .layer-number {
+        background: rgba(99, 102, 241, 0.4);
+        color: white;
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .layer-name {
+        color: #e2e8f0;
+        font-size: 0.875rem;
+    }
+    
+    .specs-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .spec-item {
+        background: rgba(15, 23, 42, 0.6);
+        padding: 0.75rem;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .spec-label {
+        display: block;
+        color: #64748b;
+        font-size: 0.75rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .spec-value {
+        color: #e2e8f0;
+        font-weight: 600;
+    }
+    
+    .learn-more {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .learn-more a {
+        color: #818cf8;
+        text-decoration: none;
+        font-size: 0.875rem;
+    }
+    
+    .learn-more a:hover {
+        text-decoration: underline;
+    }
+</style>
