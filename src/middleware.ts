@@ -1,28 +1,119 @@
 import { defineMiddleware } from "astro:middleware";
 
 /**
- * Smart KV Caching Middleware with Visit Counter
+ * V4.8 Unified Middleware
  * 
- * Strategy:
- * - Count visits to each page
- * - Only cache pages with 3+ visits (hot content)
- * - Automatic quota management within free tier limits
+ * Layer 1: L9 Guardian Protection (SYNC < 5ms)
+ * Layer 2: Smart KV Caching
  * 
- * Free Tier Limits:
- * - Reads: 100,000/day (plenty for counters)
- * - Writes: 1,000/day (only hot pages cached)
+ * Constitution V4.8 Compliance:
+ * - Guardian Law: SYNC < 5ms
+ * - Art.IX-Batch: KV batch writes
+ * - Art.IX-Metrics: P95 monitoring
  */
 
-const CACHE_VERSION = 'v3.1.0';
-const MIN_VISITS_TO_CACHE = 3; // Visit threshold
-const CACHE_TTL = 86400; // 24 hours
+const CACHE_VERSION = 'v4.8.0';
+const MIN_VISITS_TO_CACHE = 3;
+const CACHE_TTL = 86400;
+
+// L9 Guardian Constants
+const RATE_LIMIT_PER_MINUTE = 100;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+
+// In-memory rate limit cache (resets on worker restart)
+const rateLimitCache = new Map<string, { count: number; resetAt: number }>();
+
+/**
+ * L9 Guardian: SYNC protection layer (< 5ms)
+ */
+async function guardianCheck(context: any): Promise<Response | null> {
+    const ip = context.request.headers.get('cf-connecting-ip') || 'unknown';
+    const url = new URL(context.request.url);
+    const env = context.locals.runtime?.env;
+    const startTime = performance.now();
+
+    if (!env?.KV_CACHE) {
+        return null; // No KV, skip guardian
+    }
+
+    // 1. Check blacklist (KV read - fast)
+    try {
+        const isBlacklisted = await env.KV_CACHE.get(`blacklist:${ip}`);
+        if (isBlacklisted) {
+            return new Response('Forbidden', {
+                status: 403,
+                headers: {
+                    'X-Guardian-Blocked': 'blacklist',
+                    'X-Guardian-Time': `${(performance.now() - startTime).toFixed(2)}ms`
+                }
+            });
+        }
+    } catch (e) {
+        // KV error, continue without blocking
+    }
+
+    // 2. Rate limit check (memory - instant)
+    const now = Date.now();
+    const rateKey = `${ip}:${url.pathname}`;
+    const rateData = rateLimitCache.get(rateKey);
+
+    if (rateData) {
+        if (now < rateData.resetAt) {
+            if (rateData.count >= RATE_LIMIT_PER_MINUTE) {
+                return new Response('Too Many Requests', {
+                    status: 429,
+                    headers: {
+                        'Retry-After': '60',
+                        'X-Guardian-Blocked': 'rate-limit',
+                        'X-Guardian-Time': `${(performance.now() - startTime).toFixed(2)}ms`
+                    }
+                });
+            }
+            rateData.count++;
+        } else {
+            rateData.count = 1;
+            rateData.resetAt = now + RATE_LIMIT_WINDOW_MS;
+        }
+    } else {
+        rateLimitCache.set(rateKey, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    }
+
+    // Clean up old entries periodically
+    if (rateLimitCache.size > 10000) {
+        const entries = Array.from(rateLimitCache.entries());
+        for (const [key, data] of entries) {
+            if (now > data.resetAt) {
+                rateLimitCache.delete(key);
+            }
+        }
+    }
+
+    return null; // Pass through
+}
 
 export const onRequest = defineMiddleware(async (context, next) => {
+    const startTime = performance.now();
     const url = new URL(context.request.url);
+
+    // ═══════════════════════════════════════════════════════
+    // LAYER 1: L9 Guardian Protection
+    // ═══════════════════════════════════════════════════════
+    const guardianResponse = await guardianCheck(context);
+    if (guardianResponse) {
+        return guardianResponse;
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // LAYER 2: Smart KV Caching (existing logic)
+    // ═══════════════════════════════════════════════════════
     const isCacheable = url.pathname.startsWith('/model/') || url.pathname.startsWith('/topic/');
 
     if (!isCacheable || !context.locals.runtime?.env?.KV_CACHE) {
-        return await next();
+        const response = await next();
+        // Add guardian time header
+        response.headers.set('X-Guardian-Time', `${(performance.now() - startTime).toFixed(2)}ms`);
+        response.headers.set('X-Guardian-Version', 'v4.8');
+        return response;
     }
 
     const pageKey = url.pathname;
