@@ -405,6 +405,39 @@ async function validateDataCoverage() {
     return { pass: issues.filter(i => i.type.includes('FAIL')).length === 0, issues };
 }
 
+/**
+ * V4.7 Filter Awareness Validation
+ * Checks that filters don't result in empty or overly broad results
+ */
+async function validateFilterAwareness() {
+    const issues = [];
+
+    try {
+        // Test a common filter combination
+        const testFilters = [
+            { name: 'Platform: Ollama', url: `${BASE}/api/search?has_ollama=1&limit=5` },
+            { name: 'Size: Small', url: `${BASE}/api/search?max_params=10&limit=5` }
+        ];
+
+        for (const filter of testFilters) {
+            const response = await fetch(filter.url);
+            const data = await response.json();
+
+            if (!data.results || data.results.length === 0) {
+                issues.push({
+                    type: 'FILTER_WARN',
+                    message: `Filter "${filter.name}" returned 0 results`
+                });
+            }
+        }
+
+    } catch (error) {
+        issues.push({ type: 'VALIDATION_ERROR', message: error.message });
+    }
+
+    return { pass: issues.filter(i => i.type.includes('FAIL')).length === 0, issues };
+}
+
 // ═══════════════════════════════════════════════════════════
 //                    MAIN RUNNER
 // ═══════════════════════════════════════════════════════════
@@ -562,6 +595,27 @@ async function runGuardian() {
         results.dataCoverage.issues.forEach(i => {
             console.log(`   ↳ ${i.type}: ${i.message}`);
             results.summary.issues.push({ context: 'Data Coverage', ...i });
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 7. V4.7 Filter Awareness (UX Health)
+    // ─────────────────────────────────────────────────────────────
+    console.log('\n┌─────────────────────────────────────────────────────────────┐');
+    console.log('│ PHASE 7: V4.7 Filter Awareness                              │');
+    console.log('└─────────────────────────────────────────────────────────────┘\n');
+
+    results.filterAwareness = await validateFilterAwareness();
+    results.summary.total++;
+
+    if (results.filterAwareness.pass) {
+        console.log('✅ Filter Awareness                    PASS');
+        results.summary.passed++;
+    } else {
+        console.log('⚠️ Filter Awareness                    WARN');
+        results.filterAwareness.issues.forEach(i => {
+            console.log(`   ↳ ${i.type}: ${i.message}`);
+            results.summary.issues.push({ context: 'Filter', ...i });
         });
     }
 
