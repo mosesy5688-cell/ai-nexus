@@ -37,11 +37,30 @@ const CONFIG = {
     }
 };
 
-// --- Source Detection (Constitution V4.3.2) ---
+// --- Source Detection (Constitution V4.3.2 + V4 Stable Layer) ---
+
+// V4 Stable: Source whitelist
+const SOURCE_WHITELIST = [
+    'huggingface', 'github', 'arxiv', 'ollama', 'civitai',
+    'paperswithcode', 'modelscope', 'openllm', 'google',
+    'meta', 'microsoft', 'anthropic', 'openai', 'nvidia',
+    'xai', 'apple', 'amazon', 'cohere', 'stability',
+    'official-announcement', 'paper-only', 'vendor-release'
+];
+
+/**
+ * V4 Stable: Log source fallback for observability
+ */
+function logSourceFallback(modelId, rawInput) {
+    const timestamp = new Date().toISOString();
+    console.warn(`[SOURCE-FALLBACK] ${timestamp} | ${modelId} → official-announcement`);
+    // Future: write to source_fallback_log table for analysis
+}
 
 /**
  * Detect the source of a model based on URL patterns and author names
  * Constitution V4.3.2 Compliant - Multi-channel source detection
+ * V4 Stable: Never returns 'unknown', uses 'official-announcement' fallback
  * @param {Object} model - Model object with source_url, url, author, id fields
  * @returns {string} - Detected source identifier
  */
@@ -97,7 +116,9 @@ function detectSource(model) {
         return 'huggingface';
     }
 
-    return 'unknown';
+    // V4 Stable: Never return 'unknown', use fallback with logging
+    logSourceFallback(model.id || modelId, model);
+    return 'official-announcement';
 }
 
 // --- Helper Functions ---
