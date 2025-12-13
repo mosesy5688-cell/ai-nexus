@@ -39,6 +39,9 @@ const resolvedImage = new URL(image, Astro.site || Astro.url.origin);
     <link rel="dns-prefetch" href="https://huggingface.co">
     <link rel="dns-prefetch" href="https://github.com">
     
+    <!-- V4.6 Performance: Preload critical Alpine.js (LCP blocker) -->
+    <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" as="script">
+    
     <!-- Open Graph Meta Tags -->
     <meta property="og:type" content="website">
     <meta property="og:url" content={Astro.url.href}>
