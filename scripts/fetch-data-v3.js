@@ -37,6 +37,69 @@ const CONFIG = {
     }
 };
 
+// --- Source Detection (Constitution V4.3.2) ---
+
+/**
+ * Detect the source of a model based on URL patterns and author names
+ * Constitution V4.3.2 Compliant - Multi-channel source detection
+ * @param {Object} model - Model object with source_url, url, author, id fields
+ * @returns {string} - Detected source identifier
+ */
+function detectSource(model) {
+    const sourceUrl = model.source_url || model.url || '';
+    const author = (model.author || model.id?.split('/')[0] || '').toLowerCase();
+    const modelId = (model.id || '').toLowerCase();
+
+    // Priority 1: URL-based detection (highest confidence)
+    const urlPatterns = {
+        'huggingface.co': 'huggingface',
+        'github.com': 'github',
+        'arxiv.org': 'arxiv',
+        'paperswithcode.com': 'paperswithcode',
+        'civitai.com': 'civitai',
+        'ollama.ai': 'ollama',
+        'ollama.com': 'ollama'
+    };
+
+    for (const [domain, source] of Object.entries(urlPatterns)) {
+        if (sourceUrl.includes(domain)) return source;
+    }
+
+    // Priority 2: ID prefix detection
+    if (modelId.startsWith('huggingface:')) return 'huggingface';
+    if (modelId.startsWith('github:')) return 'github';
+    if (modelId.startsWith('arxiv:')) return 'arxiv';
+
+    // Priority 3: Author-based detection (company models)
+    const authorMap = {
+        'x-ai': 'xai', 'xai': 'xai',
+        'apple': 'apple', 'nvidia': 'nvidia',
+        'google': 'google', 'google-deepmind': 'google',
+        'meta': 'meta', 'meta-llama': 'huggingface',
+        'microsoft': 'microsoft', 'anthropic': 'anthropic',
+        'openai': 'openai', 'mistralai': 'huggingface',
+        'qwen': 'huggingface', 'alibaba': 'huggingface',
+        'deepseek-ai': 'huggingface', 'cohere': 'cohere',
+        'amazon': 'amazon', 'stability': 'stability',
+        'huggingface': 'huggingface'
+    };
+
+    // Check exact author match
+    if (authorMap[author]) return authorMap[author];
+
+    // Check partial author match
+    for (const [key, source] of Object.entries(authorMap)) {
+        if (author.includes(key)) return source;
+    }
+
+    // Default: Check if ID looks like HuggingFace format (author/model-name)
+    if (modelId.includes('/') && !modelId.includes(':')) {
+        return 'huggingface';
+    }
+
+    return 'unknown';
+}
+
 // --- Helper Functions ---
 
 async function sleep(ms) {
