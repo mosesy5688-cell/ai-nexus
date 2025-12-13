@@ -31,6 +31,12 @@ const REQUIRED_UMIDS = [
     'microsoft-phi', 'deepseek-ai'
 ];
 
+// V4.7 Constitutional Violations (Art.6, Art.12)
+const CONSTITUTIONAL_VIOLATIONS = {
+    ILLEGAL_SOURCE: ['unknown', 'null', 'undefined', ''],
+    ILLEGAL_FIELDS: ['N/A', 'null', 'undefined']
+};
+
 // ═══════════════════════════════════════════════════════════
 //                    CONFIGURATION
 // ═══════════════════════════════════════════════════════════
@@ -231,6 +237,61 @@ async function validateUMIDLinks() {
     return { pass: issues.length === 0, issues };
 }
 
+/**
+ * V4.7 Constitutional Validation (Art.6, Art.12)
+ * Checks for illegal states: source=unknown, core fields=N/A
+ */
+async function validateConstitutional() {
+    const issues = [];
+
+    try {
+        // Sample models from DB via API and check for constitutional violations
+        const response = await fetch(`${BASE}/api/search?limit=20`);
+        const data = await response.json();
+
+        if (!data.results) {
+            issues.push({ type: 'API_ERROR', message: 'Search API failed' });
+            return { pass: false, issues };
+        }
+
+        let unknownSourceCount = 0;
+        let naFieldCount = 0;
+
+        for (const model of data.results) {
+            // V4.7 Art.6: source=unknown is illegal
+            if (CONSTITUTIONAL_VIOLATIONS.ILLEGAL_SOURCE.includes(model.source)) {
+                unknownSourceCount++;
+            }
+
+            // V4.7 Art.9: Core fields = N/A is warning
+            if (model.params_billions === 'N/A' || model.context_length === 'N/A') {
+                naFieldCount++;
+            }
+        }
+
+        if (unknownSourceCount > 0) {
+            issues.push({
+                type: 'CONSTITUTIONAL_FAIL',
+                message: `Art.6 Violation: ${unknownSourceCount} models with source=unknown`
+            });
+        }
+
+        if (naFieldCount > 3) {
+            issues.push({
+                type: 'CONSTITUTIONAL_WARN',
+                message: `Art.9 Warning: ${naFieldCount} models with N/A fields`
+            });
+        }
+
+    } catch (error) {
+        issues.push({ type: 'VALIDATION_ERROR', message: error.message });
+    }
+
+    // FAIL if source=unknown found, WARN for N/A fields
+    const hasFail = issues.some(i => i.type === 'CONSTITUTIONAL_FAIL');
+    return { pass: !hasFail, issues };
+}
+
 // ═══════════════════════════════════════════════════════════
 //                    MAIN RUNNER
 // ═══════════════════════════════════════════════════════════
@@ -326,13 +387,35 @@ async function runGuardian() {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // 4. V4.7 Constitutional Validation
+    // ─────────────────────────────────────────────────────────────
+    console.log('\n┌─────────────────────────────────────────────────────────────┐');
+    console.log('│ PHASE 4: V4.7 Constitutional Validation                     │');
+    console.log('└─────────────────────────────────────────────────────────────┘\n');
+
+    results.constitutional = await validateConstitutional();
+    results.summary.total++;
+
+    if (results.constitutional.pass) {
+        console.log('✅ Constitutional Compliance            PASS');
+        results.summary.passed++;
+    } else {
+        console.log('❌ Constitutional Compliance            FAIL');
+        results.summary.failed++;
+        results.constitutional.issues.forEach(i => {
+            console.log(`   ↳ ${i.type}: ${i.message}`);
+            results.summary.issues.push({ context: 'Constitutional', ...i });
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // Summary + V4 Stable PASS/WARN/FAIL System (C1)
     // ─────────────────────────────────────────────────────────────
 
     // Determine final status
     const hasCriticalFailure = results.pages
         .filter(p => CONFIG.pages.find(c => c.path === p.path)?.critical)
-        .some(p => !p.pass);
+        .some(p => !p.pass) || (results.constitutional && !results.constitutional.pass);
     const hasWarnings = results.summary.failed > 0 && !hasCriticalFailure;
 
     let finalStatus;
