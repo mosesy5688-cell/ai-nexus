@@ -87,6 +87,12 @@ const hasBench = Boolean(
   model?.avg_score ||
   model?.benchmark_avg
 );
+
+// Per Constitution V4.3.1: Error pages should not be cached
+if (!model && !error) {
+  Astro.response.status = 404;
+  Astro.response.headers.set('Cache-Control', 'no-store, no-cache, max-age=0');
+}
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
