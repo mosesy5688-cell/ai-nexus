@@ -18,6 +18,7 @@ import SpecsTable from '../../components/specs/SpecsTable.astro';
 import DeployabilityBadge from '../../components/specs/DeployabilityBadge.astro';
 import ResourceList from '../../components/ResourceList.astro';
 import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
+import NeuralExplorer from '../../components/NeuralExplorer.astro';
 
 import { resolveToModel } from '../../utils/umid-resolver';
 import { safeParseJSON } from '../../utils/model-detail-builder';
@@ -170,6 +171,15 @@ const hasBench = Boolean(
               dimensions={{ p: model?.fni_p || 0, v: model?.fni_v || 0, c: model?.fni_c || 0, u: model?.fni_u || 0 }}
               commentary={model?.fni_commentary || null}
             />
+            
+            <NeuralExplorer model={{
+              name: modelName,
+              architecture: model?.architecture || model?.pipeline_tag,
+              params_billions: model?.params_billions,
+              context_length: model?.context_length,
+              num_layers: model?.num_layers,
+              hidden_size: model?.hidden_size
+            }} />
             
             {model?.description && (
               <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
