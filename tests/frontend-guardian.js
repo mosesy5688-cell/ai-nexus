@@ -37,6 +37,21 @@ const CONSTITUTIONAL_VIOLATIONS = {
     ILLEGAL_FIELDS: ['N/A', 'null', 'undefined']
 };
 
+// V4.7 Zen Design Violations (Art.3)
+const ZEN_DESIGN_VIOLATIONS = {
+    EXTERNAL_FONTS: [
+        'fonts.googleapis.com',
+        'fonts.gstatic.com',
+        'use.typekit.net',
+        'fast.fonts.net'
+    ],
+    FORBIDDEN_PATTERNS: [
+        'particles.js',
+        'three.js',
+        'webgl'
+    ]
+};
+
 // ═══════════════════════════════════════════════════════════
 //                    CONFIGURATION
 // ═══════════════════════════════════════════════════════════
@@ -292,6 +307,46 @@ async function validateConstitutional() {
     return { pass: !hasFail, issues };
 }
 
+/**
+ * V4.7 Zen Design Validation (Art.3)
+ * Checks for external fonts and forbidden UI patterns
+ */
+async function validateZenDesign() {
+    const issues = [];
+
+    try {
+        // Fetch homepage HTML to check for violations
+        const response = await fetch(`${BASE}/`);
+        const html = await response.text();
+
+        // Check for external fonts (Art.3 violation = FAIL)
+        for (const fontCdn of ZEN_DESIGN_VIOLATIONS.EXTERNAL_FONTS) {
+            if (html.includes(fontCdn)) {
+                issues.push({
+                    type: 'ZEN_FAIL',
+                    message: `Art.3 Violation: External font detected (${fontCdn})`
+                });
+            }
+        }
+
+        // Check for forbidden patterns (WARN)
+        for (const pattern of ZEN_DESIGN_VIOLATIONS.FORBIDDEN_PATTERNS) {
+            if (html.toLowerCase().includes(pattern)) {
+                issues.push({
+                    type: 'ZEN_WARN',
+                    message: `Art.3 Warning: Forbidden pattern detected (${pattern})`
+                });
+            }
+        }
+
+    } catch (error) {
+        issues.push({ type: 'VALIDATION_ERROR', message: error.message });
+    }
+
+    const hasFail = issues.some(i => i.type === 'ZEN_FAIL');
+    return { pass: !hasFail, issues };
+}
+
 // ═══════════════════════════════════════════════════════════
 //                    MAIN RUNNER
 // ═══════════════════════════════════════════════════════════
@@ -405,6 +460,28 @@ async function runGuardian() {
         results.constitutional.issues.forEach(i => {
             console.log(`   ↳ ${i.type}: ${i.message}`);
             results.summary.issues.push({ context: 'Constitutional', ...i });
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 5. V4.7 Zen Design Audit (Art.3)
+    // ─────────────────────────────────────────────────────────────
+    console.log('\n┌─────────────────────────────────────────────────────────────┐');
+    console.log('│ PHASE 5: V4.7 Zen Design Audit                              │');
+    console.log('└─────────────────────────────────────────────────────────────┘\n');
+
+    results.zenDesign = await validateZenDesign();
+    results.summary.total++;
+
+    if (results.zenDesign.pass) {
+        console.log('✅ Zen Design Compliance               PASS');
+        results.summary.passed++;
+    } else {
+        console.log('❌ Zen Design Compliance               FAIL');
+        results.summary.failed++;
+        results.zenDesign.issues.forEach(i => {
+            console.log(`   ↳ ${i.type}: ${i.message}`);
+            results.summary.issues.push({ context: 'Zen Design', ...i });
         });
     }
 

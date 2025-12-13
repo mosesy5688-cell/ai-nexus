@@ -224,6 +224,65 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
             console.log(`[Monitor] Logged successfully`);
         });
 
+        // ---------------------------------------------------------
+        // STEP 4: L8 PRECOMPUTE (Every 6 hours)
+        // Generate cache files for read-only frontend
+        // ---------------------------------------------------------
+        const hour = new Date().getUTCHours();
+        if (hour % 6 === 0) { // Run at 0, 6, 12, 18 UTC
+            await step.do('precompute-cache', async () => {
+                console.log('[L8] Starting cache precompute...');
+
+                // Trending models (top 100 by FNI)
+                const trending = await env.DB.prepare(`
+                    SELECT id, slug, name, author, fni_score, downloads, likes,
+                           cover_image_url, tags, has_ollama, has_gguf
+                    FROM models 
+                    WHERE fni_score IS NOT NULL
+                    ORDER BY fni_score DESC 
+                    LIMIT 100
+                `).all();
+
+                if (trending.results && trending.results.length > 0) {
+                    await env.R2_ASSETS.put('cache/trending.json',
+                        JSON.stringify({
+                            generated_at: new Date().toISOString(),
+                            version: 'V4.7',
+                            count: trending.results.length,
+                            models: trending.results
+                        }, null, 2),
+                        { httpMetadata: { contentType: 'application/json' } }
+                    );
+                    console.log(`[L8] Trending cache: ${trending.results.length} models`);
+                }
+
+                // Leaderboard (top 50 with benchmarks)
+                const leaderboard = await env.DB.prepare(`
+                    SELECT m.id, m.slug, m.name, m.author, m.fni_score,
+                           m.params_billions, m.vram_gb, m.has_ollama
+                    FROM models m
+                    WHERE m.fni_score IS NOT NULL
+                    ORDER BY m.fni_score DESC
+                    LIMIT 50
+                `).all();
+
+                if (leaderboard.results && leaderboard.results.length > 0) {
+                    await env.R2_ASSETS.put('cache/leaderboard.json',
+                        JSON.stringify({
+                            generated_at: new Date().toISOString(),
+                            version: 'V4.7',
+                            count: leaderboard.results.length,
+                            models: leaderboard.results
+                        }, null, 2),
+                        { httpMetadata: { contentType: 'application/json' } }
+                    );
+                    console.log(`[L8] Leaderboard cache: ${leaderboard.results.length} models`);
+                }
+
+                console.log('[L8] Cache precompute complete');
+            });
+        }
+
         return result;
     }
 }
@@ -268,8 +327,8 @@ function cleanModel(model: any): any {
 }
 
 /**
- * Compute FNI scores using V4.1 canonical weights
- * FNI = P × 25% + V × 25% + C × 30% + U × 20%
+ * Compute FNI scores using V4.7 canonical weights
+ * FNI = P × 30% + V × 30% + C × 20% + U × 20%
  * 
  * @param model - Current model data
  * @param oldData - Optional 7-day old data for velocity calculation
@@ -278,7 +337,7 @@ function computeFNI(
     model: any,
     oldData?: { downloads: number; likes: number }
 ): { score: number; p: number; v: number; c: number; u: number } {
-    // P: Popularity (25%) - based on downloads and likes
+    // P: Popularity (30%) - based on downloads and likes
     const downloads = model.downloads || 0;
     const likes = model.likes || 0;
     const maxDownloads = 1000000;
@@ -287,7 +346,7 @@ function computeFNI(
         (Math.min(likes / maxLikes, 1) * 40 + Math.min(downloads / maxDownloads, 1) * 60)
     );
 
-    // V: Velocity (25%) - 7-day growth rate
+    // V: Velocity (30%) - 7-day growth rate
     let v = 0;
     if (oldData) {
         const downloadGrowth = downloads - (oldData.downloads || 0);
@@ -298,7 +357,7 @@ function computeFNI(
         v = Math.max(0, (downloadVelocity * 0.7 + likeVelocity * 0.3));
     }
 
-    // C: Credibility (30%) - documentation, license, source trail
+    // C: Credibility (20%) - documentation, license, source trail
     let c = 0;
     if (model.license_spdx) c += 30;
     if (model.body_content_url) c += 40;
@@ -309,8 +368,8 @@ function computeFNI(
     if (model.has_ollama) u += 50;
     if (model.has_gguf) u += 50;
 
-    // Weighted sum: P×25% + V×25% + C×30% + U×20%
-    const score = (p * 0.25) + (v * 0.25) + (c * 0.30) + (u * 0.20);
+    // V4.7 Constitution: P×30% + V×30% + C×20% + U×20%
+    const score = (p * 0.30) + (v * 0.30) + (c * 0.20) + (u * 0.20);
 
     return {
         score: Math.min(100, Math.round(score)),
