@@ -14,6 +14,7 @@ import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import FNIBadge from '../../components/FNIBadge.astro';
 import FNITrustPanel from '../../components/FNITrustPanel.astro';
 import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
+import BenchmarkRawTable from '../../components/benchmark/BenchmarkRawTable.astro';
 import SpecsTable from '../../components/specs/SpecsTable.astro';
 import DeployabilityBadge from '../../components/specs/DeployabilityBadge.astro';
 import ResourceList from '../../components/ResourceList.astro';
@@ -186,6 +187,9 @@ if (!model && !error) {
               dimensions={{ p: model?.fni_p || 0, v: model?.fni_v || 0, c: model?.fni_c || 0, u: model?.fni_u || 0 }}
               commentary={model?.fni_commentary || null}
             />
+            
+            <!-- Section 3: Benchmarks RAW (V4.8.1) -->
+            <BenchmarkRawTable umid={modelId} />
             
             <NeuralExplorer model={{
               name: modelName,
