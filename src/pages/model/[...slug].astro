@@ -20,6 +20,7 @@ import DeployabilityBadge from '../../components/specs/DeployabilityBadge.astro'
 import ResourceList from '../../components/ResourceList.astro';
 import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
 import NeuralExplorer from '../../components/NeuralExplorer.astro';
+import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
 import EntityLinksSection from '../../components/EntityLinksSection.astro';
 
 import { resolveToModel } from '../../utils/umid-resolver';
@@ -243,10 +244,8 @@ if (!model && !error) {
               source_url: model?.source_url || null
             }} />
             
-            <GraphExplorer 
-              modelId={modelId} 
-              modelName={modelName}
-            />
+            <!-- V4.8.1 Art.11-G: Version-locked Neural Graph -->
+            <NeuralGraphExplorer currentModelId={modelId} />
           </aside>
         </div>
 

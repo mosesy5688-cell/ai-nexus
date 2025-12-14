@@ -1,0 +1,267 @@
+---
+/**
+ * Neural Graph Explorer V4.8.1
+ * Art.11-G: Version-locked static graph from neural_graph.json
+ * NO DB fallback, NO dynamic computation
+ */
+
+interface Props {
+    currentModelId?: string;
+}
+
+const { currentModelId } = Astro.props;
+
+// Fetch neural graph from R2 cache (Art.11-G: version-locked)
+let graphData: {
+    version: string;
+    nodes: { id: string; name: string; author: string; arch: string; fni: number; local: boolean }[];
+    links: { source: string; target: string; type: string; weight: number }[];
+} | null = null;
+
+let graphVersion = null;
+let relatedNodes: typeof graphData.nodes = [];
+
+try {
+    const runtime = Astro.locals.runtime;
+    if (runtime?.env?.R2_ASSETS) {
+        const r2 = runtime.env.R2_ASSETS;
+        const graphFile = await r2.get('cache/neural_graph.json');
+        if (graphFile) {
+            graphData = await graphFile.json() as any;
+            graphVersion = graphData?.version;
+            
+            // Find related nodes for current model
+            if (currentModelId && graphData?.links) {
+                const relatedIds = new Set<string>();
+                for (const link of graphData.links) {
+                    if (link.source === currentModelId) {
+                        relatedIds.add(link.target);
+                    } else if (link.target === currentModelId) {
+                        relatedIds.add(link.source);
+                    }
+                }
+                
+                relatedNodes = (graphData.nodes || [])
+                    .filter(n => relatedIds.has(n.id))
+                    .slice(0, 6);
+            }
+        }
+    }
+} catch (e) {
+    console.error('[NeuralGraphExplorer] Error:', e);
+}
+
+const hasGraph = graphData && graphData.nodes && graphData.nodes.length > 0;
+const hasRelatedNodes = relatedNodes.length > 0;
+---
+
+<section class="neural-graph-explorer">
+    <div class="header">
+        <h3 class="title">
+            🕸️ Neural Graph Explorer
+        </h3>
+        {graphVersion && (
+            <span class="version-badge">v{graphVersion}</span>
+        )}
+    </div>
+    
+    {hasGraph ? (
+        <div class="graph-content">
+            {hasRelatedNodes ? (
+                <>
+                    <p class="subtitle">Related Models in the Graph</p>
+                    <div class="related-grid">
+                        {relatedNodes.map(node => (
+                            <a href={`/model/${node.id}`} class="related-card">
+                                <div class="card-header">
+                                    <span class="model-name">{node.name}</span>
+                                    {node.local && <span class="local-badge">Local</span>}
+                                </div>
+                                <div class="card-meta">
+                                    <span class="author">{node.author}</span>
+                                    <span class="arch">{node.arch}</span>
+                                </div>
+                                {node.fni > 0 && (
+                                    <div class="fni-score">
+                                        FNI: <span class={`score ${node.fni >= 70 ? 'high' : node.fni >= 50 ? 'mid' : 'low'}`}>
+                                            {node.fni.toFixed(1)}
+                                        </span>
+                                    </div>
+                                )}
+                            </a>
+                        ))}
+                    </div>
+                </>
+            ) : (
+                <div class="graph-stats">
+                    <p class="subtitle">Graph Overview</p>
+                    <div class="stats-row">
+                        <div class="stat">
+                            <span class="stat-value">{graphData.nodes.length}</span>
+                            <span class="stat-label">Models</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value">{graphData.links.length}</span>
+                            <span class="stat-label">Connections</span>
+                        </div>
+                    </div>
+                    <a href="/explore" class="explore-link">Explore Full Graph →</a>
+                </div>
+            )}
+        </div>
+    ) : (
+        <div class="no-data">
+            <p>Graph data unavailable</p>
+            <span class="hint">Data will be generated at next L8 cycle</span>
+        </div>
+    )}
+</section>
+
+<style>
+    .neural-graph-explorer {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 12px;
+        padding: 1.5rem;
+    }
+    
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .title {
+        color: #e2e8f0;
+        font-size: 1.125rem;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .version-badge {
+        background: rgba(99, 102, 241, 0.2);
+        color: #818cf8;
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 9999px;
+        font-weight: 500;
+    }
+    
+    .subtitle {
+        color: #94a3b8;
+        font-size: 0.875rem;
+        margin: 0 0 0.75rem;
+    }
+    
+    .related-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 0.75rem;
+    }
+    
+    .related-card {
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 8px;
+        padding: 0.75rem;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    
+    .related-card:hover {
+        border-color: rgba(99, 102, 241, 0.5);
+        transform: translateY(-2px);
+    }
+    
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 0.5rem;
+    }
+    
+    .model-name {
+        color: #e2e8f0;
+        font-weight: 600;
+        font-size: 0.875rem;
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .local-badge {
+        background: rgba(34, 197, 94, 0.2);
+        color: #4ade80;
+        font-size: 0.6rem;
+        padding: 0.125rem 0.375rem;
+        border-radius: 9999px;
+    }
+    
+    .card-meta {
+        display: flex;
+        gap: 0.5rem;
+        font-size: 0.7rem;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+    }
+    
+    .fni-score {
+        font-size: 0.75rem;
+        color: #94a3b8;
+    }
+    
+    .score.high { color: #4ade80; }
+    .score.mid { color: #fbbf24; }
+    .score.low { color: #f87171; }
+    
+    .stats-row {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stat {
+        text-align: center;
+    }
+    
+    .stat-value {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #818cf8;
+    }
+    
+    .stat-label {
+        font-size: 0.75rem;
+        color: #64748b;
+    }
+    
+    .explore-link {
+        color: #818cf8;
+        text-decoration: none;
+        font-size: 0.875rem;
+    }
+    
+    .explore-link:hover {
+        text-decoration: underline;
+    }
+    
+    .no-data {
+        text-align: center;
+        padding: 1.5rem;
+    }
+    
+    .no-data p {
+        color: #64748b;
+        margin: 0 0 0.25rem;
+    }
+    
+    .hint {
+        color: #475569;
+        font-size: 0.75rem;
+    }
+</style>
