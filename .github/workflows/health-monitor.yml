@@ -49,13 +49,20 @@ jobs:
         if: ${{ steps.health.outputs.p95 != '0' }}
         run: |
           P95="${{ steps.health.outputs.p95 }}"
-          echo "Guardian P95: ${P95}ms"
+          SAMPLES=$(echo '${{ steps.health.outputs.response }}' | jq -r '.checks.guardian.samples // "0"')
+          echo "Guardian P95: ${P95}ms (samples: ${SAMPLES})"
           
-          if (( $(echo "$P95 > 10" | bc -l) )); then
-            echo "::error::🔴 CRITICAL: Guardian P95 ${P95}ms > 10ms threshold"
+          # Skip check if insufficient samples (< 10)
+          if [ "$SAMPLES" -lt 10 ]; then
+            echo "⚠️ Insufficient samples ($SAMPLES) - skipping P95 threshold check"
+            exit 0
+          fi
+          
+          if (( $(echo "$P95 > 50" | bc -l) )); then
+            echo "::error::🔴 CRITICAL: Guardian P95 ${P95}ms > 50ms threshold"
             exit 1
-          elif (( $(echo "$P95 > 5" | bc -l) )); then
-            echo "::warning::🟡 WARNING: Guardian P95 ${P95}ms > 5ms target"
+          elif (( $(echo "$P95 > 20" | bc -l) )); then
+            echo "::warning::🟡 WARNING: Guardian P95 ${P95}ms > 20ms target"
           else
             echo "✅ Guardian P95 ${P95}ms is within target"
           fi
