@@ -2,9 +2,10 @@
 export const prerender = false;
 
 /**
- * Model Detail Page V4.8.1
- * Constitution V4.8.1 Compliant
- * 6-Section Display Order per Art.1-E
+ * Model Detail Page V4.9
+ * Constitution V4.9 Entity-First Architecture
+ * Art.X-Entity: Render by entity.definition
+ * Art.X-Capability-Gating: Modules enabled by capability only
  */
 
 import Layout from '../../layouts/Layout.astro';
@@ -26,6 +27,9 @@ import FavoriteButton from '../../components/FavoriteButton.astro';
 
 import { resolveToModel } from '../../utils/umid-resolver';
 import { safeParseJSON } from '../../utils/model-detail-builder';
+// V4.9: Entity-First Architecture imports
+import { deriveEntityType, getEntityTier } from '../../types/entity';
+import { ENTITY_DEFINITIONS, entityHasCapability } from '../../data/entity-definitions';
 
 const slugParam = Astro.params.slug;
 let slug = Array.isArray(slugParam) ? slugParam.join('/') : (slugParam || '');
@@ -79,6 +83,24 @@ const hasBench = Boolean(
   model?.benchmark_avg
 );
 
+// V4.9: Entity-First Architecture - Derive entity type and capabilities
+// Art.X-Entity: Render by entity.definition
+// Art.X-Capability-Gating: Modules enabled by capability only
+const entityType = deriveEntityType(modelId) || 'model';
+const entityDefinition = ENTITY_DEFINITIONS[entityType];
+const entityTier = getEntityTier(entityType);
+
+// Capability-gated module flags (Art.X-Capability-Gating)
+const hasFNI = entityHasCapability(entityType, 'fni');
+const hasDeploy = entityHasCapability(entityType, 'deploy');
+const hasBenchmarkCap = entityHasCapability(entityType, 'benchmark');
+const hasArchitecture = entityHasCapability(entityType, 'architecture');
+const hasCitations = entityHasCapability(entityType, 'citations');
+
+// Display metadata from entity definition
+const entityIcon = entityDefinition?.display?.icon || '🧠';
+const entityLabel = entityDefinition?.display?.labelSingular || 'Model';
+
 // Per Constitution V4.3.1: Error pages should not be cached
 if (!model && !error) {
   Astro.response.status = 404;
@@ -111,19 +133,30 @@ if (!model && !error) {
             </div>
             
             <div class="flex-1">
+              <!-- V4.9: Entity Type Badge (Art.X-Entity) -->
+              <div class="mb-2">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                  <span>{entityIcon}</span>
+                  <span>{entityLabel}</span>
+                </span>
+              </div>
+              
               <div class="flex flex-wrap items-center gap-3 mb-2">
                 <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">
                   {modelName}
                 </h1>
-                <FNIBadge 
-                  fniScore={model?.fni_score || 0} 
-                  fniPercentile={model?.fni_percentile || 0}
-                  fniP={model?.fni_p || 0}
-                  fniV={model?.fni_v || 0}
-                  fniC={model?.fni_c || 0}
-                  fniU={model?.fni_u || 0}
-                />
-                {model?.deploy_score > 0 && (
+                <!-- V4.9: FNI Badge capability-gated (Art.X-Entity-FNI) -->
+                {hasFNI && (
+                  <FNIBadge 
+                    fniScore={model?.fni_score || 0} 
+                    fniPercentile={model?.fni_percentile || 0}
+                    fniP={model?.fni_p || 0}
+                    fniV={model?.fni_v || 0}
+                    fniC={model?.fni_c || 0}
+                    fniU={model?.fni_u || 0}
+                  />
+                )}
+                {hasDeploy && model?.deploy_score > 0 && (
                   <DeployabilityBadge score={model.deploy_score} />
                 )}
                 <!-- V4.8.1 Retention Safe: LocalStorage only -->
@@ -162,7 +195,7 @@ if (!model && !error) {
           </div>
         </header>
 
-        {hasBench && (
+        {hasBench && hasBenchmarkCap && (
           <section class="mb-8">
             <BenchmarkCard 
               mmlu={model?.mmlu || model?.benchmark_mmlu}
@@ -175,19 +208,24 @@ if (!model && !error) {
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div class="lg:col-span-2 space-y-8">
-            <FNITrustPanel 
-              fniScore={model?.fni_score || 0}
-              fniPercentile={model?.fni_percentile || 0}
-              fniP={model?.fni_p || 0}
-              fniV={model?.fni_v || 0}
-              fniC={model?.fni_c || 0}
-              fniU={model?.fni_u || 0}
-              fniCommentary={model?.fni_commentary || null}
-              modelName={modelName}
-            />
+            <!-- V4.9: FNI Trust Panel capability-gated (Art.X-Entity-FNI) -->
+            {hasFNI && (
+              <FNITrustPanel 
+                fniScore={model?.fni_score || 0}
+                fniPercentile={model?.fni_percentile || 0}
+                fniP={model?.fni_p || 0}
+                fniV={model?.fni_v || 0}
+                fniC={model?.fni_c || 0}
+                fniU={model?.fni_u || 0}
+                fniCommentary={model?.fni_commentary || null}
+                modelName={modelName}
+              />
+            )}
             
-            <!-- Section 3: Benchmarks RAW (V4.8.1) -->
-            <BenchmarkRawTable umid={modelId} />
+            <!-- Section 3: Benchmarks RAW (V4.9 capability-gated) -->
+            {hasBenchmarkCap && (
+              <BenchmarkRawTable umid={modelId} />
+            )}
             
             <NeuralExplorer model={{
               name: modelName,
