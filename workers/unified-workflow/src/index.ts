@@ -249,7 +249,7 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
         // Generate cache files for read-only frontend
         // ---------------------------------------------------------
         const hour = new Date().getUTCHours();
-        if (true) { // TEMP: Force L8 for entity_links.json generation
+        if (hour % 6 === 0) { // Run at 0, 6, 12, 18 UTC
             await step.do('precompute-cache', async () => {
                 console.log('[L8] Starting cache precompute...');
 
