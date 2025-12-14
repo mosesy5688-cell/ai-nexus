@@ -279,7 +279,7 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                 // Leaderboard (top 50 with benchmarks)
                 const leaderboard = await env.DB.prepare(`
                     SELECT m.id, m.slug, m.name, m.author, m.fni_score,
-                           m.params_billions, m.vram_gb, m.has_ollama
+                           m.deploy_score, m.architecture_family, m.has_ollama
                     FROM models m
                     WHERE m.fni_score IS NOT NULL
                     ORDER BY m.fni_score DESC
@@ -309,7 +309,7 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
 
                 // Get models with architecture info
                 const modelsWithArch = await env.DB.prepare(`
-                    SELECT id, slug, name, author, architecture_type, params_billions,
+                    SELECT id, slug, name, author, architecture_family, deploy_score,
                            tags, description
                     FROM models 
                     WHERE id IS NOT NULL
@@ -341,9 +341,9 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                         }
 
                         // Find same architecture models
-                        if (model.architecture_type) {
+                        if (model.architecture_family) {
                             const sameArch = models.filter(m =>
-                                m.architecture_type === model.architecture_type &&
+                                m.architecture_family === model.architecture_family &&
                                 m.id !== model.id
                             ).slice(0, 3);
 
@@ -368,8 +368,8 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                 console.log('[L8] Generating neural graph...');
 
                 const graphNodes = await env.DB.prepare(`
-                    SELECT id, slug, name, author, architecture_type, 
-                           params_billions, fni_score, has_ollama
+                    SELECT id, slug, name, author, architecture_family, 
+                           deploy_score, fni_score, has_ollama
                     FROM models 
                     WHERE fni_score IS NOT NULL
                     ORDER BY fni_score DESC
@@ -392,8 +392,8 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                         slug: m.slug,
                         name: m.name,
                         author: m.author,
-                        arch: m.architecture_type || 'unknown',
-                        params: m.params_billions || 0,
+                        arch: m.architecture_family || 'unknown',
+                        deployScore: m.deploy_score || 0,
                         fni: m.fni_score || 0,
                         local: m.has_ollama === 1
                     })),
