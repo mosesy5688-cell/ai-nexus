@@ -1,5 +1,5 @@
 // tests/qa-orchestrator.js
-// V4.8.1 Frontend Content Activation - Automated Test Suite
+// V4.8.2 PRG Verification - Automated Test Suite
 const BASE = process.env.BASE_URL || 'https://free2aitools.com';
 
 const TESTS = [
@@ -20,12 +20,13 @@ const TESTS = [
     { name: 'API: Trending', url: '/api/trending.json', expectStatus: 200, json: true },
     { name: 'API: Related Models', url: '/api/related-models', expectStatus: 200, json: true },
 
-    // V4.8.1 L8 Cache Endpoints
+    // V4.8.2 L8 Cache Endpoints
     { name: 'Cache: neural_graph.json', url: '/api/cache/neural_graph.json', expectStatus: 200, json: true, mustHave: ['nodes', 'links'] },
     { name: 'Cache: trending.json', url: '/api/cache/trending.json', expectStatus: 200, json: true },
     { name: 'Cache: leaderboard.json', url: '/api/cache/leaderboard.json', expectStatus: 200, json: true },
     { name: 'Cache: category_stats.json', url: '/api/cache/category_stats.json', expectStatus: 200, json: true },
     { name: 'Cache: benchmarks.json', url: '/api/cache/benchmarks.json', expectStatus: 200, json: true },
+    { name: 'Cache: entity_links.json', url: '/api/cache/entity_links.json', expectStatus: 200, json: true, mustHave: ['version', 'links'] },
 
     // Legacy Cache Endpoint
     { name: 'Cache (Legacy): benchmarks.json', url: '/cache/benchmarks.json', expectStatus: 200, json: true, mustHave: ['data', 'version'] },
@@ -96,7 +97,7 @@ async function runTest(test) {
 
 async function main() {
     console.log('═══════════════════════════════════════════════════════════');
-    console.log('        V4.5 Frontend Upgrade - QA Test Suite');
+    console.log('        V4.8.2 PRG Verification - QA Test Suite');
     console.log('═══════════════════════════════════════════════════════════');
     console.log(`Base URL: ${BASE}`);
     console.log(`Tests: ${TESTS.length}`);

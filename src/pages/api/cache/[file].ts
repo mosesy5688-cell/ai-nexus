@@ -1,9 +1,10 @@
 import type { APIRoute } from 'astro';
 
 /**
- * V4.8.1 R2 Cache Proxy
+ * V4.8.2 R2 Cache Proxy
  * Serves L8 precomputed files from R2 cache/ directory
  * Art.11-G: Version-locked data access
+ * V4.8.2: Added entity_links.json for constitutional compliance
  */
 export const GET: APIRoute = async ({ params, locals }) => {
     const file = params.file;
@@ -22,7 +23,8 @@ export const GET: APIRoute = async ({ params, locals }) => {
         'leaderboard.json',
         'global_popularity.json',
         'category_stats.json',
-        'benchmarks.json'
+        'benchmarks.json',
+        'entity_links.json'  // V4.8.2: EntityLinksSection compliance
     ];
 
     if (!allowedFiles.includes(file)) {
@@ -60,7 +62,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
                 'Content-Type': 'application/json',
                 'Cache-Control': 'public, max-age=3600',
                 'X-R2-Cache': 'true',
-                'X-Version': 'V4.8.1'
+                'X-Version': 'V4.8.2'
             }
         });
     } catch (error) {

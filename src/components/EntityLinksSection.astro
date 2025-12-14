@@ -1,8 +1,12 @@
 ---
 /**
- * Entity Links Section V4.8.1
+ * Entity Links Section V4.8.2
  * Displays model relationships: siblings, same_architecture
- * Art.1-E: All R2 data must be user-accessible
+ * 
+ * CONSTITUTIONAL COMPLIANCE:
+ * - Art.1-E: All R2 data must be user-accessible
+ * - Frontend D1 = 0: Uses L8 precomputed cache only
+ * - V4.8.2: Reads from /api/cache/entity_links.json
  */
 interface Props {
     modelId: string;
@@ -11,39 +15,29 @@ interface Props {
 
 const { modelId, modelName } = Astro.props;
 
-// Fetch entity links from D1 via runtime
-let entityLinks: { source_id: string; target_id: string; link_type: string; confidence: number }[] = [];
+// V4.8.2: Fetch entity links from L8 cache (R2), NOT D1
 let linkedModels: { id: string; name: string; slug: string; link_type: string }[] = [];
+let cacheVersion = '';
 
 try {
-    const runtime = Astro.locals.runtime;
-    if (runtime?.env?.DB) {
-        const db = runtime.env.DB;
+    const res = await fetch(new URL('/api/cache/entity_links.json', Astro.url.origin));
+    if (res.ok) {
+        const cache = await res.json();
+        cacheVersion = cache.version || 'unknown';
         
-        // Get links where this model is source or target
-        const result = await db.prepare(`
-            SELECT el.source_id, el.target_id, el.link_type, el.confidence,
-                   m.name, m.slug
-            FROM entity_links el
-            JOIN models m ON (
-                (el.target_id = m.id AND el.source_id = ?) OR
-                (el.source_id = m.id AND el.target_id = ?)
-            )
-            WHERE el.source_id = ? OR el.target_id = ?
-            LIMIT 10
-        `).bind(modelId, modelId, modelId, modelId).all();
+        // Get links for this specific model
+        const modelLinks = cache.links?.[modelId] || [];
         
-        if (result.results) {
-            linkedModels = result.results.map((r: any) => ({
-                id: r.source_id === modelId ? r.target_id : r.source_id,
-                name: r.name || 'Unknown',
-                slug: r.slug || '',
-                link_type: r.link_type || 'related'
-            }));
-        }
+        linkedModels = modelLinks.slice(0, 10).map((link: any) => ({
+            id: link.target_id,
+            name: link.target_name || 'Unknown',
+            slug: link.target_slug || '',
+            link_type: link.link_type || 'related'
+        }));
     }
 } catch (e) {
-    console.error('[EntityLinks] Error fetching links:', e);
+    console.error('[EntityLinks] Cache fetch error:', e);
+    // Graceful degradation: show "Data unavailable" 
 }
 
 const hasLinks = linkedModels.length > 0;
@@ -53,6 +47,7 @@ const hasLinks = linkedModels.length > 0;
     <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
         <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
             🔗 Related Models
+            <span class="text-xs font-normal text-gray-400">{cacheVersion}</span>
         </h2>
         <div class="space-y-3">
             {linkedModels.map(link => (
