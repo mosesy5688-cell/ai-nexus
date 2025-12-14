@@ -1,0 +1,97 @@
+# V4.8 Health Monitor Workflow
+# 
+# Constitution V4.8 Compliance:
+# - Art.IX-Metrics: P95 monitoring
+# - Art.Shadow: Shadow DB growth alerts
+# - Art.I-Extended: Quota monitoring
+#
+# Schedule: Every 4 hours
+
+name: V4.8 Health Monitor
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'  # Every 4 hours
+  workflow_dispatch:  # Manual trigger
+
+env:
+  HEALTH_ENDPOINT: https://free2aitools.com/api/health
+  ALERT_THRESHOLD_P95_MS: 5
+  ALERT_THRESHOLD_SHADOW_COUNT: 100
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Health Status
+        id: health
+        run: |
+          RESPONSE=$(curl -s "${{ env.HEALTH_ENDPOINT }}" || echo '{"status":"error"}')
+          echo "response=$RESPONSE" >> $GITHUB_OUTPUT
+          
+          # Extract status
+          STATUS=$(echo "$RESPONSE" | jq -r '.status // "error"')
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          
+          # Extract P95
+          P95=$(echo "$RESPONSE" | jq -r '.checks.guardian.p95_ms // "0"')
+          echo "p95=$P95" >> $GITHUB_OUTPUT
+          
+          # Extract Shadow count
+          SHADOW=$(echo "$RESPONSE" | jq -r '.checks.d1.shadow_models // "0"')
+          echo "shadow=$SHADOW" >> $GITHUB_OUTPUT
+          
+          # Extract Quarantine 24h
+          QUARANTINE=$(echo "$RESPONSE" | jq -r '.checks.d1.quarantine_24h // "0"')
+          echo "quarantine=$QUARANTINE" >> $GITHUB_OUTPUT
+
+      - name: Check P95 Threshold (Art.IX-Metrics)
+        if: ${{ steps.health.outputs.p95 != '0' }}
+        run: |
+          P95="${{ steps.health.outputs.p95 }}"
+          echo "Guardian P95: ${P95}ms"
+          
+          if (( $(echo "$P95 > 10" | bc -l) )); then
+            echo "::error::🔴 CRITICAL: Guardian P95 ${P95}ms > 10ms threshold"
+            exit 1
+          elif (( $(echo "$P95 > 5" | bc -l) )); then
+            echo "::warning::🟡 WARNING: Guardian P95 ${P95}ms > 5ms target"
+          else
+            echo "✅ Guardian P95 ${P95}ms is within target"
+          fi
+
+      - name: Check Shadow DB Growth (Art.Shadow)
+        run: |
+          SHADOW="${{ steps.health.outputs.shadow }}"
+          echo "Shadow DB models: $SHADOW"
+          
+          if [ "$SHADOW" -gt 500 ]; then
+            echo "::error::🔴 CRITICAL: Shadow DB has $SHADOW entries (>500)"
+            exit 1
+          elif [ "$SHADOW" -gt 100 ]; then
+            echo "::warning::🟡 WARNING: Shadow DB has $SHADOW entries (>100)"
+          else
+            echo "✅ Shadow DB entries: $SHADOW"
+          fi
+
+      - name: Check Quarantine Activity
+        run: |
+          QUARANTINE="${{ steps.health.outputs.quarantine }}"
+          echo "Quarantine entries (24h): $QUARANTINE"
+          
+          if [ "$QUARANTINE" -gt 50 ]; then
+            echo "::warning::🟡 WARNING: High quarantine activity: $QUARANTINE in 24h"
+          else
+            echo "✅ Quarantine activity normal: $QUARANTINE in 24h"
+          fi
+
+      - name: Health Summary
+        run: |
+          echo "## V4.8 Health Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Overall Status | ${{ steps.health.outputs.status }} | ${{ steps.health.outputs.status == 'healthy' && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Guardian P95 | ${{ steps.health.outputs.p95 }}ms | ${{ steps.health.outputs.p95 < 5 && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Shadow DB | ${{ steps.health.outputs.shadow }} | ${{ steps.health.outputs.shadow < 100 && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Quarantine (24h) | ${{ steps.health.outputs.quarantine }} | ${{ steps.health.outputs.quarantine < 50 && '✅' || '⚠️' }} |" >> $GITHUB_STEP_SUMMARY
