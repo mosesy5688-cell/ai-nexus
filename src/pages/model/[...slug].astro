@@ -2,9 +2,9 @@
 export const prerender = false;
 
 /**
- * Model Detail Page V4.5 (S-Grade)
- * Constitution V4.3.2 Compliant
- * Fixed 7 critical Astro SSR errors
+ * Model Detail Page V4.8.1
+ * Constitution V4.8.1 Compliant
+ * 6-Section Display Order per Art.1-E
  */
 
 import Layout from '../../layouts/Layout.astro';
@@ -19,6 +19,7 @@ import DeployabilityBadge from '../../components/specs/DeployabilityBadge.astro'
 import ResourceList from '../../components/ResourceList.astro';
 import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
 import NeuralExplorer from '../../components/NeuralExplorer.astro';
+import EntityLinksSection from '../../components/EntityLinksSection.astro';
 
 import { resolveToModel } from '../../utils/umid-resolver';
 import { safeParseJSON } from '../../utils/model-detail-builder';
@@ -207,6 +208,12 @@ if (!model && !error) {
             {Array.isArray(resources) && resources.length > 0 && (
               <ResourceList resources={resources} sourceUrl={model?.source_url || null} />
             )}
+            
+            <!-- Section 6: Entity Links (V4.8.1) -->
+            <EntityLinksSection 
+              modelId={modelId}
+              modelName={modelName}
+            />
           </div>
           
           <aside class="space-y-6">
