@@ -1,0 +1,100 @@
+---
+/**
+ * EntityHeader.astro
+ * V4.9 Entity-First Architecture
+ * 
+ * Universal entity header component with type badge
+ */
+
+interface Props {
+  entity: {
+    id: string;
+    type: string;
+    name: string;
+    author?: string;
+  };
+  definition: {
+    display: {
+      icon: string;
+      color: string;
+      labelSingular: string;
+    };
+  };
+}
+
+const { entity, definition } = Astro.props;
+
+const colorMap: Record<string, string> = {
+  blue: '#3b82f6',
+  green: '#10b981',
+  orange: '#f59e0b',
+  yellow: '#eab308',
+  pink: '#ec4899',
+  purple: '#8b5cf6',
+  gray: '#6b7280',
+};
+
+const entityColor = colorMap[definition.display.color] || colorMap.blue;
+---
+
+<header class="entity-header" style={`--entity-color: ${entityColor}`}>
+  <div class="entity-type-badge">
+    <span class="entity-icon">{definition.display.icon}</span>
+    <span class="entity-type-label">{definition.display.labelSingular}</span>
+  </div>
+  
+  <h1 class="entity-title">{entity.name}</h1>
+  
+  {entity.author && (
+    <div class="entity-author">
+      by <a href={`/search?author=${encodeURIComponent(entity.author)}`} class="author-link">{entity.author}</a>
+    </div>
+  )}
+</header>
+
+<style>
+  .entity-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--entity-color);
+  }
+
+  .entity-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    background: color-mix(in srgb, var(--entity-color) 15%, transparent);
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--entity-color);
+    width: fit-content;
+  }
+
+  .entity-title {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text-primary, #1f2937);
+    margin: 0;
+  }
+
+  .entity-author {
+    font-size: 0.95rem;
+    color: var(--text-muted, #6b7280);
+  }
+
+  .author-link {
+    font-weight: 500;
+    color: var(--entity-color);
+    text-decoration: none;
+  }
+
+  .author-link:hover {
+    text-decoration: underline;
+  }
+</style>
