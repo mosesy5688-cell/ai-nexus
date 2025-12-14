@@ -1,6 +1,7 @@
 [
   {
     "group": "Text Generation & Content Creation",
+    "intro": "Large language models excel at generating human-like text for various applications, from creative writing to professional communications.",
     "items": [
       {
         "id": 1,
@@ -42,6 +43,7 @@
   },
   {
     "group": "Knowledge Retrieval & Data Analysis",
+    "intro": "AI-powered tools for extracting insights from data, answering domain-specific questions, and building intelligent knowledge systems.",
     "items": [
       {
         "id": 7,
@@ -77,6 +79,7 @@
   },
   {
     "group": "Vision & Multimedia Processing",
+    "intro": "Multimodal AI models that understand, generate, and transform images, videos, audio, and other media formats.",
     "items": [
       {
         "id": 12,
@@ -112,6 +115,7 @@
   },
   {
     "group": "Automation & Workflow Integration",
+    "intro": "AI agents and automation tools that integrate with business workflows to automate tasks and improve productivity.",
     "items": [
       {
         "id": 17,
@@ -135,6 +139,7 @@
   },
   {
     "group": "Infrastructure & Optimization",
+    "intro": "Tools and techniques for optimizing, fine-tuning, and deploying AI models efficiently in production environments.",
     "items": [
       {
         "id": 26,
