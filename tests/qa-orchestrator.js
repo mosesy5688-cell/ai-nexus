@@ -1,5 +1,5 @@
 // tests/qa-orchestrator.js
-// V4.5 Frontend Upgrade Automated Test Suite
+// V4.8.1 Frontend Content Activation - Automated Test Suite
 const BASE = process.env.BASE_URL || 'https://free2aitools.com';
 
 const TESTS = [
@@ -8,10 +8,11 @@ const TESTS = [
     { name: 'Explore Page', url: '/explore', expectStatus: 200 },
     { name: 'Leaderboard Page', url: '/leaderboard', expectStatus: 200 },
     { name: 'Ranking Page', url: '/ranking', expectStatus: 200 },
+    { name: 'Reports Page', url: '/reports', expectStatus: 200 },
 
     // Model Detail Pages - Benchmark Slugs
-    { name: 'Bench: qwen-qwen2-5-72b', url: '/model/qwen-qwen2-5-72b', expectStatus: 200 },
-    { name: 'Bench: meta-llama-llama-3-3-70b', url: '/model/meta-llama-llama-3-3-70b', expectStatus: 200 },
+    { name: 'Model: qwen-qwen2-5-72b', url: '/model/qwen-qwen2-5-72b', expectStatus: 200 },
+    { name: 'Model: meta-llama-llama-3-3-70b', url: '/model/meta-llama-llama-3-3-70b', expectStatus: 200 },
 
     // API Endpoints
     { name: 'API: Model (bench slug)', url: '/api/model/qwen-qwen2-5-72b', expectStatus: 200, json: true, mustHave: ['model'] },
@@ -19,12 +20,20 @@ const TESTS = [
     { name: 'API: Trending', url: '/api/trending.json', expectStatus: 200, json: true },
     { name: 'API: Related Models', url: '/api/related-models', expectStatus: 200, json: true },
 
-    // Cache Endpoints
-    { name: 'Cache: benchmarks.json', url: '/cache/benchmarks.json', expectStatus: 200, json: true, mustHave: ['data', 'version'] },
+    // V4.8.1 L8 Cache Endpoints
+    { name: 'Cache: neural_graph.json', url: '/api/cache/neural_graph.json', expectStatus: 200, json: true, mustHave: ['nodes', 'links'] },
+    { name: 'Cache: trending.json', url: '/api/cache/trending.json', expectStatus: 200, json: true },
+    { name: 'Cache: leaderboard.json', url: '/api/cache/leaderboard.json', expectStatus: 200, json: true },
+    { name: 'Cache: category_stats.json', url: '/api/cache/category_stats.json', expectStatus: 200, json: true },
+    { name: 'Cache: benchmarks.json', url: '/api/cache/benchmarks.json', expectStatus: 200, json: true },
+
+    // Legacy Cache Endpoint
+    { name: 'Cache (Legacy): benchmarks.json', url: '/cache/benchmarks.json', expectStatus: 200, json: true, mustHave: ['data', 'version'] },
 
     // DB Test
     { name: 'API: Test DB Connection', url: '/api/test-db-connection', expectStatus: 200, json: true, mustHave: ['success'] },
 ];
+
 
 async function runTest(test) {
     const url = BASE + test.url;
