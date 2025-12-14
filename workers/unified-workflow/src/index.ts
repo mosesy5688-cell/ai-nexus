@@ -461,6 +461,58 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                 );
 
                 console.log(`[L8] Category stats: ${categoryData.total_categories} categories`);
+
+                // ---------------------------------------------------------
+                // L8 EXTENSION: Benchmarks Cache (V4.8.1)
+                // Generate benchmarks.json for BenchmarkRawTable component
+                // Constitutional: L8 = Frontend Single Source
+                // ---------------------------------------------------------
+                console.log('[L8] Generating benchmarks cache...');
+
+                const benchmarks = await env.DB.prepare(`
+                    SELECT 
+                        id as umid, slug, name, author,
+                        fni_score, pwc_benchmarks
+                    FROM models 
+                    WHERE fni_score IS NOT NULL
+                    ORDER BY fni_score DESC
+                    LIMIT 500
+                `).all();
+
+                const benchmarkData = {
+                    generated_at: new Date().toISOString(),
+                    version: 'V4.8.1',
+                    data: (benchmarks.results || []).map((m: any) => {
+                        // Parse pwc_benchmarks JSON if available
+                        let parsed: any = {};
+                        try {
+                            if (m.pwc_benchmarks) {
+                                parsed = JSON.parse(m.pwc_benchmarks);
+                            }
+                        } catch { }
+
+                        return {
+                            umid: m.umid,
+                            slug: m.slug,
+                            name: m.name,
+                            author: m.author,
+                            fni_score: m.fni_score,
+                            mmlu: parsed.mmlu || null,
+                            humaneval: parsed.humaneval || null,
+                            hellaswag: parsed.hellaswag || null,
+                            arc_challenge: parsed.arc_challenge || null,
+                            avg_score: parsed.avg_score || m.fni_score,
+                            quality_flag: 'ok'
+                        };
+                    })
+                };
+
+                await env.R2_ASSETS.put('cache/benchmarks.json',
+                    JSON.stringify(benchmarkData, null, 2),
+                    { httpMetadata: { contentType: 'application/json' } }
+                );
+
+                console.log(`[L8] Benchmarks cache: ${benchmarkData.data.length} models`);
             });
         }
 
