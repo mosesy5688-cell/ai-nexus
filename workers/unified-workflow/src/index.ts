@@ -300,6 +300,117 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                 }
 
                 console.log('[L8] Cache precompute complete');
+
+                // ---------------------------------------------------------
+                // L8 EXTENSION: Entity Links (V4.8.1)
+                // Derive model relationships from architecture_family
+                // ---------------------------------------------------------
+                console.log('[L8] Generating entity links...');
+
+                // Get models with architecture info
+                const modelsWithArch = await env.DB.prepare(`
+                    SELECT id, slug, name, author, architecture_type, params_billions,
+                           tags, description
+                    FROM models 
+                    WHERE id IS NOT NULL
+                    LIMIT 500
+                `).all();
+
+                if (modelsWithArch.results && modelsWithArch.results.length > 0) {
+                    // Clear existing entity_links
+                    await env.DB.prepare('DELETE FROM entity_links WHERE 1=1').run();
+
+                    let linksCreated = 0;
+                    const models = modelsWithArch.results as any[];
+
+                    // Create links based on architecture_type and author
+                    for (const model of models) {
+                        // Find siblings (same author, different model)
+                        const siblings = models.filter(m =>
+                            m.author === model.author &&
+                            m.id !== model.id
+                        ).slice(0, 5);
+
+                        for (const sibling of siblings) {
+                            await env.DB.prepare(`
+                                INSERT OR IGNORE INTO entity_links 
+                                (source_id, target_id, link_type, confidence, created_at)
+                                VALUES (?, ?, 'sibling', 0.8, datetime('now'))
+                            `).bind(model.id, sibling.id).run();
+                            linksCreated++;
+                        }
+
+                        // Find same architecture models
+                        if (model.architecture_type) {
+                            const sameArch = models.filter(m =>
+                                m.architecture_type === model.architecture_type &&
+                                m.id !== model.id
+                            ).slice(0, 3);
+
+                            for (const related of sameArch) {
+                                await env.DB.prepare(`
+                                    INSERT OR IGNORE INTO entity_links 
+                                    (source_id, target_id, link_type, confidence, created_at)
+                                    VALUES (?, ?, 'same_architecture', 0.7, datetime('now'))
+                                `).bind(model.id, related.id).run();
+                                linksCreated++;
+                            }
+                        }
+                    }
+
+                    console.log(`[L8] Entity links created: ${linksCreated}`);
+                }
+
+                // ---------------------------------------------------------
+                // L8 EXTENSION: Neural Graph (V4.8.1 Art.11-G)
+                // Version-locked static graph for Neural Explorer
+                // ---------------------------------------------------------
+                console.log('[L8] Generating neural graph...');
+
+                const graphNodes = await env.DB.prepare(`
+                    SELECT id, slug, name, author, architecture_type, 
+                           params_billions, fni_score, has_ollama
+                    FROM models 
+                    WHERE fni_score IS NOT NULL
+                    ORDER BY fni_score DESC
+                    LIMIT 200
+                `).all();
+
+                const graphLinks = await env.DB.prepare(`
+                    SELECT source_id, target_id, link_type, confidence
+                    FROM entity_links
+                    LIMIT 1000
+                `).all();
+
+                const graphVersion = new Date().toISOString().split('T')[0];
+                const neuralGraph = {
+                    version: graphVersion,
+                    generated_at: new Date().toISOString(),
+                    schema: 'V4.8.1',
+                    nodes: (graphNodes.results || []).map((m: any) => ({
+                        id: m.id,
+                        slug: m.slug,
+                        name: m.name,
+                        author: m.author,
+                        arch: m.architecture_type || 'unknown',
+                        params: m.params_billions || 0,
+                        fni: m.fni_score || 0,
+                        local: m.has_ollama === 1
+                    })),
+                    links: (graphLinks.results || []).map((l: any) => ({
+                        source: l.source_id,
+                        target: l.target_id,
+                        type: l.link_type,
+                        weight: l.confidence
+                    }))
+                };
+
+                await env.R2_ASSETS.put('cache/neural_graph.json',
+                    JSON.stringify(neuralGraph, null, 2),
+                    { httpMetadata: { contentType: 'application/json' } }
+                );
+
+                console.log(`[L8] Neural graph: ${neuralGraph.nodes.length} nodes, ${neuralGraph.links.length} links`);
             });
         }
 
