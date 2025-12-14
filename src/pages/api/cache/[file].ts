@@ -20,7 +20,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
         'neural_graph.json',
         'trending.json',
         'leaderboard.json',
-        'global_popularity.json'
+        'global_popularity.json',
+        'category_stats.json',
+        'benchmarks.json'
     ];
 
     if (!allowedFiles.includes(file)) {
