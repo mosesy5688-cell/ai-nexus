@@ -1,0 +1,103 @@
+---
+/**
+ * BenchmarkRawTable Component V4.8.1
+ * Full benchmark data display per Art.1-E (Content Completeness)
+ * "❌ No Top Line only" - shows all raw scores with source
+ */
+
+interface Props {
+    umid: string;
+    showSource?: boolean;
+}
+
+const { umid, showSource = true } = Astro.props;
+
+// Fetch benchmark data from cache
+let benchmarkData: any = null;
+
+try {
+    const runtime = Astro.locals.runtime;
+    if (runtime?.env?.R2_ASSETS) {
+        const r2 = runtime.env.R2_ASSETS;
+        const cacheFile = await r2.get('cache/benchmarks.json');
+        if (cacheFile) {
+            const cache = await cacheFile.json() as any;
+            if (cache?.data) {
+                benchmarkData = cache.data.find((m: any) => m.umid === umid);
+            }
+        }
+    }
+} catch (e) {
+    console.error('[BenchmarkRawTable] Error:', e);
+}
+
+const hasBenchmarks = benchmarkData && (
+    benchmarkData.mmlu || 
+    benchmarkData.humaneval || 
+    benchmarkData.hellaswag || 
+    benchmarkData.arc_challenge
+);
+
+// Build benchmark rows
+const benchmarks = benchmarkData ? [
+    { name: 'MMLU', value: benchmarkData.mmlu, source: 'Open LLM Leaderboard' },
+    { name: 'HumanEval', value: benchmarkData.humaneval, source: 'Open LLM Leaderboard' },
+    { name: 'HellaSwag', value: benchmarkData.hellaswag, source: 'Open LLM Leaderboard' },
+    { name: 'ARC Challenge', value: benchmarkData.arc_challenge, source: 'Open LLM Leaderboard' },
+    { name: 'Average', value: benchmarkData.avg_score, source: 'Calculated', isAvg: true },
+].filter(b => b.value !== undefined && b.value !== null) : [];
+---
+
+<section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+    <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+        📊 Benchmark Scores
+        <span class="text-xs font-normal text-gray-500 dark:text-gray-400">(Raw Data)</span>
+    </h2>
+    
+    {hasBenchmarks ? (
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200 dark:border-gray-700">
+                        <th class="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-400">Benchmark</th>
+                        <th class="text-right py-2 px-3 font-medium text-gray-600 dark:text-gray-400">Score</th>
+                        {showSource && (
+                            <th class="text-left py-2 px-3 font-medium text-gray-600 dark:text-gray-400">Source</th>
+                        )}
+                    </tr>
+                </thead>
+                <tbody>
+                    {benchmarks.map(b => (
+                        <tr class={`border-b border-gray-100 dark:border-gray-700/50 ${b.isAvg ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''}`}>
+                            <td class="py-2 px-3 text-gray-900 dark:text-gray-100">
+                                {b.name}
+                            </td>
+                            <td class={`py-2 px-3 text-right font-mono font-medium ${
+                                b.value >= 80 ? 'text-green-600 dark:text-green-400' :
+                                b.value >= 70 ? 'text-blue-600 dark:text-blue-400' :
+                                b.value >= 60 ? 'text-yellow-600 dark:text-yellow-400' :
+                                'text-red-600 dark:text-red-400'
+                            }`}>
+                                {b.value.toFixed(1)}
+                            </td>
+                            {showSource && (
+                                <td class="py-2 px-3 text-gray-500 dark:text-gray-400 text-xs">
+                                    {b.source}
+                                </td>
+                            )}
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+            
+            <p class="mt-3 text-xs text-gray-400 dark:text-gray-500">
+                📋 Data from cache/benchmarks.json | Quality: {benchmarkData.quality_flag || 'ok'}
+            </p>
+        </div>
+    ) : (
+        <div class="py-4 text-center text-gray-400 dark:text-gray-500">
+            <p>Benchmark data unavailable</p>
+            <p class="text-xs mt-1">This model has no benchmark scores in our database</p>
+        </div>
+    )}
+</section>
