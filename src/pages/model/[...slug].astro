@@ -32,9 +32,7 @@ let slug = Array.isArray(slugParam) ? slugParam.join('/') : (slugParam || '');
 // Decode URL-encoded characters like %3A → : for hf-dataset:deepmind:code_contests
 slug = decodeURIComponent(slug);
 
-// Debug: trace actual slug value (check in browser dev tools Network tab)
-Astro.response.headers.set('X-Debug-Slug', slug || 'EMPTY');
-Astro.response.headers.set('X-Debug-SlugParam', JSON.stringify(slugParam) || 'NULL');
+// Debug headers removed for production (V4.8.2 constitutional compliance)
 
 let model = null;
 let error = null;
@@ -47,9 +45,8 @@ let pageDescription = "Explore comprehensive information about this AI model.";
 try {
   if (!slug) throw new Error("No slug provided");
   
-  console.log(`[Model Page] Resolving slug: "${slug}"`);
+  // V4.8.2: Removed console.log for production
   const result = await resolveToModel(slug, Astro.locals);
-  console.log(`[Model Page] Resolution result:`, result?.resolution?.source, result?.model?.id);
   model = result?.model || null;
   resolution = result?.resolution || null;
   
@@ -58,31 +55,20 @@ try {
     const desc = model.description || model.seo_summary || 'AI model details';
     pageDescription = desc.substring(0, 160).replace(/---[\s\S]*?---/g, '').replace(/[#*`]/g, '');
     
-    const db = Astro.locals?.runtime?.env?.DB;
-    if (db && model.pipeline_tag) {
-      try {
-        const stmtResult = await db.prepare(`
-          SELECT id, name, author, likes, downloads, cover_image_url, fni_score
-          FROM models
-          WHERE pipeline_tag = ? AND id != ?
-          ORDER BY downloads DESC
-          LIMIT 6
-        `).bind(model.pipeline_tag, model.id).all();
-        similarModels = stmtResult?.results || [];
-      } catch (e) {
-        console.warn("Similar models fetch failed:", e);
-      }
-    }
+    // V4.8.2: REMOVED D1 access for similar models
+    // Frontend D1 = 0 (Constitutional compliance)
+    // Similar models will be fetched from L8 cache via EntityLinksSection
   }
 } catch (e) {
-  console.error("[Model Page] Error:", e);
+  // V4.8.2: Removed console.error for production
   error = e;
 }
 
 const tags = model ? safeParseJSON(model.tags, []) : [];
 const resources = model ? safeParseJSON(model.resources, []) : [];
-// V4.8.2 Fix: Use valid placeholder image if cover empty
-const coverImage = model?.cover_image_url || 'https://via.placeholder.com/400x300?text=AI+Model';
+// V4.8.2: Use inline SVG data URI (no external dependency)
+const placeholderImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23374151" width="400" height="300"/%3E%3Ctext fill="%239CA3AF" font-family="system-ui" font-size="24" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EAI Model%3C/text%3E%3C/svg%3E';
+const coverImage = model?.cover_image_url || placeholderImage;
 const modelId = model?.umid || model?.id || '';
 const modelName = model?.name || model?.canonical_name || 'Unknown Model';
 const hasBench = Boolean(
@@ -190,10 +176,14 @@ if (!model && !error) {
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div class="lg:col-span-2 space-y-8">
             <FNITrustPanel 
-              score={model?.fni_score || 0}
-              percentile={model?.fni_percentile || 0}
-              dimensions={{ p: model?.fni_p || 0, v: model?.fni_v || 0, c: model?.fni_c || 0, u: model?.fni_u || 0 }}
-              commentary={model?.fni_commentary || null}
+              fniScore={model?.fni_score || 0}
+              fniPercentile={model?.fni_percentile || 0}
+              fniP={model?.fni_p || 0}
+              fniV={model?.fni_v || 0}
+              fniC={model?.fni_c || 0}
+              fniU={model?.fni_u || 0}
+              fniCommentary={model?.fni_commentary || null}
+              modelName={modelName}
             />
             
             <!-- Section 3: Benchmarks RAW (V4.8.1) -->
