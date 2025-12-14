@@ -22,6 +22,7 @@ import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
 import NeuralExplorer from '../../components/NeuralExplorer.astro';
 import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
 import EntityLinksSection from '../../components/EntityLinksSection.astro';
+import FavoriteButton from '../../components/FavoriteButton.astro';
 
 import { resolveToModel } from '../../utils/umid-resolver';
 import { safeParseJSON } from '../../utils/model-detail-builder';
@@ -135,6 +136,8 @@ if (!model && !error) {
                 {model?.deploy_score > 0 && (
                   <DeployabilityBadge score={model.deploy_score} />
                 )}
+                <!-- V4.8.1 Retention Safe: LocalStorage only -->
+                <FavoriteButton modelId={modelId} modelName={modelName} />
               </div>
               
               <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">

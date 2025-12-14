@@ -1,0 +1,111 @@
+---
+/**
+ * FavoriteButton Component V4.8.1
+ * Retention Safe Mode: LocalStorage ONLY
+ * NO KV writes, NO D1 writes
+ */
+
+interface Props {
+    modelId: string;
+    modelName: string;
+}
+
+const { modelId, modelName } = Astro.props;
+---
+
+<button 
+    class="favorite-button"
+    data-model-id={modelId}
+    data-model-name={modelName}
+    aria-label="Add to favorites"
+>
+    <span class="icon">🤍</span>
+    <span class="label">Favorite</span>
+</button>
+
+<script>
+    // V4.8.1 Retention Safe Mode: LocalStorage ONLY
+    document.addEventListener('DOMContentLoaded', () => {
+        const buttons = document.querySelectorAll('.favorite-button');
+        
+        // Load favorites from localStorage
+        const getFavorites = (): string[] => {
+            try {
+                return JSON.parse(localStorage.getItem('ai-nexus-favorites') || '[]');
+            } catch {
+                return [];
+            }
+        };
+        
+        const saveFavorites = (favorites: string[]) => {
+            localStorage.setItem('ai-nexus-favorites', JSON.stringify(favorites));
+        };
+        
+        const updateButtonState = (button: Element, isFavorite: boolean) => {
+            const icon = button.querySelector('.icon');
+            const label = button.querySelector('.label');
+            
+            if (icon) icon.textContent = isFavorite ? '❤️' : '🤍';
+            if (label) label.textContent = isFavorite ? 'Favorited' : 'Favorite';
+            button.classList.toggle('is-favorite', isFavorite);
+        };
+        
+        buttons.forEach(button => {
+            const modelId = button.getAttribute('data-model-id');
+            if (!modelId) return;
+            
+            // Initialize state
+            const favorites = getFavorites();
+            const isFavorite = favorites.includes(modelId);
+            updateButtonState(button, isFavorite);
+            
+            // Toggle on click
+            button.addEventListener('click', () => {
+                const favorites = getFavorites();
+                const idx = favorites.indexOf(modelId);
+                
+                if (idx >= 0) {
+                    favorites.splice(idx, 1);
+                    updateButtonState(button, false);
+                } else {
+                    favorites.push(modelId);
+                    updateButtonState(button, true);
+                }
+                
+                saveFavorites(favorites);
+            });
+        });
+    });
+</script>
+
+<style>
+    .favorite-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.5rem 0.875rem;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 9999px;
+        color: #ef4444;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .favorite-button:hover {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.4);
+        transform: scale(1.02);
+    }
+    
+    .favorite-button.is-favorite {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: #ef4444;
+    }
+    
+    .icon {
+        font-size: 1rem;
+    }
+</style>
