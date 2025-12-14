@@ -81,7 +81,8 @@ try {
 
 const tags = model ? safeParseJSON(model.tags, []) : [];
 const resources = model ? safeParseJSON(model.resources, []) : [];
-const coverImage = model?.cover_image_url || '/default-model.png';
+// V4.8.2 Fix: Use valid placeholder image if cover empty
+const coverImage = model?.cover_image_url || 'https://via.placeholder.com/400x300?text=AI+Model';
 const modelId = model?.umid || model?.id || '';
 const modelName = model?.name || model?.canonical_name || 'Unknown Model';
 const hasBench = Boolean(
@@ -129,9 +130,12 @@ if (!model && !error) {
                   {modelName}
                 </h1>
                 <FNIBadge 
-                  score={model?.fni_score || 0} 
-                  percentile={model?.fni_percentile || 0}
-                  dimensions={{ p: model?.fni_p || 0, v: model?.fni_v || 0, c: model?.fni_c || 0, u: model?.fni_u || 0 }}
+                  fniScore={model?.fni_score || 0} 
+                  fniPercentile={model?.fni_percentile || 0}
+                  fniP={model?.fni_p || 0}
+                  fniV={model?.fni_v || 0}
+                  fniC={model?.fni_c || 0}
+                  fniU={model?.fni_u || 0}
                 />
                 {model?.deploy_score > 0 && (
                   <DeployabilityBadge score={model.deploy_score} />

@@ -1,16 +1,25 @@
 // tests/qa-orchestrator.js
-// V4.8.2 PRG Verification - Automated Test Suite
+// F-PRR V4.8.2 - Frontend Production Readiness Review
 const BASE = process.env.BASE_URL || 'https://free2aitools.com';
 
 const TESTS = [
-    // Smoke Tests
+    // ═══════════════════════════════════════════════════════
+    // F-PRR-1: Page Reachability (Core Pages)
+    // ═══════════════════════════════════════════════════════
     { name: 'Home Page', url: '/', expectStatus: 200 },
     { name: 'Explore Page', url: '/explore', expectStatus: 200 },
     { name: 'Leaderboard Page', url: '/leaderboard', expectStatus: 200 },
     { name: 'Ranking Page', url: '/ranking', expectStatus: 200 },
+    { name: 'Compare Page', url: '/compare', expectStatus: 200 },
     { name: 'Reports Page', url: '/reports', expectStatus: 200 },
+    { name: 'Reports Archive', url: '/reports/archive', expectStatus: 200 },
+    { name: 'Knowledge Hub', url: '/knowledge', expectStatus: 200 },
+    { name: 'Knowledge: Transformer', url: '/knowledge/transformer', expectStatus: 200 },
+    { name: 'Methodology Page', url: '/methodology', expectStatus: 200 },
+    { name: 'About Page', url: '/about', expectStatus: 200 },
+    { name: 'Compliance Page', url: '/compliance', expectStatus: 200 },
 
-    // Model Detail Pages - Benchmark Slugs
+    // Model Detail Pages
     { name: 'Model: qwen-qwen2-5-72b', url: '/model/qwen-qwen2-5-72b', expectStatus: 200 },
     { name: 'Model: meta-llama-llama-3-3-70b', url: '/model/meta-llama-llama-3-3-70b', expectStatus: 200 },
 
@@ -19,6 +28,7 @@ const TESTS = [
     { name: 'API: Search', url: '/api/search?q=llama&limit=3', expectStatus: 200, json: true, mustHave: ['results'] },
     { name: 'API: Trending', url: '/api/trending.json', expectStatus: 200, json: true },
     { name: 'API: Related Models', url: '/api/related-models', expectStatus: 200, json: true },
+    { name: 'API: Health', url: '/api/health', expectStatus: 200, json: true },
 
     // V4.8.2 L8 Cache Endpoints
     { name: 'Cache: neural_graph.json', url: '/api/cache/neural_graph.json', expectStatus: 200, json: true, mustHave: ['nodes', 'links'] },
@@ -27,6 +37,9 @@ const TESTS = [
     { name: 'Cache: category_stats.json', url: '/api/cache/category_stats.json', expectStatus: 200, json: true },
     { name: 'Cache: benchmarks.json', url: '/api/cache/benchmarks.json', expectStatus: 200, json: true },
     { name: 'Cache: entity_links.json', url: '/api/cache/entity_links.json', expectStatus: 200, json: true, mustHave: ['version', 'links'] },
+
+    // Error Handling
+    { name: '404 Page', url: '/nonexistent-page-xyz', expectStatus: 404 },
 
     // Legacy Cache Endpoint
     { name: 'Cache (Legacy): benchmarks.json', url: '/cache/benchmarks.json', expectStatus: 200, json: true, mustHave: ['data', 'version'] },
