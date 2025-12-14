@@ -29,7 +29,15 @@ const {
 } = Astro.props;
 
 // Determine badge color based on percentile
-function getBadgeColor(percentile: number): string {
+// V4.8.2: Use score as fallback when percentile is 0 but score exists
+function getBadgeColor(percentile: number, score: number): string {
+  // If percentile not calculated but score exists, use score-based color
+  if (percentile === 0 && score > 0) {
+    if (score >= 80) return 'from-purple-500 to-indigo-600';
+    if (score >= 60) return 'from-blue-500 to-cyan-500';
+    if (score >= 40) return 'from-green-500 to-emerald-500';
+    return 'from-gray-400 to-gray-500';
+  }
   if (percentile >= 95) return 'from-yellow-400 to-amber-500'; // Elite
   if (percentile >= 90) return 'from-purple-500 to-indigo-600'; // Top 10%
   if (percentile >= 75) return 'from-blue-500 to-cyan-500'; // Top 25%
@@ -37,7 +45,11 @@ function getBadgeColor(percentile: number): string {
   return 'from-gray-400 to-gray-500'; // Lower 50%
 }
 
-function getBadgeLabel(percentile: number): string {
+function getBadgeLabel(percentile: number, score: number): string {
+  // V4.8.2: Show score when percentile is not calculated
+  if (percentile === 0 && score > 0) {
+    return `📊 FNI ${score.toFixed(0)}`;
+  }
   if (percentile >= 95) return '🏆 Elite';
   if (percentile >= 90) return '🥇 Top 10%';
   if (percentile >= 75) return '🥈 Top 25%';
@@ -53,8 +65,8 @@ function getBadgeEmoji(percentile: number): string {
   return '📊';
 }
 
-const badgeColor = getBadgeColor(fniPercentile);
-const badgeLabel = getBadgeLabel(fniPercentile);
+const badgeColor = getBadgeColor(fniPercentile, fniScore);
+const badgeLabel = getBadgeLabel(fniPercentile, fniScore);
 
 const sizeClasses = {
   sm: 'px-2 py-1 text-xs',

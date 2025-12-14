@@ -1,0 +1,148 @@
+---
+/**
+ * FNIModule.astro
+ * V4.9 Entity-First Architecture
+ * 
+ * FNI Display Module - Model entities only
+ * Art.X-Entity-FNI: FNI ONLY applies to Model entities
+ * Art.X-Capability-Gating: Only displayed when entity.capabilities.includes('fni')
+ */
+
+interface Props {
+  fniScore: number | null;
+  fniPercentile?: number | null;
+  modelName?: string;
+}
+
+const { fniScore, fniPercentile, modelName } = Astro.props;
+
+// Art.X-Non-Applicability: Non-applicable = null, not 0
+if (fniScore === null || fniScore === undefined) {
+  return null;
+}
+
+// Calculate badge color and label
+function getBadgeColor(score: number): string {
+  if (score >= 80) return 'var(--color-success, #10b981)';
+  if (score >= 60) return 'var(--color-primary, #3b82f6)';
+  if (score >= 40) return 'var(--color-warning, #f59e0b)';
+  return 'var(--color-danger, #ef4444)';
+}
+
+function getBadgeLabel(score: number): string {
+  if (score >= 80) return 'Excellent';
+  if (score >= 60) return 'Good';
+  if (score >= 40) return 'Moderate';
+  return 'Low';
+}
+
+const badgeColor = getBadgeColor(fniScore);
+const badgeLabel = getBadgeLabel(fniScore);
+---
+
+<div class="fni-module" style={`--fni-color: ${badgeColor}`}>
+  <div class="fni-header">
+    <span class="fni-icon">📊</span>
+    <span class="fni-title">Free Nexus Index (FNI)</span>
+  </div>
+  
+  <div class="fni-score-display">
+    <div class="fni-score">{fniScore.toFixed(1)}</div>
+    <div class="fni-meta">
+      <span class="fni-label">{badgeLabel}</span>
+      {fniPercentile != null && fniPercentile > 0 && (
+        <span class="fni-percentile">Top {fniPercentile}%</span>
+      )}
+    </div>
+  </div>
+  
+  <div class="fni-bar">
+    <div class="fni-bar-fill" style={`width: ${Math.min(fniScore, 100)}%`}></div>
+  </div>
+  
+  <div class="fni-footer">
+    <span class="fni-hint">Higher is better. Based on deployment readiness and community trust.</span>
+  </div>
+</div>
+
+<style>
+  .fni-module {
+    padding: 1.25rem;
+    background: linear-gradient(to bottom right, 
+      color-mix(in srgb, var(--fni-color) 5%, white),
+      color-mix(in srgb, var(--fni-color) 10%, white)
+    );
+    border: 1px solid color-mix(in srgb, var(--fni-color) 20%, transparent);
+    border-radius: 0.75rem;
+  }
+
+  .fni-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .fni-icon {
+    font-size: 1.25rem;
+  }
+
+  .fni-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary, #374151);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  .fni-score-display {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .fni-score {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--fni-color);
+    line-height: 1;
+  }
+
+  .fni-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .fni-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--fni-color);
+  }
+
+  .fni-percentile {
+    font-size: 0.8rem;
+    color: var(--text-muted, #6b7280);
+  }
+
+  .fni-bar {
+    height: 8px;
+    background: var(--bg-secondary, #e5e7eb);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+  }
+
+  .fni-bar-fill {
+    height: 100%;
+    background: var(--fni-color);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+
+  .fni-footer {
+    font-size: 0.75rem;
+    color: var(--text-muted, #6b7280);
+  }
+</style>

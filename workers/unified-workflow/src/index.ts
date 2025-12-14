@@ -562,6 +562,111 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                 );
 
                 console.log(`[L8] Entity links cache: ${entityLinksCache.total_links} links for ${entityLinksCache.models_with_links} models`);
+
+                // ---------------------------------------------------------
+                // L8 EXTENSION: Entity Definitions (V4.9)
+                // Pre-computed entity type definitions for frontend
+                // Constitutional: Art.IX-Batch - Entity definitions in R2
+                // ---------------------------------------------------------
+                console.log('[L8] Generating entity definitions cache...');
+
+                const entityDefinitions = {
+                    generated_at: new Date().toISOString(),
+                    version: 'V4.9',
+                    schema_version: 'entity.v1',
+                    types: {
+                        model: {
+                            type: 'model',
+                            idPrefix: 'hf-model--',
+                            seoType: 'SoftwareApplication',
+                            tier: 'core',
+                            capabilities: ['fni', 'deploy', 'benchmark', 'architecture', 'ollama', 'gguf'],
+                            display: { icon: '🧠', color: 'blue', labelSingular: 'Model', labelPlural: 'Models' }
+                        },
+                        dataset: {
+                            type: 'dataset',
+                            idPrefix: 'hf-dataset--',
+                            seoType: 'Dataset',
+                            tier: 'enablers',
+                            capabilities: ['citations', 'size'],
+                            display: { icon: '📊', color: 'green', labelSingular: 'Dataset', labelPlural: 'Datasets' }
+                        },
+                        benchmark: {
+                            type: 'benchmark',
+                            idPrefix: 'benchmark--',
+                            seoType: 'Dataset',
+                            tier: 'enablers',
+                            capabilities: ['benchmark', 'citations'],
+                            display: { icon: '🏆', color: 'orange', labelSingular: 'Benchmark', labelPlural: 'Benchmarks' }
+                        },
+                        paper: {
+                            type: 'paper',
+                            idPrefix: 'arxiv--',
+                            seoType: 'ScholarlyArticle',
+                            tier: 'knowledge',
+                            capabilities: ['citations'],
+                            display: { icon: '📄', color: 'yellow', labelSingular: 'Paper', labelPlural: 'Papers' }
+                        },
+                        agent: {
+                            type: 'agent',
+                            idPrefix: 'agent--',
+                            seoType: 'SoftwareApplication',
+                            tier: 'ecosystem',
+                            capabilities: ['deploy', 'architecture', 'integrations', 'pricing'],
+                            display: { icon: '🤖', color: 'pink', labelSingular: 'Agent', labelPlural: 'Agents' }
+                        }
+                    }
+                };
+
+                await env.R2_ASSETS.put('cache/entity_definitions.json',
+                    JSON.stringify(entityDefinitions, null, 2),
+                    { httpMetadata: { contentType: 'application/json' } }
+                );
+
+                console.log(`[L8] Entity definitions cache: ${Object.keys(entityDefinitions.types).length} types`);
+
+                // ---------------------------------------------------------
+                // L8 EXTENSION: Segregated Trending Lists (V4.9)
+                // Art.X-Entity-List: Lists segregated by entity type
+                // ---------------------------------------------------------
+                console.log('[L8] Generating segregated trending lists...');
+
+                // Trending models (with FNI)
+                const trendingModels = await env.DB.prepare(`
+                    SELECT 
+                        id, slug, name, author, fni_score, deploy_score,
+                        downloads, likes, pipeline_tag, architecture_family
+                    FROM models 
+                    WHERE fni_score IS NOT NULL
+                    ORDER BY fni_score DESC
+                    LIMIT 50
+                `).all();
+
+                const trendingModelsCache = {
+                    generated_at: new Date().toISOString(),
+                    version: 'V4.9',
+                    entity_type: 'model',
+                    data: (trendingModels.results || []).map((m: any) => ({
+                        id: m.id,
+                        slug: m.slug,
+                        name: m.name,
+                        author: m.author,
+                        entity_type: 'model',
+                        fni_score: m.fni_score,
+                        deploy_score: m.deploy_score,
+                        downloads: m.downloads,
+                        likes: m.likes,
+                        category: m.pipeline_tag,
+                        architecture: m.architecture_family
+                    }))
+                };
+
+                await env.R2_ASSETS.put('cache/lists/trending_models.json',
+                    JSON.stringify(trendingModelsCache, null, 2),
+                    { httpMetadata: { contentType: 'application/json' } }
+                );
+
+                console.log(`[L8] Trending models: ${trendingModelsCache.data.length} items`);
             });
         }
 

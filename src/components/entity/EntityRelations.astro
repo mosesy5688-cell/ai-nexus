@@ -1,0 +1,179 @@
+---
+/**
+ * EntityRelations.astro
+ * V4.9 Entity-First Architecture
+ * 
+ * Displays entity relationships for internal linking
+ * Art.X-Entity-Link: All entities MUST have internal relation links
+ */
+
+interface EntityRef {
+  id: string;
+  name: string;
+  slug: string;
+  type: string;
+}
+
+interface RelationGroup {
+  type: string;
+  label: string;
+  icon: string;
+  items: EntityRef[];
+}
+
+interface Props {
+  entityId: string;
+  entityType: string;
+  relations?: RelationGroup[];
+}
+
+const { entityId, entityType, relations = [] } = Astro.props;
+
+// Default relation groups based on entity type
+const typeToRoutePrefix: Record<string, string> = {
+  model: '/model',
+  dataset: '/model', // Datasets use model route for now
+  paper: '/paper',
+  benchmark: '/benchmark',
+  agent: '/agent'
+};
+
+function getEntityRoute(type: string, slug: string): string {
+  const prefix = typeToRoutePrefix[type] || '/model';
+  return `${prefix}/${slug}`;
+}
+
+// Type icons
+const typeIcons: Record<string, string> = {
+  model: '🧠',
+  dataset: '📊',
+  paper: '📄',
+  benchmark: '🏆',
+  agent: '🤖'
+};
+---
+
+{relations.length > 0 && (
+  <section class="entity-relations">
+    <h3 class="relations-title">Related Entities</h3>
+    
+    <div class="relation-groups">
+      {relations.map((group) => (
+        <div class="relation-group">
+          <h4 class="group-label">
+            <span class="group-icon">{group.icon}</span>
+            {group.label}
+          </h4>
+          
+          <div class="relation-items">
+            {group.items.slice(0, 5).map((item) => (
+              <a 
+                href={getEntityRoute(item.type, item.slug)} 
+                class="relation-item"
+                title={`View ${item.name}`}
+              >
+                <span class="item-icon">{typeIcons[item.type] || '📎'}</span>
+                <span class="item-name">{item.name}</span>
+              </a>
+            ))}
+            
+            {group.items.length > 5 && (
+              <span class="more-items">+{group.items.length - 5} more</span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+)}
+
+<style>
+  .entity-relations {
+    padding: 1.5rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 0.75rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+  }
+
+  .relations-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary, #1f2937);
+    margin: 0 0 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .relations-title::before {
+    content: '🔗';
+  }
+
+  .relation-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .relation-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .group-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary, #374151);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .group-icon {
+    font-size: 1rem;
+  }
+
+  .relation-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .relation-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    background: white;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: var(--text-primary, #1f2937);
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+  }
+
+  .relation-item:hover {
+    border-color: var(--color-primary, #3b82f6);
+    background: color-mix(in srgb, var(--color-primary) 5%, white);
+  }
+
+  .item-icon {
+    font-size: 0.875rem;
+  }
+
+  .item-name {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .more-items {
+    padding: 0.375rem 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted, #6b7280);
+  }
+</style>

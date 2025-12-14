@@ -1,0 +1,296 @@
+---
+/**
+ * EntityShell.astro
+ * V4.9 Entity-First Architecture
+ * 
+ * Universal entity rendering shell that replaces 5+ separate View files.
+ * Art.X-Entity-Contract: Rendering MUST follow entity.definition
+ * Art.X-Capability-Gating: UI modules enabled by capability only
+ */
+
+interface Props {
+  entity: {
+    id: string;
+    type: string;
+    slug: string;
+    name: string;
+    author?: string;
+    description?: string;
+    data: Record<string, any>;
+  };
+  definition: {
+    type: string;
+    capabilities: string[];
+    display: {
+      icon: string;
+      color: string;
+      labelSingular: string;
+      labelPlural: string;
+    };
+    seoType: string;
+  };
+}
+
+const { entity, definition } = Astro.props;
+
+// Capability-gated module flags (Art.X-Capability-Gating)
+const hasFNI = definition.capabilities.includes('fni');
+const hasDeploy = definition.capabilities.includes('deploy');
+const hasBenchmark = definition.capabilities.includes('benchmark');
+const hasArchitecture = definition.capabilities.includes('architecture');
+const hasCitations = definition.capabilities.includes('citations');
+const hasOllama = definition.capabilities.includes('ollama');
+const hasGGUF = definition.capabilities.includes('gguf');
+
+// Color mapping for entity types
+const colorMap: Record<string, string> = {
+  blue: 'var(--color-primary, #3b82f6)',
+  green: 'var(--color-success, #10b981)',
+  orange: 'var(--color-warning, #f59e0b)',
+  yellow: 'var(--color-accent, #eab308)',
+  pink: 'var(--color-pink, #ec4899)',
+  purple: 'var(--color-purple, #8b5cf6)',
+  gray: 'var(--color-muted, #6b7280)',
+  teal: 'var(--color-teal, #14b8a6)',
+  indigo: 'var(--color-indigo, #6366f1)',
+  red: 'var(--color-danger, #ef4444)'
+};
+
+const entityColor = colorMap[definition.display.color] || colorMap.blue;
+---
+
+<article class="entity-shell" data-entity-type={entity.type} data-entity-id={entity.id}>
+  <!-- Entity Header (Universal) -->
+  <header class="entity-header" style={`--entity-color: ${entityColor}`}>
+    <div class="entity-type-badge">
+      <span class="entity-icon">{definition.display.icon}</span>
+      <span class="entity-type-label">{definition.display.labelSingular}</span>
+    </div>
+    
+    <h1 class="entity-title">{entity.name}</h1>
+    
+    {entity.author && (
+      <div class="entity-author">
+        by <span class="author-name">{entity.author}</span>
+      </div>
+    )}
+  </header>
+
+  <!-- Capability-Gated Modules -->
+  <div class="entity-modules">
+    
+    <!-- FNI Module (Model only) -->
+    {hasFNI && entity.data.fni_score != null && (
+      <section class="entity-module module-fni">
+        <slot name="fni">
+          <div class="fni-placeholder">
+            <span class="fni-score">{entity.data.fni_score?.toFixed(1) || 'N/A'}</span>
+            <span class="fni-label">FNI Score</span>
+          </div>
+        </slot>
+      </section>
+    )}
+
+    <!-- Deploy Module -->
+    {hasDeploy && (
+      <section class="entity-module module-deploy">
+        <slot name="deploy">
+          <div class="deploy-info">
+            <span class="deploy-label">Deployment Info</span>
+          </div>
+        </slot>
+      </section>
+    )}
+
+    <!-- Benchmark Module -->
+    {hasBenchmark && (
+      <section class="entity-module module-benchmark">
+        <slot name="benchmark">
+          <div class="benchmark-placeholder">
+            <span class="benchmark-label">Benchmarks</span>
+          </div>
+        </slot>
+      </section>
+    )}
+
+    <!-- Architecture Module (Neural Explorer) -->
+    {hasArchitecture && (
+      <section class="entity-module module-architecture">
+        <slot name="architecture">
+          <!-- Neural architecture visualization -->
+        </slot>
+      </section>
+    )}
+
+    <!-- Citations Module (Papers, Datasets) -->
+    {hasCitations && (
+      <section class="entity-module module-citations">
+        <slot name="citations">
+          <div class="citations-placeholder">
+            <span class="citations-label">Citations & References</span>
+          </div>
+        </slot>
+      </section>
+    )}
+
+    <!-- Ollama Module (Model only) -->
+    {hasOllama && entity.data.has_ollama && (
+      <section class="entity-module module-ollama">
+        <slot name="ollama">
+          <div class="ollama-badge">
+            <span>🦙 Available on Ollama</span>
+          </div>
+        </slot>
+      </section>
+    )}
+
+    <!-- GGUF Module (Model only) -->
+    {hasGGUF && entity.data.has_gguf && (
+      <section class="entity-module module-gguf">
+        <slot name="gguf">
+          <div class="gguf-badge">
+            <span>📦 GGUF Variants Available</span>
+          </div>
+        </slot>
+      </section>
+    )}
+  </div>
+
+  <!-- Entity Description (Universal) -->
+  {entity.description && (
+    <section class="entity-description">
+      <slot name="description">
+        <p>{entity.description}</p>
+      </slot>
+    </section>
+  )}
+
+  <!-- Entity Facts (Universal) -->
+  <section class="entity-facts">
+    <slot name="facts" />
+  </section>
+
+  <!-- Entity Relations (Art.X-Entity-Link) -->
+  <section class="entity-relations">
+    <slot name="relations" />
+  </section>
+
+  <!-- Custom Content Slot -->
+  <slot />
+</article>
+
+<style>
+  .entity-shell {
+    --entity-color: var(--color-primary);
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem;
+  }
+
+  .entity-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--entity-color);
+  }
+
+  .entity-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    background: color-mix(in srgb, var(--entity-color) 15%, transparent);
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--entity-color);
+    width: fit-content;
+  }
+
+  .entity-icon {
+    font-size: 1.25rem;
+  }
+
+  .entity-title {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text-primary, #1f2937);
+    margin: 0;
+  }
+
+  .entity-author {
+    font-size: 0.95rem;
+    color: var(--text-muted, #6b7280);
+  }
+
+  .author-name {
+    font-weight: 500;
+    color: var(--entity-color);
+  }
+
+  .entity-modules {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .entity-module {
+    padding: 1rem;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 0.75rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+  }
+
+  .entity-description {
+    margin-bottom: 2rem;
+    line-height: 1.7;
+    color: var(--text-secondary, #374151);
+  }
+
+  .entity-facts {
+    margin-bottom: 2rem;
+  }
+
+  .entity-relations {
+    margin-bottom: 2rem;
+  }
+
+  .fni-placeholder,
+  .deploy-info,
+  .benchmark-placeholder,
+  .citations-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .fni-score {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--entity-color);
+  }
+
+  .ollama-badge,
+  .gguf-badge {
+    display: inline-flex;
+    padding: 0.5rem 1rem;
+    background: var(--bg-tertiary, #f3f4f6);
+    border-radius: 0.5rem;
+    font-weight: 500;
+  }
+
+  @media (max-width: 768px) {
+    .entity-shell {
+      padding: 1rem;
+    }
+
+    .entity-title {
+      font-size: 1.5rem;
+    }
+  }
+</style>
