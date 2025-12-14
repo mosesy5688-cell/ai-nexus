@@ -386,7 +386,7 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                 const neuralGraph = {
                     version: graphVersion,
                     generated_at: new Date().toISOString(),
-                    schema: 'V4.8.1',
+                    schema: 'V4.8.2',
                     nodes: (graphNodes.results || []).map((m: any) => ({
                         id: m.id,
                         slug: m.slug,
@@ -445,7 +445,7 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
 
                 const categoryData = {
                     generated_at: new Date().toISOString(),
-                    version: 'V4.8.1',
+                    version: 'V4.8.2',
                     pipeline_tags: (categoryStats.results || []).map((c: any) => ({
                         category: c.category,
                         count: c.model_count,
@@ -481,7 +481,7 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
 
                 const benchmarkData = {
                     generated_at: new Date().toISOString(),
-                    version: 'V4.8.1',
+                    version: 'V4.8.2',
                     data: (benchmarks.results || []).map((m: any) => {
                         // Parse pwc_benchmarks JSON if available
                         let parsed: any = {};
@@ -513,6 +513,55 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                 );
 
                 console.log(`[L8] Benchmarks cache: ${benchmarkData.data.length} models`);
+
+                // ---------------------------------------------------------
+                // L8 EXTENSION: Entity Links Cache (V4.8.2)
+                // Pre-computed model relationships for EntityLinksSection
+                // Constitutional: Frontend D1 = 0, must use R2 cache
+                // ---------------------------------------------------------
+                console.log('[L8] Generating entity links cache...');
+
+                const entityLinksResult = await env.DB.prepare(`
+                    SELECT 
+                        el.source_id, el.target_id, el.link_type, el.confidence,
+                        m.name as target_name, m.slug as target_slug
+                    FROM entity_links el
+                    JOIN models m ON el.target_id = m.id
+                    ORDER BY el.confidence DESC
+                    LIMIT 2000
+                `).all();
+
+                // Group links by source_id for efficient frontend lookup
+                const linksByModel: Record<string, any[]> = {};
+                for (const link of (entityLinksResult.results || []) as any[]) {
+                    if (!linksByModel[link.source_id]) {
+                        linksByModel[link.source_id] = [];
+                    }
+                    linksByModel[link.source_id].push({
+                        target_id: link.target_id,
+                        target_name: link.target_name || 'Unknown',
+                        target_slug: link.target_slug || '',
+                        link_type: link.link_type,
+                        confidence: link.confidence
+                    });
+                }
+
+                const entityLinksCache = {
+                    generated_at: new Date().toISOString(),
+                    version: 'V4.8.2',
+                    schema_version: 'V4.8.2',
+                    frontend_contract_version: 'V4.8.2',
+                    total_links: (entityLinksResult.results || []).length,
+                    models_with_links: Object.keys(linksByModel).length,
+                    links: linksByModel
+                };
+
+                await env.R2_ASSETS.put('cache/entity_links.json',
+                    JSON.stringify(entityLinksCache, null, 2),
+                    { httpMetadata: { contentType: 'application/json' } }
+                );
+
+                console.log(`[L8] Entity links cache: ${entityLinksCache.total_links} links for ${entityLinksCache.models_with_links} models`);
             });
         }
 
