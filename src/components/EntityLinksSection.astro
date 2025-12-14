@@ -1,0 +1,84 @@
+---
+/**
+ * Entity Links Section V4.8.1
+ * Displays model relationships: siblings, same_architecture
+ * Art.1-E: All R2 data must be user-accessible
+ */
+interface Props {
+    modelId: string;
+    modelName: string;
+}
+
+const { modelId, modelName } = Astro.props;
+
+// Fetch entity links from D1 via runtime
+let entityLinks: { source_id: string; target_id: string; link_type: string; confidence: number }[] = [];
+let linkedModels: { id: string; name: string; slug: string; link_type: string }[] = [];
+
+try {
+    const runtime = Astro.locals.runtime;
+    if (runtime?.env?.DB) {
+        const db = runtime.env.DB;
+        
+        // Get links where this model is source or target
+        const result = await db.prepare(`
+            SELECT el.source_id, el.target_id, el.link_type, el.confidence,
+                   m.name, m.slug
+            FROM entity_links el
+            JOIN models m ON (
+                (el.target_id = m.id AND el.source_id = ?) OR
+                (el.source_id = m.id AND el.target_id = ?)
+            )
+            WHERE el.source_id = ? OR el.target_id = ?
+            LIMIT 10
+        `).bind(modelId, modelId, modelId, modelId).all();
+        
+        if (result.results) {
+            linkedModels = result.results.map((r: any) => ({
+                id: r.source_id === modelId ? r.target_id : r.source_id,
+                name: r.name || 'Unknown',
+                slug: r.slug || '',
+                link_type: r.link_type || 'related'
+            }));
+        }
+    }
+} catch (e) {
+    console.error('[EntityLinks] Error fetching links:', e);
+}
+
+const hasLinks = linkedModels.length > 0;
+---
+
+{hasLinks ? (
+    <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+        <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+            🔗 Related Models
+        </h2>
+        <div class="space-y-3">
+            {linkedModels.map(link => (
+                <a 
+                    href={`/model/${link.slug}`}
+                    class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                >
+                    <span class="font-medium text-gray-900 dark:text-white truncate max-w-xs">
+                        {link.name}
+                    </span>
+                    <span class="text-xs px-2 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 rounded-full">
+                        {link.link_type === 'sibling' ? '📦 Sibling' : 
+                         link.link_type === 'same_architecture' ? '🏗️ Same Arch' : 
+                         '🔗 Related'}
+                    </span>
+                </a>
+            ))}
+        </div>
+    </section>
+) : (
+    <section class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 border border-dashed border-gray-300 dark:border-gray-700">
+        <h2 class="text-xl font-bold mb-2 text-gray-500 dark:text-gray-400 flex items-center gap-2">
+            🔗 Related Models
+        </h2>
+        <p class="text-sm text-gray-400 dark:text-gray-500">
+            Data unavailable
+        </p>
+    </section>
+)}
