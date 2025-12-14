@@ -411,6 +411,56 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                 );
 
                 console.log(`[L8] Neural graph: ${neuralGraph.nodes.length} nodes, ${neuralGraph.links.length} links`);
+
+                // ---------------------------------------------------------
+                // L8 EXTENSION: Category Stats (V4.8.1)
+                // Generate per-category model counts and avg FNI for homepage
+                // ---------------------------------------------------------
+                console.log('[L8] Generating category stats...');
+
+                const categoryStats = await env.DB.prepare(`
+                    SELECT 
+                        pipeline_tag as category,
+                        COUNT(*) as model_count,
+                        AVG(fni_score) as avg_fni,
+                        MAX(fni_score) as top_fni
+                    FROM models 
+                    WHERE pipeline_tag IS NOT NULL AND pipeline_tag != ''
+                    GROUP BY pipeline_tag
+                    ORDER BY model_count DESC
+                    LIMIT 50
+                `).all();
+
+                // Also get tag-based stats (for custom categories)
+                const tagStats = await env.DB.prepare(`
+                    SELECT 
+                        tags,
+                        COUNT(*) as model_count,
+                        AVG(fni_score) as avg_fni
+                    FROM models 
+                    WHERE tags IS NOT NULL
+                    GROUP BY tags
+                    LIMIT 100
+                `).all();
+
+                const categoryData = {
+                    generated_at: new Date().toISOString(),
+                    version: 'V4.8.1',
+                    pipeline_tags: (categoryStats.results || []).map((c: any) => ({
+                        category: c.category,
+                        count: c.model_count,
+                        avgFni: c.avg_fni ? Math.round(c.avg_fni * 10) / 10 : null,
+                        topFni: c.top_fni ? Math.round(c.top_fni * 10) / 10 : null
+                    })),
+                    total_categories: (categoryStats.results || []).length
+                };
+
+                await env.R2_ASSETS.put('cache/category_stats.json',
+                    JSON.stringify(categoryData, null, 2),
+                    { httpMetadata: { contentType: 'application/json' } }
+                );
+
+                console.log(`[L8] Category stats: ${categoryData.total_categories} categories`);
             });
         }
 

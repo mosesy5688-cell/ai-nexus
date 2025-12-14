@@ -1,14 +1,72 @@
 ---
+/**
+ * CategoryGroup Component V4.8.1
+ * Displays category cards with model counts from L8 precomputed stats
+ */
 const { group } = Astro.props;
+
+// Fetch category stats from R2 cache
+let categoryStats: Map<string, { count: number; avgFni: number | null }> = new Map();
+
+try {
+    const runtime = Astro.locals.runtime;
+    if (runtime?.env?.R2_ASSETS) {
+        const r2 = runtime.env.R2_ASSETS;
+        const statsFile = await r2.get('cache/category_stats.json');
+        if (statsFile) {
+            const stats = await statsFile.json() as any;
+            if (stats?.pipeline_tags) {
+                for (const cat of stats.pipeline_tags) {
+                    categoryStats.set(cat.category?.toLowerCase() || '', {
+                        count: cat.count || 0,
+                        avgFni: cat.avgFni
+                    });
+                }
+            }
+        }
+    }
+} catch (e) {
+    console.error('[CategoryGroup] Stats fetch error:', e);
+}
+
+// Helper to find stats by matching slug to pipeline_tag
+function getStats(slug: string) {
+    // Try exact match first
+    const exact = categoryStats.get(slug.toLowerCase());
+    if (exact) return exact;
+    
+    // Try partial match
+    for (const [key, value] of categoryStats.entries()) {
+        if (key.includes(slug.toLowerCase()) || slug.toLowerCase().includes(key)) {
+            return value;
+        }
+    }
+    return null;
+}
 ---
 <div class="mb-8">
     <h3 class="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-6 border-l-4 border-blue-500 pl-4">{group.group}</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-        {group.items.map(item => (
-            <a href={`/?tag=${encodeURIComponent(item.slug)}`} class="group block p-5 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400">
-                <h4 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{item.title}</h4>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">{item.description}</p>
-            </a>
-        ))}
+        {group.items.map(item => {
+            const stats = getStats(item.slug);
+            return (
+                <a href={`/?tag=${encodeURIComponent(item.slug)}`} class="group block p-5 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{item.title}</h4>
+                        {stats && (
+                            <span class="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
+                                {stats.count} models
+                            </span>
+                        )}
+                    </div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">{item.description}</p>
+                    {stats?.avgFni && (
+                        <div class="mt-2 text-xs text-gray-400 dark:text-gray-500">
+                            Avg FNI: <span class="text-green-600 dark:text-green-400 font-medium">{stats.avgFni}</span>
+                        </div>
+                    )}
+                </a>
+            );
+        })}
     </div>
 </div>
