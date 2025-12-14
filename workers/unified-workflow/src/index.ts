@@ -83,9 +83,29 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                     // Clean and prepare models
                     const cleanedModels = models.map(m => cleanModel(m));
 
-                    // Write to D1 in batches
-                    for (let i = 0; i < cleanedModels.length; i += 50) {
-                        const batch = cleanedModels.slice(i, i + 50);
+                    // L2 VALIDATION: Separate valid from invalid models (Art.Shadow)
+                    const validModels: any[] = [];
+                    const invalidModels: { model: any; validation: ValidationResult }[] = [];
+
+                    for (const m of cleanedModels) {
+                        const validation = validateModel(m);
+                        if (validation.valid) {
+                            validModels.push(m);
+                        } else {
+                            invalidModels.push({ model: m, validation });
+                        }
+                    }
+
+                    console.log(`[Ingest] Validation: ${validModels.length} valid, ${invalidModels.length} invalid`);
+
+                    // Route invalid models to Shadow DB
+                    for (const { model, validation } of invalidModels) {
+                        await routeToShadowDB(env.DB, model, validation);
+                    }
+
+                    // Write valid models to D1 in batches
+                    for (let i = 0; i < validModels.length; i += 50) {
+                        const batch = validModels.slice(i, i + 50);
                         const stmts = batch.map(m =>
                             env.DB.prepare(`
                                 INSERT OR REPLACE INTO models (
@@ -337,6 +357,100 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
             });
         }
 
+        // ---------------------------------------------------------
+        // STEP 6: L7 ARCHIVIST (Art.VII-Schedule)
+        // Monthly archival of data >180 days
+        // ---------------------------------------------------------
+        const archiveNow = new Date();
+        const dayOfMonth = archiveNow.getUTCDate();
+        const archiveHour = archiveNow.getUTCHours();
+
+        // Run on 1st of each month, between 02:00-03:00 UTC
+        if (dayOfMonth === 1 && archiveHour >= 2 && archiveHour < 3) {
+            await step.do('l7-archivist', async () => {
+                console.log('[L7 Archivist] Starting monthly archive (Art.VII-Schedule)...');
+
+                const archiveDate = archiveNow.toISOString().split('T')[0].substring(0, 7); // YYYY-MM
+
+                // 1. Archive quarantine_log >180 days
+                const quarantineData = await env.DB.prepare(`
+                    SELECT * FROM quarantine_log 
+                    WHERE created_at < datetime('now', '-180 days')
+                `).all();
+
+                if (quarantineData.results && quarantineData.results.length > 0) {
+                    const archiveKey = `archives/quarantine_log/${archiveDate}.json`;
+                    await env.R2_ASSETS.put(archiveKey,
+                        JSON.stringify(quarantineData.results, null, 2),
+                        { httpMetadata: { contentType: 'application/json' } }
+                    );
+
+                    // Delete archived records from D1
+                    await env.DB.prepare(`
+                        DELETE FROM quarantine_log 
+                        WHERE created_at < datetime('now', '-180 days')
+                    `).run();
+
+                    console.log(`[L7 Archivist] Archived ${quarantineData.results.length} quarantine records to ${archiveKey}`);
+                }
+
+                // 2. Archive affiliate_clicks >180 days
+                const clicksData = await env.DB.prepare(`
+                    SELECT * FROM affiliate_clicks 
+                    WHERE clicked_at < datetime('now', '-180 days')
+                `).all();
+
+                if (clicksData.results && clicksData.results.length > 0) {
+                    const archiveKey = `archives/affiliate_clicks/${archiveDate}.json`;
+                    await env.R2_ASSETS.put(archiveKey,
+                        JSON.stringify(clicksData.results, null, 2),
+                        { httpMetadata: { contentType: 'application/json' } }
+                    );
+
+                    await env.DB.prepare(`
+                        DELETE FROM affiliate_clicks 
+                        WHERE clicked_at < datetime('now', '-180 days')
+                    `).run();
+
+                    console.log(`[L7 Archivist] Archived ${clicksData.results.length} click records to ${archiveKey}`);
+                }
+
+                // 3. Archive models_history >365 days
+                const historyData = await env.DB.prepare(`
+                    SELECT * FROM models_history 
+                    WHERE recorded_at < datetime('now', '-365 days')
+                `).all();
+
+                if (historyData.results && historyData.results.length > 0) {
+                    const archiveKey = `archives/models_history/${archiveDate}.json`;
+                    await env.R2_ASSETS.put(archiveKey,
+                        JSON.stringify(historyData.results, null, 2),
+                        { httpMetadata: { contentType: 'application/json' } }
+                    );
+
+                    await env.DB.prepare(`
+                        DELETE FROM models_history 
+                        WHERE recorded_at < datetime('now', '-365 days')
+                    `).run();
+
+                    console.log(`[L7 Archivist] Archived ${historyData.results.length} history records to ${archiveKey}`);
+                }
+
+                // 4. Update manifest
+                const manifest = {
+                    last_archive: archiveNow.toISOString(),
+                    archived_tables: ['quarantine_log', 'affiliate_clicks', 'models_history'],
+                    version: 'V4.8'
+                };
+                await env.R2_ASSETS.put('archives/manifest.json',
+                    JSON.stringify(manifest, null, 2),
+                    { httpMetadata: { contentType: 'application/json' } }
+                );
+
+                console.log('[L7 Archivist] Monthly archive complete');
+            });
+        }
+
         return result;
     }
 }
@@ -378,6 +492,110 @@ function cleanModel(model: any): any {
         has_gguf: model.has_gguf ? 1 : 0,
         last_updated: new Date().toISOString()
     };
+}
+
+// ============================================================
+// L2 SHADOW DB VALIDATION (Constitution V4.8 Art.Shadow)
+// ============================================================
+
+interface ValidationResult {
+    valid: boolean;
+    errors: string[];
+    honeypotTriggers: string[];
+}
+
+/**
+ * L2 Normalizer: Validate model data per Constitution V4.8
+ * - Schema validation
+ * - Honeypot detection
+ * - Routes invalid data to Shadow DB
+ */
+function validateModel(model: any): ValidationResult {
+    const errors: string[] = [];
+    const honeypotTriggers: string[] = [];
+
+    // Schema validation
+    if (!model.id || model.id.length === 0) {
+        errors.push('missing_id');
+    }
+    if (!model.slug || model.slug.length === 0) {
+        errors.push('missing_slug');
+    }
+    if (model.id && model.id.length > 500) {
+        errors.push('id_too_long');
+    }
+    if (model.description && model.description.length > 50000) {
+        errors.push('description_too_long');
+    }
+
+    // Honeypot detection (poison data patterns)
+    const honeypotPatterns = [
+        { pattern: /<script/i, name: 'xss_script' },
+        { pattern: /javascript:/i, name: 'xss_javascript' },
+        { pattern: /onclick\s*=/i, name: 'xss_onclick' },
+        { pattern: /eval\s*\(/i, name: 'xss_eval' },
+        { pattern: /union\s+select/i, name: 'sql_union' },
+        { pattern: /drop\s+table/i, name: 'sql_drop' },
+        { pattern: /\x00/, name: 'null_byte' }
+    ];
+
+    const fieldsToCheck = [model.name, model.description, model.author];
+    for (const field of fieldsToCheck) {
+        if (!field) continue;
+        for (const { pattern, name } of honeypotPatterns) {
+            if (pattern.test(field)) {
+                honeypotTriggers.push(name);
+            }
+        }
+    }
+
+    return {
+        valid: errors.length === 0 && honeypotTriggers.length === 0,
+        errors,
+        honeypotTriggers
+    };
+}
+
+/**
+ * Route invalid data to Shadow DB (Art.Shadow)
+ * Never auto-merges to main DB
+ */
+async function routeToShadowDB(
+    db: D1Database,
+    model: any,
+    validation: ValidationResult
+): Promise<void> {
+    try {
+        // Insert into models_shadow
+        await db.prepare(`
+            INSERT OR REPLACE INTO models_shadow 
+            (id, raw_data, validation_errors, honeypot_triggers, created_at)
+            VALUES (?, ?, ?, ?, datetime('now'))
+        `).bind(
+            model.id || 'unknown',
+            JSON.stringify(model),
+            JSON.stringify(validation.errors),
+            JSON.stringify(validation.honeypotTriggers)
+        ).run();
+
+        // Log to quarantine_log
+        const reason = validation.honeypotTriggers.length > 0
+            ? `honeypot:${validation.honeypotTriggers.join(',')}`
+            : `schema:${validation.errors.join(',')}`;
+
+        await db.prepare(`
+            INSERT INTO quarantine_log (entity_id, reason, severity, created_at)
+            VALUES (?, ?, ?, datetime('now'))
+        `).bind(
+            model.id || 'unknown',
+            reason,
+            validation.honeypotTriggers.length > 0 ? 'high' : 'medium'
+        ).run();
+
+        console.log(`[L2 Shadow] Routed invalid model to Shadow DB: ${model.id}`);
+    } catch (error) {
+        console.error(`[L2 Shadow] Error routing to Shadow DB:`, error);
+    }
 }
 
 /**
