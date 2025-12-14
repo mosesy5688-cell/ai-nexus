@@ -27,7 +27,10 @@ jobs:
         id: health
         run: |
           RESPONSE=$(curl -s "${{ env.HEALTH_ENDPOINT }}" || echo '{"status":"error"}')
-          echo "response=$RESPONSE" >> $GITHUB_OUTPUT
+          
+          # Compact JSON for single-line storage
+          RESPONSE_COMPACT=$(echo "$RESPONSE" | jq -c '.')
+          echo "response=$RESPONSE_COMPACT" >> $GITHUB_OUTPUT
           
           # Extract status
           STATUS=$(echo "$RESPONSE" | jq -r '.status // "error"')
@@ -36,6 +39,10 @@ jobs:
           # Extract P95
           P95=$(echo "$RESPONSE" | jq -r '.checks.guardian.p95_ms // "0"')
           echo "p95=$P95" >> $GITHUB_OUTPUT
+          
+          # Extract samples count
+          SAMPLES=$(echo "$RESPONSE" | jq -r '.checks.guardian.samples // "0"')
+          echo "samples=$SAMPLES" >> $GITHUB_OUTPUT
           
           # Extract Shadow count
           SHADOW=$(echo "$RESPONSE" | jq -r '.checks.d1.shadow_models // "0"')
@@ -49,7 +56,7 @@ jobs:
         if: ${{ steps.health.outputs.p95 != '0' }}
         run: |
           P95="${{ steps.health.outputs.p95 }}"
-          SAMPLES=$(echo '${{ steps.health.outputs.response }}' | jq -r '.checks.guardian.samples // "0"')
+          SAMPLES="${{ steps.health.outputs.samples }}"
           echo "Guardian P95: ${P95}ms (samples: ${SAMPLES})"
           
           # Skip check if insufficient samples (< 10)
