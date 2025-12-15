@@ -1,0 +1,253 @@
+---
+/**
+ * ArchitectureModule V4.9.1
+ * 
+ * Encapsulated Architecture Explorer Component
+ * V4.9.1 Step 3 - Neural Explorer Optimization
+ * 
+ * CONSTITUTION COMPLIANCE:
+ * - Art.X-Capability-Gating: Uses entity.capabilities, not entity.type
+ * - Art.11-G: Version-locked, no DB fallback
+ * - WCAG 2.1 AA: Alt text and aria-labels for accessibility
+ */
+
+import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
+import FamilyTree from '../specs/FamilyTree.astro';
+
+interface Entity {
+  id: string;
+  umid?: string;
+  name: string;
+  architecture_family?: string;
+  capabilities?: string[];
+  params_billions?: number;
+}
+
+interface Props {
+  entity: Entity;
+  showFamilyTree?: boolean;
+  showGraph?: boolean;
+  compact?: boolean;
+}
+
+const { 
+  entity, 
+  showFamilyTree = true, 
+  showGraph = true,
+  compact = false 
+} = Astro.props;
+
+// V4.9.1: Capability-gated rendering (Art.X-Capability-Gating)
+// Only render if entity has 'architecture' capability
+const capabilities = entity?.capabilities || [];
+const hasArchitectureCapability = capabilities.includes('architecture') || 
+                                   capabilities.includes('neural_graph') ||
+                                   !!entity?.architecture_family;
+
+// Entity identity for graph
+const entityId = entity?.umid || entity?.id || '';
+const entityName = entity?.name || 'Unknown';
+const entityFamily = entity?.architecture_family || null;
+
+// Mock family members for demonstration (in production, fetch from L8 cache)
+let familyMembers: { umid: string; name: string; params_billions?: number; isBase?: boolean }[] = [];
+
+if (entityFamily) {
+  // Placeholder: In production, fetch from /cache/entity_links.json
+  familyMembers = [
+    { umid: entityId, name: entityName, params_billions: entity?.params_billions, isBase: false }
+  ];
+}
+---
+
+{hasArchitectureCapability ? (
+  <section 
+    class={`architecture-module ${compact ? 'compact' : ''}`}
+    aria-label="Model Architecture Information"
+    role="region"
+  >
+    <header class="module-header">
+      <h3 class="module-title">
+        🏗️ Architecture Explorer
+      </h3>
+      <span class="capability-badge" aria-label="Capability indicator">
+        architecture
+      </span>
+    </header>
+
+    <div class="module-content">
+      {/* Family Tree Section */}
+      {showFamilyTree && entityFamily && (
+        <div class="section family-section">
+          <FamilyTree 
+            family={entityFamily}
+            members={familyMembers}
+            currentModelId={entityId}
+            compact={compact}
+          />
+        </div>
+      )}
+
+      {/* Neural Graph Explorer */}
+      {showGraph && (
+        <div class="section graph-section" aria-label="Neural Graph visualization">
+          <NeuralGraphExplorer currentModelId={entityId} />
+        </div>
+      )}
+
+      {/* Multi-Entity Card Group (V4.9.1: Static card grouping) */}
+      {!showFamilyTree && !showGraph && (
+        <div class="entity-cards" role="list" aria-label="Related architecture models">
+          <div class="empty-state">
+            <p>Architecture data loading...</p>
+            <span class="hint">Enable L8 precompute for architecture graphs</span>
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* Accessibility: Screen reader summary */}
+    <span class="sr-only">
+      This section shows architecture information for {entityName}.
+      {entityFamily && `Model belongs to the ${entityFamily} architecture family.`}
+    </span>
+  </section>
+) : (
+  <!-- Graceful degradation: No architecture capability -->
+  <section 
+    class="architecture-module disabled"
+    aria-label="Architecture information not available"
+  >
+    <div class="no-capability">
+      <span class="icon" role="img" aria-label="Information">ℹ️</span>
+      <p>Architecture visualization not available for this entity type.</p>
+    </div>
+  </section>
+)}
+
+<style>
+  .architecture-module {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+  }
+
+  .architecture-module.compact {
+    padding: 1rem;
+  }
+
+  .architecture-module.disabled {
+    opacity: 0.7;
+    background: rgba(30, 41, 59, 0.5);
+  }
+
+  .module-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+  }
+
+  .module-title {
+    color: #e2e8f0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .capability-badge {
+    background: rgba(99, 102, 241, 0.2);
+    color: #818cf8;
+    font-size: 0.7rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+
+  .module-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .section {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .entity-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #64748b;
+  }
+
+  .empty-state p {
+    margin: 0 0 0.5rem;
+  }
+
+  .hint {
+    font-size: 0.75rem;
+    color: #475569;
+  }
+
+  .no-capability {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    color: #94a3b8;
+  }
+
+  .no-capability .icon {
+    font-size: 1.25rem;
+  }
+
+  .no-capability p {
+    margin: 0;
+    font-size: 0.875rem;
+  }
+
+  /* Screen reader only */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .architecture-module {
+      padding: 1rem;
+    }
+
+    .module-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+  }
+</style>
