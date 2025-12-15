@@ -83,10 +83,31 @@ const rising = benchmarksData.data?.slice(0, 12) || [];
 const generatedAt = trendingData.generated_at || new Date().toISOString();
 
 const mainRankings = [
-    { title: "🔥 Hot Models", description: "Most popular in the community.", models: hot },
-    { title: "🚀 Trending", description: "Highest download counts.", models: trending },
-    { title: "✨ Newest", description: "Recently updated.", models: newest },
-    { title: "🌟 Rising Stars", description: "Top benchmark performers.", models: rising, isBenchmark: true }
+    { 
+        title: "🔥 Hot Models", 
+        description: "Models with the highest community engagement this week.",
+        explanation: "Based on likes, comments, and shares across platforms.",
+        models: hot 
+    },
+    { 
+        title: "🚀 Trending", 
+        description: "Fastest growing models by download count.",
+        explanation: "These models are seeing rapid adoption right now.",
+        models: trending 
+    },
+    { 
+        title: "✨ Newest", 
+        description: "Recently updated models worth checking out.",
+        explanation: "Fresh updates often mean bug fixes and new features.",
+        models: newest 
+    },
+    { 
+        title: "🌟 Rising Stars", 
+        description: "Top performers on standardized benchmarks.",
+        explanation: "Objectively measured performance on industry tests.",
+        models: rising, 
+        isBenchmark: true 
+    }
 ];
 ---
 
@@ -108,7 +129,8 @@ const mainRankings = [
         {mainRankings.map(ranking => (
             <section class="mb-16">
                 <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">{ranking.title}</h2>
-                <p class="text-gray-500 dark:text-gray-400 mb-6">{ranking.description}</p>
+                <p class="text-gray-500 dark:text-gray-400 mb-2">{ranking.description}</p>
+                <p class="text-sm text-gray-400 dark:text-gray-500 italic mb-6">{ranking.explanation}</p>
                 {ranking.models.length > 0 ? (
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {ranking.models.slice(0, 8).map(model => (

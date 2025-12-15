@@ -24,6 +24,7 @@ import NeuralExplorer from '../../components/NeuralExplorer.astro';
 import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
 import EntityLinksSection from '../../components/EntityLinksSection.astro';
 import FavoriteButton from '../../components/FavoriteButton.astro';
+import EntityNotice from '../../components/entity/EntityNotice.astro';
 
 import { resolveToModel } from '../../utils/umid-resolver';
 import { safeParseJSON } from '../../utils/model-detail-builder';
@@ -140,6 +141,9 @@ if (!model && !error) {
                   <span>{entityLabel}</span>
                 </span>
               </div>
+              
+              <!-- V4.9: Entity Notice for non-Model entities (Content Activation P0) -->
+              <EntityNotice entityType={entityType} entityLabel={entityLabel} />
               
               <div class="flex flex-wrap items-center gap-3 mb-2">
                 <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">

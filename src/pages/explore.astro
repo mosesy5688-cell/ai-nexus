@@ -61,6 +61,16 @@ const entityLabel = entityLabels[entityType] || 'Models';
         
         <!-- V4.9: Entity Type Tabs (Art.X-Entity-List) -->
         <EntityTabs activeType={entityType} basePath="/explore" />
+        
+        <!-- Content Activation: Quick Start Guide for new users -->
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-lg mb-6 border border-blue-100 dark:border-blue-800">
+            <p class="font-medium text-blue-800 dark:text-blue-200 mb-2">👋 Not sure where to start?</p>
+            <ul class="space-y-1 text-sm text-blue-700 dark:text-blue-300">
+                <li>→ <a href="/explore?type=model&sort=likes" class="underline hover:no-underline">Best general-purpose models</a></li>
+                <li>→ <a href="/explore?type=model" class="underline hover:no-underline">Models runnable on consumer GPUs</a></li>
+                <li>→ <a href="/explore?type=dataset&sort=likes" class="underline hover:no-underline">Popular datasets for training LLMs</a></li>
+            </ul>
+        </div>
 
         <div class="flex flex-col lg:flex-row gap-8">
             <!-- Sidebar / Filters -->
