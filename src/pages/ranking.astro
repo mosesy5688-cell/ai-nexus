@@ -109,9 +109,31 @@ const mainRankings = [
         isBenchmark: true 
     }
 ];
+
+// V4.9.1 Step 3: JSON-LD ItemList Schema for SEO
+const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": pageTitle,
+    "description": pageDescription,
+    "url": "https://free2aitools.com/ranking",
+    "numberOfItems": hot.length,
+    "itemListElement": hot.slice(0, 10).map((model: any, index: number) => ({
+        "@type": "ListItem",
+        "position": index + 1,
+        "item": {
+            "@type": "SoftwareApplication",
+            "name": model.name,
+            "url": `https://free2aitools.com/model/${model.slug || model.umid}`,
+            "applicationCategory": "AI Model"
+        }
+    }))
+};
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
+    <!-- V4.9.1: JSON-LD Structured Data -->
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
     <div class="container mx-auto px-4 py-12">
         <header class="text-center mb-8">
             <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">{entityLabel} Rankings</h1>
@@ -124,6 +146,28 @@ const mainRankings = [
         <!-- V4.9: Entity Type Tabs (Art.X-Entity-List) -->
         <div class="flex justify-center mb-8">
             <EntityTabs activeType={entityType} basePath="/ranking" />
+        </div>
+
+        <!-- V4.9.1: Category Quick Links (Step 3 Traffic Amplifiers) -->
+        <div class="flex flex-wrap justify-center gap-2 mb-10">
+            <a href="/ranking/text-generation" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">
+                Text Generation
+            </a>
+            <a href="/ranking/code" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">
+                Code
+            </a>
+            <a href="/ranking/embedding" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">
+                Embedding
+            </a>
+            <a href="/ranking/image" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">
+                Image
+            </a>
+            <a href="/ranking/vision" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">
+                Vision
+            </a>
+            <a href="/ranking/audio" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">
+                Audio
+            </a>
         </div>
 
         {mainRankings.map(ranking => (

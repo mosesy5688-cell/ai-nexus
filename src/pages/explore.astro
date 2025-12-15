@@ -1,17 +1,39 @@
 ---
 /**
- * Explore Page V4.9
+ * Explore Page V4.9.1
  * Constitution V4.9 Entity-First Architecture
  * Art.X-Entity-List: Lists segregated or polymorphic
+ * V4.9.1 Step 3: Canonical URLs + Dynamic Meta
  */
 import Layout from '../layouts/Layout.astro';
 import SearchFilters from '../components/SearchFilters.astro';
 import EntityTabs from '../components/entity/EntityTabs.astro';
 import allCategories from '../data/categories.json';
 
-// V4.9: Get entity type from URL params
+// V4.9: Get entity type and filters from URL params
 const url = new URL(Astro.request.url);
 const entityType = url.searchParams.get('type') || 'model';
+const sortParam = url.searchParams.get('sort') || '';
+const tagParam = url.searchParams.get('tag') || '';
+
+// V4.9.1 Step 3: SEO-friendly category name mapping
+const PIPELINE_TAG_NAMES: Record<string, string> = {
+    'text-generation': 'Text Generation',
+    'text-classification': 'Text Classification',
+    'feature-extraction': 'Embedding & Vector Search',
+    'text-to-image': 'Image Generation',
+    'image-text-to-text': 'Vision & Multimodal',
+    'automatic-speech-recognition': 'Speech Recognition',
+    'text-to-speech': 'Text-to-Speech',
+    'translation': 'Translation',
+    'summarization': 'Summarization',
+    'question-answering': 'Question Answering',
+    // Legacy names mapped to SEO-friendly (Art.X renaming)
+    'AutoRegressive': 'Text Generation',
+    'SequenceClassification': 'Text Classification',
+    'TokenClassification': 'Named Entity Recognition',
+    'CausalLM': 'Text Generation'
+};
 
 // Entity-specific page metadata
 const ENTITY_META: Record<string, { title: string; description: string }> = {
@@ -41,6 +63,24 @@ const meta = ENTITY_META[entityType] || ENTITY_META.model;
 let pageTitle = meta.title;
 let pageDescription = meta.description;
 
+// V4.9.1 Step 3: Dynamic title/description based on filters
+if (tagParam) {
+    const friendlyTagName = PIPELINE_TAG_NAMES[tagParam] || tagParam.replace(/-/g, ' ');
+    pageTitle = `${friendlyTagName} Models - AI Nexus`;
+    pageDescription = `Explore the best ${friendlyTagName.toLowerCase()} AI models. Compare by FNI score, downloads, and benchmarks.`;
+}
+if (sortParam === 'downloads') {
+    pageTitle = `Most Downloaded ${entityType === 'dataset' ? 'Datasets' : 'AI Models'} - AI Nexus`;
+    pageDescription = `Discover the most downloaded ${entityType === 'dataset' ? 'datasets' : 'AI models'} in the open-source ecosystem.`;
+}
+
+// V4.9.1 Step 3: Canonical URL (normalize filters for SEO)
+const canonicalParams = new URLSearchParams();
+if (entityType !== 'model') canonicalParams.set('type', entityType);
+if (tagParam) canonicalParams.set('tag', tagParam);
+if (sortParam && sortParam !== 'likes') canonicalParams.set('sort', sortParam);
+const canonicalUrl = `https://free2aitools.com/explore${canonicalParams.toString() ? '?' + canonicalParams.toString() : ''}`;
+
 // Entity display labels
 const entityLabels: Record<string, string> = {
     model: 'Models',
@@ -53,6 +93,8 @@ const entityLabel = entityLabels[entityType] || 'Models';
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
+    <!-- V4.9.1 Step 3: Canonical URL for SEO -->
+    <link slot="head" rel="canonical" href={canonicalUrl} />
     <div class="container mx-auto px-4 py-8 min-h-screen">
         <header class="mb-4">
             <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Explore {entityLabel}</h1>
