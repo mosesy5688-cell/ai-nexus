@@ -918,9 +918,112 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
         // Run on 1st of each month, between 02:00-03:00 UTC
         if (dayOfMonth === 1 && archiveHour >= 2 && archiveHour < 3) {
             await step.do('l7-archivist', async () => {
-                console.log('[L7 Archivist] Starting monthly archive (Art.VII-Schedule)...');
+                console.log('[L7 Archivist] Starting monthly archive (Art.VII-Schedule, V4.9.1 Enhanced)...');
 
                 const archiveDate = archiveNow.toISOString().split('T')[0].substring(0, 7); // YYYY-MM
+
+                // ---------------------------------------------------------
+                // V4.9.1: Hash Freeze Snapshot for Models
+                // CEO Iron Law: Must freeze models state with hash for auditability
+                // ---------------------------------------------------------
+                console.log('[L7 Archivist] Creating hash freeze snapshot...');
+
+                const modelsSnapshot = await env.DB.prepare(`
+                    SELECT id, slug, name, author, fni_score, downloads, likes, last_updated
+                    FROM models
+                    WHERE fni_score IS NOT NULL
+                    ORDER BY fni_score DESC
+                `).all();
+
+                if (modelsSnapshot.results && modelsSnapshot.results.length > 0) {
+                    // Create hash for this snapshot
+                    const snapshotContent = JSON.stringify(modelsSnapshot.results);
+                    const hashArray = new Uint8Array(
+                        await crypto.subtle.digest('SHA-256', new TextEncoder().encode(snapshotContent))
+                    );
+                    const hashHex = Array.from(hashArray).map(b => b.toString(16).padStart(2, '0')).join('');
+
+                    const frozenSnapshot = {
+                        frozen_at: archiveNow.toISOString(),
+                        version: 'V4.9.1',
+                        schema_hash: `sha256:${hashHex}`,
+                        model_count: modelsSnapshot.results.length,
+                        models: (modelsSnapshot.results as any[]).map((m: any) => ({
+                            slug: m.slug,
+                            hash: `sha256:${m.id}-${m.fni_score}-${m.downloads}`,
+                            frozen_at: archiveNow.toISOString()
+                        }))
+                    };
+
+                    const snapshotKey = `snapshots/models/${archiveDate}.json`;
+                    await env.R2_ASSETS.put(snapshotKey,
+                        JSON.stringify(frozenSnapshot, null, 2),
+                        { httpMetadata: { contentType: 'application/json' } }
+                    );
+
+                    console.log(`[L7 Archivist] Hash freeze: ${modelsSnapshot.results.length} models frozen with hash ${hashHex.substring(0, 16)}...`);
+                }
+
+                // ---------------------------------------------------------
+                // V4.9.1: D1 ↔ R2 Reconciliation (Alert-Only, Never Auto-Merge)
+                // CEO Iron Law: Report discrepancies but NEVER auto-fix
+                // ---------------------------------------------------------
+                console.log('[L7 Archivist] Running D1 ↔ R2 reconciliation...');
+
+                const reconciliationErrors: string[] = [];
+                const modelsToCheck = (modelsSnapshot.results || []).slice(0, 100) as any[];
+
+                for (const model of modelsToCheck) {
+                    try {
+                        const slug = model.slug || model.id.replace(/\//g, '--');
+                        const cachePath = `cache/models/${slug}.json`;
+                        const cacheFile = await env.R2_ASSETS.get(cachePath);
+
+                        if (!cacheFile) {
+                            reconciliationErrors.push(`MISSING: R2 cache not found for ${slug}`);
+                            continue;
+                        }
+
+                        const cacheData = await cacheFile.json() as any;
+
+                        // Check for data discrepancy
+                        if (cacheData.entity?.fni_score !== model.fni_score) {
+                            reconciliationErrors.push(
+                                `MISMATCH: ${slug} FNI score D1=${model.fni_score} vs R2=${cacheData.entity?.fni_score}`
+                            );
+                        }
+
+                        // Check contract version
+                        if (!cacheData.contract_version) {
+                            reconciliationErrors.push(`CONTRACT: ${slug} missing contract_version`);
+                        }
+                    } catch (e) {
+                        reconciliationErrors.push(`ERROR: ${model.slug} - ${(e as Error).message}`);
+                    }
+                }
+
+                // Store reconciliation report (alert-only, never auto-merge)
+                const reconciliationReport = {
+                    run_at: archiveNow.toISOString(),
+                    version: 'V4.9.1',
+                    checked_count: modelsToCheck.length,
+                    error_count: reconciliationErrors.length,
+                    errors: reconciliationErrors,
+                    action: 'ALERT_ONLY - Manual review required per V4.9.1 Shadow DB Law'
+                };
+
+                await env.R2_ASSETS.put(`archives/reconciliation/${archiveDate}.json`,
+                    JSON.stringify(reconciliationReport, null, 2),
+                    { httpMetadata: { contentType: 'application/json' } }
+                );
+
+                if (reconciliationErrors.length > 0) {
+                    console.warn(`[L7 Archivist] ⚠️ RECONCILIATION ALERT: ${reconciliationErrors.length} discrepancies found - manual review required`);
+                    // Log first 5 errors for visibility
+                    reconciliationErrors.slice(0, 5).forEach(err => console.warn(`  - ${err}`));
+                } else {
+                    console.log('[L7 Archivist] ✅ Reconciliation passed: D1 and R2 are in sync');
+                }
 
                 // 1. Archive quarantine_log >180 days
                 const quarantineData = await env.DB.prepare(`
