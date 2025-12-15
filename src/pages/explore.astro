@@ -1,18 +1,66 @@
 ---
+/**
+ * Explore Page V4.9
+ * Constitution V4.9 Entity-First Architecture
+ * Art.X-Entity-List: Lists segregated or polymorphic
+ */
 import Layout from '../layouts/Layout.astro';
 import SearchFilters from '../components/SearchFilters.astro';
+import EntityTabs from '../components/entity/EntityTabs.astro';
 import allCategories from '../data/categories.json';
 
-let pageTitle = "Explore AI Models - AI Nexus";
-let pageDescription = "Browse and filter our extensive collection of open-source AI models. Sort by popularity, downloads, or freshness.";
+// V4.9: Get entity type from URL params
+const url = new URL(Astro.request.url);
+const entityType = url.searchParams.get('type') || 'model';
+
+// Entity-specific page metadata
+const ENTITY_META: Record<string, { title: string; description: string }> = {
+    model: {
+        title: 'Explore AI Models - AI Nexus',
+        description: 'Browse and filter our extensive collection of open-source AI models. Sort by popularity, downloads, or freshness.'
+    },
+    dataset: {
+        title: 'Explore Datasets - AI Nexus',
+        description: 'Discover high-quality datasets for AI/ML training and evaluation.'
+    },
+    benchmark: {
+        title: 'Explore Benchmarks - AI Nexus',
+        description: 'Compare AI evaluation benchmarks and leaderboards.'
+    },
+    paper: {
+        title: 'Explore Papers - AI Nexus',
+        description: 'Browse cutting-edge AI research papers and publications.'
+    },
+    agent: {
+        title: 'Explore AI Agents - AI Nexus',
+        description: 'Discover AI agents and autonomous systems.'
+    }
+};
+
+const meta = ENTITY_META[entityType] || ENTITY_META.model;
+let pageTitle = meta.title;
+let pageDescription = meta.description;
+
+// Entity display labels
+const entityLabels: Record<string, string> = {
+    model: 'Models',
+    dataset: 'Datasets',
+    benchmark: 'Benchmarks',
+    paper: 'Papers',
+    agent: 'Agents'
+};
+const entityLabel = entityLabels[entityType] || 'Models';
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
     <div class="container mx-auto px-4 py-8 min-h-screen">
-        <header class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Explore Models</h1>
-            <p class="text-gray-600 dark:text-gray-400 mt-2">Discover the best AI models from Hugging Face, PyTorch, and GitHub.</p>
+        <header class="mb-4">
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Explore {entityLabel}</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">{pageDescription}</p>
         </header>
+        
+        <!-- V4.9: Entity Type Tabs (Art.X-Entity-List) -->
+        <EntityTabs activeType={entityType} basePath="/explore" />
 
         <div class="flex flex-col lg:flex-row gap-8">
             <!-- Sidebar / Filters -->
