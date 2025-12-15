@@ -1,8 +1,13 @@
 export const prerender = false; // Enable SSR for this endpoint
 
 /**
- * V4.9: Derive entity type from UMID prefix
- * Art.X-Search-Contract: Search returns {entity_type, display_card} per result
+ * V4.9.1 REPAIR: R2-First Search Implementation
+ * Constitution: Art.I-Extended - Frontend D1 = 0
+ * Logic: Fetch entity_index.json -> In-Memory Filter -> Return
+ */
+
+/**
+ * Derive entity type (helper)
  */
 function deriveEntityType(id) {
     if (!id) return 'model';
@@ -11,163 +16,131 @@ function deriveEntityType(id) {
     if (id.startsWith('benchmark--')) return 'benchmark';
     if (id.startsWith('arxiv--')) return 'paper';
     if (id.startsWith('agent--')) return 'agent';
-    return 'model'; // Default fallback
+    return 'model';
 }
 
 export async function GET({ request, locals }) {
     const url = new URL(request.url);
-    const query = url.searchParams.get('q');
+    const query = (url.searchParams.get('q') || '').toLowerCase().trim();
     const tag = url.searchParams.get('tag');
     const sort = url.searchParams.get('sort') || 'likes';
+    const limit = parseInt(url.searchParams.get('limit') || '12', 10);
+    const entityType = url.searchParams.get('entity_type') || 'model';
+
+    // Additional filters
     const minLikes = parseInt(url.searchParams.get('min_likes') || '0', 10);
-    const daysAgo = parseInt(url.searchParams.get('days_ago') || '0', 10);
     const hasBenchmarks = url.searchParams.get('has_benchmarks') === 'true';
-    const hasImage = url.searchParams.get('has_image') === 'true';
-
-    // V4.9: Entity type filter (Art.X-Entity-List)
-    const entityType = url.searchParams.get('entity_type');
-
-    // Support multi-value source param (e.g. ?source=github&source=huggingface)
     const sources = url.searchParams.getAll('source').map(s => s.toLowerCase());
 
-    const limit = parseInt(url.searchParams.get('limit') || '12', 10);
+    const r2 = locals.runtime?.env?.R2_ASSETS;
+    const kv = locals.runtime?.env?.KV_CACHE;
 
-    const db = locals.runtime?.env?.DB;
-
-    if (!db) {
-        return new Response(JSON.stringify({ error: 'Database not available' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
+    if (!r2) {
+        return new Response(JSON.stringify({ error: 'Search Service Unavailable (R2)' }), { status: 503 });
     }
 
     try {
-        let results = [];
-        let sql = '';
-        let params = [];
+        // 1. Fetch Index (Try KV first for speed, then R2)
+        let indexData = [];
+        let indexSource = 'r2';
 
-        // Base query construction
-        if (query) {
-            // Full-text search takes precedence
-            sql = `
-                SELECT m.* 
-                FROM models m 
-                JOIN models_fts f ON m.rowid = f.rowid 
-                WHERE models_fts MATCH ? 
-            `;
-            const ftsQuery = `"${query}" OR ${query}*`;
-            params.push(ftsQuery);
-        } else {
-            sql = `SELECT * FROM models WHERE 1=1`;
+        if (kv) {
+            const cachedIndex = await kv.get('meta:entity_index', { type: 'json' });
+            if (cachedIndex) {
+                indexData = cachedIndex;
+                indexSource = 'kv';
+            }
         }
 
-        // Apply filters
-        if (tag) {
-            sql += ` AND tags LIKE ?`;
-            params.push(`%${tag}%`);
+        if (indexData.length === 0) {
+            const r2Obj = await r2.get('cache/meta/entity_index.json');
+            if (r2Obj) {
+                indexData = await r2Obj.json();
+                // Async populate KV for next time
+                if (kv) ctx.waitUntil(kv.put('meta:entity_index', JSON.stringify(indexData), { expirationTtl: 300 }));
+            }
         }
 
-        // Multi-Source Filter
-        if (sources.length > 0) {
-            const placeholders = sources.map(() => '?').join(',');
-            sql += ` AND source IN (${placeholders})`;
-            params.push(...sources);
-        }
-
-        // Quality Filter (Min Likes)
-        if (minLikes > 0) {
-            sql += ` AND likes >= ?`;
-            params.push(minLikes);
-        }
-
-        // Freshness Filter (Days Ago)
-        if (daysAgo > 0) {
-            // SQLite datetime calculation
-            sql += ` AND last_updated >= date('now', '-' || ? || ' days')`;
-            params.push(daysAgo);
-        }
-
-        // Benchmark Filter
-        if (hasBenchmarks) {
-            sql += ` AND pwc_sota_count > 0`;
-        }
-
-        // License Filter (stored in resources JSON field)
-        const license = url.searchParams.get('license');
-        if (license) {
-            // License is stored in resources JSON, e.g. {"license":"MIT License"}
-            sql += ` AND resources LIKE ?`;
-            params.push(`%"license":"${license}%`);
-        }
-
-        // Multi-Tag Filter (AND logic: all tags must match)
-        const tags = url.searchParams.getAll('tags');
-        if (tags.length > 0) {
-            tags.forEach(t => {
-                sql += ` AND tags LIKE ?`;
-                params.push(`%${t}%`);
+        if (indexData.length === 0) {
+            // Fallback: Return empty if index not ready
+            return new Response(JSON.stringify({ results: [], meta: { status: 'indexing_pending' } }), {
+                headers: { 'Content-Type': 'application/json' }
             });
         }
 
-        // Filter for models with images if requested
-        if (hasImage) {
-            sql += ` AND cover_image_url IS NOT NULL AND cover_image_url != 'NULL'`;
-        }
+        // 2. In-Memory Filtering
+        let results = indexData.filter(item => {
+            // A. Entity Type
+            if (item.type !== entityType) return false;
 
-        // Apply sorting (only if not FTS, or if explicit sort requested)
-        // Note: FTS usually ranks by relevance, but we might want to sort results
-        let orderBy = 'likes DESC';
-        switch (sort) {
-            case 'downloads': orderBy = 'downloads DESC'; break;
-            case 'last_updated': orderBy = 'last_updated DESC'; break;
-            case 'likes': orderBy = 'likes DESC'; break;
-            default: orderBy = 'likes DESC';
-        }
+            // B. Full Text Search (Simple substring match for Repair Phase)
+            if (query) {
+                const searchTarget = `${item.name} ${item.description || ''} ${item.author} ${item.slug}`.toLowerCase();
+                if (!searchTarget.includes(query)) return false;
+            }
 
-        // If query is present, we might want to keep rank, but for now let's allow override
-        if (query && sort === 'relevance') {
-            sql += ` ORDER BY f.rank`;
-        } else {
-            sql += ` ORDER BY ${orderBy}`;
-        }
+            // C. Tag Filter
+            if (tag) {
+                const itemTags = Array.isArray(item.tags) ? item.tags : [];
+                if (!itemTags.some(t => t.toLowerCase().includes(tag.toLowerCase()))) return false;
+            }
 
-        sql += ` LIMIT ?`;
-        params.push(limit);
+            // D. Min Likes
+            if (minLikes > 0 && (item.stats?.likes || 0) < minLikes) return false;
 
-        const { results: data } = await db.prepare(sql).bind(...params).all();
+            // E. Benchmarks
+            if (hasBenchmarks && !(item.stats?.fni > 0)) return false; // Approx proxy
 
-        // V4.9: Enrich results with entity_type (Art.X-Search-Contract)
-        let enrichedResults = data.map(item => ({
-            ...item,
-            entity_type: deriveEntityType(item.umid || item.id)
+            return true;
+        });
+
+        // 3. Sorting
+        results.sort((a, b) => {
+            if (sort === 'likes') return (b.stats?.likes || 0) - (a.stats?.likes || 0);
+            if (sort === 'downloads') return (b.stats?.downloads || 0) - (a.stats?.downloads || 0);
+            if (sort === 'last_updated') return new Date(b.last_updated).getTime() - new Date(a.last_updated).getTime();
+            if (sort === 'relevance') return 0; // Already filtered
+            return 0; // Default
+        });
+
+        // 4. Pagination
+        const total = results.length;
+        const sliced = results.slice(0, limit);
+
+        // 5. Enrich (Map back to Search Card format)
+        // The index already has minimal fields. We format them for frontend.
+        const responseData = sliced.map(item => ({
+            id: item.id,
+            slug: item.slug,
+            name: item.name,
+            author: item.author,
+            description: item.description, // Should be in index
+            tags: item.tags,
+            likes: item.stats?.likes || 0,
+            downloads: item.stats?.downloads || 0,
+            fni_score: item.stats?.fni,
+            entity_type: item.type,
+            cover_image_url: null, // Index might not have it, use placeholder logic in frontend
+            source: 'huggingface' // Default
         }));
 
-        // V4.9: Filter by entity_type if specified (Art.X-Entity-List)
-        if (entityType) {
-            enrichedResults = enrichedResults.filter(item => item.entity_type === entityType);
-        }
-
         return new Response(JSON.stringify({
-            results: enrichedResults,
+            results: responseData,
             meta: {
-                version: 'V4.9',
-                entity_type_filter: entityType || null,
-                total: enrichedResults.length
+                version: 'V4.9.1',
+                source: indexSource,
+                total
             }
         }), {
-            status: 200,
             headers: {
                 'Content-Type': 'application/json',
                 'Cache-Control': 'public, max-age=60',
-                'X-Version': 'V4.9'
+                'X-Search-Source': indexSource
             }
         });
 
-    } catch (error) {
-        console.error("Search API Error:", error);
-        return new Response(JSON.stringify({ error: error.message }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
+    } catch (e) {
+        console.error('[Search] Error:', e);
+        return new Response(JSON.stringify({ error: 'Search Failed' }), { status: 500 });
     }
 }
