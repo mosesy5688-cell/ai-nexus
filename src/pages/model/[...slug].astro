@@ -26,7 +26,8 @@ import EntityLinksSection from '../../components/EntityLinksSection.astro';
 import FavoriteButton from '../../components/FavoriteButton.astro';
 import EntityNotice from '../../components/entity/EntityNotice.astro';
 
-import { resolveToModel } from '../../utils/umid-resolver';
+// V4.9.1: Constitutional D1 = 0 - Use R2 cache reader instead of D1 queries
+import { getModelFromCache } from '../../utils/entity-cache-reader';
 import { safeParseJSON } from '../../utils/model-detail-builder';
 // V4.9: Entity-First Architecture imports
 import { deriveEntityType, getEntityTier } from '../../types/entity';
@@ -50,14 +51,14 @@ let pageDescription = "Explore comprehensive information about this AI model.";
 try {
   if (!slug) throw new Error("No slug provided");
   
-  // V4.8.2: Removed console.log for production
-  const result = await resolveToModel(slug, Astro.locals);
-  model = result?.model || null;
-  resolution = result?.resolution || null;
+  // V4.9.1: Constitutional D1 = 0 - Read from R2 cache only
+  // CEO Iron Rule: Frontend must not access D1 database
+  model = await getModelFromCache(slug, Astro.locals);
+  resolution = model ? { source: model._cache_source || 'r2-cache', confidence: 1.0 } : null;
   
   if (model) {
     pageTitle = `${model.name || model.canonical_name || 'Model'} by ${model.author || 'Unknown'} | Free AI Tools`;
-    const desc = model.description || model.seo_summary || 'AI model details';
+    const desc = model.description || model.seo_summary || model._seo?.description || 'AI model details';
     pageDescription = desc.substring(0, 160).replace(/---[\s\S]*?---/g, '').replace(/[#*`]/g, '');
     
     // V4.8.2: REMOVED D1 access for similar models
