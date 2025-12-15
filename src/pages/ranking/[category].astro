@@ -1,0 +1,239 @@
+---
+/**
+ * Category Ranking Page - V4.9.1 Step 3 Traffic Amplifiers
+ * Constitution V4.9: Art.X-Entity-List - Lists segregated by type
+ * SEO: Independent routes with unique canonical, JSON-LD ItemList
+ */
+
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import ModelCard from '../../components/ModelCard.astro';
+import DataFreshness from '../../components/common/DataFreshness.astro';
+import { deriveEntityType } from '../../types/entity';
+
+// Get category slug from URL
+const { category } = Astro.params;
+
+// Category definitions with SEO-friendly metadata
+const CATEGORIES: Record<string, { 
+  title: string; 
+  description: string; 
+  pipeline_tag: string;
+  seoTitle: string;
+}> = {
+  'text-generation': {
+    title: 'Text Generation Models',
+    description: 'LLMs and language models for text generation, chat, and completion.',
+    pipeline_tag: 'text-generation',
+    seoTitle: 'Best Text Generation AI Models 2024 - LLM Rankings'
+  },
+  'code': {
+    title: 'Code Generation Models',
+    description: 'AI models specialized in code completion, generation, and assistance.',
+    pipeline_tag: 'text-generation',  // Filter by tag
+    seoTitle: 'Best AI Coding Assistants 2024 - Code Model Rankings'
+  },
+  'embedding': {
+    title: 'Embedding Models',
+    description: 'Vector embedding models for semantic search, RAG, and similarity.',
+    pipeline_tag: 'feature-extraction',
+    seoTitle: 'Best Embedding Models 2024 - Vector Search Rankings'
+  },
+  'image': {
+    title: 'Image Generation Models',
+    description: 'Text-to-image and image generation AI models.',
+    pipeline_tag: 'text-to-image',
+    seoTitle: 'Best AI Image Generators 2024 - Text-to-Image Rankings'
+  },
+  'vision': {
+    title: 'Vision & Multimodal Models',
+    description: 'Image understanding, vision-language, and multimodal AI models.',
+    pipeline_tag: 'image-text-to-text',
+    seoTitle: 'Best Vision AI Models 2024 - Multimodal Rankings'
+  },
+  'audio': {
+    title: 'Audio & Speech Models',
+    description: 'Speech recognition, text-to-speech, and audio processing models.',
+    pipeline_tag: 'automatic-speech-recognition',
+    seoTitle: 'Best Speech AI Models 2024 - Audio Model Rankings'
+  }
+};
+
+// Get category config or 404
+const categoryConfig = CATEGORIES[category || ''];
+if (!categoryConfig) {
+  return Astro.redirect('/ranking');
+}
+
+const pageTitle = categoryConfig.seoTitle;
+const pageDescription = categoryConfig.description;
+const canonicalUrl = `https://free2aitools.com/ranking/${category}`;
+
+// V4.9 Constitution: Load from L8 Precompute cache (D1 reads = 0)
+let models: any[] = [];
+let generatedAt = new Date().toISOString();
+
+try {
+  const response = await fetch(new URL('/cache/trending_weekly.json', Astro.url.origin));
+  if (response.ok) {
+    const data = await response.json();
+    // Filter by pipeline_tag or category tag
+    models = (data.data || []).filter((m: any) => {
+      if (category === 'code') {
+        // Code models: check for code-related tags
+        const tags = Array.isArray(m.tags) ? m.tags : [];
+        return tags.some((t: string) => 
+          t.toLowerCase().includes('code') || 
+          t.toLowerCase().includes('coding') ||
+          t.toLowerCase().includes('programming')
+        );
+      }
+      return m.pipeline_tag === categoryConfig.pipeline_tag;
+    }).slice(0, 24);
+    generatedAt = data.generated_at || generatedAt;
+  }
+} catch (e) {
+  console.error('[Ranking Category] Cache fetch error:', e);
+}
+
+// JSON-LD ItemList for SEO (V4.9.1 Step 3 requirement)
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": categoryConfig.title,
+  "description": categoryConfig.description,
+  "url": canonicalUrl,
+  "numberOfItems": models.length,
+  "itemListElement": models.slice(0, 10).map((model, index) => ({
+    "@type": "ListItem",
+    "position": index + 1,
+    "item": {
+      "@type": "SoftwareApplication",
+      "name": model.name,
+      "description": model.description?.substring(0, 200) || `${model.name} AI model`,
+      "url": `https://free2aitools.com/model/${model.slug || model.umid}`,
+      "applicationCategory": "AI Model",
+      "author": {
+        "@type": "Organization",
+        "name": model.author || "Unknown"
+      }
+    }
+  }))
+};
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <!-- Canonical URL for SEO -->
+  <link slot="head" rel="canonical" href={canonicalUrl} />
+  
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+
+  <div class="container mx-auto px-4 py-12">
+    <header class="text-center mb-10">
+      <nav class="mb-4 text-sm text-gray-500 dark:text-gray-400">
+        <a href="/" class="hover:text-indigo-600">Home</a>
+        <span class="mx-2">→</span>
+        <a href="/ranking" class="hover:text-indigo-600">Rankings</a>
+        <span class="mx-2">→</span>
+        <span class="text-gray-700 dark:text-gray-300">{categoryConfig.title}</span>
+      </nav>
+      
+      <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
+        {categoryConfig.title}
+      </h1>
+      <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        {categoryConfig.description}
+      </p>
+      <DataFreshness timestamp={generatedAt} source="L8 Precompute" />
+    </header>
+
+    <!-- Category Navigation -->
+    <div class="flex flex-wrap justify-center gap-2 mb-10">
+      {Object.entries(CATEGORIES).map(([slug, config]) => (
+        <a 
+          href={`/ranking/${slug}`}
+          class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+            slug === category 
+              ? 'bg-indigo-600 text-white' 
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700'
+          }`}
+        >
+          {config.title.replace(' Models', '')}
+        </a>
+      ))}
+    </div>
+
+    {models.length > 0 ? (
+      <>
+        <!-- Top 3 Spotlight -->
+        <section class="mb-12">
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <span>🏆</span> Top Ranked
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {models.slice(0, 3).map((model, index) => (
+              <div class={`relative ${index === 0 ? 'md:scale-105' : ''}`}>
+                <div class="absolute -top-3 -left-3 w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold shadow-lg z-10">
+                  #{index + 1}
+                </div>
+                <ModelCard model={model} />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <!-- Full Rankings -->
+        <section>
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <span>📊</span> Full Rankings
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {models.slice(3).map(model => (
+              <ModelCard model={model} />
+            ))}
+          </div>
+        </section>
+      </>
+    ) : (
+      <div class="text-center py-16">
+        <p class="text-xl text-gray-500 dark:text-gray-400 mb-4">
+          No models found in this category yet.
+        </p>
+        <a href="/explore" class="text-indigo-600 hover:underline">
+          Explore all models →
+        </a>
+      </div>
+    )}
+
+    <!-- SEO Content Footer -->
+    <section class="mt-16 bg-gray-50 dark:bg-gray-800/50 rounded-xl p-8">
+      <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+        About {categoryConfig.title}
+      </h2>
+      <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
+        {category === 'text-generation' && 
+          "Text generation models (LLMs) are the foundation of modern AI assistants. These models can write, summarize, translate, and reason about text. Popular architectures include GPT, LLaMA, Qwen, and Mistral."}
+        {category === 'code' && 
+          "Code generation models help developers write, debug, and understand code. These AI assistants can complete code, explain functions, and even generate entire applications. Top models include CodeLlama, DeepSeek Coder, and StarCoder."}
+        {category === 'embedding' && 
+          "Embedding models convert text into numerical vectors, enabling semantic search, RAG systems, and similarity comparisons. They're essential for building AI-powered search and retrieval systems."}
+        {category === 'image' && 
+          "Image generation models create stunning visuals from text prompts. From photorealistic images to artistic styles, these models have revolutionized digital art and design."}
+        {category === 'vision' && 
+          "Vision and multimodal models can understand images, answer questions about visuals, and combine text and image understanding. They power applications from document analysis to visual assistants."}
+        {category === 'audio' && 
+          "Audio AI models handle speech recognition, text-to-speech synthesis, and audio processing. They enable voice assistants, transcription services, and audio content creation."}
+      </p>
+      <div class="mt-4 flex gap-4">
+        <a href="/knowledge" class="text-indigo-600 hover:underline text-sm">
+          📚 Learn about AI concepts
+        </a>
+        <a href="/methodology" class="text-indigo-600 hover:underline text-sm">
+          📊 How we rank models
+        </a>
+      </div>
+    </section>
+  </div>
+</Layout>
