@@ -862,6 +862,43 @@ function cleanModel(model: any): any {
 }
 
 // ============================================================
+// V4.9 ENTITY TYPE DERIVATION (Art.X-Entity)
+// ============================================================
+
+/**
+ * Derive entity type from UMID prefix
+ * Art.X-Entity: Frontend must render by entity.definition
+ */
+function deriveEntityType(id: string): string {
+    if (!id) return 'model';
+    if (id.startsWith('hf-dataset--')) return 'dataset';
+    if (id.startsWith('benchmark--')) return 'benchmark';
+    if (id.startsWith('arxiv--')) return 'paper';
+    if (id.startsWith('agent--')) return 'agent';
+    return 'model';
+}
+
+/**
+ * V4.9 Art.X-Entity-FNI: Remove FNI fields from non-Model entities
+ * FNI only applies to Model entities; non-model: fni_score = null (not 0)
+ */
+function stripFNIFromNonModel(entity: any): any {
+    const entityType = deriveEntityType(entity.id || entity.umid);
+    if (entityType !== 'model') {
+        // Delete FNI fields for non-model entities
+        delete entity.fni_score;
+        delete entity.fni_p;
+        delete entity.fni_v;
+        delete entity.fni_c;
+        delete entity.fni_u;
+        delete entity.fni_rank;
+        delete entity.fni_trend;
+        delete entity.fni_percentile;
+    }
+    return entity;
+}
+
+// ============================================================
 // L2 SHADOW DB VALIDATION (Constitution V4.8 Art.Shadow)
 // ============================================================
 
