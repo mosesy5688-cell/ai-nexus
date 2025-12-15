@@ -1,0 +1,248 @@
+---
+/**
+ * Dataset Detail Page - V5.0 Entity-First Architecture
+ * 
+ * Constitution V4.9 Compliance:
+ * - Art.X-Entity: Renders by entity.definition
+ * - Frontend D1 = 0: Uses L8 cache only
+ * - Art.X-Entity-Link: Bidirectional entity links
+ */
+
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import ModelCard from '../../components/ModelCard.astro';
+import DataFreshness from '../../components/common/DataFreshness.astro';
+import { getEntityFromCache } from '../../utils/entity-cache-reader.js';
+
+// Get slug from URL
+const { slug } = Astro.params;
+const datasetSlug = Array.isArray(slug) ? slug.join('/') : slug;
+
+// V4.9 Constitution: Fetch from L8 cache (R2), NOT D1
+let dataset: any = null;
+let recommendedModels: any[] = [];
+let cacheVersion = '';
+
+try {
+  // Fetch dataset entity from cache
+  const runtime = Astro.locals.runtime;
+  if (runtime?.env?.R2_ASSETS) {
+    const r2 = runtime.env.R2_ASSETS;
+    
+    // Try to get dataset from cache
+    const cacheFile = await r2.get(`cache/entities/dataset/${datasetSlug}.json`);
+    if (cacheFile) {
+      const cacheData = await cacheFile.json();
+      dataset = cacheData.entity;
+      cacheVersion = cacheData.contract_version || 'unknown';
+    }
+    
+    // Fetch recommended models (models that use this dataset)
+    const modelsFile = await r2.get('cache/trending_weekly.json');
+    if (modelsFile && dataset) {
+      const modelsData = await modelsFile.json();
+      // Filter models by dataset tag or pipeline_tag
+      const datasetTags = dataset.tags ? JSON.parse(dataset.tags) : [];
+      recommendedModels = (modelsData.data || [])
+        .filter((m: any) => {
+          const modelTags = Array.isArray(m.tags) ? m.tags : [];
+          return datasetTags.some((dt: string) => 
+            modelTags.some((mt: string) => 
+              mt.toLowerCase().includes(dt.toLowerCase()) ||
+              dt.toLowerCase().includes(mt.toLowerCase())
+            )
+          );
+        })
+        .slice(0, 6);
+    }
+  }
+} catch (e) {
+  console.error('[Dataset Page] Cache error:', e);
+}
+
+// Page metadata
+const pageTitle = dataset ? `${dataset.name} - AI Dataset` : 'Dataset Not Found';
+const pageDescription = dataset?.description?.slice(0, 160) || 'Browse AI/ML datasets on Free2AITools';
+const canonicalUrl = `https://free2aitools.com/dataset/${datasetSlug}`;
+
+// JSON-LD for SEO
+const jsonLd = dataset ? {
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  "name": dataset.name,
+  "description": dataset.description,
+  "url": canonicalUrl,
+  "creator": {
+    "@type": "Organization",
+    "name": dataset.author || "Unknown"
+  },
+  "dateModified": dataset.last_updated,
+  "license": dataset.license_spdx || undefined
+} : null;
+
+const hasDataset = !!dataset;
+const hasRecommendedModels = recommendedModels.length > 0;
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <!-- Canonical URL -->
+  <link slot="head" rel="canonical" href={canonicalUrl} />
+  
+  <!-- JSON-LD -->
+  {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+
+  <main class="container mx-auto px-4 py-12">
+    {hasDataset ? (
+      <article class="max-w-4xl mx-auto">
+        <!-- Breadcrumb -->
+        <nav class="mb-6 text-sm text-gray-500 dark:text-gray-400" aria-label="Breadcrumb">
+          <a href="/" class="hover:text-indigo-600">Home</a>
+          <span class="mx-2">→</span>
+          <a href="/explore?type=dataset" class="hover:text-indigo-600">Datasets</a>
+          <span class="mx-2">→</span>
+          <span class="text-gray-700 dark:text-gray-300">{dataset.name}</span>
+        </nav>
+
+        <!-- Header -->
+        <header class="mb-8">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-3xl" role="img" aria-label="Dataset">📊</span>
+            <span class="px-2 py-1 text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded">
+              DATASET
+            </span>
+          </div>
+          <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
+            {dataset.name}
+          </h1>
+          <p class="text-gray-600 dark:text-gray-400 text-lg">
+            {dataset.description || 'No description available'}
+          </p>
+          <DataFreshness timestamp={dataset.last_updated} source={`L8 v${cacheVersion}`} />
+        </header>
+
+        <!-- Dataset Info Grid -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+          <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">📋 Dataset Info</h2>
+            <dl class="space-y-3 text-sm">
+              <div class="flex justify-between">
+                <dt class="text-gray-500 dark:text-gray-400">Author</dt>
+                <dd class="font-medium text-gray-900 dark:text-white">{dataset.author || 'Unknown'}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-gray-500 dark:text-gray-400">Downloads</dt>
+                <dd class="font-medium text-gray-900 dark:text-white">{dataset.downloads?.toLocaleString() || '—'}</dd>
+              </div>
+              <div class="flex justify-between">
+                <dt class="text-gray-500 dark:text-gray-400">License</dt>
+                <dd class="font-medium text-gray-900 dark:text-white">{dataset.license_spdx || 'Unknown'}</dd>
+              </div>
+              {dataset.source_url && (
+                <div class="mt-4">
+                  <a 
+                    href={dataset.source_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    class="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+                  >
+                    View on Source →
+                  </a>
+                </div>
+              )}
+            </dl>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">🏷️ Tags</h2>
+            <div class="flex flex-wrap gap-2">
+              {(dataset.tags ? JSON.parse(dataset.tags) : []).slice(0, 10).map((tag: string) => (
+                <a 
+                  href={`/explore?type=dataset&tag=${encodeURIComponent(tag)}`}
+                  class="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors"
+                >
+                  {tag}
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <!-- V5.0: Recommended Models Section (Dataset → Models) -->
+        <section class="mb-12">
+          <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
+            <span>🤖</span> Recommended Models
+            <span class="text-sm font-normal text-gray-500 dark:text-gray-400">(trained on similar data)</span>
+          </h2>
+          
+          {hasRecommendedModels ? (
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {recommendedModels.map(model => (
+                <ModelCard model={model} />
+              ))}
+            </div>
+          ) : (
+            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-8 text-center">
+              <p class="text-gray-500 dark:text-gray-400 mb-4">
+                No recommended models available yet.
+              </p>
+              <a 
+                href="/explore?type=model" 
+                class="text-indigo-600 hover:underline"
+              >
+                Browse all models →
+              </a>
+            </div>
+          )}
+        </section>
+
+        <!-- Next Step Navigation (V5.0: Related Entities Full Chain) -->
+        <section class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-8">
+          <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
+            <span>🚀</span> What's Next?
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <a href="/explore?type=model" 
+               class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
+              <div class="text-3xl mb-3">🤖</div>
+              <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-emerald-600">Find Compatible Models</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Discover models trained on this dataset
+              </p>
+            </a>
+
+            <a href="/leaderboard" 
+               class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
+              <div class="text-3xl mb-3">📈</div>
+              <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-emerald-600">View Benchmarks</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Compare model performance on standard tests
+              </p>
+            </a>
+
+            <a href="/knowledge" 
+               class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
+              <div class="text-3xl mb-3">📚</div>
+              <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-emerald-600">Learn More</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Understand AI concepts and best practices
+              </p>
+            </a>
+          </div>
+        </section>
+      </article>
+    ) : (
+      <div class="text-center py-16">
+        <div class="bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 p-8 rounded-lg max-w-2xl mx-auto">
+          <h1 class="text-3xl font-bold mb-4">Dataset Not Found</h1>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">
+            The dataset you are looking for does not exist or has not been cached yet.
+          </p>
+          <a href="/explore?type=dataset" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">
+            Browse Datasets
+          </a>
+        </div>
+      </div>
+    )}
+  </main>
+</Layout>

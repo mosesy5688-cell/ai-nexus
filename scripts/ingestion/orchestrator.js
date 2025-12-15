@@ -43,7 +43,12 @@ const DEFAULT_CONFIG = {
         ollama: { enabled: true, options: { limit: 1000 } },
 
         // PWC disabled (Cloudflare protection)
-        paperswithcode: { enabled: false, options: { limit: 200 } }
+        paperswithcode: { enabled: false, options: { limit: 200 } },
+
+        // V4.9.1 Data Expansion (Manual Enablement)
+        openllm: { enabled: true, options: { limit: 1000 } }, // Benchmarks
+        deepspec: { enabled: true, options: { limit: 5000 } }, // Specs
+        civitai: { enabled: true, options: { limit: 500 } }  // Models (NSFW filtered)
     },
     deduplication: {
         enabled: true,
