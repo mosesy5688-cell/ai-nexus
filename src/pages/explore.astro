@@ -247,6 +247,11 @@ const entityLabel = entityLabels[entityType] || 'Models';
                 params.set('sort', filters.sort);
                 params.set('limit', '50');
 
+                // V4.9: Get entity_type from URL for filtering (Art.X-Entity-List)
+                const urlParams = new URLSearchParams(window.location.search);
+                const entityType = urlParams.get('type') || 'model';
+                params.set('entity_type', entityType);
+
                 // Add new params
                 if (filters.min_likes > 0) params.set('min_likes', filters.min_likes);
                 if (filters.days_ago > 0) params.set('days_ago', filters.days_ago);
