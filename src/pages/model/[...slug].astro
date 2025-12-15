@@ -173,6 +173,13 @@ if (!model && !error) {
                 by <span class="font-semibold">{model?.author || 'Unknown'}</span>
               </p>
               
+              <!-- V4.9.1 Step 2.2: SEO Summary Paragraph (Art.I-E Content Completeness) -->
+              {(model?._seo?.description || model?.seo_summary) && (
+                <p class="text-base text-gray-700 dark:text-gray-300 mb-4 leading-relaxed border-l-4 border-indigo-500 pl-4 bg-gray-50 dark:bg-gray-800/50 py-2 rounded-r">
+                  {model?._seo?.description || model?.seo_summary}
+                </p>
+              )}
+              
               {Array.isArray(tags) && tags.length > 0 && (
                 <div class="flex flex-wrap gap-2 mb-4">
                   {tags.slice(0, 8).map(tag => (
