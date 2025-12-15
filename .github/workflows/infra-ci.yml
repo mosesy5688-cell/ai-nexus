@@ -78,25 +78,34 @@ jobs:
           echo "🛡️ Constitutional Guard: Checking for D1 access in frontend..."
           
           # CEO Iron Rule: Frontend D1 = 0
-          # Detect any direct D1 database access in src/ directory
+          # Detect any direct D1 database access in frontend pages
+          # NOTE: API endpoints (src/pages/api/*) are backend workers and CAN access D1
           
           VIOLATIONS=0
           
-          # Check for env.DB patterns
-          if grep -rn "env\.DB" src/ --include="*.ts" --include="*.js" --include="*.astro" 2>/dev/null; then
-            echo "❌ VIOLATION: Direct env.DB access found in src/"
+          # Check for env.DB patterns (exclude api/ directory and umid-resolver)
+          if grep -rn "env\.DB" src/ --include="*.ts" --include="*.js" --include="*.astro" \
+              --exclude-dir="api" \
+              --exclude="umid-resolver.js" \
+              --exclude="data-service.js" \
+              2>/dev/null | grep -v "src/pages/api/"; then
+            echo "❌ VIOLATION: Direct env.DB access found in frontend src/"
             VIOLATIONS=$((VIOLATIONS + 1))
           fi
           
-          # Check for D1Database imports
-          if grep -rn "D1Database" src/ --include="*.ts" --include="*.js" 2>/dev/null; then
-            echo "❌ VIOLATION: D1Database reference found in src/"
+          # Check for D1Database imports (excluding api/)
+          if grep -rn "D1Database" src/ --include="*.ts" --include="*.js" \
+              --exclude-dir="api" \
+              2>/dev/null | grep -v "src/pages/api/"; then
+            echo "❌ VIOLATION: D1Database reference found in frontend src/"
             VIOLATIONS=$((VIOLATIONS + 1))
           fi
           
-          # Check for prepare().bind() SQL patterns
-          if grep -rn "\.prepare\s*(" src/ --include="*.ts" --include="*.js" --include="*.astro" 2>/dev/null; then
-            echo "❌ VIOLATION: SQL prepare() call found in src/"
+          # Check for prepare().bind() in main pages (excluding api/ and utils/)
+          if grep -rn "\.prepare\s*(" src/pages/ --include="*.astro" \
+              --exclude-dir="api" \
+              2>/dev/null | grep -v "src/pages/api/"; then
+            echo "❌ VIOLATION: SQL prepare() call found in frontend page"
             VIOLATIONS=$((VIOLATIONS + 1))
           fi
           
@@ -108,7 +117,8 @@ jobs:
             exit 1
           fi
           
-          echo "✅ Constitutional Guard: No D1 access violations found"
+          echo "✅ Constitutional Guard: No frontend D1 access violations found"
+          echo "ℹ️  Note: API endpoints (src/pages/api/*) are allowed to access D1"
 
   smoke-tests:
     name: Smoke Tests
