@@ -47,6 +47,27 @@ const seoSchema = buildIndexSEO();
             <EntityTabs activeType="model" basePath="/explore" />
         </div>
 
+        <!-- V4.9.1 Step 2.3: Weekly Report Banner (CEO Iron Law) -->
+        <section id="weekly-report-banner" class="mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl hidden">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="text-4xl">📊</div>
+                    <div>
+                        <h3 class="text-lg font-bold" id="report-title">This Week in AI</h3>
+                        <p class="text-sm text-indigo-200" id="report-summary">Loading weekly trends...</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <a id="report-top-model-link" href="/explore" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                        🏆 Top Model: <span id="report-top-model">--</span>
+                    </a>
+                    <a href="/reports" class="bg-white text-indigo-600 hover:bg-indigo-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                        View Full Report →
+                    </a>
+                </div>
+            </div>
+        </section>
+
         <!-- Search Bar (Sticky) -->
         <div class="mb-8 flex flex-col md:flex-row gap-4 items-center sticky top-[65px] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-4 z-30 max-w-4xl mx-auto w-full">
             <div id="search-container" class="w-full">
@@ -201,7 +222,61 @@ const seoSchema = buildIndexSEO();
             if (!initialQuery && !initialTag) {
                 loadHotModels();
             }
+
+            // V4.9.1 Step 2.3: Load Weekly Report Banner
+            loadWeeklyReport();
         });
+
+        // V4.9.1: Weekly Report Banner Loader
+        async function loadWeeklyReport() {
+            const banner = document.getElementById('weekly-report-banner');
+            const titleEl = document.getElementById('report-title');
+            const summaryEl = document.getElementById('report-summary');
+            const topModelEl = document.getElementById('report-top-model');
+            const topModelLink = document.getElementById('report-top-model-link');
+
+            try {
+                // Get current week number
+                const now = new Date();
+                const startOfYear = new Date(now.getFullYear(), 0, 1);
+                const weekNum = Math.ceil((((now.getTime() - startOfYear.getTime()) / 86400000) + startOfYear.getDay() + 1) / 7);
+                const reportKey = `${now.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+
+                // Fetch latest report
+                const response = await fetch(`/reports/${reportKey}.json`);
+                if (!response.ok) {
+                    // Try previous week if current doesn't exist
+                    const prevWeek = weekNum - 1;
+                    const prevReportKey = `${now.getFullYear()}-W${String(prevWeek).padStart(2, '0')}`;
+                    const prevResponse = await fetch(`/reports/${prevReportKey}.json`);
+                    if (!prevResponse.ok) throw new Error('No report available');
+                    var data = await prevResponse.json();
+                } else {
+                    var data = await response.json();
+                }
+
+                // Populate banner
+                titleEl.textContent = `Week ${data.week || weekNum} AI Trends`;
+                
+                if (data.this_week_changed?.fni_leader) {
+                    const leader = data.this_week_changed.fni_leader;
+                    summaryEl.textContent = `${data.this_week_changed.new_models_count || 0} new models this week!`;
+                    topModelEl.textContent = leader.name;
+                    topModelLink.href = `/model/${leader.slug}`;
+                } else if (data.who_to_watch?.[0]) {
+                    const top = data.who_to_watch[0];
+                    summaryEl.textContent = data.why_it_matters?.summary?.slice(0, 100) + '...' || 'Check out this week\'s top models';
+                    topModelEl.textContent = top.name;
+                    topModelLink.href = `/model/${top.slug}`;
+                }
+
+                // Show banner
+                banner.classList.remove('hidden');
+            } catch (e) {
+                console.log('[WeeklyReport] No report available:', e.message);
+                // Banner stays hidden if no report
+            }
+        }
     </script>
 
 </Layout>
