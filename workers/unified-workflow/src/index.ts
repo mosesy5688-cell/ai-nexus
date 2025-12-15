@@ -34,16 +34,37 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
         const env = this.env;
 
         // ---------------------------------------------------------
-        // STEP 1: INGEST (High Frequency)
+        // L1 CHECKPOINTING: Load checkpoint for resume capability
+        // Constitutional: Art.L1 - Checkpointing mandatory
+        // ---------------------------------------------------------
+        const checkpoint = await step.do('l1-load-checkpoint', async () => {
+            console.log('[L1] Loading checkpoint...');
+            try {
+                const checkpointFile = await env.R2_ASSETS.get('checkpoint.json');
+                if (checkpointFile) {
+                    const data = await checkpointFile.json() as any;
+                    console.log(`[L1] Checkpoint loaded: lastId=${data.lastId}, processed=${data.processedCount}`);
+                    return data;
+                }
+            } catch (e) {
+                console.log('[L1] No checkpoint found, starting fresh');
+            }
+            return { lastId: null, processedCount: 0, lastRun: null, retryCount: 0 };
+        });
+
+        // ---------------------------------------------------------
+        // STEP 1: INGEST (High Frequency) with L1 Checkpointing
         // ---------------------------------------------------------
         const ingestResult = await step.do('ingest-raw-data', async () => {
             console.log('[Ingest] Starting ingestion...');
+            console.log(`[L1] Resume from checkpoint: lastId=${checkpoint.lastId}`);
 
             // List pending files in raw-data/
             console.log('[Ingest] Listing files in raw-data/...');
             const listed = await env.R2_ASSETS.list({
                 prefix: 'raw-data/',
-                limit: 100
+                limit: 100,
+                startAfter: checkpoint.lastId || undefined  // L1: Resume from lastId
             });
 
             console.log(`[Ingest] R2 list returned: ${listed.objects.length} total objects, truncated: ${listed.truncated}`);
@@ -147,6 +168,30 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
         result.ingest = ingestResult;
 
         // ---------------------------------------------------------
+        // L1 CHECKPOINTING: Save checkpoint after ingest
+        // Constitutional: Art.L1 - Checkpointing mandatory
+        // ---------------------------------------------------------
+        await step.do('l1-save-checkpoint', async () => {
+            const newCheckpoint = {
+                lastId: ingestResult.filesProcessed > 0 ? null : checkpoint.lastId,  // Reset if we processed files
+                processedCount: checkpoint.processedCount + ingestResult.filesProcessed,
+                lastRun: new Date().toISOString(),
+                retryCount: ingestResult.filesProcessed === 0 && ingestResult.modelsIngested === 0
+                    ? checkpoint.retryCount + 1
+                    : 0,
+                totalModelsIngested: (checkpoint.totalModelsIngested || 0) + ingestResult.modelsIngested
+            };
+
+            await env.R2_ASSETS.put('checkpoint.json', JSON.stringify(newCheckpoint, null, 2), {
+                httpMetadata: { contentType: 'application/json' }
+            });
+            console.log(`[L1] Checkpoint saved: processedCount=${newCheckpoint.processedCount}, retryCount=${newCheckpoint.retryCount}`);
+
+            // L1: Exponential backoff warning if multiple retries
+            if (newCheckpoint.retryCount >= 3) {
+                console.warn(`[L1] WARNING: ${newCheckpoint.retryCount} consecutive empty runs - possible ingestion pipeline issue`);
+            }
+        });
         // STEP 2: FNI CALCULATION (Smart Schedule)
         // ---------------------------------------------------------
         const fniResult = await step.do('calculate-fni', async () => {
