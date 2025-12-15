@@ -3,5 +3,11 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "react" // Changed to react to match RatingsDisplay.jsx
-  }
+  },
+  "exclude": [
+    "workers",
+    "scripts",
+    "dist",
+    "node_modules"
+  ]
 }
