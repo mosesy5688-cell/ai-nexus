@@ -1,0 +1,76 @@
+---
+/**
+ * Entity Tabs Component - V4.9
+ * Art.X-Entity-List: Lists segregated or polymorphic
+ * 
+ * Provides navigation between different entity types
+ * in collection views (Explore, Ranking, Search)
+ */
+
+interface Props {
+    activeType: string;
+    basePath?: string;
+    counts?: Record<string, number>;
+}
+
+const { activeType, basePath = '/explore', counts = {} } = Astro.props;
+
+// Entity tabs configuration
+const ENTITY_TABS = [
+    { type: 'model', label: 'Models', icon: '🧠', color: 'blue' },
+    { type: 'dataset', label: 'Datasets', icon: '📊', color: 'green' },
+    { type: 'benchmark', label: 'Benchmarks', icon: '🏆', color: 'orange' },
+    { type: 'paper', label: 'Papers', icon: '📄', color: 'yellow' },
+    { type: 'agent', label: 'Agents', icon: '🤖', color: 'pink' },
+];
+---
+
+<nav class="entity-tabs mb-6">
+    <div class="flex flex-wrap gap-2" role="tablist" aria-label="Entity type filters">
+        {ENTITY_TABS.map(tab => {
+            const isActive = tab.type === activeType;
+            const count = counts[tab.type];
+            const href = `${basePath}?type=${tab.type}`;
+            
+            return (
+                <a
+                    href={href}
+                    role="tab"
+                    aria-selected={isActive}
+                    class={`
+                        inline-flex items-center gap-2 px-4 py-2 rounded-full
+                        text-sm font-medium transition-all duration-200
+                        ${isActive 
+                            ? 'bg-blue-600 text-white shadow-md' 
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        }
+                    `}
+                >
+                    <span class="text-base">{tab.icon}</span>
+                    <span>{tab.label}</span>
+                    {typeof count === 'number' && (
+                        <span class={`
+                            text-xs px-1.5 py-0.5 rounded-full
+                            ${isActive 
+                                ? 'bg-blue-500 text-white' 
+                                : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                            }
+                        `}>
+                            {count > 999 ? `${Math.floor(count/1000)}k+` : count}
+                        </span>
+                    )}
+                </a>
+            );
+        })}
+    </div>
+</nav>
+
+<style>
+    .entity-tabs a[aria-selected="true"] {
+        transform: translateY(-1px);
+    }
+    
+    .entity-tabs a:not([aria-selected="true"]):hover {
+        transform: translateY(-1px);
+    }
+</style>
