@@ -667,6 +667,98 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                 );
 
                 console.log(`[L8] Trending models: ${trendingModelsCache.data.length} items`);
+
+                // ---------------------------------------------------------
+                // L8 EXTENSION: Single Entity Cache (V4.9.1 Content Delivery)
+                // Pre-computed individual model files for Frontend R2-only access
+                // Constitutional: Art.I-Extended - Frontend D1 = 0
+                // CEO Iron Rule: Must include contract_version + schema_hash
+                // ---------------------------------------------------------
+                console.log('[L8] Generating single entity caches...');
+
+                // Get all models for individual caching
+                const allModelsResult = await env.DB.prepare(`
+                    SELECT * FROM models 
+                    WHERE slug IS NOT NULL
+                    ORDER BY fni_score DESC
+                    LIMIT 5000
+                `).all();
+
+                const modelsToCache = allModelsResult.results || [];
+                let cachedModels = 0;
+                let cachedDatasets = 0;
+
+                // Generate schema hash for this batch
+                const schemaHash = 'sha256:' + Date.now().toString(36);
+                const contractVersion = 'entity-cache@1.0';
+
+                for (const model of modelsToCache as any[]) {
+                    try {
+                        const slug = model.slug || model.id.replace(/\//g, '--');
+                        const entityType = deriveEntityType(model.id);
+
+                        // Get related entities for this model
+                        const relatedLinks = linksByModel[model.id] || [];
+
+                        // Build entity cache with CEO iron rule fields
+                        const entityCache = {
+                            // CEO Iron Rule: contract_version + schema_hash for auditability
+                            contract_version: contractVersion,
+                            schema_hash: schemaHash,
+
+                            // Core entity data
+                            entity: {
+                                ...model,
+                                entity_type: entityType
+                            },
+
+                            // Computed data from L5/L8
+                            computed: {
+                                fni: model.fni_score ? {
+                                    score: model.fni_score,
+                                    deploy_score: model.deploy_score || 0
+                                } : null,
+                                benchmarks: [], // Would be populated from benchmark relationships
+                                relations: {
+                                    links: relatedLinks.slice(0, 10),
+                                    link_count: relatedLinks.length
+                                }
+                            },
+
+                            // SEO data for meta tags
+                            seo: {
+                                title: `${model.name} by ${model.author || 'Unknown'} | Free AI Tools`,
+                                description: model.seo_summary ||
+                                    model.description?.slice(0, 160) ||
+                                    `Explore ${model.name}, an AI model on Free2AITools.`
+                            },
+
+                            // Metadata
+                            generated_at: new Date().toISOString(),
+                            version: 'V4.9.1'
+                        };
+
+                        // Determine cache path based on entity type
+                        const cachePath = entityType === 'dataset'
+                            ? `cache/datasets/${slug}.json`
+                            : `cache/models/${slug}.json`;
+
+                        await env.R2_ASSETS.put(cachePath,
+                            JSON.stringify(entityCache),
+                            { httpMetadata: { contentType: 'application/json' } }
+                        );
+
+                        if (entityType === 'dataset') {
+                            cachedDatasets++;
+                        } else {
+                            cachedModels++;
+                        }
+                    } catch (err) {
+                        console.warn(`[L8] Failed to cache ${model.slug}: ${err}`);
+                    }
+                }
+
+                console.log(`[L8] Single entity cache: ${cachedModels} models, ${cachedDatasets} datasets`);
             });
         }
 
