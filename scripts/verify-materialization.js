@@ -1,4 +1,4 @@
-const https = require('https');
+import https from 'https';
 
 const BASE_URL = 'https://free2aitools.com';
 
