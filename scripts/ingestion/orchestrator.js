@@ -48,7 +48,8 @@ const DEFAULT_CONFIG = {
         // V4.9.1 Data Expansion (Manual Enablement)
         openllm: { enabled: true, options: { limit: 1000 } }, // Benchmarks
         deepspec: { enabled: true, options: { limit: 5000 } }, // Specs
-        civitai: { enabled: true, options: { limit: 500 } }  // Models (NSFW filtered)
+        civitai: { enabled: true, options: { limit: 500 } },  // Models (NSFW filtered)
+        semanticscholar: { enabled: true, options: { limit: 1000 } } // Citations
     },
     deduplication: {
         enabled: true,
