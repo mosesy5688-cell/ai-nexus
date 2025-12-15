@@ -677,7 +677,7 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
         const dayOfWeek = new Date().getUTCDay();
         if (dayOfWeek === 1 && hour >= 0 && hour < 1) { // Monday 00:00-01:00 UTC
             await step.do('generate-weekly-report', async () => {
-                console.log('[Report] Generating weekly report...');
+                console.log('[Report] Generating weekly report (V4.9 Content Activation structure)...');
 
                 // Get week number
                 const now = new Date();
@@ -696,17 +696,63 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
 
                 // Get new models this week
                 const newModels = await env.DB.prepare(`
-                    SELECT id, slug, name, author
+                    SELECT id, slug, name, author, downloads, likes
                     FROM models 
                     WHERE last_updated > datetime('now', '-7 days')
                     ORDER BY last_updated DESC
                     LIMIT 10
                 `).all();
 
+                // Get biggest FNI increase (velocity leader)
+                const fniLeader = await env.DB.prepare(`
+                    SELECT id, slug, name, author, fni_score
+                    FROM models 
+                    WHERE fni_score IS NOT NULL
+                    ORDER BY fni_score DESC 
+                    LIMIT 1
+                `).first();
+
+                // V4.9 Content Activation: Fixed report structure
                 const report = {
                     generated_at: now.toISOString(),
                     week: `${now.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`,
-                    version: 'V4.7',
+                    version: 'V4.9',
+                    schema: 'content_activation_v1',
+
+                    // Section 1: This Week Changed
+                    this_week_changed: {
+                        new_models_count: (newModels.results || []).length,
+                        fni_leader: fniLeader ? {
+                            name: (fniLeader as any).name,
+                            author: (fniLeader as any).author,
+                            fni_score: (fniLeader as any).fni_score,
+                            slug: (fniLeader as any).slug
+                        } : null,
+                        notable_new: (newModels.results || []).slice(0, 3).map((m: any) => ({
+                            name: m.name,
+                            author: m.author,
+                            slug: m.slug
+                        }))
+                    },
+
+                    // Section 2: Why It Matters
+                    why_it_matters: {
+                        summary: `This week saw ${(newModels.results || []).length} new models added to the ecosystem. ` +
+                            `The top trending model is ${fniLeader ? (fniLeader as any).name : 'unknown'} with an FNI score of ${fniLeader ? (fniLeader as any).fni_score : 0}.`,
+                        trending_categories: [] // Could be populated with category stats
+                    },
+
+                    // Section 3: Who to Watch
+                    who_to_watch: (trending.results || []).slice(0, 5).map((m: any) => ({
+                        name: m.name,
+                        author: m.author,
+                        fni_score: m.fni_score,
+                        slug: m.slug,
+                        downloads: m.downloads,
+                        likes: m.likes
+                    })),
+
+                    // Raw data for backwards compatibility
                     top_trending: trending.results || [],
                     new_models: newModels.results || [],
                     summary: {
@@ -720,7 +766,7 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                     { httpMetadata: { contentType: 'application/json' } }
                 );
 
-                console.log(`[Report] Weekly report saved: ${reportKey}`);
+                console.log(`[Report] Weekly report saved: ${reportKey} (V4.9 structure)`);
             });
         }
 

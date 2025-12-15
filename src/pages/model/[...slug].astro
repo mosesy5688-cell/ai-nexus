@@ -87,7 +87,8 @@ const hasBench = Boolean(
 // V4.9: Entity-First Architecture - Derive entity type and capabilities
 // Art.X-Entity: Render by entity.definition
 // Art.X-Capability-Gating: Modules enabled by capability only
-const entityType = deriveEntityType(modelId) || 'model';
+// FIX: Use slug first (contains hf-dataset--* prefix), fallback to modelId
+const entityType = deriveEntityType(slug) || deriveEntityType(modelId) || 'model';
 const entityDefinition = ENTITY_DEFINITIONS[entityType];
 const entityTier = getEntityTier(entityType);
 
