@@ -1,2 +1,10 @@
 # Cloudflare Pages Redirects
-# Note: CSS hash redirects are no longer needed - _headers handles cache properly
+# V4.9 Entity-First URL Structure
+# Constitution Art.X-Entity: Semantic URLs by entity type
+
+# V4.9: Entity URL Redirects (301 Permanent)
+# Future: /model/:slug → /models/:slug (when new routes are ready)
+# For now, maintain compatibility - URLs will be updated in Phase 6.2
+
+# Legacy redirects (if any old URLs exist)
+# /models/:slug /model/:slug 301

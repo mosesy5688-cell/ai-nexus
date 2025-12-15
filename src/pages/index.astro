@@ -1,10 +1,11 @@
 ---
 // src/pages/index.astro
-// Constitution V4.3.2 Compliant - Homepage
+// Constitution V4.9 Entity-First Architecture - Homepage
 
 // Core imports
 import Layout from '../layouts/Layout.astro';
 import CategoryGroup from '../components/CategoryGroup.astro';
+import EntityTabs from '../components/entity/EntityTabs.astro';
 import allCategories from '../data/categories.json';
 
 // V4.3.2 Constitution Core Requirements
@@ -17,7 +18,7 @@ const initialTag = url.searchParams.get('tag') || '';
 
 // SEO - Constitution Required
 const pageTitle = "Free AI Tools – Explore the Entire Open-Source AI Ecosystem";
-const pageDescription = "Discover open-source AI models, benchmarks, FNI rankings, categories, and comprehensive research. Updated daily with UMID-verified data.";
+const pageDescription = "Discover open-source AI models, datasets, papers, benchmarks, and agents. Updated daily with UMID-verified data.";
 
 // Build JSON-LD (Constitution SEO requirement)
 const seoSchema = buildIndexSEO();
@@ -32,7 +33,7 @@ const seoSchema = buildIndexSEO();
         data-initial-tag={initialTag}
     >
         <!-- Main Page Header -->
-        <header class="text-center mb-12">
+        <header class="text-center mb-8">
             <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">
                 Explore the Open-Source AI Universe
             </h1>
@@ -40,6 +41,11 @@ const seoSchema = buildIndexSEO();
                 The fastest way to search, filter, and compare the entire open AI ecosystem.
             </p>
         </header>
+        
+        <!-- V4.9: Entity Type Navigation (Art.X-Entity-List) -->
+        <div class="flex justify-center mb-8">
+            <EntityTabs activeType="model" basePath="/explore" />
+        </div>
 
         <!-- Search Bar (Sticky) -->
         <div class="mb-8 flex flex-col md:flex-row gap-4 items-center sticky top-[65px] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-4 z-30 max-w-4xl mx-auto w-full">
