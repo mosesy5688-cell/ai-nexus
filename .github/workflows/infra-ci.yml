@@ -61,6 +61,55 @@ jobs:
           path: dist/
           retention-days: 7
 
+  # =============================================================
+  # V4.9.1 CEO IRON RULE: Frontend D1 = 0 Detection
+  # Constitutional: Art.I-Extended - Frontend must not access D1
+  # =============================================================
+  constitutional-guard:
+    name: Constitutional D1 Guard
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Check for D1 Access in Frontend
+        run: |
+          echo "🛡️ Constitutional Guard: Checking for D1 access in frontend..."
+          
+          # CEO Iron Rule: Frontend D1 = 0
+          # Detect any direct D1 database access in src/ directory
+          
+          VIOLATIONS=0
+          
+          # Check for env.DB patterns
+          if grep -rn "env\.DB" src/ --include="*.ts" --include="*.js" --include="*.astro" 2>/dev/null; then
+            echo "❌ VIOLATION: Direct env.DB access found in src/"
+            VIOLATIONS=$((VIOLATIONS + 1))
+          fi
+          
+          # Check for D1Database imports
+          if grep -rn "D1Database" src/ --include="*.ts" --include="*.js" 2>/dev/null; then
+            echo "❌ VIOLATION: D1Database reference found in src/"
+            VIOLATIONS=$((VIOLATIONS + 1))
+          fi
+          
+          # Check for prepare().bind() SQL patterns
+          if grep -rn "\.prepare\s*(" src/ --include="*.ts" --include="*.js" --include="*.astro" 2>/dev/null; then
+            echo "❌ VIOLATION: SQL prepare() call found in src/"
+            VIOLATIONS=$((VIOLATIONS + 1))
+          fi
+          
+          if [ $VIOLATIONS -gt 0 ]; then
+            echo ""
+            echo "🚨 CONSTITUTION VIOLATION: Frontend D1 = 0"
+            echo "📖 Reference: V4.9 Art.I-Extended, Pillar VIII"
+            echo "🔧 Solution: Use R2 cache files instead of D1 queries"
+            exit 1
+          fi
+          
+          echo "✅ Constitutional Guard: No D1 access violations found"
+
   smoke-tests:
     name: Smoke Tests
     runs-on: ubuntu-latest
