@@ -1,17 +1,58 @@
 ---
 /**
- * Ranking Page - V4.3.2 Constitution Compliant
+ * Ranking Page - V4.9 Entity-First Architecture
+ * Art.X-Entity-List: Lists segregated or polymorphic
  * Uses L8 Precompute cache JSON (D1 reads = 0)
  */
 
-export const prerender = true;
+export const prerender = false; // V4.9: Dynamic for entity type tabs
 
 import Layout from '../layouts/Layout.astro';
 import ModelCard from '../components/ModelCard.astro';
+import EntityTabs from '../components/entity/EntityTabs.astro';
 import DataFreshness from '../components/common/DataFreshness.astro';
 
-const pageTitle = "AI Model Rankings";
-const pageDescription = "Explore the top AI models ranked by popularity, trending, and FNI scores.";
+// V4.9: Get entity type from URL params
+const url = new URL(Astro.request.url);
+const entityType = url.searchParams.get('type') || 'model';
+
+// Entity-specific page metadata
+const ENTITY_META: Record<string, { title: string; description: string }> = {
+    model: {
+        title: 'AI Model Rankings',
+        description: 'Explore the top AI models ranked by popularity, trending, and FNI scores.'
+    },
+    dataset: {
+        title: 'Dataset Rankings',
+        description: 'Discover top datasets for AI/ML training and evaluation.'
+    },
+    benchmark: {
+        title: 'Benchmark Rankings',
+        description: 'Compare AI evaluation benchmarks and leaderboards.'
+    },
+    paper: {
+        title: 'Research Paper Rankings',
+        description: 'Top cited AI research papers and publications.'
+    },
+    agent: {
+        title: 'AI Agent Rankings',
+        description: 'Most popular AI agents and autonomous systems.'
+    }
+};
+
+const meta = ENTITY_META[entityType] || ENTITY_META.model;
+const pageTitle = meta.title;
+const pageDescription = meta.description;
+
+// Entity display labels
+const entityLabels: Record<string, string> = {
+    model: 'Models',
+    dataset: 'Datasets',
+    benchmark: 'Benchmarks',
+    paper: 'Papers',
+    agent: 'Agents'
+};
+const entityLabel = entityLabels[entityType] || 'Models';
 
 // V4.3.2 Constitution: Load from L8 Precompute cache (D1 reads = 0)
 let trendingData = { data: [], generated_at: null };
@@ -51,13 +92,18 @@ const mainRankings = [
 
 <Layout title={pageTitle} description={pageDescription}>
     <div class="container mx-auto px-4 py-12">
-        <header class="text-center mb-12">
-            <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">AI Model Rankings</h1>
+        <header class="text-center mb-8">
+            <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">{entityLabel} Rankings</h1>
             <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-3xl mx-auto">
-                Discover top-performing open-source AI models. Data from precomputed caches.
+                {pageDescription}
             </p>
             <DataFreshness timestamp={generatedAt} source="L8 Precompute" />
         </header>
+        
+        <!-- V4.9: Entity Type Tabs (Art.X-Entity-List) -->
+        <div class="flex justify-center mb-8">
+            <EntityTabs activeType={entityType} basePath="/ranking" />
+        </div>
 
         {mainRankings.map(ranking => (
             <section class="mb-16">
