@@ -262,6 +262,98 @@ if (!model && !error) {
               <ResourceList resources={resources} sourceUrl={model?.source_url || null} />
             )}
             
+            <!-- V4.9.1 Step 2.7: Missing Field Warning (CEO Iron Law) -->
+            {(!model?.description && !model?.seo_summary) && (
+              <section class="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-6 border border-amber-200 dark:border-amber-700">
+                <h2 class="text-lg font-bold mb-2 text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                  <span>⚠️</span> Incomplete Data
+                </h2>
+                <p class="text-amber-700 dark:text-amber-400 text-sm">
+                  Some information about this {entityLabel.toLowerCase()} is not available.
+                  <strong class="block mt-1">Use with Caution</strong> - Verify details from the original source before relying on this data.
+                </p>
+                {model?.source_url && (
+                  <a 
+                    href={model.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-block mt-3 text-sm text-amber-800 dark:text-amber-300 underline hover:no-underline"
+                  >
+                    View Original Source →
+                  </a>
+                )}
+              </section>
+            )}
+            
+            <!-- V4.9.1 Step 2.7: Limitations Section (CEO Iron Law) -->
+            <section class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
+              <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+                <span>📝</span> Limitations & Considerations
+              </h2>
+              <ul class="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
+                <li class="flex items-start gap-2">
+                  <span class="text-gray-400">•</span>
+                  <span>Benchmark scores may vary based on evaluation methodology and hardware configuration.</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="text-gray-400">•</span>
+                  <span>VRAM requirements are estimates; actual usage depends on quantization and batch size.</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="text-gray-400">•</span>
+                  <span>FNI scores are relative rankings and may change as new models are added.</span>
+                </li>
+                {!model?.license_spdx && (
+                  <li class="flex items-start gap-2 text-amber-600 dark:text-amber-400">
+                    <span>⚠</span>
+                    <span><strong>License Unknown:</strong> Verify licensing terms before commercial use.</span>
+                  </li>
+                )}
+                {model?.source_trail && (
+                  <li class="flex items-start gap-2">
+                    <span class="text-gray-400">•</span>
+                    <span>Data source: {model.source_trail}</span>
+                  </li>
+                )}
+              </ul>
+            </section>
+            
+            <!-- V4.9.1 Step 2.7: Related Papers/Datasets Section -->
+            <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+              <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+                <span>📚</span> Related Resources
+              </h2>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Related Papers placeholder -->
+                <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
+                    <span>📄</span> Related Papers
+                  </h3>
+                  {model?.related_papers ? (
+                    <p class="text-sm text-gray-600 dark:text-gray-400">{model.related_papers}</p>
+                  ) : (
+                    <p class="text-sm text-gray-500 dark:text-gray-500 italic">
+                      No related papers linked yet. Check the model's official documentation for research papers.
+                    </p>
+                  )}
+                </div>
+                
+                <!-- Related Datasets placeholder -->
+                <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
+                    <span>📊</span> Training Datasets
+                  </h3>
+                  {model?.related_datasets ? (
+                    <p class="text-sm text-gray-600 dark:text-gray-400">{model.related_datasets}</p>
+                  ) : (
+                    <p class="text-sm text-gray-500 dark:text-gray-500 italic">
+                      Training data information not available. Refer to the original model card for details.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </section>
+            
             <!-- Section 6: Entity Links (V4.8.1) -->
             <EntityLinksSection 
               modelId={modelId}

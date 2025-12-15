@@ -175,8 +175,9 @@ const totalArticles = categories.reduce((sum, cat) => sum + cat.articles.length,
     font-size: 2.5rem;
   }
 
+  /* V4.9.1 WCAG 2.1 AA: Improved contrast ratio ≥4.5:1 */
   .kb-subtitle {
-    color: #94a3b8;
+    color: #c2cdd9;  /* Was #94a3b8 - improved for WCAG AA */
     font-size: 1.125rem;
     max-width: 500px;
     margin: 0 auto 1rem;
@@ -186,7 +187,7 @@ const totalArticles = categories.reduce((sum, cat) => sum + cat.articles.length,
     display: flex;
     justify-content: center;
     gap: 0.5rem;
-    color: #64748b;
+    color: #94a3b8;  /* Was #64748b - improved for WCAG AA */
     font-size: 0.875rem;
   }
 
@@ -259,7 +260,7 @@ const totalArticles = categories.reduce((sum, cat) => sum + cat.articles.length,
   }
 
   .category-description {
-    color: #94a3b8;
+    color: #b8c5d6;  /* Was #94a3b8 - improved for WCAG AA */
     font-size: 0.875rem;
     margin: 0 0 1rem;
   }
@@ -299,7 +300,7 @@ const totalArticles = categories.reduce((sum, cat) => sum + cat.articles.length,
 
   .article-description {
     display: block;
-    color: #64748b;
+    color: #8b9aae;  /* Was #64748b - improved for WCAG AA */
     font-size: 0.8rem;
   }
 
@@ -318,7 +319,7 @@ const totalArticles = categories.reduce((sum, cat) => sum + cat.articles.length,
   }
 
   .kb-cta p {
-    color: #94a3b8;
+    color: #b8c5d6;  /* Was #94a3b8 - improved for WCAG AA */
     margin: 0 0 1.5rem;
   }
 
