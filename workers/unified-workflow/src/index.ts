@@ -830,7 +830,9 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                 const schemaHash = 'sha256:' + Date.now().toString(36);
                 const contractVersion = 'entity-cache@1.0';
 
-                for (const model of modelsToCache as any[]) {
+                // V4.9.1 EMERGENCY LIMIT: Limit to 800 to prevent Subrequest Limit (1000) violation during initial materialization.
+                // TODO: Refactor to usage-based batching.
+                for (const model of (modelsToCache as any[]).slice(0, 800)) {
                     try {
                         const slug = model.slug || model.id.replace(/\//g, '--');
                         const entityType = deriveEntityType(model.id);
