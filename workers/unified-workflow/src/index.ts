@@ -293,8 +293,14 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
         // STEP 4: L8 PRECOMPUTE (Every 6 hours)
         // Generate cache files for read-only frontend
         // ---------------------------------------------------------
-        const hour = new Date().getUTCHours();
-        if (hour % 6 === 0) { // Run at 0, 6, 12, 18 UTC
+        // Generate cache files for read-only frontend
+        // ---------------------------------------------------------
+        // Generate cache files for read-only frontend
+        // ---------------------------------------------------------
+        // V4.9.1 Repair: Run on every trigger (Content Becomes Reality)
+        const hour = new Date().getUTCHours(); // Restore for Step 5 usage
+        // if (hour % 6 === 0) { // REMOVED: Allow manual trigger
+        {
             await step.do('precompute-cache', async () => {
                 console.log('[L8] Starting cache precompute...');
 
@@ -712,6 +718,93 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
                 );
 
                 console.log(`[L8] Trending models: ${trendingModelsCache.data.length} items`);
+
+                // ---------------------------------------------------------
+                // L8 EXTENSION: Rankings Materialization (Repair Phase 1.2)
+                // Generate detailed ranking files per category
+                // ---------------------------------------------------------
+                console.log('[L8] Generating ranking cache...');
+
+                const rankingCategories = [
+                    'text-generation', 'text-classification', 'feature-extraction',
+                    'text-to-image', 'image-text-to-text', 'automatic-speech-recognition',
+                    'text-to-speech', 'translation', 'summarization', 'question-answering'
+                ];
+
+                for (const cat of rankingCategories) {
+                    const catModels = await env.DB.prepare(`
+                        SELECT id, slug, name, author, fni_score, deploy_score,
+                               downloads, likes, description, tags
+                        FROM models
+                        WHERE pipeline_tag = ? AND fni_score IS NOT NULL
+                        ORDER BY fni_score DESC
+                        LIMIT 100
+                    `).bind(cat).all();
+
+                    if (catModels.results && catModels.results.length > 0) {
+                        const rankingData = {
+                            generated_at: new Date().toISOString(),
+                            category: cat,
+                            version: 'V4.9.1',
+                            count: catModels.results.length,
+                            items: (catModels.results as any[]).map(m => ({
+                                id: m.id,
+                                slug: m.slug,
+                                name: m.name,
+                                author: m.author,
+                                fni_score: m.fni_score,
+                                deploy_score: m.deploy_score,
+                                downloads: m.downloads,
+                                likes: m.likes,
+                                description: m.description, // For SEO cards
+                                tags: m.tags,
+                                entity_cache_exists: true // Implied by materialization
+                            }))
+                        };
+
+                        await env.R2_ASSETS.put(`cache/rankings/${cat}.json`,
+                            JSON.stringify(rankingData, null, 2),
+                            { httpMetadata: { contentType: 'application/json' } }
+                        );
+                    }
+                }
+                console.log(`[L8] Rankings materialized for ${rankingCategories.length} categories`);
+
+                // ---------------------------------------------------------
+                // L8 EXTENSION: Entity Index Materialization (Repair Phase 1.3)
+                // Lightweight index for Client-Side Explore Filtering
+                // ---------------------------------------------------------
+                console.log('[L8] Generating entity index...');
+
+                const entityIndexResult = await env.DB.prepare(`
+                    SELECT id, slug, name, author, pipeline_tag, tags,
+                           fni_score, likes, downloads, last_updated
+                    FROM models
+                    WHERE slug IS NOT NULL
+                    ORDER BY likes DESC
+                    LIMIT 2000
+                `).all();
+
+                const entityIndex = (entityIndexResult.results || []).map((m: any) => ({
+                    id: m.id,
+                    slug: m.slug,
+                    name: m.name,
+                    author: m.author,
+                    type: 'model', // Currently only indexing models
+                    tags: [m.pipeline_tag, ...(m.tags ? (typeof m.tags === 'string' ? JSON.parse(m.tags) : m.tags) : [])].filter(Boolean),
+                    stats: {
+                        fni: m.fni_score,
+                        likes: m.likes,
+                        downloads: m.downloads
+                    },
+                    last_updated: m.last_updated
+                }));
+
+                await env.R2_ASSETS.put('cache/meta/entity_index.json',
+                    JSON.stringify(entityIndex, null, 2),
+                    { httpMetadata: { contentType: 'application/json' } }
+                );
+                console.log(`[L8] Entity index materialized: ${entityIndex.length} items`);
 
                 // ---------------------------------------------------------
                 // L8 EXTENSION: Single Entity Cache (V4.9.1 Content Delivery)
