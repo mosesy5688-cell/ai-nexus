@@ -1,5 +1,19 @@
 export const prerender = false; // Enable SSR for this endpoint
 
+/**
+ * V4.9: Derive entity type from UMID prefix
+ * Art.X-Search-Contract: Search returns {entity_type, display_card} per result
+ */
+function deriveEntityType(id) {
+    if (!id) return 'model';
+    if (id.startsWith('hf-model--')) return 'model';
+    if (id.startsWith('hf-dataset--')) return 'dataset';
+    if (id.startsWith('benchmark--')) return 'benchmark';
+    if (id.startsWith('arxiv--')) return 'paper';
+    if (id.startsWith('agent--')) return 'agent';
+    return 'model'; // Default fallback
+}
+
 export async function GET({ request, locals }) {
     const url = new URL(request.url);
     const query = url.searchParams.get('q');
@@ -9,6 +23,9 @@ export async function GET({ request, locals }) {
     const daysAgo = parseInt(url.searchParams.get('days_ago') || '0', 10);
     const hasBenchmarks = url.searchParams.get('has_benchmarks') === 'true';
     const hasImage = url.searchParams.get('has_image') === 'true';
+
+    // V4.9: Entity type filter (Art.X-Entity-List)
+    const entityType = url.searchParams.get('entity_type');
 
     // Support multi-value source param (e.g. ?source=github&source=huggingface)
     const sources = url.searchParams.getAll('source').map(s => s.toLowerCase());
@@ -118,13 +135,31 @@ export async function GET({ request, locals }) {
         params.push(limit);
 
         const { results: data } = await db.prepare(sql).bind(...params).all();
-        results = data;
 
-        return new Response(JSON.stringify({ results }), {
+        // V4.9: Enrich results with entity_type (Art.X-Search-Contract)
+        let enrichedResults = data.map(item => ({
+            ...item,
+            entity_type: deriveEntityType(item.umid || item.id)
+        }));
+
+        // V4.9: Filter by entity_type if specified (Art.X-Entity-List)
+        if (entityType) {
+            enrichedResults = enrichedResults.filter(item => item.entity_type === entityType);
+        }
+
+        return new Response(JSON.stringify({
+            results: enrichedResults,
+            meta: {
+                version: 'V4.9',
+                entity_type_filter: entityType || null,
+                total: enrichedResults.length
+            }
+        }), {
             status: 200,
             headers: {
                 'Content-Type': 'application/json',
-                'Cache-Control': 'public, max-age=60'
+                'Cache-Control': 'public, max-age=60',
+                'X-Version': 'V4.9'
             }
         });
 
