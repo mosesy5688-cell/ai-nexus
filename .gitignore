@@ -23,12 +23,28 @@ yarn-error.log*
 .env
 .env.*
 
-# Confidential project planning and strategy documents
-# CRITICAL: Never commit planning docs to public repository
-.gemini/
-C:\Users\admin\.gemini\
+# ============================================================
+# CONFIDENTIAL PROJECT DOCUMENTS (NEVER COMMIT)
+# V4.9.1 Step 0: GitHub Cleanup
+# ============================================================
 
-# Constitution V4.3.2 - Project Highest Law (CONFIDENTIAL)
-# This document contains internal architecture and strategy information
-docs/CONSTITUTION_V4.3.2.md
+# Agent artifacts
+.gemini/
+
+# Constitution and strategy documents
+docs/CONSTITUTION*.md
 **/CONSTITUTION*.md
+*STRATEGY*.md
+*PLAN*.md
+*AUDIT*.md
+
+# Internal runbooks (evaluate before commit)
+docs/runbooks/
+
+# Secret files
+*.secret.*
+*.secrets.*
+
+# Backup files
+*.backup
+*.bak
