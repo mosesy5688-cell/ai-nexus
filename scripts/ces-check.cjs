@@ -59,7 +59,7 @@ allCodeFiles.forEach(file => {
         'src/components/NeuralGraphExplorer.astro',
         'src/components/specs/FamilyTree.astro',
         'src/data/entity-definitions.ts',
-        'src/pages/compare.astro',
+
 
         'src/pages/index.astro',
         'src/pages/knowledge/[slug].astro',

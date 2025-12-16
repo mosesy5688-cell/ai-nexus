@@ -1,0 +1,39 @@
+---
+// src/components/compare/CompareHeader.astro
+interface Props {
+  slots: number[];
+  selectedModels: string[];
+  availableModels: { umid: string; name: string; avg_score?: number }[];
+}
+
+const { slots, selectedModels, availableModels } = Astro.props;
+---
+
+<header class="compare-header">
+  <h1 class="compare-title">
+    <span class="emoji">⚖️</span>
+    Compare AI Models
+  </h1>
+  <p class="compare-subtitle">
+    Side-by-side analysis of performance, specifications, and costs.
+  </p>
+
+  <div class="model-selector-group">
+    {slots.map((_, index) => (
+      <div class="selector-wrapper">
+        <label class="selector-label">Model {index + 1}</label>
+        <select class="model-select" name={`m${index + 1}`}>
+          <option value="">Select a model...</option>
+          {availableModels.map(model => (
+            <option value={model.umid} selected={selectedModels[index] === model.umid}>
+              {model.name} {model.avg_score ? `(${model.avg_score.toFixed(1)})` : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+    ))}
+  </div>
+  <button class="btn-compare" id="compare-btn">
+    Compare Selected Models
+  </button>
+</header>

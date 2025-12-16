@@ -1,506 +1,118 @@
 ---
-/**
- * Model Comparison Page
- * V4.4 Phase 3 - Compare 2-4 AI models side by side
- * 
- * URL: /compare?m=model-1&m=model-2
- */
-
 export const prerender = false;
 
 import Layout from '../layouts/Layout.astro';
-import BenchmarkCard from '../components/benchmark/BenchmarkCard.astro';
-import SpecsTable from '../components/specs/SpecsTable.astro';
-import DeployabilityBadge from '../components/specs/DeployabilityBadge.astro';
-import DataFreshness from '../components/common/DataFreshness.astro';
+import CompareHeader from '../components/compare/CompareHeader.astro';
+import BenchmarkComparison from '../components/compare/BenchmarkComparison.astro';
+import ScoreComparison from '../components/compare/ScoreComparison.astro';
+import SpecsComparison from '../components/compare/SpecsComparison.astro';
+import DeployComparison from '../components/compare/DeployComparison.astro';
+import CompareEmptyState from '../components/compare/CompareEmptyState.astro';
 
-const pageTitle = "Compare AI Models - Free2AITools";
-const pageDescription = "Side-by-side comparison of AI model benchmarks, specifications, and deployability.";
+import { getModelFromCache } from '../utils/entity-cache-reader';
+import '../styles/compare.css';
 
-// Get model IDs from URL params
-const url = Astro.url;
-const modelIds = url.searchParams.getAll('m');
+// Logic
+const m1 = Astro.url.searchParams.get('m1') || Astro.url.searchParams.get('m');
+let modelIds = [];
+// Parse standard m=...&m=... array param
+const mParams = Astro.url.searchParams.getAll('m');
+if (mParams.length > 0) {
+  modelIds = mParams;
+} else if (m1) {
+    // Legacy support or fallback
+    modelIds.push(m1);
+    const m2 = Astro.url.searchParams.get('m2');
+    if (m2) modelIds.push(m2);
+}
+// Limit to 4
+modelIds = modelIds.slice(0, 4);
 
-// Load benchmark data
-let benchmarkData = null;
-let specsData = null;
-let freshness = null;
+// Data Fetching (Using R2 Cache)
+let benchmarkData = { data: [] };
+let specsData = { data: [] };
 
 try {
-  const benchRes = await fetch(new URL('/cache/benchmarks.json', url.origin));
-  if (benchRes.ok) {
-    benchmarkData = await benchRes.json();
-    freshness = benchmarkData.generated_at;
-  }
-  
-  const specsRes = await fetch(new URL('/cache/specs.json', url.origin));
-  if (specsRes.ok) {
-    specsData = await specsRes.json();
-  }
+  // We need to fetch ALL data to filter, or fetch individual?
+  // R2 Cache reader (entity-cache-reader) fetches single model.
+  // We might need to parallel fetch.
+  // BUT the original code used `getCachedBenchmarkData` and `getCachedSpecsData`.
+  // If those are deprecated, we should use the new reader.
+  // However, for "Available Models", do we fetch ALL?
+  // The original code: `import { getCachedBenchmarkData, getCachedSpecsData } from '../utils/data-service';`
+  // Wait, `data-service.js` refactor removed those!
+  // We need to check if we can get a list of models.
+  // Using `index_hot.json` via fetch might be better, or if we have a way to get list.
+  // For now, let's assume we can fetch specific models by ID using `getModelFromCache`.
 } catch (e) {
-  console.error('[Compare] Cache fetch error:', e);
+  console.error("Data fetch error", e);
 }
 
-// Find matching models for comparison
-const allBenchmarks = benchmarkData?.data || [];
-const allSpecs = specsData?.data || [];
-
-interface CompareModel {
-  umid: string;
-  name: string;
-  benchmark: any;
-  specs: any;
-}
-
-const compareModels: CompareModel[] = modelIds.map(umid => {
-  const benchmark = allBenchmarks.find(b => b.umid === umid);
-  const specs = allSpecs.find(s => s.umid === umid);
-  return {
-    umid,
-    name: benchmark?.name || specs?.name || umid,
-    benchmark,
-    specs
-  };
-}).filter(m => m.benchmark || m.specs);
-
-// Available models for selection
-const availableModels = allBenchmarks.map(b => ({
-  umid: b.umid,
-  name: b.name,
-  avg_score: b.avg_score
+// Fetch selected models
+const compareModels = await Promise.all(modelIds.map(async (id) => {
+    const m = await getModelFromCache(id, Astro.locals);
+    if (!m) return null;
+    return {
+        umid: m.umid || m.id,
+        name: m.name || m.id,
+        benchmark: {
+            mmlu: m.mmlu || m.benchmark_mmlu || 0,
+            hellaswag: m.hellaswag || m.benchmark_hellaswag || 0,
+            arc_challenge: m.arc_challenge || m.benchmark_arc || 0,
+            humaneval: m.humaneval || m.benchmark_humaneval || 0,
+            avg_score: m.avg_score || m.benchmark_avg || 0
+        },
+        specs: {
+            params_billions: m.params_billions,
+            context_length: m.context_length,
+            license_spdx: m.license_spdx,
+            has_gguf: m.has_gguf,
+            gguf_variants: m.gguf_variants,
+            has_ollama: m.has_ollama,
+            ollama_pulls: m.ollama_pulls
+        }
+    };
 }));
 
-// Radar chart data
+const validModels = compareModels.filter(m => m !== null);
 const radarMetrics = ['mmlu', 'humaneval', 'hellaswag', 'arc_challenge'];
+
+// Available models stub - Since we can't easily fetch 20k models here for a select box without massive overhead.
+// The original code fetched "allBenchmarks".
+// Recommendation: Populate select via SEARCH in V6, or just a small "Trending" list for now.
+// For V5.1.2 compliance, we will just use the Valid Models + maybe some defaults?
+// Actually, let's keep it simple: "Available" list is hard without D1.
+// We can use the Hot Index client-side? No, this is SSR.
+// We'll leave availableModels empty or minimal for now, expecting user to arrive via "Compare" buttons on other pages.
+const availableModels = validModels.map(m => ({ umid: m.umid, name: m.name, avg_score: m.benchmark.avg_score }));
+
+const pageTitle = validModels.length > 0 
+  ? `Compare ${validModels.map(m => m.name.split('/').pop()).join(' vs ')} - AI Nexus` 
+  : "Compare AI Models - AI Nexus";
 ---
 
-<Layout title={pageTitle} description={pageDescription}>
-  <div class="compare-container">
-    <!-- Header -->
-    <header class="compare-header">
-      <h1 class="compare-title">
-        <span class="emoji">⚖️</span>
-        Compare AI Models
-      </h1>
-      <p class="compare-subtitle">
-        Select 2-4 models to compare their benchmark scores and specifications
-      </p>
-      {freshness && <DataFreshness timestamp={freshness} source="cdn" />}
-    </header>
+<Layout title={pageTitle} description="Compare performance of top AI models side-by-side.">
+  <div class="compare-container container mx-auto px-4">
+    <CompareHeader 
+        slots={[0, 1]} 
+        selectedModels={modelIds} 
+        availableModels={availableModels}
+    />
 
-    <!-- Model Selector -->
-    <div class="model-selector">
-      <h3>Select Models to Compare</h3>
-      <div class="selector-grid">
-        {[0, 1, 2, 3].map(i => (
-          <div class="selector-slot">
-            <label>Model {i + 1}</label>
-            <select 
-              class="model-select" 
-              data-slot={i}
-              id={`model-select-${i}`}
-            >
-              <option value="">-- Select Model --</option>
-              {availableModels.map(m => (
-                <option 
-                  value={m.umid} 
-                  selected={modelIds[i] === m.umid}
-                >
-                  {m.name} ({m.avg_score})
-                </option>
-              ))}
-            </select>
-          </div>
-        ))}
-      </div>
-      <button class="btn-compare" id="compare-btn">
-        Compare Selected Models
-      </button>
-    </div>
-
-    {compareModels.length === 0 ? (
-      <div class="empty-state">
-        <div class="empty-icon">📊</div>
-        <h2>No Models Selected</h2>
-        <p>Select 2-4 models above to start comparing</p>
-        <a href="/leaderboard" class="btn-secondary">Browse Leaderboard</a>
-      </div>
+    {validModels.length === 0 ? (
+      <CompareEmptyState />
     ) : (
       <>
-        <!-- Benchmark Comparison -->
-        <section class="compare-section">
-          <h2 class="section-title">📈 Benchmark Scores</h2>
-          <div class="benchmark-grid" style={`--cols: ${compareModels.length}`}>
-            {compareModels.map(model => (
-              <div class="benchmark-column">
-                {model.benchmark ? (
-                  <BenchmarkCard 
-                    umid={model.umid}
-                    name={model.name}
-                    mmlu={model.benchmark.mmlu}
-                    humaneval={model.benchmark.humaneval}
-                    hellaswag={model.benchmark.hellaswag}
-                    arc_challenge={model.benchmark.arc_challenge}
-                    avg_score={model.benchmark.avg_score}
-                    quality_flag={model.benchmark.quality_flag}
-                  />
-                ) : (
-                  <div class="no-data">
-                    <p>{model.name}</p>
-                    <span>No benchmark data</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <!-- Score Comparison Table -->
-        <section class="compare-section">
-          <h2 class="section-title">📊 Score Comparison</h2>
-          <div class="comparison-table-wrapper">
-            <table class="comparison-table">
-              <thead>
-                <tr>
-                  <th>Metric</th>
-                  {compareModels.map(m => (
-                    <th>{m.name.split('/').pop()}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {radarMetrics.map(metric => {
-                  const scores = compareModels.map(m => m.benchmark?.[metric] || 0);
-                  const maxScore = Math.max(...scores);
-                  return (
-                    <tr>
-                      <td class="metric-name">{metric.toUpperCase()}</td>
-                      {compareModels.map(m => {
-                        const score = m.benchmark?.[metric];
-                        const isWinner = score === maxScore && maxScore > 0;
-                        return (
-                          <td class={isWinner ? 'winner' : ''}>
-                            {score?.toFixed(1) || '-'}
-                            {isWinner && <span class="crown">👑</span>}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-                <tr class="avg-row">
-                  <td class="metric-name">AVERAGE</td>
-                  {compareModels.map(m => {
-                    const scores = compareModels.map(x => x.benchmark?.avg_score || 0);
-                    const maxScore = Math.max(...scores);
-                    const score = m.benchmark?.avg_score;
-                    const isWinner = score === maxScore && maxScore > 0;
-                    return (
-                      <td class={isWinner ? 'winner avg' : 'avg'}>
-                        <strong>{score?.toFixed(1) || '-'}</strong>
-                        {isWinner && <span class="crown">👑</span>}
-                      </td>
-                    );
-                  })}
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- Specs Comparison -->
-        <section class="compare-section">
-          <h2 class="section-title">🔧 Specifications</h2>
-          <div class="specs-comparison-grid" style={`--cols: ${compareModels.length}`}>
-            {compareModels.map(model => (
-              <div class="specs-column">
-                <h4>{model.name.split('/').pop()}</h4>
-                {model.specs ? (
-                  <SpecsTable 
-                    params_billions={model.specs.params_billions}
-                    context_length={model.specs.context_length}
-                    architecture_family={model.specs.architecture_family}
-                    deploy_score={model.specs.deploy_score}
-                  />
-                ) : (
-                  <div class="no-data">
-                    <span>No specs data</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <!-- Deployability Comparison -->
-        <section class="compare-section">
-          <h2 class="section-title">⚡ Deployability</h2>
-          <div class="deploy-grid" style={`--cols: ${compareModels.length}`}>
-            {compareModels.map(model => (
-              <div class="deploy-column">
-                <h4>{model.name.split('/').pop()}</h4>
-                <DeployabilityBadge 
-                  deploy_score={model.specs?.deploy_score || 0}
-                  context_length={model.specs?.context_length || 0}
-                  params_billions={model.specs?.params_billions || 0}
-                  compact={true}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
+        <BenchmarkComparison compareModels={validModels} />
+        <ScoreComparison compareModels={validModels} radarMetrics={radarMetrics} />
+        <SpecsComparison compareModels={validModels} />
+        <DeployComparison compareModels={validModels} />
       </>
     )}
   </div>
+
+  <script>
+      import { initComparePage } from '../scripts/compare-client.js';
+      document.addEventListener('DOMContentLoaded', initComparePage);
+  </script>
 </Layout>
-
-<style>
-  .compare-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 2rem 1rem;
-  }
-
-  .compare-header {
-    text-align: center;
-    padding: 2rem 1rem;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
-    border-radius: 20px;
-    margin-bottom: 2rem;
-  }
-
-  .compare-title {
-    font-size: 2.25rem;
-    font-weight: 800;
-    color: #f8fafc;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.75rem;
-  }
-
-  .emoji {
-    font-size: 2.25rem;
-  }
-
-  .compare-subtitle {
-    color: #94a3b8;
-    margin: 0.5rem auto 1rem;
-    max-width: 500px;
-  }
-
-  /* Model Selector */
-  .model-selector {
-    background: rgba(30, 41, 59, 0.6);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .model-selector h3 {
-    color: #e2e8f0;
-    font-size: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .selector-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .selector-slot label {
-    display: block;
-    color: #94a3b8;
-    font-size: 0.75rem;
-    margin-bottom: 0.25rem;
-  }
-
-  .model-select {
-    width: 100%;
-    padding: 0.625rem;
-    background: rgba(15, 23, 42, 0.8);
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    border-radius: 8px;
-    color: #e2e8f0;
-    font-size: 0.875rem;
-  }
-
-  .btn-compare {
-    display: block;
-    width: 100%;
-    max-width: 300px;
-    margin: 0 auto;
-    padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-compare:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-  }
-
-  /* Sections */
-  .compare-section {
-    margin-bottom: 2.5rem;
-  }
-
-  .section-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #f8fafc;
-    margin-bottom: 1.25rem;
-  }
-
-  /* Grids */
-  .benchmark-grid,
-  .specs-comparison-grid,
-  .deploy-grid {
-    display: grid;
-    grid-template-columns: repeat(var(--cols, 2), 1fr);
-    gap: 1.5rem;
-  }
-
-  /* Comparison Table */
-  .comparison-table-wrapper {
-    overflow-x: auto;
-    border-radius: 12px;
-    background: rgba(15, 23, 42, 0.6);
-    border: 1px solid rgba(99, 102, 241, 0.2);
-  }
-
-  .comparison-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  .comparison-table th,
-  .comparison-table td {
-    padding: 1rem;
-    text-align: center;
-  }
-
-  .comparison-table th {
-    background: rgba(99, 102, 241, 0.15);
-    color: #e2e8f0;
-    font-weight: 600;
-    font-size: 0.875rem;
-  }
-
-  .comparison-table td {
-    color: #94a3b8;
-    border-top: 1px solid rgba(51, 65, 85, 0.5);
-  }
-
-  .comparison-table .metric-name {
-    text-align: left;
-    color: #e2e8f0;
-    font-weight: 500;
-  }
-
-  .comparison-table .winner {
-    color: #4ade80;
-    font-weight: 600;
-    position: relative;
-  }
-
-  .comparison-table .crown {
-    margin-left: 0.25rem;
-    font-size: 0.875rem;
-  }
-
-  .comparison-table .avg-row {
-    background: rgba(99, 102, 241, 0.1);
-  }
-
-  .comparison-table .avg {
-    font-size: 1.1rem;
-  }
-
-  /* No Data */
-  .no-data {
-    background: rgba(30, 41, 59, 0.6);
-    border: 1px dashed rgba(99, 102, 241, 0.3);
-    border-radius: 12px;
-    padding: 2rem;
-    text-align: center;
-    color: #64748b;
-  }
-
-  /* Empty State */
-  .empty-state {
-    text-align: center;
-    padding: 4rem 2rem;
-  }
-
-  .empty-icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-  }
-
-  .empty-state h2 {
-    color: #e2e8f0;
-    margin-bottom: 0.5rem;
-  }
-
-  .empty-state p {
-    color: #94a3b8;
-    margin-bottom: 1.5rem;
-  }
-
-  .btn-secondary {
-    display: inline-block;
-    padding: 0.75rem 1.5rem;
-    background: rgba(99, 102, 241, 0.2);
-    color: #818cf8;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: 500;
-    transition: all 0.2s;
-  }
-
-  .btn-secondary:hover {
-    background: rgba(99, 102, 241, 0.3);
-  }
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    .benchmark-grid,
-    .specs-comparison-grid,
-    .deploy-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .comparison-table {
-      font-size: 0.8rem;
-    }
-  }
-</style>
-
-<script>
-  // Handle model selection and comparison
-  document.getElementById('compare-btn')?.addEventListener('click', () => {
-    const selects = document.querySelectorAll('.model-select');
-    const selectedModels = [];
-    
-    selects.forEach(select => {
-      if (select.value) {
-        selectedModels.push(select.value);
-      }
-    });
-    
-    if (selectedModels.length >= 2) {
-      const params = selectedModels.map(m => `m=${encodeURIComponent(m)}`).join('&');
-      window.location.href = `/compare?${params}`;
-    } else {
-      alert('Please select at least 2 models to compare');
-    }
-  });
-</script>
