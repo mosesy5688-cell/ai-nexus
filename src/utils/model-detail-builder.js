@@ -19,6 +19,7 @@ import { truncate } from './builders/parsing-utils.js';
 
 // Re-export utilities for consumers
 export { renderMarkdown, getDisplayName, getBestDescription };
+export { safeParseJSON } from './builders/parsing-utils.js';
 
 // ============================================
 // MAIN BUILDER (S-GRADE)
