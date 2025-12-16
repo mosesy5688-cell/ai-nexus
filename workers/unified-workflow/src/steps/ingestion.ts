@@ -2,16 +2,29 @@
 import { Env } from '../config/types';
 import { cleanModel, validateModel, routeToShadowDB, ValidationResult } from '../utils/entity-helper';
 
-export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ filesProcessed: number; modelsIngested: number }> {
-    console.log('[Ingest] Starting ingestion...');
+/**
+ * V5.2.1 Ingestion Step with HYDRATION_QUEUE
+ * Constitution Art 2.4: Uses Queue for parallel entity materialization
+ * 
+ * Flow: R2 raw-data/ → D1 (indexing) → HYDRATION_QUEUE → Consumer → R2 cache/
+ */
+export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ filesProcessed: number; modelsIngested: number; messagesQueued: number }> {
+    console.log('[Ingest] Starting V5.2.1 Queue-enabled ingestion...');
     console.log(`[L1] Resume from checkpoint: lastId=${checkpoint.lastId}`);
+
+    // Art 2.3: Check Kill-Switch
+    const systemPause = await env.KV?.get('SYSTEM_PAUSE');
+    if (systemPause === 'true') {
+        console.log('[Ingest] SYSTEM_PAUSE active, skipping ingestion');
+        return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
+    }
 
     // List pending files in raw-data/
     console.log('[Ingest] Listing files in raw-data/...');
     const listed = await env.R2_ASSETS.list({
         prefix: 'raw-data/',
         limit: 100,
-        startAfter: checkpoint.lastId || undefined  // L1: Resume from lastId
+        startAfter: checkpoint.lastId || undefined
     });
 
     console.log(`[Ingest] R2 list returned: ${listed.objects.length} total objects, truncated: ${listed.truncated}`);
@@ -20,15 +33,16 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
 
     if (jsonFiles.length === 0) {
         console.log('[Ingest] No pending files in raw-data/');
-        return { filesProcessed: 0, modelsIngested: 0 };
+        return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
     }
 
     console.log(`[Ingest] Found ${jsonFiles.length} files to process`);
 
-    // V4.1 HUNGRY MODE: Process up to 20 files per run
-    const MAX_FILES_PER_RUN = 20;
+    // V5.2.1: Process more files with Queue-based parallel processing
+    const MAX_FILES_PER_RUN = 50; // Increased from 20
     let totalModels = 0;
     let filesProcessed = 0;
+    let messagesQueued = 0;
 
     for (const fileObj of jsonFiles.slice(0, MAX_FILES_PER_RUN)) {
         try {
@@ -42,10 +56,8 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
             const models = await file.json() as any[];
             console.log(`[Ingest] Processing ${fileObj.key}: ${models.length} models`);
 
-            // Clean and prepare models
+            // Clean and validate models
             const cleanedModels = models.map(m => cleanModel(m));
-
-            // L2 VALIDATION: Separate valid from invalid models (Art.Shadow)
             const validModels: any[] = [];
             const invalidModels: { model: any; validation: ValidationResult }[] = [];
 
@@ -65,7 +77,7 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
                 await routeToShadowDB(env.DB, model, validation);
             }
 
-            // Write valid models to D1 in batches
+            // Step 1: Write valid models to D1 (for indexing and FNI)
             for (let i = 0; i < validModels.length; i += 50) {
                 const batch = validModels.slice(i, i + 50);
                 const stmts = batch.map(m =>
@@ -84,10 +96,35 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
                     )
                 );
                 await env.DB.batch(stmts);
-                console.log(`[Ingest] Wrote batch ${Math.floor(i / 50) + 1}: ${batch.length} models`);
+                console.log(`[Ingest] D1 batch ${Math.floor(i / 50) + 1}: ${batch.length} models`);
             }
 
-            totalModels += cleanedModels.length;
+            // Step 2: Send to HYDRATION_QUEUE for R2 cache materialization
+            // Art 2.4: Batch ≤ 100, Message ≤ 64KB
+            const QUEUE_BATCH_SIZE = 50; // Conservative for message size
+            for (let i = 0; i < validModels.length; i += QUEUE_BATCH_SIZE) {
+                const batch = validModels.slice(i, i + QUEUE_BATCH_SIZE);
+
+                // Send individual messages for parallel processing
+                const messages = batch.map(model => ({
+                    body: {
+                        model,
+                        relatedLinks: [], // Will be computed by consumer
+                        source: fileObj.key
+                    }
+                }));
+
+                try {
+                    await env.HYDRATION_QUEUE.sendBatch(messages);
+                    messagesQueued += messages.length;
+                    console.log(`[Ingest] Queued batch: ${messages.length} messages`);
+                } catch (queueError) {
+                    console.error('[Ingest] Queue send failed:', queueError);
+                    // Continue processing, D1 write succeeded
+                }
+            }
+
+            totalModels += validModels.length;
             filesProcessed++;
 
             // Archive processed file
@@ -104,5 +141,6 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
         }
     }
 
-    return { filesProcessed, modelsIngested: totalModels };
+    console.log(`[Ingest] Complete: ${filesProcessed} files, ${totalModels} models, ${messagesQueued} queued`);
+    return { filesProcessed, modelsIngested: totalModels, messagesQueued };
 }

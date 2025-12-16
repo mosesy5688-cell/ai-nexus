@@ -27,6 +27,11 @@ database_id = "adac7bc9-46a9-40b4-b609-28479221a17d"
 binding = "R2_ASSETS"
 bucket_name = "ai-nexus-assets"
 
+# KV Namespace Binding (Art 2.3 Kill-Switch)
+[[kv_namespaces]]
+binding = "KV"
+id = "ai-nexus-kv"
+
 # Queue Binding (Producer)
 [[queues.producers]]
 queue = "ai-nexus-hydration-queue"

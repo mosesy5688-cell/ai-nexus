@@ -1,0 +1,507 @@
+{
+  "generated_at": "2025-12-16T02:50:57.003Z",
+  "version": "V4.7",
+  "count": 50,
+  "models": [
+    {
+      "id": "hf-dataset:deepmind:code_contests",
+      "slug": "hf-dataset--deepmind--code_contests",
+      "name": "code_contests",
+      "author": "deepmind",
+      "fni_score": 42,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 0
+    },
+    {
+      "id": "hf-dataset:google-research-datasets:mbpp",
+      "slug": "hf-dataset--google-research-datasets--mbpp",
+      "name": "mbpp",
+      "author": "google-research-datasets",
+      "fni_score": 42,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 0
+    },
+    {
+      "id": "hf-dataset:huggingface:documentation-images",
+      "slug": "hf-dataset--huggingface--documentation-images",
+      "name": "documentation-images",
+      "author": "huggingface",
+      "fni_score": 42,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 0
+    },
+    {
+      "id": "hf-dataset:hf-doc-build:doc-build",
+      "slug": "hf-dataset--hf-doc-build--doc-build",
+      "name": "doc-build",
+      "author": "hf-doc-build",
+      "fni_score": 42,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 0
+    },
+    {
+      "id": "hf-dataset:salesforce:wikitext",
+      "slug": "hf-dataset--salesforce--wikitext",
+      "name": "wikitext",
+      "author": "Salesforce",
+      "fni_score": 42,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 0
+    },
+    {
+      "id": "hf-dataset--deepmind--code_contests",
+      "slug": "hf-dataset--deepmind--code_contests",
+      "name": "code_contests",
+      "author": "deepmind",
+      "fni_score": 42,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 0
+    },
+    {
+      "id": "hf-dataset--google-research-datasets--mbpp",
+      "slug": "hf-dataset--google-research-datasets--mbpp",
+      "name": "mbpp",
+      "author": "google-research-datasets",
+      "fni_score": 42,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 0
+    },
+    {
+      "id": "hf-dataset--huggingface--documentation-images",
+      "slug": "hf-dataset--huggingface--documentation-images",
+      "name": "documentation-images",
+      "author": "huggingface",
+      "fni_score": 42,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 0
+    },
+    {
+      "id": "hf-dataset--hf-doc-build--doc-build",
+      "slug": "hf-dataset--hf-doc-build--doc-build",
+      "name": "doc-build",
+      "author": "hf-doc-build",
+      "fni_score": 42,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 0
+    },
+    {
+      "id": "hf-dataset--salesforce--wikitext",
+      "slug": "hf-dataset--salesforce--wikitext",
+      "name": "wikitext",
+      "author": "Salesforce",
+      "fni_score": 41,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 0
+    },
+    {
+      "id": "huggingface:meta-llama:meta-llama-3-8b",
+      "slug": "huggingface--meta-llama--meta-llama-3-8b",
+      "name": "Meta-Llama-3-8B",
+      "author": "meta-llama",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "slug": "huggingface--meta-llama--llama-3.1-8b-instruct",
+      "name": "Llama-3.1-8B-Instruct",
+      "author": "meta-llama",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "slug": "huggingface--meta-llama--meta-llama-3-8b-instruct",
+      "name": "Meta-Llama-3-8B-Instruct",
+      "author": "meta-llama",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:microsoft:phi-2",
+      "slug": "huggingface--microsoft--phi-2",
+      "name": "phi-2",
+      "author": "microsoft",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "slug": "huggingface--mistralai--mistral-7b-instruct-v0.2",
+      "name": "Mistral-7B-Instruct-v0.2",
+      "author": "mistralai",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "slug": "huggingface--mistralai--mistral-7b-instruct-v0.3",
+      "name": "Mistral-7B-Instruct-v0.3",
+      "author": "mistralai",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:meta-llama:llama-3.2-1b",
+      "slug": "huggingface--meta-llama--llama-3.2-1b",
+      "name": "Llama-3.2-1B",
+      "author": "meta-llama",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:meta-llama:llama-3.2-3b-instruct",
+      "slug": "huggingface--meta-llama--llama-3.2-3b-instruct",
+      "name": "Llama-3.2-3B-Instruct",
+      "author": "meta-llama",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:google:gemma-3-27b-it",
+      "slug": "huggingface--google--gemma-3-27b-it",
+      "name": "gemma-3-27b-it",
+      "author": "google",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:tinyllama:tinyllama-1.1b-chat-v1.0",
+      "slug": "huggingface--tinyllama--tinyllama-1.1b-chat-v1.0",
+      "name": "TinyLlama-1.1B-Chat-v1.0",
+      "author": "TinyLlama",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-32b",
+      "slug": "huggingface--deepseek-ai--deepseek-r1-distill-qwen-32b",
+      "name": "DeepSeek-R1-Distill-Qwen-32B",
+      "author": "deepseek-ai",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-1.5b",
+      "slug": "huggingface--deepseek-ai--deepseek-r1-distill-qwen-1.5b",
+      "name": "DeepSeek-R1-Distill-Qwen-1.5B",
+      "author": "deepseek-ai",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-vl-7b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-vl-7b-instruct",
+      "name": "Qwen2.5-VL-7B-Instruct",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:microsoft:phi-3-mini-4k-instruct",
+      "slug": "huggingface--microsoft--phi-3-mini-4k-instruct",
+      "name": "Phi-3-mini-4k-instruct",
+      "author": "microsoft",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:google:embeddinggemma-300m",
+      "slug": "huggingface--google--embeddinggemma-300m",
+      "name": "embeddinggemma-300m",
+      "author": "google",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen2-vl-7b-instruct",
+      "slug": "huggingface--qwen--qwen2-vl-7b-instruct",
+      "name": "Qwen2-VL-7B-Instruct",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:meta-llama:llama-3.2-1b-instruct",
+      "slug": "huggingface--meta-llama--llama-3.2-1b-instruct",
+      "name": "Llama-3.2-1B-Instruct",
+      "author": "meta-llama",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:google:gemma-3-4b-it",
+      "slug": "huggingface--google--gemma-3-4b-it",
+      "name": "gemma-3-4b-it",
+      "author": "google",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-7b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-7b-instruct",
+      "name": "Qwen2.5-7B-Instruct",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen3-next-80b-a3b-instruct",
+      "slug": "huggingface--qwen--qwen3-next-80b-a3b-instruct",
+      "name": "Qwen3-Next-80B-A3B-Instruct",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen3-0.6b",
+      "slug": "huggingface--qwen--qwen3-0.6b",
+      "name": "Qwen3-0.6B",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:deepseek-ai:deepseek-r1-distill-llama-8b",
+      "slug": "huggingface--deepseek-ai--deepseek-r1-distill-llama-8b",
+      "name": "DeepSeek-R1-Distill-Llama-8B",
+      "author": "deepseek-ai",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen3-coder-30b-a3b-instruct",
+      "slug": "huggingface--qwen--qwen3-coder-30b-a3b-instruct",
+      "name": "Qwen3-Coder-30B-A3B-Instruct",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen3-8b",
+      "slug": "huggingface--qwen--qwen3-8b",
+      "name": "Qwen3-8B",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen3-embedding-0.6b",
+      "slug": "huggingface--qwen--qwen3-embedding-0.6b",
+      "name": "Qwen3-Embedding-0.6B",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:google:gemma-3-1b-it",
+      "slug": "huggingface--google--gemma-3-1b-it",
+      "name": "gemma-3-1b-it",
+      "author": "google",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen3-32b",
+      "slug": "huggingface--qwen--qwen3-32b",
+      "name": "Qwen3-32B",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:google:gemma-3-12b-it",
+      "slug": "huggingface--google--gemma-3-12b-it",
+      "name": "gemma-3-12b-it",
+      "author": "google",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-1.5b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-1.5b-instruct",
+      "name": "Qwen2.5-1.5B-Instruct",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen3-4b-instruct-2507",
+      "slug": "huggingface--qwen--qwen3-4b-instruct-2507",
+      "name": "Qwen3-4B-Instruct-2507",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen3-vl-8b-instruct",
+      "slug": "huggingface--qwen--qwen3-vl-8b-instruct",
+      "name": "Qwen3-VL-8B-Instruct",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen3-4b",
+      "slug": "huggingface--qwen--qwen3-4b",
+      "name": "Qwen3-4B",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen2-vl-2b-instruct",
+      "slug": "huggingface--qwen--qwen2-vl-2b-instruct",
+      "name": "Qwen2-VL-2B-Instruct",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen3-vl-30b-a3b-instruct",
+      "slug": "huggingface--qwen--qwen3-vl-30b-a3b-instruct",
+      "name": "Qwen3-VL-30B-A3B-Instruct",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-0.5b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-0.5b-instruct",
+      "name": "Qwen2.5-0.5B-Instruct",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen3-1.7b",
+      "slug": "huggingface--qwen--qwen3-1.7b",
+      "name": "Qwen3-1.7B",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-3b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-3b-instruct",
+      "name": "Qwen2.5-3B-Instruct",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "huggingface:qwen:qwen3-14b",
+      "slug": "huggingface--qwen--qwen3-14b",
+      "name": "Qwen3-14B",
+      "author": "Qwen",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 1
+    },
+    {
+      "id": "hf-dataset:m-a-p:finefineweb",
+      "slug": "hf-dataset--m-a-p--finefineweb",
+      "name": "FineFineWeb",
+      "author": "m-a-p",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 0
+    },
+    {
+      "id": "hf-dataset--m-a-p--finefineweb",
+      "slug": "hf-dataset--m-a-p--finefineweb",
+      "name": "FineFineWeb",
+      "author": "m-a-p",
+      "fni_score": 40,
+      "deploy_score": 0,
+      "architecture_family": null,
+      "has_ollama": 0
+    }
+  ]
+}
