@@ -4,7 +4,6 @@ import EntityNotice from '../entity/EntityNotice.astro';
 
 interface Props {
   modelName: string;
-  coverImage: string;
   entityType?: string;
   entityIcon?: string;
   entityLabel?: string;
@@ -17,7 +16,6 @@ interface Props {
 
 const {
   modelName,
-  coverImage,
   entityType = 'model',
   entityIcon = '🧠',
   entityLabel = 'Model',
@@ -30,18 +28,8 @@ const {
 ---
 
 <header class="mb-8">
-  <div class="flex flex-col lg:flex-row gap-6 items-start">
-    <div class="w-full lg:w-64 flex-shrink-0">
-      <img 
-        src={coverImage} 
-        alt={modelName}
-        class="w-full rounded-xl shadow-lg bg-gray-200"
-        loading="eager"
-        fetchpriority="high"
-      />
-    </div>
-    
-    <div class="flex-1">
+  <!-- V5.2.1: Simplified layout without cover image -->
+  <div class="flex flex-col gap-4">
       <!-- V4.9: Entity Type Badge (Art.X-Entity) -->
       <div class="mb-2">
         <span class="inline-flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-xs font-medium border border-gray-200 dark:border-gray-700">
