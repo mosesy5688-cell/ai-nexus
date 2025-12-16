@@ -49,30 +49,34 @@ allCodeFiles.forEach(file => {
     if (file.endsWith('.d.ts')) return; // Skip types
 
     // TEMPORARY WHITELIST FOR PHASE 2 (Legacy Code)
+    // Normalized to forward slashes for Cross-Platform CI (Linux/Windows)
     const LEGACY_WHITELIST = [
-        'src\\components\\architecture\\ArchitectureModule.astro',
-        'src\\components\\entity\\EntityShell.astro',
-        'src\\components\\explore\\ExploreFilters.astro',
-        'src\\components\\GraphExplorer.astro',
-        'src\\components\\ModelHero.astro',
-        'src\\components\\NeuralGraphExplorer.astro',
-        'src\\components\\specs\\FamilyTree.astro',
-        'src\\data\\entity-definitions.ts',
-        'src\\pages\\compare.astro',
-        'src\\pages\\explore.astro',
-        'src\\pages\\index.astro',
-        'src\\pages\\knowledge\\[slug].astro',
-        'src\\pages\\knowledge.astro',
-        'src\\pages\\leaderboard.astro',
-        'src\\pages\\model\\[...slug].astro',
-        'src\\pages\\ranking\\[category].astro',
-        'src\\utils\\data-service.js',
-        'src\\utils\\model-detail-builder.js',
-        'src\\utils\\semantic-matcher.js',
-        'src\\utils\\umid-resolver.js'
+        'src/components/architecture/ArchitectureModule.astro',
+        'src/components/entity/EntityShell.astro',
+        'src/components/explore/ExploreFilters.astro',
+        'src/components/GraphExplorer.astro',
+        'src/components/ModelHero.astro',
+        'src/components/NeuralGraphExplorer.astro',
+        'src/components/specs/FamilyTree.astro',
+        'src/data/entity-definitions.ts',
+        'src/pages/compare.astro',
+        'src/pages/explore.astro',
+        'src/pages/index.astro',
+        'src/pages/knowledge/[slug].astro',
+        'src/pages/knowledge.astro',
+        'src/pages/leaderboard.astro',
+        'src/pages/model/[...slug].astro',
+        'src/pages/ranking/[category].astro',
+        'src/utils/data-service.js',
+        'src/utils/model-detail-builder.js',
+        'src/utils/semantic-matcher.js',
+        'src/utils/umid-resolver.js'
     ];
 
-    const isWhitelisted = LEGACY_WHITELIST.some(w => file.includes(w));
+    // Normalize file path to forward slashes for cross-platform matching
+    // file comes from path.join which is OS specific, so matching against "/" requires normalization
+    const normalizedFile = file.split(path.sep).join('/');
+    const isWhitelisted = LEGACY_WHITELIST.some(w => normalizedFile.includes(w));
     const lines = fs.readFileSync(file, 'utf8').split('\n').length;
 
     if (lines > 250) {
