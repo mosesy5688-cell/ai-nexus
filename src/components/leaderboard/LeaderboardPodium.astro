@@ -1,0 +1,27 @@
+---
+// src/components/leaderboard/LeaderboardPodium.astro
+import ModelCard from '../ModelCard.astro';
+
+interface Props {
+  topModels: any[];
+}
+
+const { topModels } = Astro.props;
+---
+<section class="podium-section">
+  <h2 class="section-title">🥇 Top Performers</h2>
+  <div class="podium-grid">
+    {topModels.map((b, index) => (
+      <div class={`podium-card podium-${index + 1} ${index === 0 ? 'gold' : index === 1 ? 'silver' : 'bronze'}`}>
+        <div class="rank-medal">
+          {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+        </div>
+        <ModelCard model={b} />
+        <div class="mt-4 text-center">
+          <div class="text-3xl font-bold text-white">{b.avg_score}</div>
+          <div class="text-xs text-gray-400 uppercase tracking-widest">Avg Score</div>
+        </div>
+      </div>
+    ))}
+  </div>
+</section>

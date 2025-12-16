@@ -63,7 +63,7 @@ allCodeFiles.forEach(file => {
 
 
         'src/pages/knowledge.astro',
-        'src/pages/leaderboard.astro',
+
 
         'src/pages/ranking/[category].astro',
 
