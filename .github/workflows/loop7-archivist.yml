@@ -9,10 +9,16 @@ on:
     - cron: '0 2 1 * *'  # Every 1st of month at 02:00 UTC
   workflow_dispatch:
 
+# V5.2.1 Constitution Art 3.2: Execution Safety
+concurrency:
+  group: l7-archivist-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   archive:
     name: Data Governance & Archive
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     
     steps:
       - name: Checkout repository
