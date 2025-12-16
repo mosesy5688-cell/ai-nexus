@@ -134,19 +134,21 @@ jobs:
       
       - name: Start Preview Server
         run: |
-          npm run preview &
+          # Redirect output to file for debugging
+          npm run preview -- --host > preview.log 2>&1 &
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
           
-          # Wait for server to be ready
+          # Wait for server to be ready (increased timeout)
           echo "⏳ Waiting for server to start..."
-          for i in {1..30}; do
+          for i in {1..60}; do
             if curl -s http://localhost:4321 > /dev/null; then
               echo "✅ Server is ready"
               break
             fi
-            if [ $i -eq 30 ]; then
-              echo "❌ Server failed to start"
+            if [ $i -eq 60 ]; then
+              echo "❌ Server failed to start. Logs:"
+              cat preview.log
               exit 1
             fi
             sleep 1
