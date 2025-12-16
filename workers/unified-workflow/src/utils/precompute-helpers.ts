@@ -99,19 +99,33 @@ export async function generateNeuralGraph(env: Env) {
 export async function generateCategoryStats(env: Env) {
     console.log('[L8] Generating category stats...');
 
-    // V5.2.1: Predefined categories for "Explore by Category" feature
-    // These match common HuggingFace pipeline tags
+    // V5.2.1: All 21 HuggingFace pipeline tag categories
     const predefinedCategories = [
+        // NLP Categories
         { id: 'text-generation', label: 'Text Generation', icon: '💬' },
         { id: 'text-classification', label: 'Text Classification', icon: '🏷️' },
         { id: 'question-answering', label: 'Question Answering', icon: '❓' },
         { id: 'translation', label: 'Translation', icon: '🌐' },
         { id: 'summarization', label: 'Summarization', icon: '📝' },
+        { id: 'text2text-generation', label: 'Text2Text Generation', icon: '🔄' },
+        { id: 'conversational', label: 'Conversational', icon: '🗣️' },
+        { id: 'fill-mask', label: 'Fill Mask', icon: '🎭' },
+        { id: 'token-classification', label: 'Token Classification', icon: '🔤' },
+        { id: 'sentence-similarity', label: 'Sentence Similarity', icon: '📊' },
+        { id: 'feature-extraction', label: 'Feature Extraction', icon: '🧬' },
+        // Vision Categories
         { id: 'image-classification', label: 'Image Classification', icon: '🖼️' },
         { id: 'object-detection', label: 'Object Detection', icon: '🔍' },
-        { id: 'image-generation', label: 'Image Generation', icon: '🎨' },
-        { id: 'audio', label: 'Audio', icon: '🔊' },
-        { id: 'code', label: 'Code', icon: '💻' }
+        { id: 'image-segmentation', label: 'Image Segmentation', icon: '✂️' },
+        { id: 'text-to-image', label: 'Text to Image', icon: '🎨' },
+        { id: 'image-to-text', label: 'Image to Text', icon: '📷' },
+        // Audio Categories
+        { id: 'automatic-speech-recognition', label: 'Speech Recognition', icon: '🎤' },
+        { id: 'text-to-speech', label: 'Text to Speech', icon: '🔊' },
+        { id: 'audio-classification', label: 'Audio Classification', icon: '🎵' },
+        // Multimodal & Other
+        { id: 'zero-shot-classification', label: 'Zero-Shot Classification', icon: '🎯' },
+        { id: 'reinforcement-learning', label: 'Reinforcement Learning', icon: '🤖' }
     ];
 
     // Count models per category by checking tags field
