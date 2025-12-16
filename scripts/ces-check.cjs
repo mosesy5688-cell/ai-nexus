@@ -67,7 +67,7 @@ allCodeFiles.forEach(file => {
         'src/pages/leaderboard.astro',
         'src/pages/model/[...slug].astro',
         'src/pages/ranking/[category].astro',
-        'src/utils/data-service.js',
+
         'src/utils/model-detail-builder.js',
         'src/utils/semantic-matcher.js',
         'src/utils/umid-resolver.js'

@@ -1,376 +1,60 @@
+
 // src/utils/data-service.js
-/**
- * Frontend Data Coordination Layer
- * Ensures D1 database data is properly formatted for frontend display
- * DO NOT modify core data collection or processing modules
- */
+// Frontend Data Coordination Layer (Refactored V5.1.2)
+// Facade for formatters and model helpers.
 
-/**
- * Normalize model data from D1 for consistent frontend display
- * @param {Object} rawModel - Raw model data from D1
- * @returns {Object} Normalized model data
- */
-export function normalizeModelData(rawModel) {
-    if (!rawModel || typeof rawModel !== 'object') {
-        console.warn('Invalid model data received:', rawModel);
-        return createPlaceholderModel();
-    }
+import {
+    ensureString,
+    validateImageUrl,
+    validateUrl,
+    parseJSONField,
+    formatMetric,
+    formatRelativeTime,
+    createPlaceholderModel,
+    validateModelData,
+    normalizeModelData
+} from './formatters.js';
 
-    return {
-        // Core identifiers
-        id: rawModel.id || 'unknown',
-        name: rawModel.name || 'Untitled Model',
-        author: rawModel.author || 'Unknown Author',
+import {
+    generateSlug,
+    parseSlug,
+    getDisplayName,
+    getBestDescription,
+    cleanupDescription,
+    prepareCardData,
+    prepareDetailData,
+    findSimilarModels
+} from './model-helpers.js';
 
-        // Metrics (ensure numbers)
-        likes: parseInt(rawModel.likes) || 0,
-        downloads: parseInt(rawModel.downloads) || 0,
+// Re-export everything for backward compatibility
+export {
+    ensureString,
+    validateImageUrl,
+    validateUrl,
+    parseJSONField,
+    formatMetric,
+    formatRelativeTime,
+    createPlaceholderModel,
+    validateModelData,
+    normalizeModelData,
+    generateSlug,
+    parseSlug,
+    getDisplayName,
+    getBestDescription,
+    cleanupDescription,
+    prepareCardData,
+    prepareDetailData,
+    findSimilarModels
+};
 
-        // Text content (ensure strings)
-        description: ensureString(rawModel.description),
-        seo_summary: ensureString(rawModel.seo_summary),
-        source_url: validateUrl(rawModel.source_url, '#'), // Fallback to '#'
-
-        // Status fields
-        seo_status: rawModel.seo_status || 'pending',
-        link_status: rawModel.link_status || 'unknown',
-
-        // Metadata
-        pipeline_tag: rawModel.pipeline_tag || '',
-        license: rawModel.license || 'Unknown',
-        last_updated: rawModel.last_updated || new Date().toISOString(),
-        slug: rawModel.slug || generateSlug(rawModel.id), // Use DB slug or fallback
-
-        // Image handling - Use R2 CDN for external images
-        cover_image_url: (rawModel.cover_image_url && !rawModel.cover_image_url.startsWith('/'))
-            ? `/api/image/${rawModel.slug || generateSlug(rawModel.id)}`
-            : (validateImageUrl(rawModel.cover_image_url)),
-
-        // Parse JSON fields safely
-        tags: parseJSONField(rawModel.tags, []),
-        links_data: parseJSONField(rawModel.links_data, {}),
-        related_ids: parseJSONField(rawModel.related_ids, []),
-
-        // Papers With Code Data
-        pwc_benchmarks: parseJSONField(rawModel.pwc_benchmarks, []),
-        pwc_tasks: parseJSONField(rawModel.pwc_tasks, []),
-        pwc_datasets: parseJSONField(rawModel.pwc_datasets, []),
-        pwc_sota_count: parseInt(rawModel.pwc_sota_count) || 0,
-
-        // FNI Data - Constitution V4.1 Pillar VII: Fair Index
-        fni_score: parseFloat(rawModel.fni_score) || 0,
-        fni_p: parseFloat(rawModel.fni_p) || 0,
-        fni_v: parseFloat(rawModel.fni_v) || 0,
-        fni_c: parseFloat(rawModel.fni_c) || 0,
-        fni_u: parseFloat(rawModel.fni_u) || 0,
-        fni_percentile: parseFloat(rawModel.fni_percentile) || 0,
-        fni_calculated_at: rawModel.fni_calculated_at || null,
-
-        // Runtime Ecosystem - Sprint 4: Runtime Badges
-        has_ollama: rawModel.has_ollama === 1 || rawModel.has_ollama === true,
-        has_gguf: rawModel.has_gguf === 1 || rawModel.has_gguf === true,
-        ollama_id: rawModel.ollama_id || null,
-
-        // Preserve raw data for debugging
-        _raw: rawModel
-    };
-}
-
-/**
- * Create placeholder model for missing/error cases
- */
-function createPlaceholderModel() {
-    return {
-        id: 'placeholder',
-        name: 'Model Unavailable',
-        author: 'Unknown',
-        likes: 0,
-        downloads: 0,
-        description: 'This model information is currently unavailable. Please try again later.',
-        seo_summary: '',
-        seo_status: 'pending',
-        link_status: 'unknown',
-        pipeline_tag: '',
-        license: 'Unknown',
-        last_updated: new Date().toISOString(),
-        cover_image_url: '/placeholder-model.png',
-        tags: [],
-        links_data: {},
-        related_ids: [],
-        _isPlaceholder: true
-    };
-}
-
-/**
- * Ensure value is a string
- */
-function ensureString(value) {
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'string') return value;
-    if (typeof value === 'object') {
-        // Handle [object Object] case
-        try {
-            return JSON.stringify(value);
-        } catch (e) {
-            return String(value);
-        }
-    }
-    return String(value);
-}
-
-/**
- * Validate and sanitize image URLs
- */
-function validateImageUrl(url) {
-    if (!url || typeof url !== 'string') return '/placeholder-model.png';
-
-    // Check if URL is valid
-    try {
-        new URL(url);
-        return url;
-    } catch (e) {
-        // If not absolute URL, check if it's a relative path
-        if (url.startsWith('/') || url.startsWith('./') || url.startsWith('../')) return url;
-        return '/placeholder-model.png';
-    }
-}
-
-/**
- * Validate and sanitize URLs, providing a fallback.
- */
-function validateUrl(url, fallback = '#') {
-    if (!url || typeof url !== 'string') return fallback;
-    try {
-        new URL(url);
-        return url;
-    } catch (e) {
-        // Allow relative paths
-        if (url.startsWith('/') || url.startsWith('./') || url.startsWith('../')) return url;
-        return fallback;
-    }
-}
-
-/**
- * Safely parse JSON fields
- * Enhanced to handle D1 Proxy objects which may not be detected as strings
- */
-function parseJSONField(value, fallback) {
-    if (!value) return fallback;
-
-    // If already an array or object (and not a Proxy), return it
-    if (Array.isArray(value)) return value;
-    if (typeof value === 'object' && value !== null && !value.constructor.name.includes('Proxy')) {
-        return value;
-    }
-
-    // Force string coercion for D1 Proxy objects and other edge cases
-    const stringValue = String(value);
-
-    try {
-        const parsed = JSON.parse(stringValue);
-        return parsed;
-    } catch (e) {
-        console.warn('Failed to parse JSON field:', stringValue.substring(0, 100));
-        return fallback;
-    }
-}
-
-/**
- * Format metrics for display
- */
-export function formatMetric(num) {
-    if (typeof num !== 'number') num = parseInt(num) || 0;
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
-}
-
-/**
- * Format relative time
- */
-export function formatRelativeTime(dateString) {
-    if (!dateString) return 'Unknown';
-
-    try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return 'Unknown';
-        const now = new Date();
-        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-        if (diffInSeconds < 60) return 'just now';
-        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-        if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-        if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)}mo ago`;
-        return `${Math.floor(diffInSeconds / 31536000)}y ago`;
-    } catch (e) {
-        return 'Unknown';
-    }
-}
-
-/**
- * Validate model data completeness
- * Returns array of missing/invalid fields
- */
-export function validateModelData(model) {
-    const issues = [];
-
-    if (!model.id || model.id === 'unknown') issues.push('missing_id');
-    if (!model.name || model.name === 'Untitled Model') issues.push('missing_name');
-    if (!model.author || model.author === 'Unknown Author') issues.push('missing_author');
-    if (typeof model.description !== 'string') issues.push('invalid_description');
-    if (typeof model.likes !== 'number') issues.push('invalid_likes');
-    if (typeof model.downloads !== 'number') issues.push('invalid_downloads');
-
-    return issues;
-}
-
-/**
- * Generate SEO-friendly slug from model ID
- */
-export function generateSlug(modelId) {
-    if (!modelId || typeof modelId !== 'string') return 'unknown';
-    return modelId.replace(/\//g, '--');
-}
-
-/**
- * Parse slug back to model ID
- */
-export function parseSlug(slug) {
-    if (!slug || typeof slug !== 'string') return '';
-    return slug.replace(/--/g, '/');
-}
-
-/**
- * Extract display name from model 
- */
-export function getDisplayName(model) {
-    if (!model) return 'Unknown Model';
-    return model.name || model.id || 'Untitled';
-}
-
-/**
- * Get best description (SEO summary > description > fallback)
- */
-export function getBestDescription(model) {
-    if (!model) return 'No description available.';
-
-    // Create a default message if all content is empty
-    const defaultDescription = `Explore the details of the AI model "${model.name}" by ${model.author}. More information will be available soon.`;
-
-    // Prefer SEO summary if available and done
-    if (model.seo_status === 'done' && model.seo_summary) {
-        return model.seo_summary;
-    }
-
-    // Fallback to regular description
-    if (model.description) {
-        const desc = ensureString(model.description);
-        // Clean HTML tags
-        return desc.replace(/<[^>]*>/g, '');
-    }
-
-    return defaultDescription;
-}
-
-
-/**
- * Cleanup description text (remove HTML, trim)
- */
-export function cleanupDescription(text) {
-    if (!text) return '';
-    const str = typeof text === 'string' ? text : String(text);
-    return str.replace(/<[^>]*>/g, '').trim();
-}
-
-/**
- * Prepare model data for card display
- */
-export function prepareCardData(model) {
-    const normalized = normalizeModelData(model);
-    return {
-        id: normalized.id,
-        name: getDisplayName(normalized),
-        author: normalized.author,
-        description: getBestDescription(normalized).substring(0, 150) + '...',
-        likes: normalized.likes,
-        downloads: normalized.downloads,
-        cover_image_url: normalized.cover_image_url,
-        url: `/model/${normalized.slug || generateSlug(normalized.id)}`,
-        pipeline_tag: normalized.pipeline_tag,
-        last_updated: formatRelativeTime(normalized.last_updated)
-    };
-}
-
-/**
- * Prepare model data for detail page
- */
-export function prepareDetailData(rawModel, candidateModels = []) {
-    const normalized = normalizeModelData(rawModel);
-    const validation = validateModelData(normalized);
-    const similarModels = findSimilarModels(normalized, candidateModels, 5);
-
-    return {
-        ...normalized,
-        displayName: getDisplayName(normalized),
-        displayDescription: getBestDescription(normalized),
-        formattedLikes: formatMetric(normalized.likes),
-        formattedDownloads: formatMetric(normalized.downloads),
-        relativeTime: formatRelativeTime(normalized.last_updated),
-        similarModels,
-        validation,
-        hasIssues: validation.length > 0
-    };
-}
-
-/**
- * Find similar models based on shared tags
- */
-export function findSimilarModels(targetModel, allModels, count = 5) {
-    if (!targetModel || !allModels || !Array.isArray(allModels)) return [];
-
-    const targetTags = new Set(targetModel.tags || []);
-    if (targetTags.size === 0) return [];
-
-    const scoredModels = allModels
-        .filter(m => m.id !== targetModel.id)
-        .map(m => {
-            const modelTags = new Set(m.tags || []);
-            const intersection = new Set([...targetTags].filter(tag => modelTags.has(tag)));
-            return { model: m, score: intersection.size };
-        })
-        .filter(item => item.score > 0)
-        .sort((a, b) => b.score - a.score || b.model.downloads - a.model.downloads)
-        .slice(0, count);
-
-    return scoredModels.map(item => prepareCardData(item.model));
-}
-
-/**
- * Log data coordination activity
- */
+// Log data coordination activity
 export function logDataActivity(action, data, error = null) {
-    const log = {
-        timestamp: new Date().toISOString(),
-        action,
-        data,
-        error
-    };
-
-    console.log('[Frontend Data Coordination]', log);
-
-    // Store in session for debugging (optional)
-    if (typeof window !== 'undefined') {
-        try {
-            const logs = JSON.parse(sessionStorage.getItem('frontend_data_logs') || '[]');
-            logs.push(log);
-            // Keep only last 50 logs
-            if (logs.length > 50) logs.shift();
-            sessionStorage.setItem('frontend_data_logs', JSON.stringify(logs));
-        } catch (e) {
-            // Ignore storage errors
-        }
+    if (import.meta.env.DEV) {
+        const timestamp = new Date().toISOString();
+        const style = error ? 'color: red' : 'color: blue';
+        console.groupCollapsed(`%c[DataService] ${action} @ ${timestamp}`, style);
+        console.log('Payload:', data);
+        if (error) console.error('Error:', error);
+        console.groupEnd();
     }
-
-    return log;
 }
