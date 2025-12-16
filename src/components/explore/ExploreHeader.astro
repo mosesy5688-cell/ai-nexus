@@ -1,0 +1,38 @@
+---
+// src/components/explore/ExploreHeader.astro
+interface Props {
+  entityLabel: string;
+}
+const { entityLabel } = Astro.props;
+---
+
+<header class="mb-4">
+  <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Explore {entityLabel}</h1>
+  <p class="text-gray-600 dark:text-gray-400 mt-2">
+    Discover and compare the latest {entityLabel.toLowerCase()} from across the AI ecosystem.
+  </p>
+  
+  <!-- Breadcrumbs / Quick Links -->
+  <ul class="flex flex-wrap gap-4 text-sm text-gray-500 mt-4">
+    <li><a href="/" class="hover:text-indigo-600">Home</a></li>
+    <li>/</li>
+    <li><span class="text-gray-900 dark:text-white">Explore</span></li>
+    <li class="ml-auto flex gap-4 hidden md:flex">
+      <a href="/leaderboard" class="hover:text-indigo-600">🏆 Leaderboard</a>
+      <a href="/pricing" class="hover:text-indigo-600">💰 Pricing</a>
+    </li>
+  </ul>
+  
+  <!-- Quick Filters Hints -->
+  <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+    <p class="text-xs text-blue-800 dark:text-blue-300 font-medium">
+      <span class="mr-2">💡 Tip:</span>
+      Use the sidebar to filter by FNI Trust Score, License, or Benchmarks.
+    </p>
+    <ul class="mt-2 text-xs text-blue-600 dark:text-blue-400 flex gap-4">
+      <li>→ <a href="/explore?sort=fni" class="underline hover:no-underline">Highest Trusted Models</a></li>
+      <li>→ <a href="/explore?has_benchmarks=true" class="underline hover:no-underline">Benchmark-verified only</a></li>
+      <li>→ <a href="/explore?type=dataset&sort=likes" class="underline hover:no-underline">Popular datasets for training LLMs</a></li>
+    </ul>
+  </div>
+</header>

@@ -60,7 +60,7 @@ allCodeFiles.forEach(file => {
         'src/components/specs/FamilyTree.astro',
         'src/data/entity-definitions.ts',
         'src/pages/compare.astro',
-        'src/pages/explore.astro',
+
         'src/pages/index.astro',
         'src/pages/knowledge/[slug].astro',
         'src/pages/knowledge.astro',
