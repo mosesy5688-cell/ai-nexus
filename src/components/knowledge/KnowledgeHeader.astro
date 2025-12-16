@@ -1,0 +1,20 @@
+---
+// src/components/knowledge/KnowledgeHeader.astro
+interface Props {
+  title: string;
+  description: string;
+  category: string;
+}
+
+const { title, description, category } = Astro.props;
+---
+
+<header class="article-header">
+  <nav class="breadcrumb">
+    <a href="/knowledge">Knowledge Base</a>
+    <span>›</span>
+    <span>{category}</span>
+  </nav>
+  <h1 class="article-title">{title}</h1>
+  <p class="article-description">{description}</p>
+</header>
