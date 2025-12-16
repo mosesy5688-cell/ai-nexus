@@ -1,9 +1,9 @@
 ---
 // src/components/model-detail/ModelSidebar.astro
-import SpecsTable from '../SpecsTable.astro';
+import SpecsTable from '../specs/SpecsTable.astro';
 import ModelInfoTable from '../ModelInfoTable.astro';
 import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
-import { safeParseJSON } from '../../utils/data-service';
+import { parseJSONField } from '../../utils/data-service';
 
 interface Props {
   model: any;
@@ -19,7 +19,7 @@ const { model, modelId } = Astro.props;
       params={model.params_billions || null}
       contextLength={model.context_length || null}
       hasGguf={model.has_gguf || false}
-      ggufVariants={safeParseJSON(model.gguf_variants ?? null, [])}
+      ggufVariants={parseJSONField(model.gguf_variants ?? null, [])}
       hasOllama={model.has_ollama || false}
       ollamaId={model.ollama_id || null}
       ollamaPulls={model.ollama_pulls || 0}
