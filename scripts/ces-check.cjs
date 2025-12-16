@@ -61,7 +61,6 @@ allCodeFiles.forEach(file => {
         'src/data/entity-definitions.ts',
 
 
-        'src/pages/index.astro',
 
         'src/pages/knowledge.astro',
         'src/pages/leaderboard.astro',
