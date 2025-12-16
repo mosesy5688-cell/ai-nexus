@@ -1,0 +1,77 @@
+---
+// src/components/model-detail/ModelNotices.astro
+
+interface Props {
+  entityLabel: string;
+  sourceUrl?: string;
+  sourceTrail?: string;
+  license?: string;
+  hasDescription: boolean;
+  hasSeoSummary: boolean;
+}
+
+const {
+  entityLabel,
+  sourceUrl,
+  sourceTrail,
+  license,
+  hasDescription,
+  hasSeoSummary
+} = Astro.props;
+---
+
+<!-- V4.9.1 Step 2.7: Missing Field Warning (CEO Iron Law) -->
+{(!hasDescription && !hasSeoSummary) && (
+  <section class="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-6 border border-amber-200 dark:border-amber-700 mb-6">
+    <h2 class="text-lg font-bold mb-2 text-amber-800 dark:text-amber-300 flex items-center gap-2">
+      <span>⚠️</span> Incomplete Data
+    </h2>
+    <p class="text-amber-700 dark:text-amber-400 text-sm">
+      Some information about this {entityLabel.toLowerCase()} is not available.
+      <strong class="block mt-1">Use with Caution</strong> - Verify details from the original source before relying on this data.
+    </p>
+    {sourceUrl && (
+      <a 
+        href={sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-block mt-3 text-sm text-amber-800 dark:text-amber-300 underline hover:no-underline"
+      >
+        View Original Source →
+      </a>
+    )}
+  </section>
+)}
+
+<!-- V4.9.1 Step 2.7: Limitations Section (CEO Iron Law) -->
+<section class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
+  <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+    <span>📝</span> Limitations & Considerations
+  </h2>
+  <ul class="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
+    <li class="flex items-start gap-2">
+      <span class="text-gray-400">•</span>
+      <span>Benchmark scores may vary based on evaluation methodology and hardware configuration.</span>
+    </li>
+    <li class="flex items-start gap-2">
+      <span class="text-gray-400">•</span>
+      <span>VRAM requirements are estimates; actual usage depends on quantization and batch size.</span>
+    </li>
+    <li class="flex items-start gap-2">
+      <span class="text-gray-400">•</span>
+      <span>FNI scores are relative rankings and may change as new models are added.</span>
+    </li>
+    {!license && (
+      <li class="flex items-start gap-2 text-amber-600 dark:text-amber-400">
+        <span>⚠</span>
+        <span><strong>License Unknown:</strong> Verify licensing terms before commercial use.</span>
+      </li>
+    )}
+    {sourceTrail && (
+      <li class="flex items-start gap-2">
+        <span class="text-gray-400">•</span>
+        <span>Data source: {sourceTrail}</span>
+      </li>
+    )}
+  </ul>
+</section>

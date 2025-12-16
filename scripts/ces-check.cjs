@@ -65,7 +65,7 @@ allCodeFiles.forEach(file => {
         'src/pages/knowledge/[slug].astro',
         'src/pages/knowledge.astro',
         'src/pages/leaderboard.astro',
-        'src/pages/model/[...slug].astro',
+
         'src/pages/ranking/[category].astro',
 
         'src/utils/model-detail-builder.js',

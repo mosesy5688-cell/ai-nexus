@@ -1,0 +1,46 @@
+---
+// src/components/model-detail/ModelResources.astro
+
+interface Props {
+  relatedPapers?: string;
+  relatedDatasets?: string;
+}
+
+const { relatedPapers, relatedDatasets } = Astro.props;
+---
+
+<!-- V4.9.1 Step 2.7: Related Papers/Datasets Section -->
+<section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+  <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+    <span>📚</span> Related Resources
+  </h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Related Papers placeholder -->
+    <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+      <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
+        <span>📄</span> Related Papers
+      </h3>
+      {relatedPapers ? (
+        <p class="text-sm text-gray-600 dark:text-gray-400">{relatedPapers}</p>
+      ) : (
+        <p class="text-sm text-gray-500 dark:text-gray-500 italic">
+          No related papers linked yet. Check the model's official documentation for research papers.
+        </p>
+      )}
+    </div>
+    
+    <!-- Related Datasets placeholder -->
+    <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+      <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
+        <span>📊</span> Training Datasets
+      </h3>
+      {relatedDatasets ? (
+        <p class="text-sm text-gray-600 dark:text-gray-400">{relatedDatasets}</p>
+      ) : (
+        <p class="text-sm text-gray-500 dark:text-gray-500 italic">
+          Training data information not available. Refer to the original model card for details.
+        </p>
+      )}
+    </div>
+  </div>
+</section>
