@@ -153,6 +153,8 @@ function updateUIState(state) {
     } else if (state === 'loaded') {
         loading?.classList.add('hidden');
         grid?.classList.remove('opacity-50');
+        grid?.classList.remove('opacity-0');
+        grid?.classList.add('opacity-100');
     }
 }
 
