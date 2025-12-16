@@ -1,0 +1,23 @@
+---
+// src/components/leaderboard/LeaderboardHero.astro
+import DataFreshness from '../DataFreshness.astro';
+
+interface Props {
+  freshness: string;
+  dataSource: string;
+}
+
+const { freshness, dataSource } = Astro.props;
+---
+<header class="hero-header">
+  <div class="hero-content">
+    <h1 class="hero-title">
+      <span class="emoji">🏆</span>
+      AI Model Benchmark Leaderboard
+    </h1>
+    <p class="hero-subtitle">
+      Compare the world's best open-source AI models by standardized benchmark scores
+    </p>
+    <DataFreshness timestamp={freshness} source={dataSource} />
+  </div>
+</header>
