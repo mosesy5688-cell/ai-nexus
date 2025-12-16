@@ -7,12 +7,15 @@ import { writeToR2 } from './gzip';
 export async function generateTrendingAndLeaderboard(env: Env) {
     console.log('[L8] Starting cache precompute...');
 
+    // V5.2.1: Filter for actual models only (not datasets/papers/repos)
+    const modelFilter = `(id LIKE 'huggingface%' OR id LIKE 'ollama%')`;
+
     // Trending models (top 100 by FNI)
     const trending = await env.DB.prepare(`
         SELECT id, slug, name, author, fni_score, downloads, likes,
                 cover_image_url, tags, has_ollama, has_gguf
         FROM models 
-        WHERE fni_score IS NOT NULL
+        WHERE fni_score IS NOT NULL AND ${modelFilter}
         ORDER BY fni_score DESC 
         LIMIT 100
     `).all();
@@ -32,7 +35,7 @@ export async function generateTrendingAndLeaderboard(env: Env) {
         SELECT m.id, m.slug, m.name, m.author, m.fni_score,
                 m.deploy_score, m.architecture_family, m.has_ollama
         FROM models m
-        WHERE m.fni_score IS NOT NULL
+        WHERE m.fni_score IS NOT NULL AND ${modelFilter}
         ORDER BY m.fni_score DESC
         LIMIT 50
     `).all();
