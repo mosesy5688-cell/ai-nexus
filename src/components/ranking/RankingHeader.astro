@@ -1,0 +1,32 @@
+---
+/**
+ * RankingHeader Component - Breadcrumb and Title
+ */
+interface Props {
+  categoryTitle: string;
+  categoryDescription: string;
+  generatedAt: string;
+}
+
+import DataFreshness from '../common/DataFreshness.astro';
+
+const { categoryTitle, categoryDescription, generatedAt } = Astro.props;
+---
+
+<header class="text-center mb-10">
+  <nav class="mb-4 text-sm text-gray-500 dark:text-gray-400">
+    <a href="/" class="hover:text-indigo-600">Home</a>
+    <span class="mx-2">→</span>
+    <a href="/ranking" class="hover:text-indigo-600">Rankings</a>
+    <span class="mx-2">→</span>
+    <span class="text-gray-700 dark:text-gray-300">{categoryTitle}</span>
+  </nav>
+  
+  <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
+    {categoryTitle}
+  </h1>
+  <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+    {categoryDescription}
+  </p>
+  <DataFreshness timestamp={generatedAt} source="L8 Precompute" />
+</header>
