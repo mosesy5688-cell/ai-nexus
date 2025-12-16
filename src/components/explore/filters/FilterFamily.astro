@@ -1,0 +1,23 @@
+---
+// src/components/explore/filters/FilterFamily.astro
+interface Props {
+  families: { value: string; label: string; }[];
+  selectedFamilies: string[];
+}
+
+const { families, selectedFamilies } = Astro.props;
+---
+<div class="filter-group">
+  <label>Architecture Family</label>
+  <div class="family-chips" id="family-chips">
+    {families.map(f => (
+      <button 
+        class={`chip ${selectedFamilies.includes(f.value) ? 'active' : ''}`}
+        data-family={f.value}
+        type="button"
+      >
+        {f.label}
+      </button>
+    ))}
+  </div>
+</div>

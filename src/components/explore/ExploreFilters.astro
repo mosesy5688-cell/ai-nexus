@@ -1,64 +1,35 @@
 ---
 /**
  * ExploreFilters Component
- * V4.4 Phase 3 - Advanced filtering with URL query sync
- * 
- * Supports:
- * - family: Architecture family filter
- * - params_min/max: Parameter range
- * - context_min/max: Context length range
- * - has_benchmarks: Only show models with benchmarks
- * - mmlu_min: Minimum MMLU score
- * - deploy_min: Minimum deploy score
- * - sort: Sort field
+ * V5.1.2 - Refactored for CES Compliance
+ * Advanced filtering with URL query sync
  */
 
+import { families, sortOptions, sizeOptions, contextOptions } from '../../data/filter-options.js';
+import FilterFamily from './filters/FilterFamily.astro';
+import FilterRange from './filters/FilterRange.astro';
+import FilterToggle from './filters/FilterToggle.astro';
+import FilterSelect from './filters/FilterSelect.astro';
+
+// Import Styles
+import '../../styles/explore-filters.css';
+
 interface Props {
-  families?: string[];
-  currentFilters?: {
-    family?: string[];
-    params_min?: number;
-    params_max?: number;
-    context_min?: number;
-    context_max?: number;
-    has_benchmarks?: boolean;
+  currentFilters: {
+    family?: string;
     mmlu_min?: number;
     deploy_min?: number;
+    has_benchmarks?: boolean;
     sort?: string;
+    size?: string;
+    context?: string;
   };
 }
 
-const {
-  families = ['llama', 'qwen', 'mistral', 'deepseek', 'gemma', 'phi', 'falcon', 'yi'],
-  currentFilters = {}
-} = Astro.props;
+const { currentFilters } = Astro.props;
 
-const sortOptions = [
-  { value: 'fni_score', label: 'FNI Score' },
-  { value: 'avg_score', label: 'Benchmark Avg' },
-  { value: 'deploy_score', label: 'Deployability' },
-  { value: 'downloads', label: 'Downloads' },
-  { value: 'likes', label: 'Likes' },
-  { value: 'params_billions', label: 'Parameters' }
-];
-
-const paramsOptions = [
-  { value: '', label: 'Any Size' },
-  { value: '1-7', label: 'Small (1-7B)' },
-  { value: '7-14', label: 'Medium (7-14B)' },
-  { value: '14-40', label: 'Large (14-40B)' },
-  { value: '40-100', label: 'XL (40-100B)' },
-  { value: '100-999', label: 'XXL (100B+)' }
-];
-
-const contextOptions = [
-  { value: '', label: 'Any Context' },
-  { value: '0-4096', label: '≤ 4K' },
-  { value: '4096-8192', label: '4K-8K' },
-  { value: '8192-32768', label: '8K-32K' },
-  { value: '32768-131072', label: '32K-128K' },
-  { value: '131072-999999', label: '128K+' }
-];
+// Helper to split family string
+const selectedFamilies = currentFilters.family ? currentFilters.family.split(',') : [];
 ---
 
 <div class="explore-filters" id="explore-filters">
@@ -71,101 +42,55 @@ const contextOptions = [
     </h3>
     <button class="btn-reset" id="reset-filters">Reset</button>
   </div>
-
+  
   <div class="filters-grid">
     <!-- Architecture Family -->
-    <div class="filter-group">
-      <label>Architecture Family</label>
-      <div class="family-chips" id="family-chips">
-        {families.map(f => (
-          <button 
-            class={`chip ${currentFilters.family?.includes(f) ? 'active' : ''}`}
-            data-family={f}
-          >
-            {f.charAt(0).toUpperCase() + f.slice(1)}
-          </button>
-        ))}
-      </div>
-    </div>
+    <FilterFamily families={families} selectedFamilies={selectedFamilies} />
 
-    <!-- Parameters -->
-    <div class="filter-group">
-      <label>Parameters</label>
-      <select id="params-filter" class="filter-select">
-        {paramsOptions.map(opt => (
-          <option value={opt.value}>{opt.label}</option>
-        ))}
-      </select>
-    </div>
+    <!-- Model Size -->
+    <FilterSelect 
+      label="Model Size" 
+      id="size-filter" 
+      options={sizeOptions} 
+      selectedValue={currentFilters.size || ''} 
+    />
 
     <!-- Context Length -->
-    <div class="filter-group">
-      <label>Context Length</label>
-      <select id="context-filter" class="filter-select">
-        {contextOptions.map(opt => (
-          <option value={opt.value}>{opt.label}</option>
-        ))}
-      </select>
-    </div>
+    <FilterSelect 
+      label="Context Window" 
+      id="context-filter" 
+      options={contextOptions} 
+      selectedValue={currentFilters.context || ''} 
+    />
 
-    <!-- Benchmark Filter -->
-    <div class="filter-group">
-      <label>Benchmarks</label>
-      <div class="toggle-group">
-        <label class="toggle">
-          <input 
-            type="checkbox" 
-            id="has-benchmarks" 
-            checked={currentFilters.has_benchmarks}
-          />
-          <span class="toggle-slider"></span>
-          <span class="toggle-label">Has Benchmarks</span>
-        </label>
-      </div>
-    </div>
+    <!-- Toggle Benchmarks -->
+    <FilterToggle 
+      label="Has Benchmarks" 
+      id="benchmarks-toggle" 
+      checked={!!currentFilters.has_benchmarks} 
+    />
 
     <!-- MMLU Minimum -->
-    <div class="filter-group">
-      <label>Min MMLU Score</label>
-      <input 
-        type="range" 
-        id="mmlu-min" 
-        min="0" 
-        max="100" 
-        value={currentFilters.mmlu_min || 0}
-        class="range-slider"
-      />
-      <span class="range-value" id="mmlu-value">{currentFilters.mmlu_min || 0}</span>
-    </div>
+    <FilterRange 
+      label="Min MMLU Score" 
+      id="mmlu-min" 
+      value={currentFilters.mmlu_min || 0}
+    />
 
     <!-- Deploy Score Minimum -->
-    <div class="filter-group">
-      <label>Min Deploy Score</label>
-      <input 
-        type="range" 
-        id="deploy-min" 
-        min="0" 
-        max="100" 
-        value={(currentFilters.deploy_min || 0) * 100}
-        class="range-slider"
-      />
-      <span class="range-value" id="deploy-value">{Math.round((currentFilters.deploy_min || 0) * 100)}%</span>
-    </div>
+    <FilterRange 
+      label="Min Deploy Score" 
+      id="deploy-min" 
+      value={(currentFilters.deploy_min || 0) * 100}
+    />
 
-    <!-- Sort -->
-    <div class="filter-group">
-      <label>Sort By</label>
-      <select id="sort-filter" class="filter-select">
-        {sortOptions.map(opt => (
-          <option 
-            value={opt.value} 
-            selected={currentFilters.sort === opt.value}
-          >
-            {opt.label}
-          </option>
-        ))}
-      </select>
-    </div>
+    <!-- Sort Order -->
+    <FilterSelect 
+      label="Sort By" 
+      id="sort-filter" 
+      options={sortOptions} 
+      selectedValue={currentFilters.sort || 'fni'} 
+    />
   </div>
 
   <button class="btn-apply" id="apply-filters">
@@ -173,306 +98,9 @@ const contextOptions = [
   </button>
 </div>
 
-<style>
-  .explore-filters {
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    border-radius: 16px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .filters-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.25rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid rgba(99, 102, 241, 0.2);
-  }
-
-  .filters-header h3 {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #e2e8f0;
-    font-size: 1rem;
-    margin: 0;
-  }
-
-  .filters-header .icon {
-    width: 20px;
-    height: 20px;
-    color: #818cf8;
-  }
-
-  .btn-reset {
-    padding: 0.375rem 0.75rem;
-    background: transparent;
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    color: #94a3b8;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-reset:hover {
-    border-color: #f87171;
-    color: #f87171;
-  }
-
-  .filters-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.25rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .filter-group label {
-    color: #94a3b8;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .filter-select {
-    padding: 0.625rem 0.75rem;
-    background: rgba(15, 23, 42, 0.8);
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    border-radius: 8px;
-    color: #e2e8f0;
-    font-size: 0.875rem;
-    cursor: pointer;
-  }
-
-  .filter-select:focus {
-    outline: none;
-    border-color: #818cf8;
-  }
-
-  /* Family Chips */
-  .family-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.375rem;
-  }
-
-  .chip {
-    padding: 0.375rem 0.625rem;
-    background: rgba(51, 65, 85, 0.5);
-    border: 1px solid transparent;
-    border-radius: 9999px;
-    color: #94a3b8;
-    font-size: 0.75rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .chip:hover {
-    border-color: rgba(99, 102, 241, 0.5);
-  }
-
-  .chip.active {
-    background: rgba(99, 102, 241, 0.3);
-    border-color: #6366f1;
-    color: #e2e8f0;
-  }
-
-  /* Toggle */
-  .toggle-group {
-    display: flex;
-    align-items: center;
-  }
-
-  .toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-  }
-
-  .toggle input {
-    display: none;
-  }
-
-  .toggle-slider {
-    width: 36px;
-    height: 20px;
-    background: rgba(51, 65, 85, 0.8);
-    border-radius: 10px;
-    position: relative;
-    transition: background 0.2s;
-  }
-
-  .toggle-slider::after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 16px;
-    height: 16px;
-    background: #94a3b8;
-    border-radius: 50%;
-    transition: all 0.2s;
-  }
-
-  .toggle input:checked + .toggle-slider {
-    background: #6366f1;
-  }
-
-  .toggle input:checked + .toggle-slider::after {
-    left: 18px;
-    background: white;
-  }
-
-  .toggle-label {
-    color: #e2e8f0;
-    font-size: 0.875rem;
-  }
-
-  /* Range Slider */
-  .range-slider {
-    width: 100%;
-    height: 6px;
-    background: rgba(51, 65, 85, 0.8);
-    border-radius: 3px;
-    appearance: none;
-    cursor: pointer;
-  }
-
-  .range-slider::-webkit-slider-thumb {
-    appearance: none;
-    width: 16px;
-    height: 16px;
-    background: #6366f1;
-    border-radius: 50%;
-    cursor: pointer;
-  }
-
-  .range-value {
-    color: #818cf8;
-    font-size: 0.875rem;
-    font-weight: 600;
-  }
-
-  /* Apply Button */
-  .btn-apply {
-    display: block;
-    width: 100%;
-    padding: 0.875rem;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-apply:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-  }
-
-  /* Responsive */
-  @media (max-width: 768px) {
-    .filters-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>
-
 <script>
-  // URL Query Protocol V4.4
-  const filtersEl = document.getElementById('explore-filters');
-  if (filtersEl) {
-    // Family chips toggle
-    document.querySelectorAll('.chip[data-family]').forEach(chip => {
-      chip.addEventListener('click', () => {
-        chip.classList.toggle('active');
-      });
-    });
-
-    // Range slider value display
-    const mmluSlider = document.getElementById('mmlu-min');
-    const mmluValue = document.getElementById('mmlu-value');
-    mmluSlider?.addEventListener('input', (e) => {
-      mmluValue.textContent = e.target.value;
-    });
-
-    const deploySlider = document.getElementById('deploy-min');
-    const deployValue = document.getElementById('deploy-value');
-    deploySlider?.addEventListener('input', (e) => {
-      deployValue.textContent = `${e.target.value}%`;
-    });
-
-    // Reset filters
-    document.getElementById('reset-filters')?.addEventListener('click', () => {
-      window.location.href = '/explore';
-    });
-
-    // Apply filters
-    document.getElementById('apply-filters')?.addEventListener('click', () => {
-      const params = new URLSearchParams();
-      
-      // Families
-      const selectedFamilies = [];
-      document.querySelectorAll('.chip.active[data-family]').forEach(chip => {
-        selectedFamilies.push(chip.dataset.family);
-      });
-      if (selectedFamilies.length > 0) {
-        params.set('family', selectedFamilies.join(','));
-      }
-
-      // Params range
-      const paramsVal = document.getElementById('params-filter').value;
-      if (paramsVal) {
-        const [min, max] = paramsVal.split('-');
-        params.set('params_min', min);
-        params.set('params_max', max);
-      }
-
-      // Context range
-      const contextVal = document.getElementById('context-filter').value;
-      if (contextVal) {
-        const [min, max] = contextVal.split('-');
-        params.set('context_min', min);
-        params.set('context_max', max);
-      }
-
-      // Has benchmarks
-      if (document.getElementById('has-benchmarks').checked) {
-        params.set('has_benchmarks', '1');
-      }
-
-      // MMLU min
-      const mmluMin = document.getElementById('mmlu-min').value;
-      if (mmluMin > 0) {
-        params.set('mmlu_min', mmluMin);
-      }
-
-      // Deploy min
-      const deployMin = document.getElementById('deploy-min').value;
-      if (deployMin > 0) {
-        params.set('deploy_min', (deployMin / 100).toFixed(2));
-      }
-
-      // Sort
-      const sort = document.getElementById('sort-filter').value;
-      if (sort && sort !== 'fni_score') {
-        params.set('sort', sort);
-      }
-
-      const queryString = params.toString();
-      window.location.href = `/explore${queryString ? '?' + queryString : ''}`;
-    });
-  }
+  import { initializeFilters } from '../../scripts/filters-client.js';
+  
+  // V4.4 URL Query Protocol
+  initializeFilters();
 </script>

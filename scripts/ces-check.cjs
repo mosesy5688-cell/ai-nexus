@@ -53,7 +53,7 @@ allCodeFiles.forEach(file => {
     const LEGACY_WHITELIST = [
         'src/components/architecture/ArchitectureModule.astro',
         'src/components/entity/EntityShell.astro',
-        'src/components/explore/ExploreFilters.astro',
+
         'src/components/GraphExplorer.astro',
         'src/components/ModelHero.astro',
         'src/components/NeuralGraphExplorer.astro',
