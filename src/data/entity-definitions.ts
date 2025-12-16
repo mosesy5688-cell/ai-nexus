@@ -258,3 +258,12 @@ export function entityHasCapability(
     const definition = ENTITY_DEFINITIONS[type];
     return definition?.capabilities.includes(capability as any) ?? false;
 }
+
+/**
+ * Derive entity type from model object (Helper)
+ */
+export function deriveEntityType(model: any): { type: EntityType, definition: EntityDefinition } {
+    const id = model.id || model.umid || '';
+    const def = getEntityDefinitionById(id) || ENTITY_DEFINITIONS['model'];
+    return { type: def.type, definition: def };
+}
