@@ -1,0 +1,118 @@
+import Fuse from 'https://cdn.jsdelivr.net/npm/fuse.js@7.1.0/dist/fuse.mjs';
+
+let fuse = null;
+let items = [];
+let isLoaded = false;
+let loadError = null;
+
+// Configuration
+const HOT_INDEX_URL = '/cache/index/index_hot.json';
+
+// Initialize Index
+async function loadIndex() {
+    try {
+        const response = await fetch(HOT_INDEX_URL);
+        if (!response.ok) throw new Error(`Failed to load index: ${response.status}`);
+
+        items = await response.json();
+
+        // Initialize Fuse
+        fuse = new Fuse(items, {
+            keys: [
+                { name: 'name', weight: 0.4 },
+                { name: 'author', weight: 0.2 },
+                { name: 'tags', weight: 0.2 },
+                { name: 'description', weight: 0.1 }, // Note: Description might not be in Hot Index to save space? Check L8.
+                { name: 'slug', weight: 0.1 }
+            ],
+            threshold: 0.3,
+            ignoreLocation: true,
+            useExtendedSearch: true
+        });
+
+        isLoaded = true;
+        console.log(`[SearchWorker] Index loaded: ${items.length} items`);
+    } catch (e) {
+        console.error('[SearchWorker] Load error:', e);
+        loadError = e.message;
+    }
+}
+
+// Start loading immediately
+loadIndex();
+
+self.onmessage = async (e) => {
+    const { id, type, filters } = e.data;
+
+    // Handle "PING" or status checks
+    if (type === 'STATUS') {
+        self.postMessage({ id, type: 'STATUS', isLoaded, loadError, count: items.length });
+        return;
+    }
+
+    if (type === 'SEARCH') {
+        if (!isLoaded) {
+            // If not loaded yet, wait a bit or fail
+            if (loadError) {
+                self.postMessage({ id, type: 'ERROR', error: loadError });
+                return;
+            }
+            // Simple retry logic or just fail for 50ms timebox
+            // For now, we assume user won't search in the first 100ms of page load
+            // If they do, we'll return empty or wait?
+            // Let's try to wait for load logic if it's pending? 
+            // Better: Fail fast.
+        }
+
+        const start = performance.now();
+        let results = items;
+
+        // 1. Full Text Search via Fuse
+        if (filters.q && fuse) {
+            const fuseResults = fuse.search(filters.q);
+            results = fuseResults.map(r => r.item);
+        }
+
+        // 2. Apply Filters (Client-Side)
+        // filters: { min_likes, has_benchmarks, days_ago, tags, source... }
+        if (filters.min_likes > 0) {
+            results = results.filter(i => (i.stats?.likes || 0) >= filters.min_likes);
+        }
+
+        if (filters.tags && filters.tags.length > 0) {
+            results = results.filter(i => {
+                const itemTags = i.tags || [];
+                return filters.tags.every(t => itemTags.includes(t));
+            });
+        }
+
+        // 3. Sort
+        if (filters.sort) {
+            results.sort((a, b) => {
+                const map = {
+                    'likes': (i) => i.stats?.likes || 0,
+                    'downloads': (i) => i.stats?.downloads || 0,
+                    'last_updated': (i) => new Date(i.last_updated || 0).getTime(),
+                    'fni': (i) => i.stats?.fni || 0
+                };
+                const getter = map[filters.sort] || map['likes'];
+                return getter(b) - getter(a);
+            });
+        }
+
+        // 4. Limit/Pagination
+        const limit = parseInt(filters.limit) || 50;
+        const page = parseInt(filters.page) || 1;
+        const pagedResults = results.slice((page - 1) * limit, page * limit);
+
+        const duration = performance.now() - start;
+
+        self.postMessage({
+            id,
+            type: 'RESULT',
+            results: pagedResults,
+            total: results.length,
+            duration
+        });
+    }
+};

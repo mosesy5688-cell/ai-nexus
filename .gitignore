@@ -32,11 +32,11 @@ yarn-error.log*
 .gemini/
 
 # Constitution and strategy documents
-docs/CONSTITUTION*.md
-**/CONSTITUTION*.md
-*STRATEGY*.md
-*PLAN*.md
-*AUDIT*.md
+# docs/CONSTITUTION*.md
+# **/CONSTITUTION*.md
+# *STRATEGY*.md
+# *PLAN*.md
+# *AUDIT*.md
 
 # Internal runbooks (evaluate before commit)
 docs/runbooks/

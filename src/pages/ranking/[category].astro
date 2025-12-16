@@ -70,30 +70,48 @@ const pageTitle = categoryConfig.seoTitle;
 const pageDescription = categoryConfig.description;
 const canonicalUrl = `https://free2aitools.com/ranking/${category}`;
 
-// V4.9 Constitution: Load from L8 Precompute cache (D1 reads = 0)
-// Repair Phase 2.1: Use materialized category rankings
+// V5.1.2 Constitution: Load from L8 Precompute cache (Pagination)
+// Repair Phase 2.1: Use materialized category rankings (p{n}.json + meta.json)
 let models: any[] = [];
 let generatedAt = new Date().toISOString();
+let currentPage = 1;
+let totalPages = 1;
+let totalItems = 0;
 
 try {
-  // Use materialized cache file for this category
-  // If undefined/custom category, we might still need fallback or it 404s (as intended by "Content Reality")
-  const cacheUrl = new URL(`/cache/rankings/${category}.json`, Astro.url.origin);
-  const response = await fetch(cacheUrl);
+  // 1. Get current page from URL
+  const pageParam = Astro.url.searchParams.get('page');
+  currentPage = pageParam ? parseInt(pageParam, 10) : 1;
+  if (isNaN(currentPage) || currentPage < 1) currentPage = 1;
+
+  // 2. Fetch Meta Data (for total pages) AND Current Page Data
+  // We fetch in parallel for speed
+  const metaUrl = new URL(`/cache/rankings/${category}/meta.json`, Astro.url.origin);
+  const pageUrl = new URL(`/cache/rankings/${category}/p${currentPage}.json`, Astro.url.origin);
+
+  const [metaRes, pageRes] = await Promise.all([
+      fetch(metaUrl).catch(() => null), // Fail gracefully if meta missing
+      fetch(pageUrl)
+  ]);
   
-  if (response.ok) {
-    const data = await response.json();
-    models = data.items || [];
-    generatedAt = data.generated_at || generatedAt;
-    
-    // Special handling for 'code' category if it's relying on 'text-generation' under the hood?
-    // The Materialization Step handles 'code' as a tag filter or separate category if defined.
-    // In our backend logic, we iterate the CATEGORIES array.
-    // If 'code' is not in the backend array, we might need adjustments.
-    // Checking backend array: 'text-generation', 'text-classification'... 
-    // 'code' WAS NOT in the backend array I added! I added 'text-generation' but not 'code' explicitly as a pipeline_tag?
-    // Wait, 'code' uses 'text-generation' pipeline tag usually.
+  // 3. Process Meta
+  if (metaRes && metaRes.ok) {
+      const metaData = await metaRes.json();
+      totalItems = metaData.total || 0;
+      totalPages = metaData.pages || 1;
+      generatedAt = metaData.generated_at || generatedAt;
   }
+
+  // 4. Process Page Data
+  if (pageRes.ok) {
+    const pageData = await pageRes.json();
+    models = pageData.items || [];
+  } else {
+    // If page missing (e.g. out of bounds), fallback or empty
+    console.warn(`[Ranking] Page ${currentPage} not found for ${category}`);
+    models = [];
+  }
+
 } catch (e) {
   console.error('[Ranking Category] Cache fetch error:', e);
 }
@@ -168,33 +186,70 @@ const jsonLd = {
 
     {models.length > 0 ? (
       <>
-        <!-- Top 3 Spotlight -->
-        <section class="mb-12">
-          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-            <span>🏆</span> Top Ranked
-          </h2>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {models.slice(0, 3).map((model, index) => (
-              <div class={`relative ${index === 0 ? 'md:scale-105' : ''}`}>
-                <div class="absolute -top-3 -left-3 w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold shadow-lg z-10">
-                  #{index + 1}
+        <!-- Top 3 Spotlight (Only on Page 1) -->
+        {currentPage === 1 && (
+          <section class="mb-12">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+              <span>🏆</span> Top Ranked
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {models.slice(0, 3).map((model, index) => (
+                <div class={`relative ${index === 0 ? 'md:scale-105' : ''}`}>
+                  <div class="absolute -top-3 -left-3 w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-white font-bold shadow-lg z-10">
+                    #{index + 1}
+                  </div>
+                  <ModelCard model={model} />
                 </div>
-                <ModelCard model={model} />
-              </div>
-            ))}
-          </div>
-        </section>
+              ))}
+            </div>
+          </section>
+        )}
 
         <!-- Full Rankings -->
         <section>
-          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-            <span>📊</span> Full Rankings
-          </h2>
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <span>📊</span> {currentPage === 1 ? 'Full Rankings' : `Rankings (Page ${currentPage})`}
+            </h2>
+             <span class="text-sm text-gray-500">
+                Showing {models.length} of {totalItems} models
+             </span>
+          </div>
+          
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {models.slice(3).map(model => (
+            {models.slice(currentPage === 1 ? 3 : 0).map(model => (
               <ModelCard model={model} />
             ))}
           </div>
+          
+          <!-- Pagination Controls -->
+          {totalPages > 1 && (
+              <div class="mt-12 flex justify-center items-center gap-4">
+                  {currentPage > 1 ? (
+                      <a href={`?page=${currentPage - 1}`} class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                          ← Previous
+                      </a>
+                  ) : (
+                      <span class="px-4 py-2 text-gray-400 border border-gray-200 dark:border-gray-800 rounded-lg cursor-not-allowed">
+                          ← Previous
+                      </span>
+                  )}
+                  
+                  <span class="text-gray-600 dark:text-gray-400 font-medium">
+                      Page {currentPage} of {totalPages}
+                  </span>
+                  
+                  {currentPage < totalPages ? (
+                      <a href={`?page=${currentPage + 1}`} class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                          Next →
+                      </a>
+                  ) : (
+                      <span class="px-4 py-2 text-gray-400 border border-gray-200 dark:border-gray-800 rounded-lg cursor-not-allowed">
+                          Next →
+                      </span>
+                  )}
+              </div>
+          )}
         </section>
       </>
     ) : (
@@ -244,4 +299,96 @@ const jsonLd = {
       </div>
     </section>
   </div>
+    <script>
+    import { createModelCardHTML } from '../../scripts/ui-utils.js';
+
+    // CES V5.1.2 Art 3.3: Infinite Scroll & Pagination UX
+    document.addEventListener('DOMContentLoaded', () => {
+        const grid = document.querySelector('.grid.grid-cols-1.md\\:grid-cols-2');
+        if (!grid) return; 
+
+        const currentPath = window.location.pathname; 
+        let currentPage = 1;
+        const maxScrollPage = 5; // Hard Stop Rule
+        let isLoading = false;
+        
+        // iOS Patch / Low-End Device Detection (CES Art 3.3.4)
+        // Note: navigator.deviceMemory is standard in Chrome, undefined in Safari/Firefox
+        // We default to 4 (High) if undefined so we don't break standard desktops
+        // But for known low memory, we disable.
+        const deviceMemory = navigator.deviceMemory || 4; 
+        const isLowEnd = deviceMemory < 4;
+
+        if (isLowEnd) {
+            console.log('[Ranking] Low-end device detected (RAM < 4GB). Infinite scroll disabled.');
+            return;
+        }
+
+        const sentinel = document.createElement('div');
+        sentinel.className = 'w-full h-20 flex justify-center items-center';
+        sentinel.innerHTML = '<span class="hidden" id="scroll-loader">Loading...</span>';
+        grid.parentNode?.appendChild(sentinel);
+
+        const observer = new IntersectionObserver(async (entries) => {
+            if (entries[0].isIntersecting && !isLoading && currentPage < maxScrollPage) {
+                isLoading = true;
+                const loader = document.getElementById('scroll-loader');
+                if (loader) loader.classList.remove('hidden');
+
+                const nextPage = currentPage + 1;
+                console.log(`[Ranking] Loading page ${nextPage}...`);
+
+                try {
+                    const res = await fetch(`/cache/rankings/${currentPath.split('/').pop()}/p${nextPage}.json`);
+                    if (res.ok) {
+                        const models = await res.json();
+                        const fragment = document.createDocumentFragment();
+                        
+                        models.forEach(model => {
+                            const div = document.createElement('div');
+                            // Wrapper to match grid structure safely if needed, or just append card
+                            // Grid above is "grid-cols-1 md:grid-cols-2..."
+                            // Astro loop: {models.map(model => <ModelCard model={model} />)}
+                            // ModelCard usually returns an <a> or <div>. 
+                            // createModelCardHTML returns the <a> string.
+                            // We need a wrapper if the grid expects it?
+                            // Looking at line 220: {models.slice...map(model => <ModelCard ... />)}
+                            // ModelCard is valid.
+                            
+                            // createModelCardHTML returns the inner content of ModelCard typically.
+                            // Let's assume createModelCardHTML returns the full card element.
+                            div.innerHTML = createModelCardHTML(model);
+                            fragment.appendChild(div.firstElementChild);
+                        });
+
+                        grid.appendChild(fragment);
+                        currentPage++;
+                    } else {
+                        observer.disconnect();
+                        sentinel.remove();
+                    }
+                } catch (e) {
+                    console.error('[Ranking] Scroll load error:', e);
+                } finally {
+                    isLoading = false;
+                    if (loader) loader.classList.add('hidden');
+                }
+            } else if (currentPage >= maxScrollPage) {
+                observer.disconnect();
+                if (sentinel.parentNode) {
+                    sentinel.innerHTML = `
+                        <div class="text-center w-full py-4">
+                            <p class="text-gray-500 mb-2">You've viewed top ${maxScrollPage * 50} models.</p>
+                            <a href="?page=${currentPage + 1}" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                                View Next Page ->
+                            </a>
+                        </div>
+                    `;
+                }
+            }
+        }, { rootMargin: '200px' });
+
+        observer.observe(sentinel);
+    });
+  </script>
 </Layout>
