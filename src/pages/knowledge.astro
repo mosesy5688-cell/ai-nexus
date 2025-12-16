@@ -1,89 +1,18 @@
 ---
 /**
  * Knowledge Base Index Page
- * V4.4 Phase 3 - Educational content for SEO and user engagement
+ * V5.2 Refactored - Educational content for SEO and user engagement
  */
 
 export const prerender = true;
 
 import Layout from '../layouts/Layout.astro';
+import KnowledgeCategoryCard from '../components/knowledge/KnowledgeCategoryCard.astro';
+import { KNOWLEDGE_CATEGORIES, getTotalArticleCount } from '../data/knowledge-base-config';
 
 const pageTitle = "AI Knowledge Base - Free2AITools";
 const pageDescription = "Learn about AI benchmarks, model architectures, and deployment. Comprehensive guides for MMLU, HumanEval, context length, and more.";
-
-// Knowledge Base Categories
-const categories = [
-  {
-    id: 'benchmarks',
-    title: 'Benchmarks',
-    icon: '📊',
-    description: 'Understanding AI model evaluation metrics',
-    articles: [
-      { slug: 'what-is-mmlu', title: 'What is MMLU?', description: 'Massive Multitask Language Understanding benchmark explained' },
-      { slug: 'what-is-humaneval', title: 'What is HumanEval?', description: 'Code generation benchmark for evaluating programming ability' },
-      { slug: 'what-is-hellaswag', title: 'What is HellaSwag?', description: 'Commonsense reasoning benchmark explained' },
-      { slug: 'what-is-arc', title: 'What is ARC?', description: 'AI2 Reasoning Challenge for grade-school science questions' }
-    ]
-  },
-  {
-    id: 'architecture',
-    title: 'Model Architecture',
-    icon: '🏗️',
-    description: 'Technical concepts behind AI models',
-    articles: [
-      { slug: 'what-is-context-length', title: 'What is Context Length?', description: 'Understanding token windows and memory in LLMs' },
-      { slug: 'what-is-parameters', title: 'What are Model Parameters?', description: 'Why 7B, 70B, and model size matters' },
-      { slug: 'what-is-transformer', title: 'What is a Transformer?', description: 'The architecture behind modern language models' }
-    ]
-  },
-  {
-    id: 'families',
-    title: 'Model Families',
-    icon: '🦙',
-    description: 'Guide to major AI model families',
-    articles: [
-      { slug: 'llama-family-guide', title: 'Llama Family Guide', description: 'Meta\'s LLaMA series from 7B to 70B' },
-      { slug: 'qwen-family-guide', title: 'Qwen Family Guide', description: 'Alibaba\'s Qwen series and capabilities' },
-      { slug: 'mistral-family-guide', title: 'Mistral Family Guide', description: 'Mistral AI\'s efficient model lineup' }
-    ]
-  },
-  {
-    id: 'deployment',
-    title: 'Deployment',
-    icon: '⚡',
-    description: 'Running and deploying AI models',
-    articles: [
-      { slug: 'how-to-run-locally', title: 'How to Run LLMs Locally', description: 'Complete guide to running models on your machine' },
-      { slug: 'what-is-gguf', title: 'What is GGUF?', description: 'Quantized model formats for efficient inference' },
-      { slug: 'what-is-ollama', title: 'What is Ollama?', description: 'Easy local LLM deployment tool explained' }
-    ]
-  },
-  {
-    id: 'metrics',
-    title: 'Platform Metrics',
-    icon: '📈',
-    description: 'Understanding Free2AITools metrics',
-    articles: [
-      { slug: 'what-is-fni', title: 'What is FNI?', description: 'Fair Nexus Index - our model trust score explained' },
-      { slug: 'what-is-deploy-score', title: 'What is Deploy Score?', description: 'Model deployability measurement explained' }
-    ]
-  },
-  {
-    id: 'fundamentals',
-    title: 'AI Fundamentals',
-    icon: '🧠',
-    description: 'Core concepts and architectures',
-    articles: [
-      { slug: 'transformer', title: 'Transformer Architecture', description: 'The architecture behind modern language models' },
-      { slug: 'moe', title: 'Mixture of Experts (MoE)', description: 'Efficient scaling with conditional computation' },
-      { slug: 'quantization', title: 'Model Quantization', description: 'GGUF, GPTQ, AWQ formats explained' },
-      { slug: 'vram', title: 'VRAM Requirements', description: 'Memory needs for running LLMs' },
-      { slug: 'local-inference', title: 'Local Inference', description: 'Running models on your own hardware' }
-    ]
-  }
-];
-
-const totalArticles = categories.reduce((sum, cat) => sum + cat.articles.length, 0);
+const totalArticles = getTotalArticleCount();
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -98,7 +27,7 @@ const totalArticles = categories.reduce((sum, cat) => sum + cat.articles.length,
         Comprehensive guides to understand AI models, benchmarks, and deployment
       </p>
       <div class="kb-stats">
-        <span>{categories.length} categories</span>
+        <span>{KNOWLEDGE_CATEGORIES.length} categories</span>
         <span class="separator">•</span>
         <span>{totalArticles} articles</span>
       </div>
@@ -109,27 +38,10 @@ const totalArticles = categories.reduce((sum, cat) => sum + cat.articles.length,
       <input type="text" placeholder="Search knowledge base..." class="search-input" />
     </div>
 
-    <!-- Categories -->
+    <!-- Categories Grid -->
     <div class="categories-grid">
-      {categories.map(category => (
-        <section class="category-card" id={category.id}>
-          <div class="category-header">
-            <span class="category-icon">{category.icon}</span>
-            <h2 class="category-title">{category.title}</h2>
-          </div>
-          <p class="category-description">{category.description}</p>
-          
-          <ul class="article-list">
-            {category.articles.map(article => (
-              <li class="article-item">
-                <a href={`/knowledge/${article.slug}`} class="article-link">
-                  <span class="article-title">{article.title}</span>
-                  <span class="article-description">{article.description}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
+      {KNOWLEDGE_CATEGORIES.map(category => (
+        <KnowledgeCategoryCard category={category} />
       ))}
     </div>
 
@@ -156,56 +68,51 @@ const totalArticles = categories.reduce((sum, cat) => sum + cat.articles.length,
     text-align: center;
     padding: 3rem 1rem;
     background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
-    border-radius: 20px;
+    border-radius: 24px;
     margin-bottom: 2rem;
   }
 
   .kb-title {
     font-size: 2.5rem;
     font-weight: 800;
-    color: #f8fafc;
+    color: #f1f5f9;
+    margin-bottom: 0.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
-    margin-bottom: 0.5rem;
   }
 
-  .emoji {
-    font-size: 2.5rem;
-  }
+  .emoji { font-size: 2.5rem; }
 
-  /* V4.9.1 WCAG 2.1 AA: Improved contrast ratio ≥4.5:1 */
   .kb-subtitle {
-    color: #c2cdd9;  /* Was #94a3b8 - improved for WCAG AA */
-    font-size: 1.125rem;
-    max-width: 500px;
-    margin: 0 auto 1rem;
+    color: #94a3b8;
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 0 auto;
   }
 
   .kb-stats {
+    margin-top: 1.5rem;
     display: flex;
     justify-content: center;
     gap: 0.5rem;
-    color: #94a3b8;  /* Was #64748b - improved for WCAG AA */
-    font-size: 0.875rem;
+    color: #818cf8;
+    font-weight: 600;
   }
 
-  .separator {
-    color: #475569;
-  }
+  .separator { color: #475569; }
 
-  /* Search */
   .kb-search {
-    max-width: 500px;
-    margin: 0 auto 2.5rem;
+    max-width: 600px;
+    margin: 0 auto 2rem;
   }
 
   .search-input {
     width: 100%;
-    padding: 1rem 1.25rem;
+    padding: 1rem 1.5rem;
+    border: 1px solid #334155;
     background: rgba(30, 41, 59, 0.8);
-    border: 1px solid rgba(99, 102, 241, 0.3);
     border-radius: 12px;
     color: #e2e8f0;
     font-size: 1rem;
@@ -216,11 +123,8 @@ const totalArticles = categories.reduce((sum, cat) => sum + cat.articles.length,
     border-color: #818cf8;
   }
 
-  .search-input::placeholder {
-    color: #64748b;
-  }
+  .search-input::placeholder { color: #64748b; }
 
-  /* Categories */
   .categories-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
@@ -228,99 +132,23 @@ const totalArticles = categories.reduce((sum, cat) => sum + cat.articles.length,
     margin-bottom: 3rem;
   }
 
-  .category-card {
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
-    border: 1px solid rgba(99, 102, 241, 0.2);
-    border-radius: 16px;
-    padding: 1.5rem;
-    transition: all 0.3s;
-  }
-
-  .category-card:hover {
-    border-color: rgba(99, 102, 241, 0.4);
-    transform: translateY(-2px);
-  }
-
-  .category-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .category-icon {
-    font-size: 1.75rem;
-  }
-
-  .category-title {
-    color: #e2e8f0;
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin: 0;
-  }
-
-  .category-description {
-    color: #b8c5d6;  /* Was #94a3b8 - improved for WCAG AA */
-    font-size: 0.875rem;
-    margin: 0 0 1rem;
-  }
-
-  .article-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  .article-item {
-    border-top: 1px solid rgba(51, 65, 85, 0.5);
-  }
-
-  .article-link {
-    display: block;
-    padding: 0.875rem 0;
-    text-decoration: none;
-    transition: all 0.2s;
-  }
-
-  .article-link:hover {
-    padding-left: 0.5rem;
-  }
-
-  .article-title {
-    display: block;
-    color: #e2e8f0;
-    font-weight: 500;
-    margin-bottom: 0.25rem;
-    transition: color 0.2s;
-  }
-
-  .article-link:hover .article-title {
-    color: #818cf8;
-  }
-
-  .article-description {
-    display: block;
-    color: #8b9aae;  /* Was #64748b - improved for WCAG AA */
-    font-size: 0.8rem;
-  }
-
-  /* CTA */
   .kb-cta {
     text-align: center;
     padding: 2.5rem;
     background: rgba(99, 102, 241, 0.1);
     border-radius: 16px;
+    border: 1px solid #334155;
   }
 
   .kb-cta h3 {
-    color: #e2e8f0;
     font-size: 1.5rem;
-    margin: 0 0 0.5rem;
+    color: #f1f5f9;
+    margin-bottom: 0.5rem;
   }
 
   .kb-cta p {
-    color: #b8c5d6;  /* Was #94a3b8 - improved for WCAG AA */
-    margin: 0 0 1.5rem;
+    color: #94a3b8;
+    margin-bottom: 1.5rem;
   }
 
   .cta-buttons {
@@ -334,43 +162,32 @@ const totalArticles = categories.reduce((sum, cat) => sum + cat.articles.length,
     background: linear-gradient(135deg, #6366f1, #8b5cf6);
     color: white;
     border-radius: 8px;
-    font-weight: 600;
     text-decoration: none;
-    transition: all 0.2s;
+    font-weight: 600;
+    transition: transform 0.2s;
   }
 
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-  }
+  .btn-primary:hover { transform: scale(1.05); }
 
   .btn-secondary {
     padding: 0.75rem 1.5rem;
-    background: transparent;
-    border: 1px solid rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.2);
     color: #818cf8;
+    border: 1px solid #818cf8;
     border-radius: 8px;
-    font-weight: 500;
     text-decoration: none;
-    transition: all 0.2s;
+    font-weight: 600;
+    transition: background 0.2s;
   }
 
-  .btn-secondary:hover {
-    background: rgba(99, 102, 241, 0.1);
-  }
+  .btn-secondary:hover { background: rgba(99, 102, 241, 0.3); }
 
   @media (max-width: 768px) {
     .kb-title {
       font-size: 1.75rem;
       flex-direction: column;
     }
-
-    .categories-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .cta-buttons {
-      flex-direction: column;
-    }
+    .categories-grid { grid-template-columns: 1fr; }
+    .cta-buttons { flex-direction: column; }
   }
 </style>
