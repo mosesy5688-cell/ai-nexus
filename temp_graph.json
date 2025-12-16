@@ -1,0 +1,4769 @@
+{
+  "version": "2025-12-16",
+  "generated_at": "2025-12-16T02:52:24.497Z",
+  "schema": "V4.8.2",
+  "nodes": [
+    {
+      "id": "hf-dataset:deepmind:code_contests",
+      "slug": "hf-dataset--deepmind--code_contests",
+      "name": "code_contests",
+      "author": "deepmind",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 42,
+      "local": false
+    },
+    {
+      "id": "hf-dataset:google-research-datasets:mbpp",
+      "slug": "hf-dataset--google-research-datasets--mbpp",
+      "name": "mbpp",
+      "author": "google-research-datasets",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 42,
+      "local": false
+    },
+    {
+      "id": "hf-dataset:huggingface:documentation-images",
+      "slug": "hf-dataset--huggingface--documentation-images",
+      "name": "documentation-images",
+      "author": "huggingface",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 42,
+      "local": false
+    },
+    {
+      "id": "hf-dataset:hf-doc-build:doc-build",
+      "slug": "hf-dataset--hf-doc-build--doc-build",
+      "name": "doc-build",
+      "author": "hf-doc-build",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 42,
+      "local": false
+    },
+    {
+      "id": "hf-dataset:salesforce:wikitext",
+      "slug": "hf-dataset--salesforce--wikitext",
+      "name": "wikitext",
+      "author": "Salesforce",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 42,
+      "local": false
+    },
+    {
+      "id": "hf-dataset--deepmind--code_contests",
+      "slug": "hf-dataset--deepmind--code_contests",
+      "name": "code_contests",
+      "author": "deepmind",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 42,
+      "local": false
+    },
+    {
+      "id": "hf-dataset--google-research-datasets--mbpp",
+      "slug": "hf-dataset--google-research-datasets--mbpp",
+      "name": "mbpp",
+      "author": "google-research-datasets",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 42,
+      "local": false
+    },
+    {
+      "id": "hf-dataset--huggingface--documentation-images",
+      "slug": "hf-dataset--huggingface--documentation-images",
+      "name": "documentation-images",
+      "author": "huggingface",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 42,
+      "local": false
+    },
+    {
+      "id": "hf-dataset--hf-doc-build--doc-build",
+      "slug": "hf-dataset--hf-doc-build--doc-build",
+      "name": "doc-build",
+      "author": "hf-doc-build",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 42,
+      "local": false
+    },
+    {
+      "id": "hf-dataset--salesforce--wikitext",
+      "slug": "hf-dataset--salesforce--wikitext",
+      "name": "wikitext",
+      "author": "Salesforce",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 41,
+      "local": false
+    },
+    {
+      "id": "huggingface:meta-llama:meta-llama-3-8b",
+      "slug": "huggingface--meta-llama--meta-llama-3-8b",
+      "name": "Meta-Llama-3-8B",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "slug": "huggingface--meta-llama--llama-3.1-8b-instruct",
+      "name": "Llama-3.1-8B-Instruct",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "slug": "huggingface--meta-llama--meta-llama-3-8b-instruct",
+      "name": "Meta-Llama-3-8B-Instruct",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:microsoft:phi-2",
+      "slug": "huggingface--microsoft--phi-2",
+      "name": "phi-2",
+      "author": "microsoft",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "slug": "huggingface--mistralai--mistral-7b-instruct-v0.2",
+      "name": "Mistral-7B-Instruct-v0.2",
+      "author": "mistralai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "slug": "huggingface--mistralai--mistral-7b-instruct-v0.3",
+      "name": "Mistral-7B-Instruct-v0.3",
+      "author": "mistralai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:meta-llama:llama-3.2-1b",
+      "slug": "huggingface--meta-llama--llama-3.2-1b",
+      "name": "Llama-3.2-1B",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:meta-llama:llama-3.2-3b-instruct",
+      "slug": "huggingface--meta-llama--llama-3.2-3b-instruct",
+      "name": "Llama-3.2-3B-Instruct",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:google:gemma-3-27b-it",
+      "slug": "huggingface--google--gemma-3-27b-it",
+      "name": "gemma-3-27b-it",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:tinyllama:tinyllama-1.1b-chat-v1.0",
+      "slug": "huggingface--tinyllama--tinyllama-1.1b-chat-v1.0",
+      "name": "TinyLlama-1.1B-Chat-v1.0",
+      "author": "TinyLlama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-32b",
+      "slug": "huggingface--deepseek-ai--deepseek-r1-distill-qwen-32b",
+      "name": "DeepSeek-R1-Distill-Qwen-32B",
+      "author": "deepseek-ai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-1.5b",
+      "slug": "huggingface--deepseek-ai--deepseek-r1-distill-qwen-1.5b",
+      "name": "DeepSeek-R1-Distill-Qwen-1.5B",
+      "author": "deepseek-ai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-vl-7b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-vl-7b-instruct",
+      "name": "Qwen2.5-VL-7B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:microsoft:phi-3-mini-4k-instruct",
+      "slug": "huggingface--microsoft--phi-3-mini-4k-instruct",
+      "name": "Phi-3-mini-4k-instruct",
+      "author": "microsoft",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:google:embeddinggemma-300m",
+      "slug": "huggingface--google--embeddinggemma-300m",
+      "name": "embeddinggemma-300m",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen2-vl-7b-instruct",
+      "slug": "huggingface--qwen--qwen2-vl-7b-instruct",
+      "name": "Qwen2-VL-7B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:meta-llama:llama-3.2-1b-instruct",
+      "slug": "huggingface--meta-llama--llama-3.2-1b-instruct",
+      "name": "Llama-3.2-1B-Instruct",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:google:gemma-3-4b-it",
+      "slug": "huggingface--google--gemma-3-4b-it",
+      "name": "gemma-3-4b-it",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-7b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-7b-instruct",
+      "name": "Qwen2.5-7B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-next-80b-a3b-instruct",
+      "slug": "huggingface--qwen--qwen3-next-80b-a3b-instruct",
+      "name": "Qwen3-Next-80B-A3B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-0.6b",
+      "slug": "huggingface--qwen--qwen3-0.6b",
+      "name": "Qwen3-0.6B",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:deepseek-ai:deepseek-r1-distill-llama-8b",
+      "slug": "huggingface--deepseek-ai--deepseek-r1-distill-llama-8b",
+      "name": "DeepSeek-R1-Distill-Llama-8B",
+      "author": "deepseek-ai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-coder-30b-a3b-instruct",
+      "slug": "huggingface--qwen--qwen3-coder-30b-a3b-instruct",
+      "name": "Qwen3-Coder-30B-A3B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-8b",
+      "slug": "huggingface--qwen--qwen3-8b",
+      "name": "Qwen3-8B",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-embedding-0.6b",
+      "slug": "huggingface--qwen--qwen3-embedding-0.6b",
+      "name": "Qwen3-Embedding-0.6B",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:google:gemma-3-1b-it",
+      "slug": "huggingface--google--gemma-3-1b-it",
+      "name": "gemma-3-1b-it",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-32b",
+      "slug": "huggingface--qwen--qwen3-32b",
+      "name": "Qwen3-32B",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:google:gemma-3-12b-it",
+      "slug": "huggingface--google--gemma-3-12b-it",
+      "name": "gemma-3-12b-it",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-1.5b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-1.5b-instruct",
+      "name": "Qwen2.5-1.5B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-4b-instruct-2507",
+      "slug": "huggingface--qwen--qwen3-4b-instruct-2507",
+      "name": "Qwen3-4B-Instruct-2507",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-vl-8b-instruct",
+      "slug": "huggingface--qwen--qwen3-vl-8b-instruct",
+      "name": "Qwen3-VL-8B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-4b",
+      "slug": "huggingface--qwen--qwen3-4b",
+      "name": "Qwen3-4B",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen2-vl-2b-instruct",
+      "slug": "huggingface--qwen--qwen2-vl-2b-instruct",
+      "name": "Qwen2-VL-2B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-vl-30b-a3b-instruct",
+      "slug": "huggingface--qwen--qwen3-vl-30b-a3b-instruct",
+      "name": "Qwen3-VL-30B-A3B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-0.5b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-0.5b-instruct",
+      "name": "Qwen2.5-0.5B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-1.7b",
+      "slug": "huggingface--qwen--qwen3-1.7b",
+      "name": "Qwen3-1.7B",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-3b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-3b-instruct",
+      "name": "Qwen2.5-3B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-14b",
+      "slug": "huggingface--qwen--qwen3-14b",
+      "name": "Qwen3-14B",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": true
+    },
+    {
+      "id": "hf-dataset:m-a-p:finefineweb",
+      "slug": "hf-dataset--m-a-p--finefineweb",
+      "name": "FineFineWeb",
+      "author": "m-a-p",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": false
+    },
+    {
+      "id": "hf-dataset--m-a-p--finefineweb",
+      "slug": "hf-dataset--m-a-p--finefineweb",
+      "name": "FineFineWeb",
+      "author": "m-a-p",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 40,
+      "local": false
+    },
+    {
+      "id": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-7b",
+      "slug": "huggingface--deepseek-ai--deepseek-r1-distill-qwen-7b",
+      "name": "DeepSeek-R1-Distill-Qwen-7B",
+      "author": "deepseek-ai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 39,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-embedding-8b",
+      "slug": "huggingface--qwen--qwen3-embedding-8b",
+      "name": "Qwen3-Embedding-8B",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 37,
+      "local": true
+    },
+    {
+      "id": "hf-dataset:allenai:c4",
+      "slug": "hf-dataset--allenai--c4",
+      "name": "c4",
+      "author": "allenai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 37,
+      "local": false
+    },
+    {
+      "id": "huggingface:google:gemma-2-2b-it",
+      "slug": "huggingface--google--gemma-2-2b-it",
+      "name": "gemma-2-2b-it",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 36,
+      "local": true
+    },
+    {
+      "id": "hf-dataset:banned-historical-archives:banned-historical-archives",
+      "slug": "hf-dataset--banned-historical-archives--banned-historical-archives",
+      "name": "banned-historical-archives",
+      "author": "banned-historical-archives",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 36,
+      "local": false
+    },
+    {
+      "id": "hf-dataset--allenai--c4",
+      "slug": "hf-dataset--allenai--c4",
+      "name": "c4",
+      "author": "allenai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 36,
+      "local": false
+    },
+    {
+      "id": "huggingface:meta-llama:llama-3.1-8b",
+      "slug": "huggingface--meta-llama--llama-3.1-8b",
+      "name": "Llama-3.1-8B",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 35,
+      "local": true
+    },
+    {
+      "id": "huggingface:lightx2v:qwen-image-lightning",
+      "slug": "huggingface--lightx2v--qwen-image-lightning",
+      "name": "Qwen-Image-Lightning",
+      "author": "lightx2v",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 35,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-4b-thinking-2507",
+      "slug": "huggingface--qwen--qwen3-4b-thinking-2507",
+      "name": "Qwen3-4B-Thinking-2507",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 35,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-0.5b",
+      "slug": "huggingface--qwen--qwen2.5-0.5b",
+      "name": "Qwen2.5-0.5B",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 35,
+      "local": true
+    },
+    {
+      "id": "huggingface:meta-llama:llama-3.1-70b-instruct",
+      "slug": "huggingface--meta-llama--llama-3.1-70b-instruct",
+      "name": "Llama-3.1-70B-Instruct",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 34,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-vl-3b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-vl-3b-instruct",
+      "name": "Qwen2.5-VL-3B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 34,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-coder-7b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-coder-7b-instruct",
+      "name": "Qwen2.5-Coder-7B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 34,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-14b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-14b-instruct",
+      "name": "Qwen2.5-14B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 34,
+      "local": true
+    },
+    {
+      "id": "hf-dataset--ipec-community--bridge_orig_lerobot",
+      "slug": "hf-dataset--ipec-community--bridge_orig_lerobot",
+      "name": "bridge_orig_lerobot",
+      "author": "IPEC-COMMUNITY",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 34,
+      "local": false
+    },
+    {
+      "id": "hf-dataset--ipec-community--fractal20220817_data_lerobot",
+      "slug": "hf-dataset--ipec-community--fractal20220817_data_lerobot",
+      "name": "fractal20220817_data_lerobot",
+      "author": "IPEC-COMMUNITY",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 34,
+      "local": false
+    },
+    {
+      "id": "hf-dataset--mrsaudio--mrsaudio",
+      "slug": "hf-dataset--mrsaudio--mrsaudio",
+      "name": "MRSAudio",
+      "author": "MRSAudio",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 34,
+      "local": false
+    },
+    {
+      "id": "huggingface:qwen:qwen-image-edit-2509",
+      "slug": "huggingface--qwen--qwen-image-edit-2509",
+      "name": "Qwen-Image-Edit-2509",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 33,
+      "local": true
+    },
+    {
+      "id": "hf-dataset:lavita:medical-qa-shared-task-v1-toy",
+      "slug": "hf-dataset--lavita--medical-qa-shared-task-v1-toy",
+      "name": "medical-qa-shared-task-v1-toy",
+      "author": "lavita",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 33,
+      "local": false
+    },
+    {
+      "id": "hf-dataset:nvidia:physicalai-robotics-gr00t-x-embodiment-sim",
+      "slug": "hf-dataset--nvidia--physicalai-robotics-gr00t-x-embodiment-sim",
+      "name": "PhysicalAI-Robotics-GR00T-X-Embodiment-Sim",
+      "author": "nvidia",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 33,
+      "local": false
+    },
+    {
+      "id": "hf-dataset:ipec-community:bridge_orig_lerobot",
+      "slug": "hf-dataset--ipec-community--bridge_orig_lerobot",
+      "name": "bridge_orig_lerobot",
+      "author": "IPEC-COMMUNITY",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 33,
+      "local": false
+    },
+    {
+      "id": "hf-dataset--banned-historical-archives--banned-historical-archives",
+      "slug": "hf-dataset--banned-historical-archives--banned-historical-archives",
+      "name": "banned-historical-archives",
+      "author": "banned-historical-archives",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 33,
+      "local": false
+    },
+    {
+      "id": "hf-dataset--lavita--medical-qa-shared-task-v1-toy",
+      "slug": "hf-dataset--lavita--medical-qa-shared-task-v1-toy",
+      "name": "medical-qa-shared-task-v1-toy",
+      "author": "lavita",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 33,
+      "local": false
+    },
+    {
+      "id": "huggingface:meta-llama:llama-2-7b-hf",
+      "slug": "huggingface--meta-llama--llama-2-7b-hf",
+      "name": "Llama-2-7b-hf",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 32,
+      "local": true
+    },
+    {
+      "id": "huggingface:google:medgemma-4b-it",
+      "slug": "huggingface--google--medgemma-4b-it",
+      "name": "medgemma-4b-it",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 32,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-30b-a3b-instruct-2507",
+      "slug": "huggingface--qwen--qwen3-30b-a3b-instruct-2507",
+      "name": "Qwen3-30B-A3B-Instruct-2507",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 32,
+      "local": true
+    },
+    {
+      "id": "huggingface:qwen:qwen3-30b-a3b-thinking-2507",
+      "slug": "huggingface--qwen--qwen3-30b-a3b-thinking-2507",
+      "name": "Qwen3-30B-A3B-Thinking-2507",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 32,
+      "local": true
+    },
+    {
+      "id": "hf-dataset:ipec-community:fractal20220817_data_lerobot",
+      "slug": "hf-dataset--ipec-community--fractal20220817_data_lerobot",
+      "name": "fractal20220817_data_lerobot",
+      "author": "IPEC-COMMUNITY",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 32,
+      "local": false
+    },
+    {
+      "id": "hf-dataset:graphite-ai:graphite_past_problems",
+      "slug": "hf-dataset--graphite-ai--graphite_past_problems",
+      "name": "Graphite_Past_Problems",
+      "author": "Graphite-AI",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 32,
+      "local": true
+    },
+    {
+      "id": "huggingface:microsoft:phi-4",
+      "slug": "huggingface--microsoft--phi-4",
+      "name": "phi-4",
+      "author": "microsoft",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 31,
+      "local": true
+    },
+    {
+      "id": "huggingface:deepseek-ai:deepseek-r1-0528-qwen3-8b",
+      "slug": "huggingface--deepseek-ai--deepseek-r1-0528-qwen3-8b",
+      "name": "DeepSeek-R1-0528-Qwen3-8B",
+      "author": "deepseek-ai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 31,
+      "local": true
+    },
+    {
+      "id": "huggingface:mistralai:mistral-small-24b-instruct-2501",
+      "slug": "huggingface--mistralai--mistral-small-24b-instruct-2501",
+      "name": "Mistral-Small-24B-Instruct-2501",
+      "author": "mistralai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 31,
+      "local": true
+    },
+    {
+      "id": "huggingface:microsoft:phi-3.5-vision-instruct",
+      "slug": "huggingface--microsoft--phi-3.5-vision-instruct",
+      "name": "Phi-3.5-vision-instruct",
+      "author": "microsoft",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 31,
+      "local": true
+    },
+    {
+      "id": "hf-dataset:openai:gsm8k",
+      "slug": "hf-dataset--openai--gsm8k",
+      "name": "gsm8k",
+      "author": "openai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 31,
+      "local": false
+    },
+    {
+      "id": "huggingface:deepseek-ai:deepseek-r1",
+      "slug": "huggingface--deepseek-ai--deepseek-r1",
+      "name": "DeepSeek-R1",
+      "author": "deepseek-ai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:black-forest-labs:flux.1-dev",
+      "slug": "huggingface--black-forest-labs--flux.1-dev",
+      "name": "FLUX.1-dev",
+      "author": "black-forest-labs",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "slug": "huggingface--stabilityai--stable-diffusion-xl-base-1.0",
+      "name": "stable-diffusion-xl-base-1.0",
+      "author": "stabilityai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:hexgrad:kokoro-82m",
+      "slug": "huggingface--hexgrad--kokoro-82m",
+      "name": "Kokoro-82M",
+      "author": "hexgrad",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:openai:whisper-large-v3",
+      "slug": "huggingface--openai--whisper-large-v3",
+      "name": "whisper-large-v3",
+      "author": "openai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:openai:gpt-oss-120b",
+      "slug": "huggingface--openai--gpt-oss-120b",
+      "name": "gpt-oss-120b",
+      "author": "openai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:sentence-transformers:all-minilm-l6-v2",
+      "slug": "huggingface--sentence-transformers--all-minilm-l6-v2",
+      "name": "all-MiniLM-L6-v2",
+      "author": "sentence-transformers",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:openai:gpt-oss-20b",
+      "slug": "huggingface--openai--gpt-oss-20b",
+      "name": "gpt-oss-20b",
+      "author": "openai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:coqui:xtts-v2",
+      "slug": "huggingface--coqui--xtts-v2",
+      "name": "XTTS-v2",
+      "author": "coqui",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:openai-community:gpt2",
+      "slug": "huggingface--openai-community--gpt2",
+      "name": "gpt2",
+      "author": "openai-community",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:deepseek-ai:deepseek-ocr",
+      "slug": "huggingface--deepseek-ai--deepseek-ocr",
+      "name": "DeepSeek-OCR",
+      "author": "deepseek-ai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:openai:whisper-large-v3-turbo",
+      "slug": "huggingface--openai--whisper-large-v3-turbo",
+      "name": "whisper-large-v3-turbo",
+      "author": "openai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:meta-llama:llama-3.3-70b-instruct",
+      "slug": "huggingface--meta-llama--llama-3.3-70b-instruct",
+      "name": "Llama-3.3-70B-Instruct",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": true
+    },
+    {
+      "id": "huggingface:baai:bge-m3",
+      "slug": "huggingface--baai--bge-m3",
+      "name": "bge-m3",
+      "author": "BAAI",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:google-bert:bert-base-uncased",
+      "slug": "huggingface--google-bert--bert-base-uncased",
+      "name": "bert-base-uncased",
+      "author": "google-bert",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:facebook:bart-large-cnn",
+      "slug": "huggingface--facebook--bart-large-cnn",
+      "name": "bart-large-cnn",
+      "author": "facebook",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:facebook:bart-large-mnli",
+      "slug": "huggingface--facebook--bart-large-mnli",
+      "name": "bart-large-mnli",
+      "author": "facebook",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:salesforce:blip-image-captioning-large",
+      "slug": "huggingface--salesforce--blip-image-captioning-large",
+      "name": "blip-image-captioning-large",
+      "author": "Salesforce",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:pyannote:speaker-diarization-3.1",
+      "slug": "huggingface--pyannote--speaker-diarization-3.1",
+      "name": "speaker-diarization-3.1",
+      "author": "pyannote",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:vikhyatk:moondream2",
+      "slug": "huggingface--vikhyatk--moondream2",
+      "name": "moondream2",
+      "author": "vikhyatk",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:google-bert:bert-base-chinese",
+      "slug": "huggingface--google-bert--bert-base-chinese",
+      "name": "bert-base-chinese",
+      "author": "google-bert",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:sentence-transformers:all-mpnet-base-v2",
+      "slug": "huggingface--sentence-transformers--all-mpnet-base-v2",
+      "name": "all-mpnet-base-v2",
+      "author": "sentence-transformers",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:rednote-hilab:dots.ocr",
+      "slug": "huggingface--rednote-hilab--dots.ocr",
+      "name": "dots.ocr",
+      "author": "rednote-hilab",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:jinaai:jina-embeddings-v3",
+      "slug": "huggingface--jinaai--jina-embeddings-v3",
+      "name": "jina-embeddings-v3",
+      "author": "jinaai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:intfloat:multilingual-e5-large",
+      "slug": "huggingface--intfloat--multilingual-e5-large",
+      "name": "multilingual-e5-large",
+      "author": "intfloat",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:sentence-transformers:paraphrase-multilingual-minilm-l12-v2",
+      "slug": "huggingface--sentence-transformers--paraphrase-multilingual-minilm-l12-v2",
+      "name": "paraphrase-multilingual-MiniLM-L12-v2",
+      "author": "sentence-transformers",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:google:flan-t5-base",
+      "slug": "huggingface--google--flan-t5-base",
+      "name": "flan-t5-base",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:stable-diffusion-v1-5:stable-diffusion-v1-5",
+      "slug": "huggingface--stable-diffusion-v1-5--stable-diffusion-v1-5",
+      "name": "stable-diffusion-v1-5",
+      "author": "stable-diffusion-v1-5",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:nlpconnect:vit-gpt2-image-captioning",
+      "slug": "huggingface--nlpconnect--vit-gpt2-image-captioning",
+      "name": "vit-gpt2-image-captioning",
+      "author": "nlpconnect",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:facebook:detr-resnet-50",
+      "slug": "huggingface--facebook--detr-resnet-50",
+      "name": "detr-resnet-50",
+      "author": "facebook",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:google:vit-base-patch16-224",
+      "slug": "huggingface--google--vit-base-patch16-224",
+      "name": "vit-base-patch16-224",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:qwen:qwen2.5-72b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-72b-instruct",
+      "name": "Qwen2.5-72B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": true
+    },
+    {
+      "id": "huggingface:distilbert:distilbert-base-uncased-finetuned-sst-2-english",
+      "slug": "huggingface--distilbert--distilbert-base-uncased-finetuned-sst-2-english",
+      "name": "distilbert-base-uncased-finetuned-sst-2-english",
+      "author": "distilbert",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:baai:bge-reranker-v2-m3",
+      "slug": "huggingface--baai--bge-reranker-v2-m3",
+      "name": "bge-reranker-v2-m3",
+      "author": "BAAI",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:salesforce:blip-image-captioning-base",
+      "slug": "huggingface--salesforce--blip-image-captioning-base",
+      "name": "blip-image-captioning-base",
+      "author": "Salesforce",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:distilbert:distilbert-base-uncased",
+      "slug": "huggingface--distilbert--distilbert-base-uncased",
+      "name": "distilbert-base-uncased",
+      "author": "distilbert",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:facebookai:xlm-roberta-base",
+      "slug": "huggingface--facebookai--xlm-roberta-base",
+      "name": "xlm-roberta-base",
+      "author": "FacebookAI",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:google-t5:t5-base",
+      "slug": "huggingface--google-t5--t5-base",
+      "name": "t5-base",
+      "author": "google-t5",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:mixedbread-ai:mxbai-embed-large-v1",
+      "slug": "huggingface--mixedbread-ai--mxbai-embed-large-v1",
+      "name": "mxbai-embed-large-v1",
+      "author": "mixedbread-ai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:nomic-ai:nomic-embed-text-v1.5",
+      "slug": "huggingface--nomic-ai--nomic-embed-text-v1.5",
+      "name": "nomic-embed-text-v1.5",
+      "author": "nomic-ai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:cardiffnlp:twitter-roberta-base-sentiment-latest",
+      "slug": "huggingface--cardiffnlp--twitter-roberta-base-sentiment-latest",
+      "name": "twitter-roberta-base-sentiment-latest",
+      "author": "cardiffnlp",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:pyannote:segmentation-3.0",
+      "slug": "huggingface--pyannote--segmentation-3.0",
+      "name": "segmentation-3.0",
+      "author": "pyannote",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:dslim:bert-base-ner",
+      "slug": "huggingface--dslim--bert-base-ner",
+      "name": "bert-base-NER",
+      "author": "dslim",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:pyannote:segmentation",
+      "slug": "huggingface--pyannote--segmentation",
+      "name": "segmentation",
+      "author": "pyannote",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:bingsu:adetailer",
+      "slug": "huggingface--bingsu--adetailer",
+      "name": "adetailer",
+      "author": "Bingsu",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:google:siglip-so400m-patch14-384",
+      "slug": "huggingface--google--siglip-so400m-patch14-384",
+      "name": "siglip-so400m-patch14-384",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:baai:bge-large-en-v1.5",
+      "slug": "huggingface--baai--bge-large-en-v1.5",
+      "name": "bge-large-en-v1.5",
+      "author": "BAAI",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:distilbert:distilgpt2",
+      "slug": "huggingface--distilbert--distilgpt2",
+      "name": "distilgpt2",
+      "author": "distilbert",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:microsoft:trellis-image-large",
+      "slug": "huggingface--microsoft--trellis-image-large",
+      "name": "TRELLIS-image-large",
+      "author": "microsoft",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:intfloat:multilingual-e5-large-instruct",
+      "slug": "huggingface--intfloat--multilingual-e5-large-instruct",
+      "name": "multilingual-e5-large-instruct",
+      "author": "intfloat",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:google-bert:bert-base-multilingual-cased",
+      "slug": "huggingface--google-bert--bert-base-multilingual-cased",
+      "name": "bert-base-multilingual-cased",
+      "author": "google-bert",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:google:gemma-2-27b-it",
+      "slug": "huggingface--google--gemma-2-27b-it",
+      "name": "gemma-2-27b-it",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": true
+    },
+    {
+      "id": "huggingface:facebookai:roberta-base",
+      "slug": "huggingface--facebookai--roberta-base",
+      "name": "roberta-base",
+      "author": "FacebookAI",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:google-t5:t5-small",
+      "slug": "huggingface--google-t5--t5-small",
+      "name": "t5-small",
+      "author": "google-t5",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:openai:whisper-small",
+      "slug": "huggingface--openai--whisper-small",
+      "name": "whisper-small",
+      "author": "openai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:facebookai:xlm-roberta-large",
+      "slug": "huggingface--facebookai--xlm-roberta-large",
+      "name": "xlm-roberta-large",
+      "author": "FacebookAI",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:baai:bge-reranker-large",
+      "slug": "huggingface--baai--bge-reranker-large",
+      "name": "bge-reranker-large",
+      "author": "BAAI",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:sentence-transformers:paraphrase-multilingual-mpnet-base-v2",
+      "slug": "huggingface--sentence-transformers--paraphrase-multilingual-mpnet-base-v2",
+      "name": "paraphrase-multilingual-mpnet-base-v2",
+      "author": "sentence-transformers",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:emilyalsentzer:bio_clinicalbert",
+      "slug": "huggingface--emilyalsentzer--bio_clinicalbert",
+      "name": "Bio_ClinicalBERT",
+      "author": "emilyalsentzer",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:baai:bge-small-en-v1.5",
+      "slug": "huggingface--baai--bge-small-en-v1.5",
+      "name": "bge-small-en-v1.5",
+      "author": "BAAI",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:openai:whisper-tiny",
+      "slug": "huggingface--openai--whisper-tiny",
+      "name": "whisper-tiny",
+      "author": "openai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:microsoft:deberta-v3-base",
+      "slug": "huggingface--microsoft--deberta-v3-base",
+      "name": "deberta-v3-base",
+      "author": "microsoft",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:microsoft:table-transformer-detection",
+      "slug": "huggingface--microsoft--table-transformer-detection",
+      "name": "table-transformer-detection",
+      "author": "microsoft",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:baai:bge-base-en-v1.5",
+      "slug": "huggingface--baai--bge-base-en-v1.5",
+      "name": "bge-base-en-v1.5",
+      "author": "BAAI",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:facebook:wav2vec2-base-960h",
+      "slug": "huggingface--facebook--wav2vec2-base-960h",
+      "name": "wav2vec2-base-960h",
+      "author": "facebook",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:google:vit-base-patch16-224-in21k",
+      "slug": "huggingface--google--vit-base-patch16-224-in21k",
+      "name": "vit-base-patch16-224-in21k",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:distil-whisper:distil-large-v3",
+      "slug": "huggingface--distil-whisper--distil-large-v3",
+      "name": "distil-large-v3",
+      "author": "distil-whisper",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:google-bert:bert-base-cased",
+      "slug": "huggingface--google-bert--bert-base-cased",
+      "name": "bert-base-cased",
+      "author": "google-bert",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:alibaba-nlp:gte-multilingual-base",
+      "slug": "huggingface--alibaba-nlp--gte-multilingual-base",
+      "name": "gte-multilingual-base",
+      "author": "Alibaba-NLP",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:llava-hf:llava-1.5-7b-hf",
+      "slug": "huggingface--llava-hf--llava-1.5-7b-hf",
+      "name": "llava-1.5-7b-hf",
+      "author": "llava-hf",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:intfloat:multilingual-e5-base",
+      "slug": "huggingface--intfloat--multilingual-e5-base",
+      "name": "multilingual-e5-base",
+      "author": "intfloat",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:ibm-granite:granite-timeseries-ttm-r1",
+      "slug": "huggingface--ibm-granite--granite-timeseries-ttm-r1",
+      "name": "granite-timeseries-ttm-r1",
+      "author": "ibm-granite",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:colbert-ir:colbertv2.0",
+      "slug": "huggingface--colbert-ir--colbertv2.0",
+      "name": "colbertv2.0",
+      "author": "colbert-ir",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:thenlper:gte-large",
+      "slug": "huggingface--thenlper--gte-large",
+      "name": "gte-large",
+      "author": "thenlper",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:opendatalab:mineru2.5-2509-1.2b",
+      "slug": "huggingface--opendatalab--mineru2.5-2509-1.2b",
+      "name": "MinerU2.5-2509-1.2B",
+      "author": "opendatalab",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:nlpaueb:legal-bert-base-uncased",
+      "slug": "huggingface--nlpaueb--legal-bert-base-uncased",
+      "name": "legal-bert-base-uncased",
+      "author": "nlpaueb",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:speechbrain:spkrec-ecapa-voxceleb",
+      "slug": "huggingface--speechbrain--spkrec-ecapa-voxceleb",
+      "name": "spkrec-ecapa-voxceleb",
+      "author": "speechbrain",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface:sentence-transformers:all-minilm-l12-v2",
+      "slug": "huggingface--sentence-transformers--all-minilm-l12-v2",
+      "name": "all-MiniLM-L12-v2",
+      "author": "sentence-transformers",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--deepseek-ai--deepseek-r1",
+      "slug": "huggingface--deepseek-ai--deepseek-r1",
+      "name": "DeepSeek-R1",
+      "author": "deepseek-ai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--stabilityai--stable-diffusion-xl-base-1.0",
+      "slug": "huggingface--stabilityai--stable-diffusion-xl-base-1.0",
+      "name": "stable-diffusion-xl-base-1.0",
+      "author": "stabilityai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--meta-llama--meta-llama-3-8b",
+      "slug": "huggingface--meta-llama--meta-llama-3-8b",
+      "name": "Meta-Llama-3-8B",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--hexgrad--kokoro-82m",
+      "slug": "huggingface--hexgrad--kokoro-82m",
+      "name": "Kokoro-82M",
+      "author": "hexgrad",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--openai--whisper-large-v3",
+      "slug": "huggingface--openai--whisper-large-v3",
+      "name": "whisper-large-v3",
+      "author": "openai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--meta-llama--llama-3.1-8b-instruct",
+      "slug": "huggingface--meta-llama--llama-3.1-8b-instruct",
+      "name": "Llama-3.1-8B-Instruct",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--meta-llama--meta-llama-3-8b-instruct",
+      "slug": "huggingface--meta-llama--meta-llama-3-8b-instruct",
+      "name": "Meta-Llama-3-8B-Instruct",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--openai--gpt-oss-120b",
+      "slug": "huggingface--openai--gpt-oss-120b",
+      "name": "gpt-oss-120b",
+      "author": "openai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--sentence-transformers--all-minilm-l6-v2",
+      "slug": "huggingface--sentence-transformers--all-minilm-l6-v2",
+      "name": "all-MiniLM-L6-v2",
+      "author": "sentence-transformers",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--openai--gpt-oss-20b",
+      "slug": "huggingface--openai--gpt-oss-20b",
+      "name": "gpt-oss-20b",
+      "author": "openai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--microsoft--phi-2",
+      "slug": "huggingface--microsoft--phi-2",
+      "name": "phi-2",
+      "author": "microsoft",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--coqui--xtts-v2",
+      "slug": "huggingface--coqui--xtts-v2",
+      "name": "XTTS-v2",
+      "author": "coqui",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--openai-community--gpt2",
+      "slug": "huggingface--openai-community--gpt2",
+      "name": "gpt2",
+      "author": "openai-community",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--mistralai--mistral-7b-instruct-v0.2",
+      "slug": "huggingface--mistralai--mistral-7b-instruct-v0.2",
+      "name": "Mistral-7B-Instruct-v0.2",
+      "author": "mistralai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--deepseek-ai--deepseek-ocr",
+      "slug": "huggingface--deepseek-ai--deepseek-ocr",
+      "name": "DeepSeek-OCR",
+      "author": "deepseek-ai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--openai--whisper-large-v3-turbo",
+      "slug": "huggingface--openai--whisper-large-v3-turbo",
+      "name": "whisper-large-v3-turbo",
+      "author": "openai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--baai--bge-m3",
+      "slug": "huggingface--baai--bge-m3",
+      "name": "bge-m3",
+      "author": "BAAI",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--google-bert--bert-base-uncased",
+      "slug": "huggingface--google-bert--bert-base-uncased",
+      "name": "bert-base-uncased",
+      "author": "google-bert",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--mistralai--mistral-7b-instruct-v0.3",
+      "slug": "huggingface--mistralai--mistral-7b-instruct-v0.3",
+      "name": "Mistral-7B-Instruct-v0.3",
+      "author": "mistralai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--meta-llama--llama-3.2-1b",
+      "slug": "huggingface--meta-llama--llama-3.2-1b",
+      "name": "Llama-3.2-1B",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--meta-llama--llama-3.2-3b-instruct",
+      "slug": "huggingface--meta-llama--llama-3.2-3b-instruct",
+      "name": "Llama-3.2-3B-Instruct",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--google--gemma-3-27b-it",
+      "slug": "huggingface--google--gemma-3-27b-it",
+      "name": "gemma-3-27b-it",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--facebook--bart-large-cnn",
+      "slug": "huggingface--facebook--bart-large-cnn",
+      "name": "bart-large-cnn",
+      "author": "facebook",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--facebook--bart-large-mnli",
+      "slug": "huggingface--facebook--bart-large-mnli",
+      "name": "bart-large-mnli",
+      "author": "facebook",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--tinyllama--tinyllama-1.1b-chat-v1.0",
+      "slug": "huggingface--tinyllama--tinyllama-1.1b-chat-v1.0",
+      "name": "TinyLlama-1.1B-Chat-v1.0",
+      "author": "TinyLlama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--deepseek-ai--deepseek-r1-distill-qwen-32b",
+      "slug": "huggingface--deepseek-ai--deepseek-r1-distill-qwen-32b",
+      "name": "DeepSeek-R1-Distill-Qwen-32B",
+      "author": "deepseek-ai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--salesforce--blip-image-captioning-large",
+      "slug": "huggingface--salesforce--blip-image-captioning-large",
+      "name": "blip-image-captioning-large",
+      "author": "Salesforce",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--deepseek-ai--deepseek-r1-distill-qwen-1.5b",
+      "slug": "huggingface--deepseek-ai--deepseek-r1-distill-qwen-1.5b",
+      "name": "DeepSeek-R1-Distill-Qwen-1.5B",
+      "author": "deepseek-ai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--qwen--qwen2.5-vl-7b-instruct",
+      "slug": "huggingface--qwen--qwen2.5-vl-7b-instruct",
+      "name": "Qwen2.5-VL-7B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--pyannote--speaker-diarization-3.1",
+      "slug": "huggingface--pyannote--speaker-diarization-3.1",
+      "name": "speaker-diarization-3.1",
+      "author": "pyannote",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--vikhyatk--moondream2",
+      "slug": "huggingface--vikhyatk--moondream2",
+      "name": "moondream2",
+      "author": "vikhyatk",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--microsoft--phi-3-mini-4k-instruct",
+      "slug": "huggingface--microsoft--phi-3-mini-4k-instruct",
+      "name": "Phi-3-mini-4k-instruct",
+      "author": "microsoft",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--google-bert--bert-base-chinese",
+      "slug": "huggingface--google-bert--bert-base-chinese",
+      "name": "bert-base-chinese",
+      "author": "google-bert",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--google--embeddinggemma-300m",
+      "slug": "huggingface--google--embeddinggemma-300m",
+      "name": "embeddinggemma-300m",
+      "author": "google",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--qwen--qwen2-vl-7b-instruct",
+      "slug": "huggingface--qwen--qwen2-vl-7b-instruct",
+      "name": "Qwen2-VL-7B-Instruct",
+      "author": "Qwen",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--sentence-transformers--all-mpnet-base-v2",
+      "slug": "huggingface--sentence-transformers--all-mpnet-base-v2",
+      "name": "all-mpnet-base-v2",
+      "author": "sentence-transformers",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--meta-llama--llama-3.2-1b-instruct",
+      "slug": "huggingface--meta-llama--llama-3.2-1b-instruct",
+      "name": "Llama-3.2-1B-Instruct",
+      "author": "meta-llama",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    },
+    {
+      "id": "huggingface--jinaai--jina-embeddings-v3",
+      "slug": "huggingface--jinaai--jina-embeddings-v3",
+      "name": "jina-embeddings-v3",
+      "author": "jinaai",
+      "arch": "unknown",
+      "deployScore": 0,
+      "fni": 30,
+      "local": false
+    }
+  ],
+  "links": [
+    {
+      "source": "arxiv:2512.07801v1",
+      "target": "arxiv:2512.07801v2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.07720v1",
+      "target": "arxiv:2512.02906v2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "hf-dataset:asahi417:seamless-align-dea-ena.speaker-embedding.xlsr-2b",
+      "target": "hf-dataset:asahi417:seamless-align-ena-via.speaker-embedding.w2vbert-600m",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "hf-dataset:asahi417:seamless-align-dea-ena.speaker-embedding.xlsr-2b",
+      "target": "hf-dataset:asahi417:seamless-align-ena-zha.speaker-embedding.w2vbert-600m",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "hf-dataset:asahi417:seamless-align-ena-via.speaker-embedding.w2vbert-600m",
+      "target": "hf-dataset:asahi417:seamless-align-dea-ena.speaker-embedding.xlsr-2b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "hf-dataset:asahi417:seamless-align-ena-via.speaker-embedding.w2vbert-600m",
+      "target": "hf-dataset:asahi417:seamless-align-ena-zha.speaker-embedding.w2vbert-600m",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:minimaxai:minimax-vl-01",
+      "target": "huggingface:minimaxai:minimax-m2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "hf-dataset:asahi417:seamless-align-ena-zha.speaker-embedding.w2vbert-600m",
+      "target": "hf-dataset:asahi417:seamless-align-dea-ena.speaker-embedding.xlsr-2b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "hf-dataset:asahi417:seamless-align-ena-zha.speaker-embedding.w2vbert-600m",
+      "target": "hf-dataset:asahi417:seamless-align-ena-via.speaker-embedding.w2vbert-600m",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "hf-dataset:facebook:asset",
+      "target": "huggingface:facebook:bart-large-cnn",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "hf-dataset:facebook:asset",
+      "target": "huggingface:facebook:bart-large-mnli",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.07801v2",
+      "target": "arxiv:2512.07801v1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.07332v1",
+      "target": "arxiv:2512.05817v2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.05817v2",
+      "target": "arxiv:2512.07332v1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.03272v1",
+      "target": "arxiv:2512.02677v1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.03018v1",
+      "target": "arxiv:2512.02982v1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.02991v1",
+      "target": "arxiv:2512.02952v1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.02982v1",
+      "target": "arxiv:2512.03018v1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.02952v1",
+      "target": "arxiv:2512.02991v1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.02924v2",
+      "target": "arxiv:2512.02895v2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.02906v2",
+      "target": "arxiv:2512.07720v1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.02895v2",
+      "target": "arxiv:2512.02924v2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.02677v1",
+      "target": "arxiv:2512.03272v1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.02547v1",
+      "target": "arxiv:2512.02532v1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.02532v1",
+      "target": "arxiv:2512.02547v1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.02517v1",
+      "target": "arxiv:2512.02505v1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "arxiv:2512.02505v1",
+      "target": "arxiv:2512.02517v1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1",
+      "target": "huggingface:deepseek-ai:deepseek-v3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1",
+      "target": "huggingface:deepseek-ai:janus-pro-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1",
+      "target": "huggingface:deepseek-ai:deepseek-v3-0324",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1",
+      "target": "huggingface:deepseek-ai:deepseek-ocr",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1",
+      "target": "huggingface:deepseek-ai:deepseek-r1-0528",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:black-forest-labs:flux.1-dev",
+      "target": "huggingface:black-forest-labs:flux.1-schnell",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:black-forest-labs:flux.1-dev",
+      "target": "huggingface:black-forest-labs:flux.1-kontext-dev",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "target": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "target": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "target": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "target": "huggingface:stabilityai:sdxl-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-refiner-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:compvis:stable-diffusion-v1-4",
+      "target": "huggingface:compvis:stable-diffusion-v-1-4-original",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-8b",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-8b",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-8b",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-8b",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-8b",
+      "target": "huggingface:meta-llama:llama-3.3-70b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v3",
+      "target": "huggingface:openai:gpt-oss-120b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v3",
+      "target": "huggingface:openai:gpt-oss-20b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v3",
+      "target": "huggingface:openai:whisper-large-v3-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v3",
+      "target": "huggingface:openai:clip-vit-large-patch14",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v3",
+      "target": "huggingface:openai:whisper-large-v2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "target": "huggingface:meta-llama:llama-3.3-70b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "target": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "target": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "target": "huggingface:stabilityai:sdxl-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-refiner-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "target": "huggingface:meta-llama:llama-3.3-70b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mixtral-8x7b-instruct-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mixtral-8x7b-instruct-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mixtral-8x7b-instruct-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mixtral-8x7b-instruct-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mixtral-8x7b-instruct-v0.1",
+      "target": "huggingface:mistralai:mixtral-8x7b-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:black-forest-labs:flux.1-schnell",
+      "target": "huggingface:black-forest-labs:flux.1-dev",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:black-forest-labs:flux.1-schnell",
+      "target": "huggingface:black-forest-labs:flux.1-kontext-dev",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b",
+      "target": "huggingface:meta-llama:llama-3.3-70b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "target": "huggingface:meta-llama:llama-3.3-70b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:gpt-oss-120b",
+      "target": "huggingface:openai:whisper-large-v3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:gpt-oss-120b",
+      "target": "huggingface:openai:gpt-oss-20b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:gpt-oss-120b",
+      "target": "huggingface:openai:whisper-large-v3-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:gpt-oss-120b",
+      "target": "huggingface:openai:clip-vit-large-patch14",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:gpt-oss-120b",
+      "target": "huggingface:openai:whisper-large-v2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:sentence-transformers:all-minilm-l6-v2",
+      "target": "huggingface:sentence-transformers:all-mpnet-base-v2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:gpt-oss-20b",
+      "target": "huggingface:openai:whisper-large-v3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:gpt-oss-20b",
+      "target": "huggingface:openai:gpt-oss-120b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:gpt-oss-20b",
+      "target": "huggingface:openai:whisper-large-v3-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:gpt-oss-20b",
+      "target": "huggingface:openai:clip-vit-large-patch14",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:gpt-oss-20b",
+      "target": "huggingface:openai:whisper-large-v2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-v0.1",
+      "target": "huggingface:mistralai:mixtral-8x7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-v0.1",
+      "target": "huggingface:mistralai:mixtral-8x7b-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3",
+      "target": "huggingface:deepseek-ai:deepseek-r1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3",
+      "target": "huggingface:deepseek-ai:janus-pro-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3",
+      "target": "huggingface:deepseek-ai:deepseek-v3-0324",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3",
+      "target": "huggingface:deepseek-ai:deepseek-ocr",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3",
+      "target": "huggingface:deepseek-ai:deepseek-r1-0528",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:lllyasviel:controlnet-v1-1",
+      "target": "huggingface:lllyasviel:controlnet",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:lllyasviel:controlnet-v1-1",
+      "target": "huggingface:lllyasviel:sd_control_collection",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:lllyasviel:controlnet",
+      "target": "huggingface:lllyasviel:controlnet-v1-1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:lllyasviel:controlnet",
+      "target": "huggingface:lllyasviel:sd_control_collection",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:janus-pro-7b",
+      "target": "huggingface:deepseek-ai:deepseek-r1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:janus-pro-7b",
+      "target": "huggingface:deepseek-ai:deepseek-v3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:janus-pro-7b",
+      "target": "huggingface:deepseek-ai:deepseek-v3-0324",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:janus-pro-7b",
+      "target": "huggingface:deepseek-ai:deepseek-ocr",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:janus-pro-7b",
+      "target": "huggingface:deepseek-ai:deepseek-r1-0528",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-2",
+      "target": "huggingface:microsoft:phi-4",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-2",
+      "target": "huggingface:microsoft:vibevoice-1.5b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-2",
+      "target": "huggingface:microsoft:florence-2-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-2",
+      "target": "huggingface:microsoft:omniparser",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-2",
+      "target": "huggingface:microsoft:phi-3-mini-128k-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "target": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "target": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "target": "huggingface:stabilityai:sdxl-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-refiner-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-7b",
+      "target": "huggingface:google:gemma-3-27b-it",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-7b",
+      "target": "huggingface:google:gemma-3n-e4b-it-litert-preview",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-7b",
+      "target": "huggingface:google:embeddinggemma-300m",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-7b",
+      "target": "huggingface:google:flan-t5-xxl",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-7b",
+      "target": "huggingface:google:gemma-2-2b-it",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "target": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "target": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "target": "huggingface:stabilityai:sdxl-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-refiner-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:prompthero:openjourney",
+      "target": "huggingface:prompthero:openjourney-v4",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3-0324",
+      "target": "huggingface:deepseek-ai:deepseek-r1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3-0324",
+      "target": "huggingface:deepseek-ai:deepseek-v3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3-0324",
+      "target": "huggingface:deepseek-ai:janus-pro-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3-0324",
+      "target": "huggingface:deepseek-ai:deepseek-ocr",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3-0324",
+      "target": "huggingface:deepseek-ai:deepseek-r1-0528",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "target": "huggingface:mistralai:mixtral-8x7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "target": "huggingface:mistralai:mistral-7b-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "target": "huggingface:mistralai:mixtral-8x7b-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-ocr",
+      "target": "huggingface:deepseek-ai:deepseek-r1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-ocr",
+      "target": "huggingface:deepseek-ai:deepseek-v3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-ocr",
+      "target": "huggingface:deepseek-ai:janus-pro-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-ocr",
+      "target": "huggingface:deepseek-ai:deepseek-v3-0324",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-ocr",
+      "target": "huggingface:deepseek-ai:deepseek-r1-0528",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwq-32b",
+      "target": "huggingface:qwen:qwen-image",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwq-32b",
+      "target": "huggingface:qwen:qwen-image-edit",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwq-32b",
+      "target": "huggingface:qwen:qwen2.5-coder-32b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwq-32b",
+      "target": "huggingface:qwen:qwen2.5-omni-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwq-32b",
+      "target": "huggingface:qwen:qwq-32b-preview",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:zai-org:chatglm-6b",
+      "target": "huggingface:zai-org:chatglm2-6b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:zai-org:chatglm-6b",
+      "target": "huggingface:zai-org:glm-4.5",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:zai-org:chatglm-6b",
+      "target": "huggingface:zai-org:chatglm3-6b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:compvis:stable-diffusion-v-1-4-original",
+      "target": "huggingface:compvis:stable-diffusion-v1-4",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v3-turbo",
+      "target": "huggingface:openai:whisper-large-v3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v3-turbo",
+      "target": "huggingface:openai:gpt-oss-120b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v3-turbo",
+      "target": "huggingface:openai:gpt-oss-20b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v3-turbo",
+      "target": "huggingface:openai:clip-vit-large-patch14",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v3-turbo",
+      "target": "huggingface:openai:whisper-large-v2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.3-70b-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.3-70b-instruct",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.3-70b-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.3-70b-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.3-70b-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google-bert:bert-base-uncased",
+      "target": "huggingface:google-bert:bert-base-chinese",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:sdxl-turbo",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:sdxl-turbo",
+      "target": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:sdxl-turbo",
+      "target": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:sdxl-turbo",
+      "target": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:sdxl-turbo",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-refiner-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:black-forest-labs:flux.1-kontext-dev",
+      "target": "huggingface:black-forest-labs:flux.1-dev",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:black-forest-labs:flux.1-kontext-dev",
+      "target": "huggingface:black-forest-labs:flux.1-schnell",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:tiiuae:falcon-40b",
+      "target": "huggingface:tiiuae:falcon-40b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-0528",
+      "target": "huggingface:deepseek-ai:deepseek-r1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-0528",
+      "target": "huggingface:deepseek-ai:deepseek-v3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-0528",
+      "target": "huggingface:deepseek-ai:janus-pro-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-0528",
+      "target": "huggingface:deepseek-ai:deepseek-v3-0324",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-0528",
+      "target": "huggingface:deepseek-ai:deepseek-ocr",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "target": "huggingface:mistralai:mixtral-8x7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "target": "huggingface:mistralai:mistral-7b-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "target": "huggingface:mistralai:mixtral-8x7b-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen-image",
+      "target": "huggingface:qwen:qwq-32b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen-image",
+      "target": "huggingface:qwen:qwen-image-edit",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen-image",
+      "target": "huggingface:qwen:qwen2.5-coder-32b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen-image",
+      "target": "huggingface:qwen:qwen2.5-omni-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen-image",
+      "target": "huggingface:qwen:qwq-32b-preview",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:moonshotai:kimi-k2-instruct",
+      "target": "huggingface:moonshotai:kimi-k2-thinking",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b-hf",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b-hf",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b-hf",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b-hf",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-7b-hf",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-1b",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-1b",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-1b",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-1b",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-1b",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-70b-chat-hf",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-70b-chat-hf",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-70b-chat-hf",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-70b-chat-hf",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-2-70b-chat-hf",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-4",
+      "target": "huggingface:microsoft:phi-2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-4",
+      "target": "huggingface:microsoft:vibevoice-1.5b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-4",
+      "target": "huggingface:microsoft:florence-2-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-4",
+      "target": "huggingface:microsoft:omniparser",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-4",
+      "target": "huggingface:microsoft:phi-3-mini-128k-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen-image-edit",
+      "target": "huggingface:qwen:qwq-32b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen-image-edit",
+      "target": "huggingface:qwen:qwen-image",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen-image-edit",
+      "target": "huggingface:qwen:qwen2.5-coder-32b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen-image-edit",
+      "target": "huggingface:qwen:qwen2.5-omni-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen-image-edit",
+      "target": "huggingface:qwen:qwq-32b-preview",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:bytedance:sdxl-lightning",
+      "target": "huggingface:bytedance:hyper-sd",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:tencent:hunyuanvideo",
+      "target": "huggingface:tencent:hunyuan3d-2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:lllyasviel:sd_control_collection",
+      "target": "huggingface:lllyasviel:controlnet-v1-1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:lllyasviel:sd_control_collection",
+      "target": "huggingface:lllyasviel:controlnet",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:vibevoice-1.5b",
+      "target": "huggingface:microsoft:phi-2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:vibevoice-1.5b",
+      "target": "huggingface:microsoft:phi-4",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:vibevoice-1.5b",
+      "target": "huggingface:microsoft:florence-2-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:vibevoice-1.5b",
+      "target": "huggingface:microsoft:omniparser",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:vibevoice-1.5b",
+      "target": "huggingface:microsoft:phi-3-mini-128k-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:nvidia:llama-3.1-nemotron-70b-instruct-hf",
+      "target": "huggingface:nvidia:parakeet-tdt-0.6b-v2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:zai-org:chatglm2-6b",
+      "target": "huggingface:zai-org:chatglm-6b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:zai-org:chatglm2-6b",
+      "target": "huggingface:zai-org:glm-4.5",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:zai-org:chatglm2-6b",
+      "target": "huggingface:zai-org:chatglm3-6b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-refiner-1.0",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-refiner-1.0",
+      "target": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-refiner-1.0",
+      "target": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-refiner-1.0",
+      "target": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-refiner-1.0",
+      "target": "huggingface:stabilityai:sdxl-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.1-8b",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.1-8b",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.1-8b",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.1-8b",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.1-8b",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-coder-32b-instruct",
+      "target": "huggingface:qwen:qwq-32b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-coder-32b-instruct",
+      "target": "huggingface:qwen:qwen-image",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-coder-32b-instruct",
+      "target": "huggingface:qwen:qwen-image-edit",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-coder-32b-instruct",
+      "target": "huggingface:qwen:qwen2.5-omni-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-coder-32b-instruct",
+      "target": "huggingface:qwen:qwq-32b-preview",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:clip-vit-large-patch14",
+      "target": "huggingface:openai:whisper-large-v3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:clip-vit-large-patch14",
+      "target": "huggingface:openai:gpt-oss-120b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:clip-vit-large-patch14",
+      "target": "huggingface:openai:gpt-oss-20b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:clip-vit-large-patch14",
+      "target": "huggingface:openai:whisper-large-v3-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:clip-vit-large-patch14",
+      "target": "huggingface:openai:whisper-large-v2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-3b-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-3b-instruct",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-3b-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-3b-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-3b-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-omni-7b",
+      "target": "huggingface:qwen:qwq-32b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-omni-7b",
+      "target": "huggingface:qwen:qwen-image",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-omni-7b",
+      "target": "huggingface:qwen:qwen-image-edit",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-omni-7b",
+      "target": "huggingface:qwen:qwen2.5-coder-32b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-omni-7b",
+      "target": "huggingface:qwen:qwq-32b-preview",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.1",
+      "target": "huggingface:mistralai:mixtral-8x7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-7b-instruct-v0.1",
+      "target": "huggingface:mistralai:mixtral-8x7b-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:h94:ip-adapter-faceid",
+      "target": "huggingface:h94:ip-adapter",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v2",
+      "target": "huggingface:openai:whisper-large-v3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v2",
+      "target": "huggingface:openai:gpt-oss-120b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v2",
+      "target": "huggingface:openai:gpt-oss-20b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v2",
+      "target": "huggingface:openai:whisper-large-v3-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openai:whisper-large-v2",
+      "target": "huggingface:openai:clip-vit-large-patch14",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mixtral-8x7b-v0.1",
+      "target": "huggingface:mistralai:mixtral-8x7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mixtral-8x7b-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mixtral-8x7b-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mixtral-8x7b-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mixtral-8x7b-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwq-32b-preview",
+      "target": "huggingface:qwen:qwq-32b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwq-32b-preview",
+      "target": "huggingface:qwen:qwen-image",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwq-32b-preview",
+      "target": "huggingface:qwen:qwen-image-edit",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwq-32b-preview",
+      "target": "huggingface:qwen:qwen2.5-coder-32b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwq-32b-preview",
+      "target": "huggingface:qwen:qwen2.5-omni-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-3-27b-it",
+      "target": "huggingface:google:gemma-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-3-27b-it",
+      "target": "huggingface:google:gemma-3n-e4b-it-litert-preview",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-3-27b-it",
+      "target": "huggingface:google:embeddinggemma-300m",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-3-27b-it",
+      "target": "huggingface:google:flan-t5-xxl",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-3-27b-it",
+      "target": "huggingface:google:gemma-2-2b-it",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:florence-2-large",
+      "target": "huggingface:microsoft:phi-2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:florence-2-large",
+      "target": "huggingface:microsoft:phi-4",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:florence-2-large",
+      "target": "huggingface:microsoft:vibevoice-1.5b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:florence-2-large",
+      "target": "huggingface:microsoft:omniparser",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:florence-2-large",
+      "target": "huggingface:microsoft:phi-3-mini-128k-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:omniparser",
+      "target": "huggingface:microsoft:phi-2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:omniparser",
+      "target": "huggingface:microsoft:phi-4",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:omniparser",
+      "target": "huggingface:microsoft:vibevoice-1.5b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:omniparser",
+      "target": "huggingface:microsoft:florence-2-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:omniparser",
+      "target": "huggingface:microsoft:phi-3-mini-128k-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-3-mini-128k-instruct",
+      "target": "huggingface:microsoft:phi-2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-3-mini-128k-instruct",
+      "target": "huggingface:microsoft:phi-4",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-3-mini-128k-instruct",
+      "target": "huggingface:microsoft:vibevoice-1.5b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-3-mini-128k-instruct",
+      "target": "huggingface:microsoft:florence-2-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-3-mini-128k-instruct",
+      "target": "huggingface:microsoft:omniparser",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3-base",
+      "target": "huggingface:deepseek-ai:deepseek-r1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3-base",
+      "target": "huggingface:deepseek-ai:deepseek-v3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3-base",
+      "target": "huggingface:deepseek-ai:janus-pro-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3-base",
+      "target": "huggingface:deepseek-ai:deepseek-v3-0324",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-v3-base",
+      "target": "huggingface:deepseek-ai:deepseek-ocr",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:tencent:hunyuan3d-2",
+      "target": "huggingface:tencent:hunyuanvideo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-nemo-instruct-2407",
+      "target": "huggingface:mistralai:mixtral-8x7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-nemo-instruct-2407",
+      "target": "huggingface:mistralai:mistral-7b-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-nemo-instruct-2407",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-nemo-instruct-2407",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-nemo-instruct-2407",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-11b-vision-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-11b-vision-instruct",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-11b-vision-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-11b-vision-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-11b-vision-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-4-multimodal-instruct",
+      "target": "huggingface:microsoft:phi-2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-4-multimodal-instruct",
+      "target": "huggingface:microsoft:phi-4",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-4-multimodal-instruct",
+      "target": "huggingface:microsoft:vibevoice-1.5b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-4-multimodal-instruct",
+      "target": "huggingface:microsoft:florence-2-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-4-multimodal-instruct",
+      "target": "huggingface:microsoft:omniparser",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:moonshotai:kimi-k2-thinking",
+      "target": "huggingface:moonshotai:kimi-k2-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:facebook:bart-large-cnn",
+      "target": "hf-dataset:facebook:asset",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:facebook:bart-large-cnn",
+      "target": "huggingface:facebook:bart-large-mnli",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:facebook:bart-large-mnli",
+      "target": "hf-dataset:facebook:asset",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:facebook:bart-large-mnli",
+      "target": "huggingface:facebook:bart-large-cnn",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-70b-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-70b-instruct",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-70b-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-70b-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:meta-llama-3-70b-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-3n-e4b-it-litert-preview",
+      "target": "huggingface:google:gemma-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-3n-e4b-it-litert-preview",
+      "target": "huggingface:google:gemma-3-27b-it",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-3n-e4b-it-litert-preview",
+      "target": "huggingface:google:embeddinggemma-300m",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-3n-e4b-it-litert-preview",
+      "target": "huggingface:google:flan-t5-xxl",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-3n-e4b-it-litert-preview",
+      "target": "huggingface:google:gemma-2-2b-it",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-32b",
+      "target": "huggingface:deepseek-ai:deepseek-r1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-32b",
+      "target": "huggingface:deepseek-ai:deepseek-v3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-32b",
+      "target": "huggingface:deepseek-ai:janus-pro-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-32b",
+      "target": "huggingface:deepseek-ai:deepseek-v3-0324",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-32b",
+      "target": "huggingface:deepseek-ai:deepseek-ocr",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-base-0.9",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-base-0.9",
+      "target": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-base-0.9",
+      "target": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-base-0.9",
+      "target": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-diffusion-xl-base-0.9",
+      "target": "huggingface:stabilityai:sdxl-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openbmb:minicpm-llama3-v-2_5",
+      "target": "huggingface:openbmb:minicpm-o-2_6",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-1.5b",
+      "target": "huggingface:deepseek-ai:deepseek-r1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-1.5b",
+      "target": "huggingface:deepseek-ai:deepseek-v3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-1.5b",
+      "target": "huggingface:deepseek-ai:janus-pro-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-1.5b",
+      "target": "huggingface:deepseek-ai:deepseek-v3-0324",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:deepseek-ai:deepseek-r1-distill-qwen-1.5b",
+      "target": "huggingface:deepseek-ai:deepseek-ocr",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:sd-vae-ft-mse-original",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:sd-vae-ft-mse-original",
+      "target": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:sd-vae-ft-mse-original",
+      "target": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:sd-vae-ft-mse-original",
+      "target": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:sd-vae-ft-mse-original",
+      "target": "huggingface:stabilityai:sdxl-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:minimaxai:minimax-m2",
+      "target": "huggingface:minimaxai:minimax-vl-01",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:zai-org:glm-4.5",
+      "target": "huggingface:zai-org:chatglm-6b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:zai-org:glm-4.5",
+      "target": "huggingface:zai-org:chatglm2-6b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:zai-org:glm-4.5",
+      "target": "huggingface:zai-org:chatglm3-6b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-vl-7b-instruct",
+      "target": "huggingface:qwen:qwq-32b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-vl-7b-instruct",
+      "target": "huggingface:qwen:qwen-image",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-vl-7b-instruct",
+      "target": "huggingface:qwen:qwen-image-edit",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-vl-7b-instruct",
+      "target": "huggingface:qwen:qwen2.5-coder-32b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2.5-vl-7b-instruct",
+      "target": "huggingface:qwen:qwen2.5-omni-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:nvidia:parakeet-tdt-0.6b-v2",
+      "target": "huggingface:nvidia:llama-3.1-nemotron-70b-instruct-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:pyannote:speaker-diarization-3.1",
+      "target": "huggingface:pyannote:speaker-diarization",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-audio-open-1.0",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-audio-open-1.0",
+      "target": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-audio-open-1.0",
+      "target": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-audio-open-1.0",
+      "target": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-audio-open-1.0",
+      "target": "huggingface:stabilityai:sdxl-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-1_5",
+      "target": "huggingface:microsoft:phi-2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-1_5",
+      "target": "huggingface:microsoft:phi-4",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-1_5",
+      "target": "huggingface:microsoft:vibevoice-1.5b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-1_5",
+      "target": "huggingface:microsoft:florence-2-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-1_5",
+      "target": "huggingface:microsoft:omniparser",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google-bert:bert-base-chinese",
+      "target": "huggingface:google-bert:bert-base-uncased",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-3-mini-4k-instruct",
+      "target": "huggingface:microsoft:phi-2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-3-mini-4k-instruct",
+      "target": "huggingface:microsoft:phi-4",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-3-mini-4k-instruct",
+      "target": "huggingface:microsoft:vibevoice-1.5b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-3-mini-4k-instruct",
+      "target": "huggingface:microsoft:florence-2-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:phi-3-mini-4k-instruct",
+      "target": "huggingface:microsoft:omniparser",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-small-3.1-24b-instruct-2503",
+      "target": "huggingface:mistralai:mixtral-8x7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-small-3.1-24b-instruct-2503",
+      "target": "huggingface:mistralai:mistral-7b-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-small-3.1-24b-instruct-2503",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-small-3.1-24b-instruct-2503",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:mistral-small-3.1-24b-instruct-2503",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-cascade",
+      "target": "huggingface:stabilityai:stable-diffusion-xl-base-1.0",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-cascade",
+      "target": "huggingface:stabilityai:stable-diffusion-3-medium",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-cascade",
+      "target": "huggingface:stabilityai:stable-diffusion-3.5-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-cascade",
+      "target": "huggingface:stabilityai:stable-video-diffusion-img2vid-xt",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:stabilityai:stable-cascade",
+      "target": "huggingface:stabilityai:sdxl-turbo",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:embeddinggemma-300m",
+      "target": "huggingface:google:gemma-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:embeddinggemma-300m",
+      "target": "huggingface:google:gemma-3-27b-it",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:embeddinggemma-300m",
+      "target": "huggingface:google:gemma-3n-e4b-it-litert-preview",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:embeddinggemma-300m",
+      "target": "huggingface:google:flan-t5-xxl",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:embeddinggemma-300m",
+      "target": "huggingface:google:gemma-2-2b-it",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:bytedance:hyper-sd",
+      "target": "huggingface:bytedance:sdxl-lightning",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:codestral-22b-v0.1",
+      "target": "huggingface:mistralai:mixtral-8x7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:codestral-22b-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:codestral-22b-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:codestral-22b-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.3",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:mistralai:codestral-22b-v0.1",
+      "target": "huggingface:mistralai:mistral-7b-instruct-v0.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:omniparser-v2.0",
+      "target": "huggingface:microsoft:phi-2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:omniparser-v2.0",
+      "target": "huggingface:microsoft:phi-4",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:omniparser-v2.0",
+      "target": "huggingface:microsoft:vibevoice-1.5b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:omniparser-v2.0",
+      "target": "huggingface:microsoft:florence-2-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:omniparser-v2.0",
+      "target": "huggingface:microsoft:omniparser",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:openbmb:minicpm-o-2_6",
+      "target": "huggingface:openbmb:minicpm-llama3-v-2_5",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:flan-t5-xxl",
+      "target": "huggingface:google:gemma-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:flan-t5-xxl",
+      "target": "huggingface:google:gemma-3-27b-it",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:flan-t5-xxl",
+      "target": "huggingface:google:gemma-3n-e4b-it-litert-preview",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:flan-t5-xxl",
+      "target": "huggingface:google:embeddinggemma-300m",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:flan-t5-xxl",
+      "target": "huggingface:google:gemma-2-2b-it",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:h94:ip-adapter",
+      "target": "huggingface:h94:ip-adapter-faceid",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen3-coder-480b-a35b-instruct",
+      "target": "huggingface:qwen:qwq-32b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen3-coder-480b-a35b-instruct",
+      "target": "huggingface:qwen:qwen-image",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen3-coder-480b-a35b-instruct",
+      "target": "huggingface:qwen:qwen-image-edit",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen3-coder-480b-a35b-instruct",
+      "target": "huggingface:qwen:qwen2.5-coder-32b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen3-coder-480b-a35b-instruct",
+      "target": "huggingface:qwen:qwen2.5-omni-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:prompthero:openjourney-v4",
+      "target": "huggingface:prompthero:openjourney",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2-vl-7b-instruct",
+      "target": "huggingface:qwen:qwq-32b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2-vl-7b-instruct",
+      "target": "huggingface:qwen:qwen-image",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2-vl-7b-instruct",
+      "target": "huggingface:qwen:qwen-image-edit",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2-vl-7b-instruct",
+      "target": "huggingface:qwen:qwen2.5-coder-32b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:qwen:qwen2-vl-7b-instruct",
+      "target": "huggingface:qwen:qwen2.5-omni-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-2-2b-it",
+      "target": "huggingface:google:gemma-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-2-2b-it",
+      "target": "huggingface:google:gemma-3-27b-it",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-2-2b-it",
+      "target": "huggingface:google:gemma-3n-e4b-it-litert-preview",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-2-2b-it",
+      "target": "huggingface:google:embeddinggemma-300m",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-2-2b-it",
+      "target": "huggingface:google:flan-t5-xxl",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:bitnet-b1.58-2b-4t",
+      "target": "huggingface:microsoft:phi-2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:bitnet-b1.58-2b-4t",
+      "target": "huggingface:microsoft:phi-4",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:bitnet-b1.58-2b-4t",
+      "target": "huggingface:microsoft:vibevoice-1.5b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:bitnet-b1.58-2b-4t",
+      "target": "huggingface:microsoft:florence-2-large",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:microsoft:bitnet-b1.58-2b-4t",
+      "target": "huggingface:microsoft:omniparser",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-7b-it",
+      "target": "huggingface:google:gemma-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-7b-it",
+      "target": "huggingface:google:gemma-3-27b-it",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-7b-it",
+      "target": "huggingface:google:gemma-3n-e4b-it-litert-preview",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-7b-it",
+      "target": "huggingface:google:embeddinggemma-300m",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:google:gemma-7b-it",
+      "target": "huggingface:google:flan-t5-xxl",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:pyannote:speaker-diarization",
+      "target": "huggingface:pyannote:speaker-diarization-3.1",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:sentence-transformers:all-mpnet-base-v2",
+      "target": "huggingface:sentence-transformers:all-minilm-l6-v2",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-1b-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-1b-instruct",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-1b-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-1b-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-3.2-1b-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:tiiuae:falcon-40b-instruct",
+      "target": "huggingface:tiiuae:falcon-40b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:zai-org:chatglm3-6b",
+      "target": "huggingface:zai-org:chatglm-6b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:zai-org:chatglm3-6b",
+      "target": "huggingface:zai-org:chatglm2-6b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:zai-org:chatglm3-6b",
+      "target": "huggingface:zai-org:glm-4.5",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-4-scout-17b-16e-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-4-scout-17b-16e-instruct",
+      "target": "huggingface:meta-llama:llama-3.1-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-4-scout-17b-16e-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b-chat-hf",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-4-scout-17b-16e-instruct",
+      "target": "huggingface:meta-llama:llama-2-7b",
+      "type": "sibling",
+      "weight": 0.8
+    },
+    {
+      "source": "huggingface:meta-llama:llama-4-scout-17b-16e-instruct",
+      "target": "huggingface:meta-llama:meta-llama-3-8b-instruct",
+      "type": "sibling",
+      "weight": 0.8
+    }
+  ]
+}
