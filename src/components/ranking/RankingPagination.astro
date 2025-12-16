@@ -1,0 +1,39 @@
+---
+/**
+ * RankingPagination - Pagination controls
+ */
+interface Props {
+  currentPage: number;
+  totalPages: number;
+}
+
+const { currentPage, totalPages } = Astro.props;
+---
+
+{totalPages > 1 && (
+  <div class="mt-12 flex justify-center items-center gap-4">
+    {currentPage > 1 ? (
+      <a href={`?page=${currentPage - 1}`} class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        ← Previous
+      </a>
+    ) : (
+      <span class="px-4 py-2 text-gray-400 border border-gray-200 dark:border-gray-800 rounded-lg cursor-not-allowed">
+        ← Previous
+      </span>
+    )}
+    
+    <span class="text-gray-600 dark:text-gray-400 font-medium">
+      Page {currentPage} of {totalPages}
+    </span>
+    
+    {currentPage < totalPages ? (
+      <a href={`?page=${currentPage + 1}`} class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        Next →
+      </a>
+    ) : (
+      <span class="px-4 py-2 text-gray-400 border border-gray-200 dark:border-gray-800 rounded-lg cursor-not-allowed">
+        Next →
+      </span>
+    )}
+  </div>
+)}

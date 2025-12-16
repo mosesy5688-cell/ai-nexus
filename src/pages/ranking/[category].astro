@@ -1,6 +1,6 @@
 ---
 /**
- * Category Ranking Page - V4.9.1 Step 3 Traffic Amplifiers
+ * Category Ranking Page - V5.2 Refactored
  * Constitution V4.9: Art.X-Entity-List - Lists segregated by type
  * SEO: Independent routes with unique canonical, JSON-LD ItemList
  */
@@ -9,59 +9,15 @@ export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 import ModelCard from '../../components/ModelCard.astro';
-import DataFreshness from '../../components/common/DataFreshness.astro';
-import { deriveEntityType } from '../../types/entity';
+import RankingHeader from '../../components/ranking/RankingHeader.astro';
+import RankingCategoryPills from '../../components/ranking/RankingCategoryPills.astro';
+import RankingPagination from '../../components/ranking/RankingPagination.astro';
+import RankingSeoFooter from '../../components/ranking/RankingSeoFooter.astro';
+import { RANKING_CATEGORIES, getCategoryConfig } from '../../data/ranking-categories';
 
-// Get category slug from URL
 const { category } = Astro.params;
+const categoryConfig = getCategoryConfig(category || '');
 
-// Category definitions with SEO-friendly metadata
-const CATEGORIES: Record<string, { 
-  title: string; 
-  description: string; 
-  pipeline_tag: string;
-  seoTitle: string;
-}> = {
-  'text-generation': {
-    title: 'Text Generation Models',
-    description: 'LLMs and language models for text generation, chat, and completion.',
-    pipeline_tag: 'text-generation',
-    seoTitle: 'Best Text Generation AI Models 2024 - LLM Rankings'
-  },
-  'code': {
-    title: 'Code Generation Models',
-    description: 'AI models specialized in code completion, generation, and assistance.',
-    pipeline_tag: 'text-generation',  // Filter by tag
-    seoTitle: 'Best AI Coding Assistants 2024 - Code Model Rankings'
-  },
-  'embedding': {
-    title: 'Embedding Models',
-    description: 'Vector embedding models for semantic search, RAG, and similarity.',
-    pipeline_tag: 'feature-extraction',
-    seoTitle: 'Best Embedding Models 2024 - Vector Search Rankings'
-  },
-  'image': {
-    title: 'Image Generation Models',
-    description: 'Text-to-image and image generation AI models.',
-    pipeline_tag: 'text-to-image',
-    seoTitle: 'Best AI Image Generators 2024 - Text-to-Image Rankings'
-  },
-  'vision': {
-    title: 'Vision & Multimodal Models',
-    description: 'Image understanding, vision-language, and multimodal AI models.',
-    pipeline_tag: 'image-text-to-text',
-    seoTitle: 'Best Vision AI Models 2024 - Multimodal Rankings'
-  },
-  'audio': {
-    title: 'Audio & Speech Models',
-    description: 'Speech recognition, text-to-speech, and audio processing models.',
-    pipeline_tag: 'automatic-speech-recognition',
-    seoTitle: 'Best Speech AI Models 2024 - Audio Model Rankings'
-  }
-};
-
-// Get category config or 404
-const categoryConfig = CATEGORIES[category || ''];
 if (!categoryConfig) {
   return Astro.redirect('/ranking');
 }
@@ -70,8 +26,7 @@ const pageTitle = categoryConfig.seoTitle;
 const pageDescription = categoryConfig.description;
 const canonicalUrl = `https://free2aitools.com/ranking/${category}`;
 
-// V5.1.2 Constitution: Load from L8 Precompute cache (Pagination)
-// Repair Phase 2.1: Use materialized category rankings (p{n}.json + meta.json)
+// V5.1.2 Constitution: Load from L8 Precompute cache
 let models: any[] = [];
 let generatedAt = new Date().toISOString();
 let currentPage = 1;
@@ -79,44 +34,34 @@ let totalPages = 1;
 let totalItems = 0;
 
 try {
-  // 1. Get current page from URL
   const pageParam = Astro.url.searchParams.get('page');
   currentPage = pageParam ? parseInt(pageParam, 10) : 1;
   if (isNaN(currentPage) || currentPage < 1) currentPage = 1;
 
-  // 2. Fetch Meta Data (for total pages) AND Current Page Data
-  // We fetch in parallel for speed
   const metaUrl = new URL(`/cache/rankings/${category}/meta.json`, Astro.url.origin);
   const pageUrl = new URL(`/cache/rankings/${category}/p${currentPage}.json`, Astro.url.origin);
 
   const [metaRes, pageRes] = await Promise.all([
-      fetch(metaUrl).catch(() => null), // Fail gracefully if meta missing
-      fetch(pageUrl)
+    fetch(metaUrl).catch(() => null),
+    fetch(pageUrl)
   ]);
-  
-  // 3. Process Meta
+
   if (metaRes && metaRes.ok) {
-      const metaData = await metaRes.json();
-      totalItems = metaData.total || 0;
-      totalPages = metaData.pages || 1;
-      generatedAt = metaData.generated_at || generatedAt;
+    const metaData = await metaRes.json();
+    totalItems = metaData.total || 0;
+    totalPages = metaData.pages || 1;
+    generatedAt = metaData.generated_at || generatedAt;
   }
 
-  // 4. Process Page Data
   if (pageRes.ok) {
     const pageData = await pageRes.json();
     models = pageData.items || [];
-  } else {
-    // If page missing (e.g. out of bounds), fallback or empty
-    console.warn(`[Ranking] Page ${currentPage} not found for ${category}`);
-    models = [];
   }
-
 } catch (e) {
   console.error('[Ranking Category] Cache fetch error:', e);
 }
 
-// JSON-LD ItemList for SEO (V4.9.1 Step 3 requirement)
+// JSON-LD for SEO
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "ItemList",
@@ -133,60 +78,27 @@ const jsonLd = {
       "description": model.description?.substring(0, 200) || `${model.name} AI model`,
       "url": `https://free2aitools.com/model/${model.slug || model.umid}`,
       "applicationCategory": "AI Model",
-      "author": {
-        "@type": "Organization",
-        "name": model.author || "Unknown"
-      }
+      "author": { "@type": "Organization", "name": model.author || "Unknown" }
     }
   }))
 };
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
-  <!-- Canonical URL for SEO -->
   <link slot="head" rel="canonical" href={canonicalUrl} />
-  
-  <!-- JSON-LD Structured Data -->
   <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 
   <div class="container mx-auto px-4 py-12">
-    <header class="text-center mb-10">
-      <nav class="mb-4 text-sm text-gray-500 dark:text-gray-400">
-        <a href="/" class="hover:text-indigo-600">Home</a>
-        <span class="mx-2">→</span>
-        <a href="/ranking" class="hover:text-indigo-600">Rankings</a>
-        <span class="mx-2">→</span>
-        <span class="text-gray-700 dark:text-gray-300">{categoryConfig.title}</span>
-      </nav>
-      
-      <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
-        {categoryConfig.title}
-      </h1>
-      <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-        {categoryConfig.description}
-      </p>
-      <DataFreshness timestamp={generatedAt} source="L8 Precompute" />
-    </header>
+    <RankingHeader 
+      categoryTitle={categoryConfig.title} 
+      categoryDescription={categoryConfig.description} 
+      generatedAt={generatedAt} 
+    />
 
-    <!-- Category Navigation -->
-    <div class="flex flex-wrap justify-center gap-2 mb-10">
-      {Object.entries(CATEGORIES).map(([slug, config]) => (
-        <a 
-          href={`/ranking/${slug}`}
-          class={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-            slug === category 
-              ? 'bg-indigo-600 text-white' 
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700'
-          }`}
-        >
-          {config.title.replace(' Models', '')}
-        </a>
-      ))}
-    </div>
+    <RankingCategoryPills currentCategory={category || ''} />
 
     {models.length > 0 ? (
       <>
-        <!-- Top 3 Spotlight (Only on Page 1) -->
         {currentPage === 1 && (
           <section class="mb-12">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
@@ -205,15 +117,14 @@ const jsonLd = {
           </section>
         )}
 
-        <!-- Full Rankings -->
         <section>
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <span>📊</span> {currentPage === 1 ? 'Full Rankings' : `Rankings (Page ${currentPage})`}
             </h2>
-             <span class="text-sm text-gray-500">
-                Showing {models.length} of {totalItems} models
-             </span>
+            <span class="text-sm text-gray-500">
+              Showing {models.length} of {totalItems} models
+            </span>
           </div>
           
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -222,34 +133,7 @@ const jsonLd = {
             ))}
           </div>
           
-          <!-- Pagination Controls -->
-          {totalPages > 1 && (
-              <div class="mt-12 flex justify-center items-center gap-4">
-                  {currentPage > 1 ? (
-                      <a href={`?page=${currentPage - 1}`} class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                          ← Previous
-                      </a>
-                  ) : (
-                      <span class="px-4 py-2 text-gray-400 border border-gray-200 dark:border-gray-800 rounded-lg cursor-not-allowed">
-                          ← Previous
-                      </span>
-                  )}
-                  
-                  <span class="text-gray-600 dark:text-gray-400 font-medium">
-                      Page {currentPage} of {totalPages}
-                  </span>
-                  
-                  {currentPage < totalPages ? (
-                      <a href={`?page=${currentPage + 1}`} class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                          Next →
-                      </a>
-                  ) : (
-                      <span class="px-4 py-2 text-gray-400 border border-gray-200 dark:border-gray-800 rounded-lg cursor-not-allowed">
-                          Next →
-                      </span>
-                  )}
-              </div>
-          )}
+          <RankingPagination currentPage={currentPage} totalPages={totalPages} />
         </section>
       </>
     ) : (
@@ -257,138 +141,18 @@ const jsonLd = {
         <div class="text-6xl mb-6">🏗️</div>
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Ranking is being built</h2>
         <p class="text-gray-600 dark:text-gray-400 max-w-md mx-auto mb-6">
-            Data pipeline is active. Rankings will appear automatically once enough entities are materialized and verified.
+          Data pipeline is active. Rankings will appear automatically once enough entities are materialized.
         </p>
         <div class="flex justify-center gap-4">
-            <a href="/explore" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                Explore Raw Index
-            </a>
-            <a href="/methodology" class="px-6 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition-colors">
-                 View Methodology
-            </a>
+          <a href="/explore" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
+            Explore Raw Index
+          </a>
         </div>
       </div>
     )}
 
-    <!-- SEO Content Footer -->
-    <section class="mt-16 bg-gray-50 dark:bg-gray-800/50 rounded-xl p-8">
-      <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-        About {categoryConfig.title}
-      </h2>
-      <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
-        {category === 'text-generation' && 
-          "Text generation models (LLMs) are the foundation of modern AI assistants. These models can write, summarize, translate, and reason about text. Popular architectures include GPT, LLaMA, Qwen, and Mistral."}
-        {category === 'code' && 
-          "Code generation models help developers write, debug, and understand code. These AI assistants can complete code, explain functions, and even generate entire applications. Top models include CodeLlama, DeepSeek Coder, and StarCoder."}
-        {category === 'embedding' && 
-          "Embedding models convert text into numerical vectors, enabling semantic search, RAG systems, and similarity comparisons. They're essential for building AI-powered search and retrieval systems."}
-        {category === 'image' && 
-          "Image generation models create stunning visuals from text prompts. From photorealistic images to artistic styles, these models have revolutionized digital art and design."}
-        {category === 'vision' && 
-          "Vision and multimodal models can understand images, answer questions about visuals, and combine text and image understanding. They power applications from document analysis to visual assistants."}
-        {category === 'audio' && 
-          "Audio AI models handle speech recognition, text-to-speech synthesis, and audio processing. They enable voice assistants, transcription services, and audio content creation."}
-      </p>
-      <div class="mt-4 flex gap-4">
-        <a href="/knowledge" class="text-indigo-600 hover:underline text-sm">
-          📚 Learn about AI concepts
-        </a>
-        <a href="/methodology" class="text-indigo-600 hover:underline text-sm">
-          📊 How we rank models
-        </a>
-      </div>
-    </section>
+    <RankingSeoFooter categoryTitle={categoryConfig.title} seoContent={categoryConfig.seoContent} />
   </div>
-    <script>
-    import { createModelCardHTML } from '../../scripts/ui-utils.js';
 
-    // CES V5.1.2 Art 3.3: Infinite Scroll & Pagination UX
-    document.addEventListener('DOMContentLoaded', () => {
-        const grid = document.querySelector('.grid.grid-cols-1.md\\:grid-cols-2');
-        if (!grid) return; 
-
-        const currentPath = window.location.pathname; 
-        let currentPage = 1;
-        const maxScrollPage = 5; // Hard Stop Rule
-        let isLoading = false;
-        
-        // iOS Patch / Low-End Device Detection (CES Art 3.3.4)
-        // Note: navigator.deviceMemory is standard in Chrome, undefined in Safari/Firefox
-        // We default to 4 (High) if undefined so we don't break standard desktops
-        // But for known low memory, we disable.
-        const deviceMemory = navigator.deviceMemory || 4; 
-        const isLowEnd = deviceMemory < 4;
-
-        if (isLowEnd) {
-            console.log('[Ranking] Low-end device detected (RAM < 4GB). Infinite scroll disabled.');
-            return;
-        }
-
-        const sentinel = document.createElement('div');
-        sentinel.className = 'w-full h-20 flex justify-center items-center';
-        sentinel.innerHTML = '<span class="hidden" id="scroll-loader">Loading...</span>';
-        grid.parentNode?.appendChild(sentinel);
-
-        const observer = new IntersectionObserver(async (entries) => {
-            if (entries[0].isIntersecting && !isLoading && currentPage < maxScrollPage) {
-                isLoading = true;
-                const loader = document.getElementById('scroll-loader');
-                if (loader) loader.classList.remove('hidden');
-
-                const nextPage = currentPage + 1;
-                console.log(`[Ranking] Loading page ${nextPage}...`);
-
-                try {
-                    const res = await fetch(`/cache/rankings/${currentPath.split('/').pop()}/p${nextPage}.json`);
-                    if (res.ok) {
-                        const models = await res.json();
-                        const fragment = document.createDocumentFragment();
-                        
-                        models.forEach(model => {
-                            const div = document.createElement('div');
-                            // Wrapper to match grid structure safely if needed, or just append card
-                            // Grid above is "grid-cols-1 md:grid-cols-2..."
-                            // Astro loop: {models.map(model => <ModelCard model={model} />)}
-                            // ModelCard usually returns an <a> or <div>. 
-                            // createModelCardHTML returns the <a> string.
-                            // We need a wrapper if the grid expects it?
-                            // Looking at line 220: {models.slice...map(model => <ModelCard ... />)}
-                            // ModelCard is valid.
-                            
-                            // createModelCardHTML returns the inner content of ModelCard typically.
-                            // Let's assume createModelCardHTML returns the full card element.
-                            div.innerHTML = createModelCardHTML(model);
-                            fragment.appendChild(div.firstElementChild);
-                        });
-
-                        grid.appendChild(fragment);
-                        currentPage++;
-                    } else {
-                        observer.disconnect();
-                        sentinel.remove();
-                    }
-                } catch (e) {
-                    console.error('[Ranking] Scroll load error:', e);
-                } finally {
-                    isLoading = false;
-                    if (loader) loader.classList.add('hidden');
-                }
-            } else if (currentPage >= maxScrollPage) {
-                observer.disconnect();
-                if (sentinel.parentNode) {
-                    sentinel.innerHTML = `
-                        <div class="text-center w-full py-4">
-                            <p class="text-gray-500 mb-2">You've viewed top ${maxScrollPage * 50} models.</p>
-                            <a href="?page=${currentPage + 1}" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                                View Next Page ->
-                            </a>
-                        </div>
-                    `;
-                }
-            }
-        }, { rootMargin: '200px' });
-
-        observer.observe(sentinel);
-    });
-  </script>
+  <script src="../../scripts/ranking-client.js"></script>
 </Layout>

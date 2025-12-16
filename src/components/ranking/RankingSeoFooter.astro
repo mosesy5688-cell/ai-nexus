@@ -1,0 +1,28 @@
+---
+/**
+ * RankingSeoFooter - SEO content section
+ */
+interface Props {
+  categoryTitle: string;
+  seoContent: string;
+}
+
+const { categoryTitle, seoContent } = Astro.props;
+---
+
+<section class="mt-16 bg-gray-50 dark:bg-gray-800/50 rounded-xl p-8">
+  <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+    About {categoryTitle}
+  </h2>
+  <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
+    {seoContent}
+  </p>
+  <div class="mt-4 flex gap-4">
+    <a href="/knowledge" class="text-indigo-600 hover:underline text-sm">
+      📚 Learn about AI concepts
+    </a>
+    <a href="/methodology" class="text-indigo-600 hover:underline text-sm">
+      📊 How we rank models
+    </a>
+  </div>
+</section>
