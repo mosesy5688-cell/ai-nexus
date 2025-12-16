@@ -33,6 +33,9 @@ const filesToCheck = [...walkSync(pagesDir), ...walkSync(componentsDir)];
 
 filesToCheck.forEach(file => {
     const content = fs.readFileSync(file, 'utf8');
+    // Exemption: API routes are allowed to access D1 (Task 195 Verdict)
+    if (file.includes('src/pages/api') || file.includes('src\\pages\\api')) return;
+
     if (content.includes('env.DB') || content.includes('D1Database')) {
         console.error(`❌ VIOLATION: D1 usage detected in ${file}`);
         failed = true;
