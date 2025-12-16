@@ -1,0 +1,20 @@
+---
+// src/components/knowledge/KnowledgeRelated.astro
+interface Props {
+  articles: [string, { title: string; description: string; category: string }][];
+}
+
+const { articles } = Astro.props;
+---
+
+<aside class="related-articles">
+  <h3>Related Articles</h3>
+  <div class="related-grid">
+    {articles.map(([key, a]) => (
+      <a href={`/knowledge/${key}`} class="related-card">
+        <span class="related-title">{a.title}</span>
+        <span class="related-desc">{a.description.substring(0, 80)}...</span>
+      </a>
+    ))}
+  </div>
+</aside>

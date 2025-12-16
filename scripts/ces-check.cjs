@@ -62,7 +62,7 @@ allCodeFiles.forEach(file => {
 
 
         'src/pages/index.astro',
-        'src/pages/knowledge/[slug].astro',
+
         'src/pages/knowledge.astro',
         'src/pages/leaderboard.astro',
 

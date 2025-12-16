@@ -1,0 +1,64 @@
+---
+// src/components/knowledge/KnowledgeSidebar.astro
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+---
+
+<aside class="used-in-section">
+  <h3>🔗 Used In (Models referencing this concept)</h3>
+  <p class="used-in-description">
+    This knowledge base article is referenced by the following model pages:
+  </p>
+  <div class="used-in-grid">
+    {/* Static examples from V4.9.1 */}
+    {slug === 'what-is-mmlu' && (
+      <>
+        <a href="/model/meta-llama--Llama-3-2-1B" class="used-in-card">📊 Llama 3.2 1B</a>
+        <a href="/model/Qwen--Qwen2.5-72B" class="used-in-card">📊 Qwen 2.5 72B</a>
+        <a href="/model/mistralai--Mistral-7B-v0.1" class="used-in-card">📊 Mistral 7B</a>
+      </>
+    )}
+    {slug === 'what-is-humaneval' && (
+      <>
+        <a href="/model/deepseek-ai--deepseek-coder-33b-instruct" class="used-in-card">💻 DeepSeek Coder 33B</a>
+        <a href="/model/codellama--CodeLlama-70b-hf" class="used-in-card">💻 CodeLlama 70B</a>
+        <a href="/model/meta-llama--Llama-3-2-3B" class="used-in-card">💻 Llama 3.2 3B</a>
+      </>
+    )}
+    {slug === 'what-is-fni' && (
+      <>
+        <a href="/explore" class="used-in-card">🏠 All Models (FNI Score)</a>
+        <a href="/leaderboard" class="used-in-card">🏆 Leaderboard</a>
+        <a href="/methodology" class="used-in-card">📋 Methodology</a>
+      </>
+    )}
+    {slug === 'what-is-context-length' && (
+      <>
+        <a href="/model/mistralai--Mistral-7B-v0.1" class="used-in-card">📐 Mistral 7B (32K)</a>
+        <a href="/model/deepseek-ai--deepseek-v2.5" class="used-in-card">📐 DeepSeek V2.5 (128K)</a>
+        <a href="/model/Qwen--Qwen2.5-72B" class="used-in-card">📐 Qwen 2.5 72B (128K)</a>
+      </>
+    )}
+    {slug === 'what-is-deploy-score' && (
+      <>
+        <a href="/model/meta-llama--Llama-3-2-1B" class="used-in-card">⚡ Llama 3.2 1B (easy deploy)</a>
+        <a href="/model/Qwen--Qwen2.5-7B" class="used-in-card">⚡ Qwen 2.5 7B</a>
+        <a href="/explore?sort=deploy" class="used-in-card">⚡ Deploy Score Sort</a>
+      </>
+    )}
+    {/* Fallback */}
+    {!['what-is-mmlu', 'what-is-humaneval', 'what-is-fni', 'what-is-context-length', 'what-is-deploy-score'].includes(slug || '') && (
+      <>
+        <a href="/explore" class="used-in-card">🔍 Explore Models</a>
+        <a href="/leaderboard" class="used-in-card">🏆 Leaderboard</a>
+        <a href="/knowledge" class="used-in-card">📚 More Articles</a>
+      </>
+    )}
+  </div>
+  <p class="used-in-note">
+    📖 CEO Iron Rule: Each knowledge article must be cited by 3+ entity pages
+  </p>
+</aside>
