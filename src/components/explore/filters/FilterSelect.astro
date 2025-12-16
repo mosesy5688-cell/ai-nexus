@@ -1,0 +1,24 @@
+---
+// src/components/explore/filters/FilterSelect.astro
+interface Props {
+  label: string;
+  id: string;
+  options: { value: string; label: string; }[];
+  selectedValue: string;
+}
+
+const { label, id, options, selectedValue } = Astro.props;
+---
+<div class="filter-group">
+  <label>{label}</label>
+  <select id={id} class="filter-select">
+    {options.map(opt => (
+      <option 
+        value={opt.value} 
+        selected={selectedValue === opt.value}
+      >
+        {opt.label}
+      </option>
+    ))}
+  </select>
+</div>
