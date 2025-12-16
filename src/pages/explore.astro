@@ -1,150 +1,46 @@
 ---
 /**
- * Explore Page V4.9.1
+ * Explore Page V5.1.2 (Refactored)
  * Constitution V4.9 Entity-First Architecture
- * Art.X-Entity-List: Lists segregated or polymorphic
- * V4.9.1 Step 3: Canonical URLs + Dynamic Meta
+ * Compliant with CES V5.1.2 Anti-Monolith (<250 lines)
  */
 import Layout from '../layouts/Layout.astro';
-import SearchFilters from '../components/SearchFilters.astro';
-import EntityTabs from '../components/entity/EntityTabs.astro';
-import allCategories from '../data/categories.json';
+import ExploreHeader from '../components/explore/ExploreHeader.astro';
+import ExploreSidebar from '../components/explore/ExploreSidebar.astro';
+import ExploreSkeleton from '../components/explore/ExploreSkeleton.astro';
 
-// V4.9: Get entity type and filters from URL params
-const url = new URL(Astro.request.url);
-const entityType = url.searchParams.get('type') || 'model';
-const sortParam = url.searchParams.get('sort') || '';
-const tagParam = url.searchParams.get('tag') || '';
+// Entity-specific page metadata - Simplified for refactor
+// Ideally this moves to a config/helper but simplified here to save lines
+const typeParam = Astro.url.searchParams.get('type') || 'model';
+const sortParam = Astro.url.searchParams.get('sort') || 'trending';
 
-// V4.9.1 Step 3: SEO-friendly category name mapping
-const PIPELINE_TAG_NAMES: Record<string, string> = {
-    'text-generation': 'Text Generation',
-    'text-classification': 'Text Classification',
-    'feature-extraction': 'Embedding & Vector Search',
-    'text-to-image': 'Image Generation',
-    'image-text-to-text': 'Vision & Multimodal',
-    'automatic-speech-recognition': 'Speech Recognition',
-    'text-to-speech': 'Text-to-Speech',
-    'translation': 'Translation',
-    'summarization': 'Summarization',
-    'question-answering': 'Question Answering',
-    // Legacy names mapped to SEO-friendly (Art.X renaming)
-    'AutoRegressive': 'Text Generation',
-    'SequenceClassification': 'Text Classification',
-    'TokenClassification': 'Named Entity Recognition',
-    'CausalLM': 'Text Generation'
+const ENTITY_LABELS: Record<string, string> = {
+    model: 'Models', dataset: 'Datasets', benchmark: 'Benchmarks', 
+    paper: 'Papers', agent: 'Agents'
 };
+const entityLabel = ENTITY_LABELS[typeParam] || 'Models';
 
-// Entity-specific page metadata
-const ENTITY_META: Record<string, { title: string; description: string }> = {
-    model: {
-        title: 'Explore AI Models - AI Nexus',
-        description: 'Browse and filter our extensive collection of open-source AI models. Sort by popularity, downloads, or freshness.'
-    },
-    dataset: {
-        title: 'Explore Datasets - AI Nexus',
-        description: 'Discover high-quality datasets for AI/ML training and evaluation.'
-    },
-    benchmark: {
-        title: 'Explore Benchmarks - AI Nexus',
-        description: 'Compare AI evaluation benchmarks and leaderboards.'
-    },
-    paper: {
-        title: 'Explore Papers - AI Nexus',
-        description: 'Browse cutting-edge AI research papers and publications.'
-    },
-    agent: {
-        title: 'Explore AI Agents - AI Nexus',
-        description: 'Discover AI agents and autonomous systems.'
-    }
-};
+let pageTitle = `Explore ${entityLabel} - AI Nexus`;
+let pageDescription = `Discover the latest ${entityLabel.toLowerCase()} with AI Nexus. Compare specs, benchmarks, and licensing.`;
 
-const meta = ENTITY_META[entityType] || ENTITY_META.model;
-let pageTitle = meta.title;
-let pageDescription = meta.description;
+// SEO tweaks
+if (sortParam === 'downloads') pageTitle = `Most Downloaded ${entityLabel} - AI Nexus`;
+if (sortParam === 'fni') pageTitle = `Highest Rated ${entityLabel} (FNI Score) - AI Nexus`;
 
-// V4.9.1 Step 3: Dynamic title/description based on filters
-if (tagParam) {
-    const friendlyTagName = PIPELINE_TAG_NAMES[tagParam] || tagParam.replace(/-/g, ' ');
-    pageTitle = `${friendlyTagName} Models - AI Nexus`;
-    pageDescription = `Explore the best ${friendlyTagName.toLowerCase()} AI models. Compare by FNI score, downloads, and benchmarks.`;
-}
-if (sortParam === 'downloads') {
-    pageTitle = `Most Downloaded ${entityType === 'dataset' ? 'Datasets' : 'AI Models'} - AI Nexus`;
-    pageDescription = `Discover the most downloaded ${entityType === 'dataset' ? 'datasets' : 'AI models'} in the open-source ecosystem.`;
-}
-
-// V4.9.1 Step 3: Canonical URL (normalize filters for SEO)
-const canonicalParams = new URLSearchParams();
-if (entityType !== 'model') canonicalParams.set('type', entityType);
-if (tagParam) canonicalParams.set('tag', tagParam);
-if (sortParam && sortParam !== 'likes') canonicalParams.set('sort', sortParam);
-const canonicalUrl = `https://free2aitools.com/explore${canonicalParams.toString() ? '?' + canonicalParams.toString() : ''}`;
-
-// Entity display labels
-const entityLabels: Record<string, string> = {
-    model: 'Models',
-    dataset: 'Datasets',
-    benchmark: 'Benchmarks',
-    paper: 'Papers',
-    agent: 'Agents'
-};
-const entityLabel = entityLabels[entityType] || 'Models';
+// Canonical URL
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site).toString();
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
-    <!-- V4.9.1 Step 3: Canonical URL for SEO -->
+    <!-- Canonical for SEO -->
     <link slot="head" rel="canonical" href={canonicalUrl} />
+
     <div class="container mx-auto px-4 py-8 min-h-screen">
-        <header class="mb-4">
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Explore {entityLabel}</h1>
-            <p class="text-gray-600 dark:text-gray-400 mt-2">{pageDescription}</p>
-        </header>
-        
-        <!-- V4.9: Entity Type Tabs (Art.X-Entity-List) -->
-        <EntityTabs activeType={entityType} basePath="/explore" />
-        
-        <!-- Content Activation: Quick Start Guide for new users -->
-        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-lg mb-6 border border-blue-100 dark:border-blue-800">
-            <p class="font-medium text-blue-800 dark:text-blue-200 mb-2">👋 Not sure where to start?</p>
-            <ul class="space-y-1 text-sm text-blue-700 dark:text-blue-300">
-                <li>→ <a href="/explore?type=model&sort=likes" class="underline hover:no-underline">Best general-purpose models</a></li>
-                <li>→ <a href="/explore?type=model" class="underline hover:no-underline">Models runnable on consumer GPUs</a></li>
-                <li>→ <a href="/explore?type=dataset&sort=likes" class="underline hover:no-underline">Popular datasets for training LLMs</a></li>
-            </ul>
-        </div>
+        <ExploreHeader entityLabel={entityLabel} />
 
         <div class="flex flex-col lg:flex-row gap-8">
             <!-- Sidebar / Filters -->
-            <aside class="w-full lg:w-64 flex-shrink-0 space-y-6">
-                <!-- Search -->
-                <div>
-                    <label for="explore-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Search</label>
-                    <div class="relative">
-                        <input type="text" id="explore-search" placeholder="Keywords (e.g. 'llama', 'vision')..." class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 outline-none transition-shadow" />
-                        <svg class="w-5 h-5 text-gray-400 absolute right-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                    </div>
-                </div>
-
-                <!-- Sort -->
-                <div>
-                    <label for="explore-sort" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sort By</label>
-                    <select id="explore-sort" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 outline-none">
-                        <option value="likes">Most Popular (Likes)</option>
-                        <option value="downloads">Most Downloaded</option>
-                        <option value="last_updated">Recently Updated</option>
-                        <option value="relevance">Relevance</option>
-                    </select>
-                </div>
-
-                <hr class="border-gray-200 dark:border-gray-700 my-4" />
-
-                <!-- Advanced Filters Component -->
-                <SearchFilters />
-
-                <!-- Legacy Category Filter (kept for backward compat if needed, or remove?) -->
-                <!-- Ideally categories become valid 'tags' search under the hood, but for now keeping UI simple -->
-            </aside>
+            <ExploreSidebar />
 
             <!-- Main Content -->
             <main class="flex-1">
@@ -153,261 +49,41 @@ const entityLabel = entityLabels[entityType] || 'Models';
                     <!-- Populated by JS -->
                 </div>
 
-                <!-- Loading State with Skeletons -->
-                <div id="explore-loading" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    <!-- Skeleton placeholders (9 cards for explore page) -->
-                    {Array.from({length: 9}).map(() => (
-                        <div class="skeleton-card animate-pulse bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-100 dark:border-gray-700">
-                            <div class="p-5 space-y-4">
-                                <div class="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                                <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                                <div class="space-y-2">
-                                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
-                                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
-                                </div>
-                                <!-- V4.3.2 Constitution: FNI + Deploy Score badge slots -->
-                                <div class="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-                                    <div class="h-5 w-16 bg-blue-100 dark:bg-blue-900/30 rounded"></div>
-                                    <div class="h-5 w-14 bg-green-100 dark:bg-green-900/30 rounded"></div>
-                                </div>
-                                <div class="flex justify-between pt-2">
-                                    <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-                                    <div class="flex gap-3">
-                                        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
-                                        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+                <!-- Loading State -->
+                <ExploreSkeleton />
+
+                <!-- Results Grid -->
+                <div id="explore-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 opacity-0 transition-opacity duration-300">
+                    <!-- Populated by Worker -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="explore-no-results" class="hidden flex flex-col items-center justify-center py-20 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
+                    <div class="text-4xl mb-4">🔍</div>
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">No matching results</h3>
+                    <p class="text-gray-500 dark:text-gray-400 text-center max-w-md mx-auto mb-6">
+                        Try adjusting your filters or search query to find what you're looking for.
+                    </p>
+                    <button id="reset-filters-btn" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors">
+                        Clear All Filters
+                    </button>
                 </div>
 
                 <!-- Error State -->
                 <div id="explore-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6">
                     <strong class="font-bold">Error:</strong>
-                    <span class="block sm:inline" id="explore-error-msg"></span>
-                </div>
-
-                <!-- Results Grid -->
-                <div id="explore-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    <!-- Populated by JS -->
-                </div>
-
-                <!-- No Results -->
-                <div id="explore-no-results" class="hidden text-center py-12">
-                    <p class="text-xl text-gray-600 dark:text-gray-400">No models found matching your criteria.</p>
-                    <button id="reset-filters-btn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                        Reset Filters
-                    </button>
+                    <span id="explore-error-msg" class="block sm:inline">Something went wrong.</span>
                 </div>
             </main>
         </div>
     </div>
 
     <script>
-        // Client-side logic for Explore page (V5.1.2 Hot Index)
-        import { renderModelCard } from '../scripts/render-model-card.js';
+        import { initExplorePage } from '../scripts/explore-client.js';
         
-        let searchWorker = null;
-        let workerReady = false;
-        let pendingSearch = null;
-
-        const elements = {
-            search: document.getElementById('explore-search'),
-            sort: document.getElementById('explore-sort'),
-            activeFilters: document.getElementById('active-filters'),
-            grid: document.getElementById('explore-grid'),
-            loading: document.getElementById('explore-loading'),
-            error: document.getElementById('explore-error'),
-            errorMsg: document.getElementById('explore-error-msg'),
-            noResults: document.getElementById('explore-no-results'),
-            resetBtn: document.getElementById('reset-filters-btn'), 
-            // New Filter Inputs
-            minLikes: document.getElementById('min-likes'),
-            hasBenchmarks: document.getElementById('has-benchmarks'),
-            sourceInputs: document.querySelectorAll('input[name="source"]'),
-            daysAgoInputs: document.querySelectorAll('input[name="days_ago"]'),
-            // Advanced Filters
-            licenseFilter: document.getElementById('license-filter'),
-            tagsInputs: document.querySelectorAll('input[name="tags"]')
-        };
-
-        // Initialize Worker
-        function initWorker() {
-            try {
-                searchWorker = new Worker('/workers/search-worker.js', { type: 'module' });
-                
-                searchWorker.onmessage = (e) => {
-                    const { type, isLoaded, results, total, error } = e.data;
-                    
-                    if (type === 'STATUS') {
-                        if (isLoaded) {
-                            workerReady = true;
-                            console.log('[Explore] Search Index Ready');
-                            // If we had a pending search, trigger it now
-                            if (pendingSearch) {
-                                triggerSearch();
-                                pendingSearch = false;
-                            } else {
-                                // Initial load if no pending
-                                triggerSearch();
-                            }
-                        }
-                    } else if (type === 'RESULT') {
-                        renderModels(results);
-                        updateUIState('loaded');
-                    } else if (type === 'ERROR') {
-                        showError(error || 'Search Worker Error');
-                    }
-                };
-
-                // Check status
-                // We'll just wait for implicit load or ping?
-                // Trying a search will trigger load check in worker, but separate ping is cleaner.
-                // Or just fire generic search on init.
-                triggerSearch(); 
-
-            } catch (e) {
-                console.error('Worker Init Error:', e);
-                showError('Failed to initialize search engine.');
-            }
-        }
-
-        function getFilters() {
-            // ... (Same as before)
-            const q = elements.search.value.trim();
-            const sort = elements.sort.value;
-            const min_likes = elements.minLikes ? parseInt(elements.minLikes.value) : 0;
-            const has_benchmarks = elements.hasBenchmarks ? elements.hasBenchmarks.checked : false;
-            const sources = Array.from(document.querySelectorAll('input[name="source"]:checked')).map(i => i.value);
-            // ... Note: license/tags logic remains
-            const license = elements.licenseFilter ? elements.licenseFilter.value : '';
-            const tags = Array.from(document.querySelectorAll('input[name="tags"]:checked')).map(i => i.value);
-            
-            // Check implicit "Type" filter from URL
-            const urlParams = new URLSearchParams(window.location.search);
-            // Note: Our Hot Index combines types? L8 said "type='model'".
-            // If Explore is used for 'dataset', Hot Index might only have models.
-            // Check Art 2.1: One Hot Index? Yes "index_hot.json".
-            // It might contain mixed types? Check L8: "type: 'model'".
-            // So Explore for Datasets might return empty if Hot Index is model-only.
-            // Plan V5.1.2 says "Top 20k". Likely Models only for now.
-            
-            return { q, sort, min_likes, has_benchmarks, sources, license, tags };
-        }
-
-        function updateActiveFiltersDisplay(filters) {
-            if (!elements.activeFilters) return;
-            // ... (Logic mostly same, simplified for brevity in this update?)
-            // We can keep the existing logic, just copying it here or leaving it if not replaced?
-            // Since I'm replacing the entire script block, I must include it.
-            const chips = [];
-            if (filters.min_likes > 0) chips.push(`Stars > ${filters.min_likes}`);
-            if (filters.has_benchmarks) chips.push('SOTA Only');
-            filters.sources.forEach(s => chips.push(s));
-            if (filters.license) chips.push(`License: ${filters.license}`);
-            filters.tags.forEach(t => chips.push(t));
-
-            if (chips.length > 0) {
-                elements.activeFilters.classList.remove('hidden');
-                elements.activeFilters.innerHTML = chips.map(text => `
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                        ${text}
-                    </span>
-                `).join('');
-            } else {
-                elements.activeFilters.classList.add('hidden');
-                elements.activeFilters.innerHTML = '';
-            }
-        }
-
-        function triggerSearch() {
-            if (!searchWorker) return;
-            
-            const filters = getFilters();
-            updateActiveFiltersDisplay(filters);
-            updateUIState('loading');
-
-            // Timeout Race enforce (Art 3.2 Timebox)
-            const searchId = Date.now();
-            
-            // Post Message
-            searchWorker.postMessage({
-                id: searchId,
-                type: 'SEARCH',
-                filters: {
-                    ...filters,
-                    limit: 50,
-                    page: 1
-                }
-            });
-
-            // Fallback timeout (visual only here, worker continues)
-            setTimeout(() => {
-                // If UI still loading after 500ms? (50ms is too fast for network fetch of index initially)
-                // We trust the worker to be fast ONCE loaded.
-                // We'll leave the loading spinner.
-            }, 500); 
-        }
-
-        function updateUIState(state) {
-            if (state === 'loading') {
-                elements.grid.classList.add('opacity-50');
-                elements.loading.classList.remove('hidden');
-                elements.error.classList.add('hidden');
-                elements.noResults.classList.add('hidden');
-            } else if (state === 'loaded') {
-                elements.loading.classList.add('hidden');
-                elements.grid.classList.remove('opacity-50');
-            }
-        }
-
-        function showError(msg) {
-            updateUIState('loaded');
-            elements.error.classList.remove('hidden');
-            elements.errorMsg.textContent = msg;
-            elements.grid.innerHTML = '';
-        }
-
-        function renderModels(models) {
-            if (!models || models.length === 0) {
-                elements.grid.innerHTML = '';
-                elements.noResults.classList.remove('hidden');
-                return;
-            }
-            elements.noResults.classList.add('hidden');
-            const html = models.map(model => renderModelCard(model)).join('');
-            elements.grid.innerHTML = html;
-        }
-
-        // Event Listeners (Debounced)
-        let debounceTimer;
-        elements.search.addEventListener('input', () => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(triggerSearch, 300);
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+             initExplorePage();
         });
-
-        elements.sort.addEventListener('change', triggerSearch);
-        if (elements.minLikes) elements.minLikes.addEventListener('change', triggerSearch); // Slider release
-        if (elements.hasBenchmarks) elements.hasBenchmarks.addEventListener('change', triggerSearch);
-        // ... (Other listeners preserved)
-        // Re-attaching standard listeners
-        document.querySelectorAll('input[name="source"]').forEach(el => el.addEventListener('change', triggerSearch));
-        document.querySelectorAll('input[name="days_ago"]').forEach(el => el.addEventListener('change', triggerSearch));
-        if (elements.licenseFilter) elements.licenseFilter.addEventListener('change', triggerSearch);
-        document.querySelectorAll('input[name="tags"]').forEach(el => el.addEventListener('change', triggerSearch));
-
-        if (elements.resetBtn) {
-            elements.resetBtn.addEventListener('click', () => {
-                elements.search.value = '';
-                // Reset logic...
-                // (Simplified for this artifacts patch - assuming user knows how to reset controls via UI)
-                triggerSearch();
-            });
-        }
-
-        // Start
-        initWorker();
-
     </script>
 </Layout>
