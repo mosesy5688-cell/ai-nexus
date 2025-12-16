@@ -40,6 +40,8 @@ docs/CONSTITUTION*.md
 *AUDIT*.md
 *PROMPT*.md
 docs/SYSTEM_PROMPT*.md
+*HANDOVER*.md
+docs/*HANDOVER*.md
 
 # Internal runbooks (evaluate before commit)
 docs/runbooks/
