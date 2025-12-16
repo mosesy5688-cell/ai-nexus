@@ -27,6 +27,17 @@ database_id = "adac7bc9-46a9-40b4-b609-28479221a17d"
 binding = "R2_ASSETS"
 bucket_name = "ai-nexus-assets"
 
+# Queue Binding (Producer)
+[[queues.producers]]
+queue = "ai-nexus-hydration-queue"
+binding = "HYDRATION_QUEUE"
+
+# Queue Binding (Consumer)
+[[queues.consumers]]
+queue = "ai-nexus-hydration-queue"
+max_batch_size = 100
+max_batch_timeout = 5
+
 # Observability: Enable Workers Logs for debugging
 [observability]
 enabled = true

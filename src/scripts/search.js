@@ -10,63 +10,13 @@ let noResults;
 let staticContentContainer;
 let searchBox;
 
-function formatNumber(num) {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num != null ? num.toLocaleString() : 0;
-}
+// V5.1.2: Client-Side Search Worker
+const searchWorker = new Worker('/workers/search-worker.js', { type: 'module' });
+import { createModelCardHTML, formatNumber } from './ui-utils.js';
 
-function createModelCardHTML(model) {
-    if (!model.id) {
-        console.warn('Model missing id:', model);
-        return ''; // Skip models without ID
-    }
-    // V4.5: Use model.slug for UMID-compatible links (same as render-model-card.js)
-    const slug = model.slug || model.id;
-    const modelUrl = `/model/${encodeURIComponent(slug)}`;
-    // Handle description: could be null or contain HTML
-    const rawDesc = model.description || 'No description available.';
-    const cleanDesc = rawDesc.replace(/<[^>]*>?/gm, '');
-    const description = cleanDesc.substring(0, 120);
 
-    // Rising Star logic (optional, if API returns it)
-    const isRisingStarHTML = model.is_rising_star ? `<div class="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full animate-pulse" title="Rising Star">🔥</div>` : '';
 
-    // Tags HTML (optional)
-    let tagsHtml = '';
-    if (model.tags) {
-        try {
-            const tags = typeof model.tags === 'string' ? JSON.parse(model.tags) : model.tags;
-            if (Array.isArray(tags)) {
-                tagsHtml = tags.slice(0, 2).map(t => `<span class="text-[10px] bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300">${t}</span>`).join('');
-            }
-        } catch (e) { }
-    }
 
-    return `
-        <a href="${modelUrl}" class="group relative block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full flex flex-col border border-gray-100 dark:border-gray-700">
-            ${isRisingStarHTML}
-            <div class="p-5 flex flex-col h-full justify-between">
-                <div>
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" title="${model.name}">
-                        ${model.name}
-                    </h3>
-                    <p class="text-gray-500 dark:text-gray-400 text-xs mb-3 flex items-center gap-2">
-                        <span>by ${model.author}</span>
-                        ${tagsHtml ? `<span class="flex gap-1">${tagsHtml}</span>` : ''}
-                    </p>
-                    <p class="text-gray-600 dark:text-gray-300 text-sm h-20 overflow-hidden text-ellipsis leading-relaxed">
-                        ${description}...
-                    </p>
-                </div>
-                <div class="mt-4 flex items-center justify-end gap-4 text-xs text-gray-500 dark:text-gray-400">
-                    <div class="flex items-center gap-1" title="${(model.likes || 0).toLocaleString()} likes">❤️ <span>${formatNumber(model.likes)}</span></div>
-                    <div class="flex items-center gap-1" title="${(model.downloads || 0).toLocaleString()} downloads">📥 <span>${formatNumber(model.downloads)}</span></div>
-                </div>
-            </div>
-        </a>
-    `;
-}
 
 function renderModels(models) {
     if (!modelsGrid) return;
@@ -105,7 +55,7 @@ function updateURL() {
 }
 
 async function performSearch() {
-    if (isLoading) return;
+    if (isLoading && !searchWorker) return;
 
     // On homepage, if empty query/tag, show static content
     if (!isExplorePage && !currentQuery && !currentTag) {
@@ -121,23 +71,45 @@ async function performSearch() {
     isLoading = true;
     if (staticContentContainer) staticContentContainer.classList.add('hidden');
 
-    // Show loading state (optional: add a spinner here)
-    if (modelsGrid) modelsGrid.classList.remove('hidden'); // Keep visible to show skeleton or old results? Better to clear or show spinner.
+    // Show loading state
+    if (modelsGrid) modelsGrid.classList.remove('hidden');
+    // Optional: show skeleton here if needed
+
+    // V5.1.2: Offload to Worker with 50ms Timebox (CES Art 3.2)
+    const requestId = Date.now().toString();
+
+    const searchPromise = new Promise((resolve, reject) => {
+        const handler = (e) => {
+            if (e.data.id === requestId) {
+                searchWorker.removeEventListener('message', handler);
+                if (e.data.type === 'RESULT') resolve(e.data.results);
+                else reject(e.data.error);
+            }
+        };
+        searchWorker.addEventListener('message', handler);
+        searchWorker.postMessage({
+            id: requestId,
+            type: 'SEARCH',
+            q: currentQuery,
+            filters: { tags: currentTag ? [currentTag] : [] }
+        });
+    });
+
+    const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject('TIMEOUT'), 50)
+    );
 
     try {
-        const params = new URLSearchParams();
-        if (currentQuery) params.set('q', currentQuery);
-        if (currentTag) params.set('tag', currentTag);
-        params.set('limit', '50'); // Fetch more results
-
-        const response = await fetch(`/api/search?${params.toString()}`);
-        if (!response.ok) throw new Error('API Error');
-
-        const data = await response.json();
-        renderModels(data.results || []);
-    } catch (error) {
-        console.error('Search failed:', error);
-        if (modelsGrid) modelsGrid.innerHTML = `<p class="col-span-full text-center text-red-500">Error loading results. Please try again.</p>`;
+        const results = await Promise.race([searchPromise, timeoutPromise]);
+        renderModels(results || []);
+    } catch (e) {
+        if (e === 'TIMEOUT') {
+            console.warn('[Search] Timebox exceeded (50ms). Showing partial/fallback.');
+            // Fallback: Don't render, keep cached/static, or show user "System busy"
+            // For now: Log and do nothing (keep current state) or show empty
+        } else {
+            console.error('Search Error:', e);
+        }
     } finally {
         isLoading = false;
     }
@@ -148,6 +120,18 @@ async function initializeSearch({ initialQuery, activeTag, isExplorePage: onExpl
     noResults = document.getElementById('no-results');
     staticContentContainer = document.getElementById('static-content-container');
     searchBox = document.getElementById('search-box');
+
+    // V5.1.2: Bind Worker Event Listener
+    searchWorker.onmessage = (e) => {
+        const { type, results } = e.data;
+        if (type === 'RESULT') {
+            renderModels(results || []);
+            isLoading = false;
+        } else if (type === 'ERROR') {
+            console.error('Worker Search Error:', e.data.error);
+            isLoading = false;
+        }
+    };
 
     currentQuery = initialQuery || '';
     currentTag = activeTag || '';

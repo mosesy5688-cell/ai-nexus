@@ -12,7 +12,9 @@
     "fetch-data:v3": "node scripts/fetch-data-v3.js",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "ces-check": "node scripts/ces-check.cjs",
+    "ces": "npm run ces-check"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.5",
