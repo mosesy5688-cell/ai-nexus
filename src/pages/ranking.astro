@@ -60,13 +60,16 @@ let benchmarksData = { data: [], generated_at: null };
 
 try {
     // Load trending models from cache
-    const trendingResponse = await fetch(new URL('/cache/trending_weekly.json', Astro.url.origin));
+    // V5.2.1: Use API proxy and trending.json (not trending_weekly)
+    const trendingResponse = await fetch(new URL('/api/cache/trending.json', Astro.url.origin));
     if (trendingResponse.ok) {
-        trendingData = await trendingResponse.json();
+        const rawData = await trendingResponse.json();
+        trendingData = { data: rawData.models || rawData || [], generated_at: rawData.generated_at };
     }
     
     // Load benchmark data for rising stars
-    const benchResponse = await fetch(new URL('/cache/benchmarks.json', Astro.url.origin));
+    // V5.2.1: Use API proxy
+    const benchResponse = await fetch(new URL('/api/cache/benchmarks.json', Astro.url.origin));
     if (benchResponse.ok) {
         benchmarksData = await benchResponse.json();
     }

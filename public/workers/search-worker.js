@@ -5,8 +5,8 @@ let items = [];
 let isLoaded = false;
 let loadError = null;
 
-// Configuration
-const HOT_INDEX_URL = '/cache/index/index_hot.json';
+// Configuration - V5.2.1: Use R2 API proxy
+const HOT_INDEX_URL = '/api/cache/trending.json';
 
 // Initialize Index
 async function loadIndex() {
@@ -14,7 +14,8 @@ async function loadIndex() {
         const response = await fetch(HOT_INDEX_URL);
         if (!response.ok) throw new Error(`Failed to load index: ${response.status}`);
 
-        items = await response.json();
+        const data = await response.json();
+        items = data.models || data || [];
 
         // Initialize Fuse
         fuse = new Fuse(items, {
