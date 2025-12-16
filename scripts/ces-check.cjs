@@ -68,7 +68,7 @@ allCodeFiles.forEach(file => {
 
         'src/pages/ranking/[category].astro',
 
-        'src/utils/model-detail-builder.js',
+
         'src/utils/semantic-matcher.js',
         'src/utils/umid-resolver.js'
     ];
