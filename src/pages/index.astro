@@ -1,12 +1,18 @@
 ---
 // src/pages/index.astro
-// Constitution V4.9 Entity-First Architecture - Homepage
+// Constitution V5.1.2 Entity-First Architecture - Homepage (Refactored)
 
 // Core imports
 import Layout from '../layouts/Layout.astro';
 import CategoryGroup from '../components/CategoryGroup.astro';
 import EntityTabs from '../components/entity/EntityTabs.astro';
 import allCategories from '../data/categories.json';
+
+// Components
+import HomeHero from '../components/home/HomeHero.astro';
+import HomeSearch from '../components/home/HomeSearch.astro';
+import HomeWebsiteBanner from '../components/home/HomeWeeklyBanner.astro';
+import HomeSkeleton from '../components/home/HomeSkeleton.astro';
 
 // V4.3.2 Constitution Core Requirements
 import { buildIndexSEO } from '../utils/seo-schema.js';
@@ -32,65 +38,16 @@ const seoSchema = buildIndexSEO();
         data-initial-query={initialQuery} 
         data-initial-tag={initialTag}
     >
-        <!-- Main Page Header -->
-        <header class="text-center mb-8">
-            <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">
-                Explore the Open-Source AI Universe
-            </h1>
-            <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-4xl mx-auto">
-                The fastest way to search, filter, and compare the entire open AI ecosystem.
-            </p>
-        </header>
+        <HomeHero />
         
         <!-- V4.9: Entity Type Navigation (Art.X-Entity-List) -->
         <div class="flex justify-center mb-8">
             <EntityTabs activeType="model" basePath="/explore" />
         </div>
 
-        <!-- V4.9.1 Step 2.3: Weekly Report Banner (CEO Iron Law) -->
-        <section id="weekly-report-banner" class="mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl hidden">
-            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-                <div class="flex items-center gap-4">
-                    <div class="text-4xl">📊</div>
-                    <div>
-                        <h3 class="text-lg font-bold" id="report-title">This Week in AI</h3>
-                        <p class="text-sm text-indigo-200" id="report-summary">Loading weekly trends...</p>
-                    </div>
-                </div>
-                <div class="flex gap-3">
-                    <a id="report-top-model-link" href="/explore" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                        🏆 Top Model: <span id="report-top-model">--</span>
-                    </a>
-                    <a href="/reports" class="bg-white text-indigo-600 hover:bg-indigo-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                        View Full Report →
-                    </a>
-                </div>
-            </div>
-        </section>
+        <HomeWebsiteBanner />
 
-        <!-- Search Bar (Sticky) -->
-        <div class="mb-8 flex flex-col md:flex-row gap-4 items-center sticky top-[65px] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-4 z-30 max-w-4xl mx-auto w-full">
-            <div id="search-container" class="w-full">
-                <form id="search-form" class="w-full" onsubmit="return false;">
-                    <div class="relative">
-                        <input
-                            type="search"
-                            id="search-box"
-                            name="q"
-                            placeholder="Search any model… e.g., llama, embedding, image generation"
-                            class="w-full p-4 pl-12 text-lg border border-gray-300 dark:border-gray-600 rounded-full bg-white dark:bg-gray-800 focus:ring-blue-500 focus:border-blue-500 shadow-lg"
-                            aria-label="Search AI Models"
-                            value={initialQuery}
-                        />
-                        <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                            <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
+        <HomeSearch initialQuery={initialQuery} />
 
         <!-- Static Content Container -->
         <div id="static-content-container" class="hidden">
@@ -99,39 +56,8 @@ const seoSchema = buildIndexSEO();
             <section class="mb-16">
                 <h2 class="text-3xl font-bold text-center mb-8">🔥 Hot Models</h2>
                 
-                <!-- Loading State with Skeletons (Constitution: FNI badge slots required) -->
-                <div id="hot-models-loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {Array.from({length: 12}).map(() => (
-                        <div class="skeleton-card animate-pulse bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-100 dark:border-gray-700">
-                            <div class="aspect-video w-full bg-gray-200 dark:bg-gray-700"></div>
-                            <div class="p-5 space-y-4">
-                                <!-- Title -->
-                                <div class="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                                <!-- Author -->
-                                <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                                <!-- Description lines -->
-                                <div class="space-y-2">
-                                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
-                                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
-                                </div>
-                                <!-- Constitution: FNI + Deploy Score badge slots -->
-                                <div class="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-                                    <div class="h-5 w-16 bg-blue-100 dark:bg-blue-900/30 rounded"></div>
-                                    <div class="h-5 w-14 bg-green-100 dark:bg-green-900/30 rounded"></div>
-                                    <div class="h-5 w-12 bg-gray-100 dark:bg-gray-700 rounded"></div>
-                                </div>
-                                <!-- Stats row -->
-                                <div class="flex justify-between pt-2">
-                                    <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-                                    <div class="flex gap-3">
-                                        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
-                                        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                <!-- Loading State with Skeletons -->
+                <HomeSkeleton count={12} />
                 
                 <!-- Error State -->
                 <div id="hot-models-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
@@ -169,43 +95,7 @@ const seoSchema = buildIndexSEO();
 
     <script>
         import { initializeSearch } from '../scripts/search.js';
-        import { renderModelCard } from '../scripts/render-model-card.js';
-        
-        // Function to fetch and render hot models (Constitution: FNI-sorted)
-        async function loadHotModels() {
-            const loadingEl = document.getElementById('hot-models-loading');
-            const gridEl = document.getElementById('hot-models-grid');
-            const errorEl = document.getElementById('hot-models-error');
-            const errorMsgEl = document.getElementById('hot-models-error-msg');
-
-            try {
-                // Constitution V4.3.2: Use trending API for FNI-sorted results
-                // V5.1.2: Use static R2 cache (generated by L8 Worker)
-                const response = await fetch('/cache/index/trending.json');
-                if (!response.ok) throw new Error(`Status: ${response.status}`);
-                
-                const data = await response.json();
-                const models = (data || []).slice(0, 12);
-
-                if (models.length === 0) {
-                    loadingEl.innerHTML = '<p class="col-span-full text-center text-gray-500">No hot models found.</p>';
-                    return;
-                }
-
-                // Render with UMID-compatible slugs
-                const html = models.map(model => renderModelCard(model)).join('');
-
-                gridEl.innerHTML = html;
-                loadingEl.classList.add('hidden');
-                gridEl.classList.remove('hidden');
-
-            } catch (e) {
-                console.error("Failed to load hot models:", e);
-                loadingEl.classList.add('hidden');
-                errorEl.classList.remove('hidden');
-                errorMsgEl.textContent = e.message || "Failed to fetch data";
-            }
-        }
+        import { loadHotModels, loadWeeklyReport } from '../scripts/home-client.js';
 
         document.addEventListener('DOMContentLoaded', () => {
             // Parse URL parameters from the client side
@@ -227,57 +117,6 @@ const seoSchema = buildIndexSEO();
             // V4.9.1 Step 2.3: Load Weekly Report Banner
             loadWeeklyReport();
         });
-
-        // V4.9.1: Weekly Report Banner Loader
-        async function loadWeeklyReport() {
-            const banner = document.getElementById('weekly-report-banner');
-            const titleEl = document.getElementById('report-title');
-            const summaryEl = document.getElementById('report-summary');
-            const topModelEl = document.getElementById('report-top-model');
-            const topModelLink = document.getElementById('report-top-model-link');
-
-            try {
-                // Get current week number
-                const now = new Date();
-                const startOfYear = new Date(now.getFullYear(), 0, 1);
-                const weekNum = Math.ceil((((now.getTime() - startOfYear.getTime()) / 86400000) + startOfYear.getDay() + 1) / 7);
-                const reportKey = `${now.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
-
-                // Fetch latest report
-                const response = await fetch(`/reports/${reportKey}.json`);
-                if (!response.ok) {
-                    // Try previous week if current doesn't exist
-                    const prevWeek = weekNum - 1;
-                    const prevReportKey = `${now.getFullYear()}-W${String(prevWeek).padStart(2, '0')}`;
-                    const prevResponse = await fetch(`/reports/${prevReportKey}.json`);
-                    if (!prevResponse.ok) throw new Error('No report available');
-                    var data = await prevResponse.json();
-                } else {
-                    var data = await response.json();
-                }
-
-                // Populate banner
-                titleEl.textContent = `Week ${data.week || weekNum} AI Trends`;
-                
-                if (data.this_week_changed?.fni_leader) {
-                    const leader = data.this_week_changed.fni_leader;
-                    summaryEl.textContent = `${data.this_week_changed.new_models_count || 0} new models this week!`;
-                    topModelEl.textContent = leader.name;
-                    topModelLink.href = `/model/${leader.slug}`;
-                } else if (data.who_to_watch?.[0]) {
-                    const top = data.who_to_watch[0];
-                    summaryEl.textContent = data.why_it_matters?.summary?.slice(0, 100) + '...' || 'Check out this week\'s top models';
-                    topModelEl.textContent = top.name;
-                    topModelLink.href = `/model/${top.slug}`;
-                }
-
-                // Show banner
-                banner.classList.remove('hidden');
-            } catch (e) {
-                console.log('[WeeklyReport] No report available:', e.message);
-                // Banner stays hidden if no report
-            }
-        }
     </script>
 
 </Layout>

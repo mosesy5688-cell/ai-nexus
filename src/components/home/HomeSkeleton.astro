@@ -1,0 +1,40 @@
+---
+// src/components/home/HomeSkeleton.astro
+interface Props {
+  count?: number;
+}
+
+const { count = 12 } = Astro.props;
+---
+<div id="hot-models-loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    {Array.from({length: count}).map(() => (
+        <div class="skeleton-card animate-pulse bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden border border-gray-100 dark:border-gray-700">
+            <div class="aspect-video w-full bg-gray-200 dark:bg-gray-700"></div>
+            <div class="p-5 space-y-4">
+                <!-- Title -->
+                <div class="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                <!-- Author -->
+                <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                <!-- Description lines -->
+                <div class="space-y-2">
+                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full"></div>
+                    <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+                </div>
+                <!-- Constitution: FNI + Deploy Score badge slots -->
+                <div class="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <div class="h-5 w-16 bg-blue-100 dark:bg-blue-900/30 rounded"></div>
+                    <div class="h-5 w-14 bg-green-100 dark:bg-green-900/30 rounded"></div>
+                    <div class="h-5 w-12 bg-gray-100 dark:bg-gray-700 rounded"></div>
+                </div>
+                <!-- Stats row -->
+                <div class="flex justify-between pt-2">
+                    <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                    <div class="flex gap-3">
+                        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
+                        <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    ))}
+</div>
