@@ -14,6 +14,11 @@ on:
     - cron: '0 */4 * * *'  # Every 4 hours
   workflow_dispatch:  # Manual trigger
 
+# V5.2.1 Constitution Art 3.2: Execution Safety
+concurrency:
+  group: health-monitor-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   HEALTH_ENDPOINT: https://free2aitools.com/api/health
   ALERT_THRESHOLD_P95_MS: 5
@@ -22,6 +27,7 @@ env:
 jobs:
   health-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Fetch Health Status
         id: health

@@ -9,10 +9,16 @@ on:
     - cron: '0 9 * * 1'  # Every Monday at 09:00 UTC (17:00 Beijing Time)
   workflow_dispatch:
 
+# V5.2.1 Constitution Art 3.2: Execution Safety
+concurrency:
+  group: loop4-promoter-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   generate-report:
     name: Generate Weekly Report
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     permissions:
       contents: write
       actions: write

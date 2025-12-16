@@ -7,10 +7,16 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# V5.2.1 Constitution Art 3.2: Execution Safety
+concurrency:
+  group: infra-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-and-build:
     name: Lint & Build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     steps:
       - name: Checkout Code

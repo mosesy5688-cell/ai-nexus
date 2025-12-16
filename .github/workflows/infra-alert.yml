@@ -6,11 +6,16 @@ on:
     types: [completed]
   workflow_dispatch:
 
+# V5.2.1 Constitution Art 3.2: Execution Safety
+concurrency:
+  group: infra-alert-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check-and-notify:
     name: Check Status & Send Alerts
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
     
     steps:

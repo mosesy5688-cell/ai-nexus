@@ -5,6 +5,11 @@ on:
     - cron: '0 */6 * * *'  # Every 6 hours
   workflow_dispatch:  # Manual trigger
 
+# V5.2.1 Constitution Art 3.2: Execution Safety
+concurrency:
+  group: l4-promoter-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   generate-summaries:
     runs-on: ubuntu-latest
