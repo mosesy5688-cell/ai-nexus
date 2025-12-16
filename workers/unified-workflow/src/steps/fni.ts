@@ -19,12 +19,17 @@ export async function runFNIStep(env: Env): Promise<{ modelsCalculated: number; 
         console.log('[FNI] Snapshot complete');
     }
 
+    // V5.2.1: Only calculate FNI for actual models, not datasets/papers/repos
+    // Models use huggingface-- or ollama prefix; others (arxiv--, hf-dataset--, github--) are excluded
+    const modelFilter = `(id LIKE 'huggingface%' OR id LIKE 'ollama%')`;
+
     const query = isFullRecalc
         ? `SELECT id, downloads, likes, license_spdx, body_content_url, 
-           source_trail, has_ollama, has_gguf FROM models`
+           source_trail, has_ollama, has_gguf FROM models
+           WHERE ${modelFilter}`
         : `SELECT id, downloads, likes, license_spdx, body_content_url, 
            source_trail, has_ollama, has_gguf FROM models 
-           WHERE last_updated > datetime('now', '-1 day')`;
+           WHERE ${modelFilter} AND last_updated > datetime('now', '-1 day')`;
 
     const models = await env.DB.prepare(query).all();
 
