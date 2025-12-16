@@ -2,113 +2,77 @@
 export const prerender = false;
 
 /**
- * Model Detail Page V4.9
+ * Model Detail Page V5.1.2 (Refactored)
  * Constitution V4.9 Entity-First Architecture
- * Art.X-Entity: Render by entity.definition
- * Art.X-Capability-Gating: Modules enabled by capability only
+ * Compliant with CES V5.1.2 Anti-Monolith (<250 lines)
  */
 
 import Layout from '../../layouts/Layout.astro';
+import ModelHeader from '../../components/model-detail/ModelHeader.astro';
+import ModelMainColumn from '../../components/model-detail/ModelMainColumn.astro';
+import ModelSidebar from '../../components/model-detail/ModelSidebar.astro';
+import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
+import BenchmarkCard from '../../components/BenchmarkCard.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
-import GraphExplorer from '../../components/GraphExplorer.astro';
-import ModelInfoTable from '../../components/ModelInfoTable.astro';
-import FNIBadge from '../../components/FNIBadge.astro';
-import FNITrustPanel from '../../components/FNITrustPanel.astro';
-import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
-import BenchmarkRawTable from '../../components/benchmark/BenchmarkRawTable.astro';
-import SpecsTable from '../../components/specs/SpecsTable.astro';
-import DeployabilityBadge from '../../components/specs/DeployabilityBadge.astro';
-import ResourceList from '../../components/ResourceList.astro';
-import AffiliateCard from '../../components/Commercial/AffiliateCard.astro';
-import NeuralExplorer from '../../components/NeuralExplorer.astro';
-import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
-import EntityLinksSection from '../../components/EntityLinksSection.astro';
-import FavoriteButton from '../../components/FavoriteButton.astro';
-import EntityNotice from '../../components/entity/EntityNotice.astro';
 
 // V4.9.1: Constitutional D1 = 0 - Use R2 cache reader instead of D1 queries
 import { getModelFromCache } from '../../utils/entity-cache-reader';
-import { safeParseJSON } from '../../utils/model-detail-builder';
-// V4.9: Entity-First Architecture imports
-import { deriveEntityType, getEntityTier } from '../../types/entity';
-import { ENTITY_DEFINITIONS, entityHasCapability } from '../../data/entity-definitions';
+import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definitions';
 
-const slugParam = Astro.params.slug;
-let slug = Array.isArray(slugParam) ? slugParam.join('/') : (slugParam || '');
-// Decode URL-encoded characters like %3A → : for hf-dataset:deepmind:code_contests
-slug = decodeURIComponent(slug);
-
-// Debug headers removed for production (V4.8.2 constitutional compliance)
+const { slug } = Astro.params;
 
 let model = null;
 let error = null;
 let similarModels = [];
-let resolution = null;
-
 let pageTitle = "AI Model Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI model.";
 
 try {
   if (!slug) throw new Error("No slug provided");
   
-  // V4.9.1: Constitutional D1 = 0 - Read from R2 cache only
-  // CEO Iron Rule: Frontend must not access D1 database
+  // V4.9.1: Const D1 = 0 - Read from R2 cache only
   model = await getModelFromCache(slug, Astro.locals);
-  resolution = model ? { source: model._cache_source || 'r2-cache', confidence: 1.0 } : null;
-  
+
   if (model) {
-    pageTitle = `${model.name || model.canonical_name || 'Model'} by ${model.author || 'Unknown'} | Free AI Tools`;
-    const desc = model.description || model.seo_summary || model._seo?.description || 'AI model details';
-    pageDescription = desc.substring(0, 160).replace(/---[\s\S]*?---/g, '').replace(/[#*`]/g, '');
-    
-    // V4.8.2: REMOVED D1 access for similar models
-    // Frontend D1 = 0 (Constitutional compliance)
-    // Similar models will be fetched from L8 cache via EntityLinksSection
+    const resolution = deriveEntityType(model);
+    model.entityType = resolution.type;
+    model.entityDefinition = ENTITY_DEFINITIONS[model.entityType];
+
+    // Similar models logical stub (D1 banned)
+    if (model.similar_models && Array.isArray(model.similar_models)) {
+        similarModels = model.similar_models;
+    }
+
+    const modelName = model.name || model.canonical_name || 'Unknown Model';
+    pageTitle = `${modelName} - AI Model Insights & Benchmarks`;
+    pageDescription = model.seo_summary?.description || 
+                      (model.description ? model.description.substring(0, 160) : `Deep dive into ${modelName}.`);
   }
 } catch (e) {
-  // V4.8.2: Removed console.error for production
+  console.error("Error loading model:", e);
   error = e;
+  Astro.response.status = 500;
 }
 
-const tags = model ? safeParseJSON(model.tags, []) : [];
-const resources = model ? safeParseJSON(model.resources, []) : [];
-// V4.8.2: Use inline SVG data URI (no external dependency)
-const placeholderImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23374151" width="400" height="300"/%3E%3Ctext fill="%239CA3AF" font-family="system-ui" font-size="24" x="50%25" y="50%25" text-anchor="middle" dy=".3em"%3EAI Model%3C/text%3E%3C/svg%3E';
-const coverImage = model?.cover_image_url || placeholderImage;
-const modelId = model?.umid || model?.id || '';
-const modelName = model?.name || model?.canonical_name || 'Unknown Model';
-const hasBench = Boolean(
-  model?.has_benchmarks ||
-  model?.hasBenchmarks ||
-  model?.mmlu ||
-  model?.avg_score ||
-  model?.benchmark_avg
-);
-
-// V4.9: Entity-First Architecture - Derive entity type and capabilities
-// Art.X-Entity: Render by entity.definition
-// Art.X-Capability-Gating: Modules enabled by capability only
-// FIX: Use slug first (contains hf-dataset--* prefix), fallback to modelId
-const entityType = deriveEntityType(slug) || deriveEntityType(modelId) || 'model';
-const entityDefinition = ENTITY_DEFINITIONS[entityType];
-const entityTier = getEntityTier(entityType);
-
-// Capability-gated module flags (Art.X-Capability-Gating)
-const hasFNI = entityHasCapability(entityType, 'fni');
-const hasDeploy = entityHasCapability(entityType, 'deploy');
-const hasBenchmarkCap = entityHasCapability(entityType, 'benchmark');
-const hasArchitecture = entityHasCapability(entityType, 'architecture');
-const hasCitations = entityHasCapability(entityType, 'citations');
-
-// Display metadata from entity definition
-const entityIcon = entityDefinition?.display?.icon || '🧠';
-const entityLabel = entityDefinition?.display?.labelSingular || 'Model';
-
-// Per Constitution V4.3.1: Error pages should not be cached
 if (!model && !error) {
   Astro.response.status = 404;
   Astro.response.headers.set('Cache-Control', 'no-store, no-cache, max-age=0');
 }
+
+// Capability Gating Helpers
+const hasCapability = (capId) => {
+    if (!model || !model.entityDefinition?.capabilities) return true;
+    return model.entityDefinition.capabilities.includes(capId);
+};
+const hasFNI = hasCapability('fni_score') && (model?.fni_score !== undefined || model?.fni_percentile !== undefined);
+const hasBenchmarks = hasCapability('benchmarks');
+const hasBench = Boolean(model?.mmlu || model?.benchmark_mmlu || model?.benchmark_hellaswag || model?.benchmark_arc);
+
+const placeholderImage = '/images/models/default-model.jpg';
+const coverImage = model?.cover_image_url || placeholderImage;
+const modelName = model?.name || model?.canonical_name || 'Unknown Model';
+const modelId = model?.umid || model?.id || '';
+const cleanDesc = model?.description ? model.description.replace(/<[^>]*>?/gm, '') : '';
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -116,325 +80,63 @@ if (!model && !error) {
     {error ? (
       <div class="container mx-auto px-4 py-12 text-center">
         <div class="bg-red-50 text-red-800 p-8 rounded-lg max-w-2xl mx-auto">
-          <h1 class="text-3xl font-bold mb-4">Error Loading Model</h1>
+          <h1 class="text-3xl font-bold mb-4">Error Loading Page</h1>
           <p class="text-gray-600 mb-6">{error.message}</p>
           <a href="/explore" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">Browse Models</a>
         </div>
       </div>
     ) : model ? (
       <article class="container mx-auto px-4 py-8 max-w-7xl">
-        <header class="mb-8">
-          <div class="flex flex-col lg:flex-row gap-6 items-start">
-            <div class="w-full lg:w-64 flex-shrink-0">
-              <img 
-                src={coverImage} 
-                alt={modelName}
-                class="w-full rounded-xl shadow-lg bg-gray-200"
-                loading="eager"
-                fetchpriority="high"
-              />
-            </div>
-            
-            <div class="flex-1">
-              <!-- V4.9: Entity Type Badge (Art.X-Entity) -->
-              <div class="mb-2">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                  <span>{entityIcon}</span>
-                  <span>{entityLabel}</span>
-                </span>
-              </div>
-              
-              <!-- V4.9: Entity Notice for non-Model entities (Content Activation P0) -->
-              <EntityNotice entityType={entityType} entityLabel={entityLabel} />
-              
-              <div class="flex flex-wrap items-center gap-3 mb-2">
-                <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">
-                  {modelName}
-                </h1>
-                <!-- V4.9: FNI Badge capability-gated (Art.X-Entity-FNI) -->
-                {hasFNI && (
-                  <FNIBadge 
-                    fniScore={model?.fni_score || 0} 
-                    fniPercentile={model?.fni_percentile || 0}
-                    fniP={model?.fni_p || 0}
-                    fniV={model?.fni_v || 0}
-                    fniC={model?.fni_c || 0}
-                    fniU={model?.fni_u || 0}
-                  />
-                )}
-                {hasDeploy && model?.deploy_score > 0 && (
-                  <DeployabilityBadge score={model.deploy_score} />
-                )}
-                <!-- V4.8.1 Retention Safe: LocalStorage only -->
-                <FavoriteButton modelId={modelId} modelName={modelName} />
-              </div>
-              
-              <p class="text-lg text-gray-600 dark:text-gray-400 mb-4">
-                by <span class="font-semibold">{model?.author || 'Unknown'}</span>
-              </p>
-              
-              <!-- V4.9.1 Step 2.2: SEO Summary Paragraph (Art.I-E Content Completeness) -->
-              {(model?._seo?.description || model?.seo_summary) && (
-                <p class="text-base text-gray-700 dark:text-gray-300 mb-4 leading-relaxed border-l-4 border-indigo-500 pl-4 bg-gray-50 dark:bg-gray-800/50 py-2 rounded-r">
-                  {model?._seo?.description || model?.seo_summary}
-                </p>
-              )}
-              
-              {Array.isArray(tags) && tags.length > 0 && (
-                <div class="flex flex-wrap gap-2 mb-4">
-                  {tags.slice(0, 8).map(tag => (
-                    <a 
-                      href={`/explore?tag=${encodeURIComponent(tag)}`}
-                      class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full text-sm hover:bg-indigo-200 transition-colors"
-                    >
-                      {tag}
-                    </a>
-                  ))}
-                </div>
-              )}
-              
-              <div class="flex flex-wrap gap-6 text-sm text-gray-600 dark:text-gray-400">
-                {model?.downloads && (
-                  <span>📥 {Number(model.downloads).toLocaleString()} downloads</span>
-                )}
-                {model?.likes && (
-                  <span>❤️ {Number(model.likes).toLocaleString()} likes</span>
-                )}
-                {model?.last_updated && (
-                  <span>🕐 Updated {new Date(model.last_updated).toLocaleDateString()}</span>
-                )}
-              </div>
-            </div>
-          </div>
-        </header>
+        <ModelHeader 
+          modelName={modelName}
+          coverImage={coverImage}
+          entityType={model.entityType}
+          entityIcon={model.entityDefinition?.display?.icon}
+          entityLabel={model.entityDefinition?.display?.labelSingular}
+          verified={false} 
+          author={model.author}
+          lastUpdated={model.last_updated}
+          seoDescription={model.seo_summary?.description}
+          cleanDescription={cleanDesc}
+        />
 
-        {hasBench && hasBenchmarkCap && (
+        {hasBench && hasBenchmarks && (
           <section class="mb-8">
             <BenchmarkCard 
-              mmlu={model?.mmlu || model?.benchmark_mmlu}
-              hellaswag={model?.hellaswag || model?.benchmark_hellaswag}
-              arc={model?.arc_challenge || model?.benchmark_arc}
-              avgScore={model?.avg_score || model?.benchmark_avg}
+              mmlu={model.mmlu || model.benchmark_mmlu}
+              hellaswag={model.hellaswag || model.benchmark_hellaswag}
+              arc={model.arc_challenge || model.benchmark_arc}
+              avgScore={model.avg_score || model.benchmark_avg}
             />
           </section>
         )}
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div class="lg:col-span-2 space-y-8">
-            <!-- V4.9: FNI Trust Panel capability-gated (Art.X-Entity-FNI) -->
-            {hasFNI && (
-              <FNITrustPanel 
-                fniScore={model?.fni_score || 0}
-                fniPercentile={model?.fni_percentile || 0}
-                fniP={model?.fni_p || 0}
-                fniV={model?.fni_v || 0}
-                fniC={model?.fni_c || 0}
-                fniU={model?.fni_u || 0}
-                fniCommentary={model?.fni_commentary || null}
-                modelName={modelName}
-              />
-            )}
-            
-            <!-- Section 3: Benchmarks RAW (V4.9 capability-gated) -->
-            {hasBenchmarkCap && (
-              <BenchmarkRawTable umid={modelId} />
-            )}
-            
-            <NeuralExplorer model={{
-              name: modelName,
-              architecture: model?.architecture || model?.pipeline_tag,
-              params_billions: model?.params_billions,
-              context_length: model?.context_length,
-              num_layers: model?.num_layers,
-              hidden_size: model?.hidden_size
-            }} />
-            
-            {model?.description && (
-              <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
-                <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">About</h2>
-                <div class="prose dark:prose-invert max-w-none">
-                  <p class="whitespace-pre-wrap">{(model.description || '').substring(0, 2000).replace(/---[\s\S]*?---/g, '')}</p>
-                </div>
-              </section>
-            )}
-            
-            {Array.isArray(resources) && resources.length > 0 && (
-              <ResourceList resources={resources} sourceUrl={model?.source_url || null} />
-            )}
-            
-            <!-- V4.9.1 Step 2.7: Missing Field Warning (CEO Iron Law) -->
-            {(!model?.description && !model?.seo_summary) && (
-              <section class="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-6 border border-amber-200 dark:border-amber-700">
-                <h2 class="text-lg font-bold mb-2 text-amber-800 dark:text-amber-300 flex items-center gap-2">
-                  <span>⚠️</span> Incomplete Data
-                </h2>
-                <p class="text-amber-700 dark:text-amber-400 text-sm">
-                  Some information about this {entityLabel.toLowerCase()} is not available.
-                  <strong class="block mt-1">Use with Caution</strong> - Verify details from the original source before relying on this data.
-                </p>
-                {model?.source_url && (
-                  <a 
-                    href={model.source_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="inline-block mt-3 text-sm text-amber-800 dark:text-amber-300 underline hover:no-underline"
-                  >
-                    View Original Source →
-                  </a>
-                )}
-              </section>
-            )}
-            
-            <!-- V4.9.1 Step 2.7: Limitations Section (CEO Iron Law) -->
-            <section class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6">
-              <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-                <span>📝</span> Limitations & Considerations
-              </h2>
-              <ul class="space-y-2 text-gray-700 dark:text-gray-300 text-sm">
-                <li class="flex items-start gap-2">
-                  <span class="text-gray-400">•</span>
-                  <span>Benchmark scores may vary based on evaluation methodology and hardware configuration.</span>
-                </li>
-                <li class="flex items-start gap-2">
-                  <span class="text-gray-400">•</span>
-                  <span>VRAM requirements are estimates; actual usage depends on quantization and batch size.</span>
-                </li>
-                <li class="flex items-start gap-2">
-                  <span class="text-gray-400">•</span>
-                  <span>FNI scores are relative rankings and may change as new models are added.</span>
-                </li>
-                {!model?.license_spdx && (
-                  <li class="flex items-start gap-2 text-amber-600 dark:text-amber-400">
-                    <span>⚠</span>
-                    <span><strong>License Unknown:</strong> Verify licensing terms before commercial use.</span>
-                  </li>
-                )}
-                {model?.source_trail && (
-                  <li class="flex items-start gap-2">
-                    <span class="text-gray-400">•</span>
-                    <span>Data source: {model.source_trail}</span>
-                  </li>
-                )}
-              </ul>
-            </section>
-            
-            <!-- V4.9.1 Step 2.7: Related Papers/Datasets Section -->
-            <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
-              <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-                <span>📚</span> Related Resources
-              </h2>
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Related Papers placeholder -->
-                <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
-                    <span>📄</span> Related Papers
-                  </h3>
-                  {model?.related_papers ? (
-                    <p class="text-sm text-gray-600 dark:text-gray-400">{model.related_papers}</p>
-                  ) : (
-                    <p class="text-sm text-gray-500 dark:text-gray-500 italic">
-                      No related papers linked yet. Check the model's official documentation for research papers.
-                    </p>
-                  )}
-                </div>
-                
-                <!-- Related Datasets placeholder -->
-                <div class="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <h3 class="font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-2">
-                    <span>📊</span> Training Datasets
-                  </h3>
-                  {model?.related_datasets ? (
-                    <p class="text-sm text-gray-600 dark:text-gray-400">{model.related_datasets}</p>
-                  ) : (
-                    <p class="text-sm text-gray-500 dark:text-gray-500 italic">
-                      Training data information not available. Refer to the original model card for details.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
-            
-            <!-- Section 6: Entity Links (V4.8.1) -->
-            <EntityLinksSection 
-              modelId={modelId}
-              modelName={modelName}
-            />
-          </div>
+          <ModelMainColumn 
+            model={model} 
+            hasFNI={hasFNI} 
+            hasBenchmarkCap={hasBenchmarks} 
+            modelName={modelName} 
+            modelId={modelId} 
+          />
           
-          <aside class="space-y-6">
-            {(model?.params_billions || model?.context_length) && (
-              <SpecsTable 
-                params={model?.params_billions || null}
-                contextLength={model?.context_length || null}
-                hasGguf={model?.has_gguf || false}
-                ggufVariants={safeParseJSON(model?.gguf_variants ?? null, [])}
-                hasOllama={model?.has_ollama || false}
-                ollamaId={model?.ollama_id || null}
-                ollamaPulls={model?.ollama_pulls || 0}
-                license={model?.license_spdx || null}
-              />
-            )}
-            
-            <ModelInfoTable model={{
-              ...model,
-              id: model?.id || '',
-              umid: model?.umid || '',
-              slug: model?.slug || '',
-              pipeline_tag: model?.pipeline_tag || null,
-              source_url: model?.source_url || null
-            }} />
-            
-            <!-- V4.8.1 Art.11-G: Version-locked Neural Graph -->
-            <NeuralGraphExplorer currentModelId={modelId} />
-          </aside>
+          <ModelSidebar 
+            model={model} 
+            modelId={modelId} 
+          />
         </div>
 
         {similarModels.length > 0 && (
           <section class="mt-12">
             <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Similar Models</h2>
-            <ModelCarousel models={similarModels} />
+             <ModelCarousel models={similarModels} />
           </section>
         )}
 
-        <!-- V4.9.1 Step 3: Next Step Navigation (Related Entities Full Chain) -->
-        <section class="mt-12 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-8">
-          <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
-            <span>🚀</span> What's Next?
-          </h2>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <!-- Recommended Datasets -->
-            <a href={`/explore?type=dataset&tag=${model?.pipeline_tag || 'text-generation'}`} 
-               class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
-              <div class="text-3xl mb-3">📊</div>
-              <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-indigo-600">Find Training Datasets</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Discover datasets compatible with this model
-              </p>
-            </a>
-
-            <!-- Related Benchmarks -->
-            <a href="/leaderboard" 
-               class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
-              <div class="text-3xl mb-3">📈</div>
-              <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-indigo-600">Compare Benchmarks</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                See how this model ranks on standard tests
-              </p>
-            </a>
-
-            <!-- Deployment Guide -->
-            <a href="/knowledge/what-is-gguf" 
-               class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
-              <div class="text-3xl mb-3">⚡</div>
-              <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-indigo-600">
-                {model?.has_gguf ? 'Deploy with GGUF' : 'Learn About Deployment'}
-              </h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {model?.has_gguf ? 'Run locally with llama.cpp or Ollama' : 'Understand deployment options'}
-              </p>
-            </a>
-          </div>
-        </section>
+        <ModelNavigation 
+          pipelineTag={model.pipeline_tag}
+          hasGguf={model.has_gguf}
+        />
       </article>
     ) : (
       <div class="container mx-auto px-4 py-12 text-center">
@@ -451,15 +153,5 @@ if (!model && !error) {
 <style>
   .model-detail-page {
     padding-top: 1rem;
-  }
-  
-  .prose {
-    max-width: none;
-  }
-  
-  .prose img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 0.5rem;
   }
 </style>

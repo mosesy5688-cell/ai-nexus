@@ -1,0 +1,88 @@
+---
+// src/components/model-detail/ModelHeader.astro
+import EntityNotice from '../entity/EntityNotice.astro';
+
+interface Props {
+  modelName: string;
+  coverImage: string;
+  entityType?: string;
+  entityIcon?: string;
+  entityLabel?: string;
+  verified?: boolean;
+  author?: string;
+  lastUpdated?: string;
+  seoDescription?: string;
+  cleanDescription?: string;
+}
+
+const {
+  modelName,
+  coverImage,
+  entityType = 'model',
+  entityIcon = '🧠',
+  entityLabel = 'Model',
+  verified = false,
+  author = 'Unknown',
+  lastUpdated,
+  seoDescription,
+  cleanDescription
+} = Astro.props;
+---
+
+<header class="mb-8">
+  <div class="flex flex-col lg:flex-row gap-6 items-start">
+    <div class="w-full lg:w-64 flex-shrink-0">
+      <img 
+        src={coverImage} 
+        alt={modelName}
+        class="w-full rounded-xl shadow-lg bg-gray-200"
+        loading="eager"
+        fetchpriority="high"
+      />
+    </div>
+    
+    <div class="flex-1">
+      <!-- V4.9: Entity Type Badge (Art.X-Entity) -->
+      <div class="mb-2">
+        <span class="inline-flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-xs font-medium border border-gray-200 dark:border-gray-700">
+          <span role="img" aria-label={entityType}>{entityIcon}</span>
+          {entityLabel}
+        </span>
+      </div>
+      
+      <!-- V4.9: Entity Notice for non-Model entities (Content Activation P0) -->
+      <EntityNotice entityType={entityType} entityLabel={entityLabel} />
+      
+      <div class="flex flex-wrap items-center gap-3 mb-2">
+        <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">
+          {modelName}
+        </h1>
+        {verified && (
+          <span class="inline-flex items-center gap-1 text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded text-xs font-semibold border border-blue-100 dark:border-blue-800" title="Verified Organization">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+            Verified
+          </span>
+        )}
+      </div>
+      
+      <p class="text-gray-500 dark:text-gray-400 mb-6 flex items-center gap-2 text-lg">
+        by <span class="font-semibold">{author}</span>
+      </p>
+      
+      <!-- V4.9.1 Step 2.2: SEO Summary Paragraph (Art.I-E Content Completeness) -->
+      {(seoDescription || cleanDescription) && (
+        <p class="text-base text-gray-700 dark:text-gray-300 mb-4 leading-relaxed border-l-4 border-indigo-500 pl-4 bg-gray-50 dark:bg-gray-800/50 py-2 rounded-r">
+          {seoDescription || (cleanDescription ? cleanDescription.substring(0, 300) + (cleanDescription.length > 300 ? '...' : '') : 'Explore this AI model on Free2AI Tools.')}
+        </p>
+      )}
+
+      <div class="flex gap-4 text-sm text-gray-500 dark:text-gray-400 mt-auto">
+        {lastUpdated && (
+          <span>🕐 Updated {new Date(lastUpdated).toLocaleDateString()}</span>
+        )}
+      </div>
+    </div>
+  </div>
+</header>

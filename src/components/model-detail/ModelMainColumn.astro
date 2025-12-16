@@ -1,0 +1,77 @@
+---
+// src/components/model-detail/ModelMainColumn.astro
+import FNITrustPanel from '../FNITrustPanel.astro';
+import BenchmarkRawTable from '../BenchmarkRawTable.astro';
+import NeuralExplorer from '../NeuralExplorer.astro';
+import ModelNotices from './ModelNotices.astro';
+import ModelResources from './ModelResources.astro';
+import EntityLinksSection from '../EntityLinksSection.astro';
+
+interface Props {
+  model: any;
+  hasFNI: boolean;
+  hasBenchmarkCap: boolean;
+  modelName: string;
+  modelId: string;
+}
+
+const { model, hasFNI, hasBenchmarkCap, modelName, modelId } = Astro.props;
+---
+
+<div class="lg:col-span-2 space-y-8">
+  <!-- FNI Trust Panel -->
+  {hasFNI && (
+    <FNITrustPanel 
+      fniScore={model.fni_score || 0}
+      fniPercentile={model.fni_percentile || 0}
+      fniP={model.fni_p || 0}
+      fniV={model.fni_v || 0}
+      fniC={model.fni_c || 0}
+      fniU={model.fni_u || 0}
+      fniCommentary={model.fni_commentary || null}
+      modelName={modelName}
+    />
+  )}
+  
+  <!-- Raw Benchmarks -->
+  {hasBenchmarkCap && (
+    <BenchmarkRawTable umid={modelId} />
+  )}
+  
+  <NeuralExplorer model={{
+    name: modelName,
+    architecture: model.architecture || model.pipeline_tag,
+    params_billions: model.params_billions,
+    context_length: model.context_length,
+    num_layers: model.num_layers,
+    hidden_size: model.hidden_size
+  }} />
+  
+  {model.description && (
+    <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+      <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">About</h2>
+      <div class="prose dark:prose-invert max-w-none">
+        <p class="whitespace-pre-wrap">{(model.description || '').substring(0, 2000).replace(/---[\s\S]*?---/g, '')}</p>
+      </div>
+    </section>
+  )}
+  
+  <!-- Missing Data & Limitations -->
+  <ModelNotices 
+    entityLabel={model.entityDefinition?.display?.labelSingular || 'Model'}
+    sourceUrl={model.source_url}
+    sourceTrail={model.source_trail}
+    license={model.license_spdx}
+    hasDescription={!!model.description}
+    hasSeoSummary={!!model.seo_summary}
+  />
+  
+  <!-- Related Papers/Datasets -->
+  <ModelResources 
+    relatedPapers={model.related_papers}
+    relatedDatasets={model.related_datasets}
+  />
+  
+  <!-- Entity Links -->
+  <EntityLinksSection modelId={modelId} modelName={modelName} />
+</div>

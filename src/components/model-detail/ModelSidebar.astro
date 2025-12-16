@@ -1,0 +1,40 @@
+---
+// src/components/model-detail/ModelSidebar.astro
+import SpecsTable from '../SpecsTable.astro';
+import ModelInfoTable from '../ModelInfoTable.astro';
+import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
+import { safeParseJSON } from '../../utils/data-service';
+
+interface Props {
+  model: any;
+  modelId: string;
+}
+
+const { model, modelId } = Astro.props;
+---
+
+<aside class="space-y-6">
+  {(model.params_billions || model.context_length) && (
+    <SpecsTable 
+      params={model.params_billions || null}
+      contextLength={model.context_length || null}
+      hasGguf={model.has_gguf || false}
+      ggufVariants={safeParseJSON(model.gguf_variants ?? null, [])}
+      hasOllama={model.has_ollama || false}
+      ollamaId={model.ollama_id || null}
+      ollamaPulls={model.ollama_pulls || 0}
+      license={model.license_spdx || null}
+    />
+  )}
+  
+  <ModelInfoTable model={{
+    ...model,
+    id: model.id || '',
+    umid: model.umid || '',
+    slug: model.slug || '',
+    pipeline_tag: model.pipeline_tag || null,
+    source_url: model.source_url || null
+  }} />
+  
+   <NeuralGraphExplorer currentModelId={modelId} />
+</aside>
