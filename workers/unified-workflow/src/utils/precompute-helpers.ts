@@ -99,29 +99,55 @@ export async function generateNeuralGraph(env: Env) {
 export async function generateCategoryStats(env: Env) {
     console.log('[L8] Generating category stats...');
 
-    const categoryStats = await env.DB.prepare(`
-        SELECT 
-            pipeline_tag as category,
-            COUNT(*) as model_count,
-            AVG(fni_score) as avg_fni,
-            MAX(fni_score) as top_fni
-        FROM models 
-        WHERE pipeline_tag IS NOT NULL AND pipeline_tag != ''
-        GROUP BY pipeline_tag
-        ORDER BY model_count DESC
-        LIMIT 50
-    `).all();
+    // V5.2.1: Predefined categories for "Explore by Category" feature
+    // These match common HuggingFace pipeline tags
+    const predefinedCategories = [
+        { id: 'text-generation', label: 'Text Generation', icon: '💬' },
+        { id: 'text-classification', label: 'Text Classification', icon: '🏷️' },
+        { id: 'question-answering', label: 'Question Answering', icon: '❓' },
+        { id: 'translation', label: 'Translation', icon: '🌐' },
+        { id: 'summarization', label: 'Summarization', icon: '📝' },
+        { id: 'image-classification', label: 'Image Classification', icon: '🖼️' },
+        { id: 'object-detection', label: 'Object Detection', icon: '🔍' },
+        { id: 'image-generation', label: 'Image Generation', icon: '🎨' },
+        { id: 'audio', label: 'Audio', icon: '🔊' },
+        { id: 'code', label: 'Code', icon: '💻' }
+    ];
+
+    // Count models per category by checking tags field
+    const categoryPromises = predefinedCategories.map(async (cat) => {
+        const result = await env.DB.prepare(`
+            SELECT COUNT(*) as cnt, AVG(fni_score) as avg_fni, MAX(fni_score) as top_fni
+            FROM models 
+            WHERE (id LIKE 'huggingface%' OR id LIKE 'ollama%')
+              AND (tags LIKE ? OR tags LIKE ?)
+        `).bind(`%${cat.id}%`, `%${cat.label.toLowerCase()}%`).first();
+
+        return {
+            category: cat.id,
+            label: cat.label,
+            icon: cat.icon,
+            count: (result as any)?.cnt || 0,
+            avgFni: (result as any)?.avg_fni ? Math.round((result as any).avg_fni * 10) / 10 : null,
+            topFni: (result as any)?.top_fni ? Math.round((result as any).top_fni * 10) / 10 : null
+        };
+    });
+
+    const categoryResults = await Promise.all(categoryPromises);
+    const nonEmptyCategories = categoryResults.filter(c => c.count > 0);
 
     const categoryData = {
         generated_at: new Date().toISOString(),
-        version: 'V4.8.2',
-        pipeline_tags: (categoryStats.results || []).map((c: any) => ({
-            category: c.category,
-            count: c.model_count,
-            avgFni: c.avg_fni ? Math.round(c.avg_fni * 10) / 10 : null,
-            topFni: c.top_fni ? Math.round(c.top_fni * 10) / 10 : null
+        version: 'V5.2.1',
+        pipeline_tags: nonEmptyCategories.length > 0 ? nonEmptyCategories : predefinedCategories.map(c => ({
+            category: c.id,
+            label: c.label,
+            icon: c.icon,
+            count: 0,
+            avgFni: null,
+            topFni: null
         })),
-        total_categories: (categoryStats.results || []).length
+        total_categories: nonEmptyCategories.length > 0 ? nonEmptyCategories.length : predefinedCategories.length
     };
 
     await writeToR2(env, 'cache/category_stats.json', categoryData);
