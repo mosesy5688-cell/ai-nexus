@@ -287,6 +287,9 @@ export class HuggingFaceAdapter extends BaseAdapter {
             popularity: raw.likes || 0,
             downloads: raw.downloads || 0,
 
+            // V6.0: Pipeline tag for category assignment
+            pipeline_tag: raw.pipeline_tag || null,
+
             // Assets
             raw_image_url: null, // Will be set by extractAssets
 
