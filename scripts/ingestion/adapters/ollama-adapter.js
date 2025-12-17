@@ -97,6 +97,9 @@ export class OllamaAdapter extends BaseAdapter {
             body_content: '',
             tags: ['ollama', 'local-deployment'],  // Inline to avoid 'this' context issues
 
+            // V6.0: Pipeline tag for category assignment (all Ollama models are text-generation LLMs)
+            pipeline_tag: 'text-generation',
+
             // Metadata
             author: 'ollama',
             license_spdx: null,

@@ -262,7 +262,7 @@ export class Orchestrator {
             author: e.author,
             description: e.description,
             tags: e.tags,
-            pipeline_tag: e.meta_json?.pipeline_tag || 'other',
+            pipeline_tag: e.pipeline_tag || e.meta_json?.pipeline_tag || 'other',
             likes: e.popularity || 0,
             downloads: e.downloads || 0,
             source: e.source,
