@@ -81,15 +81,23 @@ jobs:
           CATEGORIES="text-generation knowledge-retrieval vision-multimedia automation-workflow infrastructure-ops"
           
           for cat in $CATEGORIES; do
-            # Check that p51 does NOT exist
-            HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" "$R2_BASE_URL/cache/rankings/$cat/p51.json" || echo "404")
+            # First check if the category rankings exist at all
+            HTTP_P1=$(curl -s -o /dev/null -w "%{http_code}" "$R2_BASE_URL/cache/rankings/$cat/p1.json" || echo "000")
             
-            if [ "$HTTP_CODE" != "404" ]; then
+            if [ "$HTTP_P1" != "200" ]; then
+              echo "⚠️ $cat: p1.json not found yet (HTTP $HTTP_P1) - skipping p51 check"
+              continue
+            fi
+            
+            # Check that p51 does NOT exist (should return 404 or similar)
+            HTTP_P51=$(curl -s -o /dev/null -w "%{http_code}" "$R2_BASE_URL/cache/rankings/$cat/p51.json" || echo "000")
+            
+            if [ "$HTTP_P51" = "200" ]; then
               echo "❌ CRITICAL: $cat has p51.json - pagination cap violated!"
               exit 1
             fi
             
-            echo "✅ $cat: p51 correctly returns 404"
+            echo "✅ $cat: p51 correctly returns $HTTP_P51 (not 200)"
           done
           
           echo "✅ Pagination cap check passed"
