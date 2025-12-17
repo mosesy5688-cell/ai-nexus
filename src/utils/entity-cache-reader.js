@@ -92,37 +92,8 @@ export async function resolveEntityFromCache(slug, locals) {
     }
 
     console.log(`[EntityCache] MISS: ${normalizedSlug}`);
-
-    // V5.2.1 Fallback: Try D1 database for SSR pages (prerender=false)
-    // Constitution Art 4.1: Frontend D1=0, but SSR pages CAN access D1 as cold vault
-    const db = locals?.runtime?.env?.DB;
-    if (db) {
-        try {
-            // Normalize slug for D1 lookup (convert -- back to / and :)
-            const dbSlug = normalizedSlug
-                .replace(/--/g, '/')
-                .replace(/^huggingface\//, 'huggingface:')
-                .replace(/^ollama\//, 'ollama:')
-                .replace(/^hf-dataset\//, 'hf-dataset:');
-
-            const model = await db.prepare(`
-                SELECT * FROM models 
-                WHERE LOWER(slug) = LOWER(?) 
-                   OR LOWER(id) = LOWER(?)
-                   OR LOWER(slug) = LOWER(?)
-                LIMIT 1
-            `).bind(normalizedSlug, dbSlug, slug).first();
-
-            if (model) {
-                console.log(`[EntityCache] D1 FALLBACK HIT: ${normalizedSlug}`);
-                return { entity: model, source: 'd1-fallback' };
-            }
-        } catch (e) {
-            console.warn('[EntityCache] D1 fallback error:', e.message);
-        }
-    }
-
     return { entity: null, source: 'cache-miss' };
+
 }
 
 /**
