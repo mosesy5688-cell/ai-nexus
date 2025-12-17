@@ -30,7 +30,7 @@ bucket_name = "ai-nexus-assets"
 # KV Namespace Binding (Art 2.3 Kill-Switch)
 [[kv_namespaces]]
 binding = "KV"
-id = "ai-nexus-kv"
+id = "24a9a70c8676477c98bf4a02f3b75b05"
 
 # Queue Binding (Producer)
 [[queues.producers]]
