@@ -4,9 +4,7 @@
 
 // Core imports
 import Layout from '../layouts/Layout.astro';
-import CategoryGroup from '../components/CategoryGroup.astro';
 import EntityTabs from '../components/entity/EntityTabs.astro';
-import allCategories from '../data/categories.json';
 
 // Components
 import HomeHero from '../components/home/HomeHero.astro';
@@ -119,16 +117,7 @@ const seoSchema = buildIndexSEO();
                 </div>
             </section>
 
-            <!-- Divider -->
-            <hr class="my-16 border-gray-200 dark:border-gray-700" />
-
-            <!-- Explore by Category Section -->
-            <section class="mb-16">
-                <h2 class="text-3xl font-bold text-center mb-10">Explore by Category</h2>
-                {allCategories.map(categoryGroup => (
-                    <CategoryGroup group={categoryGroup} />
-                ))}
-            </section>
+            <!-- V6.0: Old Explore by Category removed - replaced by new 5-card layout above -->
         </div>
 
         <!-- Search Results Grid (initially hidden) -->
