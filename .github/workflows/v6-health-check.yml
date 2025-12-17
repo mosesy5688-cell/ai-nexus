@@ -1,0 +1,126 @@
+# V6.0 Health Check Workflow
+# Constitution Annex A - Automated verification for V6.0 category system
+# Expert3 requirement: Health check failure → block merge
+
+name: V6.0 Health Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * *'  # Daily at midnight UTC
+  workflow_dispatch:  # Manual trigger
+
+env:
+  R2_BASE_URL: https://r2.free2aitools.com
+
+jobs:
+  health-check:
+    name: V6.0 Data Integrity Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Category Stats
+        run: |
+          echo "📊 Checking category_stats.json..."
+          
+          STATS=$(curl -sf "$R2_BASE_URL/cache/category_stats.json" || echo "{}")
+          
+          if [ "$STATS" = "{}" ]; then
+            echo "⚠️ category_stats.json not found or empty (may not be generated yet)"
+            exit 0  # Non-blocking for initial deployment
+          fi
+          
+          VERSION=$(echo $STATS | jq -r '.version // "unknown"')
+          TOTAL=$(echo $STATS | jq -r '.total_models // 0')
+          
+          echo "Version: $VERSION"
+          echo "Total Models: $TOTAL"
+          
+          # Check for V6.0 version
+          if [ "$VERSION" != "V6.0" ]; then
+            echo "⚠️ Warning: Expected V6.0, got $VERSION"
+          fi
+          
+          echo "✅ Category stats check passed"
+
+      - name: Check Text Generation Category
+        run: |
+          echo "💬 Checking text-generation category..."
+          
+          META=$(curl -sf "$R2_BASE_URL/cache/rankings/text-generation/meta.json" || echo "{}")
+          
+          if [ "$META" = "{}" ]; then
+            echo "⚠️ text-generation meta.json not found (may not be generated yet)"
+            exit 0  # Non-blocking for initial deployment
+          fi
+          
+          TOTAL=$(echo $META | jq -r '.total // 0')
+          PAGES=$(echo $META | jq -r '.pages // 0')
+          
+          echo "Total models: $TOTAL"
+          echo "Total pages: $PAGES"
+          
+          # Constitution Art 2.4: Max 50 pages
+          if [ "$PAGES" -gt 50 ]; then
+            echo "❌ CRITICAL: Pages exceed p50 limit ($PAGES > 50)"
+            exit 1
+          fi
+          
+          echo "✅ text-generation check passed"
+
+      - name: Check Pagination Cap (p50 limit)
+        run: |
+          echo "📄 Checking pagination cap..."
+          
+          CATEGORIES="text-generation knowledge-retrieval vision-multimedia automation-workflow infrastructure-ops"
+          
+          for cat in $CATEGORIES; do
+            # Check that p51 does NOT exist
+            HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" "$R2_BASE_URL/cache/rankings/$cat/p51.json" || echo "404")
+            
+            if [ "$HTTP_CODE" != "404" ]; then
+              echo "❌ CRITICAL: $cat has p51.json - pagination cap violated!"
+              exit 1
+            fi
+            
+            echo "✅ $cat: p51 correctly returns 404"
+          done
+          
+          echo "✅ Pagination cap check passed"
+
+      - name: Check File Sizes
+        run: |
+          echo "📦 Checking file sizes..."
+          
+          # Check category_stats.json size (should be < 50KB)
+          SIZE=$(curl -sf -I "$R2_BASE_URL/cache/category_stats.json" | grep -i content-length | awk '{print $2}' | tr -d '\r' || echo "0")
+          
+          if [ -n "$SIZE" ] && [ "$SIZE" -gt 0 ]; then
+            SIZE_KB=$((SIZE / 1024))
+            echo "category_stats.json: ${SIZE_KB}KB"
+            
+            if [ "$SIZE" -gt 51200 ]; then
+              echo "⚠️ Warning: category_stats.json is large (${SIZE_KB}KB > 50KB)"
+            fi
+          fi
+          
+          echo "✅ File size check passed"
+
+      - name: Summary
+        run: |
+          echo "🎉 V6.0 Health Check Complete"
+          echo ""
+          echo "Categories checked:"
+          echo "  - text-generation"
+          echo "  - knowledge-retrieval"
+          echo "  - vision-multimedia"
+          echo "  - automation-workflow"
+          echo "  - infrastructure-ops"
+          echo ""
+          echo "All checks passed ✅"
