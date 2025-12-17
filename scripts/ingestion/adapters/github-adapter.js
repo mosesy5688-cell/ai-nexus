@@ -179,6 +179,9 @@ export class GitHubAdapter extends BaseAdapter {
             body_content: raw.readme || '',
             tags: this.extractTags(raw),
 
+            // V6.0: Pipeline tag inferred from topics for category assignment
+            pipeline_tag: this.inferPipelineTag(raw.topics),
+
             // Metadata
             author: owner,
             license_spdx: this.normalizeLicense(raw.license?.spdx_id),
@@ -239,6 +242,40 @@ export class GitHubAdapter extends BaseAdapter {
 
         // Default to tool for code repositories
         return 'tool';
+    }
+
+    /**
+     * V6.0: Infer pipeline_tag from GitHub topics for category assignment
+     */
+    inferPipelineTag(topics) {
+        const topicsLower = (topics || []).map(t => t.toLowerCase());
+
+        // Text generation indicators
+        if (topicsLower.some(t => ['llm', 'gpt', 'chat', 'language-model', 'chatbot', 'text-generation'].includes(t))) {
+            return 'text-generation';
+        }
+
+        // Image generation indicators
+        if (topicsLower.some(t => ['stable-diffusion', 'diffusion', 'image-generation', 'text-to-image', 'sdxl'].includes(t))) {
+            return 'text-to-image';
+        }
+
+        // Embedding/RAG indicators
+        if (topicsLower.some(t => ['embedding', 'sentence-transformers', 'rag', 'vector-database'].includes(t))) {
+            return 'feature-extraction';
+        }
+
+        // Speech/Audio indicators
+        if (topicsLower.some(t => ['speech-recognition', 'tts', 'text-to-speech', 'whisper', 'asr'].includes(t))) {
+            return 'automatic-speech-recognition';
+        }
+
+        // Computer vision indicators
+        if (topicsLower.some(t => ['object-detection', 'image-classification', 'yolo', 'segmentation'].includes(t))) {
+            return 'object-detection';
+        }
+
+        return 'other';
     }
 
     extractTags(raw) {
