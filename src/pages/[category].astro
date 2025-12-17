@@ -1,0 +1,138 @@
+---
+/**
+ * [category].astro
+ * V6.0 Category Listing Page
+ * 
+ * SEO: Static-generated landing pages for each category
+ * Constitution Annex A.2.1 - 5 Primary Categories
+ */
+
+import Layout from '../layouts/Layout.astro';
+import ModelCard from '../components/ModelCard.astro';
+
+// ISR Static Generation - Expert recommendation
+export const prerender = true;
+
+export function getStaticPaths() {
+  return [
+    { params: { category: 'text-generation' } },
+    { params: { category: 'knowledge-retrieval' } },
+    { params: { category: 'vision-multimedia' } },
+    { params: { category: 'automation-workflow' } },
+    { params: { category: 'infrastructure-ops' } },
+  ];
+}
+
+const { category } = Astro.params;
+
+// Category metadata
+const CATEGORY_META: Record<string, { name: string; description: string; icon: string }> = {
+  'text-generation': {
+    name: 'Text Generation & Content Creation',
+    description: 'Discover open-source language models for chat, code generation, content writing, summarization, and translation.',
+    icon: '💬'
+  },
+  'knowledge-retrieval': {
+    name: 'Knowledge Retrieval & Data Analysis',
+    description: 'Find embedding models, RAG solutions, and AI for document analysis, Q&A systems, and data insights.',
+    icon: '🔍'
+  },
+  'vision-multimedia': {
+    name: 'Vision & Multimedia Processing',
+    description: 'Explore image generation, video AI, speech recognition, and music synthesis models.',
+    icon: '🎨'
+  },
+  'automation-workflow': {
+    name: 'Automation & Workflow Integration',
+    description: 'Build AI agents, automation pipelines, and intelligent recommendation systems.',
+    icon: '⚡'
+  },
+  'infrastructure-ops': {
+    name: 'Infrastructure & Optimization',
+    description: 'Tools for model fine-tuning, deployment optimization, and inference acceleration.',
+    icon: '🔧'
+  }
+};
+
+const meta = CATEGORY_META[category!] || CATEGORY_META['text-generation'];
+
+// Note: Data is loaded client-side to avoid build-time fetch issues
+// Models will be populated via client-side JavaScript
+const models: any[] = [];
+const totalCount = 0;
+
+const pageTitle = `${meta.name} - Free AI Models | Free2AITools`;
+const pageDescription = meta.description;
+
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <main class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="mb-8">
+      <div class="flex items-center gap-4 mb-4">
+        <span class="text-5xl">{meta.icon}</span>
+        <div>
+          <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+            {meta.name}
+          </h1>
+          <p class="text-gray-600 dark:text-gray-400 mt-2">
+            {totalCount.toLocaleString()} models available
+          </p>
+        </div>
+      </div>
+      <p class="text-lg text-gray-600 dark:text-gray-400 max-w-3xl">
+        {meta.description}
+      </p>
+    </header>
+
+    <!-- Filter Bar (placeholder for Day 2) -->
+    <div class="filter-bar mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+      <div class="flex flex-wrap gap-4 items-center">
+        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Sort by:
+        </label>
+        <select class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm">
+          <option value="best">Best Match</option>
+          <option value="recent">Most Recent</option>
+          <option value="popular">Most Popular</option>
+        </select>
+        <button class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline">
+          Advanced Filters
+        </button>
+      </div>
+    </div>
+
+    <!-- Model Grid -->
+    <div class="model-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {models.length > 0 ? (
+        models.slice(0, 24).map((model: any) => (
+          <ModelCard model={model} />
+        ))
+      ) : (
+        <div class="col-span-full py-12 text-center text-gray-500">
+          <p class="text-lg">No models found in this category yet.</p>
+          <p class="text-sm mt-2">Check back soon as we're adding more models!</p>
+        </div>
+      )}
+    </div>
+
+    <!-- Pagination (placeholder) -->
+    {models.length > 0 && (
+      <div class="pagination mt-8 flex justify-center">
+        <nav class="flex items-center gap-2">
+          <button class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-700" disabled>
+            Previous
+          </button>
+          <span class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">1</span>
+          <button class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-700">
+            2
+          </button>
+          <button class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-700">
+            Next
+          </button>
+        </nav>
+      </div>
+    )}
+  </main>
+</Layout>

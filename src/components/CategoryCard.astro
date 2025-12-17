@@ -1,0 +1,119 @@
+---
+/**
+ * CategoryCard.astro
+ * V6.0 Category Card Component for Homepage
+ * 
+ * Displays a category with count, icon, and link
+ * Constitution Annex A.2.1 - 5 Primary Categories
+ */
+
+interface Props {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+  count?: number;
+  trending?: number;
+  priority?: 'hero' | 'primary' | 'secondary';
+}
+
+const { 
+  id, 
+  name, 
+  description, 
+  icon, 
+  color, 
+  count = 0, 
+  trending = 0,
+  priority = 'primary' 
+} = Astro.props;
+
+const href = `/${id}`;
+
+// Size classes based on priority
+const sizeClasses = {
+  hero: 'col-span-2 row-span-2 p-8',
+  primary: 'col-span-1 row-span-1 p-6',
+  secondary: 'col-span-1 row-span-1 p-4'
+};
+
+const sizeClass = sizeClasses[priority];
+---
+
+<a 
+  href={href}
+  class:list={[
+    'category-card group relative overflow-hidden rounded-2xl transition-all duration-300',
+    'hover:scale-[1.02] hover:shadow-2xl',
+    sizeClass
+  ]}
+  style={`background: linear-gradient(135deg, ${color}15 0%, ${color}05 100%); border: 1px solid ${color}30;`}
+>
+  <!-- Icon -->
+  <div class="category-icon text-4xl mb-4 transition-transform group-hover:scale-110">
+    {icon}
+  </div>
+  
+  <!-- Name -->
+  <h3 class:list={[
+    'category-name font-bold text-gray-900 dark:text-white mb-2',
+    priority === 'hero' ? 'text-2xl' : 'text-lg'
+  ]}>
+    {name}
+  </h3>
+  
+  <!-- Description -->
+  <p class="category-description text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+    {description}
+  </p>
+  
+  <!-- Stats -->
+  <div class="category-stats flex items-center gap-4 text-sm">
+    {count > 0 && (
+      <span class="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+        {count.toLocaleString()} models
+      </span>
+    )}
+    {trending > 0 && (
+      <span class="flex items-center gap-1 text-green-500">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+        </svg>
+        +{trending} this week
+      </span>
+    )}
+  </div>
+  
+  <!-- Hover Arrow -->
+  <div class="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+    <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+    </svg>
+  </div>
+  
+  <!-- Gradient overlay on hover -->
+  <div 
+    class="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity pointer-events-none"
+    style={`background: ${color};`}
+  ></div>
+</a>
+
+<style>
+  .category-card {
+    backdrop-filter: blur(10px);
+  }
+  
+  .category-card:hover {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    .category-card {
+      background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+    }
+  }
+</style>
