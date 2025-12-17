@@ -1,15 +1,11 @@
-
 import { Env } from '../config/types';
 import { writeToR2 } from './gzip';
-
 // Helper for L8 Precomputation (Trending, Graph, etc.)
 
 export async function generateTrendingAndLeaderboard(env: Env) {
     console.log('[L8] Starting cache precompute...');
-
     // V5.2.1: Filter for actual models only (not datasets/papers/repos)
     const modelFilter = `(id LIKE 'huggingface%' OR id LIKE 'ollama%')`;
-
     // Trending models (top 100 by FNI)
     const trending = await env.DB.prepare(`
         SELECT id, slug, name, author, fni_score, downloads, likes,
@@ -98,7 +94,6 @@ export async function generateNeuralGraph(env: Env) {
 
 export async function generateCategoryStats(env: Env) {
     console.log('[L8] Generating category stats...');
-
     // V5.2.1: All 21 HuggingFace pipeline tag categories
     const predefinedCategories = [
         // NLP Categories
@@ -205,11 +200,8 @@ export async function generateEntityLinksAndBenchmarks(env: Env) {
 export async function generateRankings(env: Env) {
     console.log('[L8] Generating static rankings pages...');
 
-    // Categories to generate rankings for
     const categories = ['text-generation', 'image-generation', 'audio-generation', 'video-generation', 'agent'];
-    // Also 'all' category
-    categories.push('all');
-
+    categories.push('all'); // Also 'all' category
     for (const cat of categories) {
         console.log(`[L8] Generating rankings for category: ${cat}`);
         const isAll = cat === 'all';
