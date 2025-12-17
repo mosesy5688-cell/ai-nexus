@@ -49,6 +49,54 @@ const seoSchema = buildIndexSEO();
 
         <HomeSearch initialQuery={initialQuery} />
 
+        <!-- V6.0: Primary Category Navigation (Constitution Annex A.2.1) -->
+        <section class="mb-12 mt-8">
+            <h2 class="text-2xl font-bold text-center mb-6 text-gray-900 dark:text-white">
+                Explore AI Models by Category
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Hero Card: Text Generation -->
+                <a href="/text-generation" class="category-card group relative overflow-hidden rounded-2xl p-8 col-span-1 md:col-span-2 lg:col-span-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #6366f115 0%, #6366f105 100%); border: 1px solid #6366f130;">
+                    <div class="text-5xl mb-4 transition-transform group-hover:scale-110">💬</div>
+                    <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Text Generation & Content Creation</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4">ChatGPT alternatives, code assistants, content writing, summarization</p>
+                    <span class="text-sm text-indigo-600 dark:text-indigo-400 font-medium group-hover:underline">Explore models →</span>
+                </a>
+                
+                <!-- Knowledge Retrieval -->
+                <a href="/knowledge-retrieval" class="category-card group relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #10b98115 0%, #10b98105 100%); border: 1px solid #10b98130;">
+                    <div class="text-4xl mb-3 transition-transform group-hover:scale-110">🔍</div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Knowledge Retrieval</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">RAG, embeddings, Q&A systems</p>
+                    <span class="text-sm text-emerald-600 dark:text-emerald-400 font-medium group-hover:underline">Explore →</span>
+                </a>
+                
+                <!-- Vision & Multimedia -->
+                <a href="/vision-multimedia" class="category-card group relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #f59e0b15 0%, #f59e0b05 100%); border: 1px solid #f59e0b30;">
+                    <div class="text-4xl mb-3 transition-transform group-hover:scale-110">🎨</div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Vision & Multimedia</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">Image generation, video, speech</p>
+                    <span class="text-sm text-amber-600 dark:text-amber-400 font-medium group-hover:underline">Explore →</span>
+                </a>
+                
+                <!-- Automation -->
+                <a href="/automation-workflow" class="category-card group relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #8b5cf615 0%, #8b5cf605 100%); border: 1px solid #8b5cf630;">
+                    <div class="text-4xl mb-3 transition-transform group-hover:scale-110">⚡</div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Automation</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">AI agents, workflow tools</p>
+                    <span class="text-sm text-violet-600 dark:text-violet-400 font-medium group-hover:underline">Explore →</span>
+                </a>
+                
+                <!-- Infrastructure -->
+                <a href="/infrastructure-ops" class="category-card group relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #64748b15 0%, #64748b05 100%); border: 1px solid #64748b30;">
+                    <div class="text-4xl mb-3 transition-transform group-hover:scale-110">🔧</div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Infrastructure</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">Fine-tuning, optimization</p>
+                    <span class="text-sm text-slate-600 dark:text-slate-400 font-medium group-hover:underline">Explore →</span>
+                </a>
+            </div>
+        </section>
+
         <!-- Static Content Container -->
         <div id="static-content-container" class="hidden">
             
