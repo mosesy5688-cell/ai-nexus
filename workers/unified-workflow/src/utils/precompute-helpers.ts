@@ -93,74 +93,54 @@ export async function generateNeuralGraph(env: Env) {
 }
 
 export async function generateCategoryStats(env: Env) {
-    console.log('[L8] Generating category stats...');
-    // V5.2.1: All 21 HuggingFace pipeline tag categories
-    const predefinedCategories = [
-        // NLP Categories
-        { id: 'text-generation', label: 'Text Generation', icon: '💬' },
-        { id: 'text-classification', label: 'Text Classification', icon: '🏷️' },
-        { id: 'question-answering', label: 'Question Answering', icon: '❓' },
-        { id: 'translation', label: 'Translation', icon: '🌐' },
-        { id: 'summarization', label: 'Summarization', icon: '📝' },
-        { id: 'text2text-generation', label: 'Text2Text Generation', icon: '🔄' },
-        { id: 'conversational', label: 'Conversational', icon: '🗣️' },
-        { id: 'fill-mask', label: 'Fill Mask', icon: '🎭' },
-        { id: 'token-classification', label: 'Token Classification', icon: '🔤' },
-        { id: 'sentence-similarity', label: 'Sentence Similarity', icon: '📊' },
-        { id: 'feature-extraction', label: 'Feature Extraction', icon: '🧬' },
-        // Vision Categories
-        { id: 'image-classification', label: 'Image Classification', icon: '🖼️' },
-        { id: 'object-detection', label: 'Object Detection', icon: '🔍' },
-        { id: 'image-segmentation', label: 'Image Segmentation', icon: '✂️' },
-        { id: 'text-to-image', label: 'Text to Image', icon: '🎨' },
-        { id: 'image-to-text', label: 'Image to Text', icon: '📷' },
-        // Audio Categories
-        { id: 'automatic-speech-recognition', label: 'Speech Recognition', icon: '🎤' },
-        { id: 'text-to-speech', label: 'Text to Speech', icon: '🔊' },
-        { id: 'audio-classification', label: 'Audio Classification', icon: '🎵' },
-        // Multimodal & Other
-        { id: 'zero-shot-classification', label: 'Zero-Shot Classification', icon: '🎯' },
-        { id: 'reinforcement-learning', label: 'Reinforcement Learning', icon: '🤖' }
+    console.log('[L8] Generating V6.0 category stats...');
+
+    // V6.0: 5 Primary Categories (Constitution Annex A.2.1 - FROZEN)
+    const primaryCategories = [
+        { id: 'text-generation', label: 'Text Generation & Content Creation', icon: '💬', color: '#6366f1' },
+        { id: 'knowledge-retrieval', label: 'Knowledge Retrieval & Data Analysis', icon: '🔍', color: '#10b981' },
+        { id: 'vision-multimedia', label: 'Vision & Multimedia Processing', icon: '🎨', color: '#f59e0b' },
+        { id: 'automation-workflow', label: 'Automation & Workflow Integration', icon: '⚡', color: '#8b5cf6' },
+        { id: 'infrastructure-ops', label: 'Infrastructure & Optimization', icon: '🔧', color: '#64748b' }
     ];
 
-    // Count models per category by checking tags field
-    const categoryPromises = predefinedCategories.map(async (cat) => {
+    // Count models per primary_category
+    const categoryPromises = primaryCategories.map(async (cat) => {
         const result = await env.DB.prepare(`
-            SELECT COUNT(*) as cnt, AVG(fni_score) as avg_fni, MAX(fni_score) as top_fni
+            SELECT 
+                COUNT(*) as cnt, 
+                AVG(fni_score) as avg_fni, 
+                MAX(fni_score) as top_fni,
+                SUM(CASE WHEN last_updated > datetime('now', '-7 days') THEN 1 ELSE 0 END) as trending
             FROM models 
-            WHERE (id LIKE 'huggingface%' OR id LIKE 'ollama%')
-              AND (tags LIKE ? OR tags LIKE ?)
-        `).bind(`%${cat.id}%`, `%${cat.label.toLowerCase()}%`).first();
+            WHERE primary_category = ?
+        `).bind(cat.id).first();
 
         return {
             category: cat.id,
             label: cat.label,
             icon: cat.icon,
+            color: cat.color,
             count: (result as any)?.cnt || 0,
+            trending: (result as any)?.trending || 0,
             avgFni: (result as any)?.avg_fni ? Math.round((result as any).avg_fni * 10) / 10 : null,
             topFni: (result as any)?.top_fni ? Math.round((result as any).top_fni * 10) / 10 : null
         };
     });
 
     const categoryResults = await Promise.all(categoryPromises);
-    const nonEmptyCategories = categoryResults.filter(c => c.count > 0);
+    const totalModels = categoryResults.reduce((sum, c) => sum + c.count, 0);
 
     const categoryData = {
         generated_at: new Date().toISOString(),
-        version: 'V5.2.1',
-        pipeline_tags: nonEmptyCategories.length > 0 ? nonEmptyCategories : predefinedCategories.map(c => ({
-            category: c.id,
-            label: c.label,
-            icon: c.icon,
-            count: 0,
-            avgFni: null,
-            topFni: null
-        })),
-        total_categories: nonEmptyCategories.length > 0 ? nonEmptyCategories.length : predefinedCategories.length
+        version: 'V6.0',
+        categories: categoryResults,
+        total_models: totalModels,
+        total_categories: 5
     };
 
     await writeToR2(env, 'cache/category_stats.json', categoryData);
-    console.log(`[L8] Category stats: ${categoryData.total_categories} categories`);
+    console.log(`[L8] V6.0 Category stats: ${totalModels} models across 5 categories`);
 }
 
 export async function generateEntityLinksAndBenchmarks(env: Env) {
@@ -198,29 +178,36 @@ export async function generateEntityLinksAndBenchmarks(env: Env) {
 }
 
 export async function generateRankings(env: Env) {
-    console.log('[L8] Generating static rankings pages...');
+    console.log('[L8] Generating V6.0 static rankings pages...');
 
-    const categories = ['text-generation', 'image-generation', 'audio-generation', 'video-generation', 'agent'];
-    categories.push('all'); // Also 'all' category
+    // V6.0: 5 Primary Categories (Annex A.2.1)
+    const categories = [
+        'text-generation',
+        'knowledge-retrieval',
+        'vision-multimedia',
+        'automation-workflow',
+        'infrastructure-ops'
+    ];
+
     for (const cat of categories) {
         console.log(`[L8] Generating rankings for category: ${cat}`);
-        const isAll = cat === 'all';
-        const baseQuery = isAll
-            ? `SELECT id, slug, name, author, fni_score, downloads, likes, description, tags, 
-                      cover_image_url, has_ollama, has_gguf 
-               FROM models WHERE fni_score IS NOT NULL`
-            : `SELECT id, slug, name, author, fni_score, downloads, likes, description, tags, 
-                      cover_image_url, has_ollama, has_gguf 
-               FROM models WHERE fni_score IS NOT NULL AND (pipeline_tag = '${cat}' OR tags LIKE '%${cat}%')`;
+
+        // V6.0: Use primary_category field
+        const baseFields = `id, slug, name, author, fni_score, downloads, likes, description, tags, 
+                           cover_image_url, has_ollama, has_gguf, primary_category, 
+                           category_confidence, size_bucket, size_source`;
+
+        const baseQuery = `SELECT ${baseFields} FROM models 
+                          WHERE primary_category = ? 
+                          AND fni_score IS NOT NULL`;
 
         // Count total
-        const countQuery = isAll
-            ? `SELECT COUNT(*) as total FROM models WHERE fni_score IS NOT NULL`
-            : `SELECT COUNT(*) as total FROM models WHERE fni_score IS NOT NULL AND (pipeline_tag = '${cat}' OR tags LIKE '%${cat}%')`;
+        const countRes = await env.DB.prepare(
+            `SELECT COUNT(*) as total FROM models WHERE primary_category = ? AND fni_score IS NOT NULL`
+        ).bind(cat).first();
 
-        const countRes = await env.DB.prepare(countQuery).first();
-        const total = (countRes as any).total || 0;
-        const totalPages = Math.min(50, Math.ceil(total / 1000));
+        const total = (countRes as any)?.total || 0;
+        const totalPages = Math.min(50, Math.ceil(total / 1000)); // Constitution Art 2.4: Max p50
 
         // Generate Meta
         const meta = {
@@ -228,20 +215,29 @@ export async function generateRankings(env: Env) {
             total,
             per_page: 1000,
             pages: totalPages,
-            generated_at: new Date().toISOString()
+            generated_at: new Date().toISOString(),
+            version: 'V6.0'
         };
         await writeToR2(env, `cache/rankings/${cat}/meta.json`, meta);
 
-        // Generate Pages
+        // Generate Pages (with rank penalty applied)
         for (let p = 1; p <= totalPages; p++) {
             const offset = (p - 1) * 1000;
-            const query = `${baseQuery} ORDER BY fni_score DESC LIMIT 1000 OFFSET ${offset}`;
-            const results = await env.DB.prepare(query).all();
+            const query = `${baseQuery} 
+                          ORDER BY (fni_score * CASE WHEN category_confidence = 'low' THEN 0.7 ELSE 1.0 END) DESC 
+                          LIMIT 1000 OFFSET ?`;
 
-            if (results.results) {
-                await writeToR2(env, `cache/rankings/${cat}/p${p}.json`, results.results);
+            const results = await env.DB.prepare(query).bind(cat, offset).all();
+
+            if (results.results && results.results.length > 0) {
+                const pageData = {
+                    meta: { page: p, total: totalPages, category: cat },
+                    models: results.results
+                };
+                await writeToR2(env, `cache/rankings/${cat}/p${p}.json`, pageData);
             }
         }
-        console.log(`[L8] Generated ${totalPages} pages for ${cat}`);
+        console.log(`[L8] Generated ${totalPages} pages for ${cat} (${total} models)`);
     }
 }
+

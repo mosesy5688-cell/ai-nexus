@@ -1,6 +1,7 @@
 
 import { Env } from '../config/types';
 import { cleanModel, validateModel, routeToShadowDB, ValidationResult } from '../utils/entity-helper';
+import { enrichModel } from '../utils/model-enricher';
 
 /**
  * V5.2.1 Ingestion Step with HYDRATION_QUEUE
@@ -64,7 +65,9 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
             for (const m of cleanedModels) {
                 const validation = validateModel(m);
                 if (validation.valid) {
-                    validModels.push(m);
+                    // V6.0: Enrich with category and size
+                    const enriched = enrichModel(m);
+                    validModels.push({ ...m, ...enriched });
                 } else {
                     invalidModels.push({ model: m, validation });
                 }
@@ -86,13 +89,15 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
                             id, slug, name, author, description, tags,
                             likes, downloads, cover_image_url, body_content_url,
                             source_trail, license_spdx, has_ollama, has_gguf,
-                            last_updated
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            last_updated, primary_category, category_confidence,
+                            size_bucket, size_source
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     `).bind(
                         m.id, m.slug, m.name, m.author, m.description, m.tags,
                         m.likes, m.downloads, m.cover_image_url, m.body_content_url,
                         m.source_trail, m.license_spdx, m.has_ollama, m.has_gguf,
-                        m.last_updated
+                        m.last_updated, m.primary_category, m.category_confidence,
+                        m.size_bucket, m.size_source
                     )
                 );
                 await env.DB.batch(stmts);
