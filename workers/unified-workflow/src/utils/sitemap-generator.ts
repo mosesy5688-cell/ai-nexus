@@ -207,14 +207,14 @@ export async function generateSitemaps(env: any): Promise<void> {
 
     indexContent += '</sitemapindex>';
 
-    await env.R2_ASSETS.put('sitemap-index.xml', indexContent, {
+    await env.R2_ASSETS.put('sitemaps/sitemap-index.xml', indexContent, {
         httpMetadata: { contentType: 'application/xml' }
     });
-    console.log('[L8] ✅ Generated sitemap-index.xml');
+    console.log('[L8] ✅ Generated sitemaps/sitemap-index.xml');
 
     // 4. Ping Google (optional, comment out if not needed)
     try {
-        const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(BASE_URL + '/sitemap-index.xml')}`;
+        const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(BASE_URL + '/sitemaps/sitemap-index.xml')}`;
         await fetch(pingUrl);
         console.log('[L8] 📡 Pinged Google about sitemap update');
     } catch (err) {
