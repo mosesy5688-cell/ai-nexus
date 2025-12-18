@@ -1,6 +1,0 @@
-# Allow all user agents to crawl the site
-User-agent: *
-Allow: /
-
-# Provide the location of the sitemap
-Sitemap: https://free2aitools.com/sitemap.xml
