@@ -14,7 +14,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "ces-check": "node scripts/ces-check.cjs",
-    "ces": "npm run ces-check"
+    "ces": "npm run ces-check",
+    "deploy": "npm run build && npx wrangler pages deploy dist --project-name ai-nexus-293 --commit-dirty=true"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.5",
