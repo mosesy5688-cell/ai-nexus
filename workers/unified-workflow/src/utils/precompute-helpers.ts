@@ -1,6 +1,7 @@
 import { Env } from '../config/types';
 import { writeToR2 } from './gzip';
-// Helper for L8 Precomputation (Trending, Graph, etc.)
+import { generateSitemaps } from './sitemap-generator';
+// Helper for L8 Precomputation (Trending, Graph, Sitemap, etc.)
 
 export async function generateTrendingAndLeaderboard(env: Env) {
     console.log('[L8] Starting cache precompute...');
@@ -93,9 +94,9 @@ export async function generateNeuralGraph(env: Env) {
 }
 
 export async function generateCategoryStats(env: Env) {
-    console.log('[L8] Generating V6.0 category stats...');
+    console.log('[L8] Generating V6.0.1 category stats...');
 
-    // V6.0: 5 Primary Categories (Constitution Annex A.2.1 - FROZEN)
+    // V6.0.1: 5 Primary Categories (Constitution Annex A.2.1 - FROZEN)
     const primaryCategories = [
         { id: 'text-generation', label: 'Text Generation & Content Creation', icon: '💬', color: '#6366f1' },
         { id: 'knowledge-retrieval', label: 'Knowledge Retrieval & Data Analysis', icon: '🔍', color: '#10b981' },
@@ -104,7 +105,7 @@ export async function generateCategoryStats(env: Env) {
         { id: 'infrastructure-ops', label: 'Infrastructure & Optimization', icon: '🔧', color: '#64748b' }
     ];
 
-    // Count models per primary_category
+    // Count classified models per primary_category
     const categoryPromises = primaryCategories.map(async (cat) => {
         const result = await env.DB.prepare(`
             SELECT 
@@ -113,7 +114,7 @@ export async function generateCategoryStats(env: Env) {
                 MAX(fni_score) as top_fni,
                 SUM(CASE WHEN last_updated > datetime('now', '-7 days') THEN 1 ELSE 0 END) as trending
             FROM models 
-            WHERE primary_category = ?
+            WHERE primary_category = ? AND category_status = 'classified'
         `).bind(cat.id).first();
 
         return {
@@ -129,18 +130,36 @@ export async function generateCategoryStats(env: Env) {
     });
 
     const categoryResults = await Promise.all(categoryPromises);
-    const totalModels = categoryResults.reduce((sum, c) => sum + c.count, 0);
+    const classifiedCount = categoryResults.reduce((sum, c) => sum + c.count, 0);
+
+    // V6.0.1: Count pending_classification models
+    const pendingResult = await env.DB.prepare(`
+        SELECT COUNT(*) as cnt FROM models 
+        WHERE category_status = 'pending_classification' OR primary_category IS NULL
+    `).first();
+    const pendingCount = (pendingResult as any)?.cnt || 0;
+
+    // V6.0.1: Total model count
+    const totalResult = await env.DB.prepare(`SELECT COUNT(*) as cnt FROM models`).first();
+    const totalModels = (totalResult as any)?.cnt || 0;
 
     const categoryData = {
         generated_at: new Date().toISOString(),
-        version: 'V6.0',
+        version: 'V6.0.1',
         categories: categoryResults,
+        classified_count: classifiedCount,
         total_models: totalModels,
-        total_categories: 5
+        total_categories: 5,
+        // V6.0.1 Transparency: Show pending classification stats
+        pending_classification: {
+            count: pendingCount,
+            reason: 'missing_pipeline_tag',
+            note: 'High-confidence classification only. Semantic inference in V6.1'
+        }
     };
 
     await writeToR2(env, 'cache/category_stats.json', categoryData);
-    console.log(`[L8] V6.0 Category stats: ${totalModels} models across 5 categories`);
+    console.log(`[L8] V6.0.1 Category stats: ${classifiedCount} classified, ${pendingCount} pending, ${totalModels} total`);
 }
 
 export async function generateEntityLinksAndBenchmarks(env: Env) {

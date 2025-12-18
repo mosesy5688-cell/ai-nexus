@@ -1,9 +1,10 @@
 /**
- * V6.0 Model Enricher
- * Adds primary_category and size_bucket to model data
+ * V6.0.1 Model Enricher
+ * Adds primary_category, category_status, and size_bucket to model data
  * 
- * Constitution Annex A.2 - Category assignment with confidence tracking
- * Expert3 constraint: Fallback must not pollute rankings
+ * Constitution V5.2.1 Art 6.1 - Category = Verifiable Fact Only
+ * V6.0.1 Strategy: Only pipeline_tag = classified, no semantic inference
+ * Semantic inference (tags/name) deferred to V6.1 L5 Analyst (Sidecar)
  */
 
 import { CategoryId, CATEGORY_PRIORITY } from '../config/categories';
@@ -13,9 +14,12 @@ import { CATEGORY_MAP, PIPELINE_TO_CATEGORY } from '../config/category-mapping';
 // Types
 // ============================================================================
 
+export type CategoryStatus = 'classified' | 'pending_classification';
+
 export interface CategoryResult {
-    category: CategoryId;
-    confidence: 'high' | 'medium' | 'low';
+    category: CategoryId | null;
+    confidence: 'high' | 'none';
+    status: CategoryStatus;
 }
 
 export interface SizeResult {
@@ -24,60 +28,55 @@ export interface SizeResult {
 }
 
 export interface EnrichedModel {
-    primary_category: CategoryId;
-    category_confidence: 'high' | 'medium' | 'low';
+    primary_category: CategoryId | null;
+    category_confidence: 'high' | 'none';
+    category_status: CategoryStatus;
     size_bucket: string;
     size_source: 'config' | 'name_inference' | 'unknown';
-    rank_penalty: number;
 }
 
 // ============================================================================
-// Category Assignment
+// Category Assignment (V6.0.1 - Pure High-Confidence Only)
 // ============================================================================
 
 /**
- * Assigns primary category with confidence level
- * Strategy: Pipeline Tag (high) > Keyword Match (medium) > Fallback (low)
+ * V6.0.1 Conservative Strategy:
+ * - ONLY pipeline_tag from HuggingFace API = classified
+ * - NO tags/name inference (deferred to V6.1 L5 Analyst)
+ * - Missing pipeline_tag = pending_classification (not low confidence)
+ * 
+ * "34% high-confidence > 80% noisy coverage" — Expert Consensus
  */
 export function assignCategory(model: any): CategoryResult {
-    // 1. Pipeline Tag - most reliable (high confidence)
+    // Only source of truth: pipeline_tag from upstream API
     if (model.pipeline_tag) {
         const category = PIPELINE_TO_CATEGORY[model.pipeline_tag];
         if (category) {
-            return { category, confidence: 'high' };
+            return {
+                category,
+                confidence: 'high',
+                status: 'classified'
+            };
         }
+        // pipeline_tag exists but not in our mapping (e.g., 'graph-learning')
+        console.log(`[Enricher] Unknown pipeline_tag: ${model.pipeline_tag} for ${model.id}`);
     }
 
-    // 2. Tags array keyword matching (medium confidence)
-    const tags = (model.tags || []).map((t: string) => t.toLowerCase());
-
-    // Text generation indicators
-    if (tags.some((t: string) => ['llm', 'chat', 'instruct', 'gpt'].includes(t))) {
-        return { category: 'text-generation', confidence: 'medium' };
-    }
-
-    // Vision/multimedia indicators
-    if (tags.some((t: string) => ['diffusion', 'lora', 'sdxl', 'stable-diffusion'].includes(t))) {
-        return { category: 'vision-multimedia', confidence: 'medium' };
-    }
-
-    // Knowledge/embedding indicators
-    if (tags.some((t: string) => ['embedding', 'sentence-transformers', 'rag'].includes(t))) {
-        return { category: 'knowledge-retrieval', confidence: 'medium' };
-    }
-
-    // 3. Fallback - lowest confidence, will receive rank penalty
-    console.warn(`[CategoryFallback] No category match for: ${model.name || model.id}`);
-    return { category: 'infrastructure-ops', confidence: 'low' };
+    // V6.0.1: No inference, no fallback, just transparent pending state
+    return {
+        category: null,
+        confidence: 'none',
+        status: 'pending_classification'
+    };
 }
 
 // ============================================================================
-// Size Estimation
+// Size Estimation (unchanged - physical property, safe)
 // ============================================================================
 
 /**
  * Estimates model size bucket with source tracking
- * Expert3 constraint: Must distinguish Estimated vs Confirmed
+ * This is a physical property, not semantic - safe for V6.0
  */
 export function estimateSizeBucket(model: any): SizeResult {
     // 1. Priority: Safetensors config (most reliable)
@@ -89,7 +88,7 @@ export function estimateSizeBucket(model: any): SizeResult {
         };
     }
 
-    // 2. Inference: Model name regex matching (Expert2 enhanced)
+    // 2. Inference: Model name regex matching
     const name = (model.name || model.id || '').toLowerCase();
 
     // MoE detection (e.g., 8x7b, 4x22b)
@@ -114,7 +113,6 @@ export function estimateSizeBucket(model: any): SizeResult {
     if (name.match(/\b[1-6]b\b/i)) {
         return { size_bucket: '<7B', size_source: 'name_inference' };
     }
-    // Millions (e.g., 350m, 1.5b)
     if (name.match(/\b\d{2,3}m\b/i)) {
         return { size_bucket: '<7B', size_source: 'name_inference' };
     }
@@ -135,21 +133,18 @@ function bucketFromParams(params: number): string {
 // ============================================================================
 
 /**
- * Enriches a model with category and size information
+ * V6.0.1 Enricher - Pure high-confidence classification
  * Returns fields to be merged into model object
  */
 export function enrichModel(model: any): EnrichedModel {
     const categoryResult = assignCategory(model);
     const sizeResult = estimateSizeBucket(model);
 
-    // Expert3: Low confidence = 30% rank penalty
-    const rankPenalty = categoryResult.confidence === 'low' ? 0.7 : 1.0;
-
     return {
         primary_category: categoryResult.category,
         category_confidence: categoryResult.confidence,
+        category_status: categoryResult.status,
         size_bucket: sizeResult.size_bucket,
-        size_source: sizeResult.size_source,
-        rank_penalty: rankPenalty
+        size_source: sizeResult.size_source
     };
 }
