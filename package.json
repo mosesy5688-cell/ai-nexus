@@ -13,6 +13,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
     "ces-check": "node scripts/ces-check.cjs",
     "ces": "npm run ces-check",
     "deploy": "npm run build && npx wrangler pages deploy dist --project-name ai-nexus-293 --commit-dirty=true"
@@ -44,6 +45,7 @@
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@vitest/coverage-v8": "^4.0.14",
     "@vitest/ui": "^4.0.14",
     "axios": "^1.13.2",

@@ -1,0 +1,58 @@
+{
+  "generated_at": "2025-12-18T00:01:37.085Z",
+  "version": "V6.0",
+  "categories": [
+    {
+      "category": "text-generation",
+      "label": "Text Generation & Content Creation",
+      "icon": "💬",
+      "color": "#6366f1",
+      "count": 167,
+      "trending": 167,
+      "avgFni": 1.1,
+      "topFni": 6
+    },
+    {
+      "category": "knowledge-retrieval",
+      "label": "Knowledge Retrieval & Data Analysis",
+      "icon": "🔍",
+      "color": "#10b981",
+      "count": 4,
+      "trending": 4,
+      "avgFni": null,
+      "topFni": null
+    },
+    {
+      "category": "vision-multimedia",
+      "label": "Vision & Multimedia Processing",
+      "icon": "🎨",
+      "color": "#f59e0b",
+      "count": 259,
+      "trending": 259,
+      "avgFni": null,
+      "topFni": null
+    },
+    {
+      "category": "automation-workflow",
+      "label": "Automation & Workflow Integration",
+      "icon": "⚡",
+      "color": "#8b5cf6",
+      "count": 0,
+      "trending": 0,
+      "avgFni": null,
+      "topFni": null
+    },
+    {
+      "category": "infrastructure-ops",
+      "label": "Infrastructure & Optimization",
+      "icon": "🔧",
+      "color": "#64748b",
+      "count": 3086,
+      "trending": 3086,
+      "avgFni": null,
+      "topFni": null
+    }
+  ],
+  "total_models": 3516,
+  "total_categories": 5
+}

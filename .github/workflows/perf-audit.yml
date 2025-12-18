@@ -1,0 +1,27 @@
+name: Performance Audit (Lighthouse)
+
+on:
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Allow manual trigger
+
+jobs:
+  lighthouse-prod:
+    name: Audit Production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Lighthouse (Production)
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            https://free2aitools.com/
+            https://free2aitools.com/category/text-generation
+            https://free2aitools.com/model/deepseek-r1-distill-llama-70b
+          budgetPath: './.github/lighthouse-budget.json'
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          runs: 3 # Run 3 times for stability

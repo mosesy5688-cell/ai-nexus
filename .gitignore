@@ -53,3 +53,5 @@ docs/runbooks/
 # Backup files
 *.backup
 *.bak
+
+!docs/TEST_STRATEGY_MASTER_V6.0.md
