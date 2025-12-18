@@ -53,6 +53,11 @@ head_sampling_rate = 1
 invocation_logs = true
 
 
+# API Cache proxy
+[[routes]]
+pattern = "free2aitools.com/api/cache/*"
+zone_name = "free2aitools.com"
+
 # Sitemap route (served by Worker via R2)
 [[routes]]
 pattern = "free2aitools.com/sitemaps/*"

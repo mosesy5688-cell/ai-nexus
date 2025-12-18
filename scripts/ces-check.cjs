@@ -5,7 +5,7 @@ const path = require('path');
 const MAX_LINES = 250;
 
 // IGNORE LISTS (Requires Explicit User Approval for additions)
-const IGNORE_DIRS = ['node_modules', '.git', 'dist', '.wrangler', '.astro', 'coverage', 'archive'];
+const IGNORE_DIRS = ['node_modules', '.git', 'dist', '.wrangler', '.astro', 'coverage'];
 
 // LEGACY WHITELIST (Approved by User Step 2099)
 const IGNORE_FILES = [

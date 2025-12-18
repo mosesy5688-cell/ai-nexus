@@ -85,6 +85,23 @@ export default {
             return new Response(object.body, { headers });
         }
 
+        // Route: API Cache (E.g. /api/cache/trending.json -> cache/trending.json)
+        if (path.startsWith('api/cache/')) {
+            const cacheKey = path.replace('api/', ''); // cache/trending.json
+            const object = await env.R2_ASSETS.get(cacheKey);
+            if (!object) return new Response('Cache not found', { status: 404 });
+
+            const headers = new Headers();
+            object.writeHttpMetadata(headers);
+            headers.set('etag', object.httpEtag);
+            headers.set('Content-Type', 'application/json');
+            // 5 min cache for trending
+            headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=300');
+            headers.set('Access-Control-Allow-Origin', '*');
+
+            return new Response(object.body, { headers });
+        }
+
         if (url.pathname === '/trigger') {
             await env.UNIFIED_WORKFLOW.create();
             return new Response('Triggered');
