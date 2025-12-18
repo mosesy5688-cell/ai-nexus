@@ -23,7 +23,7 @@ async function loadIndex() {
                 { name: 'name', weight: 0.4 },
                 { name: 'author', weight: 0.2 },
                 { name: 'tags', weight: 0.2 },
-                { name: 'description', weight: 0.1 }, // Note: Description might not be in Hot Index to save space? Check L8.
+                { name: 'description', weight: 0.1 },
                 { name: 'slug', weight: 0.1 }
             ],
             threshold: 0.3,
@@ -53,30 +53,20 @@ self.onmessage = async (e) => {
 
     if (type === 'SEARCH') {
         if (!isLoaded) {
-            // If not loaded yet, wait a bit or fail
+            // Check errors or wait
             if (loadError) {
                 self.postMessage({ id, type: 'ERROR', error: loadError });
                 return;
             }
-            // Simple retry logic or just fail for 50ms timebox
-            // For now, we assume user won't search in the first 100ms of page load
-            // If they do, we'll return empty or wait?
-            // Let's try to wait for load logic if it's pending? 
-            // Better: Fail fast.
+            // If just loading, maybe return empty with "loading" status? 
+            // Current client waits for "RESULT" type.
+            // We'll return empty for now to avoid hanging.
+            self.postMessage({ id, type: 'RESULT', results: [], total: 0, page: 1, total_pages: 0 });
+            return;
         }
 
         const start = performance.now();
         let results = items;
-
-        // Pre-process items to ensure valid data types
-        // API returns flat fields (likes, downloads, fni_score) and stringified tags
-        results = results.map(i => {
-            let tags = i.tags || [];
-            if (typeof tags === 'string') {
-                try { tags = JSON.parse(tags); } catch { tags = []; }
-            }
-            return { ...i, tags };
-        });
 
         // 1. Full Text Search via Fuse
         if (filters.q && fuse) {
