@@ -19,8 +19,8 @@ export const CACHE_FILES = [
 ];
 
 export const API_ENDPOINTS = [
-    { url: '/api/search?q=llama', name: 'Search API', requiredKeys: ['results'] },
-    { url: '/api/trending.json', name: 'Trending API', requiredKeys: ['data'] }
+    // V6 Architecture: Serverless Search (Client-side)
+    // No server endpoints to test
 ];
 
 export const KNOWLEDGE_ARTICLES = [
@@ -33,14 +33,14 @@ export const KNOWLEDGE_ARTICLES = [
 
 // Models from benchmarks.json to test
 export const MODEL_UMIDS = [
-    'qwen-qwen2-5-72b',
-    'meta-llama-llama-3-3-70b',
-    'meta-llama-llama-3-1-70b',
-    'mistralai-mistral-large',
-    'deepseek-ai-deepseek-v2-5',
-    'qwen-qwen2-5-7b',
-    'meta-llama-llama-3-1-8b',
-    'microsoft-phi-3-medium',
-    'google-gemma-2-9b',
-    'mistralai-mistral-7b'
+    'huggingface--qwen--qwen2.5-72b-instruct',
+    'huggingface--meta-llama--llama-3.3-70b-instruct',
+    'huggingface--meta-llama--llama-3.1-70b-instruct',
+    'huggingface--mistralai--mistral-large-instruct-2407',
+    'huggingface--deepseek-ai--deepseek-v2.5',
+    'huggingface--qwen--qwen2.5-7b-instruct',
+    'huggingface--meta-llama--llama-3.1-8b-instruct',
+    'huggingface--microsoft--phi-3-medium-4k-instruct',
+    'huggingface--google--gemma-2-9b-it',
+    'huggingface--mistralai--mistral-7b-instruct-v0.3'
 ];
