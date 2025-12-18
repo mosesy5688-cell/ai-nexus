@@ -68,6 +68,16 @@ self.onmessage = async (e) => {
         const start = performance.now();
         let results = items;
 
+        // Pre-process items to ensure valid data types
+        // API returns flat fields (likes, downloads, fni_score) and stringified tags
+        results = results.map(i => {
+            let tags = i.tags || [];
+            if (typeof tags === 'string') {
+                try { tags = JSON.parse(tags); } catch { tags = []; }
+            }
+            return { ...i, tags };
+        });
+
         // 1. Full Text Search via Fuse
         if (filters.q && fuse) {
             const fuseResults = fuse.search(filters.q);
@@ -75,9 +85,8 @@ self.onmessage = async (e) => {
         }
 
         // 2. Apply Filters (Client-Side)
-        // filters: { min_likes, has_benchmarks, days_ago, tags, source... }
         if (filters.min_likes > 0) {
-            results = results.filter(i => (i.stats?.likes || 0) >= filters.min_likes);
+            results = results.filter(i => (i.likes || 0) >= filters.min_likes);
         }
 
         if (filters.tags && filters.tags.length > 0) {
@@ -91,10 +100,10 @@ self.onmessage = async (e) => {
         if (filters.sort) {
             results.sort((a, b) => {
                 const map = {
-                    'likes': (i) => i.stats?.likes || 0,
-                    'downloads': (i) => i.stats?.downloads || 0,
+                    'likes': (i) => i.likes || 0,
+                    'downloads': (i) => i.downloads || 0,
                     'last_updated': (i) => new Date(i.last_updated || 0).getTime(),
-                    'fni': (i) => i.stats?.fni || 0
+                    'fni': (i) => i.fni_score || 0
                 };
                 const getter = map[filters.sort] || map['likes'];
                 return getter(b) - getter(a);
