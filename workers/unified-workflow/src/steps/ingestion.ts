@@ -39,8 +39,8 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
 
     console.log(`[Ingest] Found ${jsonFiles.length} files to process`);
 
-    // V5.2.1: Process more files with Queue-based parallel processing
-    const MAX_FILES_PER_RUN = 50; // Increased from 20
+    // V6.0: Increased for faster bulk processing (Constitution Art 1.1 compliant)
+    const MAX_FILES_PER_RUN = 100; // Doubled from 50 for V6.0
     let totalModels = 0;
     let filesProcessed = 0;
     let messagesQueued = 0;
@@ -90,14 +90,14 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
                             likes, downloads, cover_image_url, body_content_url,
                             source_trail, license_spdx, has_ollama, has_gguf,
                             last_updated, primary_category, category_confidence,
-                            size_bucket, size_source
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            category_status, size_bucket, size_source
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     `).bind(
                         m.id, m.slug, m.name, m.author, m.description, m.tags,
                         m.likes, m.downloads, m.cover_image_url, m.body_content_url,
                         m.source_trail, m.license_spdx, m.has_ollama, m.has_gguf,
                         m.last_updated, m.primary_category, m.category_confidence,
-                        m.size_bucket, m.size_source
+                        m.category_status, m.size_bucket, m.size_source
                     )
                 );
                 await env.DB.batch(stmts);
@@ -132,15 +132,9 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
             totalModels += validModels.length;
             filesProcessed++;
 
-            // Archive processed file
-            const archiveFile = await env.R2_ASSETS.get(fileObj.key);
-            if (archiveFile) {
-                const today = new Date().toISOString().split('T')[0];
-                const archiveKey = `processed/${today}/${fileObj.key.split('/').pop()}`;
-                await env.R2_ASSETS.put(archiveKey, archiveFile.body);
-                await env.R2_ASSETS.delete(fileObj.key);
-                console.log(`[Ingest] Archived: ${fileObj.key} -> ${archiveKey}`);
-            }
+            // V6.0: Delete after successful D1 write (L1 Harvester is source of truth)
+            await env.R2_ASSETS.delete(fileObj.key);
+            console.log(`[Ingest] Processed and deleted: ${fileObj.key}`);
         } catch (error) {
             console.error(`[Ingest] Error processing ${fileObj.key}:`, error);
         }

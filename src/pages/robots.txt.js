@@ -5,8 +5,8 @@ export async function GET() {
 User-agent: *
 Allow: /
 
-# Sitemaps
-Sitemap: https://free2aitools.com/sitemap.xml
+# Sitemaps - V6.1+ SEO Optimization
+Sitemap: https://free2aitools.com/sitemap-index.xml
 `.trim();
 
     return new Response(robotsTxt, {
