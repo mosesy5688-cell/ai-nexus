@@ -7,348 +7,22 @@
  * 
  * FNI = P(25%) + V(25%) + C(30%) + U(20%)
  * 
- * Where:
- * - P (Popularity): likes, downloads, github_stars
- * - V (Velocity): 7-day growth rate
- * - C (Credibility): arxiv_id, readme quality, author reputation
- * - U (Utility): Ollama support, GGUF availability, local deployability
- * 
- * Key Principles:
- * - Forensic Traceability: All data has source_trail
- * - Radical Neutrality: L5/L6 physically separated
- * - Holistic Perspective: Not just benchmarks, but real-world usability
- * - Explainability: Every score has a commentary
- * 
  * @module scripts/calculate-fni
  */
 
-import { config } from 'dotenv';
+import { config as dotenvConfig } from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
+
+import { CONFIG } from './fni/fni-config.js';
+import { calculateFNI } from './fni/fni-calc.js';
+import { generateCommentary } from './fni/fni-analysis.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-config({ path: path.join(__dirname, '../.dev.vars') });
-
-// ============================================================
-// CONFIGURATION
-// ============================================================
-
-const CONFIG = {
-    // Weight configuration (must sum to 1.0)
-    // V4.7 Constitution: FNI = 0.3P + 0.3V + 0.2C + 0.2U
-    WEIGHTS: {
-        P: 0.30,  // Popularity (V4.7)
-        V: 0.30,  // Velocity (V4.7)
-        C: 0.20,  // Credibility (V4.7)
-        U: 0.20   // Utility (V4.7)
-    },
-
-    // Normalization baselines (based on data distribution)
-    NORMALIZATION: {
-        MAX_LIKES: 500000,
-        MAX_DOWNLOADS: 1000000,
-        MAX_GITHUB_STARS: 100000,
-        MAX_VELOCITY: 150000
-    },
-
-    // Big corps for author reputation
-    BIG_CORPS: [
-        'meta', 'google', 'microsoft', 'openai', 'anthropic',
-        'nvidia', 'alibaba', 'huggingface', 'deepmind', 'stability-ai',
-        'mistralai', 'cohere', 'baidu', 'tencent'
-    ],
-
-    // Utility score bonuses (V3.3 Data Expansion)
-    UTILITY: {
-        OLLAMA_BONUS: 30,      // Native Ollama support
-        GGUF_BONUS: 25,        // GGUF quantization available
-        COMPLETE_README: 15,   // Has comprehensive documentation
-        DOCKER_BONUS: 10,      // Docker deployment support
-        API_BONUS: 10          // Has inference API
-    },
-
-    // Anomaly thresholds
-    ANOMALY: {
-        GROWTH_MULTIPLIER: 10,  // 10x avg = suspicious
-        MIN_DOWNLOAD_RATIO: 1,   // downloads/likes ratio
-        MAX_DOWNLOAD_RATIO: 500,
-        MIN_CONTENT_FOR_HIGH_LIKES: 500  // bytes
-    }
-};
-
-// ============================================================
-// CORE CALCULATION FUNCTIONS
-// ============================================================
-
-/**
- * Calculate P (Popularity) score [0-100]
- */
-function calculateP(model) {
-    const { MAX_LIKES, MAX_DOWNLOADS, MAX_GITHUB_STARS } = CONFIG.NORMALIZATION;
-
-    const likes = Math.min((model.likes || 0) / MAX_LIKES, 1) * 100;
-    const downloads = Math.min((model.downloads || 0) / MAX_DOWNLOADS, 1) * 100;
-    const stars = model.github_stars
-        ? Math.min(model.github_stars / MAX_GITHUB_STARS, 1) * 100
-        : likes;  // Fallback to likes if no stars
-
-    return Math.round((likes * 0.4 + downloads * 0.3 + stars * 0.3) * 10) / 10;
-}
-
-/**
- * Calculate V (Velocity) score [0-100]
- */
-function calculateV(model) {
-    const { MAX_VELOCITY } = CONFIG.NORMALIZATION;
-
-    // Use existing velocity field (7-day growth rate)
-    const velocity = model.velocity || model.velocity_score || 0;
-
-    return Math.round(Math.min((velocity / MAX_VELOCITY) * 100, 100) * 10) / 10;
-}
-
-/**
- * Calculate C (Credibility) score [0-100]
- */
-function calculateC(model) {
-    let score = 0;
-
-    // Academic backing (40 points)
-    if (model.arxiv_id) score += 20;
-    const relations = typeof model.relations === 'string'
-        ? JSON.parse(model.relations || '[]')
-        : (model.relations || []);
-    if (relations.some(r => r.type === 'based_on_paper')) score += 20;
-
-    // Documentation completeness (30 points)
-    const readmeLength = model.body_content?.length || 0;
-    if (readmeLength > 500) score += 10;
-    if (readmeLength > 2000) score += 10;
-    if (readmeLength > 10000) score += 10;
-
-    // Author reputation (30 points)
-    const author = (model.author || '').toLowerCase();
-    if (CONFIG.BIG_CORPS.includes(author)) {
-        score += 30;
-    } else if (author.includes('ai') || author.includes('lab')) {
-        score += 15;  // Partial credit for AI-focused orgs
-    }
-
-    return Math.min(100, Math.round(score * 10) / 10);
-}
-
-/**
- * Calculate U (Utility) score [0-100]
- * V3.3 Data Expansion: "Runtime First" Strategy
- */
-function calculateU(model) {
-    let score = 0;
-    const { UTILITY } = CONFIG;
-
-    // 1. Ollama support (30 points) - "Can I run this with one command?"
-    if (model.has_ollama || model.ollama_id) {
-        score += UTILITY.OLLAMA_BONUS;
-    }
-
-    // 2. GGUF quantization (25 points) - "Can I run this on consumer hardware?"
-    if (model.has_gguf || (model.gguf_variants && model.gguf_variants.length > 0)) {
-        score += UTILITY.GGUF_BONUS;
-    }
-
-    // 3. Comprehensive documentation (15 points)
-    const readmeLength = model.body_content?.length || 0;
-    if (readmeLength > 5000) {
-        score += UTILITY.COMPLETE_README;
-    } else if (readmeLength > 2000) {
-        score += UTILITY.COMPLETE_README * 0.5;
-    }
-
-    // 4. Docker support (10 points)
-    const tags = Array.isArray(model.tags) ? model.tags : [];
-    if (tags.some(t => t.toLowerCase().includes('docker'))) {
-        score += UTILITY.DOCKER_BONUS;
-    }
-
-    // 5. Has Inference API (10 points)
-    const meta = typeof model.meta_json === 'string'
-        ? JSON.parse(model.meta_json || '{}')
-        : (model.meta_json || {});
-    if (meta.has_inference_api || meta.inference) {
-        score += UTILITY.API_BONUS;
-    }
-
-    return Math.min(100, Math.round(score * 10) / 10);
-}
-
-/**
- * Detect anomalies for anti-manipulation
- */
-function detectAnomalies(model, allModels) {
-    const flags = [];
-
-    // 1. Unusual download/likes ratio
-    const ratio = (model.downloads || 0) / ((model.likes || 1));
-    if (ratio < CONFIG.ANOMALY.MIN_DOWNLOAD_RATIO || ratio > CONFIG.ANOMALY.MAX_DOWNLOAD_RATIO) {
-        flags.push('UNUSUAL_RATIO');
-    }
-
-    // 2. High popularity but no content
-    if ((model.likes || 0) > 10000 && (!model.body_content || model.body_content.length < CONFIG.ANOMALY.MIN_CONTENT_FOR_HIGH_LIKES)) {
-        flags.push('CONTENT_MISMATCH');
-    }
-
-    // 3. Suspicious growth (compared to avg)
-    if (allModels && allModels.length > 0) {
-        const avgVelocity = allModels.reduce((sum, m) => sum + (m.velocity || 0), 0) / allModels.length;
-        if ((model.velocity || 0) > avgVelocity * CONFIG.ANOMALY.GROWTH_MULTIPLIER && avgVelocity > 0) {
-            flags.push('SUSPICIOUS_GROWTH');
-        }
-    }
-
-    return flags;
-}
-
-/**
- * Calculate anomaly multiplier (penalty)
- */
-function getAnomalyMultiplier(flags) {
-    if (flags.length === 0) return 1.0;
-
-    let multiplier = 1.0;
-
-    if (flags.includes('SUSPICIOUS_GROWTH')) multiplier *= 0.8;
-    if (flags.includes('UNUSUAL_RATIO')) multiplier *= 0.9;
-    if (flags.includes('CONTENT_MISMATCH')) multiplier *= 0.7;
-
-    return Math.max(0.5, multiplier);  // Floor at 0.5
-}
-
-/**
- * Generate auto-commentary explaining the score
- * V4.1: English version per Constitution mandate
- */
-function generateCommentary(model, P, V, C, U, score, percentile, flags) {
-    let commentary = `This model scores ${score.toFixed(1)} (Top ${100 - percentile}%).`;
-
-    const strengths = [];
-    const weaknesses = [];
-
-    // Identify strengths and weaknesses
-    if (P >= 80) strengths.push('extremely high community recognition');
-    else if (P <= 40) weaknesses.push('low community attention');
-
-    if (V >= 80) strengths.push('rapid recent growth');
-    else if (V <= 40) weaknesses.push('slow growth trend');
-
-    if (C >= 80) strengths.push('high academic credibility');
-    else if (C <= 40) weaknesses.push('lacks academic endorsement');
-
-    // V3.3 Utility commentary
-    if (U >= 50) {
-        if (model.has_ollama) strengths.push('supports Ollama one-click deployment');
-        else if (model.has_gguf) strengths.push('provides GGUF quantization');
-        else strengths.push('local deployment friendly');
-    } else if (U <= 20) {
-        weaknesses.push('higher local deployment barrier');
-    }
-
-    // Build commentary
-    if (strengths.length > 0) {
-        commentary += ` With ${strengths.join(', ')},`;
-    }
-
-    if (weaknesses.length > 0 && strengths.length > 0) {
-        commentary += ` although ${weaknesses.join(', ')},`;
-    } else if (weaknesses.length > 0) {
-        commentary += ` Due to ${weaknesses.join(', ')},`;
-    }
-
-    // Scenario recommendation
-    if (score >= 85) {
-        commentary += ' it is a reliable choice for enterprise deployment.';
-    } else if (U >= 50 && P <= 50) {
-        commentary += ' ideal for individual developers to deploy locally.';
-    } else if (V >= 70 && P <= 50) {
-        commentary += ' it is a rising star worth watching.';
-    } else if (P >= 70 && C <= 50) {
-        commentary += ' suitable for rapid prototyping, production use requires caution.';
-    } else if (C >= 70) {
-        commentary += ' has high academic research reference value.';
-    } else {
-        commentary += ' recommend evaluating based on specific use case.';
-    }
-
-    // Anomaly warning
-    if (flags.length > 0) {
-        commentary += ` (Note: data anomaly flags detected)`;
-    }
-
-    return commentary;
-}
-
-/**
- * Calculate complete FNI for a model
- * V3.3: Added U dimension
- */
-function calculateFNI(model, allModels) {
-    const P = calculateP(model);
-    const V = calculateV(model);
-    const C = calculateC(model);
-    const U = calculateU(model);  // V3.3 Data Expansion
-
-    const anomalyFlags = detectAnomalies(model, allModels);
-    const anomalyMultiplier = getAnomalyMultiplier(anomalyFlags);
-
-    const rawScore = (P * CONFIG.WEIGHTS.P) + (V * CONFIG.WEIGHTS.V) + (C * CONFIG.WEIGHTS.C) + (U * CONFIG.WEIGHTS.U);
-    const finalScore = rawScore * anomalyMultiplier;
-
-    return {
-        fni_score: Math.round(finalScore * 10) / 10,
-        fni_p: P,
-        fni_v: V,
-        fni_c: C,
-        fni_u: U,  // V3.3 Data Expansion
-        fni_anomaly_flags: anomalyFlags,
-        fni_raw_score: rawScore  // Before penalty
-    };
-}
-
-/**
- * V4 Stable: Check FNI stability (>20% variance detection)
- * C2: Divide-zero protection added
- * @param {Object} model - Current model with fni_score
- * @param {number} previousFNI - Previous FNI score
- * @returns {Object} - Stability result with status
- */
-function checkFNIStability(model, previousFNI) {
-    // V4 Stable: Divide-zero protection (MANDATORY)
-    if (!previousFNI || previousFNI === 0 || isNaN(previousFNI)) {
-        return { stable: true, delta: 0, status: 'new' };
-    }
-
-    const currentFNI = model.fni_score || 0;
-    const delta = Math.abs(currentFNI - previousFNI) / previousFNI;
-
-    if (delta > 0.20) {
-        // Flag as unstable
-        model.fni_status = 'unstable';
-        model.fni_anomaly_flags = JSON.stringify({
-            reason: 'variance_exceeded',
-            delta: (delta * 100).toFixed(1) + '%',
-            previous: previousFNI,
-            current: currentFNI
-        });
-
-        console.warn(`[FNI-STABILITY] ${model.id || model.umid} variance ${(delta * 100).toFixed(1)}% > 20%`);
-
-        return { stable: false, delta, status: 'unstable' };
-    }
-
-    model.fni_status = 'stable';
-    return { stable: true, delta, status: 'stable' };
-}
+dotenvConfig({ path: path.join(__dirname, '../.dev.vars') });
 
 /**
  * Calculate percentile rankings
@@ -377,8 +51,6 @@ async function main() {
     console.log('⚖️  Weights: P=' + (CONFIG.WEIGHTS.P * 100) + '% V=' + (CONFIG.WEIGHTS.V * 100) + '% C=' + (CONFIG.WEIGHTS.C * 100) + '% U=' + (CONFIG.WEIGHTS.U * 100) + '%');
     console.log('');
 
-    // For local testing, read from JSON file
-    const fs = await import('fs');
     const modelsPath = path.join(__dirname, '../data/raw.json');
 
     if (!fs.existsSync(modelsPath)) {
@@ -447,6 +119,10 @@ async function main() {
 
     // Save output
     const outputPath = path.join(__dirname, '../data/models_with_fni.json');
+    const outputDir = path.dirname(outputPath); // Ensure directory exists
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
     fs.writeFileSync(outputPath, JSON.stringify(final, null, 2));
     console.log('');
     console.log(`✅ Saved to ${outputPath}`);

@@ -28,37 +28,8 @@ const OUTPUT_FILE = path.join(OUTPUT_DIR, 'merged.json');
  * Sprint 3 Phase 0: Grand Reset & Core Ingestion (5,000 entities)
  * Target: HF Models 3000 + GitHub 1500 + Datasets 500 = 5000
  */
-const DEFAULT_CONFIG = {
-    sources: {
-        // V4.1 Phase 3: Operation 10K
-        // Target: 15,500 raw → ~10,000 after dedup
-        huggingface: { enabled: true, options: { limit: 8000 } },
-        'huggingface-datasets': { enabled: true, options: { limit: 1500 } },
-        github: { enabled: true, options: { limit: 3000 } },
-
-        // Academic Sources (3s delay required)
-        arxiv: { enabled: true, options: { limit: 2000, category: 'cs.AI OR cs.LG OR cs.CL OR cs.CV' } },
-
-        // Ollama Registry (NEW for Phase 3)
-        ollama: { enabled: true, options: { limit: 1000 } },
-
-        // PWC disabled (Cloudflare protection)
-        paperswithcode: { enabled: false, options: { limit: 200 } },
-
-        // V4.9.1 Data Expansion (Manual Enablement)
-        openllm: { enabled: true, options: { limit: 1000 } }, // Benchmarks
-        deepspec: { enabled: true, options: { limit: 5000 } }, // Specs
-        civitai: { enabled: true, options: { limit: 500 } },  // Models (NSFW filtered)
-        semanticscholar: { enabled: true, options: { limit: 1000 } } // Citations
-    },
-    deduplication: {
-        enabled: true,
-        mergeStats: true
-    },
-    compliance: {
-        blockNSFW: true
-    }
-};
+import { DEFAULT_CONFIG } from './ingestion-config.js';
+import { saveOutput } from './output-mapper.js';
 
 /**
  * Orchestrator Class
@@ -103,7 +74,7 @@ export class Orchestrator {
 
         // Phase 5: Output
         console.log('\n💾 Phase 5: Saving output...');
-        await this.saveOutput(compliantEntities);
+        this.stats.output = await saveOutput(compliantEntities, OUTPUT_DIR, OUTPUT_FILE);
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 
@@ -247,57 +218,10 @@ export class Orchestrator {
     }
 
     /**
-     * Save output to JSON file
+     * Save output to JSON file (delegated)
      */
     async saveOutput(entities) {
-        // Ensure output directory exists
-        if (!fs.existsSync(OUTPUT_DIR)) {
-            fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-        }
-
-        // Transform to output format (matching Rust processor expectations)
-        const output = entities.map(e => ({
-            id: e.id,
-            name: e.title,
-            author: e.author,
-            description: e.description,
-            tags: e.tags,
-            pipeline_tag: e.pipeline_tag || e.meta_json?.pipeline_tag || 'other',
-            likes: e.popularity || 0,
-            downloads: e.downloads || 0,
-            source: e.source,
-            source_url: e.source_url,
-            image_url: e.raw_image_url,
-            // V3.2 fields
-            type: e.type,
-            body_content: e.body_content,
-            meta_json: JSON.stringify(e.meta_json || {}),
-            assets_json: JSON.stringify(e.assets || []),
-            relations_json: JSON.stringify(e.relations || []),
-            canonical_id: e.canonical_id || null,
-            license_spdx: e.license_spdx,
-            compliance_status: e.compliance_status,
-            quality_score: e.quality_score,
-            content_hash: e.content_hash,
-            velocity: e.velocity || null,
-            raw_image_url: e.raw_image_url,
-            // Legacy V3.1 fields
-            source_trail: JSON.stringify([{
-                source_platform: e.source,
-                source_url: e.source_url,
-                fetched_at: new Date().toISOString(),
-                adapter_version: '3.2.0'
-            }]),
-            commercial_slots: null, // Will be calculated by existing logic
-            notebooklm_summary: null,
-            velocity_score: e.velocity || 0,
-            last_commercial_at: null
-        }));
-
-        fs.writeFileSync(OUTPUT_FILE, JSON.stringify(output, null, 2));
-        this.stats.output = output.length;
-
-        console.log(`   ✓ Saved ${output.length} entities to ${OUTPUT_FILE}`);
+        return saveOutput(entities, OUTPUT_DIR, OUTPUT_FILE);
     }
 }
 

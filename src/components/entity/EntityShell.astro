@@ -33,14 +33,8 @@ interface Props {
 
 const { entity, definition } = Astro.props;
 
-// Capability-gated module flags (Art.X-Capability-Gating)
-const hasFNI = definition.capabilities.includes('fni');
-const hasDeploy = definition.capabilities.includes('deploy');
-const hasBenchmark = definition.capabilities.includes('benchmark');
-const hasArchitecture = definition.capabilities.includes('architecture');
-const hasCitations = definition.capabilities.includes('citations');
-const hasOllama = definition.capabilities.includes('ollama');
-const hasGGUF = definition.capabilities.includes('gguf');
+// Capabilities passed to EntityModules
+import EntityModules from './EntityModules.astro';
 
 // Color mapping for entity types
 const colorMap: Record<string, string> = {
@@ -76,85 +70,8 @@ const entityColor = colorMap[definition.display.color] || colorMap.blue;
     )}
   </header>
 
-  <!-- Capability-Gated Modules -->
-  <div class="entity-modules">
-    
-    <!-- FNI Module (Model only) -->
-    {hasFNI && entity.data.fni_score != null && (
-      <section class="entity-module module-fni">
-        <slot name="fni">
-          <div class="fni-placeholder">
-            <span class="fni-score">{entity.data.fni_score?.toFixed(1) || 'N/A'}</span>
-            <span class="fni-label">FNI Score</span>
-          </div>
-        </slot>
-      </section>
-    )}
-
-    <!-- Deploy Module -->
-    {hasDeploy && (
-      <section class="entity-module module-deploy">
-        <slot name="deploy">
-          <div class="deploy-info">
-            <span class="deploy-label">Deployment Info</span>
-          </div>
-        </slot>
-      </section>
-    )}
-
-    <!-- Benchmark Module -->
-    {hasBenchmark && (
-      <section class="entity-module module-benchmark">
-        <slot name="benchmark">
-          <div class="benchmark-placeholder">
-            <span class="benchmark-label">Benchmarks</span>
-          </div>
-        </slot>
-      </section>
-    )}
-
-    <!-- Architecture Module (Neural Explorer) -->
-    {hasArchitecture && (
-      <section class="entity-module module-architecture">
-        <slot name="architecture">
-          <!-- Neural architecture visualization -->
-        </slot>
-      </section>
-    )}
-
-    <!-- Citations Module (Papers, Datasets) -->
-    {hasCitations && (
-      <section class="entity-module module-citations">
-        <slot name="citations">
-          <div class="citations-placeholder">
-            <span class="citations-label">Citations & References</span>
-          </div>
-        </slot>
-      </section>
-    )}
-
-    <!-- Ollama Module (Model only) -->
-    {hasOllama && entity.data.has_ollama && (
-      <section class="entity-module module-ollama">
-        <slot name="ollama">
-          <div class="ollama-badge">
-            <span>🦙 Available on Ollama</span>
-          </div>
-        </slot>
-      </section>
-    )}
-
-    <!-- GGUF Module (Model only) -->
-    {hasGGUF && entity.data.has_gguf && (
-      <section class="entity-module module-gguf">
-        <slot name="gguf">
-          <div class="gguf-badge">
-            <span>📦 GGUF Variants Available</span>
-          </div>
-        </slot>
-      </section>
-    )}
-  </div>
+  <!-- Capability-Gated Modules (Extracted to EntityModules.astro) -->
+  <EntityModules entity={entity} definition={definition} />
 
   <!-- Entity Description (Universal) -->
   {entity.description && (
@@ -232,19 +149,7 @@ const entityColor = colorMap[definition.display.color] || colorMap.blue;
     color: var(--entity-color);
   }
 
-  .entity-modules {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-  }
 
-  .entity-module {
-    padding: 1rem;
-    background: var(--bg-secondary, #f9fafb);
-    border-radius: 0.75rem;
-    border: 1px solid var(--border-color, #e5e7eb);
-  }
 
   .entity-description {
     margin-bottom: 2rem;
@@ -260,29 +165,7 @@ const entityColor = colorMap[definition.display.color] || colorMap.blue;
     margin-bottom: 2rem;
   }
 
-  .fni-placeholder,
-  .deploy-info,
-  .benchmark-placeholder,
-  .citations-placeholder {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
 
-  .fni-score {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--entity-color);
-  }
-
-  .ollama-badge,
-  .gguf-badge {
-    display: inline-flex;
-    padding: 0.5rem 1rem;
-    background: var(--bg-tertiary, #f3f4f6);
-    border-radius: 0.5rem;
-    font-weight: 500;
-  }
 
   @media (max-width: 768px) {
     .entity-shell {

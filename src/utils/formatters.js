@@ -55,18 +55,22 @@ export function formatMetric(num) {
 
 export function formatRelativeTime(dateString) {
     if (!dateString) return 'Unknown';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Unknown';
+    try {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    const now = new Date();
-    const diffInSeconds = Math.floor((now - date) / 1000);
+        const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-
-    return date.toLocaleDateString();
+        if (diffInSeconds < 60) return rtf.format(-diffInSeconds, 'second');
+        if (diffInSeconds < 3600) return rtf.format(-Math.floor(diffInSeconds / 60), 'minute');
+        if (diffInSeconds < 86400) return rtf.format(-Math.floor(diffInSeconds / 3600), 'hour');
+        if (diffInSeconds < 2592000) return rtf.format(-Math.floor(diffInSeconds / 86400), 'day');
+        if (diffInSeconds < 31536000) return rtf.format(-Math.floor(diffInSeconds / 2592000), 'month');
+        return rtf.format(-Math.floor(diffInSeconds / 31536000), 'year');
+    } catch (e) {
+        return 'Unknown';
+    }
 }
 
 export function createPlaceholderModel() {

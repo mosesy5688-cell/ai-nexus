@@ -13,76 +13,8 @@
  */
 
 // Circuit Breaker Configuration
-const CIRCUIT_BREAKER = {
-    maxFailures: 5,          // Failures before opening circuit
-    cooldownMs: 60000,       // 1 minute cooldown
-    halfOpenRequests: 3,     // Requests in half-open state
-    state: 'CLOSED',         // CLOSED, OPEN, HALF_OPEN
-    failures: 0,
-    lastFailure: null,
-    successesInHalfOpen: 0
-};
-
-// Similarity Thresholds (Constitution V4.3.2)
-const THRESHOLDS = {
-    ACCEPT: 0.88,
-    REVIEW: 0.65,
-    REJECT: 0.35
-};
-
-/**
- * Check if circuit breaker allows requests
- * @returns {boolean}
- */
-function isCircuitOpen() {
-    if (CIRCUIT_BREAKER.state === 'CLOSED') return false;
-
-    if (CIRCUIT_BREAKER.state === 'OPEN') {
-        const timeSinceLastFailure = Date.now() - CIRCUIT_BREAKER.lastFailure;
-        if (timeSinceLastFailure >= CIRCUIT_BREAKER.cooldownMs) {
-            CIRCUIT_BREAKER.state = 'HALF_OPEN';
-            CIRCUIT_BREAKER.successesInHalfOpen = 0;
-            console.log('[SemanticMatcher] Circuit breaker: HALF_OPEN');
-            return false;
-        }
-        return true;
-    }
-
-    // HALF_OPEN state - allow limited requests
-    return false;
-}
-
-/**
- * Record a successful AI call
- */
-function recordSuccess() {
-    if (CIRCUIT_BREAKER.state === 'HALF_OPEN') {
-        CIRCUIT_BREAKER.successesInHalfOpen++;
-        if (CIRCUIT_BREAKER.successesInHalfOpen >= CIRCUIT_BREAKER.halfOpenRequests) {
-            CIRCUIT_BREAKER.state = 'CLOSED';
-            CIRCUIT_BREAKER.failures = 0;
-            console.log('[SemanticMatcher] Circuit breaker: CLOSED (recovered)');
-        }
-    } else {
-        CIRCUIT_BREAKER.failures = 0;
-    }
-}
-
-/**
- * Record a failed AI call
- */
-function recordFailure() {
-    CIRCUIT_BREAKER.failures++;
-    CIRCUIT_BREAKER.lastFailure = Date.now();
-
-    if (CIRCUIT_BREAKER.state === 'HALF_OPEN') {
-        CIRCUIT_BREAKER.state = 'OPEN';
-        console.log('[SemanticMatcher] Circuit breaker: OPEN (half-open failed)');
-    } else if (CIRCUIT_BREAKER.failures >= CIRCUIT_BREAKER.maxFailures) {
-        CIRCUIT_BREAKER.state = 'OPEN';
-        console.log('[SemanticMatcher] Circuit breaker: OPEN (max failures reached)');
-    }
-}
+import { CircuitBreaker } from './circuit-breaker.js';
+const breaker = new CircuitBreaker();
 
 /**
  * Generate embedding using Cloudflare Workers AI
@@ -96,7 +28,7 @@ async function generateEmbedding(AI, text) {
         return null;
     }
 
-    if (isCircuitOpen()) {
+    if (breaker.isOpen()) {
         console.warn('[SemanticMatcher] Circuit breaker OPEN, skipping AI call');
         return null;
     }
@@ -106,11 +38,11 @@ async function generateEmbedding(AI, text) {
             text: [text]
         });
 
-        recordSuccess();
+        breaker.recordSuccess();
         return result?.data?.[0] || null;
     } catch (error) {
         console.error('[SemanticMatcher] Embedding error:', error.message);
-        recordFailure();
+        breaker.recordFailure();
         return null;
     }
 }
@@ -245,22 +177,14 @@ export function calculateUMIDMatchScore(model1, model2, nameSimilarity) {
  * @returns {Object}
  */
 export function getCircuitBreakerStatus() {
-    return {
-        state: CIRCUIT_BREAKER.state,
-        failures: CIRCUIT_BREAKER.failures,
-        lastFailure: CIRCUIT_BREAKER.lastFailure,
-        isOpen: isCircuitOpen()
-    };
+    return breaker.getStatus();
 }
 
 /**
  * Reset circuit breaker (for testing/manual recovery)
  */
 export function resetCircuitBreaker() {
-    CIRCUIT_BREAKER.state = 'CLOSED';
-    CIRCUIT_BREAKER.failures = 0;
-    CIRCUIT_BREAKER.lastFailure = null;
-    CIRCUIT_BREAKER.successesInHalfOpen = 0;
+    breaker.reset();
 }
 
 // Export thresholds for external use

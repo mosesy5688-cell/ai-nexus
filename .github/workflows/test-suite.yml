@@ -14,26 +14,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: CES Check (Constitution)
-        run: |
-          # Check for oversize files (>500 lines) which violates Art 1.4 Modularity
-          # Exclude .json, .md, .lock, dist, etc.
-          find . -type f \
-            -not -path "*/node_modules/*" \
-            -not -path "*/dist/*" \
-            -not -path "*/.git/*" \
-            -not -name "*.json" \
-            -not -name "*.md" \
-            -not -name "*.lock" \
-            -not -name "*.svg" \
-            -exec wc -l {} + | awk '$1 > 500 {print $2 ": " $1 " lines - VIOLATION"}' > violations.txt
-          
-          if [ -s violations.txt ]; then
-            echo "❌ Constitution Violation: Files exceed 500 lines limit (Art 1.4)"
-            cat violations.txt
-            exit 1
-          else
-            echo "✅ CES Check Passed: No monolithic files."
-          fi
+        run: npm run ces-check
 
   # L2: Unit Logic (Vitest)
   unit-test:

@@ -4,13 +4,7 @@
  * Enriches existing models in D1 database with GitHub repository statistics.
  * Processes models in batches with proper rate limiting and error handling.
  * 
- * Usage:
- *   node scripts/enrich-github.js [--local] [--limit=100] [--dry-run]
- * 
- * Options:
- *   --local     Use local D1 database
- *   --limit=N   Process only N models (default: all)
- *   --dry-run   Show what would be done without making changes
+ * Usage: node scripts/enrich-github.js [--local] [--limit=100] [--dry-run]
  */
 
 import { exec } from 'child_process';

@@ -3,11 +3,7 @@
  * 
  * Constitution V4.1 Compliance Verification
  * 
- * Modules:
- * - Module A: Spider - Core link integrity check
- * - Module B: Inspector - Constitution compliance verification  
- * - Module B+: Deep Link Verifier - Source URL logic validation
- * - Module C: Hammer - API stress test
+ * Modules: A (Spider), B (Inspector), B+ (Deep Link), C (Hammer)
  */
 
 import axios from 'axios';
