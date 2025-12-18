@@ -4,6 +4,7 @@ export async function GET() {
     const robotsTxt = `
 User-agent: *
 Allow: /
+Crawl-delay: 1
 
 # Sitemaps - V6.1+ SEO Optimization
 Sitemap: https://free2aitools.com/sitemaps/sitemap-index.xml
