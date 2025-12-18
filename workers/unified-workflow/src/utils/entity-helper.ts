@@ -29,6 +29,8 @@ export function cleanModel(model: any): any {
         tags: JSON.stringify(model.tags || (model.pipeline_tag ? [model.pipeline_tag] : [])),
         likes: model.popularity || model.likes || 0,
         downloads: model.downloads || 0,
+        // V6.0: Preserve pipeline_tag for category assignment (Constitution Annex A.2.3)
+        pipeline_tag: model.pipeline_tag || null,
         // V4.1 Fix: Match orchestrator field names
         cover_image_url: model.raw_image_url || model.cover_image_url || '',
         body_content_url: model.body_content_url || '',

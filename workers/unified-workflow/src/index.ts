@@ -70,7 +70,7 @@ export default {
             await env.UNIFIED_WORKFLOW.create();
             return new Response('Triggered');
         }
-        return new Response('Unified Workflow V5.1.2 (Orchestrator)\nEndpoints: /trigger');
+        return new Response('Unified Workflow V6.0 (Orchestrator)\nEndpoints: /trigger');
     },
 
     async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
