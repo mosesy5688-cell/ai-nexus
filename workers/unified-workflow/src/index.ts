@@ -66,11 +66,30 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
 export default {
     async fetch(request: Request, env: Env): Promise<Response> {
         const url = new URL(request.url);
+        const path = url.pathname.slice(1); // remove leading slash
+
+        // Route: Sitemaps (sitemaps/sitemap-index.xml, sitemaps/sitemap-models-1.xml)
+        // Served directly from 'sitemaps/' directory in R2
+        if (path.startsWith('sitemaps/')) {
+            const object = await env.R2_ASSETS.get(path);
+            if (!object) return new Response('Sitemap not found', { status: 404 });
+
+            const headers = new Headers();
+            object.writeHttpMetadata(headers);
+            headers.set('etag', object.httpEtag);
+            headers.set('Content-Type', 'application/xml');
+            // Longer cache for shards, shorter for index handled by revalidation? 
+            // Simplified: 1 hour cache, stale-while-revalidate 1 day
+            headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+
+            return new Response(object.body, { headers });
+        }
+
         if (url.pathname === '/trigger') {
             await env.UNIFIED_WORKFLOW.create();
             return new Response('Triggered');
         }
-        return new Response('Unified Workflow V6.0 (Orchestrator)\nEndpoints: /trigger');
+        return new Response('Unified Workflow V6.0 (Orchestrator)\nEndpoints: /trigger, /sitemap*.xml');
     },
 
     async scheduled(event: ScheduledEvent, env: Env): Promise<void> {

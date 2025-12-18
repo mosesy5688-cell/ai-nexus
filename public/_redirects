@@ -1,10 +1,7 @@
-# Cloudflare Pages Redirects
-# V4.9 Entity-First URL Structure
-# Constitution Art.X-Entity: Semantic URLs by entity type
+# V6.0 Redirect Rules (Constitution Phase 2)
+# Format: /source /target code
 
-# V4.9: Entity URL Redirects (301 Permanent)
-# Future: /model/:slug → /models/:slug (when new routes are ready)
-# For now, maintain compatibility - URLs will be updated in Phase 6.2
+# Test Rule
+/model/deprecated-test /model/deepseek-r1 301
 
-# Legacy redirects (if any old URLs exist)
-# /models/:slug /model/:slug 301
+# Add manual redirects below

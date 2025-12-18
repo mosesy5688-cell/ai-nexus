@@ -6,7 +6,7 @@ User-agent: *
 Allow: /
 
 # Sitemaps - V6.1+ SEO Optimization
-Sitemap: https://free2aitools.com/sitemap-index.xml
+Sitemap: https://free2aitools.com/sitemaps/sitemap-index.xml
 `.trim();
 
     return new Response(robotsTxt, {

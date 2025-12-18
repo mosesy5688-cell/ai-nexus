@@ -51,3 +51,9 @@ enabled = true
 enabled = true
 head_sampling_rate = 1
 invocation_logs = true
+
+
+# Sitemap route (served by Worker via R2)
+[[routes]]
+pattern = "free2aitools.com/sitemaps/*"
+zone_name = "free2aitools.com"
