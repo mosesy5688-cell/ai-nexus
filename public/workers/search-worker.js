@@ -89,6 +89,37 @@ self.onmessage = async (e) => {
             results = results.filter(i => (i.likes || 0) >= filters.min_likes);
         }
 
+        if (filters.has_benchmarks) {
+            // Check for pwc_benchmarks (stringified JSON or object) or simple existence
+            results = results.filter(i => i.pwc_benchmarks && i.pwc_benchmarks.length > 2);
+        }
+
+        if (filters.sources && filters.sources.length > 0) {
+            results = results.filter(i => {
+                const id = i.id || '';
+                return filters.sources.some(src => id.startsWith(src + ':') || id.startsWith(src + '--'));
+            });
+        }
+
+        if (filters.days_ago > 0) {
+            const now = Date.now();
+            const msAgo = filters.days_ago * 24 * 60 * 60 * 1000;
+            results = results.filter(i => {
+                if (!i.last_updated) return false;
+                const date = new Date(i.last_updated).getTime();
+                return (now - date) <= msAgo;
+            });
+        }
+
+        if (filters.license) {
+            results = results.filter(i => {
+                const tags = i.tags || [];
+                // Licenses often formatted as "license:mit" or just "mit" in tags
+                // We look for partial match or exact match depending on data quality
+                return tags.some(t => t.toLowerCase().includes('license:' + filters.license) || t.toLowerCase() === filters.license);
+            });
+        }
+
         if (filters.tags && filters.tags.length > 0) {
             results = results.filter(i => {
                 const itemTags = i.tags || [];
