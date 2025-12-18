@@ -1,12 +1,11 @@
-
 import { Env } from '../config/types';
 import {
     generateTrendingAndLeaderboard,
     generateNeuralGraph,
     generateCategoryStats,
     generateEntityLinksAndBenchmarks,
-    generateRankings
 } from '../utils/precompute-helpers';
+import { generateRankings } from '../utils/ranking-generator';
 import { generateSitemaps } from '../utils/sitemap-generator';
 
 export async function runPrecomputeStep(env: Env) {
