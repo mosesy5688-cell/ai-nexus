@@ -1,53 +1,9 @@
 import { Env } from '../config/types';
 import { writeToR2 } from './gzip';
 import { generateSitemaps } from './sitemap-generator';
-// Helper for L8 Precomputation (Trending, Graph, Sitemap, etc.)
-
-export async function generateTrendingAndLeaderboard(env: Env) {
-    console.log('[L8] Starting cache precompute...');
-    // V5.2.1: Filter for actual models only (not datasets/papers/repos)
-    const modelFilter = `type='model' AND (id LIKE 'huggingface%' OR id LIKE 'ollama%')`;
-    // Trending models (top 100 by FNI)
-    const trending = await env.DB.prepare(`
-        SELECT id, slug, name, author, fni_score, downloads, likes,
-                cover_image_url, tags, has_ollama, has_gguf,
-                last_updated, pwc_benchmarks
-        FROM entities 
-        WHERE fni_score IS NOT NULL AND ${modelFilter}
-        ORDER BY fni_score DESC 
-        LIMIT 100
-    `).all();
-
-    if (trending.results && trending.results.length > 0) {
-        await writeToR2(env, 'cache/trending.json', {
-            generated_at: new Date().toISOString(),
-            version: 'V4.7',
-            count: trending.results.length,
-            models: trending.results
-        });
-        console.log(`[L8] Trending cache: ${trending.results.length} models`);
-    }
-
-    // Leaderboard (top 50 with benchmarks)
-    const leaderboard = await env.DB.prepare(`
-        SELECT m.id, m.slug, m.name, m.author, m.fni_score,
-                m.deploy_score, m.architecture_family, m.has_ollama
-        FROM entities m
-        WHERE m.fni_score IS NOT NULL AND ${modelFilter}
-        ORDER BY m.fni_score DESC
-        LIMIT 50
-    `).all();
-
-    if (leaderboard.results && leaderboard.results.length > 0) {
-        await writeToR2(env, 'cache/leaderboard.json', {
-            generated_at: new Date().toISOString(),
-            version: 'V4.7',
-            count: leaderboard.results.length,
-            models: leaderboard.results
-        });
-        console.log(`[L8] Leaderboard cache: ${leaderboard.results.length} models`);
-    }
-}
+// V6.3: Trending generation moved to separate file for CES compliance
+export { generateTrendingAndLeaderboard } from './trending-generator';
+// Helper for L8 Precomputation (Graph, Sitemap, etc.)
 
 export async function generateNeuralGraph(env: Env) {
     console.log('[L8] Generating neural graph...');
