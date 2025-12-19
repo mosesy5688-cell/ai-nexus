@@ -130,3 +130,91 @@ export async function entityExistsInCache(slug, locals) {
     const result = await resolveEntityFromCache(slug, locals);
     return result.entity !== null;
 }
+
+/**
+ * V6.2: Get space data from R2 cache for detail page
+ * @param {string} slug - Space slug (format: author--name)
+ * @param {object} locals - Astro locals
+ * @returns {Promise<object|null>} - Space data or null
+ */
+export async function getSpaceFromCache(slug, locals) {
+    if (!slug) return null;
+
+    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    if (!r2) {
+        console.warn('[SpaceCache] R2 not available');
+        return null;
+    }
+
+    const normalizedSlug = normalizeForCache(slug);
+
+    // Try space-specific cache paths
+    const cachePaths = [
+        `cache/spaces/${normalizedSlug}.json`,
+        `cache/spaces/hf-space--${normalizedSlug}.json`,
+    ];
+
+    for (const cachePath of cachePaths) {
+        try {
+            const cacheFile = await r2.get(cachePath);
+            if (cacheFile) {
+                const cacheData = await cacheFile.json();
+                console.log(`[SpaceCache] R2 HIT: ${cachePath}`);
+                return {
+                    ...cacheData.entity || cacheData,
+                    _cache_source: 'r2-cache',
+                    _contract_version: cacheData.contract_version,
+                };
+            }
+        } catch (e) {
+            console.warn(`[SpaceCache] R2 read error for ${cachePath}:`, e.message);
+        }
+    }
+
+    console.log(`[SpaceCache] MISS: ${normalizedSlug}`);
+    return null;
+}
+
+/**
+ * V6.2: Get dataset data from R2 cache for detail page
+ * @param {string} slug - Dataset slug (format: author--name)
+ * @param {object} locals - Astro locals
+ * @returns {Promise<object|null>} - Dataset data or null
+ */
+export async function getDatasetFromCache(slug, locals) {
+    if (!slug) return null;
+
+    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    if (!r2) {
+        console.warn('[DatasetCache] R2 not available');
+        return null;
+    }
+
+    const normalizedSlug = normalizeForCache(slug);
+
+    // Try dataset-specific cache paths
+    const cachePaths = [
+        `cache/datasets/${normalizedSlug}.json`,
+        `cache/datasets/hf-dataset--${normalizedSlug}.json`,
+    ];
+
+    for (const cachePath of cachePaths) {
+        try {
+            const cacheFile = await r2.get(cachePath);
+            if (cacheFile) {
+                const cacheData = await cacheFile.json();
+                console.log(`[DatasetCache] R2 HIT: ${cachePath}`);
+                return {
+                    ...cacheData.entity || cacheData,
+                    _cache_source: 'r2-cache',
+                    _contract_version: cacheData.contract_version,
+                };
+            }
+        } catch (e) {
+            console.warn(`[DatasetCache] R2 read error for ${cachePath}:`, e.message);
+        }
+    }
+
+    console.log(`[DatasetCache] MISS: ${normalizedSlug}`);
+    return null;
+}

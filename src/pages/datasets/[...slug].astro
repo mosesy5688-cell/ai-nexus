@@ -9,6 +9,7 @@ export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 import DatasetHero from '../../components/dataset/DatasetHero.astro';
+import { getDatasetFromCache } from '../../utils/entity-cache-reader.js';
 
 const { slug } = Astro.params;
 
@@ -20,22 +21,24 @@ let pageDescription = "Explore this dataset for AI and machine learning.";
 try {
   if (!slug) throw new Error("No slug provided");
   
-  // V6.2: Fetch dataset from R2 cache
-  // For now, construct from slug (will be replaced with cache reader)
-  const datasetId = slug?.replace(/--/g, '/');
+  // V6.2: Try to get dataset from R2 cache first
+  dataset = await getDatasetFromCache(slug, Astro.locals);
   
-  // Mock dataset data for initial deployment
-  // TODO: Implement getDatasetFromCache similar to getModelFromCache
-  dataset = {
-    id: `hf-dataset--${slug}`,
-    name: datasetId?.split('/').pop() || 'Unknown Dataset',
-    author: datasetId?.split('/')[0] || 'unknown',
-    likes: 0,
-    downloads: 0,
-    description: `AI/ML dataset: ${datasetId}`,
-    source_url: `https://huggingface.co/datasets/${datasetId}`,
-    viewer_url: `https://huggingface.co/datasets/${datasetId}/viewer`
-  };
+  // If cache miss, construct fallback data from slug
+  if (!dataset) {
+    const datasetId = slug?.replace(/--/g, '/');
+    dataset = {
+      id: `hf-dataset--${slug}`,
+      name: datasetId?.split('/').pop() || 'Unknown Dataset',
+      author: datasetId?.split('/')[0] || 'unknown',
+      likes: 0,
+      downloads: 0,
+      description: `AI/ML dataset: ${datasetId}`,
+      source_url: `https://huggingface.co/datasets/${datasetId}`,
+      viewer_url: `https://huggingface.co/datasets/${datasetId}/viewer`,
+      _cache_source: 'fallback'
+    };
+  }
 
   if (dataset) {
     pageTitle = `${dataset.name} - AI Dataset`;
