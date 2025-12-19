@@ -208,6 +208,217 @@ export class HuggingFaceAdapter extends BaseAdapter {
         };
     }
 
+    // ============================================================
+    // V6.2 Spaces Support (Universal Entity Protocol)
+    // ============================================================
+
+    /**
+     * Fetch spaces from HuggingFace API
+     * @param {Object} options
+     * @param {number} options.limit - Number of spaces to fetch (default: 200)
+     * @param {string} options.sort - Sort field (default: 'likes')
+     * @param {boolean} options.full - Fetch full details including README
+     */
+    async fetchSpaces(options = {}) {
+        const { limit = 200, sort = 'likes', direction = -1, full = true } = options;
+
+        console.log(`📥 [HuggingFace] Fetching top ${limit} spaces by ${sort}...`);
+
+        const listUrl = `${HF_API_BASE}/spaces?sort=${sort}&direction=${direction}&limit=${limit}`;
+        const response = await fetch(listUrl, { headers: this.getHeaders() });
+
+        if (!response.ok) {
+            throw new Error(`HuggingFace Spaces API error: ${response.status}`);
+        }
+
+        const spaces = await response.json();
+        console.log(`📦 [HuggingFace] Got ${spaces.length} spaces from list`);
+
+        if (!full) return spaces;
+
+        // Fetch full details for each space (with rate limiting)
+        console.log(`🔄 [HuggingFace] Fetching full space details...`);
+        const fullSpaces = [];
+        const batchSize = this.hfToken ? 5 : 2;
+        const delayMs = this.hfToken ? 800 : 1500;
+
+        for (let i = 0; i < spaces.length; i += batchSize) {
+            const batch = spaces.slice(i, i + batchSize);
+            const batchResults = await Promise.all(
+                batch.map(s => this.fetchFullSpace(s.id))
+            );
+            fullSpaces.push(...batchResults.filter(s => s !== null));
+
+            if ((i + batchSize) % 50 === 0 || i + batchSize >= spaces.length) {
+                console.log(`   Progress: ${Math.min(i + batchSize, spaces.length)}/${spaces.length}`);
+            }
+
+            if (i + batchSize < spaces.length) {
+                await this.delay(delayMs);
+            }
+        }
+
+        console.log(`✅ [HuggingFace] Fetched ${fullSpaces.length} complete spaces`);
+        return fullSpaces;
+    }
+
+    /**
+     * Fetch complete space details including README
+     */
+    async fetchFullSpace(spaceId) {
+        try {
+            const apiUrl = `${HF_API_BASE}/spaces/${spaceId}`;
+            const apiResponse = await fetch(apiUrl, { headers: this.getHeaders() });
+
+            if (!apiResponse.ok) {
+                if (apiResponse.status === 429) {
+                    console.warn(`   ⚠️ Rate limited for space ${spaceId}, backing off...`);
+                    await this.delay(2000);
+                }
+                console.warn(`   ⚠️ API failed for space ${spaceId}: ${apiResponse.status}`);
+                return null;
+            }
+
+            const data = await apiResponse.json();
+
+            // Fetch README content
+            const readmeUrl = `${HF_RAW_BASE}/spaces/${spaceId}/raw/main/README.md`;
+            let readme = '';
+            try {
+                const readmeResponse = await fetch(readmeUrl);
+                if (readmeResponse.ok) {
+                    readme = await readmeResponse.text();
+                    if (readme.length > 100000) {
+                        readme = readme.substring(0, 100000) + '\n\n[Content truncated...]';
+                    }
+                }
+            } catch (e) {
+                // README fetch failed, continue without it
+            }
+
+            return {
+                ...data,
+                readme,
+                _fetchedAt: new Date().toISOString(),
+                _entityType: 'space'
+            };
+        } catch (error) {
+            console.warn(`   ⚠️ Error fetching space ${spaceId}: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * Normalize raw HuggingFace space to UnifiedEntity
+     */
+    normalizeSpace(raw) {
+        const spaceId = raw.id;
+        const [author, name] = this.parseModelId(spaceId);
+
+        const entity = {
+            // Identity
+            id: `hf-space--${this.sanitizeName(author)}--${this.sanitizeName(name)}`,
+            type: 'space',
+            source: 'huggingface',
+            source_url: `https://huggingface.co/spaces/${spaceId}`,
+
+            // Content
+            title: name,
+            description: this.extractDescription(raw.readme),
+            body_content: raw.readme || '',
+            tags: this.normalizeTags(raw.tags),
+
+            // Metadata
+            author: author,
+            license_spdx: this.normalizeLicense(raw.cardData?.license),
+            meta_json: this.buildSpaceMetaJson(raw),
+            created_at: raw.createdAt,
+            updated_at: raw.lastModified,
+
+            // Metrics
+            popularity: raw.likes || 0,
+            downloads: 0, // Spaces don't have downloads
+
+            // Space-specific
+            sdk: raw.sdk || 'unknown',
+            running_status: raw.runtime?.stage || 'unknown',
+
+            // Assets
+            raw_image_url: null,
+
+            // Relations
+            relations: [],
+
+            // System fields
+            content_hash: null,
+            compliance_status: null,
+            quality_score: null
+        };
+
+        // Extract assets
+        const assets = this.extractSpaceAssets(raw);
+        if (assets.length > 0) {
+            entity.raw_image_url = assets[0].url;
+        }
+
+        // Discover relations
+        entity.relations = this.discoverRelations(entity);
+
+        // Calculate system fields
+        entity.content_hash = this.generateContentHash(entity);
+        entity.compliance_status = this.getComplianceStatus(entity);
+        entity.quality_score = this.calculateQualityScore(entity);
+
+        return entity;
+    }
+
+    /**
+     * Build space-specific metadata JSON
+     */
+    buildSpaceMetaJson(raw) {
+        return {
+            sdk: raw.sdk || null,
+            sdk_version: raw.cardData?.sdk_version || null,
+            app_file: raw.cardData?.app_file || 'app.py',
+            runtime_stage: raw.runtime?.stage || null,
+            runtime_hardware: raw.runtime?.hardware?.current || null,
+            emoji: raw.cardData?.emoji || null,
+            colorFrom: raw.cardData?.colorFrom || null,
+            colorTo: raw.cardData?.colorTo || null,
+            pinned: raw.cardData?.pinned || false,
+        };
+    }
+
+    /**
+     * Extract meaningful images from HuggingFace space
+     */
+    extractSpaceAssets(raw) {
+        const assets = [];
+
+        // Priority 1: Space screenshot/thumbnail
+        if (raw.cardData?.thumbnail) {
+            assets.push({
+                type: 'thumbnail',
+                url: raw.cardData.thumbnail
+            });
+        }
+
+        // Priority 2: Look for screenshot in siblings
+        const siblings = raw.siblings || [];
+        const screenshot = siblings.find(f =>
+            /screenshot|preview|demo/i.test(f.rfilename) &&
+            /\.(webp|png|jpg|jpeg)$/i.test(f.rfilename)
+        );
+        if (screenshot) {
+            assets.push({
+                type: 'screenshot',
+                url: `https://huggingface.co/spaces/${raw.id}/resolve/main/${screenshot.rfilename}`
+            });
+        }
+
+        return assets;
+    }
+
 
     /**
      * Fetch complete model details including README

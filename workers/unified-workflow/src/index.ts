@@ -17,11 +17,10 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
         const env = this.env;
 
         // L1 Checkpoint
-        const checkpoint = await step.do('l1-load-checkpoint', async () => {
-            // simplified inline or move to utils if needed, keeping inline for visibility as it's small
+        const checkpoint = await step.do('l1-load-checkpoint', async (): Promise<{ lastId: string | null; processedCount: number }> => {
             try {
                 const f = await env.R2_ASSETS.get('checkpoint.json');
-                return f ? await f.json() : { lastId: null, processedCount: 0 };
+                return (f ? await f.json() : { lastId: null, processedCount: 0 }) as { lastId: string | null; processedCount: number };
             } catch { return { lastId: null, processedCount: 0 }; }
         });
 
@@ -34,8 +33,8 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
         // L1 Save Checkpoint (Simplified inline)
         await step.do('l1-save-checkpoint', async () => {
             const newCp = {
-                lastId: ingestMetrics.filesProcessed > 0 ? null : checkpoint.lastId,
-                processedCount: (checkpoint.processedCount || 0) + ingestMetrics.filesProcessed
+                lastId: ingestMetrics.filesProcessed > 0 ? null : (checkpoint?.lastId || null),
+                processedCount: (checkpoint?.processedCount || 0) + ingestMetrics.filesProcessed
             };
             await env.R2_ASSETS.put('checkpoint.json', JSON.stringify(newCp));
         });
@@ -44,6 +43,7 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
         const fniMetrics = await step.do('calculate-fni', async () => {
             return await runFNIStep(env);
         });
+
         result.fni = fniMetrics;
 
         // Step 3: Monitor & Log
@@ -110,10 +110,12 @@ export default {
     },
 
     async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
-        const pause = await env.KV.get('SYSTEM_PAUSE');
-        if (pause === 'true') {
-            console.log('[System] SYSTEM_PAUSE active. Aborting scheduled run.');
-            return;
+        if (env.KV) {
+            const pause = await env.KV.get('SYSTEM_PAUSE');
+            if (pause === 'true') {
+                console.log('[System] SYSTEM_PAUSE active. Aborting scheduled run.');
+                return;
+            }
         }
 
         console.log('[Cron] Triggering workflow...');
@@ -121,10 +123,12 @@ export default {
     },
 
     async queue(batch: any, env: Env): Promise<void> {
-        const pause = await env.KV.get('SYSTEM_PAUSE');
-        if (pause === 'true') {
-            console.log('[System] SYSTEM_PAUSE active. Aborting queue consumption.');
-            return;
+        if (env.KV) {
+            const pause = await env.KV.get('SYSTEM_PAUSE');
+            if (pause === 'true') {
+                console.log('[System] SYSTEM_PAUSE active. Aborting queue consumption.');
+                return;
+            }
         }
 
         await consumeHydrationQueue(batch, env);

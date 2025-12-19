@@ -51,6 +51,7 @@ export function cleanModel(model: any): any {
 export function deriveEntityType(id: string): string {
     if (!id) return 'model';
     if (id.startsWith('hf-dataset--')) return 'dataset';
+    if (id.startsWith('hf-space--')) return 'space';
     if (id.startsWith('benchmark--')) return 'benchmark';
     if (id.startsWith('arxiv--')) return 'paper';
     if (id.startsWith('agent--')) return 'agent';

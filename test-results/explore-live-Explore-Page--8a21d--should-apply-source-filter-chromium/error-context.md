@@ -1,0 +1,207 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link "Free AI Tools" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e6]: Free AI Tools
+        - generic [ref=e8]:
+          - link "Home" [ref=e9] [cursor=pointer]:
+            - /url: /
+          - link "Explore" [ref=e10] [cursor=pointer]:
+            - /url: /explore
+          - link "Rankings" [ref=e11] [cursor=pointer]:
+            - /url: /ranking
+          - link "FNI Top" [ref=e12] [cursor=pointer]:
+            - /url: /leaderboard
+          - link "Reports" [ref=e13] [cursor=pointer]:
+            - /url: /reports
+          - link "Knowledge" [ref=e14] [cursor=pointer]:
+            - /url: /knowledge
+          - link "View on GitHub" [ref=e15] [cursor=pointer]:
+            - /url: https://github.com/mosesy5688-cell/ai-nexus
+            - img [ref=e16]
+  - generic [ref=e18]:
+    - banner [ref=e19]:
+      - heading "Explore Models" [level=1] [ref=e20]
+      - paragraph [ref=e21]: Discover and compare the latest models from across the AI ecosystem.
+      - list [ref=e22]:
+        - listitem [ref=e23]:
+          - link "Home" [ref=e24] [cursor=pointer]:
+            - /url: /
+        - listitem [ref=e25]: /
+        - listitem [ref=e26]: Explore
+        - listitem [ref=e27]:
+          - link "🏆 Leaderboard" [ref=e28] [cursor=pointer]:
+            - /url: /leaderboard
+          - link "💰 Pricing" [ref=e29] [cursor=pointer]:
+            - /url: /pricing
+      - generic [ref=e30]:
+        - paragraph [ref=e31]: "💡 Tip: Use the sidebar to filter by FNI Trust Score, License, or Benchmarks."
+        - list [ref=e32]:
+          - listitem [ref=e33]:
+            - text: →
+            - link "Highest Trusted Models" [ref=e34] [cursor=pointer]:
+              - /url: /explore?sort=fni
+          - listitem [ref=e35]:
+            - text: →
+            - link "Benchmark-verified only" [ref=e36] [cursor=pointer]:
+              - /url: /explore?has_benchmarks=true
+          - listitem [ref=e37]:
+            - text: →
+            - link "Popular datasets for training LLMs" [ref=e38] [cursor=pointer]:
+              - /url: /explore?type=dataset&sort=likes
+    - generic [ref=e39]:
+      - complementary [ref=e40]:
+        - generic [ref=e41]:
+          - generic [ref=e42]: Search
+          - generic [ref=e43]:
+            - textbox "Search" [ref=e44]:
+              - /placeholder: Search by name, tag...
+            - generic:
+              - img
+        - generic [ref=e45]:
+          - generic [ref=e46]: Sort By
+          - combobox "Sort By" [ref=e47]:
+            - option "🔥 Trending" [selected]
+            - option "🛡️ Trust Score (FNI)"
+            - option "❤️ Most Liked"
+            - option "⬇️ Downloads"
+            - option "new Newest"
+        - generic [ref=e48]:
+          - generic [ref=e49]:
+            - heading "Platform" [level=3] [ref=e50]
+            - generic [ref=e51]:
+              - generic [ref=e52] [cursor=pointer]:
+                - checkbox "Hugging Face" [ref=e53]
+                - generic [ref=e54]: Hugging Face
+              - generic [ref=e55] [cursor=pointer]:
+                - checkbox "GitHub" [ref=e56]
+                - generic [ref=e57]: GitHub
+              - generic [ref=e58] [cursor=pointer]:
+                - checkbox "ArXiv" [ref=e59]
+                - generic [ref=e60]: ArXiv
+          - generic [ref=e61]:
+            - heading "Quality" [level=3] [ref=e62]
+            - generic [ref=e63]:
+              - generic [ref=e64]:
+                - generic [ref=e65]:
+                  - generic [ref=e66]: Min Stars
+                  - generic [ref=e67]: "0"
+                - slider [ref=e68] [cursor=pointer]: "0"
+              - generic [ref=e69] [cursor=pointer]:
+                - checkbox "Has SOTA/Benchmarks" [ref=e71]
+                - generic [ref=e73]: Has SOTA/Benchmarks
+          - generic [ref=e74]:
+            - heading "Released In" [level=3] [ref=e75]
+            - generic [ref=e76]:
+              - generic [ref=e77] [cursor=pointer]:
+                - radio "Any time" [checked] [ref=e78]
+                - generic [ref=e79]: Any time
+              - generic [ref=e80] [cursor=pointer]:
+                - radio "Past Week" [ref=e81]
+                - generic [ref=e82]: Past Week
+              - generic [ref=e83] [cursor=pointer]:
+                - radio "Past Month" [ref=e84]
+                - generic [ref=e85]: Past Month
+              - generic [ref=e86] [cursor=pointer]:
+                - radio "Past Year" [ref=e87]
+                - generic [ref=e88]: Past Year
+          - generic [ref=e89]:
+            - heading "License" [level=3] [ref=e90]
+            - combobox [ref=e91]:
+              - option "Any License" [selected]
+              - option "MIT"
+              - option "Apache 2.0"
+              - option "GPL 3.0"
+              - option "Llama 2"
+              - option "CC BY 4.0"
+              - option "CC BY-NC 4.0"
+              - option "OpenRAIL"
+              - option "Other"
+          - generic [ref=e92]:
+            - heading "Task Type" [level=3] [ref=e93]
+            - generic [ref=e94]:
+              - generic [ref=e95] [cursor=pointer]:
+                - checkbox "Text Generation" [ref=e96]
+                - generic [ref=e97]: Text Generation
+              - generic [ref=e98] [cursor=pointer]:
+                - checkbox "Text to Image" [ref=e99]
+                - generic [ref=e100]: Text to Image
+              - generic [ref=e101] [cursor=pointer]:
+                - checkbox "Image Classification" [ref=e102]
+                - generic [ref=e103]: Image Classification
+              - generic [ref=e104] [cursor=pointer]:
+                - checkbox "Object Detection" [ref=e105]
+                - generic [ref=e106]: Object Detection
+              - generic [ref=e107] [cursor=pointer]:
+                - checkbox "Speech Recognition" [ref=e108]
+                - generic [ref=e109]: Speech Recognition
+              - generic [ref=e110] [cursor=pointer]:
+                - checkbox "Translation" [ref=e111]
+                - generic [ref=e112]: Translation
+              - generic [ref=e113] [cursor=pointer]:
+                - checkbox "Question Answering" [ref=e114]
+                - generic [ref=e115]: Question Answering
+              - generic [ref=e116] [cursor=pointer]:
+                - checkbox "Summarization" [ref=e117]
+                - generic [ref=e118]: Summarization
+      - main [ref=e119]:
+        - generic [ref=e120]:
+          - generic [ref=e121]: 🔍
+          - heading "No matching results" [level=3] [ref=e122]
+          - paragraph [ref=e123]: Try adjusting your filters or search query to find what you're looking for.
+          - button "Clear All Filters" [ref=e124] [cursor=pointer]
+  - contentinfo [ref=e125]:
+    - generic [ref=e126]:
+      - generic [ref=e127]:
+        - generic [ref=e128]:
+          - heading "Free AI Tools" [level=3] [ref=e129]
+          - paragraph [ref=e130]: The open-source AI knowledge hub. Discover, explore, and compare AI models with our transparent Fair Nexus Index.
+        - generic [ref=e131]:
+          - heading "Resources" [level=4] [ref=e132]
+          - list [ref=e133]:
+            - listitem [ref=e134]:
+              - link "Explore Models" [ref=e135] [cursor=pointer]:
+                - /url: /explore
+            - listitem [ref=e136]:
+              - link "FNI Methodology" [ref=e137] [cursor=pointer]:
+                - /url: /methodology
+            - listitem [ref=e138]:
+              - link "Model Rankings" [ref=e139] [cursor=pointer]:
+                - /url: /ranking
+            - listitem [ref=e140]:
+              - link "AI Reports" [ref=e141] [cursor=pointer]:
+                - /url: /reports
+        - generic [ref=e142]:
+          - heading "Legal" [level=4] [ref=e143]
+          - list [ref=e144]:
+            - listitem [ref=e145]:
+              - link "Data Compliance" [ref=e146] [cursor=pointer]:
+                - /url: /compliance
+            - listitem [ref=e147]:
+              - link "About Us" [ref=e148] [cursor=pointer]:
+                - /url: /about
+        - generic [ref=e149]:
+          - heading "Connect" [level=4] [ref=e150]
+          - list [ref=e151]:
+            - listitem [ref=e152]:
+              - link "GitHub" [ref=e153] [cursor=pointer]:
+                - /url: https://github.com/mosesy5688-cell/ai-nexus
+                - img [ref=e154]
+                - text: GitHub
+            - listitem [ref=e156]:
+              - link "Contact" [ref=e157] [cursor=pointer]:
+                - /url: mailto:compliance@free2aitools.com
+      - generic [ref=e158]:
+        - paragraph [ref=e159]: © 2025 Free AI Tools. An open-source project to index the world of AI.
+        - generic [ref=e160]:
+          - link "How we score models" [ref=e161] [cursor=pointer]:
+            - /url: /methodology
+          - generic [ref=e162]: •
+          - link "Data Policy" [ref=e163] [cursor=pointer]:
+            - /url: /compliance
+```

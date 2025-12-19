@@ -12,6 +12,7 @@
 export type EntityType =
     | 'model'        // Tier 1: Core - AI models (LLM, vision, etc.)
     | 'dataset'      // Tier 2: Enablers - Training/evaluation datasets
+    | 'space'        // Tier 2: Enablers - Interactive demos (HuggingFace Spaces)
     | 'benchmark'    // Tier 2: Enablers - Evaluation benchmarks
     | 'paper'        // Tier 3: Knowledge - Research papers
     | 'agent'        // Tier 4: Ecosystem - AI agents, tools
@@ -28,6 +29,7 @@ export type EntityType =
 export const ENTITY_ID_PREFIXES: Record<string, EntityType> = {
     'hf-model--': 'model',
     'hf-dataset--': 'dataset',
+    'hf-space--': 'space',
     'benchmark--': 'benchmark',
     'arxiv--': 'paper',
     'agent--': 'agent',

@@ -21,13 +21,13 @@ export async function generateRankings(env: Env) {
                            cover_image_url, has_ollama, has_gguf, primary_category, 
                            category_confidence, size_bucket, size_source`;
 
-        const baseQuery = `SELECT ${baseFields} FROM models 
-                          WHERE primary_category = ? 
+        const baseQuery = `SELECT ${baseFields} FROM entities 
+                          WHERE type='model' AND primary_category = ? 
                           AND fni_score IS NOT NULL`;
 
         // Count total
         const countRes = await env.DB.prepare(
-            `SELECT COUNT(*) as total FROM models WHERE primary_category = ? AND fni_score IS NOT NULL`
+            `SELECT COUNT(*) as total FROM entities WHERE type='model' AND primary_category = ? AND fni_score IS NOT NULL`
         ).bind(cat).first();
 
         const total = (countRes as any)?.total || 0;

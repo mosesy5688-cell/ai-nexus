@@ -1,0 +1,210 @@
+[
+  {
+    "id": "hf-space--enzostvs--deepsite",
+    "type": "space",
+    "source": "huggingface",
+    "source_url": "https://huggingface.co/spaces/enzostvs/deepsite",
+    "title": "deepsite",
+    "description": "--- title: DeepSite v3 emoji: 🐳 colorFrom: blue colorTo: blue sdk: docker pinned: true app_port: 3000 license: mit failure_strategy: rollback short_description: Generate any application by Vibe Coding models: - deepseek-ai/DeepSeek-V3-0324 - deepseek-ai/DeepSeek-R1-0528 - deepseek-ai/DeepSeek-V3.1 - deepseek-ai/DeepSeek-V3.1-Terminus - deepseek-ai/DeepSeek-V3.2-Exp - Qwen/Qwen3-Coder-480B-A35B-Instruct - moonshotai/Kimi-K2-Instruct - moonshotai/Kimi-K2-Instruct-0905 - zai-org/GLM-4.6 - MiniM...",
+    "body_content": "---\ntitle: DeepSite v3\nemoji: 🐳\ncolorFrom: blue\ncolorTo: blue\nsdk: docker\npinned: true\napp_port: 3000\nlicense: mit\nfailure_strategy: rollback\nshort_description: Generate any application by Vibe Coding\nmodels:\n  - deepseek-ai/DeepSeek-V3-0324\n  - deepseek-ai/DeepSeek-R1-0528\n  - deepseek-ai/DeepSeek-V3.1\n  - deepseek-ai/DeepSeek-V3.1-Terminus\n  - deepseek-ai/DeepSeek-V3.2-Exp\n  - Qwen/Qwen3-Coder-480B-A35B-Instruct\n  - moonshotai/Kimi-K2-Instruct\n  - moonshotai/Kimi-K2-Instruct-0905\n  - zai-org/GLM-4.6\n  - MiniMaxAI/MiniMax-M2\n  - moonshotai/Kimi-K2-Thinking\n---\n\n# DeepSite 🐳\n\nDeepSite is a Vibe Coding Platform designed to make coding smarter and more efficient. Tailored for developers, data scientists, and AI engineers, it integrates generative AI into your coding projects to enhance creativity and productivity.\n",
+    "tags": [
+      "docker",
+      "region:us"
+    ],
+    "author": "enzostvs",
+    "license_spdx": "MIT",
+    "meta_json": {
+      "sdk": "docker",
+      "sdk_version": null,
+      "app_file": "app.py",
+      "runtime_stage": "RUNNING",
+      "runtime_hardware": "cpu-xl",
+      "emoji": "🐳",
+      "colorFrom": "blue",
+      "colorTo": "blue",
+      "pinned": true
+    },
+    "created_at": "2025-03-26T19:26:05.000Z",
+    "updated_at": "2025-12-17T09:14:25.000Z",
+    "popularity": 16108,
+    "downloads": 0,
+    "sdk": "docker",
+    "running_status": "RUNNING",
+    "raw_image_url": null,
+    "relations": [],
+    "content_hash": "fd4ec21f14c58b2e0d012a77234e89b2",
+    "compliance_status": "approved",
+    "quality_score": 50
+  },
+  {
+    "id": "hf-space--open-llm-leaderboard--open_llm_leaderboard",
+    "type": "space",
+    "source": "huggingface",
+    "source_url": "https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard",
+    "title": "open_llm_leaderboard",
+    "description": "--- title: Open LLM Leaderboard emoji: 🏆 colorFrom: blue colorTo: red sdk: docker hf_oauth: true pinned: true license: apache-2.0 duplicated_from: open-llm-leaderboard/open_llm_leaderboard tags: - leaderboard - modality:text - submission:automatic - test:public - language:english - eval:code - eval:math short_description: Track, rank and evaluate open LLMs and chatbots --- Modern React interface for comparing Large Language Models (LLMs) in an open and reproducible way. - 📊 Interactive tabl...",
+    "body_content": "---\ntitle: Open LLM Leaderboard\nemoji: 🏆\ncolorFrom: blue\ncolorTo: red\nsdk: docker\nhf_oauth: true\npinned: true\nlicense: apache-2.0\nduplicated_from: open-llm-leaderboard/open_llm_leaderboard\ntags:\n- leaderboard\n- modality:text\n- submission:automatic\n- test:public\n- language:english\n- eval:code\n- eval:math\nshort_description: Track, rank and evaluate open LLMs and chatbots\n---\n\n# Open LLM Leaderboard\n\nModern React interface for comparing Large Language Models (LLMs) in an open and reproducible way.\n\n## Features\n\n- 📊 Interactive table with advanced sorting and filtering\n- 🔍 Semantic model search\n- 📌 Pin models for comparison\n- 📱 Responsive and modern interface\n- 🎨 Dark/Light mode\n- ⚡️ Optimized performance with virtualization\n\n## Architecture\n\nThe project is split into two main parts:\n\n### Frontend (React)\n\n```\nfrontend/\n├── src/\n│   ├── components/     # Reusable UI components\n│   ├── pages/         # Application pages\n│   ├── hooks/         # Custom React hooks\n│   ├── context/       # React contexts\n│   └── constants/     # Constants and configurations\n├── public/            # Static assets\n└── server.js          # Express server for production\n```\n\n### Backend (FastAPI)\n\n```\nbackend/\n├── app/\n│   ├── api/           # API router and endpoints\n│   │   └── endpoints/ # Specific API endpoints\n│   ├── core/          # Core functionality\n│   ├── config/        # Configuration\n│   └── services/      # Business logic services\n│       ├── leaderboard.py\n│       ├── models.py\n│       ├── votes.py\n│       └── hf_service.py\n└── utils/             # Utility functions\n```\n\n## Technologies\n\n### Frontend\n\n- React\n- Material-UI\n- TanStack Table & Virtual\n- Express.js\n\n### Backend\n\n- FastAPI\n- Hugging Face API\n- Docker\n\n## Development\n\nThe application is containerized using Docker and can be run using:\n\n```bash\ndocker-compose up\n```\n",
+    "tags": [
+      "docker",
+      "leaderboard",
+      "modality:text",
+      "submission:automatic",
+      "test:public",
+      "language:english",
+      "eval:code",
+      "eval:math",
+      "region:us"
+    ],
+    "author": "open-llm-leaderboard",
+    "license_spdx": "Apache-2.0",
+    "meta_json": {
+      "sdk": "docker",
+      "sdk_version": null,
+      "app_file": "app.py",
+      "runtime_stage": "RUNNING",
+      "runtime_hardware": "cpu-upgrade",
+      "emoji": "🏆",
+      "colorFrom": "blue",
+      "colorTo": "red",
+      "pinned": true
+    },
+    "created_at": "2023-04-17T11:40:06.000Z",
+    "updated_at": "2025-03-25T09:02:15.000Z",
+    "popularity": 13730,
+    "downloads": 0,
+    "sdk": "docker",
+    "running_status": "RUNNING",
+    "raw_image_url": null,
+    "relations": [],
+    "content_hash": "b9845683fcde9801ed459150d81643c6",
+    "compliance_status": "approved",
+    "quality_score": 50
+  },
+  {
+    "id": "hf-space--jbilcke-hf--ai-comic-factory",
+    "type": "space",
+    "source": "huggingface",
+    "source_url": "https://huggingface.co/spaces/jbilcke-hf/ai-comic-factory",
+    "title": "ai-comic-factory",
+    "description": "--- title: AI Comic Factory emoji: 👩‍🎨 colorFrom: red colorTo: yellow sdk: docker pinned: true app_port: 3000 disable_embedding: false short_description: Create your own AI comic with a single prompt hf_oauth: true hf_oauth_expiration_minutes: 43200 hf_oauth_scopes: [inference-api] --- Last release: AI Comic Factory 1.2 The AI Comic Factory has an official website: aicomicfactory.app For more information about my other projects please check linktr.ee/FLNGR. If you like the AI Comic Factory,...",
+    "body_content": "---\ntitle: AI Comic Factory\nemoji: 👩‍🎨\ncolorFrom: red\ncolorTo: yellow\nsdk: docker\npinned: true\napp_port: 3000\ndisable_embedding: false\nshort_description: Create your own AI comic with a single prompt\nhf_oauth: true\nhf_oauth_expiration_minutes: 43200\nhf_oauth_scopes: [inference-api]\n---\n\n# AI Comic Factory\n\nLast release: AI Comic Factory 1.2\n\nThe AI Comic Factory has an official website: [aicomicfactory.app](https://aicomicfactory.app)\n\nFor more information about my other projects please check [linktr.ee/FLNGR](https://linktr.ee/FLNGR).\n\n## Funding\n\nIf you like the AI Comic Factory, let me know!\nI am always creating new spaces and exploring new ideas for demos, meaning I don't have much time to take care of all of them (I wish I could clone myself or ask robots to do it).\n\nIf you appreciate the AI Comic Factory and would like to leave a tip, that would be very kind 🫶\n\n<a href=\"https://www.buymeacoffee.com/flngr\" target=\"_blank\"><img src=\"https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png\" alt=\"Buy Me A Coffee\" style=\"height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;\" ></a>\n\n## Running the project at home\n\nFirst, I would like to highlight that everything is open-source (see [here](https://huggingface.co/spaces/jbilcke-hf/ai-comic-factory/tree/main), [here](https://huggingface.co/spaces/jbilcke-hf/VideoChain-API/tree/main), [here](https://huggingface.co/spaces/hysts/SD-XL/tree/main), [here](https://github.com/huggingface/text-generation-inference)).\n\nHowever the project isn't a monolithic Space that can be duplicated and ran immediately:\nit requires various components to run for the frontend, backend, LLM, SDXL etc.\n\nIf you try to duplicate the project, open the `.env` you will see it requires some variables.\n\nProvider config:\n- `LLM_ENGINE`: can be one of `INFERENCE_API`, `INFERENCE_ENDPOINT`, `OPENAI`, `GROQ`, `ANTHROPIC`\n- `RENDERING_ENGINE`: can be one of: \"INFERENCE_API\", \"INFERENCE_ENDPOINT\", \"REPLICATE\", \"VIDEOCHAIN\", \"OPENAI\" for now, unless you code your custom solution\n\nAuth config:\n- `AUTH_HF_API_TOKEN`:  if you decide to use Hugging Face for the LLM engine (inference api model or a custom inference endpoint)\n- `AUTH_OPENAI_API_KEY`: to use OpenAI for the LLM engine\n- `AUTH_GROQ_API_KEY`: to use Groq for the LLM engine\n- `AUTH_ANTHROPIC_API_KEY`: to use Anthropic (Claude) for the LLM engine\n- `AUTH_VIDEOCHAIN_API_TOKEN`: secret token to access the VideoChain API server\n- `AUTH_REPLICATE_API_TOKEN`: in case you want to use Replicate.com\n\nRendering config:\n- `RENDERING_HF_INFERENCE_ENDPOINT_URL`: necessary if you decide to use a custom inference endpoint\n- `RENDERING_REPLICATE_API_MODEL_VERSION`: url to the VideoChain API server\n- `RENDERING_HF_INFERENCE_ENDPOINT_URL`: optional, default to nothing\n- `RENDERING_HF_INFERENCE_API_BASE_MODEL`: optional, defaults to \"stabilityai/stable-diffusion-xl-base-1.0\"\n- `RENDERING_HF_INFERENCE_API_REFINER_MODEL`: optional, defaults to \"stabilityai/stable-diffusion-xl-refiner-1.0\"\n- `RENDERING_REPLICATE_API_MODEL`: optional, defaults to \"stabilityai/sdxl\"\n- `RENDERING_REPLICATE_API_MODEL_VERSION`: optional, in case you want to change the version\n\nLanguage model config (depending on the LLM engine you decide to use):\n- `LLM_HF_INFERENCE_ENDPOINT_URL`: \"<use your own>\"\n- `LLM_HF_INFERENCE_API_MODEL`: \"HuggingFaceH4/zephyr-7b-beta\"\n- `LLM_OPENAI_API_BASE_URL`: \"https://api.openai.com/v1\"\n- `LLM_OPENAI_API_MODEL`: \"gpt-4-turbo\"\n- `LLM_GROQ_API_MODEL`: \"mixtral-8x7b-32768\"\n- `LLM_ANTHROPIC_API_MODEL`: \"claude-3-opus-20240229\"\n\nIn addition, there are some community sharing variables that you can just ignore.\nThose variables are not required to run the AI Comic Factory on your own website or computer\n(they are meant to create a connection with the Hugging Face community,\nand thus only make sense for official Hugging Face apps):\n- `NEXT_PUBLIC_ENABLE_COMMUNITY_SHARING`: you don't need this\n- `COMMUNITY_API_URL`: you don't need this\n- `COMMUNITY_API_TOKEN`: you don't need this\n- `COMMUNITY_API_ID`: you don't need this\n\nPlease read the `.env` default config file for more informations.\nTo customise a variable locally, you should create a `.env.local`\n(do not commit this file as it will contain your secrets).\n\n-> If you intend to run it with local, cloud-hosted and/or proprietary models **you are going to need to code 👨‍💻**.\n\n## The LLM API (Large Language Model)\n\nCurrently the AI Comic Factory uses [zephyr-7b-beta](https://huggingface.co/HuggingFaceH4/zephyr-7b-beta) through an [Inference Endpoint](https://huggingface.co/docs/inference-endpoints/index).\n\nYou have multiple options:\n\n### Option 1: Use an Inference API model\n\nThis is a new option added recently, where you can use one of the models from the Hugging Face Hub. By default we suggest to use [zephyr-7b-beta](https://huggingface.co/HuggingFaceH4/zephyr-7b-beta) as it will provide better results than the 7b model.\n\nTo activate it, create a `.env.local` configuration file:\n\n```bash\nLLM_ENGINE=\"INFERENCE_API\"\n\nHF_API_TOKEN=\"Your Hugging Face token\"\n\n# \"HuggingFaceH4/zephyr-7b-beta\" is used by default, but you can change this\n# note: You should use a model able to generate JSON responses,\n# so it is storngly suggested to use at least the 34b model\nHF_INFERENCE_API_MODEL=\"HuggingFaceH4/zephyr-7b-beta\"\n```\n\n### Option 2: Use an Inference Endpoint URL\n\nIf you would like to run the AI Comic Factory on a private LLM running on the Hugging Face Inference Endpoint service, create a `.env.local` configuration file:\n\n```bash\nLLM_ENGINE=\"INFERENCE_ENDPOINT\"\n\nHF_API_TOKEN=\"Your Hugging Face token\"\n\nHF_INFERENCE_ENDPOINT_URL=\"path to your inference endpoint url\"\n```\n\nTo run this kind of LLM locally, you can use [TGI](https://github.com/huggingface/text-generation-inference) (Please read [this post](https://github.com/huggingface/text-generation-inference/issues/726) for more information about the licensing).\n\n### Option 3: Use an OpenAI API Key\n\nThis is a new option added recently, where you can use OpenAI API with an OpenAI API Key.\n\nTo activate it, create a `.env.local` configuration file:\n\n```bash\nLLM_ENGINE=\"OPENAI\"\n\n# default openai api base url is: https://api.openai.com/v1\nLLM_OPENAI_API_BASE_URL=\"A custom OpenAI API Base URL if you have some special privileges\"\n\nLLM_OPENAI_API_MODEL=\"gpt-4-turbo\"\n\nAUTH_OPENAI_API_KEY=\"Yourown OpenAI API Key\"\n```\n### Option 4: (new, experimental) use Groq\n\n```bash\nLLM_ENGINE=\"GROQ\"\n\nLLM_GROQ_API_MODEL=\"mixtral-8x7b-32768\"\n\nAUTH_GROQ_API_KEY=\"Your own GROQ API Key\"\n```\n### Option 5: (new, experimental) use Anthropic (Claude)\n\n```bash\nLLM_ENGINE=\"ANTHROPIC\"\n\nLLM_ANTHROPIC_API_MODEL=\"claude-3-opus-20240229\"\n\nAUTH_ANTHROPIC_API_KEY=\"Your own ANTHROPIC API Key\"\n```\n\n### Option 6: Fork and modify the code to use a different LLM system\n\nAnother option could be to disable the LLM completely and replace it with another LLM protocol and/or provider (eg. Claude, Replicate), or a human-generated story instead (by returning mock or static data).\n\n### Notes\n\nIt is possible that I modify the AI Comic Factory to make it easier in the future (eg. add support for Claude or Replicate)\n\n## The Rendering API\n\nThis API is used to generate the panel images. This is an API I created for my various projects at Hugging Face.\n\nI haven't written documentation for it yet, but basically it is \"just a wrapper ™\" around other existing APIs:\n\n- The [hysts/SD-XL](https://huggingface.co/spaces/hysts/SD-XL?duplicate=true) Space by [@hysts](https://huggingface.co/hysts)\n- And other APIs for making videos, adding audio etc.. but you won't need them for the AI Comic Factory\n\n### Option 1: Deploy VideoChain yourself\n\nYou will have to [clone](https://huggingface.co/spaces/jbilcke-hf/VideoChain-API?duplicate=true) the [source-code](https://huggingface.co/spaces/jbilcke-hf/VideoChain-API/tree/main)\n\nUnfortunately, I haven't had the time to write the documentation for VideoChain yet.\n(When I do I will update this document to point to the VideoChain's README)\n\n\n### Option 2: Use Replicate\n\nTo use Replicate, create a `.env.local` configuration file:\n\n```bash\nRENDERING_ENGINE=\"REPLICATE\"\n\nRENDERING_REPLICATE_API_MODEL=\"stabilityai/sdxl\"\n\nRENDERING_REPLICATE_API_MODEL_VERSION=\"da77bc59ee60423279fd632efb4795ab731d9e3ca9705ef3341091fb989b7eaf\"\n\nAUTH_REPLICATE_API_TOKEN=\"Your Replicate token\"\n```\n\n### Option 3: Use another SDXL API\n\nIf you fork the project you will be able to modify the code to use the Stable Diffusion technology of your choice (local, open-source, proprietary, your custom HF Space etc).\n\nIt would even be something else, such as Dall-E.\n",
+    "tags": [
+      "docker",
+      "region:us"
+    ],
+    "author": "jbilcke-hf",
+    "license_spdx": null,
+    "meta_json": {
+      "sdk": "docker",
+      "sdk_version": null,
+      "app_file": "app.py",
+      "runtime_stage": "RUNNING",
+      "runtime_hardware": "cpu-basic",
+      "emoji": "👩‍🎨",
+      "colorFrom": "red",
+      "colorTo": "yellow",
+      "pinned": true
+    },
+    "created_at": "2023-08-25T14:46:47.000Z",
+    "updated_at": "2025-10-30T19:17:19.000Z",
+    "popularity": 10848,
+    "downloads": 0,
+    "sdk": "docker",
+    "running_status": "RUNNING",
+    "raw_image_url": null,
+    "relations": [
+      {
+        "type": "has_code",
+        "target_id": "github:huggingface:text-generation-inference",
+        "source_url": "https://github.com/huggingface/text-generation-inference"
+      },
+      {
+        "type": "has_code",
+        "target_id": "github:huggingface:text-generation-inference",
+        "source_url": "https://github.com/huggingface/text-generation-inference"
+      },
+      {
+        "type": "has_code",
+        "target_id": "github:huggingface:text-generation-inference",
+        "source_url": "https://github.com/huggingface/text-generation-inference"
+      }
+    ],
+    "content_hash": "b4f426c38069dd167b21a0211a5e009f",
+    "compliance_status": "pending",
+    "quality_score": 55
+  },
+  {
+    "id": "hf-space--kwai-kolors--kolors-virtual-try-on",
+    "type": "space",
+    "source": "huggingface",
+    "source_url": "https://huggingface.co/spaces/Kwai-Kolors/Kolors-Virtual-Try-On",
+    "title": "Kolors-Virtual-Try-On",
+    "description": "--- title: Kolors Virtual Try-On emoji: 👕 colorFrom: purple colorTo: gray sdk: gradio sdk_version: 4.43.0 app_file: app.py pinned: true license: apache-2.0 disable_embedding: true --- Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference",
+    "body_content": "---\ntitle: Kolors Virtual Try-On\nemoji: 👕\ncolorFrom: purple\ncolorTo: gray\nsdk: gradio\nsdk_version: 4.43.0\napp_file: app.py\npinned: true\nlicense: apache-2.0\ndisable_embedding: true\n---\n\nCheck out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference",
+    "tags": [
+      "gradio",
+      "region:us"
+    ],
+    "author": "Kwai-Kolors",
+    "license_spdx": "Apache-2.0",
+    "meta_json": {
+      "sdk": "gradio",
+      "sdk_version": "4.43.0",
+      "app_file": "app.py",
+      "runtime_stage": "RUNNING",
+      "runtime_hardware": "cpu-upgrade",
+      "emoji": "👕",
+      "colorFrom": "purple",
+      "colorTo": "gray",
+      "pinned": true
+    },
+    "created_at": "2024-08-07T09:42:50.000Z",
+    "updated_at": "2024-09-18T03:57:54.000Z",
+    "popularity": 9919,
+    "downloads": 0,
+    "sdk": "gradio",
+    "running_status": "RUNNING",
+    "raw_image_url": null,
+    "relations": [],
+    "content_hash": "edcf371cdd6a2c30573c76b9de7401b9",
+    "compliance_status": "approved",
+    "quality_score": 40
+  },
+  {
+    "id": "hf-space--black-forest-labs--flux.1-dev",
+    "type": "space",
+    "source": "huggingface",
+    "source_url": "https://huggingface.co/spaces/black-forest-labs/FLUX.1-dev",
+    "title": "FLUX.1-dev",
+    "description": "--- title: FLUX.1 [dev] emoji: 🖥️ colorFrom: yellow colorTo: pink sdk: gradio sdk_version: 5.25.2 app_file: app.py pinned: false license: mit --- Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference",
+    "body_content": "---\ntitle: FLUX.1 [dev]\nemoji: 🖥️\ncolorFrom: yellow\ncolorTo: pink\nsdk: gradio\nsdk_version: 5.25.2\napp_file: app.py\npinned: false\nlicense: mit\n---\n\nCheck out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference",
+    "tags": [
+      "gradio",
+      "region:us"
+    ],
+    "author": "black-forest-labs",
+    "license_spdx": "MIT",
+    "meta_json": {
+      "sdk": "gradio",
+      "sdk_version": "5.25.2",
+      "app_file": "app.py",
+      "runtime_stage": "RUNNING",
+      "runtime_hardware": "zero-a10g",
+      "emoji": "🖥️",
+      "colorFrom": "yellow",
+      "colorTo": "pink",
+      "pinned": false
+    },
+    "created_at": "2024-08-01T14:14:02.000Z",
+    "updated_at": "2025-11-25T22:59:20.000Z",
+    "popularity": 9332,
+    "downloads": 0,
+    "sdk": "gradio",
+    "running_status": "RUNNING",
+    "raw_image_url": null,
+    "relations": [],
+    "content_hash": "1258bba23ef1e9ba164531d620ed78d4",
+    "compliance_status": "approved",
+    "quality_score": 40
+  }
+]

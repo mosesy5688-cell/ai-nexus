@@ -1,0 +1,198 @@
+---
+// src/components/dataset/DatasetHero.astro
+// V6.2: Hero Section for HuggingFace Datasets
+// Following ModelHero.astro pattern for consistency
+
+import { formatMetric, formatDate } from '../../utils/formatters.js';
+
+interface Props {
+  name: string;
+  description?: string;
+  author: string;
+  likes: number;
+  downloads: number;
+  sizeCategory?: string;
+  numRows?: number;
+  format?: string[];
+  lastUpdated?: string;
+  links: {
+    source_url?: string;
+    viewer_url?: string;
+  };
+}
+
+const { 
+  name, 
+  description, 
+  author, 
+  likes, 
+  downloads,
+  sizeCategory,
+  numRows,
+  format = [],
+  lastUpdated,
+  links 
+} = Astro.props;
+
+// Size badge styling
+const sizeBadges: Record<string, string> = {
+  'n<1K': 'bg-green-100 text-green-800',
+  '1K<n<10K': 'bg-green-100 text-green-800',
+  '10K<n<100K': 'bg-yellow-100 text-yellow-800',
+  '100K<n<1M': 'bg-orange-100 text-orange-800',
+  '1M<n<10M': 'bg-red-100 text-red-800',
+  'n>10M': 'bg-purple-100 text-purple-800'
+};
+
+const sizeColor = sizeBadges[sizeCategory || ''] || 'bg-gray-100 text-gray-800';
+
+// Format first format type for display
+const primaryFormat = format[0] || 'unknown';
+
+// Extract tagline
+const tagline = description 
+  ? description.split('\n')[0].substring(0, 120) 
+  : `Dataset by ${author}`;
+
+// Verified authors
+const verifiedAuthors = ['huggingface', 'openai', 'google', 'facebook', 'allenai'];
+const isVerified = verifiedAuthors.some(v => author.toLowerCase().includes(v));
+
+// Large dataset threshold
+const isLarge = downloads > 100000 || (numRows && numRows > 1000000);
+---
+
+<div class="dataset-hero bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-8 mb-8 shadow-lg border border-emerald-100 dark:border-gray-700">
+  <div class="flex flex-col md:flex-row gap-6 items-start">
+    
+    <!-- Icon -->
+    <div class="flex-shrink-0">
+      <div class="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center text-white text-3xl shadow-md">
+        📊
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 min-w-0">
+      <!-- Title Row with Badges -->
+      <div class="flex flex-wrap items-center gap-3 mb-2">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white leading-tight">
+          {name}
+        </h1>
+        
+        <!-- Dataset Badge -->
+        <span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-1 rounded-full">
+          📊 Dataset
+        </span>
+
+        {isLarge && (
+          <span class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-1 rounded-full">
+            ⚡ Popular
+          </span>
+        )}
+
+        {sizeCategory && (
+          <span class={`inline-flex items-center gap-1 ${sizeColor} text-xs font-semibold px-2.5 py-1 rounded-full`}>
+            {sizeCategory}
+          </span>
+        )}
+
+        {isVerified && (
+          <span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-1 rounded-full" title="Verified Author">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            Verified
+          </span>
+        )}
+      </div>
+
+      <!-- Tagline -->
+      <p class="text-lg text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
+        {tagline}
+      </p>
+
+      <!-- CTAs Row -->
+      <div class="flex flex-wrap gap-3 mb-6">
+        {links.viewer_url && (
+          <a 
+            href={links.viewer_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold px-5 py-3 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+            View Data
+          </a>
+        )}
+        
+        {links.source_url && (
+          <a 
+            href={links.source_url} 
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 font-semibold px-4 py-3 rounded-lg border border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+            </svg>
+            Open in HuggingFace
+          </a>
+        )}
+      </div>
+
+      <!-- Metadata Pills -->
+      <div class="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400 items-center">
+        <span class="inline-flex items-center gap-1.5" title="Author">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+          </svg>
+          <a href={`https://huggingface.co/${author}`} class="hover:text-emerald-600 transition-colors" target="_blank" rel="noopener">
+            {author}
+          </a>
+        </span>
+
+        <span class="inline-flex items-center gap-1.5" title="Likes">
+          <svg class="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
+          </svg>
+          <strong class="text-gray-900 dark:text-white">{formatMetric(likes)}</strong>
+        </span>
+
+        <span class="inline-flex items-center gap-1.5" title="Downloads">
+          <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          <strong class="text-gray-900 dark:text-white">{formatMetric(downloads)}</strong>
+        </span>
+
+        {numRows && (
+          <span class="inline-flex items-center gap-1.5" title="Number of Rows">
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+            </svg>
+            <span>{formatMetric(numRows)} rows</span>
+          </span>
+        )}
+
+        {primaryFormat && primaryFormat !== 'unknown' && (
+          <span class="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-2.5 py-0.5 rounded-full text-xs font-medium">
+            {primaryFormat.toUpperCase()}
+          </span>
+        )}
+
+        {lastUpdated && (
+          <span class="inline-flex items-center gap-1.5" title={`Updated on ${lastUpdated}`}>
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>{formatDate(lastUpdated)}</span>
+          </span>
+        )}
+      </div>
+    </div>
+  </div>
+</div>

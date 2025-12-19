@@ -110,3 +110,81 @@ export interface EntityRelation {
     /** Display label */
     label: string;
 }
+
+
+/**
+ * ==========================================
+ * V6.2 Universal Entity Protocol
+ * ==========================================
+ */
+
+/**
+ * Base Entity Interface (Common V6.1 Protocol)
+ */
+export interface BaseEntity {
+    id: string;
+    type: EntityType;
+    name: string;
+    author: string;
+    last_modified: string;
+
+    // V6.1 Full Fidelity Stats
+    stats: {
+        likes: number;
+        downloads?: number; // Space might not have downloads
+        fni_score?: number; // Internal Metric
+    };
+
+    // V6.1 Content Protocol
+    author_docs: {
+        readme_ref: string; // Pointer to entities/{type}/{id}/readme.md.gz
+        readme_hash: string;
+    };
+
+    // Generic metadata bag (V6.1 Schema Optimization)
+    // Stores type-specific fields that aren't indexed for search
+    metadata?: Record<string, unknown>;
+}
+
+/**
+ * 1. Model Entity (Tier 1)
+ */
+export interface ModelEntity extends BaseEntity {
+    type: 'model';
+    pipeline_tag?: string; // Core classification
+    metadata?: {
+        parameters?: string;
+        precision?: string;
+        context_length?: string;
+    };
+}
+
+/**
+ * 2. Dataset Entity (Tier 2)
+ */
+export interface DatasetEntity extends BaseEntity {
+    type: 'dataset';
+    metadata?: {
+        size_categories?: string | string[]; // e.g. "100K-1M"
+        num_rows?: number;
+        format?: string[];
+    };
+}
+
+/**
+ * 3. Space Entity (Tier 2)
+ */
+export interface SpaceEntity extends BaseEntity {
+    type: 'space';
+    metadata?: {
+        sdk?: 'gradio' | 'streamlit' | 'docker' | 'static';
+        app_file?: string;
+        running_status?: 'running' | 'sleeping' | 'building' | 'error';
+    };
+}
+
+/**
+ * The Universal Entity Union
+ */
+export type UniversalEntity = ModelEntity | DatasetEntity | SpaceEntity;
+
