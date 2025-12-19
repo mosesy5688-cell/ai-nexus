@@ -167,7 +167,7 @@ export async function generateEntityLinksAndBenchmarks(env: Env) {
     console.log('[L8] Generating benchmarks... ');
     const benchmarks = await env.DB.prepare(`
         SELECT 
-            id as umid, slug, name, author,
+            id, slug, name, author,
             fni_score, pwc_benchmarks
         FROM entities 
         WHERE type='model' AND fni_score IS NOT NULL
@@ -177,17 +177,21 @@ export async function generateEntityLinksAndBenchmarks(env: Env) {
 
     const benchmarkData = {
         generated_at: new Date().toISOString(),
-        version: 'V4.8.2',
+        version: 'V6.2.1',
         data: (benchmarks.results || []).map((m: any) => {
             let parsed: any = {};
             try { if (m.pwc_benchmarks) parsed = JSON.parse(m.pwc_benchmarks); } catch { }
             return {
-                umid: m.umid,
+                id: m.id,  // V6.2.1: Include entity ID for navigation
+                umid: m.id, // Keep for backward compatibility
                 slug: m.slug,
                 name: m.name,
                 author: m.author,
                 fni_score: m.fni_score,
                 mmlu: parsed.mmlu || null,
+                humaneval: parsed.humaneval || null,
+                hellaswag: parsed.hellaswag || null,
+                arc_challenge: parsed.arc_challenge || null,
                 avg_score: parsed.avg_score || m.fni_score,
                 quality_flag: 'ok'
             };
