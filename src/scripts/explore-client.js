@@ -84,6 +84,10 @@ function getFilters() {
     const hasBenchmarksEl = document.getElementById('has-benchmarks');
     const licenseEl = document.getElementById('license-filter');
 
+    // V6.2: Get entity type from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const entityType = urlParams.get('type') || 'model';
+
     const q = searchEl ? searchEl.value.trim() : '';
     const sort = sortEl ? sortEl.value : 'trending';
     const min_likes = minLikesEl ? parseInt(minLikesEl.value) : 0;
@@ -92,7 +96,7 @@ function getFilters() {
     const license = licenseEl ? licenseEl.value : '';
     const tags = Array.from(document.querySelectorAll('input[name="tags"]:checked')).map(i => i.value);
 
-    return { q, sort, min_likes, has_benchmarks, sources, license, tags };
+    return { q, sort, min_likes, has_benchmarks, sources, license, tags, entityType };
 }
 
 function updateActiveFiltersDisplay(filters) {
@@ -100,6 +104,11 @@ function updateActiveFiltersDisplay(filters) {
     if (!activeFiltersEl) return;
 
     const chips = [];
+    // V6.2: Show entity type only if not default
+    const typeLabels = { model: '🤖 Models', space: '🎮 Spaces', dataset: '📊 Datasets' };
+    if (filters.entityType && filters.entityType !== 'model') {
+        chips.push(typeLabels[filters.entityType] || filters.entityType);
+    }
     if (filters.min_likes > 0) chips.push(`Stars > ${filters.min_likes}`);
     if (filters.has_benchmarks) chips.push('SOTA Only');
     filters.sources.forEach(s => chips.push(s));
