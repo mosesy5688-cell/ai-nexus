@@ -63,8 +63,10 @@ async function loadIndex(entityType = 'model') {
     }
 }
 
-// Start loading models immediately
-loadIndex('model');
+// Start loading models immediately and notify when ready
+loadIndex('model').then(() => {
+    self.postMessage({ type: 'STATUS', isLoaded: true, count: indexCache['model']?.items?.length || 0 });
+});
 
 self.onmessage = async (e) => {
     const { id, type, filters } = e.data;
