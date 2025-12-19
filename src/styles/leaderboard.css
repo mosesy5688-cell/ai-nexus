@@ -31,7 +31,7 @@
 
 .hero-subtitle {
     font-size: 1.125rem;
-    color: #94a3b8;
+    color: #cbd5e1; /* V6.3: Improved from #94a3b8 for WCAG AA */
     max-width: 600px;
     margin: 0 auto 1.5rem auto;
 }
@@ -113,7 +113,7 @@
 .section-title {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #e2e8f0;
+    color: #f1f5f9; /* V6.3: Brighter for better contrast */
     margin-bottom: 2rem;
     text-align: center;
 }
@@ -212,7 +212,7 @@
 }
 
 .legend-section h3 {
-    color: #94a3b8;
+    color: #cbd5e1; /* V6.3: Improved from #94a3b8 for WCAG AA */
     font-size: 0.875rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -237,7 +237,7 @@
 }
 
 .legend-desc {
-    color: #64748b;
+    color: #94a3b8; /* V6.3: Improved from #64748b for WCAG AA */
     font-size: 0.875rem;
     line-height: 1.4;
 }

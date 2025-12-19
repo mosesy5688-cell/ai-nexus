@@ -140,7 +140,7 @@ const jsonLd = {
     <div class="container mx-auto px-4 py-12">
         <header class="text-center mb-8">
             <h1 class="text-5xl font-extrabold text-gray-900 dark:text-white">{entityLabel} Rankings</h1>
-            <p class="mt-4 text-xl text-gray-500 dark:text-gray-400 max-w-3xl mx-auto">
+            <p class="mt-4 text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
                 {pageDescription}
             </p>
             <DataFreshness timestamp={generatedAt} source="L8 Precompute" />
@@ -176,15 +176,15 @@ const jsonLd = {
         {mainRankings.map(ranking => (
             <section class="mb-16">
                 <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">{ranking.title}</h2>
-                <p class="text-gray-500 dark:text-gray-400 mb-2">{ranking.description}</p>
-                <p class="text-sm text-gray-400 dark:text-gray-500 italic mb-6">{ranking.explanation}</p>
+                <p class="text-gray-600 dark:text-gray-300 mb-2">{ranking.description}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400 italic mb-6">{ranking.explanation}</p>
                 {ranking.models.length > 0 ? (
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {ranking.models.slice(0, 8).map(model => (
                             ranking.isBenchmark ? (
                                 <a href={`/model/${model.umid}`} class="block p-4 bg-gray-800 rounded-lg hover:bg-gray-700 transition">
                                     <div class="font-semibold text-white">{model.name}</div>
-                                    <div class="text-sm text-gray-400">Avg: {model.avg_score?.toFixed(1)}</div>
+                                    <div class="text-sm text-gray-300">Avg: {model.avg_score?.toFixed(1)}</div>
                                 </a>
                             ) : (
                                 <ModelCard model={model} />
@@ -192,13 +192,13 @@ const jsonLd = {
                         ))}
                     </div>
                 ) : (
-                    <p class="text-gray-400 text-center py-8">No models in this category yet.</p>
+                    <p class="text-gray-300 text-center py-8">No models in this category yet.</p>
                 )}
             </section>
         ))}
 
         <div class="mt-12 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 text-center">
-            <p class="text-sm text-gray-600 dark:text-gray-400">
+            <p class="text-sm text-gray-700 dark:text-gray-300">
                 Rankings use the <a href="/methodology" class="text-indigo-600 hover:underline font-semibold">FNI Methodology</a> – 
                 a transparent, multi-dimensional scoring system. V4.3.2 Constitution compliant.
             </p>
