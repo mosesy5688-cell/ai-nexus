@@ -5,6 +5,7 @@ import {
     generateCategoryStats,
     generateEntityLinksAndBenchmarks,
 } from '../utils/precompute-helpers';
+import { generateTrendingSpaces, generateTrendingDatasets } from '../utils/entity-precompute';
 import { generateRankings } from '../utils/ranking-generator';
 import { generateSitemaps } from '../utils/sitemap-generator';
 
@@ -57,6 +58,22 @@ export async function runPrecomputeStep(env: Env) {
         console.log('[L8] ✅ Sitemaps complete');
     } catch (err) {
         console.error('[L8] ❌ Sitemaps failed:', err);
+    }
+
+    // 6. V6.2: Trending Spaces Cache
+    try {
+        await generateTrendingSpaces(env);
+        console.log('[L8] ✅ Trending Spaces complete');
+    } catch (err) {
+        console.error('[L8] ❌ Trending Spaces failed:', err);
+    }
+
+    // 7. V6.2: Trending Datasets Cache
+    try {
+        await generateTrendingDatasets(env);
+        console.log('[L8] ✅ Trending Datasets complete');
+    } catch (err) {
+        console.error('[L8] ❌ Trending Datasets failed:', err);
     }
 
     console.log('[L8 Orchestrator] Cache regeneration complete.');
