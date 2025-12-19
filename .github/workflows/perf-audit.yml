@@ -19,8 +19,8 @@ jobs:
         with:
           urls: |
             https://free2aitools.com/
-            https://free2aitools.com/category/text-generation
-            https://free2aitools.com/model/deepseek-r1-distill-llama-70b
+            https://free2aitools.com/text-generation
+            https://free2aitools.com/explore
           budgetPath: './.github/lighthouse-budget.json'
           uploadArtifacts: true
           temporaryPublicStorage: true
