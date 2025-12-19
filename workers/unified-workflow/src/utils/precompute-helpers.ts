@@ -6,12 +6,13 @@ import { generateSitemaps } from './sitemap-generator';
 export async function generateTrendingAndLeaderboard(env: Env) {
     console.log('[L8] Starting cache precompute...');
     // V5.2.1: Filter for actual models only (not datasets/papers/repos)
-    const modelFilter = `(id LIKE 'huggingface%' OR id LIKE 'ollama%')`;
+    const modelFilter = `type='model' AND (id LIKE 'huggingface%' OR id LIKE 'ollama%')`;
     // Trending models (top 100 by FNI)
     const trending = await env.DB.prepare(`
         SELECT id, slug, name, author, fni_score, downloads, likes,
-                cover_image_url, tags, has_ollama, has_gguf
-        FROM models 
+                cover_image_url, tags, has_ollama, has_gguf,
+                last_updated, pwc_benchmarks
+        FROM entities 
         WHERE fni_score IS NOT NULL AND ${modelFilter}
         ORDER BY fni_score DESC 
         LIMIT 100
@@ -31,7 +32,7 @@ export async function generateTrendingAndLeaderboard(env: Env) {
     const leaderboard = await env.DB.prepare(`
         SELECT m.id, m.slug, m.name, m.author, m.fni_score,
                 m.deploy_score, m.architecture_family, m.has_ollama
-        FROM models m
+        FROM entities m
         WHERE m.fni_score IS NOT NULL AND ${modelFilter}
         ORDER BY m.fni_score DESC
         LIMIT 50
@@ -54,8 +55,8 @@ export async function generateNeuralGraph(env: Env) {
     const graphNodes = await env.DB.prepare(`
         SELECT id, slug, name, author, architecture_family, 
                 deploy_score, fni_score, has_ollama
-        FROM models 
-        WHERE fni_score IS NOT NULL
+        FROM entities 
+        WHERE type='model' AND fni_score IS NOT NULL
         ORDER BY fni_score DESC
         LIMIT 200
     `).all();
@@ -113,8 +114,8 @@ export async function generateCategoryStats(env: Env) {
                 AVG(fni_score) as avg_fni, 
                 MAX(fni_score) as top_fni,
                 SUM(CASE WHEN last_updated > datetime('now', '-7 days') THEN 1 ELSE 0 END) as trending
-            FROM models 
-            WHERE primary_category = ? AND category_status = 'classified'
+            FROM entities 
+            WHERE type='model' AND primary_category = ? AND category_status = 'classified'
         `).bind(cat.id).first();
 
         return {
@@ -134,13 +135,13 @@ export async function generateCategoryStats(env: Env) {
 
     // V6.0.1: Count pending_classification models
     const pendingResult = await env.DB.prepare(`
-        SELECT COUNT(*) as cnt FROM models 
-        WHERE category_status = 'pending_classification' OR primary_category IS NULL
+        SELECT COUNT(*) as cnt FROM entities 
+        WHERE type='model' AND (category_status = 'pending_classification' OR primary_category IS NULL)
     `).first();
     const pendingCount = (pendingResult as any)?.cnt || 0;
 
     // V6.0.1: Total model count
-    const totalResult = await env.DB.prepare(`SELECT COUNT(*) as cnt FROM models`).first();
+    const totalResult = await env.DB.prepare(`SELECT COUNT(*) as cnt FROM entities WHERE type='model'`).first();
     const totalModels = (totalResult as any)?.cnt || 0;
 
     const categoryData = {
@@ -168,8 +169,8 @@ export async function generateEntityLinksAndBenchmarks(env: Env) {
         SELECT 
             id as umid, slug, name, author,
             fni_score, pwc_benchmarks
-        FROM models 
-        WHERE fni_score IS NOT NULL
+        FROM entities 
+        WHERE type='model' AND fni_score IS NOT NULL
         ORDER BY fni_score DESC
         LIMIT 500
     `).all();

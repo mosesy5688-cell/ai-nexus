@@ -13,22 +13,22 @@ export async function runFNIStep(env: Env): Promise<{ modelsCalculated: number; 
     if (isFullRecalc) {
         console.log('[FNI] Taking daily snapshot for Velocity tracking...');
         await env.DB.prepare(`
-            INSERT INTO models_history (model_id, downloads, likes)
-            SELECT id, downloads, likes FROM models
+            INSERT INTO entities_history (model_id, downloads, likes)
+            SELECT id, downloads, likes FROM entities WHERE type='model'
         `).run();
         console.log('[FNI] Snapshot complete');
     }
 
     // V5.2.1: Only calculate FNI for actual models, not datasets/papers/repos
     // Models use huggingface-- or ollama prefix; others (arxiv--, hf-dataset--, github--) are excluded
-    const modelFilter = `(id LIKE 'huggingface%' OR id LIKE 'ollama%')`;
+    const modelFilter = `type='model' AND (id LIKE 'huggingface%' OR id LIKE 'ollama%')`;
 
     const query = isFullRecalc
         ? `SELECT id, downloads, likes, license_spdx, body_content_url, 
-           source_trail, has_ollama, has_gguf FROM models
+           source_trail, has_ollama, has_gguf FROM entities
            WHERE ${modelFilter}`
         : `SELECT id, downloads, likes, license_spdx, body_content_url, 
-           source_trail, has_ollama, has_gguf FROM models 
+           source_trail, has_ollama, has_gguf FROM entities 
            WHERE ${modelFilter} AND last_updated > datetime('now', '-1 day')`;
 
     const models = await env.DB.prepare(query).all();
@@ -43,7 +43,7 @@ export async function runFNIStep(env: Env): Promise<{ modelsCalculated: number; 
     if (isFullRecalc) {
         const history = await env.DB.prepare(`
             SELECT model_id, downloads, likes 
-            FROM models_history 
+            FROM entities_history 
             WHERE recorded_at < datetime('now', '-6 days')
             AND recorded_at > datetime('now', '-8 days')
         `).all();
@@ -57,7 +57,7 @@ export async function runFNIStep(env: Env): Promise<{ modelsCalculated: number; 
         const oldData = historyMap.get(m.id);
         const fni = computeFNI(m, oldData);
         return env.DB.prepare(`
-            UPDATE models SET 
+            UPDATE entities SET 
                 fni_score = ?, fni_p = ?, fni_v = ?, fni_c = ?, fni_u = ?
             WHERE id = ?
         `).bind(fni.score, fni.p, fni.v, fni.c, fni.u, m.id);

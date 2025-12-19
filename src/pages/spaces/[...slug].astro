@@ -1,0 +1,138 @@
+---
+export const prerender = false;
+
+/**
+ * Space Detail Page V6.2
+ * Constitution V6.1.1 Universal Entity Protocol
+ * Compliant with CES V5.1.2 Anti-Monolith (<250 lines)
+ */
+
+import Layout from '../../layouts/Layout.astro';
+import SpaceHero from '../../components/space/SpaceHero.astro';
+import SpaceIframe from '../../components/space/SpaceIframe.astro';
+
+const { slug } = Astro.params;
+
+let space = null;
+let error = null;
+let pageTitle = "HuggingFace Space - Free AI Tools";
+let pageDescription = "Explore and try this interactive AI demo.";
+
+try {
+  if (!slug) throw new Error("No slug provided");
+  
+  // V6.2: Fetch space from R2 cache
+  // For now, construct from slug (will be replaced with cache reader)
+  const spaceId = slug?.replace(/--/g, '/');
+  
+  // Mock space data for initial deployment
+  // TODO: Implement getSpaceFromCache similar to getModelFromCache
+  space = {
+    id: `hf-space--${slug}`,
+    name: spaceId?.split('/').pop() || 'Unknown Space',
+    author: spaceId?.split('/')[0] || 'unknown',
+    likes: 0,
+    sdk: 'gradio',
+    running_status: 'RUNNING',
+    description: `Interactive AI demo: ${spaceId}`,
+    source_url: `https://huggingface.co/spaces/${spaceId}`,
+    embed_url: `https://huggingface.co/spaces/${spaceId}?embed=true`
+  };
+
+  if (space) {
+    pageTitle = `${space.name} - AI Space Demo`;
+    pageDescription = space.description?.substring(0, 160) || `Try ${space.name} interactive demo.`;
+  }
+} catch (e) {
+  console.error("Error loading space:", e);
+  error = e;
+  Astro.response.status = 500;
+}
+
+if (!space && !error) {
+  Astro.response.status = 404;
+  Astro.response.headers.set('Cache-Control', 'no-store, no-cache, max-age=0');
+}
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <main class="space-detail-page bg-gray-50 dark:bg-gray-900 min-h-screen">
+    {error ? (
+      <div class="container mx-auto px-4 py-12 text-center">
+        <div class="bg-red-50 text-red-800 p-8 rounded-lg max-w-2xl mx-auto">
+          <h1 class="text-3xl font-bold mb-4">Error Loading Page</h1>
+          <p class="text-gray-600 mb-6">{error.message}</p>
+          <a href="/explore" class="inline-block bg-purple-600 text-white font-bold py-2 px-4 rounded hover:bg-purple-700">Browse Spaces</a>
+        </div>
+      </div>
+    ) : space ? (
+      <article class="container mx-auto px-4 py-8 max-w-7xl">
+        <SpaceHero
+          name={space.name}
+          description={space.description}
+          author={space.author}
+          likes={space.likes}
+          sdk={space.sdk}
+          runningStatus={space.running_status}
+          links={{
+            source_url: space.source_url,
+            embed_url: space.embed_url
+          }}
+        />
+
+        {space.running_status === 'RUNNING' && (
+          <SpaceIframe 
+            spaceId={slug?.replace(/--/g, '/')}
+            height="700px"
+          />
+        )}
+
+        {space.running_status !== 'RUNNING' && (
+          <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl p-8 text-center">
+            <h2 class="text-xl font-bold text-yellow-800 dark:text-yellow-200 mb-2">
+              Space is {space.running_status}
+            </h2>
+            <p class="text-yellow-700 dark:text-yellow-300 mb-4">
+              This Space is not currently running. Visit HuggingFace to wake it up.
+            </p>
+            <a 
+              href={space.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold px-5 py-3 rounded-lg transition-all"
+            >
+              Open on HuggingFace
+            </a>
+          </div>
+        )}
+
+        <!-- Back Navigation -->
+        <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+          <a 
+            href="/explore?type=space"
+            class="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-medium"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Browse More Spaces
+          </a>
+        </div>
+      </article>
+    ) : (
+      <div class="container mx-auto px-4 py-12 text-center">
+        <div class="bg-yellow-50 text-yellow-800 p-8 rounded-lg max-w-2xl mx-auto">
+          <h1 class="text-3xl font-bold mb-4">Space Not Found</h1>
+          <p class="text-gray-600 mb-6">The space you are looking for does not exist or has been removed.</p>
+          <a href="/explore" class="inline-block bg-purple-600 text-white font-bold py-2 px-4 rounded hover:bg-purple-700">Browse Spaces</a>
+        </div>
+      </div>
+    )}
+  </main>
+</Layout>
+
+<style>
+  .space-detail-page {
+    padding-top: 1rem;
+  }
+</style>

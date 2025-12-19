@@ -30,7 +30,7 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
 
     console.log(`[Ingest] R2 list returned: ${listed.objects.length} total objects, truncated: ${listed.truncated}`);
 
-    const jsonFiles = listed.objects.filter(obj => obj.key.endsWith('.json'));
+    const jsonFiles = listed.objects.filter((obj: any) => obj.key.endsWith('.json'));
 
     if (jsonFiles.length === 0) {
         console.log('[Ingest] No pending files in raw-data/');
@@ -85,7 +85,7 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
                 const batch = validModels.slice(i, i + 50);
                 const stmts = batch.map(m =>
                     env.DB.prepare(`
-                        INSERT OR REPLACE INTO models (
+                        INSERT OR REPLACE INTO entities (
                             id, slug, name, author, description, tags,
                             likes, downloads, cover_image_url, body_content_url,
                             source_trail, license_spdx, has_ollama, has_gguf,

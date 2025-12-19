@@ -29,7 +29,15 @@ export async function consumeHydrationQueue(batch: any, env: Env): Promise<void>
             version: 'V5.1.2'
         };
 
-        const cachePath = entityType === 'dataset' ? `cache/datasets/${slug}.json` : `cache/models/${slug}.json`;
+        // Path determination (Legacy Compat + V6.2 Universal)
+        // Models stay in 'cache/models' until Frontend migration in Phase 3
+        let cachePath: string;
+        if (entityType === 'model') {
+            cachePath = `cache/models/${slug}.json`;
+        } else {
+            // New entities use the clean V6.2 structure
+            cachePath = `cache/entities/${entityType}/${slug}.json`;
+        }
 
         // CES V5.1.2 Art 2.4.2: Force Gzip
         await writeToR2(env, cachePath, entityCache);

@@ -56,6 +56,24 @@ jobs:
           fi
 
       # ============================================================
+      # PHASE 2B: V6.2 SPACES COLLECTION
+      # ============================================================
+      - name: Fetch Spaces Data (V6.2)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "🚀 V6.2 Spaces Harvester"
+          echo "=================================================="
+          node scripts/harvest-spaces.js --limit=200
+          
+          if [ -f "data/spaces.json" ]; then
+            SPACE_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/spaces.json')).length)")
+            echo "✅ Collected $SPACE_COUNT spaces"
+          else
+            echo "⚠️ Warning: spaces.json not generated (non-fatal)"
+          fi
+
+      # ============================================================
       # PHASE 3: RUST IMAGE PROCESSING (Optional - if images exist)
       # ============================================================
       - name: Setup Rust (if images need processing)

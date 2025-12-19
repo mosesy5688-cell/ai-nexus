@@ -1,0 +1,109 @@
+---
+// src/components/space/SpaceIframe.astro
+// V6.2: Sandboxed iframe for embedding HuggingFace Spaces
+// Security: CSP sandbox applied per Constitution Art IV
+
+interface Props {
+  spaceId: string;
+  height?: string;
+  allowFullscreen?: boolean;
+}
+
+const { 
+  spaceId, 
+  height = '600px',
+  allowFullscreen = true 
+} = Astro.props;
+
+// Build HuggingFace embed URL
+const embedUrl = `https://huggingface.co/spaces/${spaceId}?embed=true`;
+
+// Sandbox permissions - restrictive by default
+// allow-scripts: Required for Space to function
+// allow-same-origin: Required for some Gradio apps (controlled risk)
+// allow-forms: Some Spaces have input forms
+const sandboxPermissions = 'allow-scripts allow-same-origin allow-forms allow-popups';
+---
+
+<div id="space-embed" class="space-iframe-container my-8">
+  <div class="bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-200 dark:border-gray-700">
+    <!-- Header Bar -->
+    <div class="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-full bg-green-500 animate-pulse" title="Live"></span>
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+          Live Space
+        </span>
+      </div>
+      <div class="flex items-center gap-2">
+        <a 
+          href={`https://huggingface.co/spaces/${spaceId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-purple-600 transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+          </svg>
+          Open in new tab
+        </a>
+      </div>
+    </div>
+
+    <!-- Iframe Container -->
+    <div class="relative" style={`height: ${height};`}>
+      <iframe
+        src={embedUrl}
+        title={`HuggingFace Space: ${spaceId}`}
+        class="w-full h-full border-0"
+        sandbox={sandboxPermissions}
+        loading="lazy"
+        allowfullscreen={allowFullscreen}
+      ></iframe>
+      
+      <!-- Loading Overlay (hidden by CSS when iframe loads) -->
+      <div class="space-loading absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-800" id="space-loading">
+        <div class="text-center">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p class="text-gray-600 dark:text-gray-400">Loading Space...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fallback Notice -->
+  <noscript>
+    <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+      <p class="text-yellow-800">
+        JavaScript is required to run this Space. 
+        <a href={`https://huggingface.co/spaces/${spaceId}`} class="underline">Open on HuggingFace</a> instead.
+      </p>
+    </div>
+  </noscript>
+</div>
+
+<style>
+  /* Hide loading overlay when iframe is loaded */
+  .space-iframe-container iframe:not([src=""]) ~ #space-loading {
+    display: none;
+  }
+</style>
+
+<script>
+  // Hide loading overlay when iframe loads
+  document.addEventListener('DOMContentLoaded', () => {
+    const iframe = document.querySelector('.space-iframe-container iframe');
+    const loading = document.getElementById('space-loading');
+    
+    if (iframe && loading) {
+      iframe.addEventListener('load', () => {
+        loading.style.display = 'none';
+      });
+      
+      // Fallback: hide after 10s even if load event doesn't fire
+      setTimeout(() => {
+        loading.style.display = 'none';
+      }, 10000);
+    }
+  });
+</script>

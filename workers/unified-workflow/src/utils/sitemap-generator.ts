@@ -90,13 +90,15 @@ interface SitemapConfig {
     query: string;
     pathPrefix: string;
     changefreq: 'daily' | 'weekly' | 'monthly';
+    countQuery: string;
 }
 
 // Entity type configurations
 const SITEMAP_CONFIGS: SitemapConfig[] = [
     {
         type: 'models',
-        query: `SELECT slug, first_indexed, fni_score FROM models WHERE archived = 0 ORDER BY fni_score DESC`,
+        query: `SELECT slug, first_indexed, fni_score FROM entities WHERE type='model' AND archived = 0 ORDER BY fni_score DESC`,
+        countQuery: `SELECT COUNT(*) as count FROM entities WHERE type='model' AND archived = 0`,
         pathPrefix: '/model/',
         changefreq: 'weekly'
     }
@@ -152,7 +154,7 @@ export async function generateSitemaps(env: any): Promise<void> {
 
         // Get total count
         const countResult = await env.DB.prepare(
-            `SELECT COUNT(*) as count FROM models WHERE archived = 0`
+            config.countQuery
         ).first();
         const totalEntities = (countResult as any)?.count || 0;
         const totalPages = Math.ceil(totalEntities / URLS_PER_FILE);
@@ -163,13 +165,9 @@ export async function generateSitemaps(env: any): Promise<void> {
         for (let page = 1; page <= totalPages; page++) {
             const offset = (page - 1) * URLS_PER_FILE;
 
-            const entities = await env.DB.prepare(`
-        SELECT slug, first_indexed, fni_score 
-        FROM models 
-        WHERE archived = 0 
-        ORDER BY fni_score DESC 
-        LIMIT ? OFFSET ?
-      `).bind(URLS_PER_FILE, offset).all();
+            const entities = await env.DB.prepare(
+                config.query + ` LIMIT ? OFFSET ?`
+            ).bind(URLS_PER_FILE, offset).all();
 
             let content = sitemapHeader() + '\n';
 
