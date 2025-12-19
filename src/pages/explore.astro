@@ -15,7 +15,7 @@ const typeParam = Astro.url.searchParams.get('type') || 'model';
 const sortParam = Astro.url.searchParams.get('sort') || 'trending';
 
 const ENTITY_LABELS: Record<string, string> = {
-    model: 'Models', dataset: 'Datasets', benchmark: 'Benchmarks', 
+    model: 'Models', space: 'Spaces', dataset: 'Datasets', benchmark: 'Benchmarks', 
     paper: 'Papers', agent: 'Agents'
 };
 const entityLabel = ENTITY_LABELS[typeParam] || 'Models';
