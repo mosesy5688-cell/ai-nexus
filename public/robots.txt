@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Sitemap (V6.1 - Astro Generated)
+Sitemap: https://free2aitools.com/sitemap-index.xml
+
+# Block sensitive paths
+Disallow: /api/
+Disallow: /_astro/
