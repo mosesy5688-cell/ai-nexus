@@ -10,6 +10,7 @@ export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import SpaceHero from '../../components/space/SpaceHero.astro';
 import SpaceIframe from '../../components/space/SpaceIframe.astro';
+import { getSpaceFromCache } from '../../utils/entity-cache-reader.js';
 
 const { slug } = Astro.params;
 
@@ -21,23 +22,25 @@ let pageDescription = "Explore and try this interactive AI demo.";
 try {
   if (!slug) throw new Error("No slug provided");
   
-  // V6.2: Fetch space from R2 cache
-  // For now, construct from slug (will be replaced with cache reader)
-  const spaceId = slug?.replace(/--/g, '/');
+  // V6.2: Try to get space from R2 cache first
+  space = await getSpaceFromCache(slug, Astro.locals);
   
-  // Mock space data for initial deployment
-  // TODO: Implement getSpaceFromCache similar to getModelFromCache
-  space = {
-    id: `hf-space--${slug}`,
-    name: spaceId?.split('/').pop() || 'Unknown Space',
-    author: spaceId?.split('/')[0] || 'unknown',
-    likes: 0,
-    sdk: 'gradio',
-    running_status: 'RUNNING',
-    description: `Interactive AI demo: ${spaceId}`,
-    source_url: `https://huggingface.co/spaces/${spaceId}`,
-    embed_url: `https://huggingface.co/spaces/${spaceId}?embed=true`
-  };
+  // If cache miss, construct fallback data from slug
+  if (!space) {
+    const spaceId = slug?.replace(/--/g, '/');
+    space = {
+      id: `hf-space--${slug}`,
+      name: spaceId?.split('/').pop() || 'Unknown Space',
+      author: spaceId?.split('/')[0] || 'unknown',
+      likes: 0,
+      sdk: 'gradio',
+      running_status: 'RUNNING',
+      description: `Interactive AI demo: ${spaceId}`,
+      source_url: `https://huggingface.co/spaces/${spaceId}`,
+      embed_url: `https://huggingface.co/spaces/${spaceId}?embed=true`,
+      _cache_source: 'fallback'
+    };
+  }
 
   if (space) {
     pageTitle = `${space.name} - AI Space Demo`;
