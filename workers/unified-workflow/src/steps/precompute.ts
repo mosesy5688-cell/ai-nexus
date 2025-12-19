@@ -52,13 +52,11 @@ export async function runPrecomputeStep(env: Env) {
         console.error('[L8] ❌ Benchmarks failed:', err);
     }
 
-    // 5. Sitemaps - V6.1+ SEO Optimization (Constitution Art 6.3)
-    try {
-        await generateSitemaps(env);
-        console.log('[L8] ✅ Sitemaps complete');
-    } catch (err) {
-        console.error('[L8] ❌ Sitemaps failed:', err);
-    }
+    // 5. Sitemaps - DEPRECATED: Now handled by L5 Sidecar (l5-sitemap.yml)
+    // V6.2: Migrated to L5 for Constitution compliance (CPU-intensive task)
+    // See: SPEC_SITEMAP_V6.1.md, MASTER_EXECUTION_PLAN_V6.2.md
+    // await generateSitemaps(env);
+    console.log('[L8] ⏭️ Sitemaps skipped (migrated to L5 Sidecar)');
 
     // 6. V6.2: Trending Spaces Cache
     try {
