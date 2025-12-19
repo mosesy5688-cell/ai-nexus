@@ -74,7 +74,7 @@ function getRankBadge(rank: number): string {
             </td>
           )}
           <td class="col-model">
-            <a href={`/model/${b.umid}`} class="model-link">
+            <a href={`/model/${b.id || b.umid}`} class="model-link">
               {b.name}
             </a>
           </td>
