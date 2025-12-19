@@ -107,13 +107,37 @@ export async function getModelFromCache(slug, locals) {
     const result = await resolveEntityFromCache(slug, locals);
 
     if (result.entity) {
-        // Merge entity with computed data for backwards compatibility
+        // V6.3: Properly merge computed data into entity for frontend display
+        const computed = result.computed || {};
+        const seo = result.seo || {};
+
+        // Merge FNI score from computed data
+        const fniScore = computed.fni ?? result.entity.fni_score;
+
+        // Merge benchmark data from computed
+        const benchmarks = computed.benchmarks || [];
+        const firstBench = benchmarks[0] || {};
+
         return {
             ...result.entity,
+            // V6.3: Expose FNI score at top level for component access
+            fni_score: fniScore,
+            fni_percentile: computed.fni_percentile,
+            // V6.3: Expose benchmark data for BenchmarkCard
+            mmlu: firstBench.mmlu || result.entity.mmlu,
+            hellaswag: firstBench.hellaswag || result.entity.hellaswag,
+            arc_challenge: firstBench.arc_challenge || result.entity.arc_challenge,
+            avg_score: firstBench.avg_score || result.entity.avg_score,
+            // V6.3: Expose relations for Related Entities section
+            relations: computed.relations || {},
+            similar_models: computed.relations?.links || [],
+            // SEO data for page title/description
+            seo_summary: seo,
+            // Debug metadata
             _cache_source: result.source,
             _contract_version: result.contract_version,
-            _computed: result.computed,
-            _seo: result.seo
+            _computed: computed,
+            _seo: seo
         };
     }
 
