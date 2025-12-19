@@ -27,7 +27,9 @@ export default defineConfig({
       entrypoint: 'astro/assets/services/noop'
     }
   },
-  integrations: [tailwind(), sitemap()],
+  // V6.2: Sitemap disabled - using L8/R2 generated sitemap (sitemap-index.xml)
+  // See SPEC_SITEMAP_V6.1.md for architecture details
+  integrations: [tailwind()],
   vite: {
     define: {
       'import.meta.env.PUBLIC_BUILD_TIME': JSON.stringify(BUILD_TIME)
