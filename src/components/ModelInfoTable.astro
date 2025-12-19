@@ -2,6 +2,10 @@
 // src/components/ModelInfoTable.astro
 // SEO-optimized information table for Google Featured Snippets
 const { model } = Astro.props;
+
+// V6.3: Derive display values with fallbacks
+const displayName = model.displayName || model.name || model.canonical_name || 'Unknown Model';
+const source = model.source || (model.slug?.startsWith('huggingface') || model.id?.startsWith('huggingface') ? 'Hugging Face' : model.slug?.startsWith('ollama') || model.id?.startsWith('ollama') ? 'Ollama' : 'Unknown');
 ---
 
 <div class="mb-6 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
@@ -10,7 +14,7 @@ const { model } = Astro.props;
     <tbody class="divide-y divide-gray-200 dark:border-gray-700">
       <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
         <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900/50 w-1/3">Model Name</td>
-        <td class="px-4 py-3 text-gray-700 dark:text-gray-300" itemprop="name">{model.displayName}</td>
+        <td class="px-4 py-3 text-gray-700 dark:text-gray-300" itemprop="name">{displayName}</td>
       </tr>
       <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
         <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900/50">Author</td>
@@ -48,7 +52,7 @@ const { model } = Astro.props;
       )}
       <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">
         <td class="px-4 py-3 font-semibold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-900/50">Source</td>
-        <td class="px-4 py-3 text-gray-700 dark:text-gray-300 capitalize">{model.source || 'Unknown'}</td>
+        <td class="px-4 py-3 text-gray-700 dark:text-gray-300 capitalize">{source}</td>
       </tr>
       {model.last_updated && (
         <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors">

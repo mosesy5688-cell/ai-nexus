@@ -25,14 +25,25 @@ try {
         const cache = await res.json();
         cacheVersion = cache.version || 'unknown';
         
-        // Get links for this specific model
-        const modelLinks = cache.links?.[modelId] || [];
+        // V6.3: entity_links.json is an ARRAY of links, not an object
+        // Format: { source: "huggingface:...", target: "huggingface:...", ... }
+        const allLinks = cache.links || [];
+        
+        // Normalize modelId for matching (convert slug format to colon format)
+        const normalizedId = modelId.replace(/--/g, ':');
+        
+        // Filter links where this model is the source
+        const modelLinks = allLinks.filter((link: any) => 
+            link.source === normalizedId || 
+            link.source === modelId ||
+            link.source?.toLowerCase() === normalizedId.toLowerCase()
+        );
         
         linkedModels = modelLinks.slice(0, 10).map((link: any) => ({
-            id: link.target_id,
+            id: link.target,
             name: link.target_name || 'Unknown',
-            slug: link.target_slug || '',
-            link_type: link.link_type || 'related'
+            slug: (link.target || '').replace(/:/g, '--'),
+            link_type: link.type || 'related'
         }));
     }
 } catch (e) {
