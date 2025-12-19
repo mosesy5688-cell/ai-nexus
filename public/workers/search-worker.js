@@ -1,24 +1,44 @@
 import Fuse from 'https://cdn.jsdelivr.net/npm/fuse.js@7.1.0/dist/fuse.mjs';
 
-let fuse = null;
-let items = [];
+// V6.2: Support multiple entity type indexes
+const indexCache = {};
+let currentEntityType = 'model';
 let isLoaded = false;
 let loadError = null;
 
-// Configuration - V5.2.1: Use R2 API proxy
-const HOT_INDEX_URL = '/api/cache/trending.json';
+// Configuration - V6.2: Entity-specific endpoints
+const INDEX_URLS = {
+    model: '/api/cache/trending.json',
+    space: '/api/cache/trending_spaces.json',
+    dataset: '/api/cache/trending_datasets.json'
+};
 
-// Initialize Index
-async function loadIndex() {
+// Initialize Index for a specific entity type
+async function loadIndex(entityType = 'model') {
+    // Check cache first
+    if (indexCache[entityType]) {
+        currentEntityType = entityType;
+        isLoaded = true;
+        return indexCache[entityType];
+    }
+
+    const url = INDEX_URLS[entityType] || INDEX_URLS.model;
     try {
-        const response = await fetch(HOT_INDEX_URL);
-        if (!response.ok) throw new Error(`Failed to load index: ${response.status}`);
+        const response = await fetch(url);
+        if (!response.ok) {
+            // If spaces/datasets not available yet, silently use models
+            if (entityType !== 'model' && response.status === 404) {
+                console.warn(`[SearchWorker] ${entityType} index not available, using models`);
+                return loadIndex('model');
+            }
+            throw new Error(`Failed to load index: ${response.status}`);
+        }
 
         const data = await response.json();
-        items = data.models || data || [];
+        const items = data.models || data.spaces || data.datasets || data || [];
 
-        // Initialize Fuse
-        fuse = new Fuse(items, {
+        // Initialize Fuse for this entity type
+        const fuse = new Fuse(items, {
             keys: [
                 { name: 'name', weight: 0.4 },
                 { name: 'author', weight: 0.2 },
@@ -31,42 +51,48 @@ async function loadIndex() {
             useExtendedSearch: true
         });
 
+        indexCache[entityType] = { items, fuse };
+        currentEntityType = entityType;
         isLoaded = true;
-        console.log(`[SearchWorker] Index loaded: ${items.length} items`);
+        console.log(`[SearchWorker] ${entityType} index loaded: ${items.length} items`);
+        return indexCache[entityType];
     } catch (e) {
         console.error('[SearchWorker] Load error:', e);
         loadError = e.message;
+        return null;
     }
 }
 
-// Start loading immediately
-loadIndex();
+// Start loading models immediately
+loadIndex('model');
 
 self.onmessage = async (e) => {
     const { id, type, filters } = e.data;
 
     // Handle "PING" or status checks
     if (type === 'STATUS') {
-        self.postMessage({ id, type: 'STATUS', isLoaded, loadError, count: items.length });
+        const cache = indexCache[currentEntityType] || {};
+        self.postMessage({ id, type: 'STATUS', isLoaded, loadError, count: cache.items?.length || 0 });
         return;
     }
 
     if (type === 'SEARCH') {
-        if (!isLoaded) {
-            // Check errors or wait
+        // V6.2: Load index for requested entity type
+        const entityType = filters.entityType || 'model';
+        const cache = await loadIndex(entityType);
+
+        if (!cache) {
             if (loadError) {
                 self.postMessage({ id, type: 'ERROR', error: loadError });
-                return;
+            } else {
+                self.postMessage({ id, type: 'RESULT', results: [], total: 0, page: 1, total_pages: 0 });
             }
-            // If just loading, maybe return empty with "loading" status? 
-            // Current client waits for "RESULT" type.
-            // We'll return empty for now to avoid hanging.
-            self.postMessage({ id, type: 'RESULT', results: [], total: 0, page: 1, total_pages: 0 });
             return;
         }
 
+        const { items, fuse } = cache;
         const start = performance.now();
-        let results = items;
+        let results = [...items];
 
         // 1. Full Text Search via Fuse
         if (filters.q && fuse) {
