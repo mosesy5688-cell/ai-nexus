@@ -1,0 +1,94 @@
+---
+/**
+ * V6.2 Related Entities Component
+ * Displays related models, datasets, and spaces for an entity
+ * Constitution V6.2: Universal Entity Protocol
+ */
+
+interface RelatedEntity {
+    id: string;
+    name: string;
+    author: string;
+    type: 'model' | 'dataset' | 'space';
+    link_type: string;
+    confidence?: number;
+}
+
+interface Props {
+    entityId: string;
+    relations?: RelatedEntity[];
+}
+
+const { entityId, relations = [] } = Astro.props;
+
+// Group by type
+const byType = {
+    model: relations.filter(r => r.type === 'model'),
+    dataset: relations.filter(r => r.type === 'dataset'),
+    space: relations.filter(r => r.type === 'space')
+};
+
+const hasRelations = relations.length > 0;
+
+const typeConfig = {
+    model: { icon: '🤖', label: 'Related Models', color: 'indigo' },
+    dataset: { icon: '📊', label: 'Training Datasets', color: 'emerald' },
+    space: { icon: '🎮', label: 'Demos & Spaces', color: 'purple' }
+};
+---
+
+{hasRelations && (
+<section class="mt-8 bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6">
+    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+        <span class="text-2xl">🔗</span>
+        Related Entities
+    </h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {Object.entries(byType).map(([type, items]) => {
+            if (items.length === 0) return null;
+            const config = typeConfig[type as keyof typeof typeConfig];
+            return (
+                <div class="space-y-3">
+                    <h3 class={`text-sm font-semibold text-${config.color}-600 dark:text-${config.color}-400 flex items-center gap-2`}>
+                        <span>{config.icon}</span>
+                        {config.label} ({items.length})
+                    </h3>
+                    <ul class="space-y-2">
+                        {items.slice(0, 5).map((item: RelatedEntity) => (
+                            <li>
+                                <a 
+                                    href={`/${type}/${item.id.replace(/--/g, '/').replace(/^hf-[a-z]+--/, '')}`}
+                                    class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
+                                >
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                                            {item.name}
+                                        </p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                            by {item.author}
+                                        </p>
+                                    </div>
+                                    {item.confidence && item.confidence >= 0.8 && (
+                                        <span class="px-1.5 py-0.5 text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded">
+                                            {Math.round(item.confidence * 100)}%
+                                        </span>
+                                    )}
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                    {items.length > 5 && (
+                        <a 
+                            href={`/explore?type=${type}&related=${entityId}`}
+                            class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+                        >
+                            View all {items.length} →
+                        </a>
+                    )}
+                </div>
+            );
+        })}
+    </div>
+</section>
+)}

@@ -92,3 +92,49 @@ export async function generateTrendingDatasets(env: Env) {
         console.log('[L8] No datasets found for trending cache');
     }
 }
+
+// V6.2: Generate entity links cache for frontend relation display
+export async function generateEntityLinks(env: Env) {
+    console.log('[L8] Generating V6.2 entity links cache...');
+
+    const links = await env.DB.prepare(`
+        SELECT 
+            el.source_id as source,
+            el.target_id as target,
+            el.link_type as type,
+            el.confidence,
+            s.name as source_name,
+            s.author as source_author,
+            s.type as source_type,
+            t.name as target_name,
+            t.author as target_author,
+            t.type as target_type
+        FROM entity_links el
+        LEFT JOIN entities s ON el.source_id = s.id
+        LEFT JOIN entities t ON el.target_id = t.id
+        WHERE el.confidence >= 0.5
+        ORDER BY el.confidence DESC
+        LIMIT 1000
+    `).all();
+
+    const linksData = (links.results || []).map((l: any) => ({
+        source: l.source,
+        target: l.target,
+        type: l.type,
+        confidence: l.confidence,
+        source_name: l.source_name || 'Unknown',
+        source_author: l.source_author || 'unknown',
+        source_type: l.source_type || 'model',
+        target_name: l.target_name || 'Unknown',
+        target_author: l.target_author || 'unknown',
+        target_type: l.target_type || 'model'
+    }));
+
+    await writeToR2(env, 'cache/entity_links.json', {
+        generated_at: new Date().toISOString(),
+        version: 'V6.2',
+        count: linksData.length,
+        links: linksData
+    });
+    console.log(`[L8] Entity links cache: ${linksData.length} links`);
+}
