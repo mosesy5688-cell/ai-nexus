@@ -31,7 +31,8 @@ jobs:
         run: npm install -g wrangler
 
       # ============================================================
-      # TASK 1: SNAPSHOT CURRENT METRICS TO MODELS_HISTORY
+      # TASK 1: SNAPSHOT CURRENT METRICS TO ENTITIES_HISTORY
+      # V6.2: Updated to use entities table instead of models
       # ============================================================
       - name: Execute Daily Snapshot
         env:
@@ -41,19 +42,20 @@ jobs:
           echo "📸 L5 Analyst: Creating daily metrics snapshot..."
           echo "Date: $(date -u +%Y-%m-%d)"
           
-          # Execute snapshot SQL via wrangler
+          # Execute snapshot SQL via wrangler (V6.2: entities table)
           wrangler d1 execute ai-nexus-db --remote --command "
-            INSERT INTO models_history (model_id, umid, downloads, likes, fni_score, snapshot_date)
+            INSERT INTO entities_history (entity_id, umid, type, downloads, likes, fni_score, snapshot_date)
             SELECT 
               id,
               umid,
+              type,
               downloads,
               likes,
               fni_score,
               date('now')
-            FROM models
+            FROM entities
             WHERE umid IS NOT NULL
-            ON CONFLICT(model_id, snapshot_date) DO UPDATE SET
+            ON CONFLICT(entity_id, snapshot_date) DO UPDATE SET
               downloads = excluded.downloads,
               likes = excluded.likes,
               fni_score = excluded.fni_score;
@@ -71,19 +73,19 @@ jobs:
         run: |
           echo "📈 L5 Analyst: Calculating FNI Velocity..."
           
-          # Calculate 7-day velocity
+          # Calculate 7-day velocity (V6.2: entities table)
           wrangler d1 execute ai-nexus-db --remote --command "
-            UPDATE models SET fni_v = (
+            UPDATE entities SET fni_v = (
               SELECT CASE 
                 WHEN prev.downloads > 0 AND prev.downloads IS NOT NULL THEN 
                   ROUND(((curr.downloads - prev.downloads) * 1.0 / prev.downloads) * 100, 2)
                 ELSE 0
               END
-              FROM models_history curr
-              LEFT JOIN models_history prev 
-                ON curr.model_id = prev.model_id
+              FROM entities_history curr
+              LEFT JOIN entities_history prev 
+                ON curr.entity_id = prev.entity_id
                 AND prev.snapshot_date = date('now', '-7 days')
-              WHERE curr.model_id = models.id
+              WHERE curr.entity_id = entities.id
                 AND curr.snapshot_date = date('now')
               LIMIT 1
             )
@@ -102,14 +104,14 @@ jobs:
         run: |
           echo "🔍 L5 Analyst: Verifying snapshot..."
           
-          # Count today's snapshots
+          # Count today's snapshots (V6.2: entities_history)
           wrangler d1 execute ai-nexus-db --remote --command "
             SELECT 
               snapshot_date,
               COUNT(*) as record_count,
               SUM(downloads) as total_downloads,
               AVG(fni_score) as avg_fni
-            FROM models_history
+            FROM entities_history
             WHERE snapshot_date = date('now')
             GROUP BY snapshot_date;
           "
@@ -127,7 +129,7 @@ jobs:
           echo "🧹 L5 Analyst: Cleaning up old history (>90 days)..."
           
           wrangler d1 execute ai-nexus-db --remote --command "
-            DELETE FROM models_history
+            DELETE FROM entities_history
             WHERE snapshot_date < date('now', '-90 days');
           "
           
