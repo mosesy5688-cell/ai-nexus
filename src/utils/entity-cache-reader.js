@@ -218,3 +218,51 @@ export async function getDatasetFromCache(slug, locals) {
     console.log(`[DatasetCache] MISS: ${normalizedSlug}`);
     return null;
 }
+
+/**
+ * V6.2: Get related entities from R2 cache
+ * @param {string} entityId - Entity ID to find relations for
+ * @param {object} locals - Astro locals with runtime env
+ * @returns {Promise<Array>} - Array of related entity objects
+ */
+export async function getRelatedEntities(entityId, locals) {
+    if (!entityId) return [];
+
+    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    if (!r2) {
+        console.warn('[RelationsCache] R2 not available');
+        return [];
+    }
+
+    try {
+        // Try to get entity relations from precomputed cache
+        const cachePath = 'cache/entity_links.json';
+        const cacheFile = await r2.get(cachePath);
+
+        if (!cacheFile) {
+            console.log('[RelationsCache] entity_links.json not found');
+            return [];
+        }
+
+        const data = await cacheFile.json();
+        const links = data.links || [];
+
+        // Filter links where this entity is source or target
+        const related = links.filter(link =>
+            link.source === entityId || link.target === entityId
+        ).map(link => ({
+            id: link.source === entityId ? link.target : link.source,
+            name: link.source === entityId ? link.target_name : link.source_name,
+            author: link.source === entityId ? link.target_author : link.source_author,
+            type: link.source === entityId ? link.target_type : link.source_type,
+            link_type: link.type,
+            confidence: link.confidence
+        }));
+
+        console.log(`[RelationsCache] Found ${related.length} relations for ${entityId}`);
+        return related;
+    } catch (e) {
+        console.warn('[RelationsCache] Error reading relations:', e.message);
+        return [];
+    }
+}
