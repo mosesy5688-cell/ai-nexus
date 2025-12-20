@@ -3,16 +3,20 @@ name: L5 Analyst - Unified Computation Pipeline
 # V6.2 Constitution: L5 = All Computation Tasks
 # L1 = Collection (Harvester) | L5 = Computation (Analyst)
 #
-# Schedule: Daily at 04:00 UTC (after L1 Harvester at 03:00, L8 processing at 03:30)
+# Schedule: Daily at 06:00 UTC
+# Timeline: L1(03:00) → L8(05:00) → L5(06:00)
+# L1 has 2 hours for multi-source harvesting
+# L8 has 1 hour for data processing
+#
 # Tasks:
 #   1. Metrics Snapshot (FNI Velocity history)
 #   2. FNI Velocity Calculation
-#   3. Sitemap Generation (moved from separate l5-sitemap.yml)
+#   3. Sitemap Generation
 #   4. History Cleanup
 
 on:
   schedule:
-    - cron: '0 4 * * *'  # Daily at 04:00 UTC (after L1+L8)
+    - cron: '0 6 * * *'  # Daily at 06:00 UTC (after L1+L8)
   workflow_dispatch:     # Manual trigger for testing
 
 concurrency:
