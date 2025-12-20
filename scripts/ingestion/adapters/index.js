@@ -19,6 +19,7 @@ import { OpenLLMLeaderboardAdapter } from './openllm-adapter.js';
 import { DeepSpecAdapter } from './deepspec-adapter.js';
 import { SemanticScholarAdapter } from './semanticscholar-adapter.js';
 import { HuggingFacePapersAdapter } from './huggingface-papers-adapter.js';
+import { MCPAdapter } from './mcp-adapter.js';  // V6.2: MCP Registry
 
 // Export base for extension
 export { BaseAdapter, NSFW_KEYWORDS, LICENSE_MAP } from './base-adapter.js';
@@ -36,6 +37,7 @@ export { OpenLLMLeaderboardAdapter } from './openllm-adapter.js';
 export { DeepSpecAdapter } from './deepspec-adapter.js';
 export { SemanticScholarAdapter } from './semanticscholar-adapter.js';
 export { HuggingFacePapersAdapter } from './huggingface-papers-adapter.js';
+export { MCPAdapter } from './mcp-adapter.js';  // V6.2: MCP Registry
 
 // Registered adapters (V4.3.2 - Multi-source with Benchmarks + Specs + Citations)
 export const adapters = {
@@ -66,6 +68,9 @@ export const adapters = {
 
     // V6.2: ModelScope enabled with API token
     'modelscope': new ModelScopeAdapter(),
+
+    // V6.2: MCP Registry (AI Agents / MCP Servers)
+    'mcp': new MCPAdapter(),
 };
 
 /**

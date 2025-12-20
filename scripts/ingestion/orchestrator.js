@@ -15,6 +15,7 @@ const __dirname = path.dirname(__filename);
 // Output paths
 const OUTPUT_DIR = path.join(__dirname, '../../data');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'merged.json');
+const STATE_FILE = path.join(OUTPUT_DIR, '.harvest-state.json');  // V6.2: Track last run
 
 // Config and output
 import { DEFAULT_CONFIG } from './ingestion-config.js';
@@ -24,6 +25,9 @@ import { saveOutput } from './output-mapper.js';
 export class Orchestrator {
     constructor(config = {}) {
         this.config = { ...DEFAULT_CONFIG, ...config };
+        // V6.2: Support incremental mode
+        this.mode = config.mode || 'full';  // 'full' | 'incremental'
+        this.state = this.loadState();
         this.stats = {
             fetched: {},
             normalized: 0,
@@ -33,12 +37,33 @@ export class Orchestrator {
         };
     }
 
+    /** V6.2: Load harvest state */
+    loadState() {
+        try {
+            if (fs.existsSync(STATE_FILE)) {
+                return JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
+            }
+        } catch (e) {
+            console.warn('   ⚠️ Could not load harvest state');
+        }
+        return { lastRun: {}, version: '6.2' };
+    }
+
+    /** V6.2: Save harvest state */
+    saveState() {
+        try {
+            fs.writeFileSync(STATE_FILE, JSON.stringify(this.state, null, 2));
+        } catch (e) {
+            console.warn('   ⚠️ Could not save harvest state');
+        }
+    }
+
     /**
      * Run the complete ingestion pipeline
      */
     async run() {
         console.log('═'.repeat(60));
-        console.log('🚀 V3.2 Universal Ingestion Pipeline');
+        console.log(`🚀 V6.2 Universal Ingestion Pipeline [${this.mode.toUpperCase()}]`);
         console.log('═'.repeat(60));
 
         const startTime = Date.now();
@@ -63,11 +88,15 @@ export class Orchestrator {
         console.log('\n💾 Phase 5: Saving output...');
         this.stats.output = await saveOutput(compliantEntities, OUTPUT_DIR, OUTPUT_FILE);
 
+        // V6.2: Save harvest state for incremental mode
+        this.state.lastRun.global = new Date().toISOString();
+        this.saveState();
+
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 
         // Summary
         console.log('\n' + '═'.repeat(60));
-        console.log('📊 Pipeline Summary:');
+        console.log(`📊 Pipeline Summary (${this.mode}):`);
         console.log('─'.repeat(60));
         for (const [source, count] of Object.entries(this.stats.fetched)) {
             console.log(`   ${source}: ${count} fetched`);
