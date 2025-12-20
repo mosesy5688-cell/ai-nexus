@@ -419,11 +419,14 @@ export class HuggingFaceAdapter extends BaseAdapter {
         return assets;
     }
 
-
     /**
      * Fetch complete model details including README
+     * Phase A.4: Added exponential backoff with retries for 429 errors
      */
-    async fetchFullModel(modelId) {
+    async fetchFullModel(modelId, retryCount = 0) {
+        const MAX_RETRIES = 3;
+        const BASE_DELAY = 2000; // 2 seconds
+
         try {
             // Fetch API data with auth headers
             const apiUrl = `${HF_API_BASE}/models/${modelId}`;
@@ -431,9 +434,25 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
             if (!apiResponse.ok) {
                 if (apiResponse.status === 429) {
-                    console.warn(`   ⚠️ Rate limited for ${modelId}, backing off...`);
-                    await this.delay(2000); // Extra delay on rate limit
+                    // Exponential backoff: 2s, 4s, 8s
+                    const backoffDelay = BASE_DELAY * Math.pow(2, retryCount);
+
+                    if (retryCount < MAX_RETRIES) {
+                        console.warn(`   ⚠️ Rate limited for ${modelId}, retry ${retryCount + 1}/${MAX_RETRIES} in ${backoffDelay / 1000}s...`);
+                        await this.delay(backoffDelay);
+                        return this.fetchFullModel(modelId, retryCount + 1);
+                    }
+                    console.warn(`   ❌ Rate limit max retries for ${modelId}`);
+                    return null;
                 }
+
+                // Other errors: retry once with delay
+                if (apiResponse.status >= 500 && retryCount < 1) {
+                    console.warn(`   ⚠️ Server error ${apiResponse.status} for ${modelId}, retrying...`);
+                    await this.delay(1000);
+                    return this.fetchFullModel(modelId, retryCount + 1);
+                }
+
                 console.warn(`   ⚠️ API failed for ${modelId}: ${apiResponse.status}`);
                 return null;
             }
@@ -462,7 +481,14 @@ export class HuggingFaceAdapter extends BaseAdapter {
                 _fetchedAt: new Date().toISOString()
             };
         } catch (error) {
-            console.warn(`   ⚠️ Error fetching ${modelId}: ${error.message}`);
+            // Network errors: retry with backoff
+            if (retryCount < MAX_RETRIES) {
+                const backoffDelay = BASE_DELAY * Math.pow(2, retryCount);
+                console.warn(`   ⚠️ Network error for ${modelId}, retry ${retryCount + 1}/${MAX_RETRIES}...`);
+                await this.delay(backoffDelay);
+                return this.fetchFullModel(modelId, retryCount + 1);
+            }
+            console.warn(`   ❌ Error fetching ${modelId}: ${error.message}`);
             return null;
         }
     }
