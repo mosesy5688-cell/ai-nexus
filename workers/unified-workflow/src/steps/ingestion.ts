@@ -80,28 +80,39 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
                 await routeToShadowDB(env.DB, model, validation);
             }
 
-            // Step 1: Write valid models to D1 (for indexing and FNI)
+            // Step 1: Write valid models to D1 (Index-Only, per Phase A.1)
+            // Content fields (description, body_content) moved to R2
             for (let i = 0; i < validModels.length; i += 50) {
                 const batch = validModels.slice(i, i + 50);
                 const stmts = batch.map(m =>
                     env.DB.prepare(`
                         INSERT OR REPLACE INTO entities (
-                            id, slug, name, author, description, tags,
-                            likes, downloads, cover_image_url, body_content_url,
-                            source_trail, license_spdx, has_ollama, has_gguf,
-                            last_updated, primary_category, category_confidence,
-                            category_status, size_bucket, size_source
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            id, type, name, author, 
+                            likes, downloads, fni_score,
+                            last_modified, indexed_at,
+                            pipeline_tag, primary_category, tags,
+                            source, source_url, link_status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     `).bind(
-                        m.id, m.slug, m.name, m.author, m.description, m.tags,
-                        m.likes, m.downloads, m.cover_image_url, m.body_content_url,
-                        m.source_trail, m.license_spdx, m.has_ollama, m.has_gguf,
-                        m.last_updated, m.primary_category, m.category_confidence,
-                        m.category_status, m.size_bucket, m.size_source
+                        m.id,
+                        m.type || 'model',
+                        m.name,
+                        m.author,
+                        m.likes || 0,
+                        m.downloads || 0,
+                        m.fni_score || 0,
+                        m.last_modified || m.last_updated,
+                        new Date().toISOString(),
+                        m.pipeline_tag,
+                        m.primary_category,
+                        m.tags,
+                        m.source || 'huggingface',
+                        m.source_url,
+                        m.link_status || 'ok'
                     )
                 );
                 await env.DB.batch(stmts);
-                console.log(`[Ingest] D1 batch ${Math.floor(i / 50) + 1}: ${batch.length} models`);
+                console.log(`[Ingest] D1 batch ${Math.floor(i / 50) + 1}: ${batch.length} models (lean schema)`);
             }
 
             // Step 2: Send to HYDRATION_QUEUE for R2 cache materialization
