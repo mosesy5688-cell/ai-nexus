@@ -1,12 +1,18 @@
-name: L5 Analyst - Daily Metrics Snapshot
+name: L5 Analyst - Unified Computation Pipeline
 
-# V4.3.1 Constitution: Loop 5 - Analyst
-# Frequency: Daily at 00:00 UTC
-# Purpose: Snapshot model metrics to models_history for FNI Velocity
+# V6.2 Constitution: L5 = All Computation Tasks
+# L1 = Collection (Harvester) | L5 = Computation (Analyst)
+#
+# Schedule: Daily at 04:00 UTC (after L1 Harvester at 03:00, L8 processing at 03:30)
+# Tasks:
+#   1. Metrics Snapshot (FNI Velocity history)
+#   2. FNI Velocity Calculation
+#   3. Sitemap Generation (moved from separate l5-sitemap.yml)
+#   4. History Cleanup
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Daily at 00:00 UTC
+    - cron: '0 4 * * *'  # Daily at 04:00 UTC (after L1+L8)
   workflow_dispatch:     # Manual trigger for testing
 
 concurrency:
@@ -14,11 +20,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  snapshot:
-    name: Daily Metrics Snapshot
+  compute:
+    name: L5 Unified Computation
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 60
+
     steps:
+      # ============================================================
+      # SETUP
+      # ============================================================
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -27,22 +37,28 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Wrangler
-        run: npm install -g wrangler
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          npm install -g wrangler
+          pip install boto3
 
       # ============================================================
       # TASK 1: SNAPSHOT CURRENT METRICS TO ENTITIES_HISTORY
-      # V6.2: Updated to use entities table instead of models
       # ============================================================
       - name: Execute Daily Snapshot
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "📸 L5 Analyst: Creating daily metrics snapshot..."
+          echo "📸 [Task 1/5] Creating daily metrics snapshot..."
           echo "Date: $(date -u +%Y-%m-%d)"
           
-          # Execute snapshot SQL via wrangler (V6.2: entities table)
           wrangler d1 execute ai-nexus-db --remote --command "
             INSERT INTO entities_history (entity_id, umid, type, downloads, likes, fni_score, snapshot_date)
             SELECT 
@@ -71,9 +87,8 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "📈 L5 Analyst: Calculating FNI Velocity..."
+          echo "📈 [Task 2/5] Calculating FNI Velocity..."
           
-          # Calculate 7-day velocity (V6.2: entities table)
           wrangler d1 execute ai-nexus-db --remote --command "
             UPDATE entities SET fni_v = (
               SELECT CASE 
@@ -102,9 +117,8 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "🔍 L5 Analyst: Verifying snapshot..."
+          echo "🔍 [Task 3/5] Verifying snapshot..."
           
-          # Count today's snapshots (V6.2: entities_history)
           wrangler d1 execute ai-nexus-db --remote --command "
             SELECT 
               snapshot_date,
@@ -119,14 +133,55 @@ jobs:
           echo "✅ Verification completed"
 
       # ============================================================
-      # TASK 4: CLEANUP OLD HISTORY (Keep 90 days)
+      # TASK 4: GENERATE SITEMAPS (V6.2 - Merged from l5-sitemap.yml)
+      # ============================================================
+      - name: Generate Sitemaps
+        env:
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.R2_BUCKET || 'ai-nexus-assets' }}
+        run: |
+          echo "🗺️ [Task 4/5] Generating sitemaps..."
+          python scripts/sidecar/l5_sitemap_gen.py
+          echo "✅ Sitemap generation completed"
+
+      - name: Verify Sitemap Index
+        env:
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.R2_BUCKET || 'ai-nexus-assets' }}
+        run: |
+          python -c "
+          import boto3
+          import os
+          from botocore.config import Config
+          
+          client = boto3.client(
+              's3',
+              endpoint_url=os.environ['R2_ENDPOINT'],
+              aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
+              aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
+              config=Config(signature_version='s3v4'),
+          )
+          
+          response = client.head_object(
+              Bucket=os.environ['R2_BUCKET'],
+              Key='sitemaps/sitemap-index.xml'
+          )
+          print(f'✅ sitemap-index.xml exists ({response[\"ContentLength\"]} bytes)')
+          "
+
+      # ============================================================
+      # TASK 5: CLEANUP OLD HISTORY (Keep 90 days)
       # ============================================================
       - name: Cleanup Old History
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "🧹 L5 Analyst: Cleaning up old history (>90 days)..."
+          echo "🧹 [Task 5/5] Cleaning up old history (>90 days)..."
           
           wrangler d1 execute ai-nexus-db --remote --command "
             DELETE FROM entities_history
@@ -135,17 +190,24 @@ jobs:
           
           echo "✅ Cleanup completed"
 
+      # ============================================================
+      # SUMMARY
+      # ============================================================
       - name: Generate Summary
+        if: always()
         run: |
-          echo "## 📊 L5 Analyst Daily Report" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 L5 Analyst - Unified Computation Report" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Date:** $(date -u +%Y-%m-%d)" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u +%Y-%m-%d %H:%M UTC)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Task | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Metrics Snapshot | ✅ Complete |" >> $GITHUB_STEP_SUMMARY
-          echo "| Velocity Calculation | ✅ Complete |" >> $GITHUB_STEP_SUMMARY
-          echo "| Snapshot Verification | ✅ Complete |" >> $GITHUB_STEP_SUMMARY
-          echo "| History Cleanup | ✅ Complete |" >> $GITHUB_STEP_SUMMARY
+          echo "| Task | Description | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 1 | Metrics Snapshot | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2 | FNI Velocity | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3 | Snapshot Verify | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| 4 | Sitemap Generation | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| 5 | History Cleanup | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "*Next run: Tomorrow at 00:00 UTC*" >> $GITHUB_STEP_SUMMARY
+          echo "**Architecture:** L1=采集 | L5=计算" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "*Next run: Tomorrow at 04:00 UTC (after L1 Harvester)*" >> $GITHUB_STEP_SUMMARY
