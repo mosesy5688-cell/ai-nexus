@@ -97,15 +97,9 @@ export class Orchestrator {
         // Summary
         console.log('\n' + '═'.repeat(60));
         console.log(`📊 Pipeline Summary (${this.mode}):`);
-        console.log('─'.repeat(60));
-        for (const [source, count] of Object.entries(this.stats.fetched)) {
-            console.log(`   ${source}: ${count} fetched`);
-        }
-        console.log(`   Total normalized: ${this.stats.normalized}`);
-        console.log(`   After dedup: ${this.stats.deduplicated}`);
-        console.log(`   Blocked (NSFW): ${this.stats.blocked}`);
-        console.log(`   Final output: ${this.stats.output}`);
-        console.log(`   Duration: ${duration}s`);
+        Object.entries(this.stats.fetched).forEach(([s, c]) => console.log(`   ${s}: ${c}`));
+        console.log(`   Normalized: ${this.stats.normalized} | Dedup: ${this.stats.deduplicated} | Blocked: ${this.stats.blocked}`);
+        console.log(`   Final: ${this.stats.output} | Time: ${duration}s`);
         console.log('═'.repeat(60));
 
         return compliantEntities;
@@ -235,13 +229,6 @@ export class Orchestrator {
         console.log(`   ✓ Blocked ${this.stats.blocked} NSFW entities`);
 
         return compliant;
-    }
-
-    /**
-     * Save output to JSON file (delegated)
-     */
-    async saveOutput(entities) {
-        return saveOutput(entities, OUTPUT_DIR, OUTPUT_FILE);
     }
 }
 
