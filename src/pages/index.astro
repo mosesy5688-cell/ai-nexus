@@ -45,55 +45,71 @@ const seoSchema = buildIndexSEO();
 
         <HomeWebsiteBanner />
 
-        <HomeSearch initialQuery={initialQuery} />
-
-        <!-- V6.0: Primary Category Navigation (Constitution Annex A.2.1) -->
-        <section class="mb-12 mt-8">
+        <!-- V6.2: Primary Category Navigation ABOVE search (Phase 3.5) -->
+        <section class="mb-8 mt-4">
             <h2 class="text-2xl font-bold text-center mb-6 text-gray-900 dark:text-white">
                 Explore AI Models by Category
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Hero Card: Text Generation -->
-                <a href="/text-generation" class="category-card group relative overflow-hidden rounded-2xl p-8 col-span-1 md:col-span-2 lg:col-span-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #6366f115 0%, #6366f105 100%); border: 1px solid #6366f130;">
+                <a href="/text-generation" class="category-card group relative overflow-hidden rounded-2xl p-8 col-span-1 md:col-span-2 lg:col-span-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #6366f115 0%, #6366f105 100%); border: 1px solid #6366f130;" data-category="text-generation">
                     <div class="text-5xl mb-4 transition-transform group-hover:scale-110">💬</div>
                     <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Text Generation & Content Creation</h3>
                     <p class="text-gray-600 dark:text-gray-400 mb-4">ChatGPT alternatives, code assistants, content writing, summarization</p>
-                    <span class="text-sm text-indigo-600 dark:text-indigo-400 font-medium group-hover:underline">Explore models →</span>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-indigo-600 dark:text-indigo-400 font-medium group-hover:underline">Explore models →</span>
+                        <span class="category-count text-xs px-2 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full" data-category="text-generation">Loading...</span>
+                    </div>
                 </a>
                 
                 <!-- Knowledge Retrieval -->
-                <a href="/knowledge-retrieval" class="category-card group relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #10b98115 0%, #10b98105 100%); border: 1px solid #10b98130;">
+                <a href="/knowledge-retrieval" class="category-card group relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #10b98115 0%, #10b98105 100%); border: 1px solid #10b98130;" data-category="knowledge-retrieval">
                     <div class="text-4xl mb-3 transition-transform group-hover:scale-110">🔍</div>
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Knowledge Retrieval</h3>
                     <p class="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">RAG, embeddings, Q&A systems</p>
-                    <span class="text-sm text-emerald-600 dark:text-emerald-400 font-medium group-hover:underline">Explore →</span>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-emerald-600 dark:text-emerald-400 font-medium group-hover:underline">Explore →</span>
+                        <span class="category-count text-xs px-2 py-1 bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 rounded-full" data-category="knowledge-retrieval">Loading...</span>
+                    </div>
                 </a>
                 
                 <!-- Vision & Multimedia -->
-                <a href="/vision-multimedia" class="category-card group relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #f59e0b15 0%, #f59e0b05 100%); border: 1px solid #f59e0b30;">
+                <a href="/vision-multimedia" class="category-card group relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #f59e0b15 0%, #f59e0b05 100%); border: 1px solid #f59e0b30;" data-category="vision-multimedia">
                     <div class="text-4xl mb-3 transition-transform group-hover:scale-110">🎨</div>
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Vision & Multimedia</h3>
                     <p class="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">Image generation, video, speech</p>
-                    <span class="text-sm text-amber-600 dark:text-amber-400 font-medium group-hover:underline">Explore →</span>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-amber-600 dark:text-amber-400 font-medium group-hover:underline">Explore →</span>
+                        <span class="category-count text-xs px-2 py-1 bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 rounded-full" data-category="vision-multimedia">Loading...</span>
+                    </div>
                 </a>
                 
                 <!-- Automation -->
-                <a href="/automation-workflow" class="category-card group relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #8b5cf615 0%, #8b5cf605 100%); border: 1px solid #8b5cf630;">
+                <a href="/automation-workflow" class="category-card group relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #8b5cf615 0%, #8b5cf605 100%); border: 1px solid #8b5cf630;" data-category="automation-workflow">
                     <div class="text-4xl mb-3 transition-transform group-hover:scale-110">⚡</div>
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Automation</h3>
                     <p class="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">AI agents, workflow tools</p>
-                    <span class="text-sm text-violet-600 dark:text-violet-400 font-medium group-hover:underline">Explore →</span>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-violet-600 dark:text-violet-400 font-medium group-hover:underline">Explore →</span>
+                        <span class="category-count text-xs px-2 py-1 bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 rounded-full" data-category="automation-workflow">Loading...</span>
+                    </div>
                 </a>
                 
                 <!-- Infrastructure -->
-                <a href="/infrastructure-ops" class="category-card group relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #64748b15 0%, #64748b05 100%); border: 1px solid #64748b30;">
+                <a href="/infrastructure-ops" class="category-card group relative overflow-hidden rounded-2xl p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl" style="background: linear-gradient(135deg, #64748b15 0%, #64748b05 100%); border: 1px solid #64748b30;" data-category="infrastructure-ops">
                     <div class="text-4xl mb-3 transition-transform group-hover:scale-110">🔧</div>
                     <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Infrastructure</h3>
                     <p class="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">Fine-tuning, optimization</p>
-                    <span class="text-sm text-slate-600 dark:text-slate-400 font-medium group-hover:underline">Explore →</span>
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-slate-600 dark:text-slate-400 font-medium group-hover:underline">Explore →</span>
+                        <span class="category-count text-xs px-2 py-1 bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 rounded-full" data-category="infrastructure-ops">Loading...</span>
+                    </div>
                 </a>
             </div>
         </section>
+
+        <!-- Search moved below categories (V6.2) -->
+        <HomeSearch initialQuery={initialQuery} />
 
         <!-- Static Content Container -->
         <div id="static-content-container" class="hidden">
@@ -134,6 +150,35 @@ const seoSchema = buildIndexSEO();
         import { initializeSearch } from '../scripts/search.js';
         import { loadHotModels, loadWeeklyReport } from '../scripts/home-client.js';
 
+        // V6.2: Load category model counts from R2 rankings
+        async function loadCategoryCounts() {
+            const categories = [
+                'text-generation',
+                'knowledge-retrieval', 
+                'vision-multimedia',
+                'automation-workflow',
+                'infrastructure-ops'
+            ];
+
+            for (const cat of categories) {
+                try {
+                    const res = await fetch(`https://cdn.free2aitools.com/cache/rankings/${cat}/meta.json`);
+                    if (res.ok) {
+                        const meta = await res.json();
+                        const count = meta.total || 0;
+                        const badges = document.querySelectorAll(`.category-count[data-category="${cat}"]`);
+                        badges.forEach(badge => {
+                            badge.textContent = count > 0 ? `${count.toLocaleString()} models` : 'Browse';
+                        });
+                    }
+                } catch (e) {
+                    // Silent fail - show "Browse" as fallback
+                    const badges = document.querySelectorAll(`.category-count[data-category="${cat}"]`);
+                    badges.forEach(badge => badge.textContent = 'Browse');
+                }
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             // Parse URL parameters from the client side
             const urlParams = new URLSearchParams(window.location.search);
@@ -153,6 +198,9 @@ const seoSchema = buildIndexSEO();
 
             // V4.9.1 Step 2.3: Load Weekly Report Banner
             loadWeeklyReport();
+
+            // V6.2: Load category counts
+            loadCategoryCounts();
         });
     </script>
 
