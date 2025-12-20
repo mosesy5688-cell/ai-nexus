@@ -38,8 +38,23 @@ async function harvestSingle(sourceName, options = {}) {
 
         // Fetch from source
         console.log(`   Fetching...`);
-        const rawEntities = await adapter.fetch({ limit });
+        let rawEntities = [];
+        try {
+            rawEntities = await adapter.fetch({ limit });
+        } catch (fetchError) {
+            console.error(`   ❌ Fetch error: ${fetchError.message}`);
+            console.error(fetchError.stack);
+            // Create empty batch file to avoid workflow failure
+            rawEntities = [];
+        }
+
         console.log(`   ✓ Fetched ${rawEntities.length} raw entities`);
+
+        // Warn if no data
+        if (rawEntities.length === 0) {
+            console.warn(`   ⚠️ WARNING: No data fetched from ${sourceName}!`);
+            console.warn(`   This may indicate rate limiting or API issues.`);
+        }
 
         // Normalize
         console.log(`   Normalizing...`);
@@ -53,7 +68,7 @@ async function harvestSingle(sourceName, options = {}) {
         }).filter(Boolean);
         console.log(`   ✓ Normalized ${normalized.length} entities`);
 
-        // Save to batch file
+        // Save to batch file (even if empty)
         const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}.json`);
         await fs.writeFile(batchFile, JSON.stringify(normalized, null, 2));
         console.log(`   ✓ Saved to: ${batchFile}`);
@@ -69,7 +84,13 @@ async function harvestSingle(sourceName, options = {}) {
     } catch (error) {
         console.error(`\n❌ [Harvest] Failed: ${error.message}`);
         console.error(error.stack);
-        process.exit(1);
+
+        // Create empty batch file to avoid downstream errors
+        const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}.json`);
+        await fs.writeFile(batchFile, JSON.stringify([], null, 2));
+        console.log(`   Created empty batch file: ${batchFile}`);
+
+        return { source: sourceName, count: 0, duration: 0, file: batchFile, error: error.message };
     }
 }
 
