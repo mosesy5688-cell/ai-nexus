@@ -7,20 +7,40 @@ const MAX_LINES = 250;
 // IGNORE LISTS (Requires Explicit User Approval for additions)
 const IGNORE_DIRS = ['node_modules', '.git', 'dist', '.wrangler', '.astro', 'coverage'];
 
-// LEGACY WHITELIST (Approved by User Step 2099)
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * CES WHITELIST ELIGIBILITY RULE (Constitutional Amendment V6.2)
+ * ═══════════════════════════════════════════════════════════════════════════
+ * 
+ * A file may be added to the CES whitelist ONLY if:
+ * 
+ *   ✅ ELIGIBLE (Stable Modules):
+ *      - Adapters with fixed API contracts (unlikely to grow)
+ *      - Visualization components with complete UI
+ *      - Infrastructure modules with frozen interfaces
+ * 
+ *   ❌ INELIGIBLE (Growing Modules):
+ *      - Orchestrators, pipelines likely to gain new phases
+ *      - Core business logic with expanding features
+ *      - Any module with TODO/FUTURE comments
+ * 
+ * ENFORCEMENT: Modules expected to grow MUST be refactored to stay under 250
+ * lines. Adding such modules to whitelist is STRICTLY FORBIDDEN.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
 const IGNORE_FILES = [
-    // Tier 1: Stable Adapters (Infrastructure)
+    // Tier 1: Stable Adapters (Fixed API - NO FUTURE GROWTH)
     'arxiv-adapter.js', 'base-adapter.js', 'datasets-adapter.js', 'deepspec-adapter.js',
     'github-adapter.js', 'huggingface-adapter.js', 'modelscope-adapter.js',
     'ollama-adapter.js', 'openllm-adapter.js', 'pwc-adapter.js',
-    'semanticscholar-adapter.js', 'huggingface-papers-adapter.js', // V6.2
-    'civitai-adapter.js', 'mcp-adapter.js', // V6.2 - Stable adapters
+    'semanticscholar-adapter.js', 'huggingface-papers-adapter.js',
+    'civitai-adapter.js', 'mcp-adapter.js',
     'fetch-data.js', 'multi-source-fetcher.js',
 
-    // Tier 1: Legacy Test
+    // Tier 1: Legacy Test (Frozen)
     'frontend-guardian.js',
 
-    // Tier 2: Complex Visualization Components
+    // Tier 2: Complex Visualization (Complete UI - NO FUTURE GROWTH)
     'GraphExplorer.astro', 'NeuralGraphExplorer.astro',
     'FamilyTree.astro', 'ArchitectureModule.astro'
 ];
