@@ -138,19 +138,29 @@ jobs:
 
       # ============================================================
       # TASK 4: GENERATE SITEMAPS (V6.2 - Merged from l5-sitemap.yml)
+      # Note: R2_ENDPOINT must be set as repository variable
+      # Format: https://{account_id}.r2.cloudflarestorage.com
       # ============================================================
       - name: Generate Sitemaps
+        continue-on-error: true  # Non-critical - don't fail entire workflow
         env:
           R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ vars.R2_BUCKET || 'ai-nexus-assets' }}
         run: |
+          if [ -z "$R2_ENDPOINT" ]; then
+            echo "⚠️ R2_ENDPOINT not set - skipping sitemap generation"
+            echo "Set R2_ENDPOINT in repository variables to enable"
+            exit 0
+          fi
           echo "🗺️ [Task 4/5] Generating sitemaps..."
           python scripts/sidecar/l5_sitemap_gen.py
           echo "✅ Sitemap generation completed"
 
       - name: Verify Sitemap Index
+        continue-on-error: true  # Non-critical
+        if: ${{ vars.R2_ENDPOINT != '' }}
         env:
           R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
