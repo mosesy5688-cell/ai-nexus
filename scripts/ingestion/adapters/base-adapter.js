@@ -108,6 +108,35 @@ export class BaseAdapter {
     }
 
     /**
+     * [Phase A.2] Streaming fetch for memory-efficient batch processing
+     * Yields batches of entities instead of loading all into memory.
+     * 
+     * Default implementation calls fetch() and yields in batches.
+     * Subclasses can override for true pagination support.
+     * 
+     * @param {Object} options - Fetch options
+     * @param {number} [options.batchSize=500] - Entities per batch
+     * @param {number} [options.limit=10000] - Max total entities
+     * @yields {Object[]} Batch of raw entities
+     */
+    async *fetchStream(options = {}) {
+        const { batchSize = 500, limit = 10000 } = options;
+
+        // Default: fetch all then yield in batches
+        // Subclasses should override for true pagination
+        const allEntities = await this.fetch({ ...options, limit });
+
+        for (let i = 0; i < allEntities.length; i += batchSize) {
+            const batch = allEntities.slice(i, i + batchSize);
+            console.log(`  [Stream] Yielding batch ${Math.floor(i / batchSize) + 1}: ${batch.length} entities`);
+            yield batch;
+
+            // Allow GC between batches
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+    }
+
+    /**
      * Normalize a raw entity to UnifiedEntity format
      * @abstract
      * @param {Object} raw - Raw entity from source
