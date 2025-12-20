@@ -1,5 +1,6 @@
 ---
 // src/components/model-detail/ModelSidebar.astro
+// V6.2: Pass all available specs fields for complete data display
 import SpecsTable from '../specs/SpecsTable.astro';
 import ModelInfoTable from '../ModelInfoTable.astro';
 import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
@@ -11,19 +12,25 @@ interface Props {
 }
 
 const { model, modelId } = Astro.props;
+
+// V6.2: Check if any specs data is available
+const hasSpecsData = model.params_billions || model.context_length || 
+                     model.architecture || model.architecture_family ||
+                     model.has_gguf || model.has_ollama || model.deploy_score ||
+                     model.vocab_size || model.hidden_size || model.num_layers;
 ---
 
 <aside class="space-y-6">
-  {(model.params_billions || model.context_length) && (
+  {hasSpecsData && (
     <SpecsTable 
-      params={model.params_billions || null}
-      contextLength={model.context_length || null}
-      hasGguf={model.has_gguf || false}
-      ggufVariants={parseJSONField(model.gguf_variants ?? null, [])}
-      hasOllama={model.has_ollama || false}
-      ollamaId={model.ollama_id || null}
-      ollamaPulls={model.ollama_pulls || 0}
-      license={model.license_spdx || null}
+      params_billions={model.params_billions || null}
+      context_length={model.context_length || null}
+      vocab_size={model.vocab_size || null}
+      hidden_size={model.hidden_size || null}
+      num_layers={model.num_layers || null}
+      architecture={model.architecture || null}
+      architecture_family={model.architecture_family || null}
+      deploy_score={model.deploy_score || null}
     />
   )}
   

@@ -102,10 +102,13 @@ const cleanDesc = model?.description ? model.description.replace(/<[^>]*>?/gm, '
         {hasBench && hasBenchmarks && (
           <section class="mb-8">
             <BenchmarkCard 
+              umid={model.umid || model.id || ''}
+              name={modelName}
               mmlu={model.mmlu || model.benchmark_mmlu}
+              humaneval={model.humaneval || model.benchmark_humaneval}
               hellaswag={model.hellaswag || model.benchmark_hellaswag}
-              arc={model.arc_challenge || model.benchmark_arc}
-              avgScore={model.avg_score || model.benchmark_avg}
+              arc_challenge={model.arc_challenge || model.benchmark_arc}
+              avg_score={model.avg_score || model.benchmark_avg || 0}
             />
           </section>
         )}
