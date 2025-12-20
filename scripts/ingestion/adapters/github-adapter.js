@@ -39,53 +39,80 @@ export class GitHubAdapter extends BaseAdapter {
     }
 
     /**
-     * Fetch ML/AI repositories from GitHub
-     * @param {Object} options
-     * @param {number} options.limit - Number of repos to fetch (default: 200)
-     * @param {string[]} options.topics - Topics to search for
-     */
+ * Fetch ML/AI repositories from GitHub
+ * @param {Object} options
+ * @param {number} options.limit - Number of repos to fetch (default: 200)
+ * @param {string[]} options.topics - Topics to search for
+ */
     async fetch(options = {}) {
         const {
             limit = 200,
-            topics = ['machine-learning', 'deep-learning', 'ai', 'llm', 'transformers']
+            // V6.2: Expanded topic list for broader coverage
+            topics = [
+                // Core AI/ML
+                'machine-learning', 'deep-learning', 'artificial-intelligence', 'neural-network',
+                // LLM & NLP
+                'llm', 'large-language-model', 'transformers', 'nlp', 'chatgpt', 'gpt',
+                // Computer Vision
+                'computer-vision', 'image-generation', 'stable-diffusion', 'diffusion-models',
+                // Frameworks
+                'pytorch', 'tensorflow', 'huggingface', 'langchain', 'llamaindex',
+                // Agents & Tools
+                'ai-agent', 'autonomous-agents', 'ai-tools', 'rag'
+            ],
+            pagesPerTopic = 2  // V6.2: Multiple pages per topic
         } = options;
 
-        console.log(`📥 [GitHub] Fetching top ${limit} ML/AI repositories...`);
+        console.log(`📥 [GitHub] Fetching top ${limit} ML/AI repositories across ${topics.length} topics...`);
 
         const allRepos = [];
-        const perPage = Math.min(100, limit);
-        const maxPages = Math.ceil(limit / perPage);
+        const perPage = 100;  // Max per page
         const seenIds = new Set();
 
-        // Search by multiple topics
+        // Search by multiple topics with pagination
         for (const topic of topics) {
             if (allRepos.length >= limit) break;
 
-            const query = `topic:${topic} stars:>100`;
-            const searchUrl = `${GH_API_BASE}/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=${perPage}`;
+            // V6.2: Paginate within each topic
+            for (let page = 1; page <= pagesPerTopic; page++) {
+                if (allRepos.length >= limit) break;
 
-            try {
-                const response = await fetch(searchUrl, { headers: this.getHeaders() });
+                const query = `topic:${topic} stars:>50`;  // Lowered from 100 for more results
+                const searchUrl = `${GH_API_BASE}/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc&per_page=${perPage}&page=${page}`;
 
-                if (!response.ok) {
-                    console.warn(`   ⚠️ GitHub search failed for ${topic}: ${response.status}`);
-                    continue;
-                }
+                try {
+                    const response = await fetch(searchUrl, { headers: this.getHeaders() });
 
-                const data = await response.json();
-                const repos = data.items || [];
-
-                for (const repo of repos) {
-                    if (!seenIds.has(repo.id) && allRepos.length < limit) {
-                        seenIds.add(repo.id);
-                        allRepos.push(repo);
+                    if (!response.ok) {
+                        if (response.status === 403) {
+                            console.warn(`   ⚠️ Rate limited, waiting...`);
+                            await this.delay(5000);
+                            continue;
+                        }
+                        console.warn(`   ⚠️ GitHub search failed for ${topic} p${page}: ${response.status}`);
+                        break;  // Move to next topic
                     }
-                }
 
-                console.log(`   Found ${repos.length} repos for topic: ${topic}`);
-                await this.delay(1500); // V4.1 Operation 10k: Increased delay to avoid rate limits
-            } catch (error) {
-                console.warn(`   ⚠️ Error searching ${topic}: ${error.message}`);
+                    const data = await response.json();
+                    const repos = data.items || [];
+
+                    if (repos.length === 0) break;  // No more results for this topic
+
+                    let addedCount = 0;
+                    for (const repo of repos) {
+                        if (!seenIds.has(repo.id) && allRepos.length < limit) {
+                            seenIds.add(repo.id);
+                            allRepos.push(repo);
+                            addedCount++;
+                        }
+                    }
+
+                    console.log(`   ${topic} p${page}: +${addedCount} repos (total: ${allRepos.length})`);
+                    await this.delay(1500);  // Rate limit protection
+                } catch (error) {
+                    console.warn(`   ⚠️ Error searching ${topic}: ${error.message}`);
+                    break;
+                }
             }
         }
 
@@ -94,7 +121,7 @@ export class GitHubAdapter extends BaseAdapter {
         // Fetch full details including README
         console.log(`🔄 [GitHub] Fetching full details...`);
         const fullRepos = [];
-        const batchSize = 5; // Lower batch size due to rate limits
+        const batchSize = 5;
 
         for (let i = 0; i < allRepos.length; i += batchSize) {
             const batch = allRepos.slice(i, i + batchSize);
@@ -103,18 +130,16 @@ export class GitHubAdapter extends BaseAdapter {
             );
             fullRepos.push(...batchResults.filter(r => r !== null));
 
-            if ((i + batchSize) % 20 === 0 || i + batchSize >= allRepos.length) {
+            if ((i + batchSize) % 50 === 0 || i + batchSize >= allRepos.length) {
                 console.log(`   Progress: ${Math.min(i + batchSize, allRepos.length)}/${allRepos.length}`);
             }
 
-            // V4.1 Operation 10k: Increased delay to avoid rate limits
             await this.delay(1000);
         }
 
         console.log(`✅ [GitHub] Fetched ${fullRepos.length} complete repositories`);
         return fullRepos;
     }
-
     /**
      * Fetch complete repository details including README
      */

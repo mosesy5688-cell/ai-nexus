@@ -14,7 +14,7 @@ const IGNORE_FILES = [
     'github-adapter.js', 'huggingface-adapter.js', 'modelscope-adapter.js',
     'ollama-adapter.js', 'openllm-adapter.js', 'pwc-adapter.js',
     'semanticscholar-adapter.js', 'huggingface-papers-adapter.js', // V6.2
-    'civitai-adapter.js', // V6.2 - Stable adapter
+    'civitai-adapter.js', 'mcp-adapter.js', // V6.2 - Stable adapters
     'fetch-data.js', 'multi-source-fetcher.js',
 
     // Tier 1: Legacy Test

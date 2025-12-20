@@ -29,7 +29,10 @@ export const DEFAULT_CONFIG = {
         openllm: { enabled: true, options: { limit: 1000 } }, // Benchmarks
         deepspec: { enabled: true, options: { limit: 5000 } }, // Specs
         civitai: { enabled: true, options: { limit: 2000 } },  // Models (NSFW filtered)
-        semanticscholar: { enabled: true, options: { limit: 2000 } } // Citations
+        semanticscholar: { enabled: true, options: { limit: 2000 } }, // Citations
+
+        // V6.2: MCP Registry (AI Agents / MCP Servers)
+        mcp: { enabled: true, options: { limit: 500 } }
     },
     deduplication: {
         enabled: true,
