@@ -83,12 +83,20 @@ export class ModelScopeAdapter extends BaseAdapter {
 
                 try {
                     console.log(`   Fetching page ${currentPage}...`);
-                    const response = await fetch(url, {
-                        headers: {
-                            'Accept': 'application/json',
-                            'User-Agent': 'Free2AITools/1.0'
+
+                    // V6.2: Add token authentication if available
+                    const headers = {
+                        'Accept': 'application/json',
+                        'User-Agent': 'Free2AITools/1.0'
+                    };
+                    if (process.env.MODELSCOPE_API_TOKEN) {
+                        headers['Authorization'] = `Bearer ${process.env.MODELSCOPE_API_TOKEN}`;
+                        if (currentPage === 1) {
+                            console.log(`   🔑 Using authenticated requests (MODELSCOPE_API_TOKEN)`);
                         }
-                    });
+                    }
+
+                    const response = await fetch(url, { headers });
 
                     if (!response.ok) {
                         if (response.status === 429) {

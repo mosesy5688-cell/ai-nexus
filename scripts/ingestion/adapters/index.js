@@ -2,7 +2,7 @@
  * Adapter Registry
  * 
  * Central registry for all data source adapters.
- * V4.3.2: Added Open LLM Leaderboard for benchmark data.
+ * V6.2: Added HuggingFace Papers adapter for daily papers.
  * 
  * @module ingestion/adapters
  */
@@ -18,6 +18,7 @@ import { ModelScopeAdapter } from './modelscope-adapter.js';
 import { OpenLLMLeaderboardAdapter } from './openllm-adapter.js';
 import { DeepSpecAdapter } from './deepspec-adapter.js';
 import { SemanticScholarAdapter } from './semanticscholar-adapter.js';
+import { HuggingFacePapersAdapter } from './huggingface-papers-adapter.js';
 
 // Export base for extension
 export { BaseAdapter, NSFW_KEYWORDS, LICENSE_MAP } from './base-adapter.js';
@@ -34,6 +35,7 @@ export { ModelScopeAdapter } from './modelscope-adapter.js';
 export { OpenLLMLeaderboardAdapter } from './openllm-adapter.js';
 export { DeepSpecAdapter } from './deepspec-adapter.js';
 export { SemanticScholarAdapter } from './semanticscholar-adapter.js';
+export { HuggingFacePapersAdapter } from './huggingface-papers-adapter.js';
 
 // Registered adapters (V4.3.2 - Multi-source with Benchmarks + Specs + Citations)
 export const adapters = {
@@ -45,6 +47,9 @@ export const adapters = {
     // Tier 2: Academic Sources
     'arxiv': new ArXivAdapter(),
     'paperswithcode': new PapersWithCodeAdapter(),
+
+    // V6.2: HuggingFace Papers (alternative to blocked PWC)
+    'huggingface-papers': new HuggingFacePapersAdapter(),
     'semanticscholar': new SemanticScholarAdapter(),
 
     // Tier 3: Ecosystem Sources
@@ -59,8 +64,8 @@ export const adapters = {
     // V4.3.2: Deep Spec Extractor (Model specifications)
     'deepspec': new DeepSpecAdapter(),
 
-    // DISABLED: ModelScope - requires API Token for model listing
-    // 'modelscope': new ModelScopeAdapter(),
+    // V6.2: ModelScope enabled with API token
+    'modelscope': new ModelScopeAdapter(),
 };
 
 /**

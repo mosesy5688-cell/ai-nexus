@@ -1,13 +1,6 @@
 /**
  * Ingestion Pipeline Orchestrator
- * 
- * Coordinates the complete data ingestion pipeline:
- * 1. Fetch from multiple sources via adapters
- * 2. Normalize to unified schema
- * 3. Deduplicate and merge
- * 4. Check compliance
- * 5. Output for Rust processing
- * 
+ * Coordinates fetch → normalize → dedup → compliance → output
  * @module ingestion/orchestrator
  */
 
@@ -23,17 +16,11 @@ const __dirname = path.dirname(__filename);
 const OUTPUT_DIR = path.join(__dirname, '../../data');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'merged.json');
 
-/**
- * Default ingestion configuration
- * Sprint 3 Phase 0: Grand Reset & Core Ingestion (5,000 entities)
- * Target: HF Models 3000 + GitHub 1500 + Datasets 500 = 5000
- */
+// Config and output
 import { DEFAULT_CONFIG } from './ingestion-config.js';
 import { saveOutput } from './output-mapper.js';
 
-/**
- * Orchestrator Class
- */
+/** Orchestrator Class */
 export class Orchestrator {
     constructor(config = {}) {
         this.config = { ...DEFAULT_CONFIG, ...config };
@@ -95,9 +82,7 @@ export class Orchestrator {
         return compliantEntities;
     }
 
-    /**
-     * Fetch from all enabled sources
-     */
+    /** Fetch from all enabled sources */
     async fetchAll() {
         const results = [];
 
@@ -114,7 +99,19 @@ export class Orchestrator {
                     continue;
                 }
 
-                const entities = await adapter.fetch(sourceConfig.options);
+                // V6.2: Use multi-strategy for HuggingFace to bypass 1K API limit
+                let entities;
+                if (sourceName === 'huggingface' && sourceConfig.options.limit > 1000 && adapter.fetchMultiStrategy) {
+                    console.log(`   📊 Using multi-strategy for HuggingFace (limit: ${sourceConfig.options.limit})...`);
+                    const result = await adapter.fetchMultiStrategy({
+                        limitPerStrategy: Math.ceil(sourceConfig.options.limit / 4),
+                        full: sourceConfig.options.full !== false
+                    });
+                    entities = result.models;
+                } else {
+                    entities = await adapter.fetch(sourceConfig.options);
+                }
+
                 this.stats.fetched[sourceName] = entities.length;
 
                 results.push({
@@ -131,9 +128,7 @@ export class Orchestrator {
         return results;
     }
 
-    /**
-     * Normalize all fetched entities
-     */
+    /** Normalize all fetched entities */
     normalizeAll(fetchResults) {
         const normalized = [];
 
@@ -156,9 +151,7 @@ export class Orchestrator {
         return normalized;
     }
 
-    /**
-     * Deduplicate entities by ID
-     */
+    /** Deduplicate entities by ID */
     deduplicate(entities) {
         if (!this.config.deduplication.enabled) {
             this.stats.deduplicated = entities.length;
@@ -196,9 +189,7 @@ export class Orchestrator {
         return unique;
     }
 
-    /**
-     * Filter entities by compliance status
-     */
+    /** Filter entities by compliance status */
     filterCompliance(entities) {
         if (!this.config.compliance.blockNSFW) {
             return entities;
