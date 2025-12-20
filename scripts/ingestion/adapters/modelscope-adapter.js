@@ -14,7 +14,7 @@
 
 import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 
-const MODELSCOPE_API_BASE = 'https://modelscope.cn/api/v1';
+const MODELSCOPE_API_BASE = 'https://www.modelscope.ai/api/v1';
 
 /**
  * ModelScope Task Type mapping
@@ -71,8 +71,8 @@ export class ModelScopeAdapter extends BaseAdapter {
 
         // Try different API endpoints
         const endpoints = [
-            `https://modelscope.cn/api/v1/models?page=${currentPage}&page_size=${pageSize}&sort=${sortBy}`,
-            `https://modelscope.cn/api/v1/hub/models?page=${currentPage}&page_size=${pageSize}`,
+            `https://www.modelscope.ai/api/v1/models?page=${currentPage}&page_size=${pageSize}&sort=${sortBy}`,
+            `https://www.modelscope.ai/api/v1/hub/models?page=${currentPage}&page_size=${pageSize}`,
         ];
 
         while (allModels.length < limit) {
