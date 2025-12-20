@@ -1,0 +1,108 @@
+#!/usr/bin/env node
+/**
+ * harvest-single.js
+ * 
+ * Phase A.3: Single-source harvester for parallel workflow execution
+ * Called by parallel L1 jobs to harvest one source at a time.
+ * 
+ * Usage: node scripts/ingestion/harvest-single.js <source> [--limit N]
+ */
+
+import { adapters } from './adapters/index.js';
+import { promises as fs } from 'fs';
+import path from 'path';
+
+const OUTPUT_DIR = 'data';
+
+/**
+ * Harvest from a single source and save to a batch file
+ */
+async function harvestSingle(sourceName, options = {}) {
+    const { limit = 10000 } = options;
+
+    const adapter = adapters[sourceName];
+    if (!adapter) {
+        console.error(`❌ Unknown source: ${sourceName}`);
+        console.log(`Available sources: ${Object.keys(adapters).join(', ')}`);
+        process.exit(1);
+    }
+
+    console.log(`\n📥 [Harvest] Source: ${sourceName}`);
+    console.log(`   Limit: ${limit}`);
+
+    const startTime = Date.now();
+
+    try {
+        // Ensure output directory exists
+        await fs.mkdir(OUTPUT_DIR, { recursive: true });
+
+        // Fetch from source
+        console.log(`   Fetching...`);
+        const rawEntities = await adapter.fetch({ limit });
+        console.log(`   ✓ Fetched ${rawEntities.length} raw entities`);
+
+        // Normalize
+        console.log(`   Normalizing...`);
+        const normalized = rawEntities.map((raw, i) => {
+            try {
+                return adapter.normalize(raw);
+            } catch (e) {
+                if (i < 5) console.warn(`   ⚠️ Normalize error [${i}]: ${e.message}`);
+                return null;
+            }
+        }).filter(Boolean);
+        console.log(`   ✓ Normalized ${normalized.length} entities`);
+
+        // Save to batch file
+        const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}.json`);
+        await fs.writeFile(batchFile, JSON.stringify(normalized, null, 2));
+        console.log(`   ✓ Saved to: ${batchFile}`);
+
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`\n✅ [Harvest] Complete`);
+        console.log(`   Source: ${sourceName}`);
+        console.log(`   Entities: ${normalized.length}`);
+        console.log(`   Time: ${duration}s`);
+        console.log(`   Output: ${batchFile}`);
+
+        return { source: sourceName, count: normalized.length, duration, file: batchFile };
+    } catch (error) {
+        console.error(`\n❌ [Harvest] Failed: ${error.message}`);
+        console.error(error.stack);
+        process.exit(1);
+    }
+}
+
+/**
+ * CLI Entry Point
+ */
+async function main() {
+    const args = process.argv.slice(2);
+
+    // Parse arguments
+    let sourceName = null;
+    let limit = 10000;
+
+    for (let i = 0; i < args.length; i++) {
+        if (args[i] === '--limit' && args[i + 1]) {
+            limit = parseInt(args[i + 1], 10);
+            i++;
+        } else if (!args[i].startsWith('--')) {
+            sourceName = args[i];
+        }
+    }
+
+    if (!sourceName) {
+        console.log('Usage: node harvest-single.js <source> [--limit N]');
+        console.log(`Available sources: ${Object.keys(adapters).join(', ')}`);
+        process.exit(1);
+    }
+
+    await harvestSingle(sourceName, { limit });
+}
+
+// Export for programmatic use
+export { harvestSingle };
+
+// Run if called directly
+main().catch(console.error);
