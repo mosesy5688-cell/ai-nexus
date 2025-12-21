@@ -3,10 +3,14 @@
  * Benchmark Leaderboard Page
  * V5.1.2 - Refactored for CES Compliance (Modular)
  * 
+ * B.14: Redirect to unified /ranking?type=benchmark
  * Uses /cache/benchmarks.json for all data
  */
 
 export const prerender = false;
+
+// B.14: Redirect to unified ranking page
+return Astro.redirect('/ranking?type=benchmark', 301);
 
 // Imports
 import Layout from '../layouts/Layout.astro';

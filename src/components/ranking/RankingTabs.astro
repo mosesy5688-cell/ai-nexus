@@ -1,0 +1,162 @@
+---
+/**
+ * RankingTabs.astro
+ * 
+ * B.14 P1: 排行榜排序标签
+ * FNI综合榜 (默认) | Hot | Trending | Newest | Benchmark
+ */
+
+interface Props {
+  activeTab?: string;
+  className?: string;
+}
+
+const { activeTab = 'fni', className = '' } = Astro.props;
+
+const TABS = [
+  { id: 'fni', label: 'FNI 综合', icon: '⚖️', description: 'P+V+C+U 综合评分' },
+  { id: 'hot', label: 'Hot', icon: '🔥', description: '社区热度' },
+  { id: 'trending', label: 'Trending', icon: '🚀', description: '增长最快' },
+  { id: 'newest', label: 'Newest', icon: '✨', description: '最近更新' },
+  { id: 'benchmark', label: 'Benchmark', icon: '🏆', description: '性能排名' },
+];
+---
+
+<div class={`ranking-tabs ${className}`}>
+  <div class="tabs-container" role="tablist">
+    {TABS.map(tab => {
+      const isActive = tab.id === activeTab;
+      return (
+        <button
+          role="tab"
+          aria-selected={isActive}
+          data-tab={tab.id}
+          class={`tab-item ${isActive ? 'active' : ''}`}
+          title={tab.description}
+        >
+          <span class="tab-icon">{tab.icon}</span>
+          <span class="tab-label">{tab.label}</span>
+        </button>
+      );
+    })}
+  </div>
+</div>
+
+<style>
+  .ranking-tabs {
+    margin-bottom: 1.5rem;
+  }
+  
+  .tabs-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    padding: 0.5rem;
+    background: rgba(99, 102, 241, 0.05);
+    border-radius: 0.75rem;
+    border: 1px solid rgba(99, 102, 241, 0.1);
+  }
+  
+  .tab-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #6b7280;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .tab-item:hover {
+    color: #4f46e5;
+    background: rgba(99, 102, 241, 0.1);
+  }
+  
+  .tab-item.active {
+    color: white;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  }
+  
+  .tab-icon {
+    font-size: 1rem;
+  }
+  
+  /* Dark mode */
+  :global(.dark) .tabs-container {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.2);
+  }
+  
+  :global(.dark) .tab-item {
+    color: #9ca3af;
+  }
+  
+  :global(.dark) .tab-item:hover {
+    color: #818cf8;
+    background: rgba(99, 102, 241, 0.15);
+  }
+  
+  @media (max-width: 640px) {
+    .tabs-container {
+      justify-content: flex-start;
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .tab-item {
+      flex-shrink: 0;
+    }
+    
+    .tab-label {
+      display: none;
+    }
+    
+    .tab-item.active .tab-label {
+      display: inline;
+    }
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const tabs = document.querySelectorAll('.tab-item');
+    
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabId = (tab as HTMLElement).dataset.tab;
+        if (!tabId) return;
+        
+        // Update URL
+        const url = new URL(window.location.href);
+        url.searchParams.set('sort', tabId);
+        window.history.pushState({}, '', url.toString());
+        
+        // Dispatch event for page to handle re-sorting
+        window.dispatchEvent(new CustomEvent('ranking:sort', { detail: { sortBy: tabId } }));
+        
+        // Update active state
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+      });
+    });
+    
+    // Check URL for initial sort
+    const urlSort = new URLSearchParams(window.location.search).get('sort');
+    if (urlSort) {
+      const activeTab = document.querySelector(`.tab-item[data-tab="${urlSort}"]`);
+      if (activeTab) {
+        tabs.forEach(t => t.classList.remove('active'));
+        activeTab.classList.add('active');
+      }
+    }
+  });
+</script>
