@@ -35,6 +35,7 @@ const IGNORE_FILES = [
     'ollama-adapter.js', 'openllm-adapter.js', 'pwc-adapter.js',
     'semanticscholar-adapter.js', 'huggingface-papers-adapter.js',
     'civitai-adapter.js', 'mcp-adapter.js',
+    'replicate-adapter.js', 'kaggle-adapter.js',  // B.1: New stable adapters
     'fetch-data.js', 'multi-source-fetcher.js',
 
     // Tier 1: Legacy Test (Frozen)
