@@ -1,0 +1,148 @@
+---
+/**
+ * AddToCompareButton.astro
+ * 
+ * B.14 P1: [+对比] 按钮
+ * 用于排行榜每行的快速添加对比功能
+ */
+
+interface Props {
+  modelId: string;
+  modelName: string;
+  size?: 'sm' | 'md';
+  className?: string;
+}
+
+const { modelId, modelName, size = 'sm', className = '' } = Astro.props;
+
+const sizeClasses = {
+  sm: 'w-7 h-7 text-sm',
+  md: 'w-9 h-9 text-base'
+};
+---
+
+<button
+  class={`add-to-compare ${sizeClasses[size]} ${className}`}
+  data-model-id={modelId}
+  data-model-name={modelName}
+  title={`Add ${modelName} to compare`}
+  aria-label={`Add ${modelName} to compare`}
+>
+  <span class="plus-icon">+</span>
+</button>
+
+<style>
+  .add-to-compare {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.375rem;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: #6366f1;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  
+  .add-to-compare:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: #6366f1;
+    transform: scale(1.05);
+  }
+  
+  .add-to-compare.added {
+    background: #22c55e;
+    border-color: #22c55e;
+    color: white;
+  }
+  
+  .add-to-compare.added .plus-icon {
+    font-size: 0;
+  }
+  
+  .add-to-compare.added::after {
+    content: '✓';
+  }
+  
+  .add-to-compare:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .plus-icon {
+    font-weight: 600;
+    line-height: 1;
+  }
+  
+  /* Dark mode */
+  :global(.dark) .add-to-compare {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: #818cf8;
+  }
+  
+  :global(.dark) .add-to-compare:hover {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: #818cf8;
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.add-to-compare').forEach(btn => {
+      const button = btn as HTMLButtonElement;
+      
+      // Check if already in cart
+      const modelId = button.dataset.modelId;
+      if ((window as any).compareCart) {
+        const cart = (window as any).compareCart.get();
+        if (cart.find((m: any) => m.id === modelId)) {
+          button.classList.add('added');
+        }
+      }
+      
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const modelId = button.dataset.modelId || '';
+        const modelName = button.dataset.modelName || '';
+        
+        if (button.classList.contains('added')) {
+          // Remove from cart
+          if ((window as any).compareCart) {
+            (window as any).compareCart.remove(modelId);
+            button.classList.remove('added');
+          }
+        } else {
+          // Add to cart
+          if ((window as any).compareCart) {
+            const success = (window as any).compareCart.add(modelId, modelName);
+            if (success) {
+              button.classList.add('added');
+              
+              // Animate
+              button.style.transform = 'scale(1.2)';
+              setTimeout(() => {
+                button.style.transform = '';
+              }, 150);
+            }
+          } else {
+            // Fallback if compareCart not loaded yet
+            const cart = JSON.parse(localStorage.getItem('compareModels') || '[]');
+            if (cart.length >= 5) {
+              alert('Maximum 5 models for comparison');
+              return;
+            }
+            if (!cart.find((m: any) => m.id === modelId)) {
+              cart.push({ id: modelId, name: modelName });
+              localStorage.setItem('compareModels', JSON.stringify(cart));
+              button.classList.add('added');
+            }
+          }
+        }
+      });
+    });
+  });
+</script>
