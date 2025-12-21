@@ -54,6 +54,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
     /**
      * Fetch models from HuggingFace API
+     * V4.2 OPTIMIZATION: Auto-switch to multi-strategy for limit > 1000
      * @param {Object} options
      * @param {number} options.limit - Number of models to fetch (default: 500)
      * @param {string} options.sort - Sort field (default: 'likes')
@@ -66,6 +67,17 @@ export class HuggingFaceAdapter extends BaseAdapter {
             direction = -1,
             full = true
         } = options;
+
+        // V4.2: Use multi-strategy for larger limits to maximize coverage
+        if (limit > 1000) {
+            console.log(`📥 [HuggingFace] Using MULTI-STRATEGY for ${limit} models...`);
+            const result = await this.fetchMultiStrategy({
+                limitPerStrategy: Math.min(1000, Math.ceil(limit / 4)),
+                strategyIndices: [0, 1, 2, 3],
+                full
+            });
+            return result.models;
+        }
 
         console.log(`📥 [HuggingFace] Fetching top ${limit} models by ${sort}...`);
 

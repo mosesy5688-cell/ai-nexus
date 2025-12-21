@@ -60,7 +60,7 @@ export class GitHubAdapter extends BaseAdapter {
                 // Agents & Tools
                 'ai-agent', 'autonomous-agents', 'ai-tools', 'rag'
             ],
-            pagesPerTopic = 2  // V6.2: Multiple pages per topic
+            pagesPerTopic = 5  // V4.2: Increased from 2 to 5 for better coverage
         } = options;
 
         console.log(`📥 [GitHub] Fetching top ${limit} ML/AI repositories across ${topics.length} topics...`);
