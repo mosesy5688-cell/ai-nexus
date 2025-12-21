@@ -122,7 +122,8 @@ export class KaggleAdapter extends BaseAdapter {
             }
         }
 
-        return allDatasets.slice(0, limit).map(d => this.normalizeDataset(d));
+        // Return raw entities with _entityType marker for normalize()
+        return allDatasets.slice(0, limit).map(d => ({ ...d, _entityType: 'dataset' }));
     }
 
     /**
@@ -170,7 +171,8 @@ export class KaggleAdapter extends BaseAdapter {
             }
         }
 
-        return allModels.slice(0, limit).map(m => this.normalizeModel(m));
+        // Return raw entities with _entityType marker for normalize()
+        return allModels.slice(0, limit).map(m => ({ ...m, _entityType: 'model' }));
     }
 
     /**
@@ -179,6 +181,17 @@ export class KaggleAdapter extends BaseAdapter {
     isSafeForWork(item) {
         const text = `${item.title || ''} ${item.subtitle || ''} ${item.description || ''}`.toLowerCase();
         return !NSFW_KEYWORDS.some(kw => text.includes(kw));
+    }
+
+    /**
+     * Override normalize() - delegates based on entity type marker
+     * Items from fetchDatasets have _entityType='dataset', fetchModels have _entityType='model'
+     */
+    normalize(raw) {
+        if (raw._entityType === 'model') {
+            return this.normalizeModel(raw);
+        }
+        return this.normalizeDataset(raw);
     }
 
     /**

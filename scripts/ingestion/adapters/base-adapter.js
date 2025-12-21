@@ -182,6 +182,14 @@ export class BaseAdapter {
     }
 
     /**
+     * Delay helper for rate limiting
+     * @param {number} ms - Milliseconds to wait
+     */
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    /**
      * Normalize license to SPDX ID
      * V4.1: Handle object-type licenses (e.g., {name: 'apache-2.0'})
      */
