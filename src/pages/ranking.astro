@@ -14,6 +14,7 @@ import DataFreshness from '../components/common/DataFreshness.astro';
 import RankingTabs from '../components/ranking/RankingTabs.astro';
 import FloatingCompareBar from '../components/ranking/FloatingCompareBar.astro';
 import AddToCompareButton from '../components/ranking/AddToCompareButton.astro';
+import FNIDimensionFilter from '../components/ranking/FNIDimensionFilter.astro';
 
 // V4.9: Get entity type from URL params
 const url = new URL(Astro.request.url);
@@ -60,6 +61,9 @@ const entityLabel = entityLabels[entityType] || 'Models';
 // B.14: Get sort parameter (FNI is default)
 const sortBy = url.searchParams.get('sort') || 'fni';
 
+// B.14 P2: Get dimension parameter for P/V/C/U sorting
+const dimension = url.searchParams.get('dim') || 'fni';
+
 // V4.3.2 Constitution: Load from L8 Precompute cache (D1 reads = 0)
 let trendingData = { data: [], generated_at: null };
 let benchmarksData = { data: [], generated_at: null };
@@ -83,12 +87,15 @@ try {
     console.error('[Rankings] Cache fetch error:', e);
 }
 
-// B.14: Add FNI sorting as primary option
-const fniSorted = trendingData.data?.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0)).slice(0, 12) || [];
-const hot = trendingData.data?.slice(0, 12) || [];
-const trending = trendingData.data?.filter(m => m.downloads > 0).sort((a,b) => b.downloads - a.downloads).slice(0, 12) || [];
-const newest = trendingData.data?.filter(m => m.last_updated).sort((a,b) => new Date(b.last_updated) - new Date(a.last_updated)).slice(0, 12) || [];
-const benchmarks = benchmarksData.data?.slice(0, 12) || [];
+// B.14 P2: Import dimension-based sorting utilities
+import { sortByDimension, sortByDownloads, sortByNewest } from '../utils/ranking-utils';
+
+// B.14: Add FNI sorting with dimension support
+const fniSorted = sortByDimension(trendingData.data || [], dimension).slice(0, 12);
+const hot = (trendingData.data || []).slice(0, 12);
+const trending = sortByDownloads((trendingData.data || []).filter(m => m.downloads > 0)).slice(0, 12);
+const newest = sortByNewest((trendingData.data || []).filter(m => m.last_updated)).slice(0, 12);
+const benchmarks = (benchmarksData.data || []).slice(0, 12);
 
 const generatedAt = trendingData.generated_at || new Date().toISOString();
 
@@ -171,30 +178,21 @@ const jsonLd = {
             <EntityTabs activeType={entityType} basePath="/ranking" />
         </div>
 
-        <!-- V4.9.1: Category Quick Links (Step 3 Traffic Amplifiers) -->
-        <div class="flex flex-wrap justify-center gap-2 mb-10">
-            <a href="/ranking/text-generation" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">
-                Text Generation
-            </a>
-            <a href="/ranking/code" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">
-                Code
-            </a>
-            <a href="/ranking/embedding" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">
-                Embedding
-            </a>
-            <a href="/ranking/image" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">
-                Image
-            </a>
-            <a href="/ranking/vision" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">
-                Vision
-            </a>
-            <a href="/ranking/audio" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">
-                Audio
-            </a>
+        <!-- V4.9.1: Category Quick Links -->
+        <div class="flex flex-wrap justify-center gap-2 mb-6">
+            <a href="/ranking/text-generation" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">Text Generation</a>
+            <a href="/ranking/code" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">Code</a>
+            <a href="/ranking/embedding" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">Embedding</a>
+            <a href="/ranking/image" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">Image</a>
+            <a href="/ranking/vision" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">Vision</a>
+            <a href="/ranking/audio" class="px-4 py-2 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-gray-700 transition-colors">Audio</a>
         </div>
 
         <!-- B.14: Ranking Sort Tabs (FNI default) -->
-        <RankingTabs activeTab={sortBy} className="mb-8" />
+        <RankingTabs activeTab={sortBy} className="mb-4" />
+        
+        <!-- B.14 P2: FNI Dimension Filter -->
+        <FNIDimensionFilter activeDimension={dimension} className="mb-8" />
 
         {mainRankings.map(ranking => (
             <section class="mb-16" id={ranking.id}>
