@@ -1,0 +1,169 @@
+---
+/**
+ * FNIDimensionFilter.astro
+ * 
+ * B.14 P2: FNI 维度筛选器
+ * Sort by: [FNI 综合 ▾] → P: Popularity | V: Velocity | C: Credibility | U: Utility
+ * 
+ * Allows users to sort ranking by individual FNI dimensions
+ */
+
+interface Props {
+  activeDimension?: string;
+  className?: string;
+}
+
+const { activeDimension = 'fni', className = '' } = Astro.props;
+
+const dimensions = [
+  { id: 'fni', label: 'FNI 综合', icon: '⚖️', color: 'indigo' },
+  { id: 'p', label: 'Popularity', icon: '🔥', color: 'blue', description: '社区热度' },
+  { id: 'v', label: 'Velocity', icon: '🚀', color: 'emerald', description: '增长速度' },
+  { id: 'c', label: 'Credibility', icon: '✅', color: 'amber', description: '可信度' },
+  { id: 'u', label: 'Utility', icon: '⚡', color: 'violet', description: '实用性' }
+];
+---
+
+<div class={`fni-dimension-filter ${className}`} data-active={activeDimension}>
+  <div class="filter-label">Sort by:</div>
+  <div class="filter-buttons">
+    {dimensions.map(dim => (
+      <button
+        class={`dimension-btn ${dim.id === activeDimension ? 'active' : ''}`}
+        data-dimension={dim.id}
+        data-color={dim.color}
+        title={dim.description || dim.label}
+      >
+        <span class="dim-icon">{dim.icon}</span>
+        <span class="dim-label">{dim.id === 'fni' ? dim.label : dim.id.toUpperCase()}</span>
+      </button>
+    ))}
+  </div>
+</div>
+
+<style>
+  .fni-dimension-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+  }
+
+  .filter-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgb(var(--gray-500));
+  }
+
+  .filter-buttons {
+    display: flex;
+    gap: 0.25rem;
+    background: rgb(var(--gray-100));
+    padding: 0.25rem;
+    border-radius: 0.5rem;
+  }
+
+  .dark .filter-buttons {
+    background: rgb(var(--gray-800));
+  }
+
+  .dimension-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border: none;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: rgb(var(--gray-600));
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .dark .dimension-btn {
+    color: rgb(var(--gray-400));
+  }
+
+  .dimension-btn:hover {
+    background: rgb(var(--gray-200));
+  }
+
+  .dark .dimension-btn:hover {
+    background: rgb(var(--gray-700));
+  }
+
+  .dimension-btn.active {
+    background: white;
+    color: rgb(var(--gray-900));
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+  }
+
+  .dark .dimension-btn.active {
+    background: rgb(var(--gray-700));
+    color: white;
+  }
+
+  /* Color accents for active state */
+  .dimension-btn.active[data-color="blue"] { border-left: 3px solid #3b82f6; }
+  .dimension-btn.active[data-color="emerald"] { border-left: 3px solid #10b981; }
+  .dimension-btn.active[data-color="amber"] { border-left: 3px solid #f59e0b; }
+  .dimension-btn.active[data-color="violet"] { border-left: 3px solid #8b5cf6; }
+  .dimension-btn.active[data-color="indigo"] { border-left: 3px solid #6366f1; }
+
+  .dim-icon {
+    font-size: 0.875rem;
+  }
+
+  .dim-label {
+    display: none;
+  }
+
+  @media (min-width: 640px) {
+    .dim-label {
+      display: inline;
+    }
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const container = document.querySelector('.fni-dimension-filter');
+    if (!container) return;
+
+    const buttons = container.querySelectorAll('.dimension-btn');
+    
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const dimension = (btn as HTMLElement).dataset.dimension;
+        if (!dimension) return;
+
+        // Update active state
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Update URL with dimension parameter
+        const url = new URL(window.location.href);
+        url.searchParams.set('dim', dimension);
+        window.history.pushState({}, '', url);
+
+        // Dispatch custom event for ranking page to handle
+        window.dispatchEvent(new CustomEvent('fni:dimension-change', {
+          detail: { dimension }
+        }));
+      });
+    });
+
+    // Initialize from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const dim = urlParams.get('dim');
+    if (dim) {
+      const activeBtn = container.querySelector(`[data-dimension="${dim}"]`);
+      if (activeBtn) {
+        buttons.forEach(b => b.classList.remove('active'));
+        activeBtn.classList.add('active');
+      }
+    }
+  });
+</script>
