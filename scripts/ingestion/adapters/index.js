@@ -22,6 +22,7 @@ import { HuggingFacePapersAdapter } from './huggingface-papers-adapter.js';
 import { MCPAdapter } from './mcp-adapter.js';  // V6.2: MCP Registry
 import { ReplicateAdapter } from './replicate-adapter.js';  // B.1: Replicate
 import { KaggleAdapter } from './kaggle-adapter.js';  // B.1: Kaggle
+import { LangChainAdapter } from './langchain-adapter.js';  // B.1: LangChain Hub
 
 // Export base for extension
 export { BaseAdapter, NSFW_KEYWORDS, LICENSE_MAP } from './base-adapter.js';
@@ -42,6 +43,7 @@ export { HuggingFacePapersAdapter } from './huggingface-papers-adapter.js';
 export { MCPAdapter } from './mcp-adapter.js';  // V6.2: MCP Registry
 export { ReplicateAdapter } from './replicate-adapter.js';  // B.1: Replicate
 export { KaggleAdapter } from './kaggle-adapter.js';  // B.1: Kaggle
+export { LangChainAdapter } from './langchain-adapter.js';  // B.1: LangChain Hub
 
 // Registered adapters (V4.3.2 - Multi-source with Benchmarks + Specs + Citations)
 export const adapters = {
@@ -81,6 +83,9 @@ export const adapters = {
 
     // B.1: Kaggle (200K+ datasets/models)
     'kaggle': new KaggleAdapter(),
+
+    // B.1: LangChain Hub (2K+ prompts/agents)
+    'langchain': new LangChainAdapter(),
 };
 
 /**
