@@ -42,18 +42,23 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - run: npm ci
       
-      - name: Download entities from R2
+      - name: Download entities from R2 (V7.1)
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          echo "📥 Downloading entities from R2..."
-          # Using wrangler to download from R2 (same auth as V4.2 upload)
-          npx wrangler r2 object get ai-nexus-assets/raw-data/merged.json --file data/entities.json --remote
+          echo "📥 Downloading entities from R2 (V7.1 path)..."
+          mkdir -p data
           
-          if [ -f "data/entities.json" ]; then
+          # Download gzipped file from V7.1 path
+          npx wrangler r2 object get ai-nexus-assets/ingest/current/entities.json.gz \
+            --file data/entities.json.gz --remote
+          
+          if [ -f "data/entities.json.gz" ]; then
+            # Decompress
+            gunzip -c data/entities.json.gz > data/entities.json
             COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/entities.json')).length)")
-            echo "✅ Downloaded: $COUNT entities"
+            echo "✅ Downloaded and decompressed: $COUNT entities"
           else
             echo "❌ Failed to download entities"
             exit 1
