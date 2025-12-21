@@ -6,6 +6,7 @@ import { runFNIStep } from './steps/fni';
 import { logExecution } from './steps/monitor';
 import { runPrecomputeStep } from './steps/precompute';
 import { consumeHydrationQueue } from './consumers/hydration';
+import { consumeIngestionQueue } from './consumers/ingestion';  // V7.1
 
 // CES V5.1.2: Modular Step Architecture (Orchestrator Only)
 
@@ -131,6 +132,12 @@ export default {
             }
         }
 
-        await consumeHydrationQueue(batch, env);
+        // V7.1: Route to appropriate consumer based on queue
+        const queueName = batch.queue;
+        if (queueName === 'ai-nexus-ingestion-queue') {
+            await consumeIngestionQueue(batch, env);
+        } else {
+            await consumeHydrationQueue(batch, env);
+        }
     }
 };

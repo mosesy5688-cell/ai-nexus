@@ -32,16 +32,29 @@ bucket_name = "ai-nexus-assets"
 binding = "KV"
 id = "24a9a70c8676477c98bf4a02f3b75b05"
 
-# Queue Binding (Producer)
+# Queue Binding (Producer - Hydration)
 [[queues.producers]]
 queue = "ai-nexus-hydration-queue"
 binding = "HYDRATION_QUEUE"
 
-# Queue Binding (Consumer)
+# Queue Binding (Consumer - Hydration)
 [[queues.consumers]]
 queue = "ai-nexus-hydration-queue"
 max_batch_size = 100
 max_batch_timeout = 5
+
+# V7.1: Ingestion Queue (Producer)
+[[queues.producers]]
+queue = "ai-nexus-ingestion-queue"
+binding = "INGESTION_QUEUE"
+
+# V7.1: Ingestion Queue (Consumer)
+[[queues.consumers]]
+queue = "ai-nexus-ingestion-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "ai-nexus-dlq"
 
 # Observability: Enable Workers Logs for debugging
 [observability]
