@@ -6,6 +6,8 @@ import NeuralExplorer from '../NeuralExplorer.astro';
 import ModelNotices from './ModelNotices.astro';
 import ModelResources from './ModelResources.astro';
 import EntityLinksSection from '../EntityLinksSection.astro';
+import TechnicalSpecs from './TechnicalSpecs.astro';
+import FullReadmeSection from './FullReadmeSection.astro';
 
 interface Props {
   model: any;
@@ -16,6 +18,9 @@ interface Props {
 }
 
 const { model, hasFNI, hasBenchmarkCap, modelName, modelId } = Astro.props;
+
+// Extract meta_json fields
+const metaJson = model.meta_json || {};
 ---
 
 <div class="lg:col-span-2 space-y-8">
@@ -30,6 +35,7 @@ const { model, hasFNI, hasBenchmarkCap, modelName, modelId } = Astro.props;
       fniU={model.fni_u || 0}
       fniCommentary={model.fni_commentary || null}
       modelName={modelName}
+      modelId={modelId}
     />
   )}
   
@@ -47,14 +53,26 @@ const { model, hasFNI, hasBenchmarkCap, modelName, modelId } = Astro.props;
     hidden_size: model.hidden_size
   }} />
   
-  {model.description && (
-    <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
-      <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">About</h2>
-      <div class="prose dark:prose-invert max-w-none">
-        <p class="whitespace-pre-wrap">{(model.description || '').substring(0, 2000).replace(/---[\s\S]*?---/g, '')}</p>
-      </div>
-    </section>
-  )}
+  <!-- B.6: Technical Specifications from meta_json -->
+  <TechnicalSpecs 
+    pipelineTag={model.pipeline_tag || metaJson.pipeline_tag}
+    libraryName={metaJson.library_name}
+    params={model.params_billions || metaJson.params}
+    storageBytes={metaJson.storage_bytes}
+    filesCount={metaJson.files_count}
+    gated={metaJson.gated}
+    config={metaJson.config}
+    architecture={model.architecture}
+    contextLength={model.context_length}
+    quantization={metaJson.quantization}
+  />
+  
+  <!-- B.6: Full README/Model Card Section -->
+  <FullReadmeSection 
+    bodyContent={model.body_content || model.description}
+    initialCollapsed={true}
+    maxPreviewLength={3000}
+  />
   
   <!-- Missing Data & Limitations -->
   <ModelNotices 

@@ -1,0 +1,192 @@
+---
+/**
+ * TechnicalSpecs.astro
+ * 
+ * B.6: 技术参数展示组件
+ * 展示 meta_json 中的技术参数
+ * 
+ * @component
+ */
+
+interface Props {
+  pipelineTag?: string;
+  libraryName?: string;
+  params?: number | string;
+  storageBytes?: number;
+  filesCount?: number;
+  gated?: boolean | string;
+  config?: Record<string, any>;
+  architecture?: string;
+  contextLength?: number;
+  quantization?: string;
+}
+
+const { 
+  pipelineTag, 
+  libraryName, 
+  params, 
+  storageBytes, 
+  filesCount, 
+  gated,
+  config,
+  architecture,
+  contextLength,
+  quantization
+} = Astro.props;
+
+// Format file size
+function formatBytes(bytes: number | undefined): string {
+  if (!bytes) return '--';
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)} MB`;
+  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
+
+// Format params count
+function formatParams(p: number | string | undefined): string {
+  if (!p) return '--';
+  const num = typeof p === 'string' ? parseFloat(p) : p;
+  if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
+  if (num >= 1e6) return `${(num / 1e6).toFixed(0)}M`;
+  return String(num);
+}
+
+// Format context length
+function formatContext(ctx: number | undefined): string {
+  if (!ctx) return '--';
+  if (ctx >= 1e6) return `${(ctx / 1e6).toFixed(1)}M`;
+  if (ctx >= 1e3) return `${(ctx / 1e3).toFixed(0)}K`;
+  return String(ctx);
+}
+
+// Check if any data exists
+const hasData = pipelineTag || libraryName || params || storageBytes || 
+                filesCount || gated || architecture || contextLength || quantization;
+
+// Prepare config display (limit depth for UI)
+const configEntries = config ? Object.entries(config).slice(0, 10) : [];
+---
+
+{hasData && (
+  <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+    <h3 class="text-lg font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+      <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+      </svg>
+      Technical Specifications
+    </h3>
+    
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {pipelineTag && (
+        <div class="spec-item">
+          <span class="spec-label">Task</span>
+          <span class="spec-value">
+            <span class="badge badge-blue">{pipelineTag}</span>
+          </span>
+        </div>
+      )}
+      
+      {libraryName && (
+        <div class="spec-item">
+          <span class="spec-label">Library</span>
+          <span class="spec-value">{libraryName}</span>
+        </div>
+      )}
+      
+      {params && (
+        <div class="spec-item">
+          <span class="spec-label">Parameters</span>
+          <span class="spec-value font-mono text-lg">{formatParams(params)}</span>
+        </div>
+      )}
+      
+      {architecture && (
+        <div class="spec-item">
+          <span class="spec-label">Architecture</span>
+          <span class="spec-value">{architecture}</span>
+        </div>
+      )}
+      
+      {contextLength && (
+        <div class="spec-item">
+          <span class="spec-label">Context Length</span>
+          <span class="spec-value font-mono">{formatContext(contextLength)} tokens</span>
+        </div>
+      )}
+      
+      {storageBytes && (
+        <div class="spec-item">
+          <span class="spec-label">Model Size</span>
+          <span class="spec-value font-mono">{formatBytes(storageBytes)}</span>
+        </div>
+      )}
+      
+      {filesCount && (
+        <div class="spec-item">
+          <span class="spec-label">Files</span>
+          <span class="spec-value">{filesCount}</span>
+        </div>
+      )}
+      
+      {quantization && (
+        <div class="spec-item">
+          <span class="spec-label">Quantization</span>
+          <span class="spec-value">
+            <span class="badge badge-green">{quantization}</span>
+          </span>
+        </div>
+      )}
+      
+      {gated && (
+        <div class="spec-item">
+          <span class="spec-label">Access</span>
+          <span class="spec-value">
+            <span class="badge badge-yellow">⚠️ Gated</span>
+          </span>
+        </div>
+      )}
+    </div>
+    
+    {configEntries.length > 0 && (
+      <details class="mt-4">
+        <summary class="cursor-pointer text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400">
+          View Config ({configEntries.length} entries)
+        </summary>
+        <pre class="mt-2 bg-gray-100 dark:bg-gray-900 rounded-lg p-3 text-xs overflow-x-auto max-h-48">
+{JSON.stringify(config, null, 2)}
+        </pre>
+      </details>
+    )}
+  </section>
+)}
+
+<style>
+  .spec-item {
+    @apply flex flex-col;
+  }
+  
+  .spec-label {
+    @apply text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide;
+  }
+  
+  .spec-value {
+    @apply text-gray-900 dark:text-white font-medium;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
+  }
+  
+  .badge-blue {
+    @apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200;
+  }
+  
+  .badge-green {
+    @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
+  }
+  
+  .badge-yellow {
+    @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200;
+  }
+</style>

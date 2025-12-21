@@ -11,6 +11,9 @@ import Layout from '../layouts/Layout.astro';
 import ModelCard from '../components/ModelCard.astro';
 import EntityTabs from '../components/entity/EntityTabs.astro';
 import DataFreshness from '../components/common/DataFreshness.astro';
+import RankingTabs from '../components/ranking/RankingTabs.astro';
+import FloatingCompareBar from '../components/ranking/FloatingCompareBar.astro';
+import AddToCompareButton from '../components/ranking/AddToCompareButton.astro';
 
 // V4.9: Get entity type from URL params
 const url = new URL(Astro.request.url);
@@ -54,6 +57,9 @@ const entityLabels: Record<string, string> = {
 };
 const entityLabel = entityLabels[entityType] || 'Models';
 
+// B.14: Get sort parameter (FNI is default)
+const sortBy = url.searchParams.get('sort') || 'fni';
+
 // V4.3.2 Constitution: Load from L8 Precompute cache (D1 reads = 0)
 let trendingData = { data: [], generated_at: null };
 let benchmarksData = { data: [], generated_at: null };
@@ -77,38 +83,52 @@ try {
     console.error('[Rankings] Cache fetch error:', e);
 }
 
-// Process data for different ranking categories
+// B.14: Add FNI sorting as primary option
+const fniSorted = trendingData.data?.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0)).slice(0, 12) || [];
 const hot = trendingData.data?.slice(0, 12) || [];
 const trending = trendingData.data?.filter(m => m.downloads > 0).sort((a,b) => b.downloads - a.downloads).slice(0, 12) || [];
 const newest = trendingData.data?.filter(m => m.last_updated).sort((a,b) => new Date(b.last_updated) - new Date(a.last_updated)).slice(0, 12) || [];
-const rising = benchmarksData.data?.slice(0, 12) || [];
+const benchmarks = benchmarksData.data?.slice(0, 12) || [];
 
 const generatedAt = trendingData.generated_at || new Date().toISOString();
 
+// B.14: FNI as primary ranking section
 const mainRankings = [
     { 
+        id: 'fni',
+        title: "⚖️ FNI Top Models", 
+        description: "Ranked by Free2AI Nexus Index - our comprehensive scoring system.",
+        explanation: "FNI combines Popularity, Velocity, Credibility, and Utility metrics.",
+        models: fniSorted,
+        showFNI: true
+    },
+    { 
+        id: 'hot',
         title: "🔥 Hot Models", 
         description: "Models with the highest community engagement this week.",
         explanation: "Based on likes, comments, and shares across platforms.",
         models: hot 
     },
     { 
+        id: 'trending',
         title: "🚀 Trending", 
         description: "Fastest growing models by download count.",
         explanation: "These models are seeing rapid adoption right now.",
         models: trending 
     },
     { 
+        id: 'newest',
         title: "✨ Newest", 
         description: "Recently updated models worth checking out.",
         explanation: "Fresh updates often mean bug fixes and new features.",
         models: newest 
     },
     { 
-        title: "🌟 Rising Stars", 
+        id: 'benchmark',
+        title: "🏆 Benchmark Leaders", 
         description: "Top performers on standardized benchmarks.",
         explanation: "Objectively measured performance on industry tests.",
-        models: rising, 
+        models: benchmarks, 
         isBenchmark: true 
     }
 ];
@@ -173,8 +193,11 @@ const jsonLd = {
             </a>
         </div>
 
+        <!-- B.14: Ranking Sort Tabs (FNI default) -->
+        <RankingTabs activeTab={sortBy} className="mb-8" />
+
         {mainRankings.map(ranking => (
-            <section class="mb-16">
+            <section class="mb-16" id={ranking.id}>
                 <h2 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">{ranking.title}</h2>
                 <p class="text-gray-600 dark:text-gray-300 mb-2">{ranking.description}</p>
                 <p class="text-sm text-gray-500 dark:text-gray-400 italic mb-6">{ranking.explanation}</p>
@@ -187,7 +210,20 @@ const jsonLd = {
                                     <div class="text-sm text-gray-300">Avg: {model.avg_score?.toFixed(1)}</div>
                                 </a>
                             ) : (
-                                <ModelCard model={model} />
+                                <div class="relative group">
+                                    <ModelCard model={model} />
+                                    <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <AddToCompareButton 
+                                            modelId={model.umid || model.id} 
+                                            modelName={model.name} 
+                                        />
+                                    </div>
+                                    {ranking.showFNI && model.fni_score && (
+                                        <div class="absolute bottom-2 left-2 bg-indigo-600/90 text-white text-xs px-2 py-1 rounded-full font-medium">
+                                            FNI: {model.fni_score.toFixed(0)}
+                                        </div>
+                                    )}
+                                </div>
                             )
                         ))}
                     </div>
@@ -204,4 +240,7 @@ const jsonLd = {
             </p>
         </div>
     </div>
+    
+    <!-- B.14: Floating Compare Bar -->
+    <FloatingCompareBar />
 </Layout>
