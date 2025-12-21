@@ -1,0 +1,246 @@
+# L5 Heavy Compute Workflow
+# B.11 L5 Sidecar Heavy Computation Migration
+#
+# Runs heavy computations in GitHub Actions (free tier):
+# - FNI calculation for 500K+ entities
+# - Rankings generation
+# - Relation graph building (weekly)
+#
+# Constitution V6.x: Sidecar handles heavy compute, Commander stays lightweight
+
+name: L5 Heavy Compute
+
+on:
+  schedule:
+    # Daily at 02:00 UTC (10:00 Beijing)
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      compute_type:
+        description: 'Computation type'
+        required: true
+        default: 'fni-rankings'
+        type: choice
+        options:
+          - fni-rankings
+          - relations
+          - full
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  download-entities:
+    name: Download Entities from R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci
+      
+      - name: Download entities from R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+        run: |
+          echo "📥 Downloading entities from R2..."
+          # Using wrangler to download from R2
+          npx wrangler r2 object get ai-nexus-assets/raw-data/merged.json --file data/entities.json
+          
+          if [ -f "data/entities.json" ]; then
+            COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/entities.json')).length)")
+            echo "✅ Downloaded: $COUNT entities"
+          else
+            echo "❌ Failed to download entities"
+            exit 1
+          fi
+          
+      - name: Upload Entities Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: entities
+          path: data/entities.json
+          retention-days: 1
+
+  compute-fni:
+    name: Compute FNI Scores
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: download-entities
+    if: github.event.inputs.compute_type != 'relations'
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci
+      
+      - name: Download Entities
+        uses: actions/download-artifact@v4
+        with:
+          name: entities
+          path: data
+          
+      - name: Compute FNI Scores
+        run: |
+          echo "📊 Computing FNI for all entities..."
+          node scripts/l5/fni-compute.js data/entities.json data/computed
+          
+          echo "📦 FNI Results:"
+          ls -la data/computed/
+          
+      - name: Upload FNI Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: fni-results
+          path: data/computed/
+          retention-days: 1
+
+  compute-rankings:
+    name: Generate Rankings
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: compute-fni
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci
+      
+      - name: Download FNI Results
+        uses: actions/download-artifact@v4
+        with:
+          name: fni-results
+          path: data/computed
+          
+      - name: Generate Rankings
+        run: |
+          echo "📊 Generating rankings..."
+          node scripts/l5/rankings-compute.js data/computed data/cache
+          
+          echo "📦 Rankings Results:"
+          ls -la data/cache/
+          ls -la data/cache/rankings/ || true
+          
+      - name: Upload Rankings
+        uses: actions/upload-artifact@v4
+        with:
+          name: rankings
+          path: data/cache/
+          retention-days: 1
+
+  upload-to-r2:
+    name: Upload Results to R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: compute-rankings
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci
+      
+      - name: Download All Results
+        uses: actions/download-artifact@v4
+        with:
+          name: fni-results
+          path: data/computed
+          
+      - name: Download Rankings
+        uses: actions/download-artifact@v4
+        with:
+          name: rankings
+          path: data/cache
+          
+      - name: Upload to R2
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "📤 Uploading results to R2..."
+          
+          # Upload FNI results
+          for file in data/computed/*.json; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "   Uploading: computed/$filename"
+              npx wrangler r2 object put ai-nexus-assets/computed/$filename --file "$file"
+            fi
+          done
+          
+          # Upload trending.json
+          if [ -f "data/cache/trending.json" ]; then
+            echo "   Uploading: cache/trending.json"
+            npx wrangler r2 object put ai-nexus-assets/cache/trending.json --file data/cache/trending.json
+          fi
+          
+          # Upload category_stats.json
+          if [ -f "data/cache/category_stats.json" ]; then
+            echo "   Uploading: cache/category_stats.json"
+            npx wrangler r2 object put ai-nexus-assets/cache/category_stats.json --file data/cache/category_stats.json
+          fi
+          
+          # Upload rankings pages
+          if [ -d "data/cache/rankings" ]; then
+            find data/cache/rankings -name "*.json" | while read file; do
+              relpath=${file#data/cache/}
+              echo "   Uploading: cache/$relpath"
+              npx wrangler r2 object put "ai-nexus-assets/cache/$relpath" --file "$file"
+            done
+          fi
+          
+          echo "✅ Upload complete!"
+          
+      - name: Summary
+        run: |
+          echo "## L5 Heavy Compute Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### FNI Results" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat data/computed/fni_summary.json 2>/dev/null || echo "No summary"
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Category Stats" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat data/cache/category_stats.json 2>/dev/null || echo "No stats"
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  compute-relations:
+    name: Build Relation Graph (Weekly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    needs: download-entities
+    # Only run on Sundays or manual trigger with 'relations' or 'full'
+    if: github.event.schedule == '0 2 * * 0' || github.event.inputs.compute_type == 'relations' || github.event.inputs.compute_type == 'full'
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci
+      
+      - name: Download Entities
+        uses: actions/download-artifact@v4
+        with:
+          name: entities
+          path: data
+          
+      - name: Build Relations (Placeholder)
+        run: |
+          echo "🔗 Building relation graph..."
+          echo "TODO: Implement relations-compute.js"
+          # node scripts/l5/relations-compute.js data/entities.json data/relations.json
+          
+      # - name: Upload Relations to R2
+      #   ...
