@@ -120,12 +120,13 @@ jobs:
           node-version: 20
       - run: npm ci
       
-      - name: Harvest ModelScope
-        env:
-          MODELSCOPE_API_TOKEN: ${{ secrets.MODELSCOPE_API_TOKEN }}
-        run: |
-          echo "📥 [Parallel] Harvesting ModelScope..."
-          node scripts/ingestion/harvest-single.js modelscope --limit 2000 || echo "ModelScope adapter skipped"
+      # ABANDONED 2025-12-21: ModelScope has closed API architecture, no public model list endpoint
+      # - name: Harvest ModelScope
+      #   env:
+      #     MODELSCOPE_API_TOKEN: ${{ secrets.MODELSCOPE_API_TOKEN }}
+      #   run: |
+      #     echo "📥 [Parallel] Harvesting ModelScope..."
+      #     node scripts/ingestion/harvest-single.js modelscope --limit 2000 || echo "ModelScope adapter skipped"
           
       - name: Harvest Ollama Registry
         run: |
