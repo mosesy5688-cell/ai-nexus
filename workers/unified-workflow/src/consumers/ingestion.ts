@@ -71,9 +71,30 @@ export async function consumeIngestionQueue(batch: any, env: Env): Promise<void>
 
 /**
  * Process manifest and queue batch messages
+ * With ETag-based deduplication to prevent reprocessing
  */
 async function processManifest(env: Env, manifest: ManifestMessage): Promise<void> {
     console.log(`[V7.1] Processing manifest: ${manifest.manifestPath}`);
+
+    // ===== V7.1 ETag Deduplication =====
+    // Check manifest ETag against checkpoint
+    const manifestHead = await env.R2_ASSETS.head(manifest.manifestPath);
+    if (!manifestHead) {
+        console.error(`[V7.1] Manifest not found: ${manifest.manifestPath}`);
+        return;
+    }
+
+    const currentETag = manifestHead.etag;
+    const checkpointKey = 'V71_MANIFEST_ETAG';
+    const lastProcessedETag = await env.KV?.get(checkpointKey);
+
+    if (lastProcessedETag === currentETag) {
+        console.log(`[V7.1] Manifest unchanged (ETag: ${currentETag.slice(0, 8)}...), skipping`);
+        return;
+    }
+
+    console.log(`[V7.1] New manifest detected (ETag: ${currentETag.slice(0, 8)}...)`);
+    // ===== End ETag Check =====
 
     const manifestObj = await env.R2_ASSETS.get(manifest.manifestPath);
     if (!manifestObj) {
@@ -85,6 +106,7 @@ async function processManifest(env: Env, manifest: ManifestMessage): Promise<voi
         version: string;
         batches: string[];
         status: string;
+        timestamp?: string;
     };
 
     if (manifestData.status !== 'ready') {
@@ -104,6 +126,16 @@ async function processManifest(env: Env, manifest: ManifestMessage): Promise<voi
 
     await env.INGESTION_QUEUE.sendBatch(batchMessages);
     console.log(`[V7.1] Queued ${batchMessages.length} batch messages`);
+
+    // ===== Update Checkpoint =====
+    await env.KV?.put(checkpointKey, currentETag, {
+        metadata: {
+            processedAt: new Date().toISOString(),
+            batchCount: manifestData.batches.length,
+            timestamp: manifestData.timestamp
+        }
+    });
+    console.log(`[V7.1] Checkpoint updated: ${currentETag.slice(0, 8)}...`);
 }
 
 /**
