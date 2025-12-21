@@ -141,11 +141,46 @@ jobs:
           path: data/cache/
           retention-days: 1
 
+  compute-search-index:
+    name: Generate Search Index
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: download-entities
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci
+      
+      - name: Download Entities
+        uses: actions/download-artifact@v4
+        with:
+          name: entities
+          path: data
+          
+      - name: Generate Search Index
+        run: |
+          echo "🔍 Generating search index..."
+          mkdir -p public/data
+          node scripts/l5/search-index.js
+          
+          echo "📦 Search Index Results:"
+          ls -la public/data/
+          
+      - name: Upload Search Index
+        uses: actions/upload-artifact@v4
+        with:
+          name: search-index
+          path: public/data/search-index.json.gz
+          retention-days: 1
+
   upload-to-r2:
     name: Upload Results to R2
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: compute-rankings
+    needs: [compute-rankings, compute-search-index]
     
     steps:
       - uses: actions/checkout@v4
@@ -165,6 +200,12 @@ jobs:
         with:
           name: rankings
           path: data/cache
+          
+      - name: Download Search Index
+        uses: actions/download-artifact@v4
+        with:
+          name: search-index
+          path: public/data
           
       - name: Upload to R2
         env:
@@ -201,6 +242,12 @@ jobs:
               echo "   Uploading: cache/$relpath"
               npx wrangler r2 object put "ai-nexus-assets/cache/$relpath" --file "$file"
             done
+          fi
+          
+          # Upload search index
+          if [ -f "public/data/search-index.json.gz" ]; then
+            echo "   Uploading: public/data/search-index.json.gz"
+            npx wrangler r2 object put ai-nexus-assets/public/data/search-index.json.gz --file public/data/search-index.json.gz
           fi
           
           echo "✅ Upload complete!"
