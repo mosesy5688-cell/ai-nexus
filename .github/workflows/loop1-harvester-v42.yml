@@ -109,7 +109,7 @@ jobs:
           retention-days: 1
 
   harvest-ecosystem:
-    name: Harvest Ecosystem (Ollama, MCP, Replicate, Kaggle)
+    name: Harvest Ecosystem (Ollama, MCP, Replicate, Kaggle, LangChain, CivitAI, SemanticScholar)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     
@@ -152,6 +152,21 @@ jobs:
         run: |
           echo "📥 [Parallel] Harvesting Kaggle..."
           node scripts/ingestion/harvest-single.js kaggle --limit 10000 || echo "Kaggle adapter skipped"
+
+      - name: Harvest LangChain Hub
+        run: |
+          echo "📥 [Parallel] Harvesting LangChain Hub (Agents + Prompts)..."
+          node scripts/ingestion/harvest-single.js langchain --limit 2000 || echo "LangChain adapter skipped"
+
+      - name: Harvest CivitAI
+        run: |
+          echo "📥 [Parallel] Harvesting CivitAI (Image/Video Models)..."
+          node scripts/ingestion/harvest-single.js civitai --limit 5000 || echo "CivitAI adapter skipped"
+
+      - name: Harvest Semantic Scholar
+        run: |
+          echo "📥 [Parallel] Harvesting Semantic Scholar (Papers/Citations)..."
+          node scripts/ingestion/harvest-single.js semanticscholar --limit 3000 || echo "Semantic Scholar adapter skipped"
 
       - name: Upload Batch Artifacts
         uses: actions/upload-artifact@v4
