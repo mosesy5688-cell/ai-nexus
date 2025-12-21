@@ -5,8 +5,7 @@
  * B.14 P1: 浮动对比栏
  * 页面底部固定显示已选模型，用于快速对比
  * 
- * 使用 localStorage 存储 compare_models
- * 最多支持 5 个模型
+ * CES Compliance: Script logic extracted to compare-cart.ts
  */
 
 interface Props {
@@ -24,9 +23,7 @@ const { className = '' } = Astro.props;
       <span class="compare-count">(<span id="compare-count">0</span>/5)</span>
     </div>
     
-    <div class="compare-models" id="compare-models-list">
-      <!-- Dynamically populated by JS -->
-    </div>
+    <div class="compare-models" id="compare-models-list"></div>
     
     <div class="compare-actions">
       <button id="clear-compare" class="btn-clear" title="Clear all">
@@ -34,9 +31,7 @@ const { className = '' } = Astro.props;
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
-      <a id="start-compare" href="/compare" class="btn-compare-start">
-        Compare Now →
-      </a>
+      <a id="start-compare" href="/compare" class="btn-compare-start">Compare Now →</a>
     </div>
   </div>
 </div>
@@ -75,14 +70,8 @@ const { className = '' } = Astro.props;
     flex-shrink: 0;
   }
   
-  .compare-icon {
-    font-size: 1.25rem;
-  }
-  
-  .compare-count {
-    color: #a5b4fc;
-    font-size: 0.875rem;
-  }
+  .compare-icon { font-size: 1.25rem; }
+  .compare-count { color: #a5b4fc; font-size: 0.875rem; }
   
   .compare-models {
     display: flex;
@@ -92,21 +81,11 @@ const { className = '' } = Astro.props;
     padding: 0.25rem 0;
   }
   
-  .compare-models::-webkit-scrollbar {
-    height: 4px;
-  }
+  .compare-models::-webkit-scrollbar { height: 4px; }
+  .compare-models::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
+  .compare-models::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.5); border-radius: 2px; }
   
-  .compare-models::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
-  }
-  
-  .compare-models::-webkit-scrollbar-thumb {
-    background: rgba(99, 102, 241, 0.5);
-    border-radius: 2px;
-  }
-  
-  .model-chip {
+  :global(.model-chip) {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -120,11 +99,9 @@ const { className = '' } = Astro.props;
     flex-shrink: 0;
   }
   
-  .model-chip:hover {
-    background: rgba(255, 255, 255, 0.15);
-  }
+  :global(.model-chip:hover) { background: rgba(255, 255, 255, 0.15); }
   
-  .model-chip .remove-btn {
+  :global(.model-chip .remove-btn) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -139,9 +116,7 @@ const { className = '' } = Astro.props;
     transition: background 0.2s;
   }
   
-  .model-chip .remove-btn:hover {
-    background: #ef4444;
-  }
+  :global(.model-chip .remove-btn:hover) { background: #ef4444; }
   
   .compare-actions {
     display: flex;
@@ -164,9 +139,7 @@ const { className = '' } = Astro.props;
     transition: background 0.2s;
   }
   
-  .btn-clear:hover {
-    background: rgba(239, 68, 68, 0.2);
-  }
+  .btn-clear:hover { background: rgba(239, 68, 68, 0.2); }
   
   .btn-compare-start {
     display: inline-flex;
@@ -186,119 +159,12 @@ const { className = '' } = Astro.props;
   }
   
   @media (max-width: 768px) {
-    .compare-bar-inner {
-      flex-wrap: wrap;
-      padding: 0.5rem 1rem;
-    }
-    
-    .compare-models {
-      order: 3;
-      width: 100%;
-      margin-top: 0.5rem;
-    }
-    
-    .compare-info {
-      flex: 1;
-    }
+    .compare-bar-inner { flex-wrap: wrap; padding: 0.5rem 1rem; }
+    .compare-models { order: 3; width: 100%; margin-top: 0.5rem; }
+    .compare-info { flex: 1; }
   }
 </style>
 
 <script>
-  const CART_KEY = 'compareModels';
-  const MAX_MODELS = 5;
-  
-  function getCart(): Array<{id: string, name: string}> {
-    try {
-      return JSON.parse(localStorage.getItem(CART_KEY) || '[]');
-    } catch {
-      return [];
-    }
-  }
-  
-  function saveCart(cart: Array<{id: string, name: string}>) {
-    localStorage.setItem(CART_KEY, JSON.stringify(cart));
-    updateUI();
-  }
-  
-  function removeFromCart(modelId: string) {
-    const cart = getCart().filter(m => m.id !== modelId);
-    saveCart(cart);
-  }
-  
-  function clearCart() {
-    localStorage.removeItem(CART_KEY);
-    updateUI();
-  }
-  
-  function updateUI() {
-    const cart = getCart();
-    const bar = document.getElementById('floating-compare-bar');
-    const countEl = document.getElementById('compare-count');
-    const listEl = document.getElementById('compare-models-list');
-    const startBtn = document.getElementById('start-compare') as HTMLAnchorElement;
-    
-    if (!bar || !countEl || !listEl || !startBtn) return;
-    
-    // Show/hide bar
-    bar.dataset.hidden = cart.length === 0 ? 'true' : 'false';
-    
-    // Update count
-    countEl.textContent = cart.length.toString();
-    
-    // Update models list
-    listEl.innerHTML = cart.map(m => `
-      <div class="model-chip" data-id="${m.id}">
-        <span>${m.name}</span>
-        <span class="remove-btn" data-model-id="${m.id}">×</span>
-      </div>
-    `).join('');
-    
-    // Update compare link
-    const ids = cart.map(m => encodeURIComponent(m.id)).join(',');
-    startBtn.href = `/compare?models=${ids}`;
-    
-    // Attach remove handlers
-    listEl.querySelectorAll('.remove-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const modelId = (btn as HTMLElement).dataset.modelId;
-        if (modelId) removeFromCart(modelId);
-      });
-    });
-  }
-  
-  // Initialize
-  document.addEventListener('DOMContentLoaded', () => {
-    updateUI();
-    
-    // Clear button
-    document.getElementById('clear-compare')?.addEventListener('click', clearCart);
-    
-    // Listen for storage changes (cross-tab sync)
-    window.addEventListener('storage', (e) => {
-      if (e.key === CART_KEY) updateUI();
-    });
-    
-    // Listen for custom add events
-    window.addEventListener('compare:add', updateUI);
-  });
-  
-  // Expose for external use
-  (window as any).compareCart = {
-    add: (id: string, name: string) => {
-      const cart = getCart();
-      if (cart.length >= MAX_MODELS) {
-        alert(`Maximum ${MAX_MODELS} models for comparison`);
-        return false;
-      }
-      if (!cart.find(m => m.id === id)) {
-        cart.push({ id, name });
-        saveCart(cart);
-        window.dispatchEvent(new CustomEvent('compare:add'));
-      }
-      return true;
-    },
-    remove: removeFromCart,
-    clear: clearCart,
-    get: getCart
-  };
+  import '../../scripts/compare-cart.ts';
 </script>
