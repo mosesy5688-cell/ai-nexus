@@ -6,6 +6,7 @@ export interface Env {
     R2_ASSETS: R2Bucket;
     UNIFIED_WORKFLOW: Workflow;
     HYDRATION_QUEUE: Queue;
+    INGESTION_QUEUE: Queue;  // V7.1: Batch ingestion queue
     KV?: KVNamespace; // Art 2.3 Kill-Switch support
 }
 
