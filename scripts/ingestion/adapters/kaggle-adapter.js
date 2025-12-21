@@ -1,0 +1,270 @@
+/**
+ * Kaggle Adapter
+ * 
+ * B.1 New Data Source Integration
+ * Fetches datasets and models from Kaggle API
+ * 
+ * API: GET https://www.kaggle.com/api/v1/datasets/list
+ *      GET https://www.kaggle.com/api/v1/models/list
+ * Expected: +200K datasets/models
+ * 
+ * Auth: Requires KAGGLE_USERNAME + KAGGLE_KEY
+ * 
+ * @module ingestion/adapters/kaggle-adapter
+ */
+
+import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+
+const KAGGLE_API_BASE = 'https://www.kaggle.com/api/v1';
+
+/**
+ * Kaggle Adapter Implementation
+ */
+export class KaggleAdapter extends BaseAdapter {
+    constructor() {
+        super('kaggle');
+        this.entityTypes = ['dataset', 'model'];
+        this.username = process.env.KAGGLE_USERNAME;
+        this.apiKey = process.env.KAGGLE_KEY;
+    }
+
+    /**
+     * Get auth headers (Basic Auth)
+     */
+    getHeaders() {
+        const headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'Free2AITools/1.0'
+        };
+
+        if (this.username && this.apiKey) {
+            const auth = Buffer.from(`${this.username}:${this.apiKey}`).toString('base64');
+            headers['Authorization'] = `Basic ${auth}`;
+        }
+
+        return headers;
+    }
+
+    /**
+     * Fetch datasets and models from Kaggle
+     * @param {Object} options
+     * @param {number} options.limit - Number of entities to fetch (default: 10000)
+     */
+    async fetch(options = {}) {
+        const { limit = 10000 } = options;
+
+        if (!this.username || !this.apiKey) {
+            console.warn('⚠️ [Kaggle] No credentials (KAGGLE_USERNAME + KAGGLE_KEY), skipping');
+            return [];
+        }
+
+        console.log(`📥 [Kaggle] Fetching up to ${limit} entities...`);
+
+        const datasetLimit = Math.ceil(limit * 0.7);  // 70% datasets
+        const modelLimit = Math.floor(limit * 0.3);   // 30% models
+
+        const [datasets, models] = await Promise.all([
+            this.fetchDatasets(datasetLimit),
+            this.fetchModels(modelLimit)
+        ]);
+
+        const all = [...datasets, ...models];
+        console.log(`✅ [Kaggle] Total: ${all.length} entities`);
+        return all;
+    }
+
+    /**
+     * Fetch datasets from Kaggle
+     */
+    async fetchDatasets(limit) {
+        console.log(`   📦 Fetching datasets (limit: ${limit})...`);
+        const allDatasets = [];
+        let page = 1;
+
+        while (allDatasets.length < limit) {
+            const url = `${KAGGLE_API_BASE}/datasets/list?sortBy=hottest&page=${page}&pageSize=20`;
+
+            try {
+                const response = await fetch(url, { headers: this.getHeaders() });
+
+                if (!response.ok) {
+                    if (response.status === 429) {
+                        console.warn('   ⚠️ Rate limited, waiting 60s...');
+                        await this.delay(60000);
+                        continue;
+                    }
+                    if (response.status === 401) {
+                        console.error('   ❌ Auth failed - check KAGGLE_USERNAME/KAGGLE_KEY');
+                        break;
+                    }
+                    throw new Error(`Kaggle API error: ${response.status}`);
+                }
+
+                const datasets = await response.json();
+
+                if (!datasets || datasets.length === 0) {
+                    console.log('   No more datasets');
+                    break;
+                }
+
+                // Filter safe datasets
+                const safe = datasets.filter(d => this.isSafeForWork(d));
+                allDatasets.push(...safe);
+
+                console.log(`   Page ${page}: ${safe.length}/${datasets.length} datasets (total: ${allDatasets.length})`);
+
+                page++;
+                await this.delay(2000); // Rate limiting
+
+            } catch (error) {
+                console.error(`   ❌ Error: ${error.message}`);
+                break;
+            }
+        }
+
+        return allDatasets.slice(0, limit).map(d => this.normalizeDataset(d));
+    }
+
+    /**
+     * Fetch models from Kaggle
+     */
+    async fetchModels(limit) {
+        console.log(`   🤖 Fetching models (limit: ${limit})...`);
+        const allModels = [];
+        let page = 1;
+
+        while (allModels.length < limit) {
+            const url = `${KAGGLE_API_BASE}/models/list?sortBy=hotness&page=${page}&pageSize=20`;
+
+            try {
+                const response = await fetch(url, { headers: this.getHeaders() });
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        console.log('   Models endpoint not available, skipping');
+                        break;
+                    }
+                    if (response.status === 429) {
+                        console.warn('   ⚠️ Rate limited, waiting 60s...');
+                        await this.delay(60000);
+                        continue;
+                    }
+                    throw new Error(`Kaggle Models API error: ${response.status}`);
+                }
+
+                const models = await response.json();
+
+                if (!models || models.length === 0) break;
+
+                const safe = models.filter(m => this.isSafeForWork(m));
+                allModels.push(...safe);
+
+                console.log(`   Page ${page}: ${safe.length} models (total: ${allModels.length})`);
+
+                page++;
+                await this.delay(2000);
+
+            } catch (error) {
+                console.error(`   ❌ Models error: ${error.message}`);
+                break;
+            }
+        }
+
+        return allModels.slice(0, limit).map(m => this.normalizeModel(m));
+    }
+
+    /**
+     * Check NSFW content
+     */
+    isSafeForWork(item) {
+        const text = `${item.title || ''} ${item.subtitle || ''} ${item.description || ''}`.toLowerCase();
+        return !NSFW_KEYWORDS.some(kw => text.includes(kw));
+    }
+
+    /**
+     * Normalize Kaggle dataset to UnifiedEntity
+     */
+    normalizeDataset(dataset) {
+        const ref = dataset.ref || `${dataset.ownerRef}/${dataset.slug}`;
+
+        return {
+            id: `kaggle:dataset:${ref}`,
+            source: 'kaggle',
+            entity_type: 'dataset',
+            name: dataset.title || dataset.slug,
+            author: dataset.ownerRef || dataset.ownerName,
+            description: dataset.subtitle || '',
+            source_url: `https://www.kaggle.com/datasets/${ref}`,
+
+            // Metrics
+            downloads: dataset.downloadCount || 0,
+            likes: dataset.voteCount || 0,
+
+            // Metadata
+            tags: dataset.tags || [],
+            license: dataset.licenseName,
+            primary_category: 'dataset',
+
+            // Timestamps
+            created_at: dataset.createdDate,
+            last_modified: dataset.lastUpdated,
+
+            // Full metadata
+            meta_json: {
+                size: dataset.totalBytes,
+                usability: dataset.usabilityRating,
+                views: dataset.viewCount,
+                kernels: dataset.kernelCount,
+                topics: dataset.topicCount
+            }
+        };
+    }
+
+    /**
+     * Normalize Kaggle model to UnifiedEntity
+     */
+    normalizeModel(model) {
+        const ref = model.ref || `${model.owner}/${model.slug}`;
+
+        return {
+            id: `kaggle:model:${ref}`,
+            source: 'kaggle',
+            entity_type: 'model',
+            name: model.title || model.slug,
+            author: model.owner,
+            description: model.subtitle || '',
+            source_url: `https://www.kaggle.com/models/${ref}`,
+
+            downloads: model.downloadCount || 0,
+            likes: model.voteCount || 0,
+
+            tags: model.tags || [],
+            license: model.licenseName,
+            primary_category: this.inferCategory(model),
+
+            created_at: model.createdDate,
+            last_modified: model.lastUpdated,
+
+            meta_json: {
+                framework: model.framework,
+                instances: model.instanceCount,
+                variations: model.variationCount
+            }
+        };
+    }
+
+    /**
+     * Infer category from model
+     */
+    inferCategory(model) {
+        const text = `${model.title || ''} ${model.subtitle || ''}`.toLowerCase();
+
+        if (text.includes('llm') || text.includes('language')) return 'text-generation';
+        if (text.includes('image') || text.includes('vision')) return 'image-classification';
+        if (text.includes('audio') || text.includes('speech')) return 'audio';
+
+        return 'other';
+    }
+}
+
+export default KaggleAdapter;
