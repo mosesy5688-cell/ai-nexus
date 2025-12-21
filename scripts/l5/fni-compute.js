@@ -131,8 +131,15 @@ function calculateFNI(entity) {
  */
 export async function computeAllFNI(inputFile, outputDir) {
     console.log(`📊 Loading entities from ${inputFile}...`);
-    const entities = JSON.parse(fs.readFileSync(inputFile, 'utf8'));
-    console.log(`📦 Loaded ${entities.length} entities`);
+    const allEntities = JSON.parse(fs.readFileSync(inputFile, 'utf8'));
+    console.log(`📦 Loaded ${allEntities.length} total entities`);
+
+    // FNI only applies to models and agents (not papers, datasets)
+    const FNI_ENTITY_TYPES = ['model', 'agent'];
+    const entities = allEntities.filter(e =>
+        FNI_ENTITY_TYPES.includes(e.entity_type) || !e.entity_type
+    );
+    console.log(`🎯 Filtering for FNI: ${entities.length} models/agents (excluded ${allEntities.length - entities.length} papers/datasets)`);
 
     // Ensure output directory exists
     if (!fs.existsSync(outputDir)) {
