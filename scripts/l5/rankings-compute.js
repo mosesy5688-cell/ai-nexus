@@ -110,17 +110,19 @@ export async function computeAllRankings(computedDir, outputDir) {
         generateCategoryRankings(entities, `_type_${type}`, rankingsDir);
     }
 
-    // Generate overall trending (top 1000 by FNI)
-    console.log('\n📁 Trending:');
-    const trending = fniResults
+    // Generate overall trending (top 1000 by FNI - models/agents only)
+    console.log('\n📁 Trending (Models/Agents only):');
+    const FNI_ENTITY_TYPES = ['model', 'agent'];
+    const trendingModels = fniResults
+        .filter(e => FNI_ENTITY_TYPES.includes(e.entity_type) || !e.entity_type)
         .sort((a, b) => b.fni_score - a.fni_score)
         .slice(0, 1000);
 
     fs.writeFileSync(
         path.join(outputDir, 'trending.json'),
-        JSON.stringify(trending, null, 2)
+        JSON.stringify(trendingModels, null, 2)
     );
-    console.log(`   ✅ trending.json: ${trending.length} entities`);
+    console.log(`   ✅ trending.json: ${trendingModels.length} models/agents`);
 
     // Generate category stats
     const stats = {
