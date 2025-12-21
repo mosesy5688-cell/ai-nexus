@@ -1,6 +1,7 @@
 ---
 // src/components/model-detail/ModelSidebar.astro
 // V6.2: Pass all available specs fields for complete data display
+// B.6: Added meta_json display for complete information
 import SpecsTable from '../specs/SpecsTable.astro';
 import ModelInfoTable from '../ModelInfoTable.astro';
 import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
@@ -18,6 +19,27 @@ const hasSpecsData = model.params_billions || model.context_length ||
                      model.architecture || model.architecture_family ||
                      model.has_gguf || model.has_ollama || model.deploy_score ||
                      model.vocab_size || model.hidden_size || model.num_layers;
+
+// B.6: Extract meta_json fields
+const metaJson = typeof model.meta_json === 'string' 
+  ? parseJSONField(model.meta_json) || {}
+  : (model.meta_json || {});
+
+const libraryName = metaJson.library_name;
+const storageBytes = metaJson.storage_bytes;
+const filesCount = metaJson.files_count;
+const isGated = metaJson.gated;
+const quantization = metaJson.quantization;
+const hasMetaInfo = libraryName || storageBytes || filesCount || isGated || quantization;
+
+// Format bytes
+function formatBytes(bytes: number | undefined): string {
+  if (!bytes) return '--';
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)} MB`;
+  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
 ---
 
 <aside class="space-y-6">
@@ -34,6 +56,55 @@ const hasSpecsData = model.params_billions || model.context_length ||
     />
   )}
   
+  <!-- B.6: Quick Meta Info from meta_json -->
+  {hasMetaInfo && (
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
+      <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+        Quick Info
+      </h3>
+      <dl class="space-y-2 text-sm">
+        {libraryName && (
+          <div class="flex justify-between">
+            <dt class="text-gray-500 dark:text-gray-400">Library</dt>
+            <dd class="text-gray-900 dark:text-white font-medium">{libraryName}</dd>
+          </div>
+        )}
+        {storageBytes && (
+          <div class="flex justify-between">
+            <dt class="text-gray-500 dark:text-gray-400">Size</dt>
+            <dd class="text-gray-900 dark:text-white font-mono">{formatBytes(storageBytes)}</dd>
+          </div>
+        )}
+        {filesCount && (
+          <div class="flex justify-between">
+            <dt class="text-gray-500 dark:text-gray-400">Files</dt>
+            <dd class="text-gray-900 dark:text-white">{filesCount}</dd>
+          </div>
+        )}
+        {quantization && (
+          <div class="flex justify-between">
+            <dt class="text-gray-500 dark:text-gray-400">Quant</dt>
+            <dd>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                {quantization}
+              </span>
+            </dd>
+          </div>
+        )}
+        {isGated && (
+          <div class="flex justify-between">
+            <dt class="text-gray-500 dark:text-gray-400">Access</dt>
+            <dd>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                ⚠️ Gated
+              </span>
+            </dd>
+          </div>
+        )}
+      </dl>
+    </div>
+  )}
+  
   <ModelInfoTable model={{
     ...model,
     id: model.id || '',
@@ -45,3 +116,4 @@ const hasSpecsData = model.params_billions || model.context_length ||
   
    <NeuralGraphExplorer currentModelId={modelId} />
 </aside>
+
