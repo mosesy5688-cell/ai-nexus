@@ -1,0 +1,136 @@
+---
+/**
+ * MarkdownRenderer.astro
+ * 
+ * B.6: 完整 README 展示组件
+ * 支持 Markdown + 图片 + 代码高亮
+ * 
+ * @component
+ */
+
+interface Props {
+  content: string;
+  maxLength?: number;
+  className?: string;
+}
+
+const { content, maxLength, className = '' } = Astro.props;
+
+// Clean and prepare content
+let processedContent = content || '';
+
+// Remove YAML frontmatter if present
+processedContent = processedContent.replace(/^---[\s\S]*?---\n?/g, '');
+
+// Apply max length if specified
+if (maxLength && processedContent.length > maxLength) {
+  processedContent = processedContent.substring(0, maxLength) + '...';
+}
+
+// Convert basic markdown to HTML (server-side)
+// Note: For full markdown parsing, consider marked or remark
+function simpleMarkdownToHtml(md: string): string {
+  let html = md;
+  
+  // Headers
+  html = html.replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold mt-6 mb-3 text-gray-900 dark:text-white">$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-8 mb-4 text-gray-900 dark:text-white">$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mt-8 mb-4 text-gray-900 dark:text-white">$1</h1>');
+  
+  // Bold and italic
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  
+  // Code blocks (triple backticks)
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    const langClass = lang ? `language-${lang}` : '';
+    return `<pre class="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 overflow-x-auto my-4"><code class="${langClass}">${escapeHtml(code.trim())}</code></pre>`;
+  });
+  
+  // Inline code
+  html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm">$1</code>');
+  
+  // Links
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 hover:underline">$1</a>');
+  
+  // Images
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto rounded-lg my-4" loading="lazy" />');
+  
+  // Lists
+  html = html.replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>');
+  html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, '<ul class="list-disc list-inside space-y-1 my-4">$&</ul>');
+  
+  // Numbered lists
+  html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-4">$1</li>');
+  
+  // Blockquotes
+  html = html.replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-indigo-500 pl-4 italic text-gray-600 dark:text-gray-400 my-4">$1</blockquote>');
+  
+  // Horizontal rules
+  html = html.replace(/^---$/gm, '<hr class="border-gray-200 dark:border-gray-700 my-8" />');
+  
+  // Paragraphs (double newlines)
+  html = html.replace(/\n\n/g, '</p><p class="mb-4">');
+  
+  // Wrap in paragraph
+  if (!html.startsWith('<')) {
+    html = '<p class="mb-4">' + html + '</p>';
+  }
+  
+  return html;
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+const renderedHtml = simpleMarkdownToHtml(processedContent);
+---
+
+<div class={`markdown-content prose dark:prose-invert max-w-none ${className}`}>
+  <Fragment set:html={renderedHtml} />
+</div>
+
+<style>
+  .markdown-content :global(pre) {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  
+  .markdown-content :global(img) {
+    max-height: 500px;
+    object-fit: contain;
+  }
+  
+  .markdown-content :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+  }
+  
+  .markdown-content :global(th),
+  .markdown-content :global(td) {
+    border: 1px solid #e5e7eb;
+    padding: 0.5rem;
+    text-align: left;
+  }
+  
+  .markdown-content :global(th) {
+    background: #f3f4f6;
+    font-weight: 600;
+  }
+  
+  :global(.dark) .markdown-content :global(th) {
+    background: #374151;
+  }
+  
+  :global(.dark) .markdown-content :global(th),
+  :global(.dark) .markdown-content :global(td) {
+    border-color: #4b5563;
+  }
+</style>

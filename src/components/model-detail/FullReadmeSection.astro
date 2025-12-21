@@ -1,0 +1,117 @@
+---
+/**
+ * FullReadmeSection.astro
+ * 
+ * B.6: 完整 README 展示区域
+ * 显示 body_content 全文，可展开/折叠
+ * 
+ * @component
+ */
+import MarkdownRenderer from './MarkdownRenderer.astro';
+
+interface Props {
+  bodyContent: string | null | undefined;
+  initialCollapsed?: boolean;
+  maxPreviewLength?: number;
+}
+
+const { 
+  bodyContent, 
+  initialCollapsed = true,
+  maxPreviewLength = 3000 
+} = Astro.props;
+
+// Clean content
+const content = (bodyContent || '').replace(/^---[\s\S]*?---\n?/g, '');
+const hasLongContent = content.length > maxPreviewLength;
+const previewContent = hasLongContent ? content.substring(0, maxPreviewLength) : content;
+---
+
+{content && (
+  <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
+    <div class="p-6">
+      <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        Model Card
+      </h2>
+      
+      <div id="readme-preview" class="readme-content">
+        <MarkdownRenderer content={previewContent} />
+      </div>
+      
+      {hasLongContent && (
+        <div id="readme-full" class="readme-content hidden">
+          <MarkdownRenderer content={content} />
+        </div>
+      )}
+    </div>
+    
+    {hasLongContent && (
+      <div class="px-6 pb-4">
+        <button
+          id="toggle-readme"
+          class="w-full py-3 px-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 
+                 text-indigo-600 dark:text-indigo-400 rounded-lg font-medium
+                 hover:from-indigo-100 hover:to-purple-100 dark:hover:from-indigo-900/40 dark:hover:to-purple-900/40
+                 transition-all duration-200 flex items-center justify-center gap-2"
+          data-expanded="false"
+        >
+          <span class="toggle-text">Show Full Model Card</span>
+          <svg class="w-4 h-4 toggle-icon transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        
+        <p class="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
+          {content.length.toLocaleString()} characters total
+        </p>
+      </div>
+    )}
+  </section>
+)}
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const toggleBtn = document.getElementById('toggle-readme');
+    const preview = document.getElementById('readme-preview');
+    const full = document.getElementById('readme-full');
+    
+    if (toggleBtn && preview && full) {
+      toggleBtn.addEventListener('click', () => {
+        const isExpanded = toggleBtn.dataset.expanded === 'true';
+        
+        if (isExpanded) {
+          // Collapse
+          preview.classList.remove('hidden');
+          full.classList.add('hidden');
+          toggleBtn.dataset.expanded = 'false';
+          toggleBtn.querySelector('.toggle-text')!.textContent = 'Show Full Model Card';
+          toggleBtn.querySelector('.toggle-icon')!.classList.remove('rotate-180');
+        } else {
+          // Expand
+          preview.classList.add('hidden');
+          full.classList.remove('hidden');
+          toggleBtn.dataset.expanded = 'true';
+          toggleBtn.querySelector('.toggle-text')!.textContent = 'Show Less';
+          toggleBtn.querySelector('.toggle-icon')!.classList.add('rotate-180');
+        }
+      });
+    }
+  });
+</script>
+
+<style>
+  .readme-content {
+    @apply text-gray-700 dark:text-gray-300 leading-relaxed;
+  }
+  
+  .hidden {
+    display: none;
+  }
+  
+  .rotate-180 {
+    transform: rotate(180deg);
+  }
+</style>
