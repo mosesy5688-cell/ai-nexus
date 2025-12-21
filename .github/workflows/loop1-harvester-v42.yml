@@ -153,10 +153,11 @@ jobs:
           echo "📥 [Parallel] Harvesting Kaggle..."
           node scripts/ingestion/harvest-single.js kaggle --limit 10000 || echo "Kaggle adapter skipped"
 
-      - name: Harvest LangChain Hub
-        run: |
-          echo "📥 [Parallel] Harvesting LangChain Hub (Agents + Prompts)..."
-          node scripts/ingestion/harvest-single.js langchain --limit 2000 || echo "LangChain adapter skipped"
+      # ABANDONED 2025-12-21: LangChain Hub API migrated to LangSmith, no public list endpoint
+      # - name: Harvest LangChain Hub
+      #   run: |
+      #     echo "📥 [Parallel] Harvesting LangChain Hub (Agents + Prompts)..."
+      #     node scripts/ingestion/harvest-single.js langchain --limit 2000 || echo "LangChain adapter skipped"
 
       - name: Harvest CivitAI
         run: |

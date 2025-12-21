@@ -30,20 +30,21 @@ export class SemanticScholarAdapter extends BaseAdapter {
     }
 
     /**
-     * Fetch citation data for papers by arXiv IDs
+     * Fetch citation data for papers - now supports independent search
      * @param {Object} options
-     * @param {string[]} options.arxivIds - ArXiv paper IDs to lookup
+     * @param {string[]} options.arxivIds - ArXiv paper IDs to lookup (optional)
      * @param {number} options.limit - Maximum papers to process
      */
     async fetch(options = {}) {
-        const { arxivIds = [], limit = 50 } = options;
+        const { arxivIds = [], limit = 3000 } = options;
+
+        // If no arxivIds provided, search for AI papers independently
+        if (arxivIds.length === 0) {
+            console.log(`📥 [S2] No arXiv IDs provided, searching for AI/ML papers...`);
+            return await this.searchAIPapers(limit);
+        }
 
         console.log(`📥 [S2] Fetching citations for ${arxivIds.length} papers...`);
-
-        if (arxivIds.length === 0) {
-            console.log(`   ⚠️ No arXiv IDs provided, using sample AI papers...`);
-            return this.getSampleCitations();
-        }
 
         const citations = [];
 
@@ -66,6 +67,47 @@ export class SemanticScholarAdapter extends BaseAdapter {
         console.log(`   📊 Fetched ${citations.length}/${arxivIds.length} citation records`);
 
         return citations;
+    }
+
+    /**
+     * Search for AI/ML papers independently
+     * @param {number} limit - Max papers to fetch
+     */
+    async searchAIPapers(limit = 1000) {
+        const AI_TOPICS = [
+            'large language model',
+            'transformer neural network',
+            'diffusion model',
+            'machine learning',
+            'deep learning',
+            'GPT',
+            'BERT',
+            'LLaMA',
+            'vision transformer'
+        ];
+
+        const papers = [];
+        const papersPerTopic = Math.ceil(limit / AI_TOPICS.length);
+
+        for (const topic of AI_TOPICS) {
+            if (papers.length >= limit) break;
+
+            console.log(`   🔍 Searching: ${topic}...`);
+            const results = await this.searchPapers(topic, Math.min(papersPerTopic, 100));
+
+            // Deduplicate by paper_id
+            for (const paper of results) {
+                if (!papers.find(p => p.paper_id === paper.paper_id)) {
+                    papers.push(paper);
+                }
+            }
+
+            console.log(`   📦 Found ${results.length} papers (total: ${papers.length})`);
+            await this.delay(3500); // Rate limiting
+        }
+
+        console.log(`✅ [S2] Fetched ${papers.length} AI/ML papers`);
+        return papers.slice(0, limit);
     }
 
     /**
