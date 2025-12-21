@@ -220,6 +220,13 @@ jobs:
             fi
           done
           
+          # L5 Compatibility: Upload merged.json to stable path for heavy compute
+          if [ -f "data/merged.json" ]; then
+            echo "📦 Uploading merged.json for L5 Heavy Compute..."
+            npx wrangler r2 object put "ai-nexus-assets/raw-data/merged.json" --file="data/merged.json" --content-type="application/json" --remote
+            echo "✅ Uploaded: raw-data/merged.json"
+          fi
+          
           echo ""
           echo "🔄 Raw data uploaded to R2"
           echo "🔔 Unified Workflow will process within 5 minutes"
