@@ -1,0 +1,106 @@
+---
+export const prerender = false;
+
+/**
+ * Paper Detail Page V1.0
+ * Phase B P1: Paper-Model Relations
+ * Displays ArXiv paper info and related models
+ */
+
+import Layout from '../../layouts/Layout.astro';
+import PaperHeader from '../../components/paper-detail/PaperHeader.astro';
+
+const { arxivId } = Astro.params;
+
+// Validate ArXiv ID format (e.g., 2407.21783)
+const isValidArxivId = arxivId && /^\d{4}\.\d{4,5}$/.test(arxivId);
+
+let pageTitle = "AI Research Paper - Free AI Tools";
+let pageDescription = "Explore this AI research paper and related models.";
+
+if (isValidArxivId) {
+  pageTitle = `arXiv:${arxivId} - AI Research Paper`;
+  pageDescription = `View paper arXiv:${arxivId} and discover AI models that cite this research.`;
+}
+
+// ArXiv URLs
+const arxivAbsUrl = `https://arxiv.org/abs/${arxivId}`;
+const arxivPdfUrl = `https://arxiv.org/pdf/${arxivId}.pdf`;
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <main class="container mx-auto px-4 py-8 max-w-4xl">
+    {!isValidArxivId ? (
+      <div class="text-center py-16">
+        <h1 class="text-3xl font-bold text-red-500 mb-4">Invalid Paper ID</h1>
+        <p class="text-gray-600 dark:text-gray-400">
+          The ArXiv ID format should be like: 2407.21783
+        </p>
+        <a href="/" class="mt-4 inline-block text-indigo-500 hover:underline">
+          ← Back to Home
+        </a>
+      </div>
+    ) : (
+      <article>
+        <PaperHeader 
+          arxivId={arxivId}
+          arxivUrl={arxivAbsUrl}
+          pdfUrl={arxivPdfUrl}
+        />
+        
+        <section class="mt-8 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
+            📄 Paper Links
+          </h2>
+          <div class="flex flex-wrap gap-4">
+            <a 
+              href={arxivAbsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+              </svg>
+              View on ArXiv
+            </a>
+            <a 
+              href={arxivPdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Download PDF
+            </a>
+          </div>
+        </section>
+        
+        <section class="mt-8 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
+            🧠 Models Citing This Paper
+          </h2>
+          <p class="text-gray-600 dark:text-gray-400">
+            Models that reference arXiv:{arxivId} in their documentation will be displayed here.
+          </p>
+          <div class="mt-4">
+            <a 
+              href={`/explore?paper=${arxivId}`}
+              class="text-indigo-500 hover:underline"
+            >
+              Search for related models →
+            </a>
+          </div>
+        </section>
+        
+        <div class="mt-8 text-center">
+          <a href="/" class="text-indigo-500 hover:underline">
+            ← Back to Home
+          </a>
+        </div>
+      </article>
+    )}
+  </main>
+</Layout>
