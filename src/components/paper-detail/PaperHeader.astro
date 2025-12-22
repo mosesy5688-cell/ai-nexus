@@ -1,0 +1,88 @@
+---
+/**
+ * PaperHeader Component - Phase B P1
+ * Displays ArXiv paper header with ID and links
+ * 
+ * @component
+ */
+
+interface Props {
+  arxivId: string;
+  arxivUrl: string;
+  pdfUrl: string;
+  title?: string;
+  authors?: string[];
+  abstract?: string;
+}
+
+const { arxivId, arxivUrl, pdfUrl, title, authors, abstract } = Astro.props;
+---
+
+<header class="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-800/50 rounded-2xl p-8 shadow-sm border border-yellow-100 dark:border-gray-700">
+  <div class="flex items-start gap-4">
+    <span class="text-4xl">📄</span>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-3 flex-wrap mb-2">
+        <span class="inline-flex items-center px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-sm font-mono font-bold">
+          arXiv:{arxivId}
+        </span>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300">
+          Research Paper
+        </span>
+      </div>
+      
+      {title ? (
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-3">
+          {title}
+        </h1>
+      ) : (
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-3">
+          ArXiv Paper: {arxivId}
+        </h1>
+      )}
+      
+      {authors && authors.length > 0 && (
+        <p class="text-gray-600 dark:text-gray-400 mb-4">
+          <strong>Authors:</strong> {authors.join(', ')}
+        </p>
+      )}
+      
+      {abstract && (
+        <p class="text-gray-700 dark:text-gray-300 line-clamp-4 max-w-3xl">
+          {abstract}
+        </p>
+      )}
+      
+      {!title && !abstract && (
+        <p class="text-gray-600 dark:text-gray-400">
+          View this research paper on ArXiv for full details including title, authors, and abstract.
+        </p>
+      )}
+    </div>
+  </div>
+  
+  <div class="mt-6 flex items-center gap-4 flex-wrap">
+    <a 
+      href={arxivUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+      </svg>
+      ArXiv Abstract
+    </a>
+    <a 
+      href={pdfUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      PDF
+    </a>
+  </div>
+</header>
