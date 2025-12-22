@@ -43,7 +43,7 @@ export async function resolveEntityFromCache(slug, locals) {
         console.log('[EntityCache] Shim: Returning Hardcoded Test Model');
         return {
             entity: {
-                id: shimTarget,
+                id: 'huggingface:' + shimTarget, // CES Compliance: source:id
                 name: 'Test Model Llama 3',
                 author: 'Meta',
                 description: 'A test model description.',
@@ -67,9 +67,9 @@ export async function resolveEntityFromCache(slug, locals) {
             // Hardcoded Mock for Reliability (FS can be flaky in Test Runner)
             if (isShimTarget) {
                 // Return same mock as above (redundant safety)
-                return { /* ... same mock object ... */
+                return {
                     entity: {
-                        id: shimTarget,
+                        id: 'huggingface:' + shimTarget, // CES Compliance
                         name: 'Test Model Llama 3',
                         author: 'Meta',
                         description: 'A test model description.',
@@ -117,7 +117,13 @@ export async function resolveEntityFromCache(slug, locals) {
             const cached = await kvCache.get(kvKey, { type: 'json' });
             if (cached?.entity) {
                 console.log(`[EntityCache] KV HIT: ${normalizedSlug}`);
-                return { entity: cached.entity, source: 'kv-cache' };
+                // Normalization is handled at R2 level below, but KV might cache legacy.
+                // Re-apply CES check for KV:
+                const entity = cached.entity;
+                if (entity.source === 'huggingface' && !entity.id.startsWith('huggingface:')) {
+                    entity.id = `huggingface:${entity.id}`;
+                }
+                return { entity: entity, source: 'kv-cache' };
             }
         } catch (e) {
             console.warn('[EntityCache] KV read error:', e.message);
@@ -132,9 +138,19 @@ export async function resolveEntityFromCache(slug, locals) {
                 const cacheData = await cacheFile.json();
                 console.log(`[EntityCache] R2 HIT: ${cachePath}`);
 
+                let entity = cacheData.entity || cacheData;
+
+                // CES Compliance V6: Enforce source prefix in ID
+                // Legacy data (models.json) lacks the prefix in 'id'
+                if (entity.source === 'huggingface' && !entity.id.startsWith('huggingface:')) {
+                    entity.id = `huggingface:${entity.id}`;
+                } else if (entity.source === 'github' && !entity.id.startsWith('github:')) {
+                    entity.id = `github:${entity.id}`;
+                } // Add other sources as needed
+
                 // V4.9.1 Contract: Return entity with computed and seo data
                 return {
-                    entity: cacheData.entity || cacheData,
+                    entity: entity,
                     computed: cacheData.computed,
                     seo: cacheData.seo,
                     contract_version: cacheData.contract_version,
@@ -159,11 +175,21 @@ export async function resolveEntityFromCache(slug, locals) {
                 // Simple slug match
                 const found = data.find(m => {
                     const s = m.slug || (m.id ? m.id.replace('/', '--') : '');
-                    return normalizeForCache(s) === normalizedSlug;
+                    // Normalize both sides to allow match
+                    // If slug has prefix, matching against non-prefixed ID requires stripping
+                    // But here matching 'normalizedSlug'.
+                    return normalizeForCache(s) === normalizedSlug ||
+                        normalizeForCache('huggingface:' + s) === normalizedSlug;
                 });
 
                 if (found) {
                     console.log(`[EntityCache] Shim: HIT ${found.id}`);
+
+                    // CES Compliance
+                    if (found.source === 'huggingface' && !found.id.startsWith('huggingface:')) {
+                        found.id = `huggingface:${found.id}`;
+                    }
+
                     return {
                         entity: found,
                         source: 'local-fs-shim',
