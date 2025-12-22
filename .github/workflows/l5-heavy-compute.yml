@@ -312,3 +312,12 @@ jobs:
           npx wrangler r2 object put ai-nexus-assets/computed/relations.json --file data/relations.json --remote
           npx wrangler r2 object put ai-nexus-assets/computed/relations_summary.json --file data/relations_summary.json --remote
           echo "✅ Relations uploaded!"
+          
+      - name: Sync Relations to D1 (500K Scale)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "🔄 Syncing relations to D1 (Sidecar heavy compute)..."
+          node scripts/l5/relations-sync-d1.js data/relations.json
+          echo "✅ D1 sync complete!"
