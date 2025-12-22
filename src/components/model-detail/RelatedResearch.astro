@@ -1,0 +1,134 @@
+---
+/**
+ * RelatedResearch Component - B.7 Knowledge Linking UI
+ * Displays entity relations from D1:
+ * - Research Papers (paper_id relations)
+ * - Related Models (base_model/variant relations)
+ * 
+ * @component
+ */
+
+interface Props {
+  modelId: string;
+}
+
+const { modelId } = Astro.props;
+
+interface Relation {
+  source_id: string;
+  target_id: string;
+  relation_type: string;
+  confidence: number;
+}
+
+interface RelationsResponse {
+  entity_id: string;
+  relations: Relation[];
+  count: number;
+}
+
+let relations: Relation[] = [];
+let papers: string[] = [];
+let baseModels: string[] = [];
+let variants: string[] = [];
+
+try {
+  // Fetch relations from API
+  const apiUrl = import.meta.env.DEV 
+    ? `http://localhost:8787/api/relations/${encodeURIComponent(modelId)}`
+    : `https://free2aitools.com/api/relations/${encodeURIComponent(modelId)}`;
+  
+  const response = await fetch(apiUrl);
+  if (response.ok) {
+    const data: RelationsResponse = await response.json();
+    relations = data.relations || [];
+    
+    // Group by type
+    papers = relations
+      .filter(r => r.relation_type === 'paper_id')
+      .map(r => r.target_id.replace('arxiv:', ''));
+    
+    baseModels = relations
+      .filter(r => r.relation_type === 'base_model')
+      .map(r => r.target_id.replace('base:', ''));
+    
+    variants = relations
+      .filter(r => r.relation_type === 'variant' && r.source_id === modelId)
+      .map(r => r.target_id);
+  }
+} catch (e) {
+  console.error('Failed to fetch relations:', e);
+}
+
+const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length > 0;
+---
+
+{hasContent && (
+  <section class="related-research mt-8 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+    <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+      <span>🔗</span> Knowledge Links
+    </h2>
+    
+    {papers.length > 0 && (
+      <div class="mb-4">
+        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+          📄 Research Papers
+        </h3>
+        <div class="flex flex-wrap gap-2">
+          {papers.slice(0, 5).map(paperId => (
+            <a 
+              href={`https://arxiv.org/abs/${paperId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+            >
+              arXiv:{paperId}
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+              </svg>
+            </a>
+          ))}
+          {papers.length > 5 && (
+            <span class="text-gray-500 text-sm">+{papers.length - 5} more</span>
+          )}
+        </div>
+      </div>
+    )}
+    
+    {baseModels.length > 0 && (
+      <div class="mb-4">
+        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+          🔀 Based On
+        </h3>
+        <div class="flex flex-wrap gap-2">
+          {baseModels.map(baseName => (
+            <span class="inline-flex items-center px-3 py-1 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-sm">
+              {baseName}
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
+    
+    {variants.length > 0 && (
+      <div>
+        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+          🔀 Variants
+        </h3>
+        <div class="flex flex-wrap gap-2">
+          {variants.slice(0, 5).map(variantId => (
+            <a 
+              href={`/model/${variantId.replace('huggingface:', '').replace(/:/g, '/')}`}
+              class="inline-flex items-center px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
+            >
+              {variantId.split(':').pop()}
+            </a>
+          ))}
+          {variants.length > 5 && (
+            <span class="text-gray-500 text-sm">+{variants.length - 5} more</span>
+          )}
+        </div>
+      </div>
+    )}
+  </section>
+)}
