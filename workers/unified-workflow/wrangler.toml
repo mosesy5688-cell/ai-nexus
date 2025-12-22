@@ -80,3 +80,8 @@ zone_name = "free2aitools.com"
 [[routes]]
 pattern = "free2aitools.com/api/relations/*"
 zone_name = "free2aitools.com"
+
+# B.17: Search API route
+[[routes]]
+pattern = "free2aitools.com/api/search*"
+zone_name = "free2aitools.com"

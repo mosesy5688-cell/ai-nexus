@@ -7,6 +7,8 @@ import { logExecution } from './steps/monitor';
 import { runPrecomputeStep } from './steps/precompute';
 import { consumeHydrationQueue } from './consumers/hydration';
 import { consumeIngestionQueue } from './consumers/ingestion';  // V7.1
+import { handleSearch } from './routes/search';
+import { handleRelations } from './routes/relations';
 
 // CES V5.1.2: Modular Step Architecture (Orchestrator Only)
 
@@ -67,188 +69,59 @@ export class UnifiedWorkflow extends WorkflowEntrypoint<Env> {
 export default {
     async fetch(request: Request, env: Env): Promise<Response> {
         const url = new URL(request.url);
-        const path = url.pathname.slice(1); // remove leading slash
+        const path = url.pathname.slice(1);
 
-        // Route: Sitemaps (sitemaps/sitemap-index.xml, sitemaps/sitemap-models-1.xml)
-        // Served directly from 'sitemaps/' directory in R2
-        if (path.startsWith('sitemaps/')) {
-            const object = await env.R2_ASSETS.get(path);
-            if (!object) return new Response('Sitemap not found', { status: 404 });
-
-            const headers = new Headers();
-            object.writeHttpMetadata(headers);
-            headers.set('etag', object.httpEtag);
-            headers.set('Content-Type', 'application/xml');
-            // Longer cache for shards, shorter for index handled by revalidation? 
-            // Simplified: 1 hour cache, stale-while-revalidate 1 day
-            headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
-
-            return new Response(object.body, { headers });
-        }
-
-        // Route: API Cache (E.g. /api/cache/trending.json -> cache/trending.json)
-        if (path.startsWith('api/cache/')) {
-            const cacheKey = path.replace('api/', ''); // cache/trending.json
-            const object = await env.R2_ASSETS.get(cacheKey);
-            if (!object) return new Response('Cache not found', { status: 404 });
-
-            const headers = new Headers();
-            object.writeHttpMetadata(headers);
-            headers.set('etag', object.httpEtag);
-            headers.set('Content-Type', 'application/json');
-            // 5 min cache for trending
-            headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=300');
-            headers.set('Access-Control-Allow-Origin', '*');
-
-            return new Response(object.body, { headers });
-        }
-
-        // Route: API Search - Server-side FTS search (B.17)
-        if (path.startsWith('api/search')) {
-            const query = url.searchParams.get('q');
-            const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
-
-            if (!query) {
-                return new Response(JSON.stringify({ error: 'Query parameter "q" is required' }), { status: 400 });
-            }
-
-            try {
-                // Using FTS5 MATCH with JOIN for ranking by fni_score
-                const results = await env.DB.prepare(`
-                    SELECT 
-                        e.id, e.name, e.author, e.type, 
-                        e.primary_category, e.fni_score, e.likes, e.downloads
-                    FROM entities e
-                    JOIN entities_fts f ON e.id = f.id
-                    WHERE entities_fts MATCH ?
-                    ORDER BY e.fni_score DESC
-                    LIMIT ?
-                `).bind(query, limit).all();
-
-                return new Response(JSON.stringify({
-                    query,
-                    results: results.results || [],
-                    count: results.results?.length || 0,
-                    timestamp: new Date().toISOString()
-                }), {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'public, max-age=600', // 10 min cache
-                        'Access-Control-Allow-Origin': '*'
-                    }
-                });
-            } catch (e: any) {
-                return new Response(JSON.stringify({ error: e.message }), { status: 500 });
-            }
-        }
-
-        // Route: API Relations - Query entity relations from D1
-        if (path.startsWith('api/relations/')) {
-            const entityId = decodeURIComponent(path.replace('api/relations/', ''));
-
-            // GET /api/relations/:entityId - Query relations for an entity
-            if (entityId && entityId !== 'sync') {
-                try {
-                    const relations = await env.DB.prepare(
-                        `SELECT * FROM entity_relations 
-                         WHERE source_id = ? OR target_id = ?
-                         ORDER BY confidence DESC
-                         LIMIT 100`
-                    ).bind(entityId, entityId).all();
-
-                    return new Response(JSON.stringify({
-                        entity_id: entityId,
-                        relations: relations.results || [],
-                        count: relations.results?.length || 0
-                    }), {
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Cache-Control': 'public, max-age=3600',
-                            'Access-Control-Allow-Origin': '*'
-                        }
-                    });
-                } catch (e: any) {
-                    return new Response(JSON.stringify({ error: e.message }), { status: 500 });
-                }
-            }
-
-            // POST /api/relations/sync - Sync relations from R2 to D1
-            if (entityId === 'sync' && request.method === 'POST') {
-                try {
-                    const relationsFile = await env.R2_ASSETS.get('computed/relations.json');
-                    if (!relationsFile) {
-                        return new Response(JSON.stringify({ error: 'Relations file not found in R2' }), { status: 404 });
-                    }
-
-                    const relations = await relationsFile.json() as any[];
-                    let inserted = 0;
-                    const BATCH_SIZE = 100;
-
-                    // Batch UPSERT to D1
-                    for (let i = 0; i < relations.length; i += BATCH_SIZE) {
-                        const batch = relations.slice(i, i + BATCH_SIZE);
-                        const stmt = env.DB.prepare(
-                            `INSERT OR REPLACE INTO entity_relations 
-                             (source_id, target_id, relation_type, confidence, source_url)
-                             VALUES (?, ?, ?, ?, ?)`
-                        );
-
-                        const batchStmts = batch.map((r: any) =>
-                            stmt.bind(r.source_id, r.target_id, r.relation_type, r.confidence || 1.0, r.source_url || null)
-                        );
-
-                        await env.DB.batch(batchStmts);
-                        inserted += batch.length;
-                    }
-
-                    return new Response(JSON.stringify({
-                        status: 'success',
-                        synced: inserted,
-                        timestamp: new Date().toISOString()
-                    }), {
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                } catch (e: any) {
-                    return new Response(JSON.stringify({ error: e.message }), { status: 500 });
-                }
-            }
-        }
-
+        // Core Orchestrator Routes
         if (url.pathname === '/trigger') {
             await env.UNIFIED_WORKFLOW.create();
             return new Response('Triggered');
         }
-        return new Response('Unified Workflow V6.0 (Orchestrator)\nEndpoints: /trigger, /api/relations/, /sitemap*.xml');
+
+        // Modular Route Handlers
+        if (path.startsWith('api/search')) return await handleSearch(request, env);
+        if (path.startsWith('api/relations/')) return await handleRelations(request, env);
+
+        // Static Content Routes (R2 Proxy)
+        if (path.startsWith('sitemaps/') || path.startsWith('api/cache/')) {
+            return await handleStatic(path, env);
+        }
+
+        return new Response('Unified Workflow V6.0 (Orchestrator)\nEndpoints: /trigger, /api/search, /api/relations/, /sitemap*.xml');
     },
 
     async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
-        if (env.KV) {
-            const pause = await env.KV.get('SYSTEM_PAUSE');
-            if (pause === 'true') {
-                console.log('[System] SYSTEM_PAUSE active. Aborting scheduled run.');
-                return;
-            }
-        }
-
+        const pause = await env.KV?.get('SYSTEM_PAUSE');
+        if (pause === 'true') return;
         console.log('[Cron] Triggering workflow...');
         await env.UNIFIED_WORKFLOW.create();
     },
 
     async queue(batch: any, env: Env): Promise<void> {
-        if (env.KV) {
-            const pause = await env.KV.get('SYSTEM_PAUSE');
-            if (pause === 'true') {
-                console.log('[System] SYSTEM_PAUSE active. Aborting queue consumption.');
-                return;
-            }
-        }
+        const pause = await env.KV?.get('SYSTEM_PAUSE');
+        if (pause === 'true') return;
 
-        // V7.1: Route to appropriate consumer based on queue
         const queueName = batch.queue;
-        if (queueName === 'ai-nexus-ingestion-queue') {
-            await consumeIngestionQueue(batch, env);
-        } else {
-            await consumeHydrationQueue(batch, env);
-        }
+        if (queueName === 'ai-nexus-ingestion-queue') await consumeIngestionQueue(batch, env);
+        else await consumeHydrationQueue(batch, env);
     }
 };
+
+/**
+ * Handle static content and R2 cache proxies to reduce index line count
+ */
+async function handleStatic(path: string, env: Env): Promise<Response> {
+    const isSitemap = path.startsWith('sitemaps/');
+    const cacheKey = isSitemap ? path : path.replace('api/', '');
+    const object = await env.R2_ASSETS.get(cacheKey);
+
+    if (!object) return new Response('Content not found', { status: 404 });
+
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set('etag', object.httpEtag);
+    headers.set('Content-Type', isSitemap ? 'application/xml' : 'application/json');
+    headers.set('Cache-Control', isSitemap ? 'public, max-age=3600' : 'public, max-age=300');
+    headers.set('Access-Control-Allow-Origin', '*');
+
+    return new Response(object.body, { headers });
+}
