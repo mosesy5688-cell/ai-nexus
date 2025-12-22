@@ -295,11 +295,20 @@ jobs:
           name: entities
           path: data
           
-      - name: Build Relations (Placeholder)
+      - name: Build Relations
         run: |
           echo "🔗 Building relation graph..."
-          echo "TODO: Implement relations-compute.js"
-          # node scripts/l5/relations-compute.js data/entities.json data/relations.json
+          node scripts/l5/relations-compute.js data/entities.json data/relations.json
           
-      # - name: Upload Relations to R2
-      #   ...
+          echo "📦 Relations Results:"
+          cat data/relations_summary.json
+          
+      - name: Upload Relations to R2
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "📤 Uploading relations to R2..."
+          npx wrangler r2 object put ai-nexus-assets/computed/relations.json --file data/relations.json
+          npx wrangler r2 object put ai-nexus-assets/computed/relations_summary.json --file data/relations_summary.json
+          echo "✅ Relations uploaded!"
