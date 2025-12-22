@@ -1,0 +1,108 @@
+---
+/**
+ * DeploymentInfo Component - B.8 User Selection Helpers
+ * Shows VRAM estimation and deployment difficulty based on model parameters
+ * 
+ * VRAM Formula (approximate):
+ * - FP16: params * 2 bytes
+ * - INT8: params * 1 byte  
+ * - INT4: params * 0.5 bytes
+ * 
+ * @component
+ */
+
+interface Props {
+  paramsB?: number;        // Parameters in billions
+  hasGguf?: boolean;       // Has GGUF quantized version
+  hasAwq?: boolean;        // Has AWQ quantization
+  hasGptq?: boolean;       // Has GPTQ quantization
+  libraryName?: string;    // transformers, diffusers, etc.
+}
+
+const { paramsB = 0, hasGguf = false, hasAwq = false, hasGptq = false, libraryName = '' } = Astro.props;
+
+// Calculate VRAM requirements (in GB)
+function calculateVram(params: number, quantization: string): number {
+  if (params <= 0) return 0;
+  const bytesPerParam: Record<string, number> = {
+    'FP16': 2,
+    'INT8': 1,
+    'Q5_K_M': 0.75,
+    'Q4_K_M': 0.6,
+    'INT4': 0.5
+  };
+  return Math.round((params * (bytesPerParam[quantization] || 2) * 1.2) * 10) / 10; // 1.2x overhead
+}
+
+// Determine deployment difficulty
+function getDifficulty(params: number, hasQuant: boolean): { level: string; color: string; icon: string } {
+  if (params <= 0) return { level: 'Unknown', color: 'gray', icon: '❓' };
+  
+  if (hasQuant) {
+    if (params <= 3) return { level: 'Easy', color: 'green', icon: '✅' };
+    if (params <= 13) return { level: 'Medium', color: 'yellow', icon: '⚡' };
+    return { level: 'Advanced', color: 'orange', icon: '🔥' };
+  } else {
+    if (params <= 1) return { level: 'Easy', color: 'green', icon: '✅' };
+    if (params <= 7) return { level: 'Medium', color: 'yellow', icon: '⚡' };
+    if (params <= 13) return { level: 'Advanced', color: 'orange', icon: '🔥' };
+    return { level: 'Expert', color: 'red', icon: '💎' };
+  }
+}
+
+const hasQuant = hasGguf || hasAwq || hasGptq;
+const quantType = hasGguf ? 'Q4_K_M' : hasAwq ? 'INT4' : hasGptq ? 'INT4' : 'FP16';
+const difficulty = getDifficulty(paramsB, hasQuant);
+
+// VRAM estimates
+const vramFp16 = calculateVram(paramsB, 'FP16');
+const vramQuant = hasQuant ? calculateVram(paramsB, quantType) : 0;
+---
+
+{paramsB > 0 && (
+  <div class="deployment-info bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+    <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase mb-3 flex items-center gap-2">
+      <span>🚀</span> Deployment Info
+    </h3>
+    
+    <div class="grid grid-cols-2 gap-4">
+      <!-- Difficulty Badge -->
+      <div>
+        <span class="text-xs text-gray-500 dark:text-gray-400">Difficulty</span>
+        <div class={`mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold
+          ${difficulty.color === 'green' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : ''}
+          ${difficulty.color === 'yellow' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' : ''}
+          ${difficulty.color === 'orange' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' : ''}
+          ${difficulty.color === 'red' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : ''}
+          ${difficulty.color === 'gray' ? 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' : ''}
+        `}>
+          <span>{difficulty.icon}</span>
+          {difficulty.level}
+        </div>
+      </div>
+      
+      <!-- VRAM Estimate -->
+      <div>
+        <span class="text-xs text-gray-500 dark:text-gray-400">VRAM Required</span>
+        <div class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
+          {hasQuant ? `~${vramQuant} GB` : `~${vramFp16} GB`}
+          {hasQuant && (
+            <span class="text-xs font-normal text-gray-500 ml-1">({quantType})</span>
+          )}
+        </div>
+      </div>
+    </div>
+    
+    {/* Hardware recommendations */}
+    <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+      <span class="text-xs text-gray-500 dark:text-gray-400">Recommended Hardware</span>
+      <div class="mt-1 text-sm text-gray-700 dark:text-gray-300">
+        {difficulty.level === 'Easy' && '💻 Any modern laptop/desktop'}
+        {difficulty.level === 'Medium' && '🖥️ Gaming GPU (8-16GB VRAM) or M1/M2 Mac'}
+        {difficulty.level === 'Advanced' && '⚡ High-end GPU (24GB+) or cloud instance'}
+        {difficulty.level === 'Expert' && '☁️ Multi-GPU or cloud A100/H100'}
+        {difficulty.level === 'Unknown' && 'Check model requirements'}
+      </div>
+    </div>
+  </div>
+)}

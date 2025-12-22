@@ -2,9 +2,11 @@
 // src/components/model-detail/ModelSidebar.astro
 // V6.2: Pass all available specs fields for complete data display
 // B.6: Added meta_json display for complete information
+// B.8: Added DeploymentInfo for VRAM/difficulty
 import SpecsTable from '../specs/SpecsTable.astro';
 import ModelInfoTable from '../ModelInfoTable.astro';
 import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
+import DeploymentInfo from './DeploymentInfo.astro';
 import { parseJSONField } from '../../utils/data-service';
 
 interface Props {
@@ -55,6 +57,15 @@ function formatBytes(bytes: number | undefined): string {
       deploy_score={model.deploy_score || null}
     />
   )}
+  
+  {/* B.8: Deployment Info with VRAM estimation */}
+  <DeploymentInfo 
+    paramsB={model.params_billions || 0}
+    hasGguf={model.has_gguf || false}
+    hasAwq={metaJson.quantization?.toLowerCase().includes('awq')}
+    hasGptq={metaJson.quantization?.toLowerCase().includes('gptq')}
+    libraryName={libraryName}
+  />
   
   <!-- B.6: Quick Meta Info from meta_json -->
   {hasMetaInfo && (
