@@ -50,15 +50,23 @@ jobs:
           echo "📥 Downloading entities from R2 (V7.1 path)..."
           mkdir -p data
           
-          # Download gzipped file from V7.1 path
+          # Download file from V7.1 path
           npx wrangler r2 object get ai-nexus-assets/ingest/current/entities.json.gz \
             --file data/entities.json.gz --remote
           
           if [ -f "data/entities.json.gz" ]; then
-            # Decompress
-            gunzip -c data/entities.json.gz > data/entities.json
+            # Check if file is actually gzipped (magic bytes: 1f 8b)
+            # R2 may auto-decompress when content-encoding:gzip is set
+            if file data/entities.json.gz | grep -q "gzip compressed"; then
+              echo "📦 File is gzip compressed, decompressing..."
+              gunzip -c data/entities.json.gz > data/entities.json
+            else
+              echo "📄 File is already decompressed (R2 auto-decompress)"
+              mv data/entities.json.gz data/entities.json
+            fi
+            
             COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/entities.json')).length)")
-            echo "✅ Downloaded and decompressed: $COUNT entities"
+            echo "✅ Downloaded: $COUNT entities"
           else
             echo "❌ Failed to download entities"
             exit 1
