@@ -154,8 +154,20 @@ export class LangChainAdapter extends BaseAdapter {
             }),
 
             // FNI will be calculated later
-            fni_score: 0
+            fni_score: 0,
+
+            // System fields
+            content_hash: null,
+            compliance_status: null,
+            quality_score: null
         };
+
+        // Calculate system fields
+        entity.content_hash = this.generateContentHash(entity);
+        entity.compliance_status = this.getComplianceStatus(entity);
+        entity.quality_score = this.calculateQualityScore(entity);
+
+        return entity;
     }
 
     /**

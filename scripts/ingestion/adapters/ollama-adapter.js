@@ -133,6 +133,13 @@ export class OllamaAdapter extends BaseAdapter {
             compliance_status: null,
             quality_score: null
         };
+
+        // Calculate system fields after entity creation
+        entity.content_hash = this.generateContentHash(entity);
+        entity.compliance_status = this.getComplianceStatus(entity);
+        entity.quality_score = this.calculateQualityScore(entity);
+
+        return entity;
     }
 
     /**

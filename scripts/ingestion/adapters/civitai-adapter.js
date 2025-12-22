@@ -209,10 +209,17 @@ export class CivitAIAdapter extends BaseAdapter {
             last_updated: raw.updatedAt || raw.createdAt,
             created_at: raw.createdAt,
 
-            // NSFW compliance (V4.3.1)
+            // NSFW compliance (V4.3.1) - Use dynamic check instead of hardcoded
             nsfw_filtered: true,
-            compliance_status: 'approved'
+            compliance_status: null
         };
+
+        // Calculate system fields after entity creation
+        entity.content_hash = this.generateContentHash(entity);
+        entity.compliance_status = this.getComplianceStatus(entity);
+        entity.quality_score = this.calculateQualityScore(entity);
+
+        return entity;
     }
 
     /**
