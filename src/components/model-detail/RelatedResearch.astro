@@ -4,6 +4,7 @@
  * Displays entity relations from D1:
  * - Research Papers (paper_id relations)
  * - Related Models (base_model/variant relations)
+ * - Training Datasets (dataset_id relations)
  * 
  * @component
  */
@@ -31,6 +32,7 @@ let relations: Relation[] = [];
 let papers: string[] = [];
 let baseModels: string[] = [];
 let variants: string[] = [];
+let datasets: string[] = [];
 
 try {
   // Fetch relations from API
@@ -55,12 +57,16 @@ try {
     variants = relations
       .filter(r => r.relation_type === 'variant' && r.source_id === modelId)
       .map(r => r.target_id);
+    
+    datasets = relations
+      .filter(r => r.relation_type === 'dataset_id')
+      .map(r => r.target_id.replace('dataset:', ''));
   }
 } catch (e) {
   console.error('Failed to fetch relations:', e);
 }
 
-const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length > 0;
+const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length > 0 || datasets.length > 0;
 ---
 
 {hasContent && (
@@ -111,7 +117,7 @@ const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length
     )}
     
     {variants.length > 0 && (
-      <div>
+      <div class="mb-4">
         <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
           🔀 Variants
         </h3>
@@ -126,6 +132,36 @@ const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length
           ))}
           {variants.length > 5 && (
             <span class="text-gray-500 text-sm">+{variants.length - 5} more</span>
+          )}
+        </div>
+      </div>
+    )}
+    
+    {datasets.length > 0 && (
+      <div>
+        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+          📊 Training Data
+        </h3>
+        <div class="flex flex-wrap gap-2">
+          {datasets.slice(0, 5).map(datasetId => (
+            <a 
+              href={datasetId.includes('/') 
+                ? `https://huggingface.co/datasets/${datasetId}`
+                : `/datasets/${datasetId}`}
+              target={datasetId.includes('/') ? "_blank" : "_self"}
+              rel={datasetId.includes('/') ? "noopener noreferrer" : undefined}
+              class="inline-flex items-center gap-1 px-3 py-1 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-sm hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors"
+            >
+              {datasetId}
+              {datasetId.includes('/') && (
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                </svg>
+              )}
+            </a>
+          ))}
+          {datasets.length > 5 && (
+            <span class="text-gray-500 text-sm">+{datasets.length - 5} more</span>
           )}
         </div>
       </div>
