@@ -1,0 +1,167 @@
+---
+/**
+ * AdvancedFilters Component - B.9 Advanced Filters
+ * Provides filtering by params, quantization, license, and more
+ * 
+ * @component
+ */
+
+interface Props {
+  showParams?: boolean;
+  showQuant?: boolean;
+  showLicense?: boolean;
+}
+
+const { showParams = true, showQuant = true, showLicense = true } = Astro.props;
+
+// Parameter size ranges
+const paramRanges = [
+  { id: 'tiny', label: '<1B', min: 0, max: 1 },
+  { id: 'small', label: '1-7B', min: 1, max: 7 },
+  { id: 'medium', label: '7-13B', min: 7, max: 13 },
+  { id: 'large', label: '13-70B', min: 13, max: 70 },
+  { id: 'huge', label: '70B+', min: 70, max: Infinity },
+];
+
+// Quantization types
+const quantTypes = [
+  { id: 'gguf', label: 'GGUF', icon: '📦' },
+  { id: 'awq', label: 'AWQ', icon: '⚡' },
+  { id: 'gptq', label: 'GPTQ', icon: '🔧' },
+  { id: 'fp16', label: 'FP16', icon: '🎯' },
+];
+
+// Common licenses
+const licenses = [
+  { id: 'apache-2.0', label: 'Apache 2.0' },
+  { id: 'mit', label: 'MIT' },
+  { id: 'llama2', label: 'Llama 2' },
+  { id: 'cc-by-4.0', label: 'CC BY 4.0' },
+  { id: 'openrail', label: 'OpenRAIL' },
+];
+---
+
+<div class="advanced-filters bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+  <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase mb-4 flex items-center gap-2">
+    <span>🔍</span> Advanced Filters
+  </h3>
+  
+  <div class="space-y-4">
+    {showParams && (
+      <div>
+        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Model Size</label>
+        <div class="flex flex-wrap gap-2" id="params-filter">
+          {paramRanges.map(r => (
+            <button 
+              class="filter-chip"
+              data-filter-type="params"
+              data-min={r.min}
+              data-max={r.max}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+    
+    {showQuant && (
+      <div>
+        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Quantization</label>
+        <div class="flex flex-wrap gap-2" id="quant-filter">
+          {quantTypes.map(q => (
+            <button 
+              class="filter-chip"
+              data-filter-type="quant"
+              data-quant={q.id}
+            >
+              <span>{q.icon}</span> {q.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+    
+    {showLicense && (
+      <div>
+        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">License</label>
+        <div class="flex flex-wrap gap-2" id="license-filter">
+          {licenses.map(l => (
+            <button 
+              class="filter-chip"
+              data-filter-type="license"
+              data-license={l.id}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+  
+  <button 
+    id="clear-filters"
+    class="mt-4 w-full py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors hidden"
+  >
+    Clear All Filters
+  </button>
+</div>
+
+<style>
+  .filter-chip {
+    @apply inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full cursor-pointer transition-all hover:bg-gray-200 dark:hover:bg-gray-600;
+  }
+  .filter-chip.active {
+    @apply bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 ring-2 ring-indigo-500;
+  }
+</style>
+
+<script>
+  const filterChips = document.querySelectorAll('.filter-chip');
+  const clearBtn = document.getElementById('clear-filters');
+  
+  filterChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      chip.classList.toggle('active');
+      updateClearButton();
+      dispatchFilterEvent();
+    });
+  });
+  
+  clearBtn?.addEventListener('click', () => {
+    filterChips.forEach(chip => chip.classList.remove('active'));
+    updateClearButton();
+    dispatchFilterEvent();
+  });
+  
+  function updateClearButton() {
+    const hasActive = document.querySelector('.filter-chip.active');
+    clearBtn?.classList.toggle('hidden', !hasActive);
+  }
+  
+  function dispatchFilterEvent() {
+    const activeFilters = {
+      params: [] as {min: number, max: number}[],
+      quant: [] as string[],
+      license: [] as string[],
+    };
+    
+    document.querySelectorAll('.filter-chip.active').forEach(chip => {
+      const el = chip as HTMLElement;
+      const type = el.dataset.filterType;
+      if (type === 'params') {
+        activeFilters.params.push({
+          min: parseFloat(el.dataset.min || '0'),
+          max: parseFloat(el.dataset.max || 'Infinity'),
+        });
+      } else if (type === 'quant') {
+        activeFilters.quant.push(el.dataset.quant || '');
+      } else if (type === 'license') {
+        activeFilters.license.push(el.dataset.license || '');
+      }
+    });
+    
+    window.dispatchEvent(new CustomEvent('advancedFilter', { detail: activeFilters }));
+  }
+</script>
