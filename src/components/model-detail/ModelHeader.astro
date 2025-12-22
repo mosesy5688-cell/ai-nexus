@@ -1,9 +1,11 @@
 ---
 // src/components/model-detail/ModelHeader.astro
 import EntityNotice from '../entity/EntityNotice.astro';
+import CompareButton from './CompareButton.astro';
 
 interface Props {
   modelName: string;
+  modelId: string;
   entityType?: string;
   entityIcon?: string;
   entityLabel?: string;
@@ -16,6 +18,7 @@ interface Props {
 
 const {
   modelName,
+  modelId,
   entityType = 'model',
   entityIcon = '🧠',
   entityLabel = 'Model',
@@ -66,10 +69,11 @@ const {
         </p>
       )}
 
-      <div class="flex gap-4 text-sm text-gray-500 dark:text-gray-400 mt-auto">
+      <div class="flex flex-wrap gap-4 text-sm text-gray-500 dark:text-gray-400 mt-auto items-center">
         {lastUpdated && (
           <span>🕐 Updated {new Date(lastUpdated).toLocaleDateString()}</span>
         )}
+        <CompareButton modelId={modelId} modelName={modelName} />
       </div>
     </div>
   </div>
