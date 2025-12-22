@@ -162,8 +162,21 @@ self.onmessage = async (e) => {
         // 4. Limit/Pagination
         const limit = parseInt(filters.limit) || 50;
         const page = parseInt(filters.page) || 1;
-        const pagedResults = results.slice((page - 1) * limit, page * limit);
 
+        // 5. Fallback to D1 FTS if local results are sparse or query is specific (B.17)
+        if (results.length < 5 && filters.q && filters.q.length > 2) {
+            console.log(`[SearchWorker] Sparse local results (${results.length}), trying D1 FTS fallback...`);
+            const d1Results = await fallbackToD1(filters.q, limit);
+            if (d1Results && d1Results.length > 0) {
+                // Merge or replace? For sparse results, replace is often better/cleaner
+                // But merging deduplicated results is safest
+                const localIds = new Set(results.map(r => r.id));
+                const uniqueD1 = d1Results.filter(r => !localIds.has(r.id));
+                results = [...results, ...uniqueD1];
+            }
+        }
+
+        const pagedResults = results.slice((page - 1) * limit, page * limit);
         const duration = performance.now() - start;
 
         self.postMessage({
@@ -171,7 +184,24 @@ self.onmessage = async (e) => {
             type: 'RESULT',
             results: pagedResults,
             total: results.length,
-            duration
+            duration,
+            source: results.length > 0 ? (results.some(r => r._source === 'd1') ? 'mixed' : 'local') : 'none'
         });
     }
 };
+
+/**
+ * Fallback to server-side D1 FTS5 search (B.17)
+ */
+async function fallbackToD1(query, limit) {
+    try {
+        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+        if (!response.ok) return null;
+        const data = await response.json();
+        // Mark results for UI tracking if needed
+        return (data.results || []).map(r => ({ ...r, _source: 'd1' }));
+    } catch (e) {
+        console.error('[SearchWorker] D1 Fallback failed:', e);
+        return null;
+    }
+}
