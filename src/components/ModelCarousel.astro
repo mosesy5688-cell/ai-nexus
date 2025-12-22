@@ -49,7 +49,7 @@ const formatNumber = (num: number): string => {
                     {model.name}
                 </h3>
                 <p class="text-xs text-gray-500 dark:text-gray-400 truncate mb-4 flex items-center gap-1">
-                    <span>by {model.author}</span>
+                    <span>by {model.author || 'Unknown'}</span>
                     {model.pipeline_tag && (
                         <span class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider">
                             {model.pipeline_tag}
@@ -59,13 +59,13 @@ const formatNumber = (num: number): string => {
             </div>
             
             <div class="flex items-center justify-between mt-2 pt-3 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
-              <div class="flex items-center gap-1" title={`${model.likes} likes`}>
+              <div class="flex items-center gap-1" title={`${model.likes || 0} likes`}>
                 <span class="text-red-500">❤️</span>
-                <span>{formatNumber(model.likes)}</span>
+                <span>{formatNumber(model.likes || 0)}</span>
               </div>
-              <div class="flex items-center gap-1" title={`${model.downloads} downloads`}>
+              <div class="flex items-center gap-1" title={`${model.downloads || 0} downloads`}>
                 <span class="text-blue-500">📥</span>
-                <span>{formatNumber(model.downloads)}</span>
+                <span>{formatNumber(model.downloads || 0)}</span>
               </div>
             </div>
           </div>
