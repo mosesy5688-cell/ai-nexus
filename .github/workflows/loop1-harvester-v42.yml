@@ -109,7 +109,7 @@ jobs:
           retention-days: 1
 
   harvest-ecosystem:
-    name: Harvest Ecosystem (Ollama, MCP, Replicate, Kaggle, LangChain, CivitAI, SemanticScholar)
+    name: Harvest Ecosystem (Ollama, MCP, Replicate, Kaggle, CivitAI, SemanticScholar, OpenLLM, DeepSpec)
     runs-on: ubuntu-latest
     timeout-minutes: 60
     
@@ -168,6 +168,24 @@ jobs:
         run: |
           echo "📥 [Parallel] Harvesting Semantic Scholar (Papers/Citations)..."
           node scripts/ingestion/harvest-single.js semanticscholar --limit 3000 || echo "Semantic Scholar adapter skipped"
+
+      # B.1: OpenLLM Leaderboard (Benchmark data for model evaluation)
+      # Verified: meets Art.XI admission rules (exempt: outputs benchmarks, not entities)
+      - name: Harvest OpenLLM Benchmarks
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "📊 [Parallel] Harvesting OpenLLM Leaderboard Benchmarks..."
+          node scripts/ingestion/harvest-single.js openllm --limit 500 || echo "OpenLLM adapter skipped"
+
+      # B.1: DeepSpec Extractor (Model specifications from config.json)
+      # Verified: meets Art.XI admission rules (exempt: outputs specs, not entities)
+      - name: Harvest DeepSpec Specifications
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "📋 [Parallel] Extracting Model Specifications..."
+          node scripts/ingestion/harvest-single.js deepspec --limit 100 || echo "DeepSpec adapter skipped"
 
       - name: Upload Batch Artifacts
         uses: actions/upload-artifact@v4
