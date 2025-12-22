@@ -106,8 +106,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
     // ═══════════════════════════════════════════════════════
     // LAYER 2: URL Redirect (CES-001 Backward Compatibility)
     // ═══════════════════════════════════════════════════════
-    // Redirect old encoded URLs (%3A) and double-dash format to clean URLs
-    if (url.pathname.includes('%3A') || url.pathname.includes('%3a') || url.pathname.includes('--')) {
+    // Redirect old URLs with colons (encoded or not) and double-dash format to clean URLs
+    // Check for: %3A (encoded colon), actual colon in path, double-dash
+    const hasEncodedColon = url.pathname.includes('%3A') || url.pathname.includes('%3a');
+    const hasUncodedColon = /\/(model|dataset|paper|agent|benchmark)\/[^/]*:/.test(url.pathname);
+    const hasDoubleDash = url.pathname.includes('--');
+
+    if (hasEncodedColon || hasUncodedColon || hasDoubleDash) {
         const decoded = decodeURIComponent(url.pathname);
         let cleanPath = decoded;
 
@@ -115,6 +120,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
         cleanPath = cleanPath.replace(
             /^(\/(model|dataset|paper|agent|benchmark))\/[a-z]+:/i,
             '$1/'
+        );
+
+        // Convert remaining colons to slashes in entity paths (e.g., /model/deepseek-ai:deepseek-r1 -> /model/deepseek-ai/deepseek-r1)
+        cleanPath = cleanPath.replace(
+            /^(\/(model|dataset|paper|agent|benchmark))\/([^:]+):(.+)$/i,
+            '$1/$3/$4'
         );
 
         // Convert double-dash to slash (e.g., /model/author--model -> /model/author/model)
