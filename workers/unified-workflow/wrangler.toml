@@ -75,3 +75,8 @@ zone_name = "free2aitools.com"
 [[routes]]
 pattern = "free2aitools.com/sitemaps/*"
 zone_name = "free2aitools.com"
+
+# B.1.0: Relations API route
+[[routes]]
+pattern = "free2aitools.com/api/relations/*"
+zone_name = "free2aitools.com"

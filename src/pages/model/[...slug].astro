@@ -42,7 +42,16 @@ try {
 
     // Similar models logical stub (D1 banned)
     if (model.similar_models && Array.isArray(model.similar_models)) {
-        similarModels = model.similar_models;
+        // V6.3: Resolve IDs if they are strings (from similarity-compute)
+        const rawSimilar = model.similar_models;
+        const resolvedPromises = rawSimilar.map(async (item) => {
+            if (typeof item === 'string') {
+                // Fetch minimal model info for card (name, author, stats)
+                return await getModelFromCache(item, Astro.locals);
+            }
+            return item;
+        });
+        similarModels = (await Promise.all(resolvedPromises)).filter(Boolean);
     }
 
     const modelName = model.name || model.canonical_name || 'Unknown Model';

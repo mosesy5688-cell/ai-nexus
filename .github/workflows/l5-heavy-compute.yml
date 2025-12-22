@@ -184,11 +184,48 @@ jobs:
           path: public/data/search-index.json.gz
           retention-days: 1
 
+  compute-similarity:
+    name: Compute Similarity (Smart Recommend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: compute-rankings
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci
+      
+      - name: Download Entities
+        uses: actions/download-artifact@v4
+        with:
+          name: entities
+          path: data
+          
+      - name: Download FNI Results
+        uses: actions/download-artifact@v4
+        with:
+          name: fni-results
+          path: data/computed
+          
+      - name: Compute Similarity
+        run: |
+          echo "🧠 Computing model similarity (B.14)..."
+          node scripts/l5/similarity-compute.js data/entities.json data/entities_with_similarity.json
+          
+      - name: Upload Updated Entities
+        uses: actions/upload-artifact@v4
+        with:
+          name: entities-enriched
+          path: data/entities_with_similarity.json
+          retention-days: 1
+
   upload-to-r2:
     name: Upload Results to R2
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [compute-rankings, compute-search-index]
+    needs: [compute-rankings, compute-search-index, compute-similarity]
     
     steps:
       - uses: actions/checkout@v4
