@@ -91,14 +91,20 @@ export default {
 
     async scheduled(event: ScheduledEvent, env: Env): Promise<void> {
         const pause = await env.KV?.get('SYSTEM_PAUSE');
-        if (pause === 'true') return;
+        if (pause === 'true') {
+            console.log('[System] SYSTEM_PAUSE active. Aborting scheduled run.');
+            return;
+        }
         console.log('[Cron] Triggering workflow...');
         await env.UNIFIED_WORKFLOW.create();
     },
 
     async queue(batch: any, env: Env): Promise<void> {
         const pause = await env.KV?.get('SYSTEM_PAUSE');
-        if (pause === 'true') return;
+        if (pause === 'true') {
+            console.log('[System] SYSTEM_PAUSE active. Aborting queue consumption.');
+            return;
+        }
 
         const queueName = batch.queue;
         if (queueName === 'ai-nexus-ingestion-queue') await consumeIngestionQueue(batch, env);
