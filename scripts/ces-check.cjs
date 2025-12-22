@@ -31,12 +31,14 @@ const IGNORE_DIRS = ['node_modules', '.git', 'dist', '.wrangler', '.astro', 'cov
 const IGNORE_FILES = [
     // Tier 1: Stable Adapters (Fixed API - NO FUTURE GROWTH)
     'arxiv-adapter.js', 'base-adapter.js', 'datasets-adapter.js', 'deepspec-adapter.js',
-    'github-adapter.js', 'huggingface-adapter.js', 'modelscope-adapter.js',
+    'github-adapter.js', 'modelscope-adapter.js',
     'ollama-adapter.js', 'openllm-adapter.js', 'pwc-adapter.js',
     'semanticscholar-adapter.js', 'huggingface-papers-adapter.js',
     'civitai-adapter.js', 'mcp-adapter.js',
     'replicate-adapter.js', 'kaggle-adapter.js',  // B.1: New stable adapters
     'fetch-data.js', 'multi-source-fetcher.js',
+    // B.1: huggingface-adapter.js REMOVED - now modular and actively growing
+    // B.1: hf-strategies.js, hf-utils.js, hf-normalizer.js are all <250 lines
 
     // Tier 1: Legacy Test (Frozen)
     'frontend-guardian.js',
