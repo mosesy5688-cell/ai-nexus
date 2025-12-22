@@ -6,6 +6,7 @@
  * - paper_id: ArXiv IDs from model READMEs
  * - base_model: Base→Variant patterns
  * - variant: Inverse of base_model
+ * - dataset_id: Training datasets from tags/meta_json
  * 
  * @module l5/relations-compute
  */
@@ -28,6 +29,22 @@ const ARXIV_PATTERNS = [
  * Matches: Model-Name-7B, Model-Name-70B-Instruct, Model-GGUF
  */
 const VARIANT_SUFFIX_PATTERN = /^(.+?)[-_]((\d+\.?\d*[BM])|instruct|chat|base|gguf|awq|gptq|fp16|bf16|q[48]_\d|qlora|lora)/i;
+
+/**
+ * Common HuggingFace dataset patterns
+ */
+const DATASET_PATTERNS = [
+    /dataset:(\S+)/gi,                           // HF tag format: dataset:xxx
+    /huggingface\.co\/datasets\/([\w-]+\/[\w-]+)/gi,  // URL format
+    /trained[- ]on[- ](?:the[- ])?(\w[\w-]+)/gi  // "trained on X" mentions
+];
+
+// Known high-value datasets to detect
+const KNOWN_DATASETS = [
+    'wikipedia', 'common_crawl', 'c4', 'pile', 'redpajama', 'openwebtext',
+    'dolly', 'alpaca', 'sharegpt', 'oasst', 'slimpajama', 'refinedweb',
+    'starcoder', 'the_stack', 'code_alpaca', 'evol_instruct'
+];
 
 /**
  * Extract ArXiv IDs from text
@@ -60,6 +77,36 @@ function detectBaseModel(modelName) {
     }
 
     return null;
+}
+
+/**
+ * Extract dataset IDs from text and tags
+ */
+function extractDatasetIds(text, tags) {
+    if (!text && !tags) return [];
+    const datasets = new Set();
+
+    const searchText = [text || '', Array.isArray(tags) ? tags.join(' ') : (tags || '')].join(' ').toLowerCase();
+
+    // Pattern-based extraction
+    for (const pattern of DATASET_PATTERNS) {
+        let match;
+        const regex = new RegExp(pattern.source, pattern.flags);
+        while ((match = regex.exec(searchText)) !== null) {
+            if (match[1] && match[1].length >= 3) {
+                datasets.add(match[1].toLowerCase());
+            }
+        }
+    }
+
+    // Known dataset detection
+    for (const dataset of KNOWN_DATASETS) {
+        if (searchText.includes(dataset)) {
+            datasets.add(dataset);
+        }
+    }
+
+    return [...datasets];
 }
 
 /**
@@ -106,6 +153,18 @@ function discoverRelations(entities) {
                 relation_type: 'base_model',
                 confidence: 0.7,
                 source_url: null
+            });
+        }
+
+        // 3. Extract dataset_id relations (B.7 enhancement)
+        const datasetIds = extractDatasetIds(textToSearch, entity.tags);
+        for (const datasetId of datasetIds) {
+            relations.push({
+                source_id: entity.id,
+                target_id: `dataset:${datasetId}`,
+                relation_type: 'dataset_id',
+                confidence: 0.6,
+                source_url: entity.source_url || null
             });
         }
     }
