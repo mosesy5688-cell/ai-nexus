@@ -26,6 +26,7 @@ const { slug } = Astro.params;
 let model = null;
 let error = null;
 let similarModels = [];
+let tagsArray = [];
 let pageTitle = "AI Model Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI model.";
 
@@ -58,6 +59,9 @@ try {
     pageTitle = `${modelName} - AI Model Insights & Benchmarks`;
     pageDescription = model.seo_summary?.description || 
                       (model.description ? model.description.substring(0, 160) : `Deep dive into ${modelName}.`);
+    
+    // Fix for 500 Error: Ensure tagsArray is defined for RelatedKnowledge component
+    tagsArray = Array.isArray(model.tags) ? model.tags : [];
   }
 } catch (e) {
   console.error("Error loading model:", e);

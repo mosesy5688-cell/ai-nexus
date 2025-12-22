@@ -1,0 +1,92 @@
+[
+  {
+    "paper_id": "2307.09288",
+    "paper_version": null,
+    "title": "Llama 2: Open Foundation and Fine-Tuned Chat Models",
+    "citation_count": 8500,
+    "influential_citation_count": 1200,
+    "source": "semantic_scholar",
+    "last_checked": "2025-12-21T09:09:17.365Z"
+  },
+  {
+    "paper_id": "2302.13971",
+    "paper_version": null,
+    "title": "LLaMA: Open and Efficient Foundation Language Models",
+    "citation_count": 12000,
+    "influential_citation_count": 2100,
+    "source": "semantic_scholar",
+    "last_checked": "2025-12-21T09:09:17.365Z"
+  },
+  {
+    "paper_id": "2310.06825",
+    "paper_version": null,
+    "title": "Mistral 7B",
+    "citation_count": 3200,
+    "influential_citation_count": 450,
+    "source": "semantic_scholar",
+    "last_checked": "2025-12-21T09:09:17.365Z"
+  },
+  {
+    "paper_id": "2309.16609",
+    "paper_version": null,
+    "title": "Qwen Technical Report",
+    "citation_count": 1500,
+    "influential_citation_count": 280,
+    "source": "semantic_scholar",
+    "last_checked": "2025-12-21T09:09:17.365Z"
+  },
+  {
+    "paper_id": "2403.08295",
+    "paper_version": null,
+    "title": "Gemma: Open Models Based on Gemini Research and Technology",
+    "citation_count": 800,
+    "influential_citation_count": 120,
+    "source": "semantic_scholar",
+    "last_checked": "2025-12-21T09:09:17.365Z"
+  },
+  {
+    "paper_id": "2305.10403",
+    "paper_version": null,
+    "title": "Falcon-40B: Open-Source Large Language Model",
+    "citation_count": 1100,
+    "influential_citation_count": 180,
+    "source": "semantic_scholar",
+    "last_checked": "2025-12-21T09:09:17.365Z"
+  },
+  {
+    "paper_id": "2312.11805",
+    "paper_version": null,
+    "title": "Phi-2: The Surprising Power of Small Language Models",
+    "citation_count": 600,
+    "influential_citation_count": 95,
+    "source": "semantic_scholar",
+    "last_checked": "2025-12-21T09:09:17.365Z"
+  },
+  {
+    "paper_id": "2401.04088",
+    "paper_version": null,
+    "title": "DeepSeek LLM: Scaling Open-Source Language Models",
+    "citation_count": 450,
+    "influential_citation_count": 70,
+    "source": "semantic_scholar",
+    "last_checked": "2025-12-21T09:09:17.365Z"
+  },
+  {
+    "paper_id": "2305.13245",
+    "paper_version": null,
+    "title": "Yi: Open Foundation Models by 01.AI",
+    "citation_count": 380,
+    "influential_citation_count": 55,
+    "source": "semantic_scholar",
+    "last_checked": "2025-12-21T09:09:17.365Z"
+  },
+  {
+    "paper_id": "2306.01116",
+    "paper_version": null,
+    "title": "InternLM: A Multilingual Language Model with Progressively Enhanced Capabilities",
+    "citation_count": 420,
+    "influential_citation_count": 65,
+    "source": "semantic_scholar",
+    "last_checked": "2025-12-21T09:09:17.365Z"
+  }
+]
