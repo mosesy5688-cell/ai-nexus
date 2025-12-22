@@ -1,0 +1,55 @@
+---
+/**
+ * FreshBadge Component - B.10 Data Freshness
+ * Displays "Updated Today" / "New This Week" badges on cards
+ * 
+ * @component
+ */
+
+interface Props {
+  lastModified?: string | Date;
+  createdAt?: string | Date;
+}
+
+const { lastModified, createdAt } = Astro.props;
+
+// Calculate freshness
+function getFreshness(dateStr?: string | Date): { label: string; color: string } | null {
+  if (!dateStr) return null;
+  
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      return { label: 'Updated Today', color: 'green' };
+    } else if (diffDays <= 7) {
+      return { label: 'This Week', color: 'blue' };
+    } else if (diffDays <= 30) {
+      return { label: 'This Month', color: 'gray' };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+const freshness = getFreshness(lastModified) || (createdAt ? { label: 'New', color: 'purple' } : null);
+
+// Color classes
+const colorClasses: Record<string, string> = {
+  green: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  blue: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  purple: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+  gray: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+};
+---
+
+{freshness && (
+  <span class={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide ${colorClasses[freshness.color] || colorClasses.gray}`}>
+    {freshness.color === 'green' && <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>}
+    {freshness.label}
+  </span>
+)}
