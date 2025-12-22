@@ -309,6 +309,6 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           echo "📤 Uploading relations to R2..."
-          npx wrangler r2 object put ai-nexus-assets/computed/relations.json --file data/relations.json
-          npx wrangler r2 object put ai-nexus-assets/computed/relations_summary.json --file data/relations_summary.json
+          npx wrangler r2 object put ai-nexus-assets/computed/relations.json --file data/relations.json --remote
+          npx wrangler r2 object put ai-nexus-assets/computed/relations_summary.json --file data/relations_summary.json --remote
           echo "✅ Relations uploaded!"
