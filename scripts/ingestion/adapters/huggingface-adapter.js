@@ -34,6 +34,17 @@ export class HuggingFaceAdapter extends BaseAdapter {
     async fetch(options = {}) {
         const { limit = 500, sort = 'likes', direction = -1, full = true } = options;
 
+        // B.1: Use pipeline tags for large expansions (150K+)
+        if (limit >= 10000) {
+            console.log(`📥 [HuggingFace] Using PIPELINE TAGS for ${limit}+ models (B.1 expansion)...`);
+            const result = await this.fetchByPipelineTags({
+                limitPerTag: Math.ceil(limit / 21),  // Distribute across 21 tags
+                full: false  // Skip full details for speed
+            });
+            return result.models;
+        }
+
+        // Use multi-strategy for medium limits (1000-10000)
         if (limit > 1000) {
             console.log(`📥 [HuggingFace] Using MULTI-STRATEGY for ${limit} models...`);
             const result = await this.fetchMultiStrategy({
