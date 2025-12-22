@@ -106,20 +106,73 @@ export class HuggingFaceAdapter extends BaseAdapter {
         const { limitPerTag = 5000, tags = PIPELINE_TAGS, existingIds = new Set(), full = false } = options;
         const collectedIds = new Set(existingIds);
         const allModels = [];
+        const PAGE_SIZE = 1000; // HuggingFace API max per request
 
         for (const tag of tags) {
             console.log(`\n📥 [HuggingFace] Pipeline tag: ${tag}`);
-            try {
-                const response = await fetch(`${HF_API_BASE}/models?filter=${tag}&sort=likes&direction=-1&limit=${limitPerTag}`, { headers: this.getHeaders() });
-                if (!response.ok) { console.warn(`   ⚠️ API error: ${response.status}`); continue; }
+            let tagModels = 0;
+            let skip = 0;
+            let hasMore = true;
 
-                const models = await response.json();
-                const newModels = models.filter(m => { const id = m.modelId || m.id; if (collectedIds.has(id)) return false; collectedIds.add(id); return true; });
-                console.log(`   🆕 ${newModels.length} unique (${models.length} total)`);
-                allModels.push(...newModels);
-                await delay(1000);
-            } catch (error) { console.error(`   ❌ Tag ${tag} failed: ${error.message}`); }
+            try {
+                // Paginate through all results for this tag
+                while (hasMore && tagModels < limitPerTag) {
+                    const batchLimit = Math.min(PAGE_SIZE, limitPerTag - tagModels);
+                    const url = `${HF_API_BASE}/models?filter=${tag}&sort=likes&direction=-1&limit=${batchLimit}&skip=${skip}`;
+
+                    const response = await fetch(url, { headers: this.getHeaders() });
+
+                    if (!response.ok) {
+                        if (response.status === 429) {
+                            console.log(`   ⚠️ Rate limited, waiting 30s...`);
+                            await delay(30000);
+                            continue; // Retry same request
+                        }
+                        console.warn(`   ⚠️ API error: ${response.status}`);
+                        break;
+                    }
+
+                    const models = await response.json();
+
+                    if (models.length === 0) {
+                        hasMore = false;
+                        break;
+                    }
+
+                    // Filter duplicates
+                    const newModels = models.filter(m => {
+                        const id = m.modelId || m.id;
+                        if (collectedIds.has(id)) return false;
+                        collectedIds.add(id);
+                        return true;
+                    });
+
+                    allModels.push(...newModels);
+                    tagModels += models.length;
+                    skip += models.length;
+
+                    // Log progress for large fetches
+                    if (tagModels >= 1000 && tagModels % 2000 < PAGE_SIZE) {
+                        console.log(`   📦 Progress: ${tagModels} models fetched...`);
+                    }
+
+                    // Stop if we got less than requested (no more pages)
+                    if (models.length < batchLimit) {
+                        hasMore = false;
+                    }
+
+                    // Rate limit delay between pages
+                    if (hasMore) await delay(500);
+                }
+
+                console.log(`   🆕 ${tagModels} fetched, ${allModels.length - (allModels.length - tagModels)} unique added`);
+                await delay(1000); // Delay between tags
+
+            } catch (error) {
+                console.error(`   ❌ Tag ${tag} failed: ${error.message}`);
+            }
         }
+
         console.log(`\n✅ [HuggingFace] Pipeline tag collection: ${allModels.length} unique models`);
         return { models: allModels, collectedIds: Array.from(collectedIds) };
     }
