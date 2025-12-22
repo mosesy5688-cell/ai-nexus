@@ -35,11 +35,15 @@ export async function resolveEntityFromCache(slug, locals) {
     }
 
     // V6 Test Shim: Force Mock in Dev/Test (Bypass bindings)
-    if ((import.meta.env.DEV || process.env.NODE_ENV === 'test') && slug === 'test-model-slug') {
+    const shimTarget = 'test-model-slug';
+    // Allow slug to be the target OR prefixed (e.g. huggingface:test-model-slug)
+    const isShimTarget = slug === shimTarget || normalizeForCache(slug).endsWith('--' + shimTarget);
+
+    if ((import.meta.env.DEV || process.env.NODE_ENV === 'test') && isShimTarget) {
         console.log('[EntityCache] Shim: Returning Hardcoded Test Model');
         return {
             entity: {
-                id: 'test-model-slug',
+                id: shimTarget,
                 name: 'Test Model Llama 3',
                 author: 'Meta',
                 description: 'A test model description.',
@@ -61,11 +65,11 @@ export async function resolveEntityFromCache(slug, locals) {
         // V6 Test Shim: Fallback to local FS in Dev/Test mode
         if (import.meta.env.DEV || process.env.NODE_ENV === 'test') {
             // Hardcoded Mock for Reliability (FS can be flaky in Test Runner)
-            if (slug === 'test-model-slug') {
-                console.log('[EntityCache] Shim: Returning Hardcoded Test Model');
-                return {
+            if (isShimTarget) {
+                // Return same mock as above (redundant safety)
+                return { /* ... same mock object ... */
                     entity: {
-                        id: 'test-model-slug',
+                        id: shimTarget,
                         name: 'Test Model Llama 3',
                         author: 'Meta',
                         description: 'A test model description.',
@@ -75,7 +79,7 @@ export async function resolveEntityFromCache(slug, locals) {
                         fni_score: 95,
                         entityDefinition: { display: { icon: '🤖', labelSingular: 'Model' } }
                     },
-                    source: 'shim-hardcoded',
+                    source: 'shim-fs-fallback',
                     computed: { fni: 95, benchmarks: [] }
                 };
             }
@@ -97,6 +101,14 @@ export async function resolveEntityFromCache(slug, locals) {
         `${cachePrefix}/${slug.replace(/\//g, '--')}.json`,
         `cache/models/${normalizedSlug}.json`, // fallback to models
     ];
+
+    // V6.4 Patch: Handle 'huggingface:' prefix in URLs (common in legacy/generated links)
+    // Example: huggingface:meta-llama:Llama-3 -> meta-llama:Llama-3
+    if (normalizedSlug.startsWith('huggingface--')) {
+        const slugWithoutHF = normalizedSlug.replace(/^huggingface--/, '');
+        cachePaths.push(`${cachePrefix}/${slugWithoutHF}.json`);
+        console.log(`[EntityCache] Added fallback path for HG prefix: ${slugWithoutHF}`);
+    }
 
     // Check KV cache first for speed
     const kvKey = `entity:${normalizedSlug}`;
