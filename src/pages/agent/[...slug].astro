@@ -1,0 +1,120 @@
+---
+export const prerender = false;
+
+/**
+ * Agent Detail Page V1.0
+ * Phase B P2: B.2 Agent Entity Expansion
+ * CES Compliant: < 200 lines
+ */
+
+import Layout from '../../layouts/Layout.astro';
+import AgentHeader from '../../components/agent-detail/AgentHeader.astro';
+import AgentSpecs from '../../components/agent-detail/AgentSpecs.astro';
+import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
+import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.astro';
+
+import { getModelFromCache } from '../../utils/entity-cache-reader';
+import { ENTITY_DEFINITIONS } from '../../data/entity-definitions';
+
+const { slug } = Astro.params;
+
+let agent = null;
+let error = null;
+let pageTitle = "AI Agent Details - Free AI Tools";
+let pageDescription = "Explore this AI agent's capabilities and features.";
+
+try {
+  if (!slug) throw new Error("No slug provided");
+  
+  // Get agent from cache using same mechanism as models
+  agent = await getModelFromCache(slug, Astro.locals);
+
+  if (agent) {
+    const agentName = agent.name || agent.canonical_name || 'Unknown Agent';
+    pageTitle = `${agentName} - AI Agent`;
+    pageDescription = agent.description 
+      ? agent.description.substring(0, 160) 
+      : `Explore ${agentName} AI agent.`;
+  }
+} catch (e) {
+  error = e instanceof Error ? e.message : 'Unknown error';
+  console.error('[AgentPage] Error:', error);
+}
+
+const agentId = agent?.id || agent?.umid || slug || '';
+const agentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <main class="container mx-auto px-4 py-8 max-w-5xl">
+    {error && (
+      <div class="text-center py-16">
+        <h1 class="text-3xl font-bold text-red-500 mb-4">Error</h1>
+        <p class="text-gray-600 dark:text-gray-400">{error}</p>
+        <a href="/explore?type=agent" class="mt-4 inline-block text-indigo-500 hover:underline">
+          ← Browse all agents
+        </a>
+      </div>
+    )}
+
+    {agent && (
+      <article>
+        <AgentHeader 
+          name={agentName}
+          author={agent.author || agent.organization || 'Unknown'}
+          description={agent.description}
+          sourceUrl={agent.source_url}
+          stars={agent.stars || agent.github_stars}
+          agentType={agent.agent_type || 'agent'}
+        />
+        
+        <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div class="lg:col-span-2 space-y-6">
+            {agent.body_content && (
+              <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Description</h2>
+                <div class="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                  {agent.body_content}
+                </div>
+              </section>
+            )}
+            
+            <RelatedResearch modelId={agentId} />
+            
+            <RelatedKnowledge 
+              tags={agent.tags || []}
+              description={agent.description || ''}
+            />
+          </div>
+          
+          <aside>
+            <AgentSpecs 
+              framework={agent.framework || agent.library_name}
+              language={agent.language}
+              license={agent.license || agent.license_spdx}
+              stars={agent.stars || agent.github_stars}
+              forks={agent.forks || agent.github_forks}
+              lastCommit={agent.last_commit || agent.github_last_commit}
+              sourceUrl={agent.source_url}
+            />
+          </aside>
+        </div>
+        
+        <div class="mt-8 text-center">
+          <a href="/explore?type=agent" class="text-indigo-500 hover:underline">
+            ← Browse all agents
+          </a>
+        </div>
+      </article>
+    )}
+
+    {!agent && !error && (
+      <div class="text-center py-16">
+        <h1 class="text-3xl font-bold text-gray-400 mb-4">Agent Not Found</h1>
+        <a href="/explore?type=agent" class="text-indigo-500 hover:underline">
+          ← Browse all agents
+        </a>
+      </div>
+    )}
+  </main>
+</Layout>
