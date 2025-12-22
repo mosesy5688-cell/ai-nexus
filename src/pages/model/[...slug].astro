@@ -15,6 +15,7 @@ import ModelNavigation from '../../components/model-detail/ModelNavigation.astro
 import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
+import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.astro';
 
 // V4.9.1: Constitutional D1 = 0 - Use R2 cache reader instead of D1 queries
 import { getModelFromCache } from '../../utils/entity-cache-reader';
@@ -145,6 +146,12 @@ const jsonld = model ? {
         </div>
 
         <RelatedResearch modelId={modelId} />
+        
+        <RelatedKnowledge 
+          tags={tagsArray} 
+          description={model.description || ''}
+          metaJson={model.meta_json}
+        />
 
         {similarModels.length > 0 && (
           <section class="mt-12">

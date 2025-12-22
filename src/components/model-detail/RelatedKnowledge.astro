@@ -1,0 +1,64 @@
+---
+/**
+ * RelatedKnowledge Component - B.7 Knowledge Linking
+ * Auto-links models to relevant knowledge articles based on tags/properties
+ * 
+ * @component
+ */
+
+interface Props {
+  tags?: string[];
+  description?: string;
+  metaJson?: {
+    library_name?: string;
+    pipeline_tag?: string;
+  };
+}
+
+const { tags = [], description = '', metaJson = {} } = Astro.props;
+
+// Knowledge article mapping: keyword → article slug
+const KNOWLEDGE_ARTICLES = [
+  { slug: 'gguf', keywords: ['gguf', 'ggml', 'llama.cpp', 'ollama'], title: 'What is GGUF?', icon: '📦' },
+  { slug: 'quantization', keywords: ['quantized', 'quantization', 'awq', 'gptq', 'q4', 'q8', 'int4', 'int8'], title: 'Model Quantization', icon: '⚡' },
+  { slug: 'vram', keywords: ['vram', 'gpu memory', '7b', '13b', '70b'], title: 'VRAM Requirements', icon: '🖥️' },
+  { slug: 'transformer', keywords: ['transformer', 'attention', 'bert', 'gpt'], title: 'Transformer Architecture', icon: '🔄' },
+  { slug: 'moe', keywords: ['moe', 'mixture of experts', 'mixtral'], title: 'Mixture of Experts', icon: '🎛️' },
+  { slug: 'local-inference', keywords: ['local', 'inference', 'cpu', 'edge'], title: 'Local Inference', icon: '💻' }
+];
+
+// Build searchable text from model properties
+const searchText = [
+  ...tags,
+  description,
+  metaJson?.library_name || '',
+  metaJson?.pipeline_tag || ''
+].join(' ').toLowerCase();
+
+// Find matching articles
+const matchedArticles = KNOWLEDGE_ARTICLES.filter(article =>
+  article.keywords.some(keyword => searchText.includes(keyword.toLowerCase()))
+);
+
+// Limit to top 3 most relevant
+const displayArticles = matchedArticles.slice(0, 3);
+---
+
+{displayArticles.length > 0 && (
+  <section class="related-knowledge mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800/50 rounded-xl p-4 border border-blue-100 dark:border-gray-700">
+    <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase mb-3 flex items-center gap-2">
+      <span>📚</span> Learn More
+    </h3>
+    <div class="flex flex-wrap gap-2">
+      {displayArticles.map(article => (
+        <a 
+          href={`/knowledge/${article.slug}`}
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors shadow-sm border border-gray-200 dark:border-gray-600"
+        >
+          <span>{article.icon}</span>
+          {article.title}
+        </a>
+      ))}
+    </div>
+  </section>
+)}
