@@ -163,12 +163,13 @@ export class HuggingFacePapersAdapter extends BaseAdapter {
 
             // System fields
             content_hash: null,
-            compliance_status: 'approved',
+            compliance_status: null,
             quality_score: null
         };
 
         // Calculate system fields
         entity.content_hash = this.generateContentHash(entity);
+        entity.compliance_status = this.getComplianceStatus(entity);
         entity.quality_score = this.calculatePaperQuality(entity);
 
         return entity;

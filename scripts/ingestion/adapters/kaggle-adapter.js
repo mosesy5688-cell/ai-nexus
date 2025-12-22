@@ -229,8 +229,20 @@ export class KaggleAdapter extends BaseAdapter {
                 views: dataset.viewCount,
                 kernels: dataset.kernelCount,
                 topics: dataset.topicCount
-            }
+            },
+
+            // System fields
+            content_hash: null,
+            compliance_status: null,
+            quality_score: null
         };
+
+        // Calculate system fields
+        entity.content_hash = this.generateContentHash(entity);
+        entity.compliance_status = this.getComplianceStatus(entity);
+        entity.quality_score = this.calculateQualityScore(entity);
+
+        return entity;
     }
 
     /**
@@ -262,8 +274,20 @@ export class KaggleAdapter extends BaseAdapter {
                 framework: model.framework,
                 instances: model.instanceCount,
                 variations: model.variationCount
-            }
+            },
+
+            // System fields
+            content_hash: null,
+            compliance_status: null,
+            quality_score: null
         };
+
+        // Calculate system fields
+        entity.content_hash = this.generateContentHash(entity);
+        entity.compliance_status = this.getComplianceStatus(entity);
+        entity.quality_score = this.calculateQualityScore(entity);
+
+        return entity;
     }
 
     /**

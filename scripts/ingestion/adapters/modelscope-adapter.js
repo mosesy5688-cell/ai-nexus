@@ -231,8 +231,17 @@ export class ModelScopeAdapter extends BaseAdapter {
             chinese_name: raw.ChineseName || null,
 
             // Compliance
-            compliance_status: 'approved'
+            compliance_status: null,
+            content_hash: null,
+            quality_score: null
         };
+
+        // Calculate system fields
+        entity.content_hash = this.generateContentHash(entity);
+        entity.compliance_status = this.getComplianceStatus(entity);
+        entity.quality_score = this.calculateQualityScore(entity);
+
+        return entity;
     }
 
     /**
