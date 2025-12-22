@@ -21,6 +21,7 @@ class_name = "UnifiedWorkflow"
 binding = "DB"
 database_name = "ai-nexus-db"
 database_id = "adac7bc9-46a9-40b4-b609-28479221a17d"
+migrations_dir = "../../migrations"
 
 # R2 Bucket Binding
 [[r2_buckets]]
