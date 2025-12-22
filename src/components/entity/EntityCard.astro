@@ -9,6 +9,7 @@
 import { deriveEntityType, getEntityTier } from '../types/entity';
 import { ENTITY_DEFINITIONS, entityHasCapability } from '../data/entity-definitions';
 import FNIBadge from './FNIBadge.astro';
+import FreshBadge from './FreshBadge.astro';
 
 interface Props {
     entity: any;
@@ -75,6 +76,9 @@ function formatNumber(num: any) {
                 <span>{icon}</span>
                 <span>{label}</span>
             </span>
+            
+            {/* B.10: Freshness Badge */}
+            <FreshBadge lastModified={entity.lastModified || entity.last_updated} />
             
             <!-- FNI Badge for Model entities only (Art.X-Entity-FNI) -->
             {hasFNI && entity.fni_score > 0 && (
