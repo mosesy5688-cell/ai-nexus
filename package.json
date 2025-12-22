@@ -8,7 +8,7 @@
     "clean": "node -e \"const fs=require('fs');const p='.astro';fs.existsSync(p)&&fs.rmSync(p,{recursive:true})\"",
     "build": "npm run clean && cross-env NODE_ENV=production astro build",
     "preview": "astro preview",
-    "fetch-data": "node scripts/fetch-data.js",
+    "fetch-data": "node scripts/multi-source-fetcher.js",
     "fetch-data:v3": "node scripts/fetch-data-v3.js",
     "test": "vitest",
     "test:ui": "vitest --ui",

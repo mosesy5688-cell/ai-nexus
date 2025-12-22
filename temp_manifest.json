@@ -1,0 +1,8 @@
+{
+  "version": "7.1",
+  "timestamp": "20251221T091122Z",
+  "batchCount": 28,
+  "totalEntities": 26679,
+  "batches": ["ingest/batches/raw_batch_000.json.gz","ingest/batches/raw_batch_001.json.gz","ingest/batches/raw_batch_002.json.gz","ingest/batches/raw_batch_003.json.gz","ingest/batches/raw_batch_004.json.gz","ingest/batches/raw_batch_005.json.gz","ingest/batches/raw_batch_006.json.gz","ingest/batches/raw_batch_007.json.gz","ingest/batches/raw_batch_008.json.gz","ingest/batches/raw_batch_009.json.gz","ingest/batches/raw_batch_010.json.gz","ingest/batches/raw_batch_011.json.gz","ingest/batches/raw_batch_012.json.gz","ingest/batches/raw_batch_013.json.gz","ingest/batches/raw_batch_014.json.gz","ingest/batches/raw_batch_015.json.gz","ingest/batches/raw_batch_016.json.gz","ingest/batches/raw_batch_arxiv.json.gz","ingest/batches/raw_batch_civitai.json.gz","ingest/batches/raw_batch_github.json.gz","ingest/batches/raw_batch_huggingface-papers.json.gz","ingest/batches/raw_batch_huggingface.json.gz","ingest/batches/raw_batch_kaggle.json.gz","ingest/batches/raw_batch_langchain.json.gz","ingest/batches/raw_batch_mcp.json.gz","ingest/batches/raw_batch_ollama.json.gz","ingest/batches/raw_batch_replicate.json.gz","ingest/batches/raw_batch_semanticscholar.json.gz"],
+  "status": "ready"
+}

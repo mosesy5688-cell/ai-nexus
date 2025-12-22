@@ -9,10 +9,9 @@ export default defineConfig({
     workers: process.env.CI ? 1 : undefined,
     reporter: 'html',
 
-    // WebServer: Build & Serve the static site
-    // This uses "npm run preview" to serve "dist/"
+    // WebServer: Run dev server (Cloudflare adapter doesn't support preview)
     webServer: {
-        command: 'npm run build && npm run preview',
+        command: 'npm run dev',
         port: 4321,
         reuseExistingServer: !process.env.CI,
         timeout: 120 * 1000,
