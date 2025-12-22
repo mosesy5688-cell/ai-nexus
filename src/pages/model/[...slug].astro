@@ -14,6 +14,7 @@ import ModelSidebar from '../../components/model-detail/ModelSidebar.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
+import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
 
 // V4.9.1: Constitutional D1 = 0 - Use R2 cache reader instead of D1 queries
 import { getModelFromCache } from '../../utils/entity-cache-reader';
@@ -73,9 +74,23 @@ const coverImage = model?.cover_image_url || placeholderImage;
 const modelName = model?.name || model?.canonical_name || 'Unknown Model';
 const modelId = model?.umid || model?.id || '';
 const cleanDesc = model?.description ? model.description.replace(/<[^>]*>?/gm, '') : '';
+
+// Art 6.1: Schema.org Structured Data
+const jsonld = model ? {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": modelName,
+  "description": cleanDesc.substring(0, 300),
+  "applicationCategory": "AI Model",
+  "operatingSystem": "Any",
+  "author": model.author ? { "@type": "Organization", "name": model.author } : undefined,
+  "dateModified": model.last_updated || new Date().toISOString(),
+  "image": coverImage,
+  "url": `https://free2aitools.com/model/${slug}`
+} : null;
 ---
 
-<Layout title={pageTitle} description={pageDescription}>
+<Layout title={pageTitle} description={pageDescription} image={coverImage} jsonld={jsonld}>
   <main class="model-detail-page bg-gray-50 dark:bg-gray-900 min-h-screen">
     {error ? (
       <div class="container mx-auto px-4 py-12 text-center">
@@ -127,6 +142,8 @@ const cleanDesc = model?.description ? model.description.replace(/<[^>]*>?/gm, '
             modelId={modelId} 
           />
         </div>
+
+        <RelatedResearch modelId={modelId} />
 
         {similarModels.length > 0 && (
           <section class="mt-12">
