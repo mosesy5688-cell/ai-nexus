@@ -2,8 +2,8 @@
 /**
  * FNIDimensionFilter.astro
  * 
- * B.14 P2: FNI 维度筛选器
- * Sort by: [FNI 综合 ▾] → P: Popularity | V: Velocity | C: Credibility | U: Utility
+ * B.14 P2: FNI Dimension Filter
+ * Sort by: [FNI Overall] -> P: Popularity | V: Velocity | C: Credibility | U: Utility
  * 
  * Allows users to sort ranking by individual FNI dimensions
  */
@@ -16,11 +16,11 @@ interface Props {
 const { activeDimension = 'fni', className = '' } = Astro.props;
 
 const dimensions = [
-  { id: 'fni', label: 'FNI 综合', icon: '⚖️', color: 'indigo' },
-  { id: 'p', label: 'Popularity', icon: '🔥', color: 'blue', description: '社区热度' },
-  { id: 'v', label: 'Velocity', icon: '🚀', color: 'emerald', description: '增长速度' },
-  { id: 'c', label: 'Credibility', icon: '✅', color: 'amber', description: '可信度' },
-  { id: 'u', label: 'Utility', icon: '⚡', color: 'violet', description: '实用性' }
+  { id: 'fni', label: 'FNI Overall', icon: '⚖️', color: 'indigo' },
+  { id: 'p', label: 'Popularity', icon: '🔥', color: 'blue', description: 'Community popularity' },
+  { id: 'v', label: 'Velocity', icon: '🚀', color: 'emerald', description: 'Growth speed' },
+  { id: 'c', label: 'Credibility', icon: '✅', color: 'amber', description: 'Credibility score' },
+  { id: 'u', label: 'Utility', icon: '⚡', color: 'violet', description: 'Practical utility' }
 ];
 ---
 

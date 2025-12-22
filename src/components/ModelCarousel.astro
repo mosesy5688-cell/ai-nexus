@@ -1,6 +1,9 @@
 ---
 // src/components/ModelCarousel.astro
 // Pure SSR implementation - no client-side JS required
+// V5.0.0: CES-001 Clean URL format
+import { generateEntityUrl } from '../utils/url-utils.js';
+
 export interface Props {
   models: any[];
 }
@@ -39,7 +42,7 @@ const formatNumber = (num: number): string => {
     <div class="carousel-container flex overflow-x-auto space-x-4 pb-4 snap-x snap-mandatory scrollbar-hide scroll-smooth">
       {models.map((model) => (
         <a 
-          href={`/model/${model.slug || model.id.replace('/', '--')}`} 
+          href={generateEntityUrl(model, 'model')} 
           class="flex-none w-72 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 snap-start border border-gray-100 dark:border-gray-700 block"
         >
           <!-- Content (No Image) -->

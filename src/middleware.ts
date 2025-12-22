@@ -104,7 +104,33 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
 
     // ═══════════════════════════════════════════════════════
-    // LAYER 2: Smart KV Caching (existing logic)
+    // LAYER 2: URL Redirect (CES-001 Backward Compatibility)
+    // ═══════════════════════════════════════════════════════
+    // Redirect old encoded URLs (%3A) and double-dash format to clean URLs
+    if (url.pathname.includes('%3A') || url.pathname.includes('%3a') || url.pathname.includes('--')) {
+        const decoded = decodeURIComponent(url.pathname);
+        let cleanPath = decoded;
+
+        // Remove source prefix from entity URLs (e.g., /model/huggingface:author/model -> /model/author/model)
+        cleanPath = cleanPath.replace(
+            /^(\/(model|dataset|paper|agent|benchmark))\/[a-z]+:/i,
+            '$1/'
+        );
+
+        // Convert double-dash to slash (e.g., /model/author--model -> /model/author/model)
+        cleanPath = cleanPath.replace(/--/g, '/');
+
+        // Normalize to lowercase
+        cleanPath = cleanPath.toLowerCase();
+
+        if (cleanPath !== url.pathname.toLowerCase()) {
+            console.log(`[CES-001] Redirecting: ${url.pathname} -> ${cleanPath}`);
+            return Response.redirect(new URL(cleanPath, url.origin), 301);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // LAYER 3: Smart KV Caching (existing logic)
     // ═══════════════════════════════════════════════════════
     const isCacheable = url.pathname.startsWith('/model/') || url.pathname.startsWith('/topic/');
 
@@ -112,7 +138,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
         const response = await next();
         // Add guardian time header
         response.headers.set('X-Guardian-Time', `${(performance.now() - startTime).toFixed(2)}ms`);
-        response.headers.set('X-Guardian-Version', 'v4.8');
+        response.headers.set('X-Guardian-Version', 'v5.0');
         return response;
     }
 

@@ -1,22 +1,33 @@
 // src/utils/entity-cache-reader.js
 /**
- * V4.9.1 Entity Cache Reader
+ * V5.0.0 Entity Cache Reader
  * Constitutional: Art.I-Extended - Frontend D1 = 0
  * 
  * This module reads pre-computed entity data from R2 cache files
  * instead of querying D1 database directly.
  * 
  * CEO Iron Rule: Frontend must ONLY use R2 cache - no D1 access
+ * 
+ * V5.0.0: Updated to support new clean URL format (CES-001)
+ * - Accepts slugs without source prefix (e.g., "meta-llama/llama-3")
+ * - Maintains backward compatibility with old formats
  */
+
+import { urlSlugToLookupFormats } from './url-utils.js';
 
 /**
  * Normalize slug for cache file lookup
+ * Handles both new format (author/model) and legacy format (source:author/model)
  * @param {string} slug - Input slug
  * @returns {string} - Normalized slug for file path
  */
 export function normalizeForCache(slug) {
     if (!slug) return '';
-    return slug
+
+    // Remove any source prefix first (e.g., "huggingface:")
+    let normalized = slug.replace(/^[a-z]+:/i, '');
+
+    return normalized
         .toLowerCase()
         .trim()
         .replace(/\//g, '--')

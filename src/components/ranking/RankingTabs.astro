@@ -2,8 +2,8 @@
 /**
  * RankingTabs.astro
  * 
- * B.14 P1: 排行榜排序标签
- * FNI综合榜 (默认) | Hot | Trending | Newest | Benchmark
+ * B.14 P1: Ranking Sort Tabs
+ * FNI Overall (default) | Hot | Trending | Newest | Benchmark
  */
 
 interface Props {
@@ -14,11 +14,11 @@ interface Props {
 const { activeTab = 'fni', className = '' } = Astro.props;
 
 const TABS = [
-  { id: 'fni', label: 'FNI 综合', icon: '⚖️', description: 'P+V+C+U 综合评分' },
-  { id: 'hot', label: 'Hot', icon: '🔥', description: '社区热度' },
-  { id: 'trending', label: 'Trending', icon: '🚀', description: '增长最快' },
-  { id: 'newest', label: 'Newest', icon: '✨', description: '最近更新' },
-  { id: 'benchmark', label: 'Benchmark', icon: '🏆', description: '性能排名' },
+  { id: 'fni', label: 'FNI Overall', icon: '⚖️', description: 'P+V+C+U combined score' },
+  { id: 'hot', label: 'Hot', icon: '🔥', description: 'Community popularity' },
+  { id: 'trending', label: 'Trending', icon: '🚀', description: 'Fastest growing' },
+  { id: 'newest', label: 'Newest', icon: '✨', description: 'Recently updated' },
+  { id: 'benchmark', label: 'Benchmark', icon: '🏆', description: 'Performance ranking' },
 ];
 ---
 

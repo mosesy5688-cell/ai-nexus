@@ -1,9 +1,11 @@
 ---
 /**
- * Weekly Trending Section V4.8.1
+ * Weekly Trending Section V5.0
  * Displays L8 precomputed trending models for weekly reports
  * Real-time data from R2 cache
+ * CES-001: Clean URL format
  */
+import { generateEntityUrl } from '../utils/url-utils.js';
 
 // Fetch trending data from R2 cache
 let trendingData: {
@@ -50,7 +52,7 @@ const generatedAt = trendingData?.generated_at ? new Date(trendingData.generated
     {hasTrending ? (
         <div class="trending-list">
             {topModels.map((model, index) => (
-                <a href={`/model/${model.id}`} class="trending-item">
+                <a href={generateEntityUrl(model, 'model')} class="trending-item">
                     <span class="rank">#{index + 1}</span>
                     <div class="model-info">
                         <span class="model-name">{model.name}</span>

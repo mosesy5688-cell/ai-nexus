@@ -6,7 +6,7 @@ const CryptoJS = require('crypto-js');
 // Official API + 30s timeout + 3 retries
 const api = axios.create({
   baseURL: 'https://huggingface.co',
-  timeout: 30000,  // 30秒
+  timeout: 30000,  // 30 seconds
   headers: {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
   }
