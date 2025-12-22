@@ -100,6 +100,14 @@ test.describe('V6.x Comprehensive Frontend Suite', () => {
             await expect(page.locator('h1').filter({ hasText: 'Test Model Llama 3' })).toBeVisible();
         });
 
+        await test.step('4.1 Legacy URL Support', async () => {
+            // Navigate to a URL with 'huggingface:' prefix (simulating the reported error)
+            await page.goto('/model/huggingface:test-model-slug');
+            const h1 = page.locator('h1').filter({ hasText: 'Test Model Llama 3' });
+            // Should resolve to the same model despite the prefix
+            await expect(h1).toBeVisible();
+        });
+
         await test.step('5. Model Detail Page Actions', async () => {
             // Copy Install Command
             const copyBtn = page.locator('button[aria-label="Copy install command"]').first();

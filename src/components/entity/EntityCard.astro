@@ -1,13 +1,15 @@
 ---
 /**
- * EntityCard Component - V4.9
+ * EntityCard Component - V5.0
  * Art.X-Entity: Render by entity.definition
  * Art.X-Capability-Gating: Modules enabled by capability only
+ * CES-001: Clean URL format
  * 
  * Polymorphic card component that renders differently based on entity type
  */
 import { deriveEntityType, getEntityTier } from '../types/entity';
 import { ENTITY_DEFINITIONS, entityHasCapability } from '../data/entity-definitions';
+import { generateEntityUrl } from '../../utils/url-utils.js';
 import FNIBadge from './FNIBadge.astro';
 import FreshBadge from './FreshBadge.astro';
 
@@ -33,15 +35,8 @@ const name = entity.name || entity.canonical_name || 'Untitled';
 const author = entity.author || entity.organization || 'Unknown';
 const description = entity.seo_summary || entity.description?.replace(/<[^>]*>?/gm, '') || 'No description available.';
 
-// URL construction
-const urlPrefixes: Record<string, string> = {
-    model: '/model/',
-    dataset: '/model/', // For now, all go to /model/
-    benchmark: '/model/',
-    paper: '/model/',
-    agent: '/model/',
-};
-const entityUrl = `${urlPrefixes[entityType] || '/model/'}${encodeURIComponent(entity.slug || entity.id)}`;
+// URL construction using clean URL format
+const entityUrl = generateEntityUrl(entity, entityType);
 
 // Display metadata
 const icon = definition?.display?.icon || '📦';

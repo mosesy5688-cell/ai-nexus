@@ -1,10 +1,12 @@
 ---
 /**
- * Related Models Component
+ * Related Models Component - V5.0
  * Displays intelligent model recommendations based on multi-factor similarity
+ * CES-001: Clean URL format
  */
 import { getRelatedModels } from '../lib/enhanced-data';
 import { getRecommendationReasons } from '../lib/recommendation-service.js';
+import { generateEntityUrl } from '../utils/url-utils.js';
 
 interface Props {
   modelId: string;
@@ -30,7 +32,7 @@ const relatedModels = await getRelatedModels(modelId, kv, limit);
         
         return (
           <article class="model-card">
-            <a href={`/model/${model.id}`} class="card-link">
+            <a href={generateEntityUrl(model, 'model')} class="card-link">
               <div class="card-header">
                 <h3 class="model-name">{model.name}</h3>
                 {model.author && <p class="model-author">by {model.author}</p>}
