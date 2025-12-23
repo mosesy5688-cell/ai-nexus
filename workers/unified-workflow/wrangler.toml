@@ -44,18 +44,7 @@ queue = "ai-nexus-hydration-queue"
 max_batch_size = 100
 max_batch_timeout = 5
 
-# V7.1: Ingestion Queue (Producer)
-[[queues.producers]]
-queue = "ai-nexus-ingestion-queue"
-binding = "INGESTION_QUEUE"
-
-# V7.1: Ingestion Queue (Consumer)
-[[queues.consumers]]
-queue = "ai-nexus-ingestion-queue"
-max_batch_size = 10
-max_batch_timeout = 30
-max_retries = 3
-dead_letter_queue = "ai-nexus-dlq"
+# Note: INGESTION_QUEUE removed - was never triggered (PR #392)
 
 # Observability: Enable Workers Logs for debugging
 [observability]
