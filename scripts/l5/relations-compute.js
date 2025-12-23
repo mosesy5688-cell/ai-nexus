@@ -144,7 +144,96 @@ export async function computeRelations(inputFile, outputFile) {
     const summaryFile = outputFile.replace('.json', '_summary.json');
     fs.writeFileSync(summaryFile, JSON.stringify(summary, null, 2));
 
+    // B.1.0 Phase 2: Build Paper-Model reverse index cache
+    const cacheDir = path.join(path.dirname(outputFile), '..', 'cache');
+    await buildPaperRelationsCache(uniqueRelations, entities, cacheDir);
+
     return summary;
+}
+
+/**
+ * Build Paper-Model reverse index cache
+ * B.1.0 Phase 2: Paper → Model relations
+ * Creates cache/paper-relations/{arxivId}.json for each paper with citing models
+ */
+export async function buildPaperRelationsCache(relations, entities, outputDir) {
+    console.log('\n📄 Building Paper-Relations cache (B.1.0 Phase 2)...');
+
+    // Create entity lookup for FNI scores and names
+    const entityMap = new Map(entities.map(e => [e.id, e]));
+
+    // Group relations by paper (arxiv targets)
+    const paperModelMap = new Map();
+
+    for (const rel of relations) {
+        if (rel.relation_type === 'paper_id' && rel.target_id.startsWith('arxiv:')) {
+            const arxivId = rel.target_id.replace('arxiv:', '');
+
+            if (!paperModelMap.has(arxivId)) {
+                paperModelMap.set(arxivId, []);
+            }
+
+            const model = entityMap.get(rel.source_id);
+            if (model) {
+                paperModelMap.get(arxivId).push({
+                    id: model.id,
+                    name: model.name || model.id,
+                    author: model.author || 'Unknown',
+                    fni_score: model.fni_score || 0,
+                    source: model.source || 'unknown'
+                });
+            }
+        }
+    }
+
+    // Create output directory
+    const paperRelDir = path.join(outputDir, 'paper-relations');
+    if (!fs.existsSync(paperRelDir)) {
+        fs.mkdirSync(paperRelDir, { recursive: true });
+    }
+
+    // Write individual cache files (Top 50 papers only to avoid explosion)
+    const sortedPapers = [...paperModelMap.entries()]
+        .sort((a, b) => b[1].length - a[1].length)
+        .slice(0, 500);  // Top 500 papers with most citations
+
+    let filesWritten = 0;
+    for (const [arxivId, models] of sortedPapers) {
+        // Sort models by FNI score descending
+        const sortedModels = models.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
+
+        const cacheData = {
+            arxiv_id: arxivId,
+            citing_models: sortedModels.slice(0, 20),  // Top 20 models per paper
+            total_citations: models.length,
+            generated_at: new Date().toISOString()
+        };
+
+        const cacheFile = path.join(paperRelDir, `${arxivId}.json`);
+        fs.writeFileSync(cacheFile, JSON.stringify(cacheData));
+        filesWritten++;
+    }
+
+    console.log(`   ✅ Created ${filesWritten} paper-relations cache files`);
+    console.log(`   📊 Total papers with citations: ${paperModelMap.size}`);
+
+    // Write index file for quick lookup
+    const indexData = {
+        total_papers: paperModelMap.size,
+        cached_papers: filesWritten,
+        top_papers: sortedPapers.slice(0, 20).map(([id, models]) => ({
+            arxiv_id: id,
+            citation_count: models.length
+        })),
+        generated_at: new Date().toISOString()
+    };
+
+    fs.writeFileSync(
+        path.join(paperRelDir, '_index.json'),
+        JSON.stringify(indexData, null, 2)
+    );
+
+    return { filesWritten, totalPapers: paperModelMap.size };
 }
 
 // CLI execution
