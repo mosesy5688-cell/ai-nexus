@@ -6,7 +6,7 @@ import { runFNIStep } from './steps/fni';
 import { logExecution } from './steps/monitor';
 import { runPrecomputeStep } from './steps/precompute';
 import { consumeHydrationQueue } from './consumers/hydration';
-import { consumeIngestionQueue } from './consumers/ingestion';  // V7.1
+// Removed: consumeIngestionQueue (PR #392 - queue was never triggered)
 import { handleSearch } from './routes/search';
 import { handleRelations } from './routes/relations';
 
@@ -105,10 +105,8 @@ export default {
             console.log('[System] SYSTEM_PAUSE active. Aborting queue consumption.');
             return;
         }
-
-        const queueName = batch.queue;
-        if (queueName === 'ai-nexus-ingestion-queue') await consumeIngestionQueue(batch, env);
-        else await consumeHydrationQueue(batch, env);
+        // HYDRATION_QUEUE only (INGESTION_QUEUE removed PR #392)
+        await consumeHydrationQueue(batch, env);
     }
 };
 
