@@ -133,18 +133,65 @@ function bucketFromParams(params: number): string {
 // ============================================================================
 
 /**
+ * Generate template-based SEO summary for entities
+ * B.19: Fallback for entities that don't get AI-generated summaries
+ * 
+ * @param model - The model/entity data
+ * @returns SEO-friendly summary string
+ */
+export function generateTemplateSummary(model: any): string {
+    const name = model.name || 'AI Model';
+    const author = model.author || 'Unknown';
+    const type = model.type || 'model';
+    const pipelineTag = model.pipeline_tag || '';
+    const description = (model.description || '').substring(0, 150).trim();
+
+    // Build template based on type
+    let summary = '';
+
+    switch (type) {
+        case 'agent':
+            summary = `${name} is an AI agent by ${author}`;
+            if (pipelineTag) summary += ` for ${pipelineTag}`;
+            break;
+        case 'dataset':
+            summary = `${name} is a dataset by ${author}`;
+            if (pipelineTag) summary += ` for ${pipelineTag} tasks`;
+            break;
+        case 'paper':
+            summary = `${name} is a research paper by ${author}`;
+            break;
+        default: // model
+            summary = `${name} is an open-source AI model by ${author}`;
+            if (pipelineTag) summary += ` for ${pipelineTag}`;
+    }
+
+    // Append truncated description if available
+    if (description) {
+        summary += `. ${description}`;
+        if (description.length >= 150) summary += '...';
+    }
+
+    return summary.trim();
+}
+
+/**
  * V6.0.1 Enricher - Pure high-confidence classification
+ * B.19: Now includes template summary generation
  * Returns fields to be merged into model object
  */
-export function enrichModel(model: any): EnrichedModel {
+export function enrichModel(model: any): EnrichedModel & { seo_summary: string } {
     const categoryResult = assignCategory(model);
     const sizeResult = estimateSizeBucket(model);
+    const seoSummary = generateTemplateSummary(model);
 
     return {
         primary_category: categoryResult.category,
         category_confidence: categoryResult.confidence,
         category_status: categoryResult.status,
         size_bucket: sizeResult.size_bucket,
-        size_source: sizeResult.size_source
+        size_source: sizeResult.size_source,
+        seo_summary: seoSummary
     };
 }
+
