@@ -124,15 +124,52 @@ export async function computeAllRankings(computedDir, outputDir) {
     );
     console.log(`   ✅ trending.json: ${trendingModels.length} models/agents`);
 
-    // Generate category stats
+    // V6.0.1: Category metadata for frontend display
+    const CATEGORY_METADATA = {
+        'text-generation': { label: 'Text Generation & Content Creation', icon: '💬', color: '#6366f1' },
+        'knowledge-retrieval': { label: 'Knowledge Retrieval & Data Analysis', icon: '🔍', color: '#10b981' },
+        'vision-multimedia': { label: 'Vision & Multimedia Processing', icon: '🎨', color: '#f59e0b' },
+        'automation-workflow': { label: 'Automation & Workflow Integration', icon: '⚡', color: '#8b5cf6' },
+        'infrastructure-ops': { label: 'Infrastructure & Optimization', icon: '🔧', color: '#64748b' },
+        'uncategorized': { label: 'Uncategorized', icon: '📦', color: '#9ca3af' }
+    };
+
+    // Generate V6.0.1 category stats with full metadata
+    const categoryStatsV6 = categoryStats.map(s => {
+        const meta = CATEGORY_METADATA[s.category] || CATEGORY_METADATA['uncategorized'];
+        const categoryEntities = byCategory[s.category] || [];
+        const fniScores = categoryEntities.map(e => e.fni_score || 0).filter(f => f > 0);
+        const avgFni = fniScores.length > 0
+            ? Math.round((fniScores.reduce((a, b) => a + b, 0) / fniScores.length) * 10) / 10
+            : 0;
+        const topFni = fniScores.length > 0 ? Math.max(...fniScores) : 0;
+
+        return {
+            category: s.category,
+            label: meta.label,
+            icon: meta.icon,
+            color: meta.color,
+            count: s.entities,
+            trending: s.entities,
+            avgFni,
+            topFni
+        };
+    });
+
+    const classifiedCount = fniResults.filter(e => e.primary_category && e.primary_category !== 'uncategorized').length;
+
     const stats = {
         generated_at: new Date().toISOString(),
-        total_entities: fniResults.length,
-        categories: categoryStats.map(s => ({
-            name: s.category,
-            count: s.entities,
-            pages: s.pages
-        }))
+        version: 'V6.0.1',
+        categories: categoryStatsV6.filter(c => c.category !== 'uncategorized'),
+        classified_count: classifiedCount,
+        total_models: fniResults.length,
+        total_categories: categoryStatsV6.filter(c => c.category !== 'uncategorized').length,
+        pending_classification: {
+            count: fniResults.length - classifiedCount,
+            reason: 'missing_pipeline_tag',
+            note: 'High-confidence classification only. Semantic inference in V6.1'
+        }
     };
 
     fs.writeFileSync(
