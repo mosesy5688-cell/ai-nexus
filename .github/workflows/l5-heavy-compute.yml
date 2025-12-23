@@ -12,8 +12,8 @@ name: L5 Heavy Compute
 
 on:
   schedule:
-    # Daily at 02:00 UTC (10:00 Beijing)
-    - cron: '0 2 * * *'
+    # Daily at 04:00 UTC (12:00 Beijing) - 1 hour after L1 Harvester (03:00 UTC)
+    - cron: '0 4 * * *'
   workflow_dispatch:
     inputs:
       compute_type:
