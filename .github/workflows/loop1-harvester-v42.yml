@@ -78,7 +78,7 @@ jobs:
           retention-days: 1
 
   harvest-academic:
-    name: Harvest Academic (ArXiv + Papers)
+    name: Harvest Academic (ArXiv + Papers + Datasets)
     runs-on: ubuntu-latest
     timeout-minutes: 180
     
@@ -100,6 +100,13 @@ jobs:
         run: |
           echo "📥 [Parallel] Harvesting HF Papers..."
           node scripts/ingestion/harvest-single.js huggingface-papers --limit 3000 || echo "HF Papers adapter skipped"
+
+      - name: Harvest HuggingFace Datasets
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "📥 [Parallel] Harvesting HF Datasets..."
+          node scripts/ingestion/harvest-single.js datasets --limit 10000 || echo "HF Datasets adapter skipped"
 
       - name: Upload Batch Artifacts
         uses: actions/upload-artifact@v4
