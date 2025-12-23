@@ -20,27 +20,30 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
         return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
     }
 
-    // List pending files in raw-data/
-    console.log('[Ingest] Listing files in raw-data/...');
+    // V7.1: List pending files in ingest/batches/ (aligned with L1 Harvester V7.1)
+    console.log('[Ingest] Listing files in ingest/batches/...');
     const listed = await env.R2_ASSETS.list({
-        prefix: 'raw-data/',
+        prefix: 'ingest/batches/',
         limit: 100,
         startAfter: checkpoint.lastId || undefined
     });
 
     console.log(`[Ingest] R2 list returned: ${listed.objects.length} total objects, truncated: ${listed.truncated}`);
 
-    const jsonFiles = listed.objects.filter((obj: any) => obj.key.endsWith('.json'));
+    // V7.1: Filter for .json.gz files (L1 V7.1 uses gzip compression)
+    const jsonFiles = listed.objects.filter((obj: any) =>
+        obj.key.endsWith('.json.gz') || obj.key.endsWith('.json')
+    );
 
     if (jsonFiles.length === 0) {
-        console.log('[Ingest] No pending files in raw-data/');
+        console.log('[Ingest] No pending files in ingest/batches/');
         return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
     }
 
     console.log(`[Ingest] Found ${jsonFiles.length} files to process`);
 
-    // V6.0: Increased for faster bulk processing (Constitution Art 1.1 compliant)
-    const MAX_FILES_PER_RUN = 100; // Doubled from 50 for V6.0
+    // V7.1: Reduced batch size for memory safety (Constitution Art 2.4)
+    const MAX_FILES_PER_RUN = 20; // Reduced from 100 for memory safety
     let totalModels = 0;
     let filesProcessed = 0;
     let messagesQueued = 0;
@@ -54,7 +57,23 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
                 continue;
             }
 
-            const models = await file.json() as any[];
+            // V7.1: Handle gzip compressed files
+            let models: any[];
+            if (fileObj.key.endsWith('.gz')) {
+                // Decompress gzip content
+                const compressed = await file.arrayBuffer();
+                const decompressed = new Response(
+                    new ReadableStream({
+                        start(controller) {
+                            controller.enqueue(new Uint8Array(compressed));
+                            controller.close();
+                        }
+                    }).pipeThrough(new DecompressionStream('gzip'))
+                );
+                models = await decompressed.json() as any[];
+            } else {
+                models = await file.json() as any[];
+            }
             console.log(`[Ingest] Processing ${fileObj.key}: ${models.length} models`);
 
             // Clean and validate models
