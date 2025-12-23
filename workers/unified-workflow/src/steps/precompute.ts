@@ -10,17 +10,15 @@ import { generateRankings } from '../utils/ranking-generator';
 import { generateSitemaps } from '../utils/sitemap-generator';
 
 export async function runPrecomputeStep(env: Env) {
-    console.log('[L8 Orchestrator] Starting full cache regeneration...');
+    console.log('[L8 Orchestrator] Starting lightweight cache regeneration...');
+    console.log('[L8] Note: Rankings/Stats migrated to L5 Sidecar (V7.2 Phase 3)');
 
-    // 0. Rankings (Paginated)
-    try {
-        await generateRankings(env);
-        console.log('[L8] ✅ Rankings complete');
-    } catch (err) {
-        console.error('[L8] ❌ Rankings failed:', err);
-    }
+    // 0. Rankings (Paginated) - MIGRATED TO L5
+    // V7.2 Phase 3: Now handled by L5 Sidecar (scripts/l5/rankings-compute.js)
+    // See: l5-heavy-compute.yml -> compute-rankings job
+    console.log('[L8] ⏭️ Rankings skipped (migrated to L5 Sidecar)');
 
-    // 1. Trending & Leaderboard
+    // 1. Trending & Leaderboard - Keep in L8 (lightweight D1 query)
     try {
         await generateTrendingAndLeaderboard(env);
         console.log('[L8] ✅ Trending complete');
@@ -36,13 +34,10 @@ export async function runPrecomputeStep(env: Env) {
         console.error('[L8] ❌ Neural Graph failed:', err);
     }
 
-    // 3. Category Stats - V6.0 Critical
-    try {
-        await generateCategoryStats(env);
-        console.log('[L8] ✅ Category Stats complete');
-    } catch (err) {
-        console.error('[L8] ❌ Category Stats failed:', err);
-    }
+    // 3. Category Stats - MIGRATED TO L5
+    // V7.2 Phase 3: Now handled by L5 Sidecar (scripts/l5/rankings-compute.js L127-141)
+    // Generates: cache/category_stats.json with full category breakdown
+    console.log('[L8] ⏭️ Category Stats skipped (migrated to L5 Sidecar)');
 
     // 4. Benchmarks & Entity Links
     try {
