@@ -1,10 +1,19 @@
 ---
 /**
- * AgentSpecs Component - Phase B P2
- * Displays agent specifications in sidebar format
- * 
- * @component
+ * AgentSpecs Component V2.0 - B.2 Agent Entity Expansion
+ * Displays agent specifications including MCP tools and capabilities
  */
+
+interface MetaJson {
+  tools?: string[];
+  capabilities?: Record<string, boolean | object>;
+  prompts?: string[];
+  resources?: string[];
+  transports?: string[];
+  runtime?: string;
+  mcp_version?: string;
+  repository?: string;
+}
 
 interface Props {
   framework?: string;
@@ -14,89 +23,168 @@ interface Props {
   forks?: number;
   lastCommit?: string;
   sourceUrl?: string;
+  metaJson?: MetaJson | string;
 }
 
-const { framework, language, license, stars, forks, lastCommit, sourceUrl } = Astro.props;
+const { framework, language, license, stars, forks, lastCommit, sourceUrl, metaJson } = Astro.props;
 
-// Format date
+// Parse meta_json if it's a string
+let meta: MetaJson = {};
+if (metaJson) {
+  try {
+    meta = typeof metaJson === 'string' ? JSON.parse(metaJson) : metaJson;
+  } catch (e) {
+    console.warn('[AgentSpecs] Failed to parse meta_json');
+  }
+}
+
+// Extract MCP-specific data
+const tools = meta.tools || [];
+const capabilities = Object.keys(meta.capabilities || {});
+const prompts = meta.prompts || [];
+const resources = meta.resources || [];
+const runtime = meta.runtime;
+const mcpVersion = meta.mcp_version;
+const transports = meta.transports || [];
+
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '--';
   try {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   } catch {
     return dateStr;
   }
 }
 
-const hasSpecs = framework || language || license || stars || forks || lastCommit;
+const hasSpecs = framework || language || license || stars || forks || lastCommit || tools.length > 0 || capabilities.length > 0;
 ---
 
 {hasSpecs && (
-  <div class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
-    <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
-      Agent Specs
-    </h3>
-    
-    <dl class="space-y-3 text-sm">
-      {framework && (
-        <div class="flex justify-between">
-          <dt class="text-gray-500 dark:text-gray-400">Framework</dt>
-          <dd class="text-gray-900 dark:text-white font-medium">{framework}</dd>
-        </div>
-      )}
-      
-      {language && (
-        <div class="flex justify-between">
-          <dt class="text-gray-500 dark:text-gray-400">Language</dt>
-          <dd class="text-gray-900 dark:text-white font-medium">{language}</dd>
-        </div>
-      )}
-      
-      {license && (
-        <div class="flex justify-between">
-          <dt class="text-gray-500 dark:text-gray-400">License</dt>
-          <dd>
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-              {license}
+  <div class="space-y-4">
+    <!-- Core Agent Stats -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+      <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Agent Specs</h3>
+      <dl class="space-y-3 text-sm">
+        {runtime && (
+          <div class="flex justify-between">
+            <dt class="text-gray-500 dark:text-gray-400">Runtime</dt>
+            <dd class="text-gray-900 dark:text-white font-medium">{runtime}</dd>
+          </div>
+        )}
+        {mcpVersion && (
+          <div class="flex justify-between">
+            <dt class="text-gray-500 dark:text-gray-400">MCP Version</dt>
+            <dd class="text-gray-900 dark:text-white font-medium">{mcpVersion}</dd>
+          </div>
+        )}
+        {framework && (
+          <div class="flex justify-between">
+            <dt class="text-gray-500 dark:text-gray-400">Framework</dt>
+            <dd class="text-gray-900 dark:text-white font-medium">{framework}</dd>
+          </div>
+        )}
+        {language && (
+          <div class="flex justify-between">
+            <dt class="text-gray-500 dark:text-gray-400">Language</dt>
+            <dd class="text-gray-900 dark:text-white font-medium">{language}</dd>
+          </div>
+        )}
+        {license && (
+          <div class="flex justify-between">
+            <dt class="text-gray-500 dark:text-gray-400">License</dt>
+            <dd><span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">{license}</span></dd>
+          </div>
+        )}
+        {stars !== undefined && stars > 0 && (
+          <div class="flex justify-between">
+            <dt class="text-gray-500 dark:text-gray-400">Stars</dt>
+            <dd class="text-yellow-600 dark:text-yellow-400 font-medium">⭐ {stars.toLocaleString()}</dd>
+          </div>
+        )}
+        {transports.length > 0 && (
+          <div class="flex justify-between">
+            <dt class="text-gray-500 dark:text-gray-400">Transports</dt>
+            <dd class="text-gray-900 dark:text-white">{transports.join(', ')}</dd>
+          </div>
+        )}
+      </dl>
+    </div>
+
+    <!-- Tools Section (MCP-specific) -->
+    {tools.length > 0 && (
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+          🔧 Tools
+          <span class="px-2 py-0.5 rounded-full text-xs bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">
+            {tools.length}
+          </span>
+        </h3>
+        <div class="flex flex-wrap gap-2">
+          {tools.slice(0, 10).map((tool) => (
+            <span class="px-2 py-1 text-xs bg-pink-50 dark:bg-pink-900/20 text-pink-700 dark:text-pink-300 rounded-lg border border-pink-200 dark:border-pink-800">
+              {tool}
             </span>
-          </dd>
+          ))}
+          {tools.length > 10 && (
+            <span class="px-2 py-1 text-xs text-gray-500">+{tools.length - 10} more</span>
+          )}
         </div>
-      )}
-      
-      {stars !== undefined && stars > 0 && (
-        <div class="flex justify-between">
-          <dt class="text-gray-500 dark:text-gray-400">Stars</dt>
-          <dd class="text-yellow-600 dark:text-yellow-400 font-medium">⭐ {stars.toLocaleString()}</dd>
-        </div>
-      )}
-      
-      {forks !== undefined && forks > 0 && (
-        <div class="flex justify-between">
-          <dt class="text-gray-500 dark:text-gray-400">Forks</dt>
-          <dd class="text-gray-900 dark:text-white">{forks.toLocaleString()}</dd>
-        </div>
-      )}
-      
-      {lastCommit && (
-        <div class="flex justify-between">
-          <dt class="text-gray-500 dark:text-gray-400">Last Commit</dt>
-          <dd class="text-gray-900 dark:text-white">{formatDate(lastCommit)}</dd>
-        </div>
-      )}
-    </dl>
-    
-    {sourceUrl && (
-      <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-        <a 
-          href={sourceUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="block w-full text-center py-2 px-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
-        >
-          View Repository →
-        </a>
       </div>
+    )}
+
+    <!-- Capabilities Section -->
+    {capabilities.length > 0 && (
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">⚡ Capabilities</h3>
+        <div class="flex flex-wrap gap-2">
+          {capabilities.map((cap) => (
+            <span class="px-2 py-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg border border-green-200 dark:border-green-800">
+              {cap}
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <!-- Prompts Section -->
+    {prompts.length > 0 && (
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">💬 Prompts</h3>
+        <div class="flex flex-wrap gap-2">
+          {prompts.slice(0, 8).map((prompt) => (
+            <span class="px-2 py-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-lg border border-purple-200 dark:border-purple-800">
+              {prompt}
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <!-- Resources Section -->
+    {resources.length > 0 && (
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
+        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">📦 Resources</h3>
+        <div class="flex flex-wrap gap-2">
+          {resources.slice(0, 8).map((resource) => (
+            <span class="px-2 py-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg border border-blue-200 dark:border-blue-800">
+              {resource}
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
+
+    <!-- Source Link -->
+    {sourceUrl && (
+      <a 
+        href={sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="block w-full text-center py-2 px-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
+      >
+        View Repository →
+      </a>
     )}
   </div>
 )}
+
