@@ -80,7 +80,7 @@ jobs:
   harvest-academic:
     name: Harvest Academic (ArXiv + Papers)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     
     steps:
       - uses: actions/checkout@v4
@@ -92,7 +92,7 @@ jobs:
       - name: Harvest ArXiv Papers
         run: |
           echo "📥 [Parallel] Harvesting ArXiv..."
-          node scripts/ingestion/harvest-single.js arxiv --limit 5000 || echo "ArXiv adapter skipped"
+          node scripts/ingestion/harvest-single.js arxiv --limit 50000 || echo "ArXiv adapter skipped"
           
       - name: Harvest HuggingFace Papers
         env:
