@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * L4 Promoter Runner - V4 Stable Execution Layer
- * Constitution V4.3.2 Compliant
+ * L4 Promoter Runner V2.0 - AI Summary Generation
+ * Constitution V6.x Compliant
  * 
- * B1: Idempotent AI summary generation
- * - Skips models with existing summaries
- * - No retry on failure (next run will catch)
- * - Rate limited to prevent quota exhaustion
+ * B.19 Optimization: High-Priority Only
+ * - Only processes entities with FNI > 50 OR downloads > 1000
+ * - Daily schedule (previously every 6 hours)
+ * - Processes up to 500 entities per run
+ * - Idempotent: skips entities with existing summaries
  */
 
 import { config } from 'dotenv';
@@ -39,13 +40,16 @@ async function queryD1(sql) {
 }
 
 /**
- * Get models without summary (idempotent)
+ * Get high-priority models without summary (idempotent)
+ * B.19: Only top 10K entities (FNI > 50 OR downloads > 1000)
  */
-async function getModelsWithoutSummary(limit = 50) {
-    const sql = `SELECT umid, name, author, description 
+async function getModelsWithoutSummary(limit = 500) {
+    const sql = `SELECT umid, name, author, description, fni_score, downloads 
                  FROM models 
                  WHERE (seo_summary IS NULL OR seo_summary = '') 
                  AND name IS NOT NULL
+                 AND (fni_score > 50 OR downloads > 1000)
+                 ORDER BY COALESCE(fni_score, 0) DESC
                  LIMIT ${limit}`;
     return await queryD1(sql);
 }
@@ -82,7 +86,7 @@ async function main() {
 
     // Parse limit from args
     const limitArg = process.argv.find(a => a.startsWith('--limit='));
-    const limit = limitArg ? parseInt(limitArg.split('=')[1]) : 50;
+    const limit = limitArg ? parseInt(limitArg.split('=')[1]) : 500;
 
     console.log(`📊 Fetching up to ${limit} models without summary...`);
     const models = await getModelsWithoutSummary(limit);
