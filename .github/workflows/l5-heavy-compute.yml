@@ -370,6 +370,19 @@ jobs:
           echo "📤 Uploading relations to R2..."
           npx wrangler r2 object put ai-nexus-assets/computed/relations.json --file data/relations.json --remote
           npx wrangler r2 object put ai-nexus-assets/computed/relations_summary.json --file data/relations_summary.json --remote
+          
+          # B.1.0 Phase 2: Upload Paper-Relations cache
+          echo "📄 Uploading paper-relations cache..."
+          if [ -d "data/cache/paper-relations" ]; then
+            find data/cache/paper-relations -name "*.json" | while read file; do
+              filename=$(basename "$file")
+              echo "   Uploading: cache/paper-relations/$filename"
+              npx wrangler r2 object put "ai-nexus-assets/cache/paper-relations/$filename" --file "$file" --remote
+            done
+            echo "✅ Paper-relations cache uploaded!"
+          else
+            echo "⚠️ No paper-relations cache found (will generate on next run)"
+          fi
           echo "✅ Relations uploaded!"
           
       - name: Sync Relations to D1 (500K Scale)
