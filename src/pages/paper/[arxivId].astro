@@ -2,30 +2,49 @@
 export const prerender = false;
 
 /**
- * Paper Detail Page V1.0
- * Phase B P1: Paper-Model Relations
- * Displays ArXiv paper info and related models
+ * Paper Detail Page V2.0 (B.1.0 Phase 3)
+ * Displays ArXiv paper info and citing models from R2 cache
  */
 
 import Layout from '../../layouts/Layout.astro';
 import PaperHeader from '../../components/paper-detail/PaperHeader.astro';
+import { generateEntityUrl } from '../../utils/url-utils.js';
 
 const { arxivId } = Astro.params;
 
-// Validate ArXiv ID format (e.g., 2407.21783)
+// Validate ArXiv ID format
 const isValidArxivId = arxivId && /^\d{4}\.\d{4,5}$/.test(arxivId);
 
 let pageTitle = "AI Research Paper - Free AI Tools";
 let pageDescription = "Explore this AI research paper and related models.";
 
+// Paper-relations cache data
+let paperRelations = null;
+let citingModels = [];
+
 if (isValidArxivId) {
   pageTitle = `arXiv:${arxivId} - AI Research Paper`;
   pageDescription = `View paper arXiv:${arxivId} and discover AI models that cite this research.`;
+
+  // Fetch paper-relations from R2 cache
+  try {
+    const runtime = Astro.locals.runtime;
+    if (runtime?.env?.R2_ASSETS) {
+      const r2 = runtime.env.R2_ASSETS;
+      const cacheFile = await r2.get(`cache/paper-relations/${arxivId}.json`);
+      if (cacheFile) {
+        paperRelations = await cacheFile.json();
+        citingModels = paperRelations?.citing_models || [];
+      }
+    }
+  } catch (e) {
+    console.error('[Paper] R2 cache error:', e.message);
+  }
 }
 
-// ArXiv URLs
 const arxivAbsUrl = `https://arxiv.org/abs/${arxivId}`;
 const arxivPdfUrl = `https://arxiv.org/pdf/${arxivId}.pdf`;
+const hasCitingModels = citingModels.length > 0;
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -59,9 +78,6 @@ const arxivPdfUrl = `https://arxiv.org/pdf/${arxivId}.pdf`;
               rel="noopener noreferrer"
               class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-              </svg>
               View on ArXiv
             </a>
             <a 
@@ -70,25 +86,59 @@ const arxivPdfUrl = `https://arxiv.org/pdf/${arxivId}.pdf`;
               rel="noopener noreferrer"
               class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-              </svg>
               Download PDF
             </a>
           </div>
         </section>
         
         <section class="mt-8 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
-          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             🧠 Models Citing This Paper
+            {hasCitingModels && (
+              <span class="px-2 py-1 text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full">
+                {paperRelations?.total_citations || citingModels.length}
+              </span>
+            )}
           </h2>
-          <p class="text-gray-600 dark:text-gray-400">
-            Models that reference arXiv:{arxivId} in their documentation will be displayed here.
-          </p>
-          <div class="mt-4">
+          
+          {hasCitingModels ? (
+            <div class="space-y-3">
+              {citingModels.map((model) => (
+                <a 
+                  href={generateEntityUrl(model.id, 'model')}
+                  class="block p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
+                >
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <span class="font-semibold text-gray-900 dark:text-white">
+                        {model.name}
+                      </span>
+                      <span class="text-gray-500 dark:text-gray-400 text-sm ml-2">
+                        by {model.author}
+                      </span>
+                    </div>
+                    {model.fni_score > 0 && (
+                      <span class="px-2 py-1 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded">
+                        FNI: {model.fni_score.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div class="text-gray-600 dark:text-gray-400">
+              <p>No models found citing this paper yet.</p>
+              <p class="text-sm mt-2">
+                Models that reference arXiv:{arxivId} in their documentation will appear here.
+              </p>
+            </div>
+          )}
+          
+          <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <a 
               href={`/explore?paper=${arxivId}`}
-              class="text-indigo-500 hover:underline"
+              class="text-indigo-500 hover:underline text-sm"
             >
               Search for related models →
             </a>
@@ -104,3 +154,4 @@ const arxivPdfUrl = `https://arxiv.org/pdf/${arxivId}.pdf`;
     )}
   </main>
 </Layout>
+
