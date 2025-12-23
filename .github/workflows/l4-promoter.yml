@@ -1,8 +1,11 @@
-name: L4 Promoter - AI Summary Generation
+name: L4 Promoter - AI Summary Generation V2.0
+
+# B.19 Optimization: Daily run for high-priority entities only
+# Only generates summaries for entities with FNI > 50 OR downloads > 1000
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
+    - cron: '0 7 * * *'  # Daily at 07:00 UTC (after L5)
   workflow_dispatch:  # Manual trigger
 
 # V5.2.1 Constitution Art 3.2: Execution Safety
@@ -13,7 +16,7 @@ concurrency:
 jobs:
   generate-summaries:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     
     steps:
       - name: Checkout repository
@@ -28,8 +31,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Run L4 Promoter
-        run: node scripts/run-l4-promoter.js --limit=50
+      - name: Run L4 Promoter (High-Priority Only)
+        run: node scripts/run-l4-promoter.js --limit=500
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
