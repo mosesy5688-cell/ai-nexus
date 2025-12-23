@@ -237,30 +237,51 @@ jobs:
             exit 1
           fi
           
-      - name: Upload Raw Data to R2 (V7.1 Batch Upload)
+      - name: Upload Raw Data to R2 (V7.2 Batch Upload with Validation)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "📦 V7.1: Batch Upload to R2..."
+          echo "📦 V7.2: Batch Upload to R2 with Validation..."
           TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
           
-          # Install gzip tools
-          npm install --save-dev zlib 2>/dev/null || true
+          # V7.2 Configuration
+          MAX_BATCH_SIZE_MB=50  # Maximum batch size
+          MAX_ENTITIES_PER_BATCH=5000  # Per V7.1 spec
           
           # Create manifest
           BATCH_COUNT=0
           TOTAL_ENTITIES=0
           BATCH_FILES=""
+          VALIDATION_PASSED=true
           
-          # Upload each batch with gzip compression
+          # Upload each batch with gzip compression and validation
           for batch_file in data/raw_batch_*.json; do
             if [ -f "$batch_file" ]; then
               BATCH_COUNT=$((BATCH_COUNT + 1))
               batch_name=$(basename "$batch_file" .json)
               
+              # V7.2: Batch size validation
+              FILE_SIZE=$(stat -c%s "$batch_file" 2>/dev/null || stat -f%z "$batch_file")
+              FILE_SIZE_MB=$((FILE_SIZE / 1024 / 1024))
+              BATCH_ENTITIES=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$batch_file')).length)")
+              
+              if [ "$FILE_SIZE_MB" -gt "$MAX_BATCH_SIZE_MB" ]; then
+                echo "⚠️ WARNING: $batch_name exceeds ${MAX_BATCH_SIZE_MB}MB limit (${FILE_SIZE_MB}MB)"
+                VALIDATION_PASSED=false
+              fi
+              
+              if [ "$BATCH_ENTITIES" -gt "$MAX_ENTITIES_PER_BATCH" ]; then
+                echo "⚠️ WARNING: $batch_name exceeds ${MAX_ENTITIES_PER_BATCH} entities limit (${BATCH_ENTITIES})"
+                VALIDATION_PASSED=false
+              fi
+              
               # Gzip compress
               gzip -c "$batch_file" > "${batch_file}.gz"
+              
+              # V7.2: Calculate SHA-256 hash
+              BATCH_HASH=$(sha256sum "${batch_file}.gz" | cut -d' ' -f1)
+              COMPRESSED_SIZE=$(stat -c%s "${batch_file}.gz" 2>/dev/null || stat -f%z "${batch_file}.gz")
               
               # Upload to V7.1 path: ingest/batches/
               r2_key="ingest/batches/${batch_name}.json.gz"
@@ -269,25 +290,29 @@ jobs:
                 --content-type="application/json" \
                 --content-encoding="gzip" \
                 --remote
-              echo "✅ Uploaded: $r2_key"
+              echo "✅ Uploaded: $r2_key (${BATCH_ENTITIES} entities, hash: ${BATCH_HASH:0:8}...)"
               
-              # Track batch info
-              BATCH_ENTITIES=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$batch_file')).length)")
+              # Track batch info with hash
               TOTAL_ENTITIES=$((TOTAL_ENTITIES + BATCH_ENTITIES))
-              BATCH_FILES="${BATCH_FILES}\"${r2_key}\","
+              BATCH_FILES="${BATCH_FILES}{\"key\":\"${r2_key}\",\"entities\":${BATCH_ENTITIES},\"hash\":\"${BATCH_HASH}\",\"size\":${COMPRESSED_SIZE}},"
             fi
           done
           
           # Remove trailing comma
           BATCH_FILES="${BATCH_FILES%,}"
           
-          # Create and upload manifest.json
+          # V7.2: Enhanced manifest.json with integrity data
           cat > data/manifest.json << EOF
           {
-            "version": "7.1",
+            "version": "7.2",
             "timestamp": "${TIMESTAMP}",
             "batchCount": ${BATCH_COUNT},
             "totalEntities": ${TOTAL_ENTITIES},
+            "validationPassed": ${VALIDATION_PASSED},
+            "config": {
+              "maxBatchSizeMB": ${MAX_BATCH_SIZE_MB},
+              "maxEntitiesPerBatch": ${MAX_ENTITIES_PER_BATCH}
+            },
             "batches": [${BATCH_FILES}],
             "status": "ready"
           }
@@ -297,7 +322,7 @@ jobs:
             --file="data/manifest.json" \
             --content-type="application/json" \
             --remote
-          echo "✅ Uploaded: ingest/manifest.json"
+          echo "✅ Uploaded: ingest/manifest.json (V7.2 with hash verification)"
           
           # Also upload merged.json for L5 compatibility (gzipped)
           if [ -f "data/merged.json" ]; then
