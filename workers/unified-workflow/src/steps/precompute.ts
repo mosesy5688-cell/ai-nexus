@@ -6,8 +6,7 @@ import {
     generateEntityLinksAndBenchmarks,
 } from '../utils/precompute-helpers';
 import { generateTrendingSpaces, generateTrendingDatasets, generateEntityLinks } from '../utils/entity-precompute';
-import { generateRankings } from '../utils/ranking-generator';
-import { generateSitemaps } from '../utils/sitemap-generator';
+// Removed: ranking-generator.ts, sitemap-generator.ts (migrated to L5 Sidecar)
 
 export async function runPrecomputeStep(env: Env) {
     console.log('[L8 Orchestrator] Starting lightweight cache regeneration...');

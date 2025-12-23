@@ -1,6 +1,6 @@
 import { Env } from '../config/types';
 import { writeToR2 } from './gzip';
-import { generateSitemaps } from './sitemap-generator';
+// Removed: sitemap-generator.ts (migrated to L5 Sidecar Python)
 // V6.3: Trending generation moved to separate file for CES compliance
 export { generateTrendingAndLeaderboard } from './trending-generator';
 // Helper for L8 Precomputation (Graph, Sitemap, etc.)
