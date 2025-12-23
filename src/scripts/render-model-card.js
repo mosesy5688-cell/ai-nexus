@@ -1,11 +1,16 @@
 // src/scripts/render-model-card.js
 // Shared client-side template for rendering model cards
-// This ensures consistency across index.astro and explore.astro
+// V5.0: CES-001 Clean URL format
 
 export function renderModelCard(model) {
-    const modelId = (model.author && model.name) ? `${model.author}/${model.name}` : model.id;
-    const slug = model.slug || modelId.replace(/\//g, '--');
-    const modelUrl = `/model/${slug}`;
+    // V5.0: Generate clean URL format: /model/author/name
+    // Source is stored in model.source or derived from umid
+    const author = model.author || 'unknown';
+    const name = model.name || model.id?.split('/').pop() || 'unknown';
+
+    // V5.0: Clean URL format - lowercase, no source prefix in URL
+    const modelUrl = `/model/${author.toLowerCase()}/${name.toLowerCase()}`;
+
     const description = (model.description || 'No description available.')
         .replace(/\<[^>]*>?/gm, '')
         .substring(0, 120) + '...';
