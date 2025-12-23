@@ -20,22 +20,58 @@ const ENTITY_URL_PREFIXES = {
 
 /**
  * Generate URL-safe slug from entity
- * Removes source prefix and normalizes for URL use
+ * Ensures author/name format for clean URLs
  * 
- * @param {Object} entity - Entity with id, slug, source, type fields
+ * @param {Object} entity - Entity with id, slug, source, type, author, name fields
  * @returns {string} URL path segment (without prefix)
  * 
  * @example
  * generateUrlSlug({ id: 'huggingface:meta-llama/Llama-3' })
  * // Returns: 'meta-llama/llama-3'
+ * 
+ * generateUrlSlug({ author: 'dslim', name: 'bert-base-NER' })
+ * // Returns: 'dslim/bert-base-ner'
+ * 
+ * generateUrlSlug({ slug: 'huggingface--deepseek-ai--deepseek-r1' })
+ * // Returns: 'deepseek-ai/deepseek-r1'
  */
 export function generateUrlSlug(entity) {
     if (!entity) return '';
 
+    // V5.1: Prefer constructing from author/name for consistent format
+    const author = entity.author || entity.organization || '';
+    const name = entity.name || entity.canonical_name || '';
+
+    // If we have both author and name, construct clean URL
+    if (author && name) {
+        return `${author}/${name}`.toLowerCase().trim();
+    }
+
+    // Fallback: use slug/id but ensure proper format
     let slug = entity.slug || entity.id || entity.umid || '';
 
     // Remove source prefix (e.g., "huggingface:", "arxiv:", "github:")
     slug = slug.replace(/^[a-z]+:/i, '');
+
+    // V5.2: Handle legacy double-dash format (huggingface--author--name)
+    // Extract author/name from formats like: huggingface--deepseek-ai--deepseek-r1
+    if (slug.includes('--')) {
+        const parts = slug.split('--');
+        if (parts.length >= 3) {
+            // Format: source--author--name, take last two parts
+            const extractedAuthor = parts[parts.length - 2];
+            const extractedName = parts[parts.length - 1];
+            return `${extractedAuthor}/${extractedName}`.toLowerCase().trim();
+        } else if (parts.length === 2) {
+            // Format: author--name
+            return `${parts[0]}/${parts[1]}`.toLowerCase().trim();
+        }
+    }
+
+    // If slug doesn't contain slash but we have author, prepend it
+    if (!slug.includes('/') && author) {
+        slug = `${author}/${slug}`;
+    }
 
     // Normalize: lowercase, trim
     slug = slug.toLowerCase().trim();
