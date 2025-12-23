@@ -106,15 +106,28 @@ export async function resolveEntityFromCache(slug, locals) {
     const isDataset = slug.includes('hf-dataset') || slug.startsWith('dataset');
     const cachePrefix = isDataset ? 'cache/datasets' : 'cache/models';
 
-    // Try multiple cache path patterns
+    // V5.0: Use urlSlugToLookupFormats to try multiple formats
+    // For clean URLs like "author/name", we need to try with source prefixes
+    const lookupFormats = urlSlugToLookupFormats(slug);
+
+    // Build cache paths to try
     const cachePaths = [
         `${cachePrefix}/${normalizedSlug}.json`,
-        `${cachePrefix}/${slug.replace(/\//g, '--')}.json`,
-        `cache/models/${normalizedSlug}.json`, // fallback to models
     ];
 
-    // V6.4 Patch: Handle 'huggingface:' prefix in URLs (common in legacy/generated links)
-    // Example: huggingface:meta-llama:Llama-3 -> meta-llama:Llama-3
+    // V5.0: Add source-prefixed cache paths for models
+    // Clean URL "deepseek-ai/deepseek-r1" should try "huggingface--deepseek-ai--deepseek-r1.json"
+    const sources = ['huggingface', 'github', 'ollama', 'replicate'];
+    for (const source of sources) {
+        const prefixedSlug = `${source}--${normalizedSlug}`;
+        cachePaths.push(`${cachePrefix}/${prefixedSlug}.json`);
+    }
+
+    // Also try the original format variations
+    cachePaths.push(`${cachePrefix}/${slug.replace(/\//g, '--')}.json`);
+    cachePaths.push(`cache/models/${normalizedSlug}.json`);
+
+    // V6.4 Patch: Handle 'huggingface:' prefix in URLs (legacy links)
     if (normalizedSlug.startsWith('huggingface--')) {
         const slugWithoutHF = normalizedSlug.replace(/^huggingface--/, '');
         cachePaths.push(`${cachePrefix}/${slugWithoutHF}.json`);
