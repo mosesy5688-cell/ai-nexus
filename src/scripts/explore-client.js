@@ -51,12 +51,8 @@ export function initExplorePage() {
                 if (isLoaded) {
                     workerReady = true;
                     console.log('[Explore] Search Index Ready');
-                    if (pendingSearch) {
-                        triggerSearch();
-                        pendingSearch = false;
-                    } else {
-                        triggerSearch();
-                    }
+                    // Always trigger initial search when index is ready
+                    triggerSearch();
                 }
             } else if (type === 'RESULT') {
                 renderModels(results);
@@ -66,7 +62,8 @@ export function initExplorePage() {
             }
         };
 
-        triggerSearch();
+        // Set pending flag - search will be triggered when Worker sends STATUS
+        pendingSearch = true;
 
         setupEventListeners();
 
@@ -129,7 +126,10 @@ function updateActiveFiltersDisplay(filters) {
 }
 
 function triggerSearch() {
-    if (!searchWorker) return;
+    if (!searchWorker || !workerReady) {
+        pendingSearch = true;
+        return;
+    }
 
     const filters = getFilters();
     updateActiveFiltersDisplay(filters);
