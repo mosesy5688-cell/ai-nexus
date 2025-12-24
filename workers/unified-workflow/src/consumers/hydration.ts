@@ -12,10 +12,22 @@ export async function consumeHydrationQueue(batch: any, env: Env): Promise<void>
         const slug = model.slug || model.id.replace(/\//g, '--');
         const entityType = deriveEntityType(model.id);
 
+        // V8.0: Extract similar_models from meta_json if computed by L5
+        let metaJson = model.meta_json || {};
+        if (typeof metaJson === 'string') {
+            try { metaJson = JSON.parse(metaJson); } catch { metaJson = {}; }
+        }
+        const similarModels = metaJson.similar_models || model.similar_models || [];
+
         const entityCache = {
             contract_version: contractVersion,
             schema_hash: schemaHash,
-            entity: { ...model, entity_type: entityType },
+            entity: {
+                ...model,
+                entity_type: entityType,
+                // V8.0: Ensure similar_models is at entity level for frontend
+                similar_models: similarModels,
+            },
             computed: {
                 fni: model.fni_score ? { score: model.fni_score, deploy_score: model.deploy_score || 0 } : null,
                 benchmarks: [],
@@ -26,7 +38,7 @@ export async function consumeHydrationQueue(batch: any, env: Env): Promise<void>
                 description: model.seo_summary || model.description?.slice(0, 160) || `Explore ${model.name}.`
             },
             generated_at: new Date().toISOString(),
-            version: 'V5.1.2'
+            version: 'V8.0'
         };
 
         // Path determination (Legacy Compat + V6.2 Universal)
