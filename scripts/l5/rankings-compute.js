@@ -120,14 +120,29 @@ export async function computeAllRankings(computedDir, outputDir) {
     }
 
     // Generate overall trending (top 1000 by FNI - models/agents only)
+    // Phase B.8: ≥3 knowledge links required for recommendation eligibility
     console.log('\n📁 Trending (Models/Agents only):');
     const FNI_ENTITY_TYPES = ['model', 'agent'];
+    const MIN_RELATIONS_FOR_RECOMMENDATION = 3; // Constitution: Knowledge linking requirement
+
     const trendingModels = fniResults
         .filter(e => FNI_ENTITY_TYPES.includes(e.entity_type) || !e.entity_type)
         .sort((a, b) => b.fni_score - a.fni_score)
         .slice(0, 1000);
 
+    // Separate into recommended (≥3 links) and standard
+    const recommendedModels = trendingModels.filter(e =>
+        (e.relations_count || 0) >= MIN_RELATIONS_FOR_RECOMMENDATION
+    );
+    const standardModels = trendingModels.filter(e =>
+        (e.relations_count || 0) < MIN_RELATIONS_FOR_RECOMMENDATION
+    );
+
+    console.log(`   📊 Knowledge Linking: ${recommendedModels.length} models have ≥${MIN_RELATIONS_FOR_RECOMMENDATION} relations (recommendation eligible)`);
+    console.log(`   📊 Standard: ${standardModels.length} models have <${MIN_RELATIONS_FOR_RECOMMENDATION} relations`);
+
     fs.writeFileSync(
+
         path.join(outputDir, 'trending.json'),
         JSON.stringify(trendingModels, null, 2)
     );
