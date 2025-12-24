@@ -4,6 +4,68 @@ import { cleanModel, validateModel, routeToShadowDB, ValidationResult } from '..
 import { enrichModel } from '../utils/model-enricher';
 
 /**
+ * Phase B.8: User Understanding Infrastructure
+ * Helper functions for technical specs extraction
+ */
+
+// Whitelist of valid quantization formats
+const VALID_QUANT = ['GGUF', 'AWQ', 'GPTQ', 'EXL2'];
+
+/**
+ * Extract quantization formats from tags
+ * Constitution: Only accept known, deployable formats
+ */
+function extractQuantizations(tags: string[] = []): string[] {
+    const quants = new Set<string>();
+    const lowerTags = tags.map(t => (t || '').toLowerCase());
+
+    if (lowerTags.some(t => t.includes('gguf'))) quants.add('GGUF');
+    if (lowerTags.some(t => t.includes('awq'))) quants.add('AWQ');
+    if (lowerTags.some(t => t.includes('gptq'))) quants.add('GPTQ');
+    if (lowerTags.some(t => t.includes('exl2'))) quants.add('EXL2');
+
+    return Array.from(quants);
+}
+
+/**
+ * Safely parse numeric values (params, context_length)
+ */
+function parseNumber(input: any): number | null {
+    if (input === null || input === undefined) return null;
+    const num = typeof input === 'number' ? input : parseFloat(input);
+    return isNaN(num) ? null : num;
+}
+
+/**
+ * Build extended meta object with Phase B.8 fields
+ * Supports Partial - avoids L8 write failures
+ */
+function buildExtendedMeta(model: any): Record<string, any> {
+    const extended: Record<string, any> = {};
+
+    // Extract params_billions
+    const params = parseNumber(model.params_billions);
+    if (params !== null) extended.params_billions = params;
+
+    // Extract context_length
+    const context = parseNumber(model.context_length);
+    if (context !== null) extended.context_length = context;
+
+    // Extract architecture
+    if (model.architecture) extended.architecture = model.architecture;
+
+    // Extract quantizations from tags
+    const quants = extractQuantizations(
+        Array.isArray(model.tags) ? model.tags :
+            (typeof model.tags === 'string' ? JSON.parse(model.tags || '[]') : [])
+    );
+    if (quants.length > 0) extended.quantizations = quants;
+
+    return extended;
+}
+
+
+/**
  * V5.2.1 Ingestion Step with HYDRATION_QUEUE
  * Constitution Art 2.4: Uses Queue for parallel entity materialization
  * 
@@ -100,18 +162,23 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
             }
 
             // Step 1: Write valid models to D1 (Index-Only, per Phase A.1)
-            // Content fields (description, body_content) moved to R2
+            // Phase B.8: Added params_billions, context_length, architecture, meta_json
             for (let i = 0; i < validModels.length; i += 50) {
                 const batch = validModels.slice(i, i + 50);
-                const stmts = batch.map(m =>
-                    env.DB.prepare(`
+                const stmts = batch.map(m => {
+                    // Build extended meta with Phase B.8 fields
+                    const extendedMeta = buildExtendedMeta(m);
+                    const metaJson = JSON.stringify({ extended: extendedMeta });
+
+                    return env.DB.prepare(`
                         INSERT OR REPLACE INTO entities (
                             id, type, name, author, 
                             likes, downloads, fni_score,
                             last_modified, indexed_at,
                             pipeline_tag, primary_category, tags,
-                            source, source_url, link_status
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            source, source_url, link_status,
+                            params_billions, context_length, architecture, meta_json
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     `).bind(
                         m.id,
                         m.type || 'model',
@@ -124,14 +191,18 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
                         new Date().toISOString(),
                         m.pipeline_tag,
                         m.primary_category,
-                        m.tags,
+                        typeof m.tags === 'string' ? m.tags : JSON.stringify(m.tags || []),
                         m.source || 'huggingface',
                         m.source_url,
-                        m.link_status || 'ok'
-                    )
-                );
+                        m.link_status || 'ok',
+                        extendedMeta.params_billions || null,
+                        extendedMeta.context_length || null,
+                        extendedMeta.architecture || null,
+                        metaJson
+                    );
+                });
                 await env.DB.batch(stmts);
-                console.log(`[Ingest] D1 batch ${Math.floor(i / 50) + 1}: ${batch.length} models (lean schema)`);
+                console.log(`[Ingest] D1 batch ${Math.floor(i / 50) + 1}: ${batch.length} models (Phase B.8 schema)`);
             }
 
             // Step 2: Send to HYDRATION_QUEUE for R2 cache materialization
@@ -141,7 +212,7 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
                 const batch = validModels.slice(i, i + QUEUE_BATCH_SIZE);
 
                 // Send individual messages for parallel processing
-                const messages = batch.map(model => ({
+                const messages = batch.map((model: any) => ({
                     body: {
                         model,
                         relatedLinks: [], // Will be computed by consumer
@@ -173,3 +244,4 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
     console.log(`[Ingest] Complete: ${filesProcessed} files, ${totalModels} models, ${messagesQueued} queued`);
     return { filesProcessed, modelsIngested: totalModels, messagesQueued };
 }
+
