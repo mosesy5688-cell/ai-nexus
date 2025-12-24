@@ -82,10 +82,18 @@ jobs:
           
       - name: Alert on Failure
         if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           echo "❌ INTEGRITY CHECK FAILED!"
           echo "::error::Data integrity validation failed. Manual review required."
-          # Future: Add Slack notification here
-          # curl -X POST -H 'Content-type: application/json' \
-          #   --data '{"text":"⚠️ Data Integrity Check Failed!"}' \
-          #   ${{ secrets.SLACK_WEBHOOK_URL }}
+          
+          # Send Slack notification if webhook is configured
+          if [ -n "$SLACK_WEBHOOK_URL" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data '{"text":"⚠️ Data Integrity Check Failed!\n\nRun: ${{ github.run_id }}\nTime: '"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'\n\nPlease review: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
+              "$SLACK_WEBHOOK_URL" || echo "Slack notification failed"
+          else
+            echo "⚠️ SLACK_WEBHOOK_URL not configured, skipping notification"
+          fi
+
