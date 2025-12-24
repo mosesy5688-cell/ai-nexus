@@ -46,6 +46,8 @@ export async function loadWeeklyReport() {
     const topModelEl = document.getElementById('report-top-model');
     const topModelLink = document.getElementById('report-top-model-link');
 
+    if (!banner) return;
+
     try {
         // Get current week number
         const now = new Date();
@@ -86,7 +88,31 @@ export async function loadWeeklyReport() {
         // Show banner
         banner.classList.remove('hidden');
     } catch (e) {
-        console.log('[WeeklyReport] No report available:', e.message);
-        // Banner stays hidden if no report
+        console.log('[WeeklyReport] No report available, falling back to trending:', e.message);
+
+        // Fallback: Use trending data instead
+        try {
+            const trendingRes = await fetch('/api/cache/trending.json');
+            if (trendingRes.ok) {
+                const trendingData = await trendingRes.json();
+                const topModel = trendingData.models?.[0];
+
+                if (topModel) {
+                    const now = new Date();
+                    const weekNum = Math.ceil((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
+
+                    titleEl.textContent = `Week ${weekNum} AI Trends`;
+                    summaryEl.textContent = `${trendingData.count || 100} trending models this week!`;
+                    topModelEl.textContent = topModel.name;
+                    topModelLink.href = `/model/${topModel.slug}`;
+
+                    banner.classList.remove('hidden');
+                }
+            }
+        } catch (fallbackErr) {
+            console.log('[WeeklyReport] Fallback also failed, hiding banner');
+            // Banner stays hidden
+        }
     }
 }
+
