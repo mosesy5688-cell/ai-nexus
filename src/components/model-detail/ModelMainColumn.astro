@@ -19,8 +19,17 @@ interface Props {
 
 const { model, hasFNI, hasBenchmarkCap, modelName, modelId } = Astro.props;
 
-// Extract meta_json fields
-const metaJson = model.meta_json || {};
+// V8.0: Safely extract meta_json fields (may be string or object)
+let metaJson: Record<string, any> = {};
+try {
+  if (model.meta_json) {
+    metaJson = typeof model.meta_json === 'string' 
+      ? JSON.parse(model.meta_json) 
+      : model.meta_json;
+  }
+} catch (e) {
+  console.warn('[ModelMainColumn] Failed to parse meta_json:', e);
+}
 ---
 
 <div class="lg:col-span-2 space-y-8">
