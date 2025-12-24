@@ -236,11 +236,22 @@ jobs:
           echo "🧠 Computing model similarity (B.14)..."
           node scripts/l5/similarity-compute.js data/entities.json data/entities_with_similarity.json
           
+      - name: Compute Relations (B.1.0/B.3)
+        run: |
+          echo "🔗 Discovering entity relations (B.1.0 Phase 2 + B.3)..."
+          mkdir -p data/cache
+          node scripts/l5/relations-compute.js data/entities_with_similarity.json data/relations.json
+          echo "✅ Relations discovery complete!"
+          
       - name: Upload Updated Entities
         uses: actions/upload-artifact@v4
         with:
           name: entities-enriched
-          path: data/entities_with_similarity.json
+          path: |
+            data/entities_with_similarity.json
+            data/relations.json
+            data/relations_summary.json
+            data/cache/paper-relations/
           retention-days: 1
 
   upload-to-r2:
