@@ -62,7 +62,12 @@ try {
     const cleanDescription = (desc) => {
       if (!desc) return '';
       return desc
-        .replace(/^---[\s\S]*?---/m, '') // Remove YAML frontmatter
+        .replace(/^---[\s\S]*?---\s*/m, '')  // Remove complete YAML frontmatter
+        .replace(/^---\s*\n?[\s\S]*$/m, '')  // Remove partial frontmatter (no closing ---)
+        .replace(/\blibrary_name:\s*\w+/gi, '')  // Remove common frontmatter fields
+        .replace(/\blicense:\s*[^\s]+/gi, '')
+        .replace(/\bpipeline_tag:\s*\w+/gi, '')
+        .replace(/\bbase_model\b[^.]*\.?/gi, '')
         .replace(/<[^>]*>?/gm, '')       // Remove HTML tags
         .replace(/\s+/g, ' ')            // Normalize whitespace
         .trim();
@@ -102,7 +107,12 @@ const modelId = model?.umid || model?.id || '';
 // Clean description: remove YAML frontmatter, HTML tags, and normalize whitespace
 const rawDesc = model?.description || '';
 const cleanDesc = rawDesc
-  .replace(/^---[\s\S]*?---/m, '') // Remove YAML frontmatter
+  .replace(/^---[\s\S]*?---\s*/m, '')  // Remove complete YAML frontmatter
+  .replace(/^---\s*\n?[\s\S]*$/m, '')  // Remove partial frontmatter (no closing ---)
+  .replace(/\blibrary_name:\s*\w+/gi, '')  // Remove common frontmatter fields
+  .replace(/\blicense:\s*[^\s]+/gi, '')
+  .replace(/\bpipeline_tag:\s*\w+/gi, '')
+  .replace(/\bbase_model\b[^.]*\.?/gi, '')
   .replace(/<[^>]*>?/gm, '')       // Remove HTML tags
   .replace(/\s+/g, ' ')            // Normalize whitespace
   .trim();
