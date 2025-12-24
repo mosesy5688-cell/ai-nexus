@@ -57,8 +57,20 @@ try {
 
     const modelName = model.name || model.canonical_name || 'Unknown Model';
     pageTitle = `${modelName} - AI Model Insights & Benchmarks`;
+    
+    // Helper to clean description: remove YAML frontmatter, HTML tags, normalize whitespace
+    const cleanDescription = (desc) => {
+      if (!desc) return '';
+      return desc
+        .replace(/^---[\s\S]*?---/m, '') // Remove YAML frontmatter
+        .replace(/<[^>]*>?/gm, '')       // Remove HTML tags
+        .replace(/\s+/g, ' ')            // Normalize whitespace
+        .trim();
+    };
+    
+    const cleanedDesc = cleanDescription(model.description);
     pageDescription = model.seo_summary?.description || 
-                      (model.description ? model.description.substring(0, 160) : `Deep dive into ${modelName}.`);
+                      (cleanedDesc ? cleanedDesc.substring(0, 160) : `Deep dive into ${modelName}.`);
     
     // Fix for 500 Error: Ensure tagsArray is defined for RelatedKnowledge component
     tagsArray = Array.isArray(model.tags) ? model.tags : [];
@@ -87,7 +99,13 @@ const placeholderImage = '/images/models/default-model.jpg';
 const coverImage = model?.cover_image_url || placeholderImage;
 const modelName = model?.name || model?.canonical_name || 'Unknown Model';
 const modelId = model?.umid || model?.id || '';
-const cleanDesc = model?.description ? model.description.replace(/<[^>]*>?/gm, '') : '';
+// Clean description: remove YAML frontmatter, HTML tags, and normalize whitespace
+const rawDesc = model?.description || '';
+const cleanDesc = rawDesc
+  .replace(/^---[\s\S]*?---/m, '') // Remove YAML frontmatter
+  .replace(/<[^>]*>?/gm, '')       // Remove HTML tags
+  .replace(/\s+/g, ' ')            // Normalize whitespace
+  .trim();
 
 // Art 6.1: Schema.org Structured Data
 const jsonld = model ? {
