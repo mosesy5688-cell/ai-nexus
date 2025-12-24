@@ -308,22 +308,45 @@ jobs:
           # Remove trailing comma
           BATCH_FILES="${BATCH_FILES%,}"
           
-          # V7.2: Enhanced manifest.json with integrity data
-          cat > data/manifest.json << EOF
+          # V1.1-LOCK: INTEGRITY-V1.1 manifest format with total_hash
+          # Calculate ordered-concat total_hash
+          TOTAL_HASH=""
+          for hash in $(echo "$BATCH_FILES" | grep -oP '"hash":"[^"]+' | cut -d'"' -f4 | sort); do
+            TOTAL_HASH="${TOTAL_HASH}${hash}"
+          done
+          TOTAL_HASH_COMPUTED=$(echo -n "$TOTAL_HASH" | sha256sum | cut -d' ' -f1)
+          
+          cat > data/manifest.json <<EOF
           {
-            "version": "7.2",
-            "timestamp": "${TIMESTAMP}",
-            "batchCount": ${BATCH_COUNT},
-            "totalEntities": ${TOTAL_ENTITIES},
-            "validationPassed": ${VALIDATION_PASSED},
+            "version": "INTEGRITY-V1.1",
+            "job_id": "${{ github.run_id }}",
+            "stage": "L1",
+            "started_at": "$(cat /tmp/harvest_start_time 2>/dev/null || echo ${TIMESTAMP})",
+            "completed_at": "${TIMESTAMP}",
+            "status": "complete",
+            "source": {
+              "type": "multi-source",
+              "adapters": ["huggingface", "github", "arxiv", "papers", "ecosystem"]
+            },
+            "output": {
+              "type": "r2",
+              "path": "ingest/batches/",
+              "total_files": ${BATCH_COUNT},
+              "total_entities": ${TOTAL_ENTITIES}
+            },
+            "batches": [${BATCH_FILES}],
+            "checksum": {
+              "algorithm": "sha256",
+              "mode": "ordered-concat",
+              "total_hash": "sha256:${TOTAL_HASH_COMPUTED}"
+            },
             "config": {
               "maxBatchSizeMB": ${MAX_BATCH_SIZE_MB},
               "maxEntitiesPerBatch": ${MAX_ENTITIES_PER_BATCH}
             },
-            "batches": [${BATCH_FILES}],
-            "status": "ready"
+            "validation_passed": ${VALIDATION_PASSED}
           }
-          EOF
+EOF
           
           npx wrangler r2 object put "ai-nexus-assets/ingest/manifest.json" \
             --file="data/manifest.json" \
