@@ -3,12 +3,21 @@
  * 
  * B.14 Smart Recommend
  * Pre-computes similar models based on heuristic scoring.
+ * V1.1-LOCK: Manifest enforcement enabled
  * 
  * @module l5/similarity-compute
  */
 
 import fs from 'fs';
 import path from 'path';
+import { enforceUpstreamComplete } from './manifest-utils.js';
+
+// V1.1-LOCK: Enforce upstream L1 manifest completeness
+const L1_MANIFEST = 'data/manifest.json';
+if (fs.existsSync(L1_MANIFEST)) {
+    try { enforceUpstreamComplete(L1_MANIFEST); }
+    catch (e) { console.error('⛔ Manifest Enforcement:', e.message); process.exit(1); }
+}
 
 /**
  * Calculate similarity score between two entities

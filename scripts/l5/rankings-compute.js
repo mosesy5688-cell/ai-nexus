@@ -3,12 +3,21 @@
  * 
  * B.11 Heavy Computation Migration
  * Generates category rankings from FNI results
+ * V1.1-LOCK: Manifest enforcement enabled
  * 
  * @module l5/rankings-compute
  */
 
 import fs from 'fs';
 import path from 'path';
+import { enforceUpstreamComplete } from './manifest-utils.js';
+
+// V1.1-LOCK: Enforce upstream manifest completeness
+const L1_MANIFEST = 'data/manifest.json';
+if (fs.existsSync(L1_MANIFEST)) {
+    try { enforceUpstreamComplete(L1_MANIFEST); }
+    catch (e) { console.error('⛔ Manifest Enforcement:', e.message); process.exit(1); }
+}
 
 const PAGE_SIZE = 100;
 const MAX_PAGES = 50; // V6 Constitution limit

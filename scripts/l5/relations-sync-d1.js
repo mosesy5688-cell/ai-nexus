@@ -4,12 +4,21 @@
  * B.1.1 500K Scale Optimization
  * Syncs relations from JSON to D1 via wrangler batch execution
  * Runs in GitHub Actions Sidecar (no timeout limits)
+ * V1.1-LOCK: Manifest enforcement enabled
  * 
  * @module l5/relations-sync-d1
  */
 
 import fs from 'fs';
 import { execSync } from 'child_process';
+import { enforceUpstreamComplete } from './manifest-utils.js';
+
+// V1.1-LOCK: Enforce upstream manifest completeness
+const L1_MANIFEST = 'data/manifest.json';
+if (fs.existsSync(L1_MANIFEST)) {
+    try { enforceUpstreamComplete(L1_MANIFEST); }
+    catch (e) { console.error('⛔ Manifest Enforcement:', e.message); process.exit(1); }
+}
 
 const BATCH_SIZE = 500; // D1 batch limit
 const DB_NAME = 'ai-nexus-db';
