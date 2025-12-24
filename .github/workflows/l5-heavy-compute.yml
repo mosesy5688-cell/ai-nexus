@@ -112,9 +112,15 @@ jobs:
       - name: README Code Extraction (B.8)
         run: |
           echo "📝 Extracting code examples from README..."
-          node scripts/l5/readme-code-extractor.js data/entities_with_benchmarks.json data/entities_enriched.json
+          node scripts/l5/readme-code-extractor.js data/entities_with_benchmarks.json data/entities_with_code.json
+          
+      - name: License Parsing (B.8)
+        run: |
+          echo "📜 Parsing license commercial usability..."
+          node scripts/l5/license-parser.js data/entities_with_code.json data/entities_enriched.json
           
       - name: Upload Enriched Entities
+
         uses: actions/upload-artifact@v4
         with:
           name: entities-b8
