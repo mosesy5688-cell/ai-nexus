@@ -20,12 +20,31 @@ export function cleanModel(model: any): any {
             .substring(0, 2000);
     };
 
+    // V8.0: Preserve body_content for Model Card display
+    // Truncate to 50KB to fit within Queue message size limit (64KB)
+    const MAX_BODY_SIZE = 50000;
+    let bodyContent = model.body_content || model.readme || '';
+    if (bodyContent.length > MAX_BODY_SIZE) {
+        bodyContent = bodyContent.substring(0, MAX_BODY_SIZE) + '\n\n[...Content truncated. View full on source.]';
+    }
+
+    // V8.0: Preserve meta_json for Technical Specs display
+    let metaJson = model.meta_json;
+    if (typeof metaJson === 'string') {
+        try { metaJson = JSON.parse(metaJson); } catch { metaJson = {}; }
+    }
+    metaJson = metaJson || {};
+
     return {
         id: id,
         slug: slug,
         name: cleanText(model.title || model.name || model.id || ''),
         author: model.author || '',
         description: cleanText(model.description || ''),
+        // V8.0: Full README/Model Card for detail page
+        body_content: bodyContent,
+        // V8.0: Technical specs for TechnicalSpecs component
+        meta_json: metaJson,
         tags: JSON.stringify(model.tags || (model.pipeline_tag ? [model.pipeline_tag] : [])),
         likes: model.popularity || model.likes || 0,
         downloads: model.downloads || 0,
@@ -40,6 +59,10 @@ export function cleanModel(model: any): any {
         license_spdx: model.license_spdx || model.license || '',
         has_ollama: model.has_ollama ? 1 : 0,
         has_gguf: model.has_gguf ? 1 : 0,
+        // V8.0: GGUF variants for Tech Specs
+        gguf_variants: model.gguf_variants || [],
+        // V8.0: Context length if available
+        context_length: model.context_length || metaJson.context_length || null,
         last_updated: new Date().toISOString()
     };
 }
