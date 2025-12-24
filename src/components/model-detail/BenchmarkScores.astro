@@ -1,0 +1,121 @@
+---
+/**
+ * BenchmarkScores.astro - Phase B.8
+ * Displays benchmark scores with semantic explanations
+ * 
+ * Constitution: "Benchmark as signal, not conclusion"
+ * Must show explanation for each benchmark type
+ * 
+ * @component
+ */
+
+interface BenchmarkScore {
+  score: number;
+  source?: string;
+  confidence?: 'high' | 'medium' | 'low';
+}
+
+interface Props {
+  benchmarks?: {
+    mmlu?: BenchmarkScore;
+    gsm8k?: BenchmarkScore;
+    human_eval?: BenchmarkScore;
+    arc?: BenchmarkScore;
+    truthfulqa?: BenchmarkScore;
+  };
+}
+
+const { benchmarks } = Astro.props;
+
+// Benchmark explanations (Constitution: must explain semantics)
+const BENCHMARK_INFO: Record<string, { name: string; icon: string; hint: string }> = {
+  mmlu: { 
+    name: 'MMLU', 
+    icon: '📚', 
+    hint: 'Multi-task accuracy across 57 academic subjects' 
+  },
+  gsm8k: { 
+    name: 'GSM8K', 
+    icon: '🔢', 
+    hint: 'Grade school math problem solving' 
+  },
+  human_eval: { 
+    name: 'HumanEval', 
+    icon: '💻', 
+    hint: 'Code generation (Python function completion)' 
+  },
+  arc: { 
+    name: 'ARC', 
+    icon: '🧠', 
+    hint: 'Science reasoning (AI2 Reasoning Challenge)' 
+  },
+  truthfulqa: { 
+    name: 'TruthfulQA', 
+    icon: '✓', 
+    hint: 'Factual accuracy and avoiding hallucinations' 
+  }
+};
+
+// Check if any benchmarks exist
+const hasBenchmarks = benchmarks && Object.values(benchmarks).some(b => b?.score !== undefined);
+
+// Format score as percentage
+function formatScore(score: number): string {
+  if (score > 1) return `${score.toFixed(1)}%`;
+  return `${(score * 100).toFixed(1)}%`;
+}
+
+// Get confidence badge
+function getConfidenceBadge(confidence?: string): string {
+  if (confidence === 'high') return '✓';
+  if (confidence === 'medium') return '~';
+  return '?';
+}
+---
+
+{hasBenchmarks && (
+  <section class="benchmark-section bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-800/50 dark:to-purple-900/20 rounded-xl p-5 border border-indigo-100 dark:border-purple-900/30">
+    <h3 class="text-sm font-bold text-indigo-900 dark:text-indigo-300 uppercase tracking-wide mb-4 flex items-center gap-2">
+      <span>📊</span>
+      Benchmark Scores
+    </h3>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {Object.entries(benchmarks || {}).map(([key, value]) => {
+        if (!value?.score) return null;
+        const info = BENCHMARK_INFO[key] || { name: key, icon: '📈', hint: 'Benchmark score' };
+        
+        return (
+          <div class="benchmark-item bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-indigo-100 dark:border-gray-700">
+            <div class="flex items-center justify-between mb-1">
+              <span class="flex items-center gap-2">
+                <span class="text-lg">{info.icon}</span>
+                <span class="font-semibold text-gray-900 dark:text-white">{info.name}</span>
+              </span>
+              <span class="text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                {formatScore(value.score)}
+              </span>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {info.hint}
+            </p>
+            {value.source && (
+              <span class="inline-flex items-center mt-1 text-xs text-gray-400">
+                Source: {value.source}
+                {value.confidence && (
+                  <span class={`ml-1 ${value.confidence === 'high' ? 'text-green-500' : 'text-yellow-500'}`}>
+                    {getConfidenceBadge(value.confidence)}
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+    
+    <p class="mt-3 text-xs text-gray-500 dark:text-gray-400 italic">
+      ⚠️ Benchmarks are reference signals, not definitive rankings. Different tasks may require different models.
+    </p>
+  </section>
+)}
