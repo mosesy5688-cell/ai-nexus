@@ -9,6 +9,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import * as manifest from './manifest-utils.js';
 
 const BATCH_SIZE = 50000; // 50K entities per batch
 
@@ -128,6 +129,7 @@ function calculateFNI(entity) {
 
 /**
  * Process all entities and compute FNI
+ * B11: With manifest checkpoint/resume support
  */
 export async function computeAllFNI(inputFile, outputDir) {
     console.log(`📊 Loading entities from ${inputFile}...`);
@@ -146,71 +148,95 @@ export async function computeAllFNI(inputFile, outputDir) {
         fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    const results = [];
-    const startTime = Date.now();
-
-    // Process in batches
-    for (let i = 0; i < entities.length; i += BATCH_SIZE) {
-        const batch = entities.slice(i, i + BATCH_SIZE);
-        const batchNum = Math.floor(i / BATCH_SIZE);
-
-        console.log(`\n🔄 Processing batch ${batchNum + 1}/${Math.ceil(entities.length / BATCH_SIZE)}...`);
-
-        const batchResults = batch.map(entity => {
-            const { fni_score, fni_breakdown } = calculateFNI(entity);
-            return {
-                id: entity.id,
-                entity_type: entity.entity_type,
-                fni_score,
-                fni_breakdown,
-                // Include minimal fields for ranking
-                name: entity.name,
-                source: entity.source,
-                primary_category: entity.primary_category
-            };
-        });
-
-        results.push(...batchResults);
-
-        // Save batch file
-        const batchFile = path.join(outputDir, `fni_batch_${batchNum}.json`);
-        fs.writeFileSync(batchFile, JSON.stringify(batchResults, null, 2));
-        console.log(`   ✅ Saved: ${batchFile} (${batchResults.length} entities)`);
+    // B11: Load or create manifest for checkpoint resume
+    const mf = manifest.loadManifest();
+    const resumeFrom = manifest.getResumePoint(mf);
+    if (resumeFrom > 0) {
+        console.log(`🔄 Resuming from batch ${resumeFrom}`);
     }
 
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`\n✅ FNI computation complete: ${results.length} entities in ${elapsed}s`);
+    const results = [];
+    const startTime = Date.now();
+    const totalBatches = Math.ceil(entities.length / BATCH_SIZE);
 
-    // Save summary
-    const summary = {
-        total_entities: results.length,
-        batches: Math.ceil(results.length / BATCH_SIZE),
-        computed_at: new Date().toISOString(),
-        elapsed_seconds: parseFloat(elapsed),
-        top_10: results.sort((a, b) => b.fni_score - a.fni_score).slice(0, 10)
-    };
+    try {
+        // Process in batches
+        for (let i = 0; i < entities.length; i += BATCH_SIZE) {
+            const batchNum = Math.floor(i / BATCH_SIZE);
 
-    fs.writeFileSync(path.join(outputDir, 'fni_summary.json'), JSON.stringify(summary, null, 2));
+            // B11: Skip already completed batches (checkpoint resume)
+            if (manifest.isBatchComplete(mf, batchNum)) {
+                console.log(`⏭️ Skipping batch ${batchNum + 1}/${totalBatches} (already complete)`);
+                continue;
+            }
 
-    return summary;
+            const batch = entities.slice(i, i + BATCH_SIZE);
+            console.log(`\n🔄 Processing batch ${batchNum + 1}/${totalBatches}...`);
+
+            const batchResults = batch.map(entity => {
+                const { fni_score, fni_breakdown } = calculateFNI(entity);
+                return {
+                    id: entity.id,
+                    entity_type: entity.entity_type,
+                    fni_score,
+                    fni_breakdown,
+                    // Include minimal fields for ranking
+                    name: entity.name,
+                    source: entity.source,
+                    primary_category: entity.primary_category
+                };
+            });
+
+            results.push(...batchResults);
+
+            // Save batch file
+            const batchFile = path.join(outputDir, `fni_batch_${batchNum}.json`);
+            fs.writeFileSync(batchFile, JSON.stringify(batchResults, null, 2));
+            console.log(`   ✅ Saved: ${batchFile} (${batchResults.length} entities)`);
+
+            // B11: Record batch in manifest (checkpoint)
+            manifest.recordBatch(mf, {
+                index: batchNum,
+                key: `computed/fni_batch_${batchNum}.json`,
+                entitiesCount: batchResults.length,
+                filePath: batchFile
+            });
+        }
+
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`\n✅ FNI computation complete: ${results.length} entities in ${elapsed}s`);
+
+        // Save summary
+        const summary = {
+            total_entities: results.length,
+            batches: totalBatches,
+            computed_at: new Date().toISOString(),
+            elapsed_seconds: parseFloat(elapsed),
+            top_10: results.sort((a, b) => b.fni_score - a.fni_score).slice(0, 10)
+        };
+
+        fs.writeFileSync(path.join(outputDir, 'fni_summary.json'), JSON.stringify(summary, null, 2));
+
+        // B11: Mark manifest complete
+        manifest.completeManifest(mf);
+        console.log(`📋 Manifest: ${JSON.stringify(manifest.getSummary(mf))}`);
+
+        return summary;
+
+    } catch (err) {
+        // B11: Mark partial for resume on next run
+        manifest.markPartial(mf, err);
+        throw err;
+    }
 }
 
 // CLI execution
 if (process.argv[1].includes('fni-compute')) {
     const inputFile = process.argv[2] || 'data/entities.json';
     const outputDir = process.argv[3] || 'data/computed';
-
     computeAllFNI(inputFile, outputDir)
-        .then(summary => {
-            console.log('\n📊 Summary:');
-            console.log(`   Total: ${summary.total_entities}`);
-            console.log(`   Batches: ${summary.batches}`);
-            console.log(`   Time: ${summary.elapsed_seconds}s`);
-        })
-        .catch(err => {
-            console.error('❌ Error:', err.message);
-            process.exit(1);
-        });
+        .then(s => console.log(`\n📊 Summary: ${s.total_entities} entities, ${s.batches} batches, ${s.elapsed_seconds}s`))
+        .catch(err => { console.error('❌ Error:', err.message); process.exit(1); });
 }
 
 export default { computeAllFNI, calculateFNI };
