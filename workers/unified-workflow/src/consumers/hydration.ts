@@ -2,10 +2,30 @@
 import { Env } from '../config/types';
 import { deriveEntityType } from '../utils/entity-helper';
 import { writeToR2 } from '../utils/gzip';
+import {
+    initHydrationManifest,
+    computeEntityHash,
+    recordHydrationBatch,
+    writeHydrationManifest
+} from '../utils/hydration-manifest';
+
+// V1.2: Track batch number across invocations
+let currentBatchId = 0;
 
 export async function consumeHydrationQueue(batch: any, env: Env): Promise<void> {
     const schemaHash = 'sha256:' + Date.now().toString(36);
     const contractVersion = 'entity-cache@1.0';
+
+    // V1.2: Initialize manifest on first batch
+    const jobId = Date.now().toString();
+    if (currentBatchId === 0) {
+        initHydrationManifest('ingest/manifest.json', 'complete');
+    }
+    currentBatchId++;
+
+    // V1.2: Track processed entities for this batch
+    const processedEntities: Array<{ id: string; hash: string; path: string }> = [];
+    const failedIds: string[] = [];
 
     const materialize = async (body: any) => {
         const { model, relatedLinks } = body;
@@ -42,33 +62,41 @@ export async function consumeHydrationQueue(batch: any, env: Env): Promise<void>
         };
 
         // Path determination (Legacy Compat + V6.2 Universal)
-        // Models stay in 'cache/models' until Frontend migration in Phase 3
         let cachePath: string;
         if (entityType === 'model') {
             cachePath = `cache/models/${slug}.json`;
         } else {
-            // New entities use the clean V6.2 structure
             cachePath = `cache/entities/${entityType}/${slug}.json`;
         }
 
         // CES V5.1.2 Art 2.4.2: Force Gzip
         await writeToR2(env, cachePath, entityCache);
 
-        // Hash Check Optimization (Optional - To be implemented fully in Phase 4)
-        // const existing = await env.R2_ASSETS.head(cachePath);
-        // if (existing?.customMetadata?.sha256 === computedHash) return;
+        // V1.2: Track entity hash for manifest
+        const entityHash = computeEntityHash(entityCache);
+        return { id: model.id || slug, hash: entityHash, path: cachePath };
     };
 
     // Parallel processing with retries
     const promises = batch.messages.map(async (msg: any) => {
         try {
-            await materialize(msg.body);
+            const result = await materialize(msg.body);
+            processedEntities.push(result);
             msg.ack();
         } catch (err) {
             console.error('[Queue] Materialization failed:', err);
+            failedIds.push(msg.body?.model?.id || 'unknown');
             msg.retry();
         }
     });
 
     await Promise.all(promises);
+
+    // V1.2: Record this batch in manifest
+    recordHydrationBatch(currentBatchId, processedEntities, failedIds);
+
+    // V1.2: Write manifest to R2 periodically (every 10 batches or on completion)
+    if (currentBatchId % 10 === 0 || batch.messages.length < 100) {
+        await writeHydrationManifest(env, jobId);
+    }
 }
