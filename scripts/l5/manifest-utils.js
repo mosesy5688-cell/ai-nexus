@@ -27,7 +27,7 @@ export function createManifest(jobId) {
         batches: [],
         total_entities: 0,
         resume_from: null,
-        version: 'B11-V1.0'
+        version: 'INTEGRITY-V1.1'
     };
 }
 
@@ -187,19 +187,56 @@ export function getSummary(manifest) {
     };
 }
 
-// CLI execution
+/**
+ * V1.1: Compute total_hash using ordered-concat algorithm
+ * Required for cross-stage verification
+ */
+export function computeTotalHash(manifest) {
+    const batchHashes = manifest.batches
+        .sort((a, b) => a.index - b.index)
+        .map(b => b.hash || '')
+        .join('');
+    return `sha256:${crypto.createHash('sha256').update(batchHashes).digest('hex')}`;
+}
+
+/**
+ * V1.1: Enforce upstream manifest completeness
+ * Downstream MUST abort if upstream is not complete
+ * @throws Error if upstream manifest is incomplete or corrupted
+ */
+export function enforceUpstreamComplete(upstreamManifestPath) {
+    if (!fs.existsSync(upstreamManifestPath)) {
+        throw new Error(`Manifest Enforcement: Upstream manifest not found: ${upstreamManifestPath}`);
+    }
+    const upstream = JSON.parse(fs.readFileSync(upstreamManifestPath, 'utf8'));
+    if (upstream.status !== 'complete') {
+        throw new Error(`Manifest Enforcement: Upstream status is "${upstream.status}", expected "complete". Abort.`);
+    }
+    const expectedHash = computeTotalHash(upstream);
+    if (upstream.checksum?.total_hash && upstream.checksum.total_hash !== expectedHash) {
+        throw new Error(`Manifest Enforcement: Hash mismatch. Data may be corrupted.`);
+    }
+    console.log(`✅ Upstream manifest verified: ${upstream.job_id} (${upstream.batches.length} batches)`);
+    return upstream;
+}
+
+/**
+ * V1.1: Finalize manifest with total_hash checksum
+ */
+export function finalizeWithChecksum(manifest) {
+    manifest.checksum = {
+        algorithm: 'sha256',
+        mode: 'ordered-concat',
+        total_hash: computeTotalHash(manifest)
+    };
+    saveManifest(manifest);
+    return manifest;
+}
+
+// CLI: node manifest-utils.js [status|reset]
 if (process.argv[1]?.includes('manifest-utils')) {
     const action = process.argv[2];
-
-    if (action === 'status') {
-        const manifest = loadManifest();
-        console.log(JSON.stringify(getSummary(manifest), null, 2));
-    } else if (action === 'reset') {
-        if (fs.existsSync(MANIFEST_FILE)) {
-            fs.unlinkSync(MANIFEST_FILE);
-            console.log('🗑️ Manifest reset');
-        }
-    } else {
-        console.log('Usage: node manifest-utils.js [status|reset]');
-    }
+    if (action === 'status') console.log(JSON.stringify(getSummary(loadManifest()), null, 2));
+    else if (action === 'reset' && fs.existsSync(MANIFEST_FILE)) { fs.unlinkSync(MANIFEST_FILE); console.log('🗑️ Reset'); }
+    else console.log('Usage: node manifest-utils.js [status|reset]');
 }
