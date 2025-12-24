@@ -10,10 +10,13 @@ export async function generateTrendingAndLeaderboard(env: Env) {
     // V5.2.1: Filter for actual models only (not datasets/papers/repos)
     const modelFilter = `type='model' AND (id LIKE 'huggingface%' OR id LIKE 'ollama%')`;
     // Trending models (top 100 by FNI)
+    // V6.4: Added technical specs fields for P2 TechnicalSpecs component
     const trending = await env.DB.prepare(`
         SELECT id, slug, name, author, fni_score, downloads, likes,
                 cover_image_url, tags, has_ollama, has_gguf,
-                last_updated, pwc_benchmarks
+                last_updated, pwc_benchmarks, pipeline_tag,
+                params_billions, context_length, architecture,
+                hidden_size, num_layers
         FROM entities 
         WHERE fni_score IS NOT NULL AND ${modelFilter}
         ORDER BY fni_score DESC 

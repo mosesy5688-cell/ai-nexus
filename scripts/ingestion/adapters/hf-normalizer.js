@@ -19,6 +19,9 @@ export function normalizeModel(raw, adapter) {
     const modelId = raw.modelId || raw.id;
     const [author, name] = parseModelId(modelId);
 
+    // Build meta_json first to extract technical fields
+    const metaJson = buildMetaJson(raw);
+
     const entity = {
         // Identity
         id: adapter.generateId(author, name),
@@ -35,7 +38,7 @@ export function normalizeModel(raw, adapter) {
         // Metadata
         author: author,
         license_spdx: adapter.normalizeLicense(raw.cardData?.license),
-        meta_json: buildMetaJson(raw),
+        meta_json: metaJson,
         created_at: raw.createdAt,
         updated_at: raw.lastModified,
 
@@ -45,6 +48,13 @@ export function normalizeModel(raw, adapter) {
 
         // V6.0: Pipeline tag for category assignment
         pipeline_tag: raw.pipeline_tag || null,
+
+        // P2 Fix: Technical specs at top-level for TechnicalSpecs component
+        params_billions: metaJson.params_billions,
+        context_length: metaJson.context_length,
+        architecture: metaJson.architecture,
+        hidden_size: metaJson.hidden_size,
+        num_layers: metaJson.num_layers,
 
         // Assets
         raw_image_url: null,
