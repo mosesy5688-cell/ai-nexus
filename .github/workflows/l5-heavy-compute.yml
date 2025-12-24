@@ -79,8 +79,51 @@ jobs:
           path: data/entities.json
           retention-days: 1
 
+  compute-enrichment:
+    name: Enrich Entities (Phase B.8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: compute-fni
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: npm ci
+      
+      - name: Download Entities
+        uses: actions/download-artifact@v4
+        with:
+          name: entities
+          path: data
+          
+      - name: Download FNI Results
+        uses: actions/download-artifact@v4
+        with:
+          name: fni-results
+          path: data/computed
+          
+      - name: Benchmark Fusion (B.8)
+        run: |
+          echo "📊 Fusing benchmark data into entities..."
+          node scripts/l5/benchmark-fusion.js data/entities.json data/entities_with_benchmarks.json
+          
+      - name: README Code Extraction (B.8)
+        run: |
+          echo "📝 Extracting code examples from README..."
+          node scripts/l5/readme-code-extractor.js data/entities_with_benchmarks.json data/entities_enriched.json
+          
+      - name: Upload Enriched Entities
+        uses: actions/upload-artifact@v4
+        with:
+          name: entities-b8
+          path: data/entities_enriched.json
+          retention-days: 1
+
   compute-fni:
     name: Compute FNI Scores
+
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: download-entities
