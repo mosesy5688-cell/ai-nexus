@@ -1,0 +1,74 @@
+---
+/**
+ * CodeExample.astro - Phase B.8
+ * Displays code examples extracted from README
+ * 
+ * Constitution: Hide if no code (never show empty shell)
+ * 
+ * @component
+ */
+
+interface Props {
+  code?: string;
+  language?: string;
+}
+
+const { code, language = 'python' } = Astro.props;
+
+// Don't render if no code
+if (!code) return null;
+
+// Limit display length
+const displayCode = code.length > 1500 ? code.substring(0, 1500) + '\n// ... (truncated)' : code;
+const lines = displayCode.split('\n').length;
+---
+
+{code && (
+  <section class="code-example bg-gray-900 rounded-xl overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
+      <div class="flex items-center gap-2">
+        <span class="text-yellow-400">💻</span>
+        <span class="text-sm font-semibold text-gray-300">Quick Start</span>
+        <span class="text-xs px-2 py-0.5 bg-gray-700 text-gray-400 rounded">{language}</span>
+      </div>
+      <button 
+        class="copy-btn text-xs text-gray-400 hover:text-white transition-colors"
+        data-code={code}
+      >
+        📋 Copy
+      </button>
+    </div>
+    
+    <pre class="p-4 overflow-x-auto text-sm"><code class={`language-${language} text-gray-100`}>{displayCode}</code></pre>
+    
+    {lines > 20 && (
+      <div class="px-4 py-2 bg-gray-800 border-t border-gray-700 text-xs text-gray-500">
+        Showing first 20 lines • View full code in README
+      </div>
+    )}
+  </section>
+)}
+
+<script>
+  // Copy button functionality
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const code = btn.dataset.code || '';
+      await navigator.clipboard.writeText(code);
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => btn.textContent = '📋 Copy', 2000);
+    });
+  });
+</script>
+
+<style>
+  .code-example pre {
+    margin: 0;
+    max-height: 400px;
+  }
+  
+  .code-example code {
+    font-family: 'Fira Code', 'Monaco', monospace;
+    line-height: 1.5;
+  }
+</style>
