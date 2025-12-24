@@ -316,37 +316,40 @@ jobs:
           done
           TOTAL_HASH_COMPUTED=$(echo -n "$TOTAL_HASH" | sha256sum | cut -d' ' -f1)
           
-          cat > data/manifest.json <<EOF
-          {
-            "version": "INTEGRITY-V1.1",
-            "job_id": "${{ github.run_id }}",
-            "stage": "L1",
-            "started_at": "$(cat /tmp/harvest_start_time 2>/dev/null || echo ${TIMESTAMP})",
-            "completed_at": "${TIMESTAMP}",
-            "status": "complete",
-            "source": {
-              "type": "multi-source",
-              "adapters": ["huggingface", "github", "arxiv", "papers", "ecosystem"]
-            },
-            "output": {
-              "type": "r2",
-              "path": "ingest/batches/",
-              "total_files": ${BATCH_COUNT},
-              "total_entities": ${TOTAL_ENTITIES}
-            },
-            "batches": [${BATCH_FILES}],
-            "checksum": {
-              "algorithm": "sha256",
-              "mode": "ordered-concat",
-              "total_hash": "sha256:${TOTAL_HASH_COMPUTED}"
-            },
-            "config": {
-              "maxBatchSizeMB": ${MAX_BATCH_SIZE_MB},
-              "maxEntitiesPerBatch": ${MAX_ENTITIES_PER_BATCH}
-            },
-            "validation_passed": ${VALIDATION_PASSED}
-          }
-EOF
+          # V1.1-LOCK: Generate INTEGRITY-V1.1 manifest using node (avoids heredoc issues)
+          node -e "
+            const fs = require('fs');
+            const manifest = {
+              version: 'INTEGRITY-V1.1',
+              job_id: '${GITHUB_RUN_ID}',
+              stage: 'L1',
+              started_at: '${TIMESTAMP}',
+              completed_at: new Date().toISOString(),
+              status: 'complete',
+              source: {
+                type: 'multi-source',
+                adapters: ['huggingface', 'github', 'arxiv', 'papers', 'ecosystem']
+              },
+              output: {
+                type: 'r2',
+                path: 'ingest/batches/',
+                total_files: ${BATCH_COUNT},
+                total_entities: ${TOTAL_ENTITIES}
+              },
+              batches: [${BATCH_FILES}],
+              checksum: {
+                algorithm: 'sha256',
+                mode: 'ordered-concat',
+                total_hash: 'sha256:${TOTAL_HASH_COMPUTED}'
+              },
+              config: {
+                maxBatchSizeMB: ${MAX_BATCH_SIZE_MB},
+                maxEntitiesPerBatch: ${MAX_ENTITIES_PER_BATCH}
+              },
+              validation_passed: ${VALIDATION_PASSED}
+            };
+            fs.writeFileSync('data/manifest.json', JSON.stringify(manifest, null, 2));
+          "
           
           npx wrangler r2 object put "ai-nexus-assets/ingest/manifest.json" \
             --file="data/manifest.json" \
