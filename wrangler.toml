@@ -12,9 +12,7 @@ binding = "DB"
 database_name = "ai-nexus-db"
 database_id = "adac7bc9-46a9-40b4-b609-28479221a17d"
 
-# Workers AI Binding
-[ai]
-binding = "AI"
+# Workers AI Binding removed (PR #393 - seo-worker deleted)
 
 # KV Namespace Bindings
 [[kv_namespaces]]
