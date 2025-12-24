@@ -70,12 +70,32 @@ export async function computeSimilarity(entitiesFile, outputFile) {
     const startTime = Date.now();
     let updatedCount = 0;
 
+    // B11 Architecture Compliance: Batch limits to prevent O(n²) explosion
+    const MAX_ENTITIES_PER_CATEGORY = 5000;
+    const SKIP_CATEGORIES = ['uncategorized']; // Categories too large to process
+
     // Process each category
     for (const [cat, catEntities] of Object.entries(byCategory)) {
         if (catEntities.length < 2) continue;
-        console.log(`   Processing ${cat}: ${catEntities.length} entities`);
 
-        for (const target of catEntities) {
+        // B11: Skip categories that are too large or undefined
+        if (SKIP_CATEGORIES.includes(cat)) {
+            console.log(`   ⏭️ Skipping ${cat}: ${catEntities.length} entities (B11: skip undefined category)`);
+            continue;
+        }
+
+        // B11: Limit entities per category, prioritize by FNI score
+        let processEntities = catEntities;
+        if (catEntities.length > MAX_ENTITIES_PER_CATEGORY) {
+            console.log(`   ⚠️ ${cat}: ${catEntities.length} exceeds limit, taking top ${MAX_ENTITIES_PER_CATEGORY} by FNI`);
+            processEntities = catEntities
+                .sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0))
+                .slice(0, MAX_ENTITIES_PER_CATEGORY);
+        }
+
+        console.log(`   Processing ${cat}: ${processEntities.length} entities`);
+
+        for (const target of processEntities) {
             // Ensure meta_json is an object
             if (typeof target.meta_json === 'string' && target.meta_json.startsWith('{')) {
                 try {
@@ -88,7 +108,7 @@ export async function computeSimilarity(entitiesFile, outputFile) {
             }
 
             const scores = [];
-            for (const candidate of catEntities) {
+            for (const candidate of processEntities) {
                 if (target.id === candidate.id) continue;
 
                 // Ensure candidate meta_json is also an object for comparison
