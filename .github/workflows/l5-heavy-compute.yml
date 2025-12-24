@@ -285,6 +285,24 @@ jobs:
           name: search-index
           path: public/data
           
+      - name: Download Enriched Entities (B.1.0/B.3)
+        uses: actions/download-artifact@v4
+        with:
+          name: entities-enriched
+          path: data
+          
+      - name: Sync Relations to D1 (B.3)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "🔗 Syncing relations to D1 (B.3 Knowledge Relations)..."
+          if [ -f "data/relations.json" ]; then
+            node scripts/l5/relations-sync-d1.js data/relations.json
+          else
+            echo "⚠️ relations.json not found, skipping D1 sync"
+          fi
+          
       - name: Upload to R2
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
