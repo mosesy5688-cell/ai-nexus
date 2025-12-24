@@ -113,7 +113,7 @@ const seoSchema = buildIndexSEO();
         <HomeSearch initialQuery={initialQuery} />
 
         <!-- Static Content Container -->
-        <div id="static-content-container" class="hidden">
+        <div id="static-content-container">
             
             <!-- Hot Models Section -->
             <section class="mb-16">
@@ -151,32 +151,26 @@ const seoSchema = buildIndexSEO();
         import { initializeSearch } from '../scripts/search.js';
         import { loadHotModels, loadWeeklyReport } from '../scripts/home-client.js';
 
-        // V6.2: Load category model counts from R2 rankings
+        // V6.2: Load category model counts from category_stats API
         async function loadCategoryCounts() {
-            const categories = [
-                'text-generation',
-                'knowledge-retrieval', 
-                'vision-multimedia',
-                'automation-workflow',
-                'infrastructure-ops'
-            ];
+            try {
+                const res = await fetch('/api/cache/category_stats.json');
+                if (!res.ok) throw new Error('Failed to fetch category stats');
+                const data = await res.json();
+                const categories = data.categories || [];
 
-            for (const cat of categories) {
-                try {
-                    const res = await fetch(`https://cdn.free2aitools.com/cache/rankings/${cat}/meta.json`);
-                    if (res.ok) {
-                        const meta = await res.json();
-                        const count = meta.total || 0;
-                        const badges = document.querySelectorAll(`.category-count[data-category="${cat}"]`);
-                        badges.forEach(badge => {
-                            badge.textContent = count > 0 ? `${count.toLocaleString()} models` : 'Browse';
-                        });
-                    }
-                } catch (e) {
-                    // Silent fail - show "Browse" as fallback
-                    const badges = document.querySelectorAll(`.category-count[data-category="${cat}"]`);
-                    badges.forEach(badge => badge.textContent = 'Browse');
+                for (const cat of categories) {
+                    const badges = document.querySelectorAll(`.category-count[data-category="${cat.category}"]`);
+                    badges.forEach(badge => {
+                        badge.textContent = cat.count > 0 ? `${cat.count.toLocaleString()} models` : 'Browse';
+                    });
                 }
+            } catch (e) {
+                console.warn('[Homepage] Failed to load category counts:', e);
+                // Fallback: show Browse for all
+                document.querySelectorAll('.category-count').forEach(badge => {
+                    badge.textContent = 'Browse';
+                });
             }
         }
 
