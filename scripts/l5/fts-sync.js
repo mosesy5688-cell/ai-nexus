@@ -3,6 +3,7 @@
  * 
  * B.17 D1 FTS5 Search Sync
  * Rebuilds and optimizes the D1 FTS5 virtual table.
+ * V1.1-LOCK: Manifest enforcement enabled
  * 
  * V2.0: Added robustness for missing table (auto-create)
  * 
@@ -10,6 +11,15 @@
  */
 
 import { execSync } from 'child_process';
+import fs from 'fs';
+import { enforceUpstreamComplete } from './manifest-utils.js';
+
+// V1.1-LOCK: Enforce upstream manifest completeness
+const L1_MANIFEST = 'data/manifest.json';
+if (fs.existsSync(L1_MANIFEST)) {
+    try { enforceUpstreamComplete(L1_MANIFEST); }
+    catch (e) { console.error('⛔ Manifest Enforcement:', e.message); process.exit(1); }
+}
 
 /**
  * Run wrangler d1 command (with optional silent mode)
