@@ -70,6 +70,12 @@ export {
     dryRunRepair,
     executeRepair,
     approveRepair,
-    listPendingRepairs,
     type DryRunResult,
 } from './repair-workflow';
+
+// R2 Query Utilities
+export {
+    listPendingRepairs,
+    getRepairManifest,
+    getBaseManifest,
+} from './repair-queries';

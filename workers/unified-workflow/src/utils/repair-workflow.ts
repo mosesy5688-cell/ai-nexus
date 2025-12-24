@@ -51,7 +51,7 @@ export async function dryRunRepair(
     try {
         // Get base manifest from R2
         const baseManifestPath = `manifest/L1/${targetJobId}.json`;
-        const baseManifestObj = await env.R2.get(baseManifestPath);
+        const baseManifestObj = await env.R2_ASSETS.get(baseManifestPath);
 
         if (!baseManifestObj) {
             errors.push(`Base manifest not found: ${baseManifestPath}`);
@@ -192,7 +192,7 @@ export async function approveRepair(
     try {
         // Get repair manifest
         const manifestPath = `manifest/repair/${repairJobId}.json`;
-        const manifestObj = await env.R2.get(manifestPath);
+        const manifestObj = await env.R2_ASSETS.get(manifestPath);
 
         if (!manifestObj) {
             return { success: false, error: 'Repair manifest not found' };
@@ -234,28 +234,5 @@ export async function approveRepair(
     }
 }
 
-/**
- * List pending repair jobs
- */
-export async function listPendingRepairs(
-    env: Env
-): Promise<CompositeManifest[]> {
-    const list = await env.R2.list({ prefix: 'manifest/repair/' });
-    const pending: CompositeManifest[] = [];
-
-    for (const object of list.objects) {
-        if (!object.key.endsWith('.json') || object.key.endsWith('.contract.json')) {
-            continue;
-        }
-
-        const manifestObj = await env.R2.get(object.key);
-        if (manifestObj) {
-            const manifest = JSON.parse(await manifestObj.text()) as CompositeManifest;
-            if (manifest.authority.state === 'PENDING_MERGE') {
-                pending.push(manifest);
-            }
-        }
-    }
-
-    return pending;
-}
+// Re-export from repair-queries for backwards compatibility
+export { listPendingRepairs, getRepairManifest, getBaseManifest } from './repair-queries';
