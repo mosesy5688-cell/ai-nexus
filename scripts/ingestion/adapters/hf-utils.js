@@ -60,19 +60,56 @@ export function normalizeTags(tags) {
  * @returns {Object} Metadata object
  */
 export function buildMetaJson(raw) {
+    const config = raw.config || {};
+
+    // Extract params (safetensors.total or config)
+    const paramsRaw = raw.safetensors?.total || config.num_parameters || null;
+    const paramsBillions = paramsRaw ? (paramsRaw / 1e9).toFixed(2) : null;
+
+    // Extract context length from various config fields
+    const contextLength = config.max_position_embeddings ||
+        config.max_seq_len ||
+        config.n_positions ||
+        config.max_sequence_length ||
+        config.seq_length ||
+        null;
+
+    // Extract architecture from config
+    const architectures = config.architectures || [];
+    const architecture = architectures[0] || config.model_type || null;
+
     return {
+        // Basic info
         pipeline_tag: raw.pipeline_tag || null,
         library_name: raw.library_name || null,
         framework: raw.library_name || null,
-        params: raw.safetensors?.total || null,
+
+        // Technical specs (P2 fix)
+        params: paramsRaw,
+        params_billions: paramsBillions ? parseFloat(paramsBillions) : null,
+        context_length: contextLength,
+        architecture: architecture,
+
+        // Model architecture details
+        hidden_size: config.hidden_size || config.d_model || null,
+        num_layers: config.num_hidden_layers || config.n_layer || null,
+        num_attention_heads: config.num_attention_heads || config.n_head || null,
+        vocab_size: config.vocab_size || null,
+
+        // Storage info
         storage_bytes: raw.usedStorage || null,
         files_count: raw.siblings?.length || 0,
         spaces_count: raw.spaces?.length || 0,
+
+        // Access info
         gated: raw.gated || false,
         private: raw.private || false,
-        config: raw.config || null
+
+        // Full config for reference
+        config: config
     };
 }
+
 
 /**
  * Detect GGUF files in model repository
