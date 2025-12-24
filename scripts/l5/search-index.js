@@ -2,6 +2,7 @@
  * Search Index Generator
  * 
  * B.17 P1: Generate lightweight search-index.json for client-side fuzzy search
+ * V1.1-LOCK: Manifest enforcement enabled
  * 
  * Output: public/data/search-index.json (gzipped for R2)
  * Format: Minimal fields for fast client-side search
@@ -16,6 +17,14 @@
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
+import { enforceUpstreamComplete } from './manifest-utils.js';
+
+// V1.1-LOCK: Enforce upstream manifest completeness
+const L1_MANIFEST = 'data/manifest.json';
+if (fs.existsSync(L1_MANIFEST)) {
+    try { enforceUpstreamComplete(L1_MANIFEST); }
+    catch (e) { console.error('⛔ Manifest Enforcement:', e.message); process.exit(1); }
+}
 
 const DATA_DIR = process.env.DATA_DIR || './data';
 const OUTPUT_DIR = process.env.OUTPUT_DIR || './public/data';
