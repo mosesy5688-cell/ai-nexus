@@ -131,7 +131,8 @@ jobs:
     name: Compute FNI Scores
 
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # V2.1: Increased from 60 to 120 for 500K+ entity processing
+    timeout-minutes: 120
     needs: download-entities
     if: github.event.inputs.compute_type != 'relations'
     

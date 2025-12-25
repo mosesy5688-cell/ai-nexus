@@ -7,12 +7,26 @@
  * - License information
  * - Relationship discovery
  * 
+ * V2.1: Added NSFW filter and AI organization detection
+ * 
  * @module ingestion/adapters/github-adapter
  */
 
-import { BaseAdapter } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 
 const GH_API_BASE = 'https://api.github.com';
+
+/**
+ * V2.1: AI Organizations whitelist for model detection
+ * Repos from these orgs are likely to be models, not tools
+ */
+const AI_ORGANIZATIONS = [
+    'meta-llama', 'google', 'openai', 'microsoft', 'anthropic',
+    'mistralai', 'huggingface', 'deepseek-ai', 'alibaba', 'baichuan-inc',
+    'internlm', 'qwen', 'bigscience', 'stabilityai', 'runwayml',
+    'nvidia', 'amd', 'intel', 'tiiuae', 'mosaicml', 'together-ai',
+    '01-ai', 'cohere', 'allenai', 'eleutherai', 'bigcode-project'
+];
 
 /**
  * GitHub Adapter Implementation
@@ -100,6 +114,10 @@ export class GitHubAdapter extends BaseAdapter {
 
                     let addedCount = 0;
                     for (const repo of repos) {
+                        // V2.1: NSFW filter at fetch level
+                        if (!this.isSafeForWork(repo)) {
+                            continue;
+                        }
                         if (!seenIds.has(repo.id) && allRepos.length < limit) {
                             seenIds.add(repo.id);
                             allRepos.push(repo);
@@ -254,12 +272,17 @@ export class GitHubAdapter extends BaseAdapter {
     // ============================================================
 
     inferType(raw) {
-        const language = (raw.language || '').toLowerCase();
+        const owner = (raw.owner?.login || '').toLowerCase();
         const description = (raw.description || '').toLowerCase();
         const topics = raw.topics || [];
 
-        // Check for model indicators
-        const modelIndicators = ['model', 'weights', 'checkpoint', 'pretrained'];
+        // V2.1: AI Organization detection (whitelist-based, no inference)
+        if (AI_ORGANIZATIONS.some(org => owner.includes(org))) {
+            return 'model';
+        }
+
+        // Check for model indicators in description/topics
+        const modelIndicators = ['model', 'weights', 'checkpoint', 'pretrained', 'llm', 'transformer'];
         if (modelIndicators.some(ind => description.includes(ind) ||
             topics.some(t => t.includes(ind)))) {
             return 'model';
@@ -336,6 +359,15 @@ export class GitHubAdapter extends BaseAdapter {
             has_wiki: raw.has_wiki || false,
             has_pages: raw.has_pages || false
         };
+    }
+
+    /**
+     * V2.1: Check if repo is safe for work (NSFW filter)
+     * Constitutional: Uses NSFW_KEYWORDS whitelist, no inference
+     */
+    isSafeForWork(repo) {
+        const text = `${repo.name || ''} ${repo.description || ''}`.toLowerCase();
+        return !NSFW_KEYWORDS.some(kw => text.includes(kw));
     }
 
     delay(ms) {

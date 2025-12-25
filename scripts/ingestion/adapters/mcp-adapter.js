@@ -6,10 +6,12 @@
  * 
  * Entity type: 'agent' (mcp-server subtype)
  * 
+ * V2.1: Added NSFW filter at fetch level
+ * 
  * @module ingestion/adapters/mcp-adapter
  */
 
-import { BaseAdapter } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 
 const MCP_REGISTRY_API = 'https://registry.modelcontextprotocol.io';
 

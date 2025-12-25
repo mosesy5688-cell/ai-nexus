@@ -183,7 +183,8 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "📊 [Parallel] Harvesting OpenLLM Leaderboard Benchmarks..."
-          node scripts/ingestion/harvest-single.js openllm --limit 500 || echo "OpenLLM adapter skipped"
+          # V2.1: Increased from 500 to 1000 for better benchmark coverage
+          node scripts/ingestion/harvest-single.js openllm --limit 1000 || echo "OpenLLM adapter skipped"
 
       # B.1: DeepSpec Extractor (Model specifications from config.json)
       # Verified: meets Art.XI admission rules (exempt: outputs specs, not entities)
@@ -192,7 +193,8 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "📋 [Parallel] Extracting Model Specifications..."
-          node scripts/ingestion/harvest-single.js deepspec --limit 100 || echo "DeepSpec adapter skipped"
+          # V2.1: Increased from 100 to 2000 for params_billions coverage
+          node scripts/ingestion/harvest-single.js deepspec --limit 2000 || echo "DeepSpec adapter skipped"
 
       - name: Upload Batch Artifacts
         uses: actions/upload-artifact@v4
