@@ -5,52 +5,18 @@
  * 
  * @component
  */
+import { paramRanges, quantTypes, licenses, architectures, vramRanges, taskTypes } from './filter-data';
 
 interface Props {
   showParams?: boolean;
   showQuant?: boolean;
   showLicense?: boolean;
   showArch?: boolean;
+  showVram?: boolean;
+  showTask?: boolean;
 }
 
-const { showParams = true, showQuant = true, showLicense = true, showArch = true } = Astro.props;
-
-// Parameter size ranges
-const paramRanges = [
-  { id: 'tiny', label: '<1B', min: 0, max: 1 },
-  { id: 'small', label: '1-7B', min: 1, max: 7 },
-  { id: 'medium', label: '7-13B', min: 7, max: 13 },
-  { id: 'large', label: '13-70B', min: 13, max: 70 },
-  { id: 'huge', label: '70B+', min: 70, max: Infinity },
-];
-
-// Quantization types
-const quantTypes = [
-  { id: 'gguf', label: 'GGUF', icon: '📦' },
-  { id: 'awq', label: 'AWQ', icon: '⚡' },
-  { id: 'gptq', label: 'GPTQ', icon: '🔧' },
-  { id: 'fp16', label: 'FP16', icon: '🎯' },
-];
-
-// Common licenses
-const licenses = [
-  { id: 'apache-2.0', label: 'Apache 2.0' },
-  { id: 'mit', label: 'MIT' },
-  { id: 'llama2', label: 'Llama 2' },
-  { id: 'cc-by-4.0', label: 'CC BY 4.0' },
-  { id: 'openrail', label: 'OpenRAIL' },
-];
-
-// V3.1 Phase 5: Architecture families
-const architectures = [
-  { id: 'llama', label: 'Llama', icon: '🦙' },
-  { id: 'mistral', label: 'Mistral', icon: '🌬️' },
-  { id: 'qwen', label: 'Qwen', icon: '🔮' },
-  { id: 'gpt', label: 'GPT', icon: '🤖' },
-  { id: 'gemma', label: 'Gemma', icon: '💎' },
-  { id: 'phi', label: 'Phi', icon: 'φ' },
-  { id: 'deepseek', label: 'DeepSeek', icon: '🔍' },
-];
+const { showParams = true, showQuant = true, showLicense = true, showArch = true, showVram = true, showTask = true } = Astro.props;
 ---
 
 <div class="advanced-filters bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
@@ -127,6 +93,42 @@ const architectures = [
         </div>
       </div>
     )}
+    
+    {showVram && (
+      <div>
+        <label class="block text-xs font-medium text-green-600 dark:text-green-400 mb-2">🖥️ VRAM (Can I run it?)</label>
+        <div class="flex flex-wrap gap-2" id="vram-filter">
+          {vramRanges.map(v => (
+            <button 
+              class="filter-chip"
+              data-filter-type="vram"
+              data-vram={v.id}
+              data-max-vram={v.maxVram || ''}
+              data-min-vram={v.minVram || ''}
+            >
+              <span>{v.icon}</span> {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+    
+    {showTask && (
+      <div>
+        <label class="block text-xs font-medium text-blue-600 dark:text-blue-400 mb-2">📌 Task Type</label>
+        <div class="flex flex-wrap gap-2" id="task-filter">
+          {taskTypes.map(t => (
+            <button 
+              class="filter-chip"
+              data-filter-type="task"
+              data-task={t.id}
+            >
+              <span>{t.icon}</span> {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
   </div>
   
   <button 
@@ -175,6 +177,8 @@ const architectures = [
       quant: [] as string[],
       license: [] as string[],
       arch: [] as string[],  // V3.1 Phase 5: Architecture filter
+      vram: [] as string[],  // V3.1 Phase 5: VRAM filter
+      task: [] as string[],  // V3.1 Phase 5: Task filter
     };
     
     document.querySelectorAll('.filter-chip.active').forEach(chip => {
@@ -191,6 +195,10 @@ const architectures = [
         activeFilters.license.push(el.dataset.license || '');
       } else if (type === 'arch') {
         activeFilters.arch.push(el.dataset.arch || '');
+      } else if (type === 'vram') {
+        activeFilters.vram.push(el.dataset.vram || '');
+      } else if (type === 'task') {
+        activeFilters.task.push(el.dataset.task || '');
       }
     });
     
