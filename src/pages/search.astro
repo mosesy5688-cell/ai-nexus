@@ -1,0 +1,182 @@
+---
+/**
+ * V3.1 Phase 1: Search Page (SSR)
+ * 
+ * Search Contract (Engineering Rules):
+ * - Input: q (string, >=2 chars)
+ * - Output: models[], knowledge[]
+ * - Empty result: EmptyState (never 404)
+ * - SEO: noindex (avoid low-quality pages)
+ */
+import Layout from '@/layouts/Layout.astro';
+
+export const prerender = false;
+
+const query = Astro.url.searchParams.get('q') || '';
+const searchPerformed = query.length >= 2;
+
+let results: any[] = [];
+let error: string | null = null;
+
+if (searchPerformed) {
+    try {
+        // Call internal API
+        const apiUrl = new URL('/api/search', Astro.url.origin);
+        apiUrl.searchParams.set('q', query);
+        apiUrl.searchParams.set('limit', '20');
+        
+        const response = await fetch(apiUrl.toString());
+        if (response.ok) {
+            const data = await response.json();
+            results = data.results || [];
+        } else {
+            error = 'Search service temporarily unavailable';
+        }
+    } catch (e) {
+        error = 'Search failed. Please try again.';
+    }
+}
+
+// Knowledge articles (static for now - could be expanded)
+const knowledgeItems = [
+    { slug: 'what-is-mmlu', title: 'What is MMLU?', description: 'Understanding the Massive Multitask Language Understanding benchmark' },
+    { slug: 'what-is-fni', title: 'What is FNI?', description: 'The Fair Nexus Index methodology explained' },
+    { slug: 'what-is-humaneval', title: 'What is HumanEval?', description: 'Code generation benchmark for AI models' },
+    { slug: 'what-is-context-length', title: 'Context Length', description: 'Understanding model context windows' },
+    { slug: 'what-is-gsm8k', title: 'What is GSM8K?', description: 'Grade school math benchmark for reasoning' },
+].filter(k => k.title.toLowerCase().includes(query.toLowerCase()) || k.description.toLowerCase().includes(query.toLowerCase()));
+---
+
+<Layout title={`Search: ${query || 'Find AI Models'} - Free2AITools`}>
+    <meta slot="head" name="robots" content="noindex, follow" />
+    
+    <main class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Search Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-4">
+                {query ? `Search Results for "${query}"` : 'Search AI Models'}
+            </h1>
+            
+            <!-- Search Form -->
+            <form method="get" action="/search" class="flex gap-2">
+                <input 
+                    type="text" 
+                    name="q" 
+                    value={query}
+                    placeholder="Search models, tools, knowledge..."
+                    class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    minlength="2"
+                    required
+                />
+                <button 
+                    type="submit"
+                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                >
+                    Search
+                </button>
+            </form>
+        </div>
+
+        <!-- Error State -->
+        {error && (
+            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+                <p class="text-red-700 dark:text-red-300">{error}</p>
+            </div>
+        )}
+
+        <!-- Results or Empty State -->
+        {searchPerformed ? (
+            results.length > 0 || knowledgeItems.length > 0 ? (
+                <div class="space-y-8">
+                    <!-- Model Results -->
+                    {results.length > 0 && (
+                        <section>
+                            <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">
+                                Models ({results.length})
+                            </h2>
+                            <div class="grid gap-4">
+                                {results.map((item) => (
+                                    <a 
+                                        href={`/model/${item.id}`}
+                                        class="block p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition"
+                                    >
+                                        <div class="flex justify-between items-start">
+                                            <div>
+                                                <h3 class="font-semibold text-gray-800 dark:text-white">{item.name}</h3>
+                                                <p class="text-sm text-gray-500 dark:text-gray-400">{item.author}</p>
+                                            </div>
+                                            {item.fni_score && (
+                                                <span class="text-sm font-bold text-blue-600">FNI {item.fni_score}</span>
+                                            )}
+                                        </div>
+                                        {item.description && (
+                                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{item.description}</p>
+                                        )}
+                                    </a>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    <!-- Knowledge Results -->
+                    {knowledgeItems.length > 0 && (
+                        <section>
+                            <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">
+                                Knowledge Base ({knowledgeItems.length})
+                            </h2>
+                            <div class="grid gap-3">
+                                {knowledgeItems.map((item) => (
+                                    <a 
+                                        href={`/knowledge/${item.slug}`}
+                                        class="block p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
+                                    >
+                                        <h3 class="font-semibold text-blue-800 dark:text-blue-300">{item.title}</h3>
+                                        <p class="text-sm text-blue-600 dark:text-blue-400">{item.description}</p>
+                                    </a>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+                </div>
+            ) : (
+                <!-- Empty State (V3.1: Never 404) -->
+                <div class="text-center py-16">
+                    <div class="text-6xl mb-4">🔍</div>
+                    <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        No results found for "{query}"
+                    </h2>
+                    <p class="text-gray-500 dark:text-gray-400 mb-6">
+                        Try different keywords or explore our categories below
+                    </p>
+                    <div class="flex flex-wrap justify-center gap-3">
+                        <a href="/explore" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                            Explore Models
+                        </a>
+                        <a href="/knowledge" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                            Knowledge Base
+                        </a>
+                        <a href="/ranking" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                            Rankings
+                        </a>
+                    </div>
+                </div>
+            )
+        ) : (
+            <!-- Initial State (no search yet) -->
+            <div class="text-center py-16">
+                <div class="text-6xl mb-4">🤖</div>
+                <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Find the best AI model for your needs
+                </h2>
+                <p class="text-gray-500 dark:text-gray-400 mb-6">
+                    Search by model name, author, or description
+                </p>
+                <div class="flex flex-wrap justify-center gap-3 text-sm">
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full">Try: llama</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full">Try: qwen</span>
+                    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full">Try: mistral</span>
+                </div>
+            </div>
+        )}
+    </main>
+</Layout>
