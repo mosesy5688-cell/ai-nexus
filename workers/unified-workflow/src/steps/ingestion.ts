@@ -71,7 +71,7 @@ function buildExtendedMeta(model: any): Record<string, any> {
  * 
  * Flow: R2 raw-data/ → D1 (indexing) → HYDRATION_QUEUE → Consumer → R2 cache/
  */
-export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ filesProcessed: number; modelsIngested: number; messagesQueued: number }> {
+export async function runIngestionStep(env: Env, checkpoint: any): Promise<any> {
     console.log('[Ingest] Starting V5.2.1 Queue-enabled ingestion...');
     console.log(`[L1] Resume from checkpoint: lastId=${checkpoint.lastId}`);
 
@@ -84,6 +84,11 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
 
     // V7.1: List pending files in ingest/batches/ (aligned with L1 Harvester V7.1)
     console.log('[Ingest] Listing files in ingest/batches/...');
+
+    // DEBUG: Check R2 binding
+    console.log(`[Ingest] DEBUG: R2_ASSETS binding exists: ${!!env.R2_ASSETS}`);
+    console.log(`[Ingest] DEBUG: checkpoint.lastId = ${checkpoint.lastId}, startAfter = ${checkpoint.lastId || undefined}`);
+
     const listed = await env.R2_ASSETS.list({
         prefix: 'ingest/batches/',
         limit: 100,
@@ -91,6 +96,8 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
     });
 
     console.log(`[Ingest] R2 list returned: ${listed.objects.length} total objects, truncated: ${listed.truncated}`);
+    console.log(`[Ingest] DEBUG: First 3 object keys: ${listed.objects.slice(0, 3).map((o: any) => o.key).join(', ') || 'NONE'}`);
+
 
     // V7.1: Filter for .json.gz files (L1 V7.1 uses gzip compression)
     const jsonFiles = listed.objects.filter((obj: any) =>
@@ -99,7 +106,19 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
 
     if (jsonFiles.length === 0) {
         console.log('[Ingest] No pending files in ingest/batches/');
-        return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
+        // DEBUG: Include R2 list info in return for diagnosis
+        return {
+            filesProcessed: 0,
+            modelsIngested: 0,
+            messagesQueued: 0,
+            _debug: {
+                r2ListCount: listed.objects.length,
+                r2ListTruncated: listed.truncated,
+                r2ListFirst3: listed.objects.slice(0, 3).map((o: any) => o.key),
+                checkpointLastId: checkpoint.lastId,
+                prefix: 'ingest/batches/'
+            }
+        };
     }
 
     console.log(`[Ingest] Found ${jsonFiles.length} files to process`);

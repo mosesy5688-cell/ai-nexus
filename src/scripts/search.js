@@ -9,6 +9,7 @@ let modelsGrid;
 let noResults;
 let staticContentContainer;
 let searchBox;
+let hideOnSearchElements; // V9.0: Elements to hide when searching
 
 // V5.1.2: Client-Side Search Worker
 const searchWorker = new Worker('/workers/search-worker.js', { type: 'module' });
@@ -64,12 +65,18 @@ async function performSearch() {
             modelsGrid.classList.add('hidden');
         }
         if (noResults) noResults.classList.add('hidden');
-        if (staticContentContainer) staticContentContainer.classList.remove('hidden');
+        // V9.0: Show all hide-on-search elements when not searching
+        if (hideOnSearchElements) {
+            hideOnSearchElements.forEach(el => el.classList.remove('hidden'));
+        }
         return;
     }
 
     isLoading = true;
-    if (staticContentContainer) staticContentContainer.classList.add('hidden');
+    // V9.0: Hide all hide-on-search elements when searching
+    if (hideOnSearchElements) {
+        hideOnSearchElements.forEach(el => el.classList.add('hidden'));
+    }
 
     // Show loading state
     if (modelsGrid) modelsGrid.classList.remove('hidden');
@@ -120,6 +127,8 @@ async function initializeSearch({ initialQuery, activeTag, isExplorePage: onExpl
     noResults = document.getElementById('no-results');
     staticContentContainer = document.getElementById('static-content-container');
     searchBox = document.getElementById('search-box');
+    // V9.0: Get all elements that should be hidden when searching
+    hideOnSearchElements = document.querySelectorAll('.hide-on-search');
 
     // V5.1.2: Bind Worker Event Listener
     searchWorker.onmessage = (e) => {
