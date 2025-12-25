@@ -57,7 +57,8 @@ export class HuggingFaceAdapter extends BaseAdapter {
         }
 
         console.log(`📥 [HuggingFace] Fetching top ${limit} models by ${sort}...`);
-        const response = await fetch(`${HF_API_BASE}/models?sort=${sort}&direction=${direction}&limit=${limit}`, { headers: this.getHeaders() });
+        // V6.4: Add expand params for safetensors (params_billions) and config (context_length, architecture)
+        const response = await fetch(`${HF_API_BASE}/models?sort=${sort}&direction=${direction}&limit=${limit}&expand[]=safetensors&expand[]=config`, { headers: this.getHeaders() });
         if (!response.ok) throw new Error(`HuggingFace API error: ${response.status}`);
 
         const models = await response.json();
@@ -93,7 +94,8 @@ export class HuggingFaceAdapter extends BaseAdapter {
             console.log(`\n📥 [HuggingFace] Strategy ${strategyIndex + 1}/4: ${strategy.name}`);
 
             try {
-                const response = await fetch(`${HF_API_BASE}/models?sort=${strategy.sort}&direction=${strategy.direction}&limit=${limitPerStrategy}`, { headers: this.getHeaders() });
+                // V6.4: Add expand params for safetensors (params_billions) and config (context_length, architecture)
+                const response = await fetch(`${HF_API_BASE}/models?sort=${strategy.sort}&direction=${strategy.direction}&limit=${limitPerStrategy}&expand[]=safetensors&expand[]=config`, { headers: this.getHeaders() });
                 if (!response.ok) { console.warn(`   ⚠️ API error: ${response.status}`); continue; }
 
                 const models = await response.json();
@@ -131,7 +133,8 @@ export class HuggingFaceAdapter extends BaseAdapter {
                 // Paginate through all results for this tag
                 while (hasMore && tagModels < limitPerTag) {
                     const batchLimit = Math.min(PAGE_SIZE, limitPerTag - tagModels);
-                    const url = `${HF_API_BASE}/models?filter=${tag}&sort=likes&direction=-1&limit=${batchLimit}&skip=${skip}`;
+                    // V6.4: Add expand params for safetensors (params_billions) and config (context_length, architecture)
+                    const url = `${HF_API_BASE}/models?filter=${tag}&sort=likes&direction=-1&limit=${batchLimit}&skip=${skip}&expand[]=safetensors&expand[]=config`;
 
                     const response = await fetch(url, { headers: this.getHeaders() });
 
@@ -192,9 +195,11 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
     async fetchFullModel(modelId, retryCount = 0) {
         try {
-            const [modelRes, readmeRes] = await Promise.all([
+            // V6.4: Fetch config.json for params_billions, context_length, architecture
+            const [modelRes, readmeRes, configRes] = await Promise.all([
                 fetch(`${HF_API_BASE}/models/${modelId}`, { headers: this.getHeaders() }),
-                fetch(`${HF_RAW_BASE}/${modelId}/raw/main/README.md`, { headers: this.getHeaders() })
+                fetch(`${HF_RAW_BASE}/${modelId}/raw/main/README.md`, { headers: this.getHeaders() }),
+                fetch(`${HF_RAW_BASE}/${modelId}/raw/main/config.json`, { headers: this.getHeaders() })
             ]);
 
             if (modelRes.status === 429) {
@@ -211,6 +216,17 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
             const modelData = await modelRes.json();
             modelData.readme = readmeRes.ok ? await readmeRes.text() : '';
+
+            // V6.4: Merge config.json data for params extraction
+            if (configRes.ok) {
+                try {
+                    const configData = await configRes.json();
+                    modelData.config = configData;
+                } catch (e) {
+                    // config.json may not be valid JSON, ignore
+                }
+            }
+
             return this.normalize(modelData);
         } catch (error) {
             console.warn(`   ❌ Error fetching ${modelId}: ${error.message}`);
