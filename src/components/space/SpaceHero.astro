@@ -70,12 +70,12 @@ const isVerified = verifiedAuthors.some(v => author.toLowerCase().includes(v));
 const displayEmoji = emoji || '🚀';
 ---
 
-<div class="space-hero bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-8 mb-8 shadow-lg border border-purple-100 dark:border-gray-700">
+<div class="space-hero bg-white dark:bg-gray-800 rounded-xl p-8 mb-8 shadow-md border border-gray-200 dark:border-gray-700">
   <div class="flex flex-col md:flex-row gap-6 items-start">
     
     <!-- Emoji/Icon -->
     <div class="flex-shrink-0">
-      <div class="w-20 h-20 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center text-4xl shadow-md">
+      <div class="w-20 h-20 bg-purple-600 rounded-2xl flex items-center justify-center text-4xl shadow-md">
         {displayEmoji}
       </div>
     </div>
