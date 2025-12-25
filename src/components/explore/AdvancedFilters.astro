@@ -10,9 +10,10 @@ interface Props {
   showParams?: boolean;
   showQuant?: boolean;
   showLicense?: boolean;
+  showArch?: boolean;
 }
 
-const { showParams = true, showQuant = true, showLicense = true } = Astro.props;
+const { showParams = true, showQuant = true, showLicense = true, showArch = true } = Astro.props;
 
 // Parameter size ranges
 const paramRanges = [
@@ -38,6 +39,17 @@ const licenses = [
   { id: 'llama2', label: 'Llama 2' },
   { id: 'cc-by-4.0', label: 'CC BY 4.0' },
   { id: 'openrail', label: 'OpenRAIL' },
+];
+
+// V3.1 Phase 5: Architecture families
+const architectures = [
+  { id: 'llama', label: 'Llama', icon: '🦙' },
+  { id: 'mistral', label: 'Mistral', icon: '🌬️' },
+  { id: 'qwen', label: 'Qwen', icon: '🔮' },
+  { id: 'gpt', label: 'GPT', icon: '🤖' },
+  { id: 'gemma', label: 'Gemma', icon: '💎' },
+  { id: 'phi', label: 'Phi', icon: 'φ' },
+  { id: 'deepseek', label: 'DeepSeek', icon: '🔍' },
 ];
 ---
 
@@ -98,6 +110,23 @@ const licenses = [
         </div>
       </div>
     )}
+    
+    {showArch && (
+      <div>
+        <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Architecture</label>
+        <div class="flex flex-wrap gap-2" id="arch-filter">
+          {architectures.map(a => (
+            <button 
+              class="filter-chip"
+              data-filter-type="arch"
+              data-arch={a.id}
+            >
+              <span>{a.icon}</span> {a.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
   </div>
   
   <button 
@@ -145,6 +174,7 @@ const licenses = [
       params: [] as {min: number, max: number}[],
       quant: [] as string[],
       license: [] as string[],
+      arch: [] as string[],  // V3.1 Phase 5: Architecture filter
     };
     
     document.querySelectorAll('.filter-chip.active').forEach(chip => {
@@ -159,6 +189,8 @@ const licenses = [
         activeFilters.quant.push(el.dataset.quant || '');
       } else if (type === 'license') {
         activeFilters.license.push(el.dataset.license || '');
+      } else if (type === 'arch') {
+        activeFilters.arch.push(el.dataset.arch || '');
       }
     });
     
