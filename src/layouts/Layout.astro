@@ -14,8 +14,40 @@ interface Props {
     jsonld?: object;
 }
 
-const { title, description = 'A premier, free directory of open-source AI models, tools, and resources, curated for developers, researchers, and enthusiasts.', image = '/og-image.jpg', jsonld } = Astro.props;
+// V3.1 Phase 7: Enhanced SEO defaults
+const { 
+    title, 
+    description = 'Find the best open-source LLM for your needs. VRAM calculator, one-click deploy, full paper & dataset links. Powered by Fair Nexus Index.', 
+    image = '/og-image.jpg', 
+    jsonld 
+} = Astro.props;
 const resolvedImage = new URL(image, Astro.site || Astro.url.origin);
+const canonicalURL = new URL(Astro.url.pathname, Astro.site || Astro.url.origin);
+
+// V3.1 Phase 7: Schema.org Organization + WebSite with SearchAction
+const defaultSchema = {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "Organization",
+            "name": "Free2AITools",
+            "url": "https://free2aitools.com",
+            "logo": "https://free2aitools.com/logo.png",
+            "description": "Open-Source AI Model Selection Hub powered by Fair Nexus Index."
+        },
+        {
+            "@type": "WebSite",
+            "name": "Free2AITools",
+            "url": "https://free2aitools.com",
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": "https://free2aitools.com/search?q={search_term_string}",
+                "query-input": "required name=search_term_string"
+            }
+        }
+    ]
+};
+const schemaToUse = jsonld || defaultSchema;
 ---
 
 <!doctype html>
@@ -71,10 +103,8 @@ const resolvedImage = new URL(image, Astro.site || Astro.url.origin);
     <!-- Global Alpine.js loaded for TabbedContent & ModelCarousel -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-    <!-- JSON-LD Schema (Constitution V4.3.2 SEO Requirement) -->
-    {jsonld && (
-        <script type="application/ld+json" set:html={JSON.stringify(jsonld)} />
-    )}
+    <!-- V3.1 JSON-LD Schema (Phase 7 SEO Enhancement) -->
+    <script type="application/ld+json" set:html={JSON.stringify(schemaToUse)} />
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans antialiased flex flex-col min-h-screen">
     <!-- Google Tag Manager (noscript) -->
