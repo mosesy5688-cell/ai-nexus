@@ -197,7 +197,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
         try {
             // V6.4: Fetch config.json for params_billions, context_length, architecture
             const [modelRes, readmeRes, configRes] = await Promise.all([
-                fetch(`${HF_API_BASE}/models/${modelId}`, { headers: this.getHeaders() }),
+                fetch(`${HF_API_BASE}/models/${modelId}?expand[]=safetensors&expand[]=config`, { headers: this.getHeaders() }),
                 fetch(`${HF_RAW_BASE}/${modelId}/raw/main/README.md`, { headers: this.getHeaders() }),
                 fetch(`${HF_RAW_BASE}/${modelId}/raw/main/config.json`, { headers: this.getHeaders() })
             ]);
