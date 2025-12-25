@@ -209,6 +209,22 @@ export class CivitAIAdapter extends BaseAdapter {
             last_updated: raw.updatedAt || raw.createdAt,
             created_at: raw.createdAt,
 
+            // V6.4: Full metadata for params extraction
+            meta_json: JSON.stringify({
+                civitai: {
+                    id: raw.id,
+                    type: raw.type,
+                    baseModel: modelVersion.baseModel,
+                    trainedWords: modelVersion.trainedWords
+                },
+                stats: raw.stats,
+                files: (modelVersion.files || []).map(f => ({
+                    name: f.name,
+                    sizeKB: f.sizeKB,
+                    type: f.type
+                }))
+            }),
+
             // NSFW compliance (V4.3.1) - Use dynamic check instead of hardcoded
             nsfw_filtered: true,
             compliance_status: null
