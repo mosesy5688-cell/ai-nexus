@@ -8,6 +8,10 @@ import ModelResources from './ModelResources.astro';
 import EntityLinksSection from '../EntityLinksSection.astro';
 import TechnicalSpecs from './TechnicalSpecs.astro';
 import FullReadmeSection from './FullReadmeSection.astro';
+// Phase B.8: New components for user understanding
+import BenchmarkScores from './BenchmarkScores.astro';
+import CodeExample from './CodeExample.astro';
+
 
 interface Props {
   model: any;
@@ -76,12 +80,22 @@ try {
     quantization={metaJson.quantization}
   />
   
+  {/* Phase B.8: Benchmark Scores with semantic explanations */}
+  <BenchmarkScores benchmarks={metaJson.extended?.benchmarks} />
+  
+  {/* Phase B.8: Code Example from README */}
+  <CodeExample 
+    code={metaJson.extended?.example_code} 
+    language={metaJson.extended?.example_lang || 'python'} 
+  />
+  
   <!-- B.6: Full README/Model Card Section -->
   <FullReadmeSection 
     bodyContent={model.body_content || model.description}
     initialCollapsed={true}
     maxPreviewLength={3000}
   />
+
   
   <!-- Missing Data & Limitations -->
   <ModelNotices 
