@@ -1,5 +1,6 @@
 ---
 // src/components/ModelCard.astro
+// V3.1 Phase 4: Enhanced with VRAM, Size, Active Status
 // Optimized: text-focused, extended description, simpler design
 // V5.0.0: CES-001 Clean URL format
 import { generateEntityUrl } from '../utils/url-utils.js';
@@ -36,22 +37,63 @@ function getSourceLabel(source) {
 
 // Parse tags if string
 const tagsArray = typeof model.tags === 'string' ? JSON.parse(model.tags || '[]') : (model.tags || []);
+
+// V3.1 Phase 4: Parse extended metadata
+let meta = {};
+try { 
+    meta = typeof model.meta_json === 'string' ? JSON.parse(model.meta_json || '{}') : (model.meta_json || {}); 
+} catch (e) { meta = {}; }
+const ext = meta.extended || {};
+
+// V3.1 Phase 4: VRAM Calculation (params_billions → VRAM estimate)
+const params = ext.params_billions || 0;
+const hasQuant = (ext.quantizations?.length || 0) > 0;
+const vram = params ? Math.ceil(hasQuant ? (params * 0.6 + 2) : (params * 2.2 + 4)) : null;
+
+// V3.1 Phase 4: Size Tag
+const sizeTag = params ? (params >= 1 ? `${params}B` : `${Math.round(params*1000)}M`) : null;
+
+// V3.1 Phase 4: Active Status (updated within 30 days)
+const lastUpdate = new Date(model.last_updated || model.lastModified || 0);
+const daysSinceUpdate = (Date.now() - lastUpdate.getTime()) / (1000 * 3600 * 24);
+const isActive = daysSinceUpdate <= 30 && lastUpdate.getTime() > 0;
 ---
 
 <a href={modelUrl} class="group block bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden h-full border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600">
     <div class="p-5 flex flex-col h-full">
-        <!-- Header: Source + Rising Star -->
+        <!-- Header: Source + Active + Rising Star -->
         <div class="flex items-center justify-between mb-3">
             <span class="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                 <span>{getSourceIcon(model.source)}</span>
                 <span>{getSourceLabel(model.source)}</span>
+                {isActive && (
+                    <span class="w-2 h-2 rounded-full bg-green-500 ring-2 ring-green-200 dark:ring-green-900" title="Active (updated within 30 days)"></span>
+                )}
             </span>
-            {isRisingStar && (
-                <span class="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium">
-                    🔥 Rising
-                </span>
-            )}
+            <div class="flex items-center gap-2">
+                {isRisingStar && (
+                    <span class="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium">
+                        🔥 Rising
+                    </span>
+                )}
+            </div>
         </div>
+
+        <!-- V3.1 Phase 4: Size + VRAM Badges -->
+        {(sizeTag || vram) && (
+            <div class="flex flex-wrap gap-2 mb-2">
+                {sizeTag && (
+                    <span class="text-xs font-mono font-bold px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded">
+                        {sizeTag}
+                    </span>
+                )}
+                {vram && (
+                    <span class={`text-xs font-bold px-2 py-0.5 rounded ${vram <= 12 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : vram <= 24 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'}`} title={hasQuant ? 'Quantized estimate' : 'Full precision estimate'}>
+                        💾 {vram}GB VRAM
+                    </span>
+                )}
+            </div>
+        )}
 
         <!-- Model Name -->
         <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mb-1" title={model.name}>
