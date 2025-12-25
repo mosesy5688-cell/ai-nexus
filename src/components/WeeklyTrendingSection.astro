@@ -171,13 +171,13 @@ const generatedAt = trendingData?.generated_at ? new Date(trendingData.generated
         font-weight: 600;
     }
     
-    .fni.high { background: rgba(34, 197, 94, 0.2); color: #16a34a; }
-    .fni.mid { background: rgba(234, 179, 8, 0.2); color: #ca8a04; }
-    .fni.low { background: rgba(239, 68, 68, 0.2); color: #dc2626; }
+    .fni.high { background: rgba(var(--color-success), 0.2); color: var(--color-success-dark); }
+    .fni.mid { background: rgba(var(--color-warning), 0.2); color: var(--color-warning-dark); }
+    .fni.low { background: rgba(var(--color-error), 0.2); color: var(--color-error-dark); }
     
     .downloads {
         font-size: 0.75rem;
-        color: var(--gray-500);
+        color: var(--theme-text-muted);
     }
     
     .footer {
@@ -186,7 +186,7 @@ const generatedAt = trendingData?.generated_at ? new Date(trendingData.generated
     }
     
     .view-all {
-        color: var(--indigo-600);
+        color: var(--color-primary-600);
         text-decoration: none;
         font-weight: 600;
     }
@@ -198,23 +198,17 @@ const generatedAt = trendingData?.generated_at ? new Date(trendingData.generated
     .no-data {
         text-align: center;
         padding: 2rem;
-        color: var(--gray-500);
+        color: var(--theme-text-muted);
     }
     
     .hint {
         font-size: 0.75rem;
-        color: var(--gray-400);
+        color: var(--theme-text-disabled);
     }
     
-    :root {
-        --gray-50: #f9fafb;
-        --gray-400: #9ca3af;
-        --gray-500: #6b7280;
-        --gray-900: #111827;
-        --indigo-600: #4f46e5;
-    }
-    
-    :global(.dark) .title { color: #f3f4f6; }
+    /* Dark mode enhancements via .dark class */
+    :global(.dark) .title { color: var(--gray-100); }
     :global(.dark) .trending-item { background: rgba(31, 41, 55, 0.8); }
-    :global(.dark) .model-name { color: #f3f4f6; }
+    :global(.dark) .model-name { color: var(--gray-100); }
+    :global(.dark) .rank { color: var(--color-primary-400); }
 </style>
