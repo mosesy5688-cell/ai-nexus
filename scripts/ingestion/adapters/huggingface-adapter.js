@@ -73,7 +73,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
         for (let i = 0; i < models.length; i += batchSize) {
             const batch = models.slice(i, i + batchSize);
             const batchResults = await Promise.all(batch.map(m => this.fetchFullModel(m.modelId || m.id)));
-            fullModels.push(...batchResults.filter(m => m !== null));
+            fullModels.push(...batchResults.filter(m => m !== null && this.isSafeForWork(m)));
             if ((i + batchSize) % 50 === 0) console.log(`   Progress: ${Math.min(i + batchSize, models.length)}/${models.length}`);
             if (i + batchSize < models.length) await delay(delayMs);
         }
@@ -106,7 +106,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
                     for (let i = 0; i < newModels.length; i += batchSize) {
                         const batch = newModels.slice(i, i + batchSize);
                         const batchResults = await Promise.all(batch.map(m => this.fetchFullModel(m.modelId || m.id)));
-                        allModels.push(...batchResults.filter(m => m !== null));
+                        allModels.push(...batchResults.filter(m => m !== null && this.isSafeForWork(m)));
                         if (i + batchSize < newModels.length) await delay(delayMs);
                     }
                 } else { allModels.push(...newModels); }
@@ -163,7 +163,9 @@ export class HuggingFaceAdapter extends BaseAdapter {
                         return true;
                     });
 
-                    allModels.push(...newModels);
+                    // V2.1: Add NSFW filter
+                    const safeModels = newModels.filter(m => this.isSafeForWork(m));
+                    allModels.push(...safeModels);
                     tagModels += models.length;
                     skip += models.length;
 
