@@ -84,13 +84,15 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
 
     // V7.1: List pending files in ingest/batches/ (aligned with L1 Harvester V7.1)
     console.log('[Ingest] Listing files in ingest/batches/...');
+
     const listed = await env.R2_ASSETS.list({
         prefix: 'ingest/batches/',
         limit: 100,
         startAfter: checkpoint.lastId || undefined
     });
 
-    console.log(`[Ingest] R2 list returned: ${listed.objects.length} total objects, truncated: ${listed.truncated}`);
+    console.log(`[Ingest] R2 list returned: ${listed.objects.length} objects, truncated: ${listed.truncated}`);
+
 
     // V7.1: Filter for .json.gz files (L1 V7.1 uses gzip compression)
     const jsonFiles = listed.objects.filter((obj: any) =>

@@ -48,8 +48,17 @@ const seoSchema = buildIndexSEO();
 
         <HomeWebsiteBanner />
 
-        <!-- V3.1 Phase 6: Categories after Search -->
-        <section class="mb-8 mt-6">
+        <!-- V9.0: Search Results Grid (appears immediately after search) -->
+        <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden mb-8">
+            <!-- Populated by search.js -->
+        </div>
+        <div id="no-results" class="text-center py-16 hidden">
+            <p class="text-2xl font-semibold text-gray-700 dark:text-gray-200">No models found.</p>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Try a different search term.</p>
+        </div>
+
+        <!-- V3.1 Phase 6: Categories after Search (hide when searching) -->
+        <section id="category-section" class="mb-8 mt-6 hide-on-search">
             <h2 class="text-xl md:text-2xl font-bold text-center mb-4 text-gray-900 dark:text-white">
                 Explore AI Models by Category
             </h2>
@@ -112,8 +121,8 @@ const seoSchema = buildIndexSEO();
             </div>
         </section>
 
-        <!-- Static Content Container -->
-        <div id="static-content-container">
+        <!-- Static Content Container (hide when searching) -->
+        <div id="static-content-container" class="hide-on-search">
             
             <!-- Hot Models Section -->
             <section class="mb-16">
@@ -137,14 +146,7 @@ const seoSchema = buildIndexSEO();
             <!-- V6.0: Old Explore by Category removed - replaced by new 5-card layout above -->
         </div>
 
-        <!-- Search Results Grid (initially hidden) -->
-        <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
-            <!-- Populated by search.js -->
-        </div>
-        <div id="no-results" class="text-center py-16 hidden">
-            <p class="text-2xl font-semibold text-gray-700 dark:text-gray-200">No models found.</p>
-            <p class="text-gray-500 dark:text-gray-400 mt-2">Try a different search term.</p>
-        </div>
+        <!-- V9.0: Search results moved above Category section for better visibility -->
     </div>
 
     <script>

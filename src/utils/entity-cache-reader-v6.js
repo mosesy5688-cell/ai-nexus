@@ -5,9 +5,26 @@
  * 
  * Split from entity-cache-reader.js for CES compliance (250 line limit)
  * Handles V6.2 entity types: Spaces, Datasets, Entity Relations
+ * 
+ * V9.0: Copied normalizeForCache locally to break circular dependency
  */
 
-import { normalizeForCache } from './entity-cache-reader.js';
+/**
+ * Normalize slug for cache file lookup (copied from entity-cache-reader.js)
+ * Handles both new format (author/model) and legacy format (source:author/model)
+ * @param {string} slug - Input slug
+ * @returns {string} - Normalized slug for file path
+ */
+function normalizeForCache(slug) {
+    if (!slug) return '';
+    // Remove any source prefix first (e.g., "huggingface:")
+    let normalized = slug.replace(/^[a-z]+:/i, '');
+    return normalized
+        .toLowerCase()
+        .trim()
+        .replace(/\//g, '--')
+        .replace(/:/g, '--');
+}
 
 /**
  * V6.2: Get space data from R2 cache for detail page
