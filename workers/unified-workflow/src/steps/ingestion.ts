@@ -105,7 +105,7 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
     console.log(`[Ingest] Found ${jsonFiles.length} files to process`);
 
     // V7.1: Reduced batch size for memory safety (Constitution Art 2.4)
-    const MAX_FILES_PER_RUN = 20; // Reduced from 100 for memory safety
+    const MAX_FILES_PER_RUN = 50; // V2.1: Increased from 20 for higher throughput
     let totalModels = 0;
     let filesProcessed = 0;
     let messagesQueued = 0;
