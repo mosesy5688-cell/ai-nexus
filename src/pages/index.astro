@@ -39,14 +39,17 @@ const seoSchema = buildIndexSEO();
         <HomeHero />
         
         <!-- V4.9: Entity Type Navigation (Art.X-Entity-List) -->
-        <div class="flex justify-center mb-8">
+        <div class="flex justify-center mb-6">
             <EntityTabs activeType="model" basePath="/explore" />
         </div>
 
+        <!-- V3.1 Phase 6: Search FIRST in flow -->
+        <HomeSearch initialQuery={initialQuery} />
+
         <HomeWebsiteBanner />
 
-        <!-- V6.2: Primary Category Navigation ABOVE search (Phase 3.5) -->
-        <section class="mb-8 mt-4">
+        <!-- V3.1 Phase 6: Categories after Search -->
+        <section class="mb-8 mt-6">
             <h2 class="text-xl md:text-2xl font-bold text-center mb-4 text-gray-900 dark:text-white">
                 Explore AI Models by Category
             </h2>
@@ -108,9 +111,6 @@ const seoSchema = buildIndexSEO();
                 </a>
             </div>
         </section>
-
-        <!-- Search moved below categories (V6.2) -->
-        <HomeSearch initialQuery={initialQuery} />
 
         <!-- Static Content Container -->
         <div id="static-content-container">
