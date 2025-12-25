@@ -141,7 +141,7 @@ export class ReplicateAdapter extends BaseAdapter {
             primary_category: this.inferCategory(model),
 
             // Technical
-            params_billions: null,
+            params_billions: this.extractParamsFromName(model.name),
             has_gguf: false,
 
             // Timestamps
@@ -215,6 +215,38 @@ export class ReplicateAdapter extends BaseAdapter {
         }
 
         return 'other';
+    }
+
+    /**
+     * Extract params_billions from model name using regex
+     * Per EXEC-MASTER-V2.1 P0.5: Replicate params parsing
+     * Matches patterns: 7b, 70b, 1.5b, 405b, etc.
+     */
+    extractParamsFromName(name) {
+        if (!name) return null;
+
+        // Match patterns like: 7b, 70b, 1.5b, 405b, 8x7b (for MoE models)
+        const patterns = [
+            /(\d+(?:\.\d+)?)[bB](?![a-zA-Z])/,  // Simple: 7b, 70b, 1.5b
+            /(\d+)x(\d+)[bB]/,                   // MoE: 8x7b = 56b
+        ];
+
+        const lowerName = name.toLowerCase();
+
+        // Try MoE pattern first (8x7b)
+        const moeMatch = lowerName.match(patterns[1]);
+        if (moeMatch) {
+            const total = parseInt(moeMatch[1]) * parseInt(moeMatch[2]);
+            return total;
+        }
+
+        // Try simple pattern
+        const simpleMatch = lowerName.match(patterns[0]);
+        if (simpleMatch) {
+            return parseFloat(simpleMatch[1]);
+        }
+
+        return null;
     }
 }
 
