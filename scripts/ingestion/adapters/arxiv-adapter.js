@@ -7,11 +7,12 @@
  * - Links to PDF and source
  * 
  * Split for CES compliance: uses arxiv-parser.js for XML parsing
+ * V2.1: Added NSFW filter at fetch level
  * 
  * @module ingestion/adapters/arxiv-adapter
  */
 
-import { BaseAdapter } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 import {
     parseArxivXML,
     cleanTitle,

@@ -4,10 +4,12 @@
  * B.1 CES Refactor: Core adapter with fetch methods
  * Imports from: hf-strategies.js, hf-utils.js, hf-normalizer.js
  * 
+ * V2.1: Added NSFW filter at fetch level
+ * 
  * @module ingestion/adapters/huggingface-adapter
  */
 
-import { BaseAdapter } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 import { HF_API_BASE, HF_RAW_BASE, COLLECTION_STRATEGIES, PIPELINE_TAGS, RATE_LIMIT_CONFIG, calculateBackoff } from './hf-strategies.js';
 import { parseModelId, inferType, normalizeTags, buildMetaJson, detectGGUF, extractAssets, delay } from './hf-utils.js';
 import { normalizeModel, normalizeSpace, buildSpaceMetaJson, extractSpaceAssets } from './hf-normalizer.js';
@@ -229,6 +231,16 @@ export class HuggingFaceAdapter extends BaseAdapter {
     extractAssets(raw) { return extractAssets(raw); }
     extractSpaceAssets(raw) { return extractSpaceAssets(raw); }
     delay(ms) { return delay(ms); }
+
+    /**
+     * V2.1: Check if model is safe for work (NSFW filter)
+     * Constitutional: Uses NSFW_KEYWORDS whitelist, no inference
+     */
+    isSafeForWork(model) {
+        const name = model.modelId || model.id || '';
+        const text = `${name} ${model.cardData?.tags?.join(' ') || ''}`.toLowerCase();
+        return !NSFW_KEYWORDS.some(kw => text.includes(kw));
+    }
 
     // Space fetch methods
     async fetchSpaces(options = {}) {

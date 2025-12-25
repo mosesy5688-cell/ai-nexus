@@ -8,10 +8,12 @@
  * - architecture_family: Model architecture family (llama, qwen, mistral, etc.)
  * - deploy_score: Deployability index (0-1)
  * 
+ * V2.1: Added NSFW filter at fetch level
+ * 
  * @module ingestion/adapters/deepspec-adapter
  */
 
-import { BaseAdapter } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 
 // Architecture family patterns
 const ARCHITECTURE_FAMILIES = {

@@ -6,10 +6,12 @@
  * Scrapes Ollama Library to enrich models with local deployment data.
  * This directly boosts the FNI Utility (U) dimension.
  * 
+ * V2.1: Added NSFW filter at fetch level
+ * 
  * @module scripts/ingestion/adapters/ollama-adapter
  */
 
-import { BaseAdapter } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 
 const OLLAMA_LIBRARY_URL = 'https://ollama.com/library';
 

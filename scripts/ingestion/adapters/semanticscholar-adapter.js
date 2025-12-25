@@ -10,10 +10,12 @@
  * API: https://api.semanticscholar.org/
  * Rate Limit: 100 requests per 5 minutes (public)
  * 
+ * V2.1: Added NSFW filter at fetch level
+ * 
  * @module ingestion/adapters/semanticscholar-adapter
  */
 
-import { BaseAdapter } from './base-adapter.js';
+import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
 
 const S2_API_BASE = 'https://api.semanticscholar.org/graph/v1';
 
