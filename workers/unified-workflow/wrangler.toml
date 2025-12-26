@@ -79,8 +79,4 @@ zone_name = "free2aitools.com"
 pattern = "free2aitools.com/api/search*"
 zone_name = "free2aitools.com"
 
-# Manual trigger route for L8 workflow
-[[routes]]
-pattern = "free2aitools.com/trigger"
-zone_name = "free2aitools.com"
 
