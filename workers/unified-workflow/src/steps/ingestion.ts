@@ -207,11 +207,12 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
 
     console.log(`[Ingest] Complete: ${filesProcessed} files, ${totalModels} models, ${messagesQueued} queued`);
 
-    // V9.2: Save new offset for next Cron run
-    const newOffset = batchOffset + filesProcessed;
+    // V9.2.1 FIX: Use batchesToProcess.length to ensure offset advances even if files are missing
+    // This prevents L8 from getting stuck on deleted files
+    const newOffset = batchOffset + batchesToProcess.length;
     try {
         await env.KV?.put(offsetKey, String(newOffset));
-        console.log(`[Ingest] Saved offset ${newOffset} for job ${manifest.job_id}`);
+        console.log(`[Ingest] Saved offset ${newOffset} for job ${manifest.job_id} (${filesProcessed} files actually processed)`);
     } catch (e) { console.log('[Ingest] KV offset save failed'); }
 
     return { filesProcessed, modelsIngested: totalModels, messagesQueued };
