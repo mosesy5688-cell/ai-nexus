@@ -6,6 +6,9 @@ main = "src/index.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Enable workers.dev subdomain for testing
+workers_dev = true
+
 # Cron Trigger: Every 5 minutes
 [triggers]
 crons = ["*/5 * * * *"]
@@ -75,3 +78,9 @@ zone_name = "free2aitools.com"
 [[routes]]
 pattern = "free2aitools.com/api/search*"
 zone_name = "free2aitools.com"
+
+# Manual trigger route for L8 workflow
+[[routes]]
+pattern = "free2aitools.com/trigger"
+zone_name = "free2aitools.com"
+
