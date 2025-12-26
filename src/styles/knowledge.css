@@ -32,25 +32,28 @@
 .article-title {
     font-size: 2.25rem;
     font-weight: 800;
-    color: #f8fafc;
+    color: #111827;
+    /* V3.1: gray-900 for Light Mode */
     margin: 0 0 0.75rem;
 }
 
 .article-description {
-    color: #b8c5d6;
-    /* Was #94a3b8 - improved for WCAG AA */
+    color: #4b5563;
+    /* V3.1: gray-600 for Light Mode */
     font-size: 1.125rem;
     line-height: 1.6;
     margin: 0;
 }
 
 .article-content {
-    color: #cbd5e1;
+    color: #374151;
+    /* V3.1: gray-700 for Light Mode */
     line-height: 1.8;
 }
 
 .article-content h2 {
-    color: #e2e8f0;
+    color: #1f2937;
+    /* V3.1: gray-800 for Light Mode */
     font-size: 1.5rem;
     font-weight: 700;
     margin: 2rem 0 1rem;
@@ -84,8 +87,10 @@
 }
 
 .article-content th {
-    background: rgba(99, 102, 241, 0.15);
-    color: #e2e8f0;
+    background: #f3f4f6;
+    /* V3.1: gray-100 for Light Mode */
+    color: #1f2937;
+    /* V3.1: gray-800 */
 }
 
 .article-content code {
@@ -112,7 +117,8 @@
 }
 
 .related-articles h3 {
-    color: #e2e8f0;
+    color: #1f2937;
+    /* V3.1: gray-800 for Light Mode */
     font-size: 1.125rem;
     margin: 0 0 1rem;
 }
@@ -125,8 +131,10 @@
 .related-card {
     display: block;
     padding: 1rem;
-    background: rgba(30, 41, 59, 0.6);
-    border: 1px solid rgba(99, 102, 241, 0.2);
+    background: #f9fafb;
+    /* V3.1: gray-50 for Light Mode */
+    border: 1px solid #e5e7eb;
+    /* V3.1: gray-200 */
     border-radius: 8px;
     text-decoration: none;
     transition: all 0.2s;
@@ -139,7 +147,8 @@
 
 .related-title {
     display: block;
-    color: #e2e8f0;
+    color: #1f2937;
+    /* V3.1: gray-800 for Light Mode */
     font-weight: 600;
     margin-bottom: 0.25rem;
 }
@@ -161,7 +170,8 @@
 }
 
 .used-in-section h3 {
-    color: #e2e8f0;
+    color: #1f2937;
+    /* V3.1: gray-800 for Light Mode */
     font-size: 1rem;
     margin: 0 0 0.5rem;
 }
@@ -238,12 +248,13 @@
 }
 
 .not-found h1 {
-    color: #e2e8f0;
+    color: #1f2937;
+    /* V3.1: gray-800 for Light Mode */
     margin-bottom: 1rem;
 }
 
 .not-found p {
-    color: #b8c5d6;
-    /* V6.3: Improved from #94a3b8 for WCAG AA */
+    color: #4b5563;
+    /* V3.1: gray-600 for Light Mode */
     margin-bottom: 2rem;
 }
