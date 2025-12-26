@@ -100,7 +100,7 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
     }
     if (!jsonFiles.length) return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
     console.log(`[Ingest] Processing ${jsonFiles.length} batch files...`);
-    const MAX_FILES_PER_RUN = 50; // V2.1 throughput
+    const MAX_FILES_PER_RUN = 5; // V9.0: Reduced from 50 to prevent Worker memory limit errors
     let totalModels = 0, filesProcessed = 0, messagesQueued = 0;
 
 
