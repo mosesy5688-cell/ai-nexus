@@ -50,7 +50,7 @@ IGNORE_FILES = {
     # Tier 2: Complex Visualization (Complete UI - NO FUTURE GROWTH)
     'GraphExplorer.astro', 'NeuralGraphExplorer.astro', 'FamilyTree.astro', 'ArchitectureModule.astro',
     # Tier 3: CSS Design System (Stable)
-    'design-tokens.css', 'leaderboard.css',
+    'design-tokens.css', 'leaderboard.css', 'knowledge.css',
     # Tier 4: Authorized Internal Documents (Art 9.1 Exemption)
     'perf-audit.yml', 'TEST_STRATEGY_MASTER_V6.0.md', 'audit-seo.cjs',
     # Tier 5: Cache Reader (CES Compliance Fix)
