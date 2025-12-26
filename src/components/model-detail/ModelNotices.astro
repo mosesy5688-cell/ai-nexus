@@ -18,6 +18,19 @@ const {
   hasDescription,
   hasSeoSummary
 } = Astro.props;
+
+// V3.1: Parse sourceTrail JSON to human-readable format
+let sourceDisplay = '';
+if (sourceTrail) {
+  try {
+    const trail = typeof sourceTrail === 'string' ? JSON.parse(sourceTrail) : sourceTrail;
+    const source = trail.source ? trail.source.charAt(0).toUpperCase() + trail.source.slice(1) : 'Unknown';
+    sourceDisplay = `Source: ${source}`;
+  } catch {
+    // If not JSON, display as-is but clean it
+    sourceDisplay = `Source: ${sourceTrail.replace(/[{}"]/g, '').substring(0, 50)}`;
+  }
+}
 ---
 
 <!-- V4.9.1 Step 2.7: Missing Field Warning (CEO Iron Law) -->
@@ -67,10 +80,10 @@ const {
         <span><strong>License Unknown:</strong> Verify licensing terms before commercial use.</span>
       </li>
     )}
-    {sourceTrail && (
+    {sourceDisplay && (
       <li class="flex items-start gap-2">
         <span class="text-gray-400">•</span>
-        <span>Data source: {sourceTrail}</span>
+        <span>{sourceDisplay}</span>
       </li>
     )}
   </ul>
