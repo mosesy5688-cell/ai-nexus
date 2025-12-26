@@ -1,67 +1,7 @@
 import { Env } from '../config/types';
 import { cleanModel, validateModel, routeToShadowDB, ValidationResult } from '../utils/entity-helper';
 import { enrichModel } from '../utils/model-enricher';
-
-/**
- * Phase B.8: User Understanding Infrastructure
- * Helper functions for technical specs extraction
- */
-
-// Whitelist of valid quantization formats
-const VALID_QUANT = ['GGUF', 'AWQ', 'GPTQ', 'EXL2'];
-
-/**
- * Extract quantization formats from tags
- * Constitution: Only accept known, deployable formats
- */
-function extractQuantizations(tags: string[] = []): string[] {
-    const quants = new Set<string>();
-    const lowerTags = tags.map(t => (t || '').toLowerCase());
-
-    if (lowerTags.some(t => t.includes('gguf'))) quants.add('GGUF');
-    if (lowerTags.some(t => t.includes('awq'))) quants.add('AWQ');
-    if (lowerTags.some(t => t.includes('gptq'))) quants.add('GPTQ');
-    if (lowerTags.some(t => t.includes('exl2'))) quants.add('EXL2');
-
-    return Array.from(quants);
-}
-
-/**
- * Safely parse numeric values (params, context_length)
- */
-function parseNumber(input: any): number | null {
-    if (input === null || input === undefined) return null;
-    const num = typeof input === 'number' ? input : parseFloat(input);
-    return isNaN(num) ? null : num;
-}
-
-/**
- * Build extended meta object with Phase B.8 fields
- * Supports Partial - avoids L8 write failures
- */
-function buildExtendedMeta(model: any): Record<string, any> {
-    const extended: Record<string, any> = {};
-
-    // Extract params_billions
-    const params = parseNumber(model.params_billions);
-    if (params !== null) extended.params_billions = params;
-
-    // Extract context_length
-    const context = parseNumber(model.context_length);
-    if (context !== null) extended.context_length = context;
-
-    // Extract architecture
-    if (model.architecture) extended.architecture = model.architecture;
-
-    // Extract quantizations from tags
-    const quants = extractQuantizations(
-        Array.isArray(model.tags) ? model.tags :
-            (typeof model.tags === 'string' ? JSON.parse(model.tags || '[]') : [])
-    );
-    if (quants.length > 0) extended.quantizations = quants;
-
-    return extended;
-}
+import { buildExtendedMeta } from '../utils/extended-meta';
 
 
 /**
@@ -81,30 +21,61 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
         return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
     }
 
-    // V7.2: Read manifest for batch files (R2.list was returning 0)
-    let jsonFiles: { key: string }[] = [];
+    // V9.2: Read L1 manifest to get job_id and batch list
+    // Per DATA_INTEGRITY_PLAN: L8 must NOT delete R2 files (L5 needs them)
+    // Instead, track processed job_id in KV to avoid re-processing
+    let manifest: any = null;
     try {
         const manifestFile = await env.R2_ASSETS.get('ingest/manifest.json');
-        console.log(`[Ingest] Manifest file exists: ${!!manifestFile}`);
         if (manifestFile) {
-            const manifest = await manifestFile.json() as any;
-            console.log(`[Ingest] Manifest keys: ${Object.keys(manifest).join(',')}, batches: ${manifest.batches?.length || 0}`);
-            if (manifest.batches?.length) jsonFiles = manifest.batches.map((b: any) => ({ key: b.key }));
+            manifest = await manifestFile.json() as any;
+            console.log(`[Ingest] Manifest: job_id=${manifest.job_id}, batches=${manifest.batches?.length || 0}`);
         }
     } catch (e) { console.error('[Ingest] Manifest read failed:', e); }
 
-    // Fallback to R2.list if manifest failed
-    if (!jsonFiles.length) {
-        const listed = await env.R2_ASSETS.list({ prefix: 'ingest/batches/', limit: 100 });
-        jsonFiles = listed.objects.filter((o: any) => o.key.endsWith('.json.gz') || o.key.endsWith('.json'));
+    if (!manifest?.batches?.length) {
+        console.log('[Ingest] No manifest or batches found');
+        return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
     }
-    if (!jsonFiles.length) return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
-    console.log(`[Ingest] Processing ${jsonFiles.length} batch files...`);
-    const MAX_FILES_PER_RUN = 5; // V9.0: Reduced from 50 to prevent Worker memory limit errors
+
+    // V9.2: Check if this manifest was already processed
+    const lastProcessedJobId = await env.KV?.get('LAST_PROCESSED_L1_JOB_ID');
+    if (lastProcessedJobId === manifest.job_id) {
+        console.log(`[Ingest] Manifest job_id=${manifest.job_id} already processed. Skipping.`);
+        return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
+    }
+
+    console.log(`[Ingest] New manifest detected: ${manifest.job_id} (last: ${lastProcessedJobId || 'none'})`);
+
+    // Get batch files from manifest
+    const jsonFiles = manifest.batches.map((b: any) => ({ key: b.key }));
+    console.log(`[Ingest] Total batch files: ${jsonFiles.length}`);
+
+    // V9.2 FIX: Track processing offset in KV for chunked processing
+    // Process 5 batches per Cron run, continue from last offset until all done
+    const MAX_FILES_PER_RUN = 5;
+    let batchOffset = 0;
+    const offsetKey = `BATCH_OFFSET_${manifest.job_id}`;
+    try {
+        const storedOffset = await env.KV?.get(offsetKey);
+        if (storedOffset) batchOffset = parseInt(storedOffset, 10) || 0;
+    } catch (e) { console.log('[Ingest] KV offset read failed'); }
+
+    // If all batches processed, mark job as complete
+    if (batchOffset >= jsonFiles.length) {
+        console.log(`[Ingest] All batches processed for job ${manifest.job_id}. Marking complete.`);
+        await env.KV?.put('LAST_PROCESSED_L1_JOB_ID', manifest.job_id);
+        await env.KV?.delete(offsetKey);
+        return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
+    }
+
+    console.log(`[Ingest] Processing batches ${batchOffset} to ${Math.min(batchOffset + MAX_FILES_PER_RUN, jsonFiles.length) - 1}`);
     let totalModels = 0, filesProcessed = 0, messagesQueued = 0;
 
-
-    for (const fileObj of jsonFiles.slice(0, MAX_FILES_PER_RUN)) {
+    // V9.2: Process from current offset
+    const batchesToProcess = jsonFiles.slice(batchOffset, batchOffset + MAX_FILES_PER_RUN);
+    console.log(`[Ingest] Processing ${batchesToProcess.length} batches this run...`);
+    for (const fileObj of batchesToProcess) {
         try {
             console.log(`[Ingest] Fetching ${fileObj.key}...`);
             const file = await env.R2_ASSETS.get(fileObj.key);
@@ -226,15 +197,23 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
             totalModels += validModels.length;
             filesProcessed++;
 
-            // V6.0: Delete after successful D1 write (L1 Harvester is source of truth)
-            await env.R2_ASSETS.delete(fileObj.key);
-            console.log(`[Ingest] Processed and deleted: ${fileObj.key}`);
+            // V9.2: DO NOT delete R2 files - L5 Heavy Compute needs them
+            // L1 Harvester will overwrite old files on next run
+            console.log(`[Ingest] Processed: ${fileObj.key}`);
         } catch (error) {
             console.error(`[Ingest] Error processing ${fileObj.key}:`, error);
         }
     }
 
     console.log(`[Ingest] Complete: ${filesProcessed} files, ${totalModels} models, ${messagesQueued} queued`);
+
+    // V9.2: Save new offset for next Cron run
+    const newOffset = batchOffset + filesProcessed;
+    try {
+        await env.KV?.put(offsetKey, String(newOffset));
+        console.log(`[Ingest] Saved offset ${newOffset} for job ${manifest.job_id}`);
+    } catch (e) { console.log('[Ingest] KV offset save failed'); }
+
     return { filesProcessed, modelsIngested: totalModels, messagesQueued };
 }
 
