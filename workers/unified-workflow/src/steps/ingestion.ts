@@ -1,4 +1,3 @@
-
 import { Env } from '../config/types';
 import { cleanModel, validateModel, routeToShadowDB, ValidationResult } from '../utils/entity-helper';
 import { enrichModel } from '../utils/model-enricher';
@@ -82,35 +81,28 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
         return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
     }
 
-    // V7.1: List pending files in ingest/batches/ (aligned with L1 Harvester V7.1)
-    console.log('[Ingest] Listing files in ingest/batches/...');
+    // V7.2: Read manifest for batch files (R2.list was returning 0)
+    let jsonFiles: { key: string }[] = [];
+    try {
+        const manifestFile = await env.R2_ASSETS.get('ingest/manifest.json');
+        console.log(`[Ingest] Manifest file exists: ${!!manifestFile}`);
+        if (manifestFile) {
+            const manifest = await manifestFile.json() as any;
+            console.log(`[Ingest] Manifest keys: ${Object.keys(manifest).join(',')}, batches: ${manifest.batches?.length || 0}`);
+            if (manifest.batches?.length) jsonFiles = manifest.batches.map((b: any) => ({ key: b.key }));
+        }
+    } catch (e) { console.error('[Ingest] Manifest read failed:', e); }
 
-    const listed = await env.R2_ASSETS.list({
-        prefix: 'ingest/batches/',
-        limit: 100,
-        startAfter: checkpoint.lastId || undefined
-    });
-
-    console.log(`[Ingest] R2 list returned: ${listed.objects.length} objects, truncated: ${listed.truncated}`);
-
-
-    // V7.1: Filter for .json.gz files (L1 V7.1 uses gzip compression)
-    const jsonFiles = listed.objects.filter((obj: any) =>
-        obj.key.endsWith('.json.gz') || obj.key.endsWith('.json')
-    );
-
-    if (jsonFiles.length === 0) {
-        console.log('[Ingest] No pending files in ingest/batches/');
-        return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
+    // Fallback to R2.list if manifest failed
+    if (!jsonFiles.length) {
+        const listed = await env.R2_ASSETS.list({ prefix: 'ingest/batches/', limit: 100 });
+        jsonFiles = listed.objects.filter((o: any) => o.key.endsWith('.json.gz') || o.key.endsWith('.json'));
     }
+    if (!jsonFiles.length) return { filesProcessed: 0, modelsIngested: 0, messagesQueued: 0 };
+    console.log(`[Ingest] Processing ${jsonFiles.length} batch files...`);
+    const MAX_FILES_PER_RUN = 5; // V9.0: Reduced from 50 to prevent Worker memory limit errors
+    let totalModels = 0, filesProcessed = 0, messagesQueued = 0;
 
-    console.log(`[Ingest] Found ${jsonFiles.length} files to process`);
-
-    // V7.1: Reduced batch size for memory safety (Constitution Art 2.4)
-    const MAX_FILES_PER_RUN = 50; // V2.1: Increased from 20 for higher throughput
-    let totalModels = 0;
-    let filesProcessed = 0;
-    let messagesQueued = 0;
 
     for (const fileObj of jsonFiles.slice(0, MAX_FILES_PER_RUN)) {
         try {
@@ -176,29 +168,28 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
                         INSERT OR REPLACE INTO entities (
                             id, type, name, author, 
                             likes, downloads, fni_score,
-                            last_modified, indexed_at,
+                            last_updated,
                             pipeline_tag, primary_category, tags,
                             source, source_url, link_status,
                             params_billions, context_length, architecture, meta_json
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     `).bind(
                         m.id,
                         m.type || 'model',
-                        m.name,
-                        m.author,
+                        m.name || '',
+                        m.author || '',
                         m.likes || 0,
                         m.downloads || 0,
                         m.fni_score || 0,
-                        m.last_modified || m.last_updated,
-                        new Date().toISOString(),
-                        m.pipeline_tag,
-                        m.primary_category,
+                        m.last_modified || m.last_updated || new Date().toISOString(),
+                        m.pipeline_tag || null,
+                        m.primary_category || null,
                         typeof m.tags === 'string' ? m.tags : JSON.stringify(m.tags || []),
                         m.source || 'huggingface',
-                        m.source_url,
+                        m.source_url || null,
                         m.link_status || 'ok',
-                        extendedMeta.params_billions || null,
-                        extendedMeta.context_length || null,
+                        extendedMeta.params_billions ?? null,
+                        extendedMeta.context_length ?? null,
                         extendedMeta.architecture || null,
                         metaJson
                     );

@@ -1,4 +1,3 @@
-
 // Helper functions extracted from Monolith (CES V5.1.2)
 
 export interface ValidationResult {
@@ -19,16 +18,13 @@ export function cleanModel(model: any): any {
             .trim()
             .substring(0, 2000);
     };
-
-    // V8.0: Preserve body_content for Model Card display
-    // Truncate to 50KB to fit within Queue message size limit (64KB)
+    // V8.0: Preserve body_content (truncate to 50KB for Queue 64KB limit)
     const MAX_BODY_SIZE = 50000;
     let bodyContent = model.body_content || model.readme || '';
     if (bodyContent.length > MAX_BODY_SIZE) {
         bodyContent = bodyContent.substring(0, MAX_BODY_SIZE) + '\n\n[...Content truncated. View full on source.]';
     }
-
-    // V8.0: Preserve meta_json for Technical Specs display
+    // V8.0: Preserve meta_json for Tech Specs
     let metaJson = model.meta_json;
     if (typeof metaJson === 'string') {
         try { metaJson = JSON.parse(metaJson); } catch { metaJson = {}; }
@@ -41,10 +37,8 @@ export function cleanModel(model: any): any {
         name: cleanText(model.title || model.name || model.id || ''),
         author: model.author || '',
         description: cleanText(model.description || ''),
-        // V8.0: Full README/Model Card for detail page
-        body_content: bodyContent,
-        // V8.0: Technical specs for TechnicalSpecs component
-        meta_json: metaJson,
+        body_content: bodyContent, // V8.0: Full README/Model Card
+        meta_json: metaJson, // V8.0: Technical specs
         tags: JSON.stringify(model.tags || (model.pipeline_tag ? [model.pipeline_tag] : [])),
         likes: model.popularity || model.likes || 0,
         downloads: model.downloads || 0,
@@ -63,6 +57,10 @@ export function cleanModel(model: any): any {
         gguf_variants: model.gguf_variants || [],
         // V8.0: Context length if available
         context_length: model.context_length || metaJson.context_length || null,
+        // V9.0: params_billions for VRAM Calculator (FIX: was missing, causing 0% fill rate)
+        params_billions: model.params_billions || metaJson.params_billions || null,
+        // V9.0: architecture for Tech Specs display
+        architecture: model.architecture || metaJson.architecture || null,
         last_updated: new Date().toISOString()
     };
 }

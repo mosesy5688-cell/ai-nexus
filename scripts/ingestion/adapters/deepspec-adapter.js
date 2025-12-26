@@ -82,7 +82,7 @@ export class DeepSpecAdapter extends BaseAdapter {
      * @param {number} options.limit - Maximum models to process
      */
     async fetch(options = {}) {
-        const { modelIds = [], limit = 100 } = options;
+        const { modelIds = [], limit = 2000 } = options;
 
         console.log(`📥 [DeepSpec] Fetching model specifications...`);
 
