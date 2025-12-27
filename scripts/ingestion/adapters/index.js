@@ -11,10 +11,10 @@ import { HuggingFaceAdapter } from './huggingface-adapter.js';
 import { GitHubAdapter } from './github-adapter.js';
 import { DatasetsAdapter } from './datasets-adapter.js';
 import { ArXivAdapter } from './arxiv-adapter.js';
-import { PapersWithCodeAdapter } from './pwc-adapter.js';
+// PWC adapter removed - API blocked
 import { OllamaAdapter } from './ollama-adapter.js';
 import { CivitAIAdapter } from './civitai-adapter.js';
-import { ModelScopeAdapter } from './modelscope-adapter.js';
+// ModelScope adapter removed
 import { OpenLLMLeaderboardAdapter } from './openllm-adapter.js';
 import { DeepSpecAdapter } from './deepspec-adapter.js';
 import { SemanticScholarAdapter } from './semanticscholar-adapter.js';
@@ -32,10 +32,10 @@ export { HuggingFaceAdapter } from './huggingface-adapter.js';
 export { GitHubAdapter } from './github-adapter.js';
 export { DatasetsAdapter } from './datasets-adapter.js';
 export { ArXivAdapter } from './arxiv-adapter.js';
-export { PapersWithCodeAdapter } from './pwc-adapter.js';
+// export { PapersWithCodeAdapter } from './pwc-adapter.js'; // Removed
 export { OllamaAdapter } from './ollama-adapter.js';
 export { CivitAIAdapter } from './civitai-adapter.js';
-export { ModelScopeAdapter } from './modelscope-adapter.js';
+// export { ModelScopeAdapter } from './modelscope-adapter.js'; // Removed
 export { OpenLLMLeaderboardAdapter } from './openllm-adapter.js';
 export { DeepSpecAdapter } from './deepspec-adapter.js';
 export { SemanticScholarAdapter } from './semanticscholar-adapter.js';
@@ -54,7 +54,7 @@ export const adapters = {
 
     // Tier 2: Academic Sources
     'arxiv': new ArXivAdapter(),
-    'paperswithcode': new PapersWithCodeAdapter(),
+    // 'paperswithcode': removed - API blocked
 
     // V6.2: HuggingFace Papers (alternative to blocked PWC)
     'huggingface-papers': new HuggingFacePapersAdapter(),
@@ -72,8 +72,7 @@ export const adapters = {
     // V4.3.2: Deep Spec Extractor (Model specifications)
     'deepspec': new DeepSpecAdapter(),
 
-    // V6.2: ModelScope enabled with API token
-    'modelscope': new ModelScopeAdapter(),
+    // ModelScope adapter removed
 
     // V6.2: MCP Registry (AI Agents / MCP Servers)
     'mcp': new MCPAdapter(),
@@ -114,7 +113,7 @@ export function getTier1Adapters() {
 }
 
 export function getTier2Adapters() {
-    return ['arxiv', 'paperswithcode'];
+    return ['arxiv'];
 }
 
 export function getTier3Adapters() {
