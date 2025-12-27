@@ -62,20 +62,12 @@ try {
     const modelName = model.name || model.canonical_name || 'Unknown Model';
     pageTitle = `${modelName} - AI Model Insights & Benchmarks`;
     
-    // Helper to clean description: remove YAML frontmatter, HTML tags, normalize whitespace
-    const cleanDescription = (desc) => {
-      if (!desc) return '';
-      return desc
-        .replace(/^---[\s\S]*?---\s*/m, '')  // Remove complete YAML frontmatter
-        .replace(/^---\s*\n?[\s\S]*$/m, '')  // Remove partial frontmatter (no closing ---)
-        .replace(/\blibrary_name:\s*\w+/gi, '')  // Remove common frontmatter fields
-        .replace(/\blicense:\s*[^\s]+/gi, '')
-        .replace(/\bpipeline_tag:\s*\w+/gi, '')
-        .replace(/\bbase_model\b[^.]*\.?/gi, '')
-        .replace(/<[^>]*>?/gm, '')       // Remove HTML tags
-        .replace(/\s+/g, ' ')            // Normalize whitespace
-        .trim();
-    };
+    // Clean description: remove frontmatter, HTML, normalize whitespace
+    const cleanDescription = (desc) => !desc ? '' : desc
+      .replace(/^---[\s\S]*?---\s*/m, '').replace(/^---\s*\n?[\s\S]*$/m, '')
+      .replace(/\blibrary_name:\s*\w+/gi, '').replace(/\blicense:\s*[^\s]+/gi, '')
+      .replace(/\bpipeline_tag:\s*\w+/gi, '').replace(/\bbase_model\b[^.]*\.?/gi, '')
+      .replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
     
     const cleanedDesc = cleanDescription(model.description);
     pageDescription = model.seo_summary?.description || 
