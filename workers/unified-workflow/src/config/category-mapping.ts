@@ -28,7 +28,9 @@ export const CATEGORY_MAP: Record<CategoryId, string[]> = {
         'token-classification',
         'question-answering',
         'document-question-answering',
-        'text-classification'
+        'text-classification',
+        'sentence-transformers',  // V6.2: Common HF tag for embedding models
+        'embeddings'              // V6.2: Alternative tag
     ],
 
     'vision-multimedia': [
@@ -46,7 +48,11 @@ export const CATEGORY_MAP: Record<CategoryId, string[]> = {
         'audio-to-audio',
         'unconditional-image-generation',
         'image-to-video',
-        'visual-question-answering'
+        'visual-question-answering',
+        'audio',                  // V6.2: Simplified HF tag
+        'video',                  // V6.2: Simplified HF tag
+        'image',                  // V6.2: Simplified HF tag
+        'speech'                  // V6.2: Simplified HF tag
     ],
 
     'automation-workflow': [

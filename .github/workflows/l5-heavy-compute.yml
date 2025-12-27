@@ -183,6 +183,12 @@ jobs:
           name: fni-results
           path: data/computed
           
+      - name: Download Entities
+        uses: actions/download-artifact@v4
+        with:
+          name: entities
+          path: data
+          
       - name: Generate Rankings
         run: |
           echo "📊 Generating rankings..."
@@ -191,6 +197,12 @@ jobs:
           echo "📦 Rankings Results:"
           ls -la data/cache/
           ls -la data/cache/rankings/ || true
+          
+      - name: Reclassify Categories (V6.2 100% Coverage)
+        run: |
+          echo "🏷️ Running L5 Category Reclassification..."
+          ENTITIES_PATH=data/entities.json node scripts/l5/category-reclassify.js
+          cp data/computed/category_stats.json data/cache/category_stats.json || true
           
       - name: Upload Rankings
         uses: actions/upload-artifact@v4
