@@ -6,8 +6,12 @@ User-agent: *
 Allow: /
 Crawl-delay: 1
 
-# Sitemaps - V6.1+ SEO Optimization
-Sitemap: https://free2aitools.com/sitemaps/sitemap-index.xml
+# Sitemaps - V6.2 SEO Optimization
+Sitemap: https://free2aitools.com/sitemap-index.xml
+
+# Block sensitive paths
+Disallow: /api/
+Disallow: /_astro/
 `.trim();
 
     return new Response(robotsTxt, {
