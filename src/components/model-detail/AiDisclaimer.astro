@@ -1,0 +1,79 @@
+---
+/**
+ * AiDisclaimer.astro
+ * 
+ * V8.1-LOCK Phase 2: Trust Protocol Component
+ * DATA_DISCLOSURE_TRISTATE: Explicit data source disclosure
+ * 
+ * Displays disclaimer about data sources and freshness
+ * 
+ * @component
+ */
+
+interface Props {
+  source?: string;          // e.g., 'huggingface', 'github', 'arxiv'
+  lastUpdated?: string;     // ISO date string
+  compact?: boolean;        // Compact mode for sidebar
+}
+
+const { source = 'huggingface', lastUpdated, compact = false } = Astro.props;
+
+// Source display mapping
+const sourceInfo: Record<string, { name: string; icon: string; color: string }> = {
+  'huggingface': { name: 'Hugging Face', icon: '🤗', color: 'yellow' },
+  'github': { name: 'GitHub', icon: '🐙', color: 'gray' },
+  'arxiv': { name: 'arXiv', icon: '📄', color: 'red' },
+  'civitai': { name: 'CivitAI', icon: '🎨', color: 'purple' },
+  'ollama': { name: 'Ollama', icon: '🦙', color: 'green' },
+  'replicate': { name: 'Replicate', icon: '⚡', color: 'blue' },
+  'kaggle': { name: 'Kaggle', icon: '📊', color: 'cyan' },
+};
+
+const info = sourceInfo[source?.toLowerCase()] || { name: source || 'Unknown', icon: '📦', color: 'gray' };
+
+// Format last updated
+const formattedDate = lastUpdated 
+  ? new Date(lastUpdated).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    })
+  : null;
+
+// Color classes
+const colorClasses: Record<string, string> = {
+  'yellow': 'bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/20 dark:border-yellow-800 dark:text-yellow-200',
+  'gray': 'bg-gray-50 border-gray-200 text-gray-800 dark:bg-gray-900/20 dark:border-gray-700 dark:text-gray-200',
+  'red': 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-200',
+  'purple': 'bg-purple-50 border-purple-200 text-purple-800 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-200',
+  'green': 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-200',
+  'blue': 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-200',
+  'cyan': 'bg-cyan-50 border-cyan-200 text-cyan-800 dark:bg-cyan-900/20 dark:border-cyan-800 dark:text-cyan-200',
+};
+
+const classes = colorClasses[info.color] || colorClasses['gray'];
+---
+
+{compact ? (
+  <!-- Compact version for sidebar -->
+  <div class={`flex items-center gap-2 text-xs ${classes} px-2 py-1 rounded`}>
+    <span>{info.icon}</span>
+    <span>Data from {info.name}</span>
+    {formattedDate && <span class="opacity-70">• {formattedDate}</span>}
+  </div>
+) : (
+  <!-- Full version -->
+  <div class={`${classes} border rounded-lg p-3 text-sm`}>
+    <div class="flex items-center gap-2 mb-1">
+      <span class="text-lg">{info.icon}</span>
+      <span class="font-medium">Data Source: {info.name}</span>
+    </div>
+    <p class="opacity-80 text-xs">
+      Based on open-source metadata snapshot.
+      {formattedDate && <span>Last synced: {formattedDate}</span>}
+    </p>
+    <p class="opacity-60 text-xs mt-1 italic">
+      ℹ️ This information is provided for reference only. Please verify with the original source.
+    </p>
+  </div>
+)}

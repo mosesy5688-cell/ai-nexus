@@ -16,6 +16,9 @@ import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
 import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.astro';
+import TechnicalSpecs from '../../components/model-detail/TechnicalSpecs.astro';
+import VramEstimator from '../../components/model-detail/VramEstimator.astro';
+import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 
 // V4.9.1: Constitutional D1 = 0 - Use R2 cache reader instead of D1 queries
 import { getModelFromCache } from '../../utils/entity-cache-reader';
@@ -170,6 +173,26 @@ const jsonld = model ? {
             />
           </section>
         )}
+
+        <!-- V8.1-LOCK Phase 2: Technical Specs -->
+        <TechnicalSpecs
+          pipelineTag={model.pipeline_tag}
+          libraryName={model.library_name}
+          params={model.params_billions}
+          storageBytes={model.storage_bytes}
+          filesCount={model.files_count}
+          gated={model.gated}
+          architecture={model.architecture}
+          contextLength={model.context_length}
+          quantization={model.quantization}
+          config={model.meta_json?.config}
+        />
+
+        <!-- V8.1-LOCK Phase 2: VRAM Estimator -->
+        <VramEstimator paramsB={model.params_billions} />
+
+        <!-- V8.1-LOCK Phase 2: Trust Protocol Disclaimer -->
+        <AiDisclaimer source={model.source} lastUpdated={model.last_updated} />
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <ModelMainColumn 
