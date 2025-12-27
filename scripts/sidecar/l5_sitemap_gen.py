@@ -21,6 +21,7 @@ import json
 import boto3
 from datetime import datetime
 from botocore.config import Config
+from l5_entity_loader import load_entities_from_r2, calculate_priority
 
 # Configuration
 MAX_URLS = 45000
@@ -96,99 +97,12 @@ def generate_url_entry(loc, lastmod, priority, changefreq):
 """
 
 
-def calculate_priority(fni_score):
-    """Calculate priority based on FNI score."""
-    if fni_score is None:
-        return "0.5"
-    if fni_score >= 90:
-        return "0.9"
-    if fni_score >= 80:
-        return "0.8"
-    if fni_score >= 60:
-        return "0.7"
-    if fni_score >= 40:
-        return "0.6"
-    return "0.5"
-
-
 def upload_to_r2(client, bucket, key, content, gzipped=False):
     """Upload content to R2."""
     content_type = "application/x-gzip" if gzipped else "application/xml"
-    
-    if gzipped:
-        body = gzip.compress(content.encode("utf-8"))
-    else:
-        body = content.encode("utf-8")
-    
-    client.put_object(
-        Bucket=bucket,
-        Key=key,
-        Body=body,
-        ContentType=content_type,
-    )
+    body = gzip.compress(content.encode("utf-8")) if gzipped else content.encode("utf-8")
+    client.put_object(Bucket=bucket, Key=key, Body=body, ContentType=content_type)
     print(f"  ✅ Uploaded {key}")
-
-
-def load_entities_from_r2(client, bucket):
-    """Load entity data from R2 entities.json.gz (V7.1 path)."""
-    entities = []
-    
-    # V6.2: Load full entities from ingest/current/entities.json.gz
-    try:
-        response = client.get_object(Bucket=bucket, Key="ingest/current/entities.json.gz")
-        body = response["Body"].read()
-        
-        # Decompress if gzipped
-        try:
-            import gzip as gz_module
-            data = json.loads(gz_module.decompress(body).decode("utf-8"))
-        except:
-            # Fallback: might be auto-decompressed by R2
-            data = json.loads(body.decode("utf-8"))
-        
-        # Handle both list and object formats
-        if isinstance(data, list):
-            entity_list = data
-        else:
-            entity_list = data.get("entities", data.get("models", []))
-        
-        for entity in entity_list:
-            entity_type = entity.get("type", "model")
-            # Build slug from id if slug not present
-            slug = entity.get("slug")
-            if not slug:
-                entity_id = entity.get("id", "")
-                # Convert id format: "huggingface:author:model" -> "huggingface--author--model"
-                slug = entity_id.replace(":", "--") if entity_id else None
-            
-            if slug:
-                entities.append({
-                    "type": entity_type,
-                    "slug": slug,
-                    "lastmod": entity.get("last_updated", entity.get("updated_at", datetime.now().isoformat())),
-                    "fni_score": entity.get("fni_score"),
-                })
-        
-        print(f"  📊 Loaded {len(entities)} entities from entities.json.gz")
-        
-    except Exception as e:
-        print(f"  ⚠️ Could not load entities.json.gz: {e}")
-        # Fallback to trending.json
-        try:
-            response = client.get_object(Bucket=bucket, Key="cache/trending.json")
-            data = json.loads(response["Body"].read().decode("utf-8"))
-            for model in data.get("models", []):
-                entities.append({
-                    "type": "model",
-                    "slug": model.get("slug", model.get("id", "").replace(":", "--")),
-                    "lastmod": model.get("last_updated", datetime.now().isoformat()),
-                    "fni_score": model.get("fni_score"),
-                })
-            print(f"  📊 Fallback: Loaded {len(entities)} models from trending.json")
-        except Exception as e2:
-            print(f"  ❌ Could not load fallback trending.json: {e2}")
-    
-    return entities
 
 
 def generate_sitemaps():
