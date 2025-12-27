@@ -20,11 +20,13 @@ export const PIPELINE_TO_V6_CATEGORY = {
     'summarization': TEXT_GEN, 'translation': TEXT_GEN, 'fill-mask': TEXT_GEN, 'table-question-answering': TEXT_GEN,
     'feature-extraction': KNOWLEDGE, 'sentence-similarity': KNOWLEDGE, 'token-classification': KNOWLEDGE,
     'question-answering': KNOWLEDGE, 'document-question-answering': KNOWLEDGE, 'text-classification': KNOWLEDGE,
+    'sentence-transformers': KNOWLEDGE, 'embeddings': KNOWLEDGE, // V6.2: Embedding models
     'text-to-image': VISION, 'image-to-text': VISION, 'image-classification': VISION, 'object-detection': VISION,
     'video-classification': VISION, 'text-to-video': VISION, 'automatic-speech-recognition': VISION,
     'text-to-speech': VISION, 'image-to-image': VISION, 'image-segmentation': VISION,
     'audio-classification': VISION, 'audio-to-audio': VISION, 'unconditional-image-generation': VISION,
-    'image-to-video': VISION, 'visual-question-answering': VISION, 'audio': VISION, 'video': VISION,
+    'image-to-video': VISION, 'visual-question-answering': VISION,
+    'audio': VISION, 'video': VISION, 'image': VISION, 'speech': VISION, // V6.2: Simplified tags
     'zero-shot-classification': AUTOMATION, 'reinforcement-learning': AUTOMATION, 'robotics': AUTOMATION,
     'tabular-classification': AUTOMATION, 'tabular-regression': AUTOMATION, 'graph-ml': AUTOMATION,
     'depth-estimation': INFRA, 'image-feature-extraction': INFRA, 'mask-generation': INFRA,
