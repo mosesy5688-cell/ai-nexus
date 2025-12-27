@@ -11,6 +11,7 @@
 import fs from 'fs';
 import path from 'path';
 import { enforceUpstreamComplete } from './manifest-utils.js';
+import { PIPELINE_TO_V6_CATEGORY, CATEGORY_METADATA } from './category-mapping.js';
 
 // V1.1-LOCK: Enforce upstream manifest completeness
 const L1_MANIFEST = 'data/manifest.json';
@@ -93,8 +94,9 @@ export async function computeAllRankings(computedDir, outputDir) {
     const byEntityType = {};
 
     for (const entity of fniResults) {
-        // By category
-        const cat = entity.primary_category || 'uncategorized';
+        // By category - V6.0.1: Map raw HF pipeline_tag to 5 primary categories
+        const rawCat = entity.primary_category || 'uncategorized';
+        const cat = PIPELINE_TO_V6_CATEGORY[rawCat] || 'uncategorized';
         if (!byCategory[cat]) byCategory[cat] = [];
         byCategory[cat].push(entity);
 
@@ -148,17 +150,7 @@ export async function computeAllRankings(computedDir, outputDir) {
     );
     console.log(`   ✅ trending.json: ${trendingModels.length} models/agents`);
 
-    // V6.0.1: Category metadata for frontend display
-    const CATEGORY_METADATA = {
-        'text-generation': { label: 'Text Generation & Content Creation', icon: '💬', color: '#6366f1' },
-        'knowledge-retrieval': { label: 'Knowledge Retrieval & Data Analysis', icon: '🔍', color: '#10b981' },
-        'vision-multimedia': { label: 'Vision & Multimedia Processing', icon: '🎨', color: '#f59e0b' },
-        'automation-workflow': { label: 'Automation & Workflow Integration', icon: '⚡', color: '#8b5cf6' },
-        'infrastructure-ops': { label: 'Infrastructure & Optimization', icon: '🔧', color: '#64748b' },
-        'uncategorized': { label: 'Uncategorized', icon: '📦', color: '#9ca3af' }
-    };
-
-    // Generate V6.0.1 category stats with full metadata
+    // Generate V6.0.1 category stats with full metadata (imported from category-mapping.js)
     const categoryStatsV6 = categoryStats.map(s => {
         const meta = CATEGORY_METADATA[s.category] || CATEGORY_METADATA['uncategorized'];
         const categoryEntities = byCategory[s.category] || [];
