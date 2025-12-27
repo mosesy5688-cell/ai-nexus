@@ -40,23 +40,36 @@ export const GET: APIRoute = async ({ params }) => {
             });
         }
 
-        // Determine content type and encoding based on file extension
-        const isGzip = filename.endsWith('.gz');
-        const headers: HeadersInit = {
-            'Content-Type': 'application/xml',
-            'Cache-Control': 'public, max-age=3600',
-        };
-
-        // For gzip files, set Content-Encoding so browsers auto-decompress
-        if (isGzip) {
-            headers['Content-Encoding'] = 'gzip';
-        }
-
+        // Get response body
         const body = await response.arrayBuffer();
 
+        // For gzip files, decompress and return XML
+        // (Cloudflare strips Content-Encoding, so we decompress server-side)
+        if (filename.endsWith('.gz')) {
+            try {
+                const decompressed = new Response(body).body;
+                if (decompressed) {
+                    const decompressedStream = decompressed.pipeThrough(new DecompressionStream('gzip'));
+                    return new Response(decompressedStream, {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'application/xml',
+                            'Cache-Control': 'public, max-age=3600',
+                        },
+                    });
+                }
+            } catch (e) {
+                console.error('Decompression failed:', e);
+            }
+        }
+
+        // Non-gzip files or fallback
         return new Response(body, {
             status: 200,
-            headers,
+            headers: {
+                'Content-Type': 'application/xml',
+                'Cache-Control': 'public, max-age=3600',
+            },
         });
     } catch (error) {
         console.error(`Error fetching sitemap ${filename}:`, error);
