@@ -19,6 +19,7 @@ import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.ast
 import TechnicalSpecs from '../../components/model-detail/TechnicalSpecs.astro';
 import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
+import EntityRelations from '../../components/entity/EntityRelations.astro';
 
 // V4.9.1: Constitutional D1 = 0 - Use R2 cache reader instead of D1 queries
 import { getModelFromCache } from '../../utils/entity-cache-reader';
@@ -210,6 +211,15 @@ const jsonld = model ? {
         </div>
 
         <RelatedResearch modelId={modelId} />
+
+        <!-- V8.1-LOCK Phase 3: Entity Relations (Model ↔ Paper) -->
+        {model.entity_relations && model.entity_relations.length > 0 && (
+          <EntityRelations
+            entityId={modelId}
+            entityType="model"
+            relations={model.entity_relations}
+          />
+        )}
         
         <RelatedKnowledge 
           tags={tagsArray} 
