@@ -161,6 +161,13 @@ async function initializeSearch({ initialQuery, activeTag, isExplorePage: onExpl
         searchForm.addEventListener('submit', (e) => {
             e.preventDefault();
             if (searchBox) currentQuery = searchBox.value.trim();
+
+            // V8.1-LOCK Phase 1: Enter on homepage navigates to /explore
+            if (!isExplorePage && currentQuery) {
+                window.location.href = `/explore?q=${encodeURIComponent(currentQuery)}`;
+                return;
+            }
+
             updateURL();
             performSearch();
         });
