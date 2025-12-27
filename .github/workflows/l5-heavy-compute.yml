@@ -365,20 +365,20 @@ jobs:
             if [ -f "$file" ]; then
               filename=$(basename "$file")
               echo "   Uploading: computed/$filename"
-              npx wrangler r2 object put ai-nexus-assets/computed/$filename --file "$file"
+              npx wrangler r2 object put ai-nexus-assets/computed/$filename --file "$file" --remote
             fi
           done
           
           # Upload trending.json
           if [ -f "data/cache/trending.json" ]; then
             echo "   Uploading: cache/trending.json"
-            npx wrangler r2 object put ai-nexus-assets/cache/trending.json --file data/cache/trending.json
+            npx wrangler r2 object put ai-nexus-assets/cache/trending.json --file data/cache/trending.json --remote
           fi
           
           # Upload category_stats.json
           if [ -f "data/cache/category_stats.json" ]; then
             echo "   Uploading: cache/category_stats.json"
-            npx wrangler r2 object put ai-nexus-assets/cache/category_stats.json --file data/cache/category_stats.json
+            npx wrangler r2 object put ai-nexus-assets/cache/category_stats.json --file data/cache/category_stats.json --remote
           fi
           
           # Upload rankings pages
@@ -386,14 +386,14 @@ jobs:
             find data/cache/rankings -name "*.json" | while read file; do
               relpath=${file#data/cache/}
               echo "   Uploading: cache/$relpath"
-              npx wrangler r2 object put "ai-nexus-assets/cache/$relpath" --file "$file"
+              npx wrangler r2 object put "ai-nexus-assets/cache/$relpath" --file "$file" --remote
             done
           fi
           
           # Upload search index
           if [ -f "public/data/search-index.json.gz" ]; then
             echo "   Uploading: public/data/search-index.json.gz"
-            npx wrangler r2 object put ai-nexus-assets/public/data/search-index.json.gz --file public/data/search-index.json.gz
+            npx wrangler r2 object put ai-nexus-assets/public/data/search-index.json.gz --file public/data/search-index.json.gz --remote
           fi
           
           echo "✅ Upload complete!"
