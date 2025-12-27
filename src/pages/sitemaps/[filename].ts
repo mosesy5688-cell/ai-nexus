@@ -40,20 +40,23 @@ export const GET: APIRoute = async ({ params }) => {
             });
         }
 
-        // Determine content type based on file extension
-        let contentType = 'application/xml';
-        if (filename.endsWith('.gz')) {
-            contentType = 'application/gzip';
+        // Determine content type and encoding based on file extension
+        const isGzip = filename.endsWith('.gz');
+        const headers: HeadersInit = {
+            'Content-Type': 'application/xml',
+            'Cache-Control': 'public, max-age=3600',
+        };
+
+        // For gzip files, set Content-Encoding so browsers auto-decompress
+        if (isGzip) {
+            headers['Content-Encoding'] = 'gzip';
         }
 
         const body = await response.arrayBuffer();
 
         return new Response(body, {
             status: 200,
-            headers: {
-                'Content-Type': contentType,
-                'Cache-Control': 'public, max-age=3600',
-            },
+            headers,
         });
     } catch (error) {
         console.error(`Error fetching sitemap ${filename}:`, error);
