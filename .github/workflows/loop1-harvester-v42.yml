@@ -106,7 +106,7 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "📥 [Parallel] Harvesting HF Datasets..."
-          node scripts/ingestion/harvest-single.js datasets --limit 10000 || echo "HF Datasets adapter skipped"
+          node scripts/ingestion/harvest-single.js huggingface-datasets --limit 10000 || echo "HF Datasets adapter skipped"
 
       - name: Upload Batch Artifacts
         uses: actions/upload-artifact@v4
