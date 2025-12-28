@@ -261,8 +261,9 @@ jobs:
           TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
           
           # V7.2 Configuration
+          # V9.2.3 FIX: Reduced from 5000 to 500 to prevent L8 API limit
           MAX_BATCH_SIZE_MB=50  # Maximum batch size
-          MAX_ENTITIES_PER_BATCH=5000  # Per V7.1 spec
+          MAX_ENTITIES_PER_BATCH=500  # Reduced for L8 subrequest limit
           
           # Create manifest
           BATCH_COUNT=0
