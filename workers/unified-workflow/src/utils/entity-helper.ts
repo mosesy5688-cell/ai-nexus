@@ -65,39 +65,8 @@ export function cleanModel(model: any): any {
     };
 }
 
-/**
- * Derive entity type from UMID prefix
- * Art.X-Entity: Frontend must render by entity.definition
- */
-export function deriveEntityType(id: string): string {
-    if (!id) return 'model';
-    if (id.startsWith('hf-dataset--')) return 'dataset';
-    if (id.startsWith('hf-space--')) return 'space';
-    if (id.startsWith('benchmark--')) return 'benchmark';
-    if (id.startsWith('arxiv--')) return 'paper';
-    if (id.startsWith('agent--')) return 'agent';
-    return 'model';
-}
-
-/**
- * V4.9 Art.X-Entity-FNI: Remove FNI fields from non-Model entities
- * FNI only applies to Model entities; non-model: fni_score = null (not 0)
- */
-export function stripFNIFromNonModel(entity: any): any {
-    const entityType = deriveEntityType(entity.id || entity.umid);
-    if (entityType !== 'model') {
-        // Delete FNI fields for non-model entities
-        delete entity.fni_score;
-        delete entity.fni_p;
-        delete entity.fni_v;
-        delete entity.fni_c;
-        delete entity.fni_u;
-        delete entity.fni_rank;
-        delete entity.fni_trend;
-        delete entity.fni_percentile;
-    }
-    return entity;
-}
+// Re-export entity type helpers from fni-utils.ts for backward compatibility
+export { deriveEntityType, stripFNIFromNonModel } from './fni-utils';
 
 /**
  * L2 Normalizer: Validate model data per Constitution V4.8
@@ -194,55 +163,63 @@ export async function routeToShadowDB(
 }
 
 /**
- * Compute FNI scores using V4.7 canonical weights
- * FNI = P × 30% + V × 30% + C × 20% + U × 20%
- * 
- * @param model - Current model data
- * @param oldData - Optional 7-day old data for velocity calculation
+ * V9.2.3: Batch route invalid models to Shadow DB
+ * Reduces API requests from 2×N to 2×ceil(N/batchSize)
+ * Art 2.1: Dirty data blocking while staying under API limit
  */
-export function computeFNI(
-    model: any,
-    oldData?: { downloads: number; likes: number }
-): { score: number; p: number; v: number; c: number; u: number } {
-    // P: Popularity (30%) - based on downloads and likes
-    const downloads = model.downloads || 0;
-    const likes = model.likes || 0;
-    const maxDownloads = 1000000;
-    const maxLikes = 500000;
-    const p = Math.min(100,
-        (Math.min(likes / maxLikes, 1) * 40 + Math.min(downloads / maxDownloads, 1) * 60)
-    );
+export async function batchRouteToShadowDB(
+    db: D1Database,
+    invalidModels: Array<{ model: any; validation: ValidationResult }>
+): Promise<number> {
+    if (invalidModels.length === 0) return 0;
 
-    // V: Velocity (30%) - 7-day growth rate
-    let v = 0;
-    if (oldData) {
-        const downloadGrowth = downloads - (oldData.downloads || 0);
-        const likeGrowth = likes - (oldData.likes || 0);
-        // Normalize: 100K downloads/week = 100, 10K likes/week = 100
-        const downloadVelocity = Math.min(100, (downloadGrowth / 100000) * 100);
-        const likeVelocity = Math.min(100, (likeGrowth / 10000) * 100);
-        v = Math.max(0, (downloadVelocity * 0.7 + likeVelocity * 0.3));
+    const BATCH_SIZE = 50;
+    let routed = 0;
+
+    for (let i = 0; i < invalidModels.length; i += BATCH_SIZE) {
+        const batch = invalidModels.slice(i, i + BATCH_SIZE);
+
+        try {
+            // Build batch statements for models_shadow
+            const shadowStmts = batch.map(({ model, validation }) =>
+                db.prepare(`
+                    INSERT OR REPLACE INTO models_shadow
+                        (id, raw_data, validation_errors, honeypot_triggers, created_at)
+                    VALUES(?, ?, ?, ?, datetime('now'))
+                `).bind(
+                    model.id || 'unknown',
+                    JSON.stringify(model),
+                    JSON.stringify(validation.errors),
+                    JSON.stringify(validation.honeypotTriggers)
+                )
+            );
+
+            // Build batch statements for quarantine_log
+            const logStmts = batch.map(({ model, validation }) => {
+                const reason = validation.honeypotTriggers.length > 0
+                    ? `honeypot:${validation.honeypotTriggers.join(',')}`
+                    : `schema:${validation.errors.join(',')}`;
+                return db.prepare(`
+                    INSERT INTO quarantine_log(entity_id, reason, severity, created_at)
+                    VALUES(?, ?, ?, datetime('now'))
+                `).bind(
+                    model.id || 'unknown',
+                    reason,
+                    validation.honeypotTriggers.length > 0 ? 'high' : 'medium'
+                );
+            });
+
+            // Execute all statements in one batch (1 API call for all)
+            await db.batch([...shadowStmts, ...logStmts]);
+            routed += batch.length;
+            console.log(`[L2 Shadow] Batch routed ${batch.length} models to Shadow DB`);
+        } catch (error) {
+            console.error(`[L2 Shadow] Batch error:`, error);
+        }
     }
 
-    // C: Credibility (20%) - documentation, license, source trail
-    let c = 0;
-    if (model.license_spdx) c += 30;
-    if (model.body_content_url) c += 40;
-    if (model.source_trail) c += 30;
-
-    // U: Utility (20%) - runtime ecosystem support
-    let u = 0;
-    if (model.has_ollama) u += 50;
-    if (model.has_gguf) u += 50;
-
-    // V4.7 Constitution: P×30% + V×30% + C×20% + U×20%
-    const score = (p * 0.30) + (v * 0.30) + (c * 0.20) + (u * 0.20);
-
-    return {
-        score: Math.min(100, Math.round(score)),
-        p: Math.round(p),
-        v: Math.round(v),
-        c,
-        u
-    };
+    return routed;
 }
+
+// Re-export computeFNI from fni-utils.ts for backward compatibility
+export { computeFNI } from './fni-utils';
