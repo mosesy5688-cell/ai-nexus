@@ -246,12 +246,18 @@ jobs:
             exit 1
           fi
           
-      - name: Upload Raw Data to R2 (V7.2 Batch Upload with Validation)
+      - name: Split Large Batches (V7.3)
+        run: |
+          echo "🔪 V7.3: Splitting oversized batches..."
+          node scripts/ingestion/split-large-batches.js
+          echo "✅ Batch splitting complete"
+          
+      - name: Upload Raw Data to R2 (V7.3 Batch Upload with Validation)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "📦 V7.2: Batch Upload to R2 with Validation..."
+          echo "📦 V7.3: Batch Upload to R2 with Validation..."
           TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
           
           # V7.2 Configuration
