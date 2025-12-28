@@ -18,18 +18,21 @@ interface Props {
 
 const { source = 'huggingface', lastUpdated, compact = false } = Astro.props;
 
-// Source display mapping
-const sourceInfo: Record<string, { name: string; icon: string; color: string }> = {
-  'huggingface': { name: 'Hugging Face', icon: '🤗', color: 'yellow' },
-  'github': { name: 'GitHub', icon: '🐙', color: 'gray' },
-  'arxiv': { name: 'arXiv', icon: '📄', color: 'red' },
-  'civitai': { name: 'CivitAI', icon: '🎨', color: 'purple' },
-  'ollama': { name: 'Ollama', icon: '🦙', color: 'green' },
-  'replicate': { name: 'Replicate', icon: '⚡', color: 'blue' },
-  'kaggle': { name: 'Kaggle', icon: '📊', color: 'cyan' },
+// Source display mapping with URLs for transparency
+const sourceInfo: Record<string, { name: string; icon: string; color: string; url: string }> = {
+  'huggingface': { name: 'Hugging Face', icon: '🤗', color: 'yellow', url: 'https://huggingface.co' },
+  'github': { name: 'GitHub', icon: '🐙', color: 'gray', url: 'https://github.com' },
+  'arxiv': { name: 'arXiv', icon: '📄', color: 'red', url: 'https://arxiv.org' },
+  'civitai': { name: 'CivitAI', icon: '🎨', color: 'purple', url: 'https://civitai.com' },
+  'ollama': { name: 'Ollama', icon: '🦙', color: 'green', url: 'https://ollama.ai' },
+  'replicate': { name: 'Replicate', icon: '⚡', color: 'blue', url: 'https://replicate.com' },
+  'kaggle': { name: 'Kaggle', icon: '📊', color: 'cyan', url: 'https://kaggle.com' },
 };
 
-const info = sourceInfo[source?.toLowerCase()] || { name: source || 'Unknown', icon: '📦', color: 'gray' };
+const info = sourceInfo[source?.toLowerCase()] || { name: source || 'Unknown', icon: '📦', color: 'gray', url: '' };
+
+// L1 Harvester sync frequency (Constitution compliant)
+const syncFrequency = 'Daily';
 
 // Format last updated
 const formattedDate = lastUpdated 
@@ -58,22 +61,37 @@ const classes = colorClasses[info.color] || colorClasses['gray'];
   <!-- Compact version for sidebar -->
   <div class={`flex items-center gap-2 text-xs ${classes} px-2 py-1 rounded`}>
     <span>{info.icon}</span>
-    <span>Data from {info.name}</span>
+    {info.url ? (
+      <a href={info.url} target="_blank" rel="noopener noreferrer" class="hover:underline">
+        Data from {info.name}
+      </a>
+    ) : (
+      <span>Data from {info.name}</span>
+    )}
     {formattedDate && <span class="opacity-70">• {formattedDate}</span>}
   </div>
 ) : (
-  <!-- Full version -->
+  <!-- Full version with transparency info -->
   <div class={`${classes} border rounded-lg p-3 text-sm`}>
-    <div class="flex items-center gap-2 mb-1">
-      <span class="text-lg">{info.icon}</span>
-      <span class="font-medium">Data Source: {info.name}</span>
+    <div class="flex items-center justify-between mb-2">
+      <div class="flex items-center gap-2">
+        <span class="text-lg">{info.icon}</span>
+        {info.url ? (
+          <a href={info.url} target="_blank" rel="noopener noreferrer" class="font-medium hover:underline">
+            Data Source: {info.name} ↗
+          </a>
+        ) : (
+          <span class="font-medium">Data Source: {info.name}</span>
+        )}
+      </div>
+      <span class="text-xs opacity-60">🔄 {syncFrequency} sync</span>
     </div>
     <p class="opacity-80 text-xs">
       Based on open-source metadata snapshot.
-      {formattedDate && <span>Last synced: {formattedDate}</span>}
+      {formattedDate && <span> Last synced: {formattedDate}</span>}
     </p>
     <p class="opacity-60 text-xs mt-1 italic">
-      ℹ️ This information is provided for reference only. Please verify with the original source.
+      ℹ️ Verify with the original source. Data refreshed via L1 Harvester.
     </p>
   </div>
 )}

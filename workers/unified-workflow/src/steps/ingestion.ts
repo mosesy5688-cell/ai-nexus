@@ -51,8 +51,8 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
     const jsonFiles = manifest.batches.map((b: any) => ({ key: b.key }));
     console.log(`[Ingest] Total batch files: ${jsonFiles.length}`);
 
-    // V9.2 FIX: Track processing offset in KV for chunked processing
-    // Process 5 batches per Cron run, continue from last offset until all done
+    // V9.2.3: Process 5 batches per Cron run
+    // L1 now produces 500 entities/batch, safe for API limit
     const MAX_FILES_PER_RUN = 5;
     let batchOffset = 0;
     const offsetKey = `BATCH_OFFSET_${manifest.job_id}`;
@@ -121,7 +121,8 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
 
             console.log(`[Ingest] Validation: ${validModels.length} valid, ${invalidModels.length} invalid`);
 
-            // Route invalid models to Shadow DB
+            // V9.2.3: Shadow DB enabled - L1 batch size reduced to 500
+            // Art 2.1: Route invalid models to Shadow DB for quarantine
             for (const { model, validation } of invalidModels) {
                 await routeToShadowDB(env.DB, model, validation);
             }

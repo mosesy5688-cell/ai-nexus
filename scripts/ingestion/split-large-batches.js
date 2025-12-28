@@ -15,7 +15,10 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 const DATA_DIR = 'data';
-const MAX_ENTITIES_PER_BATCH = 5000;
+// V9.2.3 FIX: Reduced from 5000 to 500 to prevent L8 API limit errors
+// Each L8 Worker invocation is limited to 1000 subrequests
+// 500 entities × 5 batches = 2500 entities max per L8 run = ~300 API calls (safe)
+const MAX_ENTITIES_PER_BATCH = 500;
 const MAX_FILE_SIZE_MB = 50;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
