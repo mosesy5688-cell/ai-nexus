@@ -1,0 +1,94 @@
+---
+/**
+ * TopPicks.astro
+ * V3.2 Phase 7: Top Picks Section for Category Pages
+ * 
+ * Displays 3-5 star models based on highest FNI scores
+ * Constitution: Uses pre-computed rankings, no client computation
+ */
+
+interface Props {
+  models: any[];
+  category?: string;
+}
+
+const { models, category } = Astro.props;
+
+// Get top 5 models by FNI score (already sorted from rankings)
+const topPicks = models.slice(0, 5);
+
+// Category-specific recommendation text
+const CATEGORY_RECOMMENDATIONS: Record<string, string> = {
+  'text-generation': 'Top picks for chat, code generation, and content creation',
+  'knowledge-retrieval': 'Best models for RAG, embeddings, and document analysis',
+  'vision-multimedia': 'Leading models for image, video, and audio processing',
+  'automation-workflow': 'Top choices for agents, automation, and workflows',
+  'infrastructure-ops': 'Best tools for fine-tuning and optimization',
+};
+
+const recommendationText = category ? CATEGORY_RECOMMENDATIONS[category] || 'Editor\'s top picks based on FNI score' : 'Editor\'s top picks based on FNI score';
+---
+
+{topPicks.length > 0 && (
+  <section class="top-picks mb-8">
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">⭐</span>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">Top Picks</h2>
+      </div>
+      <span class="text-sm text-gray-500 dark:text-gray-400">
+        {recommendationText}
+      </span>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      {topPicks.map((model: any, index: number) => (
+        <a 
+          href={`/model/${model.id || model.umid}`}
+          class="top-pick-card group"
+        >
+          <div class="relative bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl p-4 border border-amber-200 dark:border-amber-800/50 hover:border-amber-400 dark:hover:border-amber-600 transition-all hover:shadow-lg hover:-translate-y-1">
+            {/* Rank Badge */}
+            <div class="absolute -top-2 -left-2 w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md">
+              {index + 1}
+            </div>
+            
+            {/* Model Info */}
+            <div class="pt-2">
+              <h3 class="font-semibold text-gray-900 dark:text-white text-sm line-clamp-1 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                {model.name || model.id?.split('/').pop() || 'Unknown'}
+              </h3>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">
+                by {model.author || 'Unknown'}
+              </p>
+            </div>
+            
+            {/* Metrics */}
+            <div class="flex items-center gap-3 mt-3 text-xs">
+              <span class="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+                🛡️ {model.fni_score || model.fniScore || 0}
+              </span>
+              <span class="text-gray-400 dark:text-gray-500">
+                ⬇️ {((model.downloads || 0) / 1000).toFixed(0)}K
+              </span>
+            </div>
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+)}
+
+<style>
+  .top-pick-card {
+    display: block;
+    text-decoration: none;
+  }
+  
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>
