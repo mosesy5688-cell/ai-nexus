@@ -1,0 +1,64 @@
+---
+/**
+ * FNIPercentile.astro
+ * V3.2 Phase 9: Display FNI score as percentile ranking
+ * 
+ * Converts raw FNI score to "Top X%" display for better user understanding
+ * Based on score thresholds from L5 computed data
+ */
+
+interface Props {
+  fniScore: number;
+  showScore?: boolean;  // Also show raw score
+  size?: 'sm' | 'md' | 'lg';
+}
+
+const { fniScore, showScore = false, size = 'md' } = Astro.props;
+
+// Calculate percentile tier based on FNI score thresholds
+// These thresholds should match L5 computed percentiles
+const getPercentileTier = (score: number) => {
+  if (score >= 95) return { tier: 'Top 0.1%', color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20', icon: '🏆' };
+  if (score >= 90) return { tier: 'Top 1%', color: 'text-yellow-500', bg: 'bg-yellow-50 dark:bg-yellow-900/20', icon: '🥇' };
+  if (score >= 85) return { tier: 'Top 5%', color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-900/20', icon: '🔥' };
+  if (score >= 80) return { tier: 'Top 10%', color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20', icon: '⭐' };
+  if (score >= 70) return { tier: 'Top 25%', color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-900/20', icon: '✨' };
+  if (score >= 60) return { tier: 'Top 50%', color: 'text-gray-500', bg: 'bg-gray-50 dark:bg-gray-800', icon: '' };
+  return { tier: '', color: 'text-gray-400', bg: '', icon: '' };
+};
+
+const percentile = getPercentileTier(fniScore);
+const hasPercentile = percentile.tier !== '';
+
+const sizeClasses = {
+  sm: 'text-xs px-2 py-0.5',
+  md: 'text-sm px-2.5 py-1',
+  lg: 'text-base px-3 py-1.5'
+};
+---
+
+{hasPercentile && (
+  <span 
+    class:list={[
+      "fni-percentile inline-flex items-center gap-1 rounded-full font-medium",
+      percentile.color,
+      percentile.bg,
+      sizeClasses[size]
+    ]}
+    title={`FNI Score: ${fniScore.toFixed(1)}`}
+  >
+    {percentile.icon && <span>{percentile.icon}</span>}
+    <span>{percentile.tier}</span>
+    {showScore && (
+      <span class="text-gray-400 dark:text-gray-500 ml-1">
+        ({fniScore.toFixed(0)})
+      </span>
+    )}
+  </span>
+)}
+
+{!hasPercentile && fniScore > 0 && (
+  <span class="text-xs text-gray-400 dark:text-gray-500">
+    FNI: {fniScore.toFixed(0)}
+  </span>
+)}

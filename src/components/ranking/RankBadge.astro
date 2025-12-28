@@ -1,0 +1,96 @@
+---
+/**
+ * RankBadge.astro
+ * V3.2 Phase 9: Visual ranking indicators for Top 10 models
+ * 
+ * Gold (#1), Silver (#2), Bronze (#3), and numbered badges for 4-10
+ */
+
+interface Props {
+  rank: number;
+  size?: 'sm' | 'md' | 'lg';
+}
+
+const { rank, size = 'md' } = Astro.props;
+
+// Only show for top 10
+const showBadge = rank >= 1 && rank <= 10;
+
+// Badge colors and icons based on rank
+const getBadgeStyle = (rank: number) => {
+  switch (rank) {
+    case 1:
+      return {
+        icon: '🥇',
+        bg: 'bg-gradient-to-br from-yellow-300 to-amber-500',
+        text: 'text-amber-900',
+        border: 'border-yellow-400',
+        shadow: 'shadow-lg shadow-amber-200/50'
+      };
+    case 2:
+      return {
+        icon: '🥈',
+        bg: 'bg-gradient-to-br from-gray-200 to-gray-400',
+        text: 'text-gray-700',
+        border: 'border-gray-300',
+        shadow: 'shadow-lg shadow-gray-200/50'
+      };
+    case 3:
+      return {
+        icon: '🥉',
+        bg: 'bg-gradient-to-br from-orange-300 to-amber-600',
+        text: 'text-amber-900',
+        border: 'border-orange-400',
+        shadow: 'shadow-lg shadow-orange-200/50'
+      };
+    default:
+      return {
+        icon: null,
+        bg: 'bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-900/50 dark:to-indigo-800/50',
+        text: 'text-indigo-700 dark:text-indigo-300',
+        border: 'border-indigo-300 dark:border-indigo-700',
+        shadow: ''
+      };
+  }
+};
+
+const style = getBadgeStyle(rank);
+
+const sizeClasses = {
+  sm: 'w-6 h-6 text-xs',
+  md: 'w-8 h-8 text-sm',
+  lg: 'w-10 h-10 text-base'
+};
+---
+
+{showBadge && (
+  <div 
+    class:list={[
+      "rank-badge flex items-center justify-center rounded-full font-bold border-2",
+      style.bg,
+      style.text,
+      style.border,
+      style.shadow,
+      sizeClasses[size]
+    ]}
+    title={`Rank #${rank}`}
+  >
+    {style.icon ? (
+      <span class="rank-icon">{style.icon}</span>
+    ) : (
+      <span>#{rank}</span>
+    )}
+  </div>
+)}
+
+<style>
+  .rank-badge {
+    transition: transform 0.2s ease;
+  }
+  .rank-badge:hover {
+    transform: scale(1.1);
+  }
+  .rank-icon {
+    font-size: 1.2em;
+  }
+</style>
