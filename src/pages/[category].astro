@@ -68,8 +68,9 @@ try {
   const response = await fetch(rankingsUrl);
   if (response.ok) {
     const data = await response.json();
-    models = data.models || [];
-    totalCount = models.length;
+    // V10.1 Fix: CDN returns 'items' not 'models'
+    models = data.items || data.models || [];
+    totalCount = data.total_items || models.length;
   }
 } catch (e) {
   console.error(`[Category] Failed to fetch rankings for ${category}:`, e);
