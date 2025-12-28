@@ -51,7 +51,7 @@ const agentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
       <div class="text-center py-16">
         <h1 class="text-3xl font-bold text-red-500 mb-4">Error</h1>
         <p class="text-gray-600 dark:text-gray-400">{error}</p>
-        <a href="/explore?type=agent" class="mt-4 inline-block text-indigo-500 hover:underline">
+        <a href="/ranking" class="mt-4 inline-block text-indigo-500 hover:underline">
           ← Browse all agents
         </a>
       </div>
@@ -102,7 +102,7 @@ const agentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
         </div>
         
         <div class="mt-8 text-center">
-          <a href="/explore?type=agent" class="text-indigo-500 hover:underline">
+          <a href="/ranking" class="text-indigo-500 hover:underline">
             ← Browse all agents
           </a>
         </div>
@@ -112,7 +112,7 @@ const agentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
     {!agent && !error && (
       <div class="text-center py-16">
         <h1 class="text-3xl font-bold text-gray-400 mb-4">Agent Not Found</h1>
-        <a href="/explore?type=agent" class="text-indigo-500 hover:underline">
+        <a href="/ranking" class="text-indigo-500 hover:underline">
           ← Browse all agents
         </a>
       </div>
