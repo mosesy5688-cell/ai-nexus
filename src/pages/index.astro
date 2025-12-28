@@ -1,10 +1,11 @@
 ---
 // src/pages/index.astro
 // Constitution V5.1.2 Entity-First Architecture - Homepage (Refactored)
+// V10.0: UX Strategy V2.0 Entry Layer - Simplified navigation
 
 // Core imports
 import Layout from '../layouts/Layout.astro';
-import EntityTabs from '../components/entity/EntityTabs.astro';
+// EntityTabs removed per UX Strategy V2.0: Entry Layer simplified navigation
 
 // Components
 import HomeHero from '../components/home/HomeHero.astro';
@@ -38,10 +39,8 @@ const seoSchema = buildIndexSEO();
     >
         <HomeHero />
         
-        <!-- V4.9: Entity Type Navigation (Art.X-Entity-List) -->
-        <div class="flex justify-center mb-6">
-            <EntityTabs activeType="model" basePath="/explore" />
-        </div>
+        <!-- V10.0 UX Strategy V2.0: EntityTabs removed from Entry Layer -->
+        <!-- Design principle: "Subtract complexity: hide filters, show results" -->
 
         <!-- V3.1 Phase 6: Search FIRST in flow -->
         <HomeSearch initialQuery={initialQuery} />
