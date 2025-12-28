@@ -1,7 +1,8 @@
 ---
 /**
  * [category].astro
- * V6.0.1 Category Listing Page with Client-Side Pagination
+ * V6.1 Category Listing Page with Client-Side Pagination
+ * V3.2 Phase 7: Added CategoryFilters sidebar
  * 
  * SEO: Static-generated landing pages for each category
  * Constitution Annex A.2.1 - 5 Primary Categories
@@ -9,6 +10,8 @@
 
 import Layout from '../layouts/Layout.astro';
 import ModelCard from '../components/ModelCard.astro';
+import CategoryFilters from '../components/category/CategoryFilters.astro';
+import TopPicks from '../components/category/TopPicks.astro';
 
 // ISR Static Generation - Expert recommendation
 export const prerender = true;
@@ -101,24 +104,36 @@ const initialModels = models.slice(0, ITEMS_PER_PAGE);
       </p>
     </header>
 
-    <!-- Filter Bar -->
-    <div class="filter-bar mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-      <div class="flex flex-wrap gap-4 items-center">
-        <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-          Sort by:
-        </label>
-        <select id="sort-select" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm">
-          <option value="best">Best Match</option>
-          <option value="recent">Most Recent</option>
-          <option value="popular">Most Popular</option>
-        </select>
-        <span class="text-sm text-gray-500 dark:text-gray-400">
-          Page <span id="current-page">1</span> of <span id="total-pages">{totalPages}</span>
-        </span>
-      </div>
-    </div>
+    <!-- Top Picks Section (Phase 7) -->
+    <TopPicks models={models} category={category} />
 
-    <!-- Model Grid -->
+    <!-- Two Column Layout: Filters + Content -->
+    <div class="flex flex-col lg:flex-row gap-8">
+      <!-- Sidebar Filters (Phase 7: Simplified) -->
+      <CategoryFilters category={category} />
+      
+      <!-- Main Content -->
+      <div class="flex-1">
+        <!-- Sort Bar (Updated for FNI default) -->
+        <div class="filter-bar mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div class="flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex items-center gap-3">
+              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Sort by:
+              </label>
+              <select id="sort-select" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm">
+                <option value="fni" selected>🛡️ FNI Score (Recommended)</option>
+                <option value="popular">⬇️ Most Downloads</option>
+                <option value="recent">🆕 Most Recent</option>
+              </select>
+            </div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">
+              Page <span id="current-page">1</span> of <span id="total-pages">{totalPages}</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Model Grid -->
     <div id="model-grid" class="model-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {initialModels.length > 0 ? (
         initialModels.map((model: any) => (
@@ -155,6 +170,8 @@ const initialModels = models.slice(0, ITEMS_PER_PAGE);
         </nav>
       </div>
     )}
+      </div>  <!-- Close flex-1 -->
+    </div>  <!-- Close flex container -->
   </main>
 
   <!-- Embed all models data for client-side pagination -->

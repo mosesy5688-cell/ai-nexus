@@ -1,0 +1,139 @@
+---
+/**
+ * CategoryFilters.astro
+ * V3.2 Phase 7: Simplified Filters for Category Pages
+ * 
+ * Per UX Strategy V2.0: Only 3 core filters
+ * - Size: <7B / 7-13B / >70B
+ * - GGUF: Show locally deployable models
+ * - License: Commercial use filter
+ */
+
+interface Props {
+  category?: string;
+}
+
+const { category } = Astro.props;
+
+// Get current filter state from URL
+const url = Astro.url;
+const sizeFilter = url.searchParams.get('size') || '';
+const ggufFilter = url.searchParams.get('gguf') === 'true';
+const licenseFilter = url.searchParams.get('license') || '';
+
+// Size filter options
+const SIZE_OPTIONS = [
+  { value: '', label: 'All Sizes' },
+  { value: 'small', label: '<7B (Edge Devices)' },
+  { value: 'medium', label: '7-13B (Consumer GPU)' },
+  { value: 'large', label: '>70B (Cloud/Enterprise)' },
+];
+
+// License filter options
+const LICENSE_OPTIONS = [
+  { value: '', label: 'All Licenses' },
+  { value: 'commercial', label: 'Commercial Use OK' },
+  { value: 'open', label: 'Fully Open Source' },
+];
+---
+
+<aside class="w-full lg:w-56 flex-shrink-0 mb-6 lg:mb-0">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+    <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+      🎚️ Quick Filters
+    </h3>
+    
+    <form id="filters-form" class="space-y-4">
+      <!-- Size Filter -->
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+          📐 Model Size
+        </label>
+        <select 
+          name="size" 
+          id="size-filter"
+          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          {SIZE_OPTIONS.map(opt => (
+            <option value={opt.value} selected={sizeFilter === opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      </div>
+      
+      <!-- GGUF Toggle -->
+      <div>
+        <label class="flex items-center gap-3 cursor-pointer group">
+          <input 
+            type="checkbox" 
+            name="gguf" 
+            id="gguf-filter"
+            checked={ggufFilter}
+            class="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600"
+          />
+          <span class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+            📦 GGUF Only (Local Deploy)
+          </span>
+        </label>
+        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1 ml-7">
+          Show models ready for Ollama/LM Studio
+        </p>
+      </div>
+      
+      <!-- License Filter -->
+      <div>
+        <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+          📜 License
+        </label>
+        <select 
+          name="license" 
+          id="license-filter"
+          class="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          {LICENSE_OPTIONS.map(opt => (
+            <option value={opt.value} selected={licenseFilter === opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      </div>
+      
+      <!-- Apply Button -->
+      <button 
+        type="submit"
+        class="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+      >
+        Apply Filters
+      </button>
+      
+      <!-- Reset Link -->
+      <a 
+        href={`/${category || ''}`}
+        class="block text-center text-xs text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+      >
+        Reset All Filters
+      </a>
+    </form>
+  </div>
+</aside>
+
+<script>
+  const form = document.getElementById('filters-form');
+  
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const formData = new FormData(form as HTMLFormElement);
+    const params = new URLSearchParams();
+    
+    // Add non-empty filters to URL
+    const size = formData.get('size');
+    const gguf = formData.get('gguf');
+    const license = formData.get('license');
+    
+    if (size) params.set('size', size.toString());
+    if (gguf) params.set('gguf', 'true');
+    if (license) params.set('license', license.toString());
+    
+    // Navigate with filters
+    const currentPath = window.location.pathname;
+    const newUrl = params.toString() ? `${currentPath}?${params.toString()}` : currentPath;
+    window.location.href = newUrl;
+  });
+</script>
