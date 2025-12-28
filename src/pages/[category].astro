@@ -11,6 +11,7 @@
 import Layout from '../layouts/Layout.astro';
 import ModelCard from '../components/ModelCard.astro';
 import CategoryFilters from '../components/category/CategoryFilters.astro';
+import TopPicks from '../components/category/TopPicks.astro';
 
 // ISR Static Generation - Expert recommendation
 export const prerender = true;
@@ -102,6 +103,9 @@ const initialModels = models.slice(0, ITEMS_PER_PAGE);
         {meta.description}
       </p>
     </header>
+
+    <!-- Top Picks Section (Phase 7) -->
+    <TopPicks models={models} category={category} />
 
     <!-- Two Column Layout: Filters + Content -->
     <div class="flex flex-col lg:flex-row gap-8">
