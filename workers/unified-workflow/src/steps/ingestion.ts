@@ -51,9 +51,10 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
     const jsonFiles = manifest.batches.map((b: any) => ({ key: b.key }));
     console.log(`[Ingest] Total batch files: ${jsonFiles.length}`);
 
-    // V9.2 FIX: Track processing offset in KV for chunked processing
-    // Process 5 batches per Cron run, continue from last offset until all done
-    const MAX_FILES_PER_RUN = 5;
+    // V9.2.2 FIX: Reduce to 1 batch per Cron run to avoid Cloudflare 1000 subrequest limit
+    // Large batches (arxiv, kaggle) have 5000 entities, causing "Too many API requests" error
+    // With 41 batches, processing will take ~3.5 hours (41 × 5min cron intervals)
+    const MAX_FILES_PER_RUN = 1;
     let batchOffset = 0;
     const offsetKey = `BATCH_OFFSET_${manifest.job_id}`;
     try {
@@ -121,10 +122,13 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
 
             console.log(`[Ingest] Validation: ${validModels.length} valid, ${invalidModels.length} invalid`);
 
-            // Route invalid models to Shadow DB
-            for (const { model, validation } of invalidModels) {
-                await routeToShadowDB(env.DB, model, validation);
-            }
+            // V9.2.2 FIX: Skip Shadow DB writes for now to reduce API requests
+            // Each invalid model = 2 DB writes, which can exceed 1000 limit with large batches
+            // TODO: Re-enable with batched writes once system is stable
+            // for (const { model, validation } of invalidModels) {
+            //     await routeToShadowDB(env.DB, model, validation);
+            // }
+            console.log(`[Ingest] Shadow DB writes skipped (${invalidModels.length} models) - V9.2.2 hotfix`);
 
             // Step 1: Write valid models to D1 (Index-Only, per Phase A.1)
             // Phase B.8: Added params_billions, context_length, architecture, meta_json
