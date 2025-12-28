@@ -1,89 +1,11 @@
 ---
 /**
- * Explore Page V5.1.2 (Refactored)
- * Constitution V4.9 Entity-First Architecture
- * Compliant with CES V5.1.2 Anti-Monolith (<250 lines)
+ * Explore Page 301 Redirect
+ * UX Strategy V2.0 Phase 7: Consolidated navigation
+ * 
+ * The /explore page is now deprecated.
+ * Users are redirected to the homepage which provides the same functionality
+ * through the simplified Entry Layer architecture.
  */
-import Layout from '../layouts/Layout.astro';
-import ExploreHeader from '../components/explore/ExploreHeader.astro';
-import ExploreSidebar from '../components/explore/ExploreSidebar.astro';
-import ExploreSkeleton from '../components/explore/ExploreSkeleton.astro';
-
-// Entity-specific page metadata - Simplified for refactor
-// Ideally this moves to a config/helper but simplified here to save lines
-const typeParam = Astro.url.searchParams.get('type') || 'model';
-const sortParam = Astro.url.searchParams.get('sort') || 'trending';
-
-const ENTITY_LABELS: Record<string, string> = {
-    model: 'Models', space: 'Spaces', dataset: 'Datasets', benchmark: 'Benchmarks', 
-    paper: 'Papers', agent: 'Agents'
-};
-const entityLabel = ENTITY_LABELS[typeParam] || 'Models';
-
-let pageTitle = `Explore ${entityLabel} - AI Nexus`;
-let pageDescription = `Discover the latest ${entityLabel.toLowerCase()} with AI Nexus. Compare specs, benchmarks, and licensing.`;
-
-// SEO tweaks
-if (sortParam === 'downloads') pageTitle = `Most Downloaded ${entityLabel} - AI Nexus`;
-if (sortParam === 'fni') pageTitle = `Highest Rated ${entityLabel} (FNI Score) - AI Nexus`;
-
-// Canonical URL
-const canonicalUrl = new URL(Astro.url.pathname, Astro.site).toString();
+return Astro.redirect('/', 301);
 ---
-
-<Layout title={pageTitle} description={pageDescription}>
-    <!-- Canonical for SEO -->
-    <link slot="head" rel="canonical" href={canonicalUrl} />
-
-    <div class="container mx-auto px-4 py-8 min-h-screen">
-        <ExploreHeader entityLabel={entityLabel} />
-
-        <div class="flex flex-col lg:flex-row gap-8">
-            <!-- Sidebar / Filters -->
-            <ExploreSidebar />
-
-            <!-- Main Content -->
-            <main class="flex-1">
-                <!-- Active Filters Display -->
-                <div id="active-filters" class="hidden flex flex-wrap gap-2 mb-4">
-                    <!-- Populated by JS -->
-                </div>
-
-                <!-- Loading State -->
-                <ExploreSkeleton />
-
-                <!-- Results Grid -->
-                <div id="explore-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 opacity-0 transition-opacity duration-300">
-                    <!-- Populated by Worker -->
-                </div>
-
-                <!-- Empty State -->
-                <div id="explore-no-results" class="hidden flex flex-col items-center justify-center py-20 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700">
-                    <div class="text-4xl mb-4">🔍</div>
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">No matching results</h3>
-                    <p class="text-gray-500 dark:text-gray-400 text-center max-w-md mx-auto mb-6">
-                        Try adjusting your filters or search query to find what you're looking for.
-                    </p>
-                    <button id="reset-filters-btn" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors">
-                        Clear All Filters
-                    </button>
-                </div>
-
-                <!-- Error State -->
-                <div id="explore-error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6">
-                    <strong class="font-bold">Error:</strong>
-                    <span id="explore-error-msg" class="block sm:inline">Something went wrong.</span>
-                </div>
-            </main>
-        </div>
-    </div>
-
-    <script>
-        import { initExplorePage } from '../scripts/explore-client.js';
-        
-        // Initialize when DOM is ready
-        document.addEventListener('DOMContentLoaded', () => {
-             initExplorePage();
-        });
-    </script>
-</Layout>
