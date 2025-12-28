@@ -1,5 +1,5 @@
 import { Env } from '../config/types';
-import { cleanModel, validateModel, routeToShadowDB, ValidationResult } from '../utils/entity-helper';
+import { cleanModel, validateModel, routeToShadowDB, batchRouteToShadowDB, ValidationResult } from '../utils/entity-helper';
 import { enrichModel } from '../utils/model-enricher';
 import { buildExtendedMeta } from '../utils/extended-meta';
 
@@ -121,11 +121,10 @@ export async function runIngestionStep(env: Env, checkpoint: any): Promise<{ fil
 
             console.log(`[Ingest] Validation: ${validModels.length} valid, ${invalidModels.length} invalid`);
 
-            // V9.2.3: Shadow DB enabled - L1 batch size reduced to 500
+            // V9.2.3: Use batched Shadow DB writes for API efficiency
             // Art 2.1: Route invalid models to Shadow DB for quarantine
-            for (const { model, validation } of invalidModels) {
-                await routeToShadowDB(env.DB, model, validation);
-            }
+            const shadowRouted = await batchRouteToShadowDB(env.DB, invalidModels);
+            console.log(`[Ingest] Shadow DB: ${shadowRouted} invalid models routed`);
 
             // Step 1: Write valid models to D1 (Index-Only, per Phase A.1)
             // Phase B.8: Added params_billions, context_length, architecture, meta_json
