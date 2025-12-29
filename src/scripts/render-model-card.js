@@ -64,9 +64,10 @@ export function renderModelCard(model) {
     const deriveEntityType = (id) => {
         if (!id) return 'model';
         if (id.startsWith('hf-dataset--')) return 'dataset';
+        if (id.startsWith('hf-space--')) return 'space';
         if (id.startsWith('benchmark--')) return 'benchmark';
         if (id.startsWith('arxiv--')) return 'paper';
-        if (id.startsWith('agent--')) return 'agent';
+        if (id.startsWith('agent--') || id.startsWith('github-agent--')) return 'agent';
         return 'model';
     };
 

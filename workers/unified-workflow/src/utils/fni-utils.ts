@@ -15,7 +15,7 @@ export function deriveEntityType(id: string): string {
     if (id.startsWith('hf-space--')) return 'space';
     if (id.startsWith('benchmark--')) return 'benchmark';
     if (id.startsWith('arxiv--')) return 'paper';
-    if (id.startsWith('agent--')) return 'agent';
+    if (id.startsWith('agent--') || id.startsWith('github-agent--')) return 'agent';
     return 'model';
 }
 
