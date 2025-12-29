@@ -33,6 +33,7 @@ export const ENTITY_ID_PREFIXES: Record<string, EntityType> = {
     'benchmark--': 'benchmark',
     'arxiv--': 'paper',
     'agent--': 'agent',
+    'github-agent--': 'agent',  // V12: GitHub agent frameworks
     'tutorial--': 'tutorial',
     'org--': 'organization',
     'collection--': 'collection',
