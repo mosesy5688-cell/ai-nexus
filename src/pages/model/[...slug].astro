@@ -1,11 +1,6 @@
 ---
 export const prerender = false;
-
-/**
- * Model Detail Page V5.1.2 (Refactored)
- * Constitution V4.9 Entity-First Architecture
- * Compliant with CES V5.1.2 Anti-Monolith (<250 lines)
- */
+// Model Detail Page V5.1.2 - Entity-First Architecture
 
 import Layout from '../../layouts/Layout.astro';
 import ModelHeader from '../../components/model-detail/ModelHeader.astro';
@@ -20,6 +15,7 @@ import TechnicalSpecs from '../../components/model-detail/TechnicalSpecs.astro';
 import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import EntityRelations from '../../components/entity/EntityRelations.astro';
+import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
 import ModelNotFound from '../../components/model-detail/ModelNotFound.astro';
 
 // V4.9.1: Constitutional D1 = 0 - Use R2 cache reader instead of D1 queries
@@ -180,6 +176,13 @@ const jsonld = model ? {
           contextLength={model.context_length}
           quantization={model.quantization}
           config={model.meta_json?.config}
+        />
+
+        <!-- V12: Knowledge Relations Panel -->
+        <RelationsPanel
+          baseModel={model.base_model}
+          datasetsUsed={model.datasets_used || []}
+          arxivRefs={model.arxiv_refs || []}
         />
 
         <!-- V8.1-LOCK Phase 2: VRAM Estimator -->

@@ -1,0 +1,96 @@
+---
+/**
+ * RelationsPanel - V12 Knowledge Graph Display
+ * Shows explicit relationships: base_model, datasets, papers, demos
+ */
+interface Props {
+  baseModel?: string | null;
+  datasetsUsed?: string[];
+  arxivRefs?: string[];
+  relatedSpaces?: string[];
+}
+
+const { baseModel, datasetsUsed = [], arxivRefs = [], relatedSpaces = [] } = Astro.props;
+
+const hasRelations = baseModel || datasetsUsed.length > 0 || arxivRefs.length > 0 || relatedSpaces.length > 0;
+---
+
+{hasRelations && (
+  <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+    <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+      🔗 Knowledge Relations
+    </h2>
+    
+    <div class="space-y-4">
+      {baseModel && (
+        <div class="flex items-start gap-3">
+          <span class="text-purple-500 mt-1">🧬</span>
+          <div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Based on</span>
+            <a href={`/model/${baseModel.replace(/\//g, '--')}`}
+               class="block text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+              {baseModel}
+            </a>
+          </div>
+        </div>
+      )}
+
+      {datasetsUsed.length > 0 && (
+        <div class="flex items-start gap-3">
+          <span class="text-green-500 mt-1">📊</span>
+          <div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Trained on</span>
+            <div class="flex flex-wrap gap-2 mt-1">
+              {datasetsUsed.slice(0, 5).map(ds => (
+                <a href={`/dataset/${ds.replace(/\//g, '--')}`}
+                   class="px-2 py-1 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-md text-sm hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors">
+                  {ds}
+                </a>
+              ))}
+              {datasetsUsed.length > 5 && (
+                <span class="px-2 py-1 text-gray-500 text-sm">+{datasetsUsed.length - 5} more</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {arxivRefs.length > 0 && (
+        <div class="flex items-start gap-3">
+          <span class="text-blue-500 mt-1">📄</span>
+          <div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Related Papers</span>
+            <div class="flex flex-wrap gap-2 mt-1">
+              {arxivRefs.slice(0, 3).map(arxiv => (
+                <a href={`/paper/arxiv--${arxiv}`}
+                   class="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-md text-sm hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
+                  arXiv:{arxiv}
+                </a>
+              ))}
+              {arxivRefs.length > 3 && (
+                <span class="px-2 py-1 text-gray-500 text-sm">+{arxivRefs.length - 3} more</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {relatedSpaces.length > 0 && (
+        <div class="flex items-start gap-3">
+          <span class="text-orange-500 mt-1">🚀</span>
+          <div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Try Demo</span>
+            <div class="flex flex-wrap gap-2 mt-1">
+              {relatedSpaces.slice(0, 3).map(space => (
+                <a href={`/space/${space.replace(/\//g, '--')}`}
+                   class="px-2 py-1 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-md text-sm hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors">
+                  {space.split('/').pop()}
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </section>
+)}
