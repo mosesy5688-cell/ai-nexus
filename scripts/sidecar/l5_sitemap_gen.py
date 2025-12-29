@@ -36,16 +36,21 @@ ENTITY_CONFIGS = [
     {"type": "agent", "path_prefix": "/agent/", "changefreq": "weekly"},
 ]
 
-# Static pages
+# Static pages - V10.4: Updated to remove redirected pages
 STATIC_PAGES = [
     {"path": "/", "priority": "1.0", "changefreq": "daily"},
-    {"path": "/explore", "priority": "0.8", "changefreq": "daily"},
-    {"path": "/leaderboard", "priority": "0.8", "changefreq": "daily"},
     {"path": "/ranking", "priority": "0.8", "changefreq": "daily"},
     {"path": "/knowledge", "priority": "0.7", "changefreq": "weekly"},
+    {"path": "/reports", "priority": "0.7", "changefreq": "weekly"},
     {"path": "/compare", "priority": "0.6", "changefreq": "weekly"},
     {"path": "/methodology", "priority": "0.5", "changefreq": "monthly"},
     {"path": "/about", "priority": "0.4", "changefreq": "monthly"},
+    # V10.4: Add category pages
+    {"path": "/text-generation", "priority": "0.8", "changefreq": "daily"},
+    {"path": "/knowledge-retrieval", "priority": "0.8", "changefreq": "daily"},
+    {"path": "/vision-multimedia", "priority": "0.8", "changefreq": "daily"},
+    {"path": "/automation-workflow", "priority": "0.8", "changefreq": "daily"},
+    {"path": "/infrastructure-ops", "priority": "0.8", "changefreq": "daily"},
 ]
 
 
