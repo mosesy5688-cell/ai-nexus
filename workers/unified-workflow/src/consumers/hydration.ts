@@ -75,13 +75,9 @@ export async function consumeHydrationQueue(batch: any, env: Env): Promise<void>
             version: 'V8.0'
         };
 
-        // Path determination (Legacy Compat + V6.2 Universal)
-        let cachePath: string;
-        if (entityType === 'model') {
-            cachePath = `cache/models/${slug}.json`;
-        } else {
-            cachePath = `cache/entities/${entityType}/${slug}.json`;
-        }
+        // V11: Unified Constitutional Cache Path
+        // All entities use cache/entities/{type}/{slug}.json structure
+        const cachePath = `cache/entities/${entityType}/${slug}.json`;
 
         // CES V5.1.2 Art 2.4.2: Force Gzip
         await writeToR2(env, cachePath, entityCache);
