@@ -36,6 +36,11 @@ IGNORE_DIRS = {
     'node_modules', '.git', 'dist', '.wrangler', '.astro', 
     'coverage', 'venv', '__pycache__'
 }
+
+# Directories exempt from Art 9.1 Confidentiality check (e.g., knowledge articles can use "prompt" in title)
+CONFIDENTIALITY_EXEMPT_DIRS = {
+    'knowledge'  # Knowledge base articles may discuss prompting techniques
+}
 IGNORE_FILES = {
     'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 
     'wrangler.toml', 'README.md', 'LICENSE',
@@ -133,10 +138,14 @@ def check_file(filepath, violations):
         return
     
     # 1. [Art 9.1] Forbidden Filenames (only after whitelist check)
-    for pattern in FORBIDDEN_FILES:
-        if re.search(pattern, filename, re.IGNORECASE):
-            violations.add(filepath, "Art 9.1 Confidentiality", f"Filename matches forbidden pattern '{pattern}'")
-            return # Critical fail, stop scanning content
+    # Check if file is in an exempt directory
+    is_exempt = any(exempt_dir in filepath.replace('\\', '/') for exempt_dir in CONFIDENTIALITY_EXEMPT_DIRS)
+    
+    if not is_exempt:
+        for pattern in FORBIDDEN_FILES:
+            if re.search(pattern, filename, re.IGNORECASE):
+                violations.add(filepath, "Art 9.1 Confidentiality", f"Filename matches forbidden pattern '{pattern}'")
+                return # Critical fail, stop scanning content
 
     ext = os.path.splitext(filename)[1]
     if ext not in SCAN_EXTENSIONS:
