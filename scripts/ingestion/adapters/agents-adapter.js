@@ -7,8 +7,9 @@ import { BaseAdapter } from './base-adapter.js';
 
 const GITHUB_API = 'https://api.github.com';
 
-// Curated AI agent frameworks
+// Curated AI agent frameworks and tools (V12 expanded)
 const CURATED_AGENTS = [
+    // Frameworks
     { repo: 'langchain-ai/langchain', cat: 'framework' },
     { repo: 'microsoft/autogen', cat: 'framework' },
     { repo: 'joaomdmoura/crewAI', cat: 'framework' },
@@ -16,16 +17,39 @@ const CURATED_AGENTS = [
     { repo: 'geekan/MetaGPT', cat: 'framework' },
     { repo: 'TransformerOptimus/SuperAGI', cat: 'framework' },
     { repo: 'OpenBMB/ChatDev', cat: 'framework' },
+    { repo: 'openai/swarm', cat: 'framework' },
+    { repo: 'phidatahq/phidata', cat: 'framework' },
+    { repo: 'assafelovic/gpt-researcher', cat: 'framework' },
+    // Tools & Libraries
     { repo: 'langchain-ai/langgraph', cat: 'tool' },
     { repo: 'run-llama/llama_index', cat: 'tool' },
-    { repo: 'openai/swarm', cat: 'framework' },
+    { repo: 'huggingface/transformers', cat: 'tool' },
+    { repo: 'vllm-project/vllm', cat: 'tool' },
+    { repo: 'oobabooga/text-generation-webui', cat: 'tool' },
+    { repo: 'ollama/ollama', cat: 'tool' },
+    { repo: 'lm-sys/FastChat', cat: 'tool' },
+    // Agents
     { repo: 'yoheinakajima/babyagi', cat: 'agent' },
     { repo: 'microsoft/TaskWeaver', cat: 'agent' },
     { repo: 'AntonOsika/gpt-engineer', cat: 'agent' },
     { repo: 'stitionai/devika', cat: 'agent' },
     { repo: 'OpenDevin/OpenDevin', cat: 'agent' },
     { repo: 'princeton-nlp/SWE-agent', cat: 'agent' },
-    { repo: 'modelcontextprotocol/servers', cat: 'mcp' }
+    { repo: 'Codium-ai/pr-agent', cat: 'agent' },
+    { repo: 'e2b-dev/code-interpreter', cat: 'agent' },
+    // MCP & RAG
+    { repo: 'modelcontextprotocol/servers', cat: 'mcp' },
+    { repo: 'chroma-core/chroma', cat: 'rag' },
+    { repo: 'qdrant/qdrant', cat: 'rag' },
+    { repo: 'weaviate/weaviate', cat: 'rag' },
+];
+
+// V12: Multiple search queries for broader coverage
+const SEARCH_QUERIES = [
+    'ai agent framework topic:llm stars:>1000',
+    'llm inference server stars:>500',
+    'autonomous agent gpt topic:ai stars:>500',
+    'rag retrieval augmented generation stars:>1000',
 ];
 
 export class AgentsAdapter extends BaseAdapter {
@@ -39,24 +63,26 @@ export class AgentsAdapter extends BaseAdapter {
         const { includeCurated = true, limit = 50 } = options;
         console.log(`📥 [Agents] Fetching AI agent data...`);
         const agents = [];
+        const existing = new Set();
 
         if (includeCurated) {
             console.log(`🔄 [Agents] Fetching ${CURATED_AGENTS.length} curated agents...`);
             for (const { repo, cat } of CURATED_AGENTS) {
                 const data = await this.fetchGitHubRepo(repo);
-                if (data) { data._category = cat; agents.push(data); }
+                if (data) { data._category = cat; agents.push(data); existing.add(repo); }
                 await this.delay(100);
             }
         }
 
-        // Search for additional agents
+        // V12: Multi-query search for broader coverage
         if (limit > 0) {
-            const searchResults = await this.searchGitHubRepos('ai agent framework topic:ai', limit);
-            const existing = new Set(agents.map(a => a.full_name));
-            searchResults.filter(r => !existing.has(r.full_name)).forEach(r => {
-                r._category = 'discovered';
-                agents.push(r);
-            });
+            for (const query of SEARCH_QUERIES) {
+                const perQuery = Math.ceil(limit / SEARCH_QUERIES.length);
+                const results = await this.searchGitHubRepos(query, perQuery);
+                results.filter(r => !existing.has(r.full_name)).forEach(r => {
+                    r._category = 'discovered'; agents.push(r); existing.add(r.full_name);
+                });
+            }
         }
 
         console.log(`📦 [Agents] Total: ${agents.length}`);
