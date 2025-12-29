@@ -1,7 +1,13 @@
-# V6.0 Redirect Rules (Constitution Phase 2)
+# URL-ROUTING-SPEC-V1.0 Redirect Rules
 # Format: /source /target code
+
+# V9.0 Route Consolidation
+/explore /models 301
+/leaderboard /ranking 301
+
+# Legacy vendor prefix removal
+/model/hf/* /model/:splat 301
+/arxiv/* /paper/:splat 301
 
 # Test Rule
 /model/deprecated-test /model/deepseek-r1 301
-
-# Add manual redirects below
