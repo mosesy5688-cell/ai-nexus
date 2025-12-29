@@ -20,6 +20,7 @@ import TechnicalSpecs from '../../components/model-detail/TechnicalSpecs.astro';
 import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import EntityRelations from '../../components/entity/EntityRelations.astro';
+import ModelNotFound from '../../components/model-detail/ModelNotFound.astro';
 
 // V4.9.1: Constitutional D1 = 0 - Use R2 cache reader instead of D1 queries
 import { getModelFromCache } from '../../utils/entity-cache-reader';
@@ -232,13 +233,7 @@ const jsonld = model ? {
         />
       </article>
     ) : (
-      <div class="container mx-auto px-4 py-12 text-center">
-        <div class="bg-yellow-50 text-yellow-800 p-8 rounded-lg max-w-2xl mx-auto">
-          <h1 class="text-3xl font-bold mb-4">Model Not Found</h1>
-          <p class="text-gray-600 mb-6">The model you are looking for does not exist or has been removed.</p>
-          <a href="/explore" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">Browse Models</a>
-        </div>
-      </div>
+      <ModelNotFound slug={slug} />
     )}
   </main>
 </Layout>

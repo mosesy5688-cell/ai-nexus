@@ -1,0 +1,71 @@
+---
+/**
+ * Model Not Found Component - V10.5
+ * Extracted for CES Art 5.1 Anti-Monolith compliance
+ */
+
+interface Props {
+  slug?: string;
+}
+
+const { slug } = Astro.props;
+---
+
+<div class="container mx-auto px-4 py-12">
+  <div class="max-w-2xl mx-auto text-center">
+    <!-- 404 Icon -->
+    <div class="text-8xl mb-6">🔍</div>
+    
+    <!-- Title -->
+    <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
+      Model Not Found
+    </h1>
+    
+    <!-- Description -->
+    <p class="text-xl text-gray-600 dark:text-gray-400 mb-8">
+      The model you're looking for doesn't exist yet or may have been renamed.
+    </p>
+    
+    <!-- Search Box -->
+    <form action="/" method="get" class="mb-8">
+      <div class="flex gap-2 max-w-md mx-auto">
+        <input 
+          type="text" 
+          name="q" 
+          placeholder="Search for a model..."
+          class="flex-1 px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-indigo-500 outline-none"
+        />
+        <button 
+          type="submit"
+          class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+        >
+          Search
+        </button>
+      </div>
+    </form>
+    
+    <!-- Helpful Links -->
+    <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-6 mb-8">
+      <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Try these instead:</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <a href="/ranking" class="p-4 bg-white dark:bg-gray-800 rounded-lg hover:shadow-md transition-all">
+          <span class="text-2xl block mb-2">📊</span>
+          <span class="font-semibold text-gray-900 dark:text-white">Rankings</span>
+        </a>
+        <a href="/text-generation" class="p-4 bg-white dark:bg-gray-800 rounded-lg hover:shadow-md transition-all">
+          <span class="text-2xl block mb-2">💬</span>
+          <span class="font-semibold text-gray-900 dark:text-white">LLMs</span>
+        </a>
+        <a href="/vision-multimedia" class="p-4 bg-white dark:bg-gray-800 rounded-lg hover:shadow-md transition-all">
+          <span class="text-2xl block mb-2">🎨</span>
+          <span class="font-semibold text-gray-900 dark:text-white">Vision</span>
+        </a>
+      </div>
+    </div>
+    
+    <!-- Back Link -->
+    <a href="/" class="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+      ← Back to Home
+    </a>
+  </div>
+</div>
