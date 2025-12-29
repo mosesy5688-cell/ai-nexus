@@ -26,7 +26,17 @@ def load_entities_from_r2(client, bucket):
         entity_list = data if isinstance(data, list) else data.get("entities", data.get("models", []))
         
         for entity in entity_list:
-            slug = entity.get("slug") or entity.get("id", "").replace(":", "--")
+            # V10.4: Generate SEO-friendly slug (author/name format)
+            # Remove source prefix from ID (e.g., "replicate:meta/model" -> "meta/model")
+            raw_id = entity.get("id", "")
+            if ":" in raw_id:
+                slug = raw_id.split(":", 1)[1]  # Remove source prefix
+            else:
+                slug = raw_id
+            
+            # Use explicit slug if provided, otherwise use cleaned ID
+            slug = entity.get("slug") or slug
+            
             if slug:
                 entities.append({
                     "type": entity.get("type", "model"),
