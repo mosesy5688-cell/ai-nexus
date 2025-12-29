@@ -19,10 +19,10 @@ const R2_BUCKET = 'ai-nexus-assets';
  */
 function getCachePath(entity) {
     const slug = entity.slug || entity.id.replace(/\//g, '--');
-    if (entity.type === 'model' || entity.id.startsWith('huggingface')) {
-        return `cache/models/${slug}.json`;
-    }
-    return `cache/entities/${entity.type || 'model'}/${slug}.json`;
+    // V11: Unified Constitutional Cache Path
+    // All entities use cache/entities/{type}/{slug}.json structure
+    const type = entity.type || 'model';
+    return `cache/entities/${type}/${slug}.json`;
 }
 
 /**
