@@ -102,9 +102,10 @@ export async function resolveEntityFromCache(slug, locals) {
 
     const normalizedSlug = normalizeForCache(slug);
 
+    // V11: Unified cache path structure
     // Determine entity type from slug prefix
     const isDataset = slug.includes('hf-dataset') || slug.startsWith('dataset');
-    const cachePrefix = isDataset ? 'cache/datasets' : 'cache/models';
+    const cachePrefix = isDataset ? 'cache/entities/dataset' : 'cache/entities/model';
 
     // V5.0: Use urlSlugToLookupFormats to try multiple formats
     // For clean URLs like "author/name", we need to try with source prefixes
@@ -125,6 +126,7 @@ export async function resolveEntityFromCache(slug, locals) {
 
     // Also try the original format variations
     cachePaths.push(`${cachePrefix}/${slug.replace(/\//g, '--')}.json`);
+    // V11: Legacy fallback paths
     cachePaths.push(`cache/models/${normalizedSlug}.json`);
 
     // V6.4 Patch: Handle 'huggingface:' prefix in URLs (legacy links)
