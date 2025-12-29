@@ -56,6 +56,11 @@ export function normalizeModel(raw, adapter) {
         hidden_size: metaJson.hidden_size,
         num_layers: metaJson.num_layers,
 
+        // V12: Explicit relationship fields for knowledge graph
+        base_model: extractBaseModel(raw),
+        datasets_used: extractDatasetsUsed(raw),
+        arxiv_refs: extractArxivRefs(raw),
+
         // Assets
         raw_image_url: null,
 
@@ -203,4 +208,22 @@ export function normalizeSpace(raw, adapter) {
     entity.quality_score = adapter.calculateQualityScore(entity);
 
     return entity;
+}
+
+// V12: Explicit Relationship Extraction Functions
+function extractBaseModel(raw) {
+    const tags = raw.tags || [];
+    const baseTag = tags.find(t => t.startsWith('base_model:'));
+    if (baseTag) return baseTag.replace('base_model:', '');
+    if (raw.cardData?.base_model) return raw.cardData.base_model;
+    if (raw.cardData?.['model-index']?.[0]?.['base_model']) return raw.cardData['model-index'][0]['base_model'];
+    return null;
+}
+
+function extractDatasetsUsed(raw) {
+    return (raw.tags || []).filter(t => t.startsWith('dataset:')).map(t => t.replace('dataset:', ''));
+}
+
+function extractArxivRefs(raw) {
+    return (raw.tags || []).filter(t => t.startsWith('arxiv:')).map(t => t.replace('arxiv:', ''));
 }
