@@ -196,6 +196,22 @@ jobs:
           # V2.1: Increased from 100 to 2000 for params_billions coverage
           node scripts/ingestion/harvest-single.js deepspec --limit 2000 || echo "DeepSpec adapter skipped"
 
+      # V12: HuggingFace Spaces (Interactive demos with model relations)
+      - name: Harvest HuggingFace Spaces
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "📥 [Parallel] Harvesting HuggingFace Spaces..."
+          node scripts/ingestion/harvest-single.js huggingface-spaces --limit 500 || echo "Spaces adapter skipped"
+
+      # V12: AI Agents (Frameworks & tools from GitHub)
+      - name: Harvest AI Agents
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "📥 [Parallel] Harvesting AI Agents..."
+          node scripts/ingestion/harvest-single.js agents --limit 50 || echo "Agents adapter skipped"
+
       - name: Upload Batch Artifacts
         uses: actions/upload-artifact@v4
         with:
