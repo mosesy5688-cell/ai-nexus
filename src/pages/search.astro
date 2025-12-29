@@ -13,7 +13,18 @@ import Layout from '@/layouts/Layout.astro';
 export const prerender = false;
 
 const query = Astro.url.searchParams.get('q') || '';
+const typeFilter = Astro.url.searchParams.get('type') || 'all';
 const searchPerformed = query.length >= 2;
+
+// V12: Entity type configuration
+const entityTypes = [
+  { id: 'all', label: 'All', icon: '🔍' },
+  { id: 'model', label: 'Models', icon: '🤖' },
+  { id: 'space', label: 'Spaces', icon: '🚀' },
+  { id: 'agent', label: 'Agents', icon: '🤖' },
+  { id: 'dataset', label: 'Datasets', icon: '📊' },
+  { id: 'paper', label: 'Papers', icon: '📄' },
+];
 
 let results: any[] = [];
 let error: string | null = null;
@@ -24,6 +35,9 @@ if (searchPerformed) {
         const apiUrl = new URL('/api/search', Astro.url.origin);
         apiUrl.searchParams.set('q', query);
         apiUrl.searchParams.set('limit', '20');
+        if (typeFilter !== 'all') {
+            apiUrl.searchParams.set('type', typeFilter);
+        }
         
         const response = await fetch(apiUrl.toString());
         if (response.ok) {
@@ -58,22 +72,34 @@ const knowledgeItems = [
             </h1>
             
             <!-- Search Form -->
-            <form method="get" action="/search" class="flex gap-2">
-                <input 
-                    type="text" 
-                    name="q" 
-                    value={query}
-                    placeholder="Search models, tools, knowledge..."
-                    class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    minlength="2"
-                    required
-                />
-                <button 
-                    type="submit"
-                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-                >
-                    Search
-                </button>
+            <form method="get" action="/search" class="space-y-4">
+                <div class="flex gap-2">
+                    <input 
+                        type="text" 
+                        name="q" 
+                        value={query}
+                        placeholder="Search models, spaces, agents..."
+                        class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        minlength="2"
+                        required
+                    />
+                    <button 
+                        type="submit"
+                        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                    >
+                        Search
+                    </button>
+                </div>
+                <!-- V12: Type Filter -->
+                <div class="flex flex-wrap gap-2">
+                    {entityTypes.map(type => (
+                        <label class={`flex items-center gap-1 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${typeFilter === type.id ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                            <input type="radio" name="type" value={type.id} checked={typeFilter === type.id} class="sr-only" />
+                            <span>{type.icon}</span>
+                            <span class="text-sm font-medium">{type.label}</span>
+                        </label>
+                    ))}
+                </div>
             </form>
         </div>
 
@@ -88,32 +114,34 @@ const knowledgeItems = [
         {searchPerformed ? (
             results.length > 0 || knowledgeItems.length > 0 ? (
                 <div class="space-y-8">
-                    <!-- Model Results -->
+                <!-- Results -->
                     {results.length > 0 && (
                         <section>
                             <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                                Models ({results.length})
+                                Results ({results.length})
                             </h2>
                             <div class="grid gap-4">
-                                {results.map((item) => (
-                                    <a 
-                                        href={`/model/${item.id}`}
-                                        class="block p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition"
-                                    >
-                                        <div class="flex justify-between items-start">
-                                            <div>
-                                                <h3 class="font-semibold text-gray-800 dark:text-white">{item.name}</h3>
-                                                <p class="text-sm text-gray-500 dark:text-gray-400">{item.author}</p>
+                                {results.map((item) => {
+                                    const itemType = item.type || 'model';
+                                    const href = `/${itemType}/${item.id || item.slug}`;
+                                    const typeConfig = entityTypes.find(t => t.id === itemType) || entityTypes[1];
+                                    return (
+                                        <a href={href}
+                                           class="block p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition">
+                                            <div class="flex justify-between items-start">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
+                                                        {typeConfig.icon} {typeConfig.label}
+                                                    </span>
+                                                    <h3 class="font-semibold text-gray-800 dark:text-white">{item.name || item.title}</h3>
+                                                </div>
+                                                {item.fni_score && <span class="text-sm font-bold text-blue-600">FNI {item.fni_score}</span>}
                                             </div>
-                                            {item.fni_score && (
-                                                <span class="text-sm font-bold text-blue-600">FNI {item.fni_score}</span>
-                                            )}
-                                        </div>
-                                        {item.description && (
-                                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{item.description}</p>
-                                        )}
-                                    </a>
-                                ))}
+                                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">by {item.author}</p>
+                                            {item.description && <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{item.description}</p>}
+                                        </a>
+                                    );
+                                })}
                             </div>
                         </section>
                     )}
