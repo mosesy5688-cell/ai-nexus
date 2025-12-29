@@ -29,6 +29,10 @@ export async function consumeHydrationQueue(batch: any, env: Env): Promise<void>
 
     const materialize = async (body: any) => {
         const { model, relatedLinks } = body;
+
+        // V10.5: Use model.entity_type if provided, fallback to ID pattern detection
+        const entityType = model.entity_type || deriveEntityType(model.id);
+
         // V10.4: Normalize slug to match cache reader lookup format
         // Format: source--author--name (e.g., replicate--meta--meta-llama-3.1-405b-instruct)
         let slug = model.slug;
@@ -41,7 +45,6 @@ export async function consumeHydrationQueue(batch: any, env: Env): Promise<void>
             const normalizedId = idWithoutSource.replace(/\//g, '--').replace(/:/g, '--');
             slug = `${source}--${normalizedId}`.toLowerCase();
         }
-        const entityType = deriveEntityType(model.id);
 
         // V8.0: Extract similar_models from meta_json if computed by L5
         let metaJson = model.meta_json || {};
