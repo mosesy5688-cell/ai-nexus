@@ -26,8 +26,20 @@ let pageDescription = "Explore this AI agent's capabilities and features.";
 try {
   if (!slug) throw new Error("No slug provided");
   
-  // Get agent from cache using same mechanism as models
-  agent = await getModelFromCache(slug, Astro.locals);
+  // V12: Get agent from cache/entities/agent/ path
+  const runtime = Astro.locals.runtime;
+  if (runtime?.env?.R2_ASSETS) {
+    const r2 = runtime.env.R2_ASSETS;
+    const cacheFile = await r2.get(`cache/entities/agent/${slug}.json`);
+    if (cacheFile) {
+      const cacheData = await cacheFile.json();
+      agent = cacheData.entity || cacheData;
+    }
+  }
+  // Fallback to old cache reader
+  if (!agent) {
+    agent = await getModelFromCache(slug, Astro.locals);
+  }
 
   if (agent) {
     const agentName = agent.name || agent.canonical_name || 'Unknown Agent';

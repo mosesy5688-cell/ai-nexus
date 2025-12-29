@@ -23,6 +23,8 @@ import { MCPAdapter } from './mcp-adapter.js';  // V6.2: MCP Registry
 import { ReplicateAdapter } from './replicate-adapter.js';  // B.1: Replicate
 import { KaggleAdapter } from './kaggle-adapter.js';  // B.1: Kaggle
 import { LangChainAdapter } from './langchain-adapter.js';  // B.1: LangChain Hub
+import { SpacesAdapter } from './spaces-adapter.js';  // V12: HF Spaces
+import { AgentsAdapter } from './agents-adapter.js';  // V12: AI Agents
 
 // Export base for extension
 export { BaseAdapter, NSFW_KEYWORDS, LICENSE_MAP } from './base-adapter.js';
@@ -44,6 +46,8 @@ export { MCPAdapter } from './mcp-adapter.js';  // V6.2: MCP Registry
 export { ReplicateAdapter } from './replicate-adapter.js';  // B.1: Replicate
 export { KaggleAdapter } from './kaggle-adapter.js';  // B.1: Kaggle
 export { LangChainAdapter } from './langchain-adapter.js';  // B.1: LangChain Hub
+export { SpacesAdapter } from './spaces-adapter.js';  // V12: HF Spaces
+export { AgentsAdapter } from './agents-adapter.js';  // V12: AI Agents
 
 // Registered adapters (V4.3.2 - Multi-source with Benchmarks + Specs + Citations)
 export const adapters = {
@@ -85,6 +89,12 @@ export const adapters = {
 
     // B.1: LangChain Hub (2K+ prompts/agents)
     'langchain': new LangChainAdapter(),
+
+    // V12: HuggingFace Spaces (Interactive demos)
+    'huggingface-spaces': new SpacesAdapter(),
+
+    // V12: AI Agents (Frameworks & tools from GitHub)
+    'agents': new AgentsAdapter(),
 };
 
 /**
