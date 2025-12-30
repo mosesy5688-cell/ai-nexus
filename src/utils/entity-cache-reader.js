@@ -18,14 +18,18 @@ import { urlSlugToLookupFormats } from './url-utils.js';
 /**
  * Normalize slug for cache file lookup
  * Handles both new format (author/model) and legacy format (source:author/model)
- * @param {string} slug - Input slug
+ * Also handles array slugs from [...slug] routes
+ * @param {string|string[]} slug - Input slug
  * @returns {string} - Normalized slug for file path
  */
 export function normalizeForCache(slug) {
     if (!slug) return '';
 
+    // Handle array slugs from Astro [...slug] routes
+    let slugStr = Array.isArray(slug) ? slug.join('--') : slug;
+
     // Remove any source prefix first (e.g., "huggingface:")
-    let normalized = slug.replace(/^[a-z]+:/i, '');
+    let normalized = slugStr.replace(/^[a-z]+:/i, '');
 
     return normalized
         .toLowerCase()
@@ -36,12 +40,12 @@ export function normalizeForCache(slug) {
 
 /**
  * Resolve an entity from R2 cache (Constitutional: D1 = 0)
- * @param {string} slug - Entity slug
+ * @param {string|string[]} slug - Entity slug (can be array from [...slug])
  * @param {object} locals - Astro locals with runtime env
  * @returns {Promise<{entity: object|null, source: string}>}
  */
 export async function resolveEntityFromCache(slug, locals) {
-    if (!slug) {
+    if (!slug || (Array.isArray(slug) && slug.length === 0)) {
         return { entity: null, source: 'invalid-slug' };
     }
 
