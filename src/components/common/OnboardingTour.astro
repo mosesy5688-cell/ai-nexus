@@ -1,0 +1,205 @@
+---
+/**
+ * OnboardingTour.astro
+ * 
+ * Phase 12: New User Onboarding Component
+ * Shows a quick tour for first-time visitors
+ * Uses localStorage to track if user has seen the tour
+ * 
+ * @component
+ */
+
+interface Props {
+  showOnMount?: boolean;
+}
+
+const { showOnMount = true } = Astro.props;
+---
+
+<!-- Onboarding Modal -->
+<div id="onboarding-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm">
+  <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">
+    <!-- Progress Bar -->
+    <div class="h-1 bg-gray-200 dark:bg-gray-700">
+      <div id="onboarding-progress" class="h-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-300" style="width: 25%"></div>
+    </div>
+    
+    <!-- Content -->
+    <div class="p-6">
+      <!-- Step 1: Welcome -->
+      <div id="step-1" class="onboarding-step">
+        <div class="text-center mb-6">
+          <div class="text-5xl mb-4">🤖</div>
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Welcome to Free2AI Tools!</h2>
+          <p class="text-gray-600 dark:text-gray-300">Your gateway to the open-source AI ecosystem</p>
+        </div>
+        <ul class="space-y-3 text-left">
+          <li class="flex items-center gap-3 text-gray-700 dark:text-gray-200">
+            <span class="text-xl">🔍</span>
+            <span>Search 70,000+ AI Models</span>
+          </li>
+          <li class="flex items-center gap-3 text-gray-700 dark:text-gray-200">
+            <span class="text-xl">📊</span>
+            <span>Compare & Rank with FNI Scores</span>
+          </li>
+          <li class="flex items-center gap-3 text-gray-700 dark:text-gray-200">
+            <span class="text-xl">📚</span>
+            <span>Explore Papers, Datasets & Agents</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Step 2: Search -->
+      <div id="step-2" class="onboarding-step hidden">
+        <div class="text-center mb-6">
+          <div class="text-5xl mb-4">🔍</div>
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Smart Search</h2>
+          <p class="text-gray-600 dark:text-gray-300">Find exactly what you need</p>
+        </div>
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-2">
+          <p class="text-sm text-gray-600 dark:text-gray-300">Try searching for:</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-3 py-1 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full text-sm">llama 70b</span>
+            <span class="px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-sm">code generation</span>
+            <span class="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm">gguf quantized</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: FNI -->
+      <div id="step-3" class="onboarding-step hidden">
+        <div class="text-center mb-6">
+          <div class="text-5xl mb-4">🛡️</div>
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">FNI Score</h2>
+          <p class="text-gray-600 dark:text-gray-300">Freshness-Novelty Index helps you find quality models</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-gradient-to-br from-yellow-50 to-amber-100 dark:from-yellow-900/30 dark:to-amber-900/30 p-3 rounded-lg text-center">
+            <span class="text-2xl">🏆</span>
+            <p class="text-sm font-medium text-amber-800 dark:text-amber-200">Top 10%</p>
+          </div>
+          <div class="bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-purple-900/30 dark:to-indigo-900/30 p-3 rounded-lg text-center">
+            <span class="text-2xl">📈</span>
+            <p class="text-sm font-medium text-indigo-800 dark:text-indigo-200">Trending</p>
+          </div>
+        </div>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-3 text-center">
+          <a href="/methodology" class="text-indigo-600 dark:text-indigo-400 hover:underline">Learn more about FNI →</a>
+        </p>
+      </div>
+
+      <!-- Step 4: Ready -->
+      <div id="step-4" class="onboarding-step hidden">
+        <div class="text-center mb-6">
+          <div class="text-5xl mb-4">🚀</div>
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">You're All Set!</h2>
+          <p class="text-gray-600 dark:text-gray-300">Start exploring the AI ecosystem</p>
+        </div>
+        <div class="flex flex-col gap-3">
+          <a href="/ranking" class="block text-center px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
+            📊 View Rankings
+          </a>
+          <a href="/agent" class="block text-center px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors">
+            🤖 Explore Agents
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="px-6 pb-6 flex justify-between items-center">
+      <button id="onboarding-skip" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm">
+        Skip tour
+      </button>
+      <div class="flex gap-2">
+        <button id="onboarding-prev" class="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg hidden">
+          Back
+        </button>
+        <button id="onboarding-next" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium">
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ showOnMount }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const STORAGE_KEY = 'free2ai_onboarding_complete';
+    const modal = document.getElementById('onboarding-modal');
+    const progress = document.getElementById('onboarding-progress');
+    const steps = document.querySelectorAll('.onboarding-step');
+    const prevBtn = document.getElementById('onboarding-prev');
+    const nextBtn = document.getElementById('onboarding-next');
+    const skipBtn = document.getElementById('onboarding-skip');
+    
+    let currentStep = 1;
+    const totalSteps = 4;
+
+    // Check if user has completed onboarding
+    const hasCompleted = localStorage.getItem(STORAGE_KEY);
+    
+    if (showOnMount && !hasCompleted && modal) {
+      // Show modal with slight delay for better UX
+      setTimeout(() => {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }, 500);
+    }
+
+    function updateStep() {
+      // Update progress bar
+      if (progress) {
+        progress.style.width = `${(currentStep / totalSteps) * 100}%`;
+      }
+
+      // Show/hide steps
+      steps.forEach((step, index) => {
+        step.classList.toggle('hidden', index + 1 !== currentStep);
+      });
+
+      // Update buttons
+      if (prevBtn) prevBtn.classList.toggle('hidden', currentStep === 1);
+      if (nextBtn) nextBtn.textContent = currentStep === totalSteps ? 'Get Started' : 'Next';
+    }
+
+    function closeModal() {
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+      localStorage.setItem(STORAGE_KEY, 'true');
+    }
+
+    // Event listeners
+    nextBtn?.addEventListener('click', () => {
+      if (currentStep < totalSteps) {
+        currentStep++;
+        updateStep();
+      } else {
+        closeModal();
+      }
+    });
+
+    prevBtn?.addEventListener('click', () => {
+      if (currentStep > 1) {
+        currentStep--;
+        updateStep();
+      }
+    });
+
+    skipBtn?.addEventListener('click', closeModal);
+
+    // Close on background click
+    modal?.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+        closeModal();
+      }
+    });
+  });
+</script>
