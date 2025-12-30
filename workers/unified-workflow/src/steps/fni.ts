@@ -15,22 +15,22 @@ export async function runFNIStep(env: Env): Promise<{ modelsCalculated: number; 
         const snapshotDate = new Date().toISOString().split('T')[0];
         await env.DB.prepare(`
             INSERT OR IGNORE INTO entities_history (entity_id, umid, type, downloads, likes, snapshot_date)
-            SELECT id, umid, type, downloads, likes, ? FROM entities WHERE type='model'
+            SELECT id, umid, type, downloads, likes, ? FROM entities WHERE type IN ('model', 'agent')
         `).bind(snapshotDate).run();
         console.log('[FNI] Snapshot complete');
     }
 
-    // V5.2.1: Only calculate FNI for actual models, not datasets/papers/repos
-    // Models use huggingface-- or ollama prefix; others (arxiv--, hf-dataset--, github--) are excluded
-    const modelFilter = `type='model' AND (id LIKE 'huggingface%' OR id LIKE 'ollama%')`;
+    // V5.2.1: Calculate FNI for models and agents (model-like entities)
+    // Includes: huggingface models, ollama models, github agents
+    const fniEntityFilter = `(type='model' OR type='agent') AND (id LIKE 'huggingface%' OR id LIKE 'ollama%' OR id LIKE 'github-agent%')`;
 
     const query = isFullRecalc
         ? `SELECT id, downloads, likes, license_spdx, body_content_url, 
            source_trail, has_ollama, has_gguf FROM entities
-           WHERE ${modelFilter}`
+           WHERE ${fniEntityFilter}`
         : `SELECT id, downloads, likes, license_spdx, body_content_url, 
            source_trail, has_ollama, has_gguf FROM entities 
-           WHERE ${modelFilter} AND last_updated > datetime('now', '-1 day')`;
+           WHERE ${fniEntityFilter} AND last_updated > datetime('now', '-1 day')`;
 
     const models = await env.DB.prepare(query).all();
 
