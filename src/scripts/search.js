@@ -162,9 +162,9 @@ async function initializeSearch({ initialQuery, activeTag, isExplorePage: onExpl
             e.preventDefault();
             if (searchBox) currentQuery = searchBox.value.trim();
 
-            // V8.1-LOCK Phase 1: Enter on homepage navigates to /explore
+            // V12: Enter on homepage navigates to /search (not /explore which is deprecated)
             if (!isExplorePage && currentQuery) {
-                window.location.href = `/explore?q=${encodeURIComponent(currentQuery)}`;
+                window.location.href = `/search?q=${encodeURIComponent(currentQuery)}`;
                 return;
             }
 
