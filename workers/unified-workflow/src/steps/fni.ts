@@ -12,10 +12,11 @@ export async function runFNIStep(env: Env): Promise<{ modelsCalculated: number; 
     // On full recalc, take a daily snapshot first
     if (isFullRecalc) {
         console.log('[FNI] Taking daily snapshot for Velocity tracking...');
+        const snapshotDate = new Date().toISOString().split('T')[0];
         await env.DB.prepare(`
-            INSERT INTO entities_history (model_id, downloads, likes)
-            SELECT id, downloads, likes FROM entities WHERE type='model'
-        `).run();
+            INSERT OR IGNORE INTO entities_history (entity_id, umid, type, downloads, likes, snapshot_date)
+            SELECT id, umid, type, downloads, likes, ? FROM entities WHERE type='model'
+        `).bind(snapshotDate).run();
         console.log('[FNI] Snapshot complete');
     }
 
@@ -42,13 +43,13 @@ export async function runFNIStep(env: Env): Promise<{ modelsCalculated: number; 
     const historyMap = new Map<string, { downloads: number; likes: number }>();
     if (isFullRecalc) {
         const history = await env.DB.prepare(`
-            SELECT model_id, downloads, likes 
+            SELECT entity_id, downloads, likes 
             FROM entities_history 
-            WHERE recorded_at < datetime('now', '-6 days')
-            AND recorded_at > datetime('now', '-8 days')
+            WHERE snapshot_date < date('now', '-6 days')
+            AND snapshot_date > date('now', '-8 days')
         `).all();
         for (const h of (history.results || []) as any[]) {
-            historyMap.set(h.model_id, { downloads: h.downloads || 0, likes: h.likes || 0 });
+            historyMap.set(h.entity_id, { downloads: h.downloads || 0, likes: h.likes || 0 });
         }
         console.log(`[FNI] Found ${historyMap.size} models with 7-day history`);
     }
