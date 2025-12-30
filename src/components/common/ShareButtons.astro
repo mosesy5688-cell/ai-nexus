@@ -1,0 +1,114 @@
+---
+/**
+ * ShareButtons.astro - V12 Social Sharing
+ * Provides share functionality for entity detail pages
+ * Constitution: No tracking, simple native share API + fallback links
+ */
+interface Props {
+  title: string;
+  url?: string;
+  description?: string;
+}
+
+const { title, url = Astro.url.href, description = '' } = Astro.props;
+
+const encodedUrl = encodeURIComponent(url);
+const encodedTitle = encodeURIComponent(title);
+const encodedDesc = encodeURIComponent(description.slice(0, 100));
+
+const shareLinks = [
+  { name: 'X', icon: '𝕏', url: `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`, color: 'hover:bg-gray-900' },
+  { name: 'LinkedIn', icon: 'in', url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`, color: 'hover:bg-blue-700' },
+  { name: 'Reddit', icon: '📣', url: `https://reddit.com/submit?url=${encodedUrl}&title=${encodedTitle}`, color: 'hover:bg-orange-600' },
+];
+---
+
+<div class="share-buttons flex items-center gap-2">
+  <span class="text-sm text-gray-500 dark:text-gray-400">Share:</span>
+  
+  <!-- Native Share Button (mobile) -->
+  <button 
+    id="native-share-btn"
+    class="hidden share-btn bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-200 dark:hover:bg-indigo-800"
+    data-title={title}
+    data-url={url}
+    data-text={description.slice(0, 100)}
+  >
+    📤
+  </button>
+  
+  <!-- Social Links -->
+  {shareLinks.map(link => (
+    <a 
+      href={link.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      class={`share-btn bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 ${link.color}`}
+      title={`Share on ${link.name}`}
+    >
+      {link.icon}
+    </a>
+  ))}
+  
+  <!-- Copy Link -->
+  <button 
+    id="copy-link-btn"
+    class="share-btn bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+    data-url={url}
+    title="Copy link"
+  >
+    🔗
+  </button>
+</div>
+
+<style>
+  .share-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+    border: none;
+    cursor: pointer;
+  }
+  .share-btn:hover {
+    transform: scale(1.1);
+    color: white;
+  }
+</style>
+
+<script>
+  // Native Share API support
+  const nativeBtn = document.getElementById('native-share-btn');
+  if (nativeBtn && navigator.share) {
+    nativeBtn.classList.remove('hidden');
+    nativeBtn.addEventListener('click', async () => {
+      try {
+        await navigator.share({
+          title: nativeBtn.dataset.title,
+          text: nativeBtn.dataset.text,
+          url: nativeBtn.dataset.url,
+        });
+      } catch (e) {
+        console.log('Share cancelled');
+      }
+    });
+  }
+  
+  // Copy link functionality
+  const copyBtn = document.getElementById('copy-link-btn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(copyBtn.dataset.url || window.location.href);
+        copyBtn.textContent = '✓';
+        setTimeout(() => copyBtn.textContent = '🔗', 1500);
+      } catch (e) {
+        console.error('Copy failed:', e);
+      }
+    });
+  }
+</script>
