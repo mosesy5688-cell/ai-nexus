@@ -57,15 +57,19 @@ const totalArticles = getTotalArticleCount();
     </div>
 
     <!-- Categories Grid -->
-    <section class="mb-12">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-3">
-        <span class="w-1 h-8 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full"></span>
-        Explore Topics
-      </h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {KNOWLEDGE_CATEGORIES.map(category => (
-          <KnowledgeCategoryCard category={category} />
-        ))}
+    <div class="categories-grid">
+      {KNOWLEDGE_CATEGORIES.map(category => (
+        <KnowledgeCategoryCard category={category} />
+      ))}
+    </div>
+
+    <!-- CTA -->
+    <div class="kb-cta">
+      <h3>Ready to explore models?</h3>
+      <p>Apply your knowledge to find the perfect AI model for your use case</p>
+      <div class="cta-buttons">
+        <a href="/ranking" class="btn-primary">View Rankings</a>
+        <a href="/models" class="btn-secondary">Browse Models</a>
       </div>
     </section>
 
