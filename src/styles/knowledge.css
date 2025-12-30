@@ -33,16 +33,25 @@
     font-size: 2.25rem;
     font-weight: 800;
     color: #111827;
-    /* V3.1: gray-900 for Light Mode */
     margin: 0 0 0.75rem;
+}
+
+/* Dark Mode */
+:root.dark .article-title,
+.dark .article-title {
+    color: #f9fafb;
 }
 
 .article-description {
     color: #4b5563;
-    /* V3.1: gray-600 for Light Mode */
     font-size: 1.125rem;
     line-height: 1.6;
     margin: 0;
+}
+
+:root.dark .article-description,
+.dark .article-description {
+    color: #d1d5db;
 }
 
 .article-content {
