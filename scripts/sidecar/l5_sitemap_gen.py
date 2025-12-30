@@ -36,16 +36,20 @@ ENTITY_CONFIGS = [
     {"type": "agent", "path_prefix": "/agent/", "changefreq": "weekly"},
 ]
 
-# Static pages - V10.4: Updated to remove redirected pages
+# Static pages - V12: URL-ROUTING-SPEC-V1.0 compliant
 STATIC_PAGES = [
     {"path": "/", "priority": "1.0", "changefreq": "daily"},
+    {"path": "/models", "priority": "0.9", "changefreq": "daily"},  # V12: New entry
     {"path": "/ranking", "priority": "0.8", "changefreq": "daily"},
+    {"path": "/search", "priority": "0.8", "changefreq": "daily"},
     {"path": "/knowledge", "priority": "0.7", "changefreq": "weekly"},
+    {"path": "/agent", "priority": "0.7", "changefreq": "weekly"},  # V12: Agent listing
+    {"path": "/space", "priority": "0.7", "changefreq": "weekly"},  # V12: Space listing
     {"path": "/reports", "priority": "0.7", "changefreq": "weekly"},
     {"path": "/compare", "priority": "0.6", "changefreq": "weekly"},
     {"path": "/methodology", "priority": "0.5", "changefreq": "monthly"},
     {"path": "/about", "priority": "0.4", "changefreq": "monthly"},
-    # V10.4: Add category pages
+    # Category pages
     {"path": "/text-generation", "priority": "0.8", "changefreq": "daily"},
     {"path": "/knowledge-retrieval", "priority": "0.8", "changefreq": "daily"},
     {"path": "/vision-multimedia", "priority": "0.8", "changefreq": "daily"},
