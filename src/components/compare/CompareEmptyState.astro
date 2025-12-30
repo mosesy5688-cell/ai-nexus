@@ -1,10 +1,96 @@
 ---
-// src/components/compare/CompareEmptyState.astro
+/**
+ * CompareEmptyState.astro
+ * 
+ * Phase 12: Enhanced empty state with localStorage integration
+ * Shows saved compare list and quick actions
+ * 
+ * @component
+ */
 ---
 
-<div class="empty-state">
-  <div class="empty-icon">📊</div>
-  <h2>No Models Selected</h2>
-  <p>Select 2-4 models above to start comparing</p>
-  <a href="/leaderboard" class="btn-secondary">Browse Leaderboard</a>
+<div class="empty-state bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-8 text-center">
+  <div class="empty-icon text-6xl mb-4">📊</div>
+  <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">No Models Selected</h2>
+  <p class="text-gray-600 dark:text-gray-300 mb-6">Select 2-4 models to start comparing their performance and specifications</p>
+  
+  <!-- Saved compare list from localStorage -->
+  <div id="saved-compare-list" class="hidden mb-6">
+    <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">📌 Your Saved Models:</h3>
+    <div id="saved-models-grid" class="flex flex-wrap justify-center gap-2 mb-4">
+      <!-- Populated by JavaScript -->
+    </div>
+    <button id="compare-saved-btn" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
+      Compare Selected Models
+    </button>
+  </div>
+  
+  <!-- Default actions when no saved models -->
+  <div id="default-actions" class="flex flex-col sm:flex-row gap-3 justify-center">
+    <a href="/ranking" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors">
+      Browse Rankings
+    </a>
+    <a href="/search" class="px-6 py-3 bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+      Search Models
+    </a>
+  </div>
+  
+  <!-- Tips -->
+  <div class="mt-8 text-sm text-gray-500 dark:text-gray-400">
+    <p class="mb-2">💡 <strong>Tip:</strong> Click "Compare This Model" on any model page to add it to your comparison list</p>
+  </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const STORAGE_KEY = 'compareModels';
+    const savedList = document.getElementById('saved-compare-list');
+    const savedGrid = document.getElementById('saved-models-grid');
+    const defaultActions = document.getElementById('default-actions');
+    const compareBtn = document.getElementById('compare-saved-btn');
+    
+    // Load saved models from localStorage
+    const savedModels = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    
+    if (savedModels.length > 0 && savedList && savedGrid && defaultActions) {
+      // Show saved list
+      savedList.classList.remove('hidden');
+      defaultActions.classList.add('hidden');
+      
+      // Populate grid
+      savedModels.forEach((model: any, index: number) => {
+        const chip = document.createElement('div');
+        chip.className = 'flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600';
+        chip.innerHTML = `
+          <span class="text-sm font-medium text-gray-700 dark:text-gray-200">${model.name}</span>
+          <button class="remove-model text-gray-400 hover:text-red-500 transition-colors" data-index="${index}">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        `;
+        savedGrid.appendChild(chip);
+      });
+      
+      // Remove model handler
+      savedGrid.querySelectorAll('.remove-model').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const index = parseInt((e.currentTarget as HTMLElement).dataset.index || '0');
+          savedModels.splice(index, 1);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(savedModels));
+          location.reload();
+        });
+      });
+      
+      // Compare button handler
+      compareBtn?.addEventListener('click', () => {
+        if (savedModels.length < 2) {
+          alert('Please add at least 2 models to compare');
+          return;
+        }
+        const params = savedModels.slice(0, 4).map((m: any) => `m=${encodeURIComponent(m.id)}`).join('&');
+        window.location.href = `/compare?${params}`;
+      });
+    }
+  });
+</script>

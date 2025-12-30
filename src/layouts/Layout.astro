@@ -2,6 +2,7 @@
 // src/layouts/Layout.astro
 import Header from '@/components/Header.astro';
 import Footer from '@/components/Footer.astro';
+import OnboardingTour from '@/components/common/OnboardingTour.astro';
 
 // V9.70: Ensure global Tailwind CSS is ALWAYS included
 // This import MUST be at layout level to ensure all pages get Tailwind
@@ -113,6 +114,7 @@ const schemaToUse = jsonld || defaultSchema;
     <!-- End Google Tag Manager (noscript) -->
     
     <Header />
+    <OnboardingTour />
     <slot />
     <Footer />
 </body>
