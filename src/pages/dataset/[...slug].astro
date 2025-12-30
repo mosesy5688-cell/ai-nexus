@@ -1,13 +1,5 @@
 ---
-/**
- * Dataset Detail Page - V5.0 Entity-First Architecture
- * 
- * Constitution V4.9 Compliance:
- * - Art.X-Entity: Renders by entity.definition
- * - Frontend D1 = 0: Uses L8 cache only
- * - Art.X-Entity-Link: Bidirectional entity links
- */
-
+/** Dataset Detail Page - V5.0 Entity-First (Art.X-Entity, D1=0) */
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
@@ -17,7 +9,22 @@ import { getEntityFromCache } from '../../utils/entity-cache-reader.js';
 
 // Get slug from URL
 const { slug } = Astro.params;
-const datasetSlug = Array.isArray(slug) ? slug.join('/') : slug;
+
+// Handle slug as array or string, normalize for cache lookup
+// URL: /dataset/author/name -> Cache: hf-dataset--author--name.json
+let normalizedSlug = '';
+let displaySlug = '';
+if (Array.isArray(slug)) {
+  displaySlug = slug.join('/');
+  normalizedSlug = `hf-dataset--${slug.join('--')}`.toLowerCase();
+} else if (typeof slug === 'string') {
+  displaySlug = slug;
+  if (slug.includes('--')) {
+    normalizedSlug = slug.toLowerCase();
+  } else {
+    normalizedSlug = `hf-dataset--${slug.replace(/\//g, '--')}`.toLowerCase();
+  }
+}
 
 // V4.9 Constitution: Fetch from L8 cache (R2), NOT D1
 let dataset: any = null;
@@ -31,7 +38,7 @@ try {
     const r2 = runtime.env.R2_ASSETS;
     
     // Try to get dataset from cache
-    const cacheFile = await r2.get(`cache/entities/dataset/${datasetSlug}.json`);
+    const cacheFile = await r2.get(`cache/entities/dataset/${normalizedSlug}.json`);
     if (cacheFile) {
       const cacheData = await cacheFile.json();
       dataset = cacheData.entity;
@@ -47,24 +54,16 @@ try {
       recommendedModels = (modelsData.data || [])
         .filter((m: any) => {
           const modelTags = Array.isArray(m.tags) ? m.tags : [];
-          return datasetTags.some((dt: string) => 
-            modelTags.some((mt: string) => 
-              mt.toLowerCase().includes(dt.toLowerCase()) ||
-              dt.toLowerCase().includes(mt.toLowerCase())
-            )
-          );
-        })
-        .slice(0, 6);
+          return datasetTags.some((dt: string) => modelTags.some((mt: string) => 
+            mt.toLowerCase().includes(dt.toLowerCase()) || dt.toLowerCase().includes(mt.toLowerCase())));
+        }).slice(0, 6);
     }
   }
-} catch (e) {
-  console.error('[Dataset Page] Cache error:', e);
-}
+} catch (e) { console.error('[Dataset Page] Cache error:', e); }
 
-// Page metadata
 const pageTitle = dataset ? `${dataset.name} - AI Dataset` : 'Dataset Not Found';
-const pageDescription = dataset?.description?.slice(0, 160) || 'Browse AI/ML datasets on Free2AITools';
-const canonicalUrl = `https://free2aitools.com/dataset/${datasetSlug}`;
+const pageDescription = dataset?.description?.slice(0, 160) || 'Browse AI/ML datasets';
+const canonicalUrl = `https://free2aitools.com/dataset/${displaySlug}`;
 
 // JSON-LD for SEO
 const jsonLd = dataset ? {
