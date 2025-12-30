@@ -18,19 +18,29 @@ import { ENTITY_DEFINITIONS } from '../../data/entity-definitions';
 
 const { slug } = Astro.params;
 
+// Handle slug as array (from [...slug]) or string
+// URL formats: /agent/github-agent--author--name OR /agent/github-agent/author/name
+let normalizedSlug = '';
+if (Array.isArray(slug)) {
+  // If URL was /agent/github-agent/author/name, join with --
+  normalizedSlug = slug.join('--').toLowerCase();
+} else if (typeof slug === 'string') {
+  normalizedSlug = slug.toLowerCase();
+}
+
 let agent = null;
 let error = null;
 let pageTitle = "AI Agent Details - Free AI Tools";
 let pageDescription = "Explore this AI agent's capabilities and features.";
 
 try {
-  if (!slug) throw new Error("No slug provided");
+  if (!normalizedSlug) throw new Error("No slug provided");
   
   // V12: Get agent from cache/entities/agent/ path
   const runtime = Astro.locals.runtime;
   if (runtime?.env?.R2_ASSETS) {
     const r2 = runtime.env.R2_ASSETS;
-    const cacheFile = await r2.get(`cache/entities/agent/${slug}.json`);
+    const cacheFile = await r2.get(`cache/entities/agent/${normalizedSlug}.json`);
     if (cacheFile) {
       const cacheData = await cacheFile.json();
       agent = cacheData.entity || cacheData;
@@ -38,7 +48,7 @@ try {
   }
   // Fallback to old cache reader
   if (!agent) {
-    agent = await getModelFromCache(slug, Astro.locals);
+    agent = await getModelFromCache(normalizedSlug, Astro.locals);
   }
 
   if (agent) {
@@ -53,7 +63,7 @@ try {
   console.error('[AgentPage] Error:', error);
 }
 
-const agentId = agent?.id || agent?.umid || slug || '';
+const agentId = agent?.id || agent?.umid || normalizedSlug || '';
 const agentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
 ---
 

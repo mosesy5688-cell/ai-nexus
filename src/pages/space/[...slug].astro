@@ -9,7 +9,23 @@ import Layout from '../../layouts/Layout.astro';
 import DataFreshness from '../../components/common/DataFreshness.astro';
 
 const { slug } = Astro.params;
-const spaceSlug = Array.isArray(slug) ? slug.join('/') : slug;
+
+// Handle slug as array or string, normalize for cache lookup
+// URL: /space/author/name -> Cache: hf-space--author--name.json
+let normalizedSlug = '';
+let displaySlug = '';
+if (Array.isArray(slug)) {
+  displaySlug = slug.join('/');
+  normalizedSlug = `hf-space--${slug.join('--')}`.toLowerCase();
+} else if (typeof slug === 'string') {
+  displaySlug = slug;
+  // If already contains --, assume it's cache format
+  if (slug.includes('--')) {
+    normalizedSlug = slug.toLowerCase();
+  } else {
+    normalizedSlug = `hf-space--${slug.replace(/\//g, '--')}`.toLowerCase();
+  }
+}
 
 let space: any = null;
 let relatedModels: any[] = [];
@@ -19,7 +35,7 @@ try {
   const runtime = Astro.locals.runtime;
   if (runtime?.env?.R2_ASSETS) {
     const r2 = runtime.env.R2_ASSETS;
-    const cacheFile = await r2.get(`cache/entities/space/${spaceSlug}.json`);
+    const cacheFile = await r2.get(`cache/entities/space/${normalizedSlug}.json`);
     if (cacheFile) {
       const cacheData = await cacheFile.json();
       space = cacheData.entity || cacheData;
@@ -32,7 +48,7 @@ try {
 
 const pageTitle = space ? `${space.title || space.name} - AI Demo` : 'Space Not Found';
 const pageDescription = space?.description?.slice(0, 160) || 'Explore AI/ML demos on Free2AITools';
-const canonicalUrl = `https://free2aitools.com/space/${spaceSlug}`;
+const canonicalUrl = `https://free2aitools.com/space/${displaySlug}`;
 
 const jsonLd = space ? {
   "@context": "https://schema.org",
