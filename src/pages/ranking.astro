@@ -20,42 +20,18 @@ import FNIDimensionFilter from '../components/ranking/FNIDimensionFilter.astro';
 const url = new URL(Astro.request.url);
 const entityType = url.searchParams.get('type') || 'model';
 
-// Entity-specific page metadata
+// Entity-specific page metadata (compressed)
 const ENTITY_META: Record<string, { title: string; description: string }> = {
-    model: {
-        title: 'AI Model Rankings',
-        description: 'Explore the top AI models ranked by popularity, trending, and FNI scores.'
-    },
-    dataset: {
-        title: 'Dataset Rankings',
-        description: 'Discover top datasets for AI/ML training and evaluation.'
-    },
-    benchmark: {
-        title: 'Benchmark Rankings',
-        description: 'Compare AI evaluation benchmarks and leaderboards.'
-    },
-    paper: {
-        title: 'Research Paper Rankings',
-        description: 'Top cited AI research papers and publications.'
-    },
-    agent: {
-        title: 'AI Agent Rankings',
-        description: 'Most popular AI agents and autonomous systems.'
-    }
+    model: { title: 'AI Model Rankings', description: 'Explore the top AI models ranked by popularity, trending, and FNI scores.' },
+    dataset: { title: 'Dataset Rankings', description: 'Discover top datasets for AI/ML training and evaluation.' },
+    benchmark: { title: 'Benchmark Rankings', description: 'Compare AI evaluation benchmarks and leaderboards.' },
+    paper: { title: 'Research Paper Rankings', description: 'Top cited AI research papers and publications.' },
+    agent: { title: 'AI Agent Rankings', description: 'Most popular AI agents and autonomous systems.' }
 };
-
 const meta = ENTITY_META[entityType] || ENTITY_META.model;
 const pageTitle = meta.title;
 const pageDescription = meta.description;
-
-// Entity display labels
-const entityLabels: Record<string, string> = {
-    model: 'Models',
-    dataset: 'Datasets',
-    benchmark: 'Benchmarks',
-    paper: 'Papers',
-    agent: 'Agents'
-};
+const entityLabels: Record<string, string> = { model: 'Models', dataset: 'Datasets', benchmark: 'Benchmarks', paper: 'Papers', agent: 'Agents' };
 const entityLabel = entityLabels[entityType] || 'Models';
 
 // B.14: Get sort parameter (FNI is default)
@@ -201,7 +177,7 @@ const jsonLd = {
                 <p class="text-sm text-gray-500 dark:text-gray-400 italic mb-6">{ranking.explanation}</p>
                 {ranking.models.length > 0 ? (
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {ranking.models.slice(0, 8).map(model => (
+                        {ranking.models.slice(0, 8).map((model, index) => (
                             ranking.isBenchmark ? (
                                 <a href={`/model/${model.umid}`} class="block p-4 bg-gray-800 rounded-lg hover:bg-gray-700 transition">
                                     <div class="font-semibold text-white">{model.name}</div>
@@ -209,6 +185,17 @@ const jsonLd = {
                                 </a>
                             ) : (
                                 <div class="relative group">
+                                    {/* V12 Phase 9: Rank Badge for Top 10 */}
+                                    {ranking.showFNI && index < 10 && (
+                                        <div class={`absolute -top-2 -left-2 z-10 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-lg ${
+                                            index === 0 ? 'bg-gradient-to-br from-yellow-300 to-yellow-500 text-yellow-900' :
+                                            index === 1 ? 'bg-gradient-to-br from-gray-200 to-gray-400 text-gray-800' :
+                                            index === 2 ? 'bg-gradient-to-br from-orange-300 to-orange-500 text-orange-900' :
+                                            'bg-indigo-600 text-white'
+                                        }`}>
+                                            {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
+                                        </div>
+                                    )}
                                     <ModelCard model={model} />
                                     <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <AddToCompareButton 
