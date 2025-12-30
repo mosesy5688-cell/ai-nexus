@@ -84,14 +84,20 @@ const classes = colorClasses[info.color] || colorClasses['gray'];
           <span class="font-medium">Data Source: {info.name}</span>
         )}
       </div>
-      <span class="text-xs opacity-60">🔄 {syncFrequency} sync</span>
+      <span class="text-xs opacity-60">🔄 {syncFrequency} sync (11:00 Beijing)</span>
     </div>
     <p class="opacity-80 text-xs">
       Based on open-source metadata snapshot.
       {formattedDate && <span> Last synced: {formattedDate}</span>}
     </p>
-    <p class="opacity-60 text-xs mt-1 italic">
-      ℹ️ Verify with the original source. Data refreshed via L1 Harvester.
-    </p>
+    <div class="flex items-center gap-3 mt-2 text-xs opacity-70">
+      <a href="/methodology" class="hover:underline flex items-center gap-1">
+        📊 <span>FNI Methodology</span>
+      </a>
+      <a href="/knowledge" class="hover:underline flex items-center gap-1">
+        📚 <span>Knowledge Base</span>
+      </a>
+      <span class="italic">ℹ️ Verify with original source</span>
+    </div>
   </div>
 )}
