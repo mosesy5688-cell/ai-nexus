@@ -26,21 +26,40 @@ def load_entities_from_r2(client, bucket):
         entity_list = data if isinstance(data, list) else data.get("entities", data.get("models", []))
         
         for entity in entity_list:
-            # V10.4: Generate SEO-friendly slug (author/name format)
-            # Remove source prefix from ID (e.g., "replicate:meta/model" -> "meta/model")
+            # V12 URL-ROUTING-SPEC-V1.0: Generate SEO-friendly slug
             raw_id = entity.get("id", "")
+            entity_type = entity.get("type", "model")
+            
+            # Remove source prefix from ID (e.g., "replicate:meta/model" -> "meta/model")
             if ":" in raw_id:
-                slug = raw_id.split(":", 1)[1]  # Remove source prefix
+                slug = raw_id.split(":", 1)[1]
             else:
                 slug = raw_id
             
-            # Use explicit slug if provided, otherwise use cleaned ID
+            # Use explicit slug if provided
             slug = entity.get("slug") or slug
+            
+            # Handle entity-specific slug formats per URL-ROUTING-SPEC-V1.0
+            if entity_type == "agent" and slug.startswith("github-agent--"):
+                # Agent: github-agent--author--name -> author/name
+                parts = slug.replace("github-agent--", "").split("--")
+                if len(parts) >= 2:
+                    slug = f"{parts[0]}/{parts[1]}"
+            elif entity_type in ("space", "dataset") and "--" in slug:
+                # Space/Dataset: hf-space--author--name -> author/name
+                parts = slug.split("--")
+                if len(parts) >= 3:
+                    slug = f"{parts[-2]}/{parts[-1]}"
+            elif "--" in slug and "/" not in slug:
+                # Model: huggingface--author--name -> author/name
+                parts = slug.split("--")
+                if len(parts) >= 2:
+                    slug = f"{parts[-2]}/{parts[-1]}"
             
             if slug:
                 entities.append({
-                    "type": entity.get("type", "model"),
-                    "slug": slug,
+                    "type": entity_type,
+                    "slug": slug.lower(),  # URL-ROUTING-SPEC: always lowercase
                     "lastmod": entity.get("last_updated", entity.get("updated_at", datetime.now().isoformat())),
                     "fni_score": entity.get("fni_score"),
                 })
