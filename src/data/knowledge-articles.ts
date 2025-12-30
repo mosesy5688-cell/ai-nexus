@@ -14,10 +14,18 @@ export interface KnowledgeArticle {
 }
 
 export const articles: Record<string, KnowledgeArticle> = {
+  // Full slugs
   'what-is-mmlu': mmlu,
   'what-is-humaneval': humaneval,
   'what-is-context-length': context,
   'what-is-fni': fni,
   'what-is-deploy-score': deploy,
-  'what-is-gguf': gguf
+  'what-is-gguf': gguf,
+  // Short aliases for common URLs
+  'mmlu': mmlu,
+  'humaneval': humaneval,
+  'context-length': context,
+  'fni': fni,
+  'deploy-score': deploy,
+  'gguf': gguf,
 };

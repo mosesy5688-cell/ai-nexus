@@ -19,63 +19,55 @@ const ENTITY_URL_PREFIXES = {
 };
 
 /**
- * Generate URL-safe slug from entity
- * Ensures author/name format for clean URLs
+ * Generate URL-safe slug from entity (URL-ROUTING-SPEC-V1.0)
+ * Priority: entity.id > entity.slug > author/name
  * 
  * @param {Object} entity - Entity with id, slug, source, type, author, name fields
- * @returns {string} URL path segment (without prefix)
+ * @returns {string} URL path segment (without prefix) in format: owner/name
  * 
  * @example
  * generateUrlSlug({ id: 'huggingface:meta-llama/Llama-3' })
  * // Returns: 'meta-llama/llama-3'
- * 
- * generateUrlSlug({ author: 'dslim', name: 'bert-base-NER' })
- * // Returns: 'dslim/bert-base-ner'
- * 
- * generateUrlSlug({ slug: 'huggingface--deepseek-ai--deepseek-r1' })
- * // Returns: 'deepseek-ai/deepseek-r1'
  */
 export function generateUrlSlug(entity) {
     if (!entity) return '';
 
-    // V5.1: Prefer constructing from author/name for consistent format
-    const author = entity.author || entity.organization || '';
-    const name = entity.name || entity.canonical_name || '';
-
-    // If we have both author and name, construct clean URL
-    if (author && name) {
-        return `${author}/${name}`.toLowerCase().trim();
+    // V9.0 URL-ROUTING-SPEC-V1.0: Priority 1 - Extract from entity.id
+    // HuggingFace format: "huggingface:meta-llama/Llama-3" or "hf:author/name"
+    const id = entity.id || entity.umid || '';
+    if (id) {
+        // Remove source prefix (huggingface:, arxiv:, github:, hf:)
+        let cleanId = id.replace(/^[a-z]+:/i, '');
+        // If contains slash, it's already owner/name format
+        if (cleanId.includes('/')) {
+            return cleanId.toLowerCase().trim().replace(/_/g, '-');
+        }
     }
 
-    // Fallback: use slug/id but ensure proper format
-    let slug = entity.slug || entity.id || entity.umid || '';
-
-    // Remove source prefix (e.g., "huggingface:", "arxiv:", "github:")
-    slug = slug.replace(/^[a-z]+:/i, '');
-
-    // V5.2: Handle legacy double-dash format (huggingface--author--name)
-    // Extract author/name from formats like: huggingface--deepseek-ai--deepseek-r1
-    if (slug.includes('--')) {
+    // Priority 2 - Use pre-computed slug (L8 format: huggingface--owner--name)
+    let slug = entity.slug || '';
+    if (slug && slug.includes('--')) {
         const parts = slug.split('--');
         if (parts.length >= 3) {
-            // Format: source--author--name, take last two parts
-            const extractedAuthor = parts[parts.length - 2];
-            const extractedName = parts[parts.length - 1];
-            return `${extractedAuthor}/${extractedName}`.toLowerCase().trim();
+            // Format: source--owner--name, take last two parts
+            const owner = parts[parts.length - 2];
+            const name = parts[parts.length - 1];
+            return `${owner}/${name}`.toLowerCase().trim();
         } else if (parts.length === 2) {
-            // Format: author--name
             return `${parts[0]}/${parts[1]}`.toLowerCase().trim();
         }
     }
 
-    // If slug doesn't contain slash but we have author, prepend it
-    if (!slug.includes('/') && author) {
-        slug = `${author}/${slug}`;
+    // Priority 3 - Fallback to author/name (may be display name, less reliable)
+    const author = entity.author || entity.organization || '';
+    const name = entity.name || entity.canonical_name || '';
+    if (author && name) {
+        return `${author}/${name}`.toLowerCase().trim().replace(/_/g, '-');
     }
 
-    // Normalize: lowercase, trim
-    slug = slug.toLowerCase().trim();
-
+    // Last resort: use whatever slug/id we have
+    slug = slug || id || '';
+    slug = slug.replace(/^[a-z]+:/i, '').toLowerCase().trim();
     return slug;
 }
 
