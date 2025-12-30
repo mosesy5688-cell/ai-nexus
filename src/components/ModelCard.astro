@@ -79,6 +79,24 @@ const isActive = daysSinceUpdate <= 30 && lastUpdate.getTime() > 0;
             </div>
         </div>
 
+        <!-- V12 Phase 9: FNI Badge (compact) -->
+        {model.fni_score > 0 && (
+            <div class="flex items-center gap-2 mb-2">
+                <span class={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                    (model.fni_percentile || 0) >= 90 ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-white' :
+                    (model.fni_percentile || 0) >= 75 ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white' :
+                    (model.fni_percentile || 0) >= 50 ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white' :
+                    model.fni_score >= 60 ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' :
+                    'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                }`} title={`FNI Score: ${model.fni_score?.toFixed?.(1) || model.fni_score}`}>
+                    🛡️ {(model.fni_percentile || 0) >= 90 ? 'Top 10%' : 
+                        (model.fni_percentile || 0) >= 75 ? 'Top 25%' : 
+                        (model.fni_percentile || 0) >= 50 ? 'Top 50%' : 
+                        `FNI ${Math.round(model.fni_score)}`}
+                </span>
+            </div>
+        )}
+
         <!-- V3.1 Phase 4: Size + VRAM Badges -->
         {(sizeTag || vram) && (
             <div class="flex flex-wrap gap-2 mb-2">
