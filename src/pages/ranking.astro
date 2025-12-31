@@ -45,19 +45,32 @@ let trendingData = { data: [], generated_at: null };
 let benchmarksData = { data: [], generated_at: null };
 
 try {
-    // Load trending models from cache
-    // V5.2.1: Use API proxy and trending.json (not trending_weekly)
-    const trendingResponse = await fetch(new URL('/api/cache/trending.json', Astro.url.origin));
+    // V12: Entity-type specific cache loading
+    const cacheEndpoint = entityType === 'agent' 
+        ? '/api/cache/trending_agents.json'
+        : entityType === 'space'
+        ? '/api/cache/trending_spaces.json'
+        : entityType === 'dataset'
+        ? '/api/cache/trending_datasets.json'
+        : '/api/cache/trending.json';  // default: models
+    
+    const trendingResponse = await fetch(new URL(cacheEndpoint, Astro.url.origin));
     if (trendingResponse.ok) {
         const rawData = await trendingResponse.json();
-        trendingData = { data: rawData.models || rawData || [], generated_at: rawData.generated_at };
+        // Handle different cache formats
+        const dataKey = entityType === 'agent' ? 'agents' 
+            : entityType === 'space' ? 'spaces'
+            : entityType === 'dataset' ? 'datasets'
+            : 'models';
+        trendingData = { data: rawData[dataKey] || rawData.models || rawData || [], generated_at: rawData.generated_at };
     }
     
-    // Load benchmark data for rising stars
-    // V5.2.1: Use API proxy
-    const benchResponse = await fetch(new URL('/api/cache/benchmarks.json', Astro.url.origin));
-    if (benchResponse.ok) {
-        benchmarksData = await benchResponse.json();
+    // Load benchmark data for rising stars (models only)
+    if (entityType === 'model') {
+        const benchResponse = await fetch(new URL('/api/cache/benchmarks.json', Astro.url.origin));
+        if (benchResponse.ok) {
+            benchmarksData = await benchResponse.json();
+        }
     }
 } catch (e) {
     console.error('[Rankings] Cache fetch error:', e);
