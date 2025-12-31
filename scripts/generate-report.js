@@ -67,8 +67,8 @@ function writeDataToFile(filePath, data) {
 }
 
 async function generateBiWeeklyReport(models, keywords) {
-    const BI_WEEKLY_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
-    console.log("- Checking if a bi-weekly report is due...");
+    const WEEKLY_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // Changed from 14 to 7 days
+    console.log("- Checking if a weekly report is due...");
 
     // 1. Load the reports metadata file
     let lastReportDate = null;
@@ -86,14 +86,14 @@ async function generateBiWeeklyReport(models, keywords) {
     const now = new Date();
     if (lastReportDate) {
         const timeSinceLastReport = now.getTime() - lastReportDate.getTime();
-        if (timeSinceLastReport < BI_WEEKLY_INTERVAL_MS) {
-            const daysRemaining = Math.ceil((BI_WEEKLY_INTERVAL_MS - timeSinceLastReport) / (1000 * 60 * 60 * 24));
-            console.log(`✅ Bi-weekly report skipped. Next report due in approximately ${daysRemaining} days.`);
+        if (timeSinceLastReport < WEEKLY_INTERVAL_MS) {
+            const daysRemaining = Math.ceil((WEEKLY_INTERVAL_MS - timeSinceLastReport) / (1000 * 60 * 60 * 24));
+            console.log(`✅ Weekly report skipped. Next report due in approximately ${daysRemaining} days.`);
             return null;
         }
     }
 
-    console.log("📦 14 days elapsed or no previous report found. Generating new bi-weekly report...");
+    console.log("📦 7 days elapsed or no previous report found. Generating new weekly report...");
 
     if (!geminiModel) {
         console.warn('- GEMINI_API_KEY not found. Skipping AI report generation.');
