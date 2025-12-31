@@ -1,0 +1,58 @@
+name: L4 Knowledge - Auto-Generation V1.0
+
+# Weekly knowledge article automation
+# Uses generate-knowledge.js and knowledge-linker.js
+
+on:
+  schedule:
+    - cron: '0 8 * * 0'  # Weekly: Sunday 08:00 UTC
+  workflow_dispatch:  # Manual trigger
+
+# V5.2.1 Constitution Art 3.2: Execution Safety
+concurrency:
+  group: l4-knowledge-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate-knowledge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Generate Knowledge Articles
+        run: node scripts/generate-knowledge.js
+        env:
+          NODE_ENV: production
+      
+      - name: Run Knowledge Linker
+        run: node scripts/knowledge-linker.js
+      
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --exit-code src/content/knowledge/ || echo "has_changes=true" >> $GITHUB_OUTPUT
+      
+      - name: Commit and Push
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/content/knowledge/
+          git commit -m "L4: Auto-generated knowledge articles [skip ci]"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
