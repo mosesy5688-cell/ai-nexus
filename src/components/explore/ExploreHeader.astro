@@ -18,7 +18,7 @@ const { entityLabel } = Astro.props;
     <li>/</li>
     <li><span class="text-gray-900 dark:text-white">Explore</span></li>
     <li class="ml-auto flex gap-4 hidden md:flex">
-      <a href="/leaderboard" class="hover:text-indigo-600">🏆 Leaderboard</a>
+      <a href="/ranking" class="hover:text-indigo-600">🏆 Rankings</a>
       <a href="/pricing" class="hover:text-indigo-600">💰 Pricing</a>
     </li>
   </ul>
@@ -30,9 +30,9 @@ const { entityLabel } = Astro.props;
       Use the sidebar to filter by FNI Trust Score, License, or Benchmarks.
     </p>
     <ul class="mt-2 text-xs text-blue-600 dark:text-blue-400 flex gap-4">
-      <li>→ <a href="/explore?sort=fni" class="underline hover:no-underline">Highest Trusted Models</a></li>
-      <li>→ <a href="/explore?has_benchmarks=true" class="underline hover:no-underline">Benchmark-verified only</a></li>
-      <li>→ <a href="/explore?type=dataset&sort=likes" class="underline hover:no-underline">Popular datasets for training LLMs</a></li>
+      <li>→ <a href="/ranking?sort=fni" class="underline hover:no-underline">Highest Trusted Models</a></li>
+      <li>→ <a href="/ranking" class="underline hover:no-underline">Benchmark-verified only</a></li>
+      <li>→ <a href="/ranking?type=dataset" class="underline hover:no-underline">Popular datasets for training LLMs</a></li>
     </ul>
   </div>
 </header>
