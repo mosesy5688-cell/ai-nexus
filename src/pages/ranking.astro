@@ -15,6 +15,7 @@ import RankingTabs from '../components/ranking/RankingTabs.astro';
 import FloatingCompareBar from '../components/ranking/FloatingCompareBar.astro';
 import AddToCompareButton from '../components/ranking/AddToCompareButton.astro';
 import FNIDimensionFilter from '../components/ranking/FNIDimensionFilter.astro';
+import FNIBadge from '../components/ranking/FNIBadge.astro';
 
 // V4.9: Get entity type from URL params
 const url = new URL(Astro.request.url);
@@ -216,11 +217,7 @@ const jsonLd = {
                                             modelName={model.name} 
                                         />
                                     </div>
-                                    {ranking.showFNI && model.fni_score && (
-                                        <div class="absolute bottom-2 left-2 bg-indigo-600/90 text-white text-xs px-2 py-1 rounded-full font-medium">
-                                            FNI: {model.fni_score.toFixed(0)}
-                                        </div>
-                                    )}
+                                    {ranking.showFNI && <FNIBadge fniScore={model.fni_score} fniPercentile={model.fni_percentile} className="absolute bottom-2 left-2" />}
                                 </div>
                             )
                         ))}
