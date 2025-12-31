@@ -2,9 +2,9 @@
 /**
  * AgentHeader Component - Phase B P2
  * Displays agent name, author, type badge, and GitHub stars
- * 
- * @component
+ * V12: Added ShareButtons
  */
+import ShareButtons from '../common/ShareButtons.astro';
 
 interface Props {
   name: string;
@@ -76,6 +76,7 @@ const colors = typeColors[agentType] || typeColors['agent'];
           View Source
         </a>
       )}
+        <ShareButtons title={name} description={description || ''} />
     </div>
   </div>
 </header>
