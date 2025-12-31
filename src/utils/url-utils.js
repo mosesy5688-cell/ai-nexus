@@ -33,12 +33,21 @@ export function generateUrlSlug(entity) {
     if (!entity) return '';
 
     // V9.0 URL-ROUTING-SPEC-V1.0: Priority 1 - Extract from entity.id
-    // HuggingFace format: "huggingface:meta-llama/Llama-3" or "hf:author/name"
+    // HuggingFace format can be:
+    // - "huggingface:meta-llama/Llama-3" (slash-separated)
+    // - "huggingface:meta-llama:Llama-3" (colon-separated - from L8)
     const id = entity.id || entity.umid || '';
     if (id) {
         // Remove source prefix (huggingface:, arxiv:, github:, hf:)
         let cleanId = id.replace(/^[a-z]+:/i, '');
-        // If contains slash, it's already owner/name format
+
+        // V12 Fix: Handle colon-separated format (author:name from L8)
+        // Convert to slash format for URL
+        if (cleanId.includes(':') && !cleanId.includes('/')) {
+            cleanId = cleanId.replace(':', '/');
+        }
+
+        // If contains slash, it's owner/name format
         if (cleanId.includes('/')) {
             return cleanId.toLowerCase().trim().replace(/_/g, '-');
         }
