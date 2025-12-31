@@ -98,7 +98,7 @@ const hasRecommendedModels = recommendedModels.length > 0;
         <nav class="mb-6 text-sm text-gray-500 dark:text-gray-400" aria-label="Breadcrumb">
           <a href="/" class="hover:text-indigo-600">Home</a>
           <span class="mx-2">→</span>
-          <a href="/explore?type=dataset" class="hover:text-indigo-600">Datasets</a>
+          <a href="/ranking?type=dataset" class="hover:text-indigo-600">Datasets</a>
           <span class="mx-2">→</span>
           <span class="text-gray-700 dark:text-gray-300">{dataset.name}</span>
         </nav>
@@ -157,7 +157,7 @@ const hasRecommendedModels = recommendedModels.length > 0;
             <div class="flex flex-wrap gap-2">
               {(dataset.tags ? JSON.parse(dataset.tags) : []).slice(0, 10).map((tag: string) => (
                 <a 
-                  href={`/explore?type=dataset&tag=${encodeURIComponent(tag)}`}
+                  href={`/ranking?type=dataset&tag=${encodeURIComponent(tag)}`}
                   class="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors"
                 >
                   {tag}
@@ -186,7 +186,7 @@ const hasRecommendedModels = recommendedModels.length > 0;
                 No recommended models available yet.
               </p>
               <a 
-                href="/explore?type=model" 
+                href="/models" 
                 class="text-indigo-600 hover:underline"
               >
                 Browse all models →
@@ -201,7 +201,7 @@ const hasRecommendedModels = recommendedModels.length > 0;
             <span>🚀</span> What's Next?
           </h2>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <a href="/explore?type=model" 
+            <a href="/models" 
                class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
               <div class="text-3xl mb-3">🤖</div>
               <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-emerald-600">Find Compatible Models</h3>
@@ -210,7 +210,7 @@ const hasRecommendedModels = recommendedModels.length > 0;
               </p>
             </a>
 
-            <a href="/leaderboard" 
+            <a href="/ranking" 
                class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
               <div class="text-3xl mb-3">📈</div>
               <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-emerald-600">View Benchmarks</h3>
@@ -237,7 +237,7 @@ const hasRecommendedModels = recommendedModels.length > 0;
           <p class="text-gray-600 dark:text-gray-400 mb-6">
             The dataset you are looking for does not exist or has not been cached yet.
           </p>
-          <a href="/explore?type=dataset" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">
+          <a href="/ranking?type=dataset" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">
             Browse Datasets
           </a>
         </div>
