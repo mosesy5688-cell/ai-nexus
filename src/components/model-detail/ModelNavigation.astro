@@ -15,7 +15,7 @@ const { pipelineTag, hasGguf = false } = Astro.props;
   </h2>
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
     <!-- Recommended Datasets -->
-    <a href={`/explore?type=dataset&tag=${pipelineTag || 'text-generation'}`} 
+    <a href={`/models?category=${pipelineTag || 'text-generation'}`} 
        class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
       <div class="text-3xl mb-3">📊</div>
       <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-indigo-600">Find Training Datasets</h3>
@@ -25,7 +25,7 @@ const { pipelineTag, hasGguf = false } = Astro.props;
     </a>
 
     <!-- Related Benchmarks -->
-    <a href="/leaderboard" 
+    <a href="/ranking" 
        class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
       <div class="text-3xl mb-3">📈</div>
       <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-indigo-600">Compare Benchmarks</h3>

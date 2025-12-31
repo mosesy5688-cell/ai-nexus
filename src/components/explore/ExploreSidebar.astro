@@ -30,19 +30,19 @@ const currentType = Astro.url.searchParams.get('type') || 'model';
     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Entity Type</label>
     <div class="flex flex-wrap gap-2" id="entity-type-filter">
       <a 
-        href="/explore?type=model" 
+        href="/ranking?type=model" 
         class:list={["px-3 py-1.5 rounded-lg text-sm font-medium transition-all", currentType === 'model' ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700']}
       >
         🤖 Models
       </a>
       <a 
-        href="/explore?type=space" 
+        href="/ranking?type=space" 
         class:list={["px-3 py-1.5 rounded-lg text-sm font-medium transition-all", currentType === 'space' ? 'bg-purple-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700']}
       >
         🎮 Spaces
       </a>
       <a 
-        href="/explore?type=dataset" 
+        href="/ranking?type=dataset" 
         class:list={["px-3 py-1.5 rounded-lg text-sm font-medium transition-all", currentType === 'dataset' ? 'bg-emerald-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700']}
       >
         📊 Datasets
