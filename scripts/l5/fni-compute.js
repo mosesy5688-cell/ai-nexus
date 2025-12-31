@@ -206,16 +206,56 @@ export async function computeAllFNI(inputFile, outputDir) {
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`\n✅ FNI computation complete: ${results.length} entities in ${elapsed}s`);
 
-        // Save summary
+        // Phase 9: Calculate FNI percentile thresholds
+        const sortedByFNI = [...results].sort((a, b) => b.fni_score - a.fni_score);
+        const getPercentileThreshold = (percentile) => {
+            const idx = Math.floor(results.length * (percentile / 100));
+            return sortedByFNI[idx]?.fni_score || 0;
+        };
+
+        const percentileThresholds = {
+            top_0_1: getPercentileThreshold(0.1),  // Top 0.1%
+            top_1: getPercentileThreshold(1),      // Top 1%
+            top_5: getPercentileThreshold(5),      // Top 5%
+            top_10: getPercentileThreshold(10),    // Top 10%
+            top_25: getPercentileThreshold(25)     // Top 25%
+        };
+
+        console.log(`📊 FNI Percentile Thresholds:`);
+        console.log(`   Top 0.1%: ${percentileThresholds.top_0_1}`);
+        console.log(`   Top 1%:   ${percentileThresholds.top_1}`);
+        console.log(`   Top 5%:   ${percentileThresholds.top_5}`);
+        console.log(`   Top 10%:  ${percentileThresholds.top_10}`);
+        console.log(`   Top 25%:  ${percentileThresholds.top_25}`);
+
+        // Add percentile to each entity
+        const enrichedResults = results.map(entity => {
+            const rank = sortedByFNI.findIndex(e => e.id === entity.id) + 1;
+            const percentile = ((results.length - rank) / results.length) * 100;
+            let fni_percentile = 'top_50';
+            if (percentile >= 99.9) fni_percentile = 'top_0.1%';
+            else if (percentile >= 99) fni_percentile = 'top_1%';
+            else if (percentile >= 95) fni_percentile = 'top_5%';
+            else if (percentile >= 90) fni_percentile = 'top_10%';
+            else if (percentile >= 75) fni_percentile = 'top_25%';
+            return { ...entity, fni_percentile };
+        });
+
+        // Save summary with percentile thresholds
         const summary = {
             total_entities: results.length,
             batches: totalBatches,
             computed_at: new Date().toISOString(),
             elapsed_seconds: parseFloat(elapsed),
-            top_10: results.sort((a, b) => b.fni_score - a.fni_score).slice(0, 10)
+            percentile_thresholds: percentileThresholds,
+            top_10: sortedByFNI.slice(0, 10)
         };
 
         fs.writeFileSync(path.join(outputDir, 'fni_summary.json'), JSON.stringify(summary, null, 2));
+
+        // Save enriched results with percentiles
+        fs.writeFileSync(path.join(outputDir, 'fni_with_percentiles.json'), JSON.stringify(enrichedResults, null, 2));
+        console.log(`   ✅ Saved: ${path.join(outputDir, 'fni_with_percentiles.json')}`);
 
         // B11: Mark manifest complete
         manifest.completeManifest(mf);
