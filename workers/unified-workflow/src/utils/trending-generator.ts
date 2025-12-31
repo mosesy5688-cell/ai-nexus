@@ -58,6 +58,41 @@ export async function generateTrendingAndLeaderboard(env: Env) {
 
     // V6.3: Generate trending datasets cache for Explore entity filter
     await generateTrendingDatasets(env);
+
+    // V12: Generate trending agents cache for Rankings
+    await generateTrendingAgents(env);
+}
+
+// V12: Generate agents cache for Rankings
+async function generateTrendingAgents(env: Env) {
+    const trendingAgents = await env.DB.prepare(`
+        SELECT id, slug, name, author, fni_score, likes,
+                cover_image_url, tags, last_updated,
+                downloads
+        FROM entities 
+        WHERE type='agent' AND fni_score IS NOT NULL
+        ORDER BY fni_score DESC 
+        LIMIT 100
+    `).all();
+
+    if (trendingAgents.results && trendingAgents.results.length > 0) {
+        await writeToR2(env, 'cache/trending_agents.json', {
+            generated_at: new Date().toISOString(),
+            version: 'V12',
+            count: trendingAgents.results.length,
+            agents: trendingAgents.results
+        });
+        console.log(`[L8] Trending agents: ${trendingAgents.results.length} agents`);
+    } else {
+        // Create empty placeholder to avoid 404
+        await writeToR2(env, 'cache/trending_agents.json', {
+            generated_at: new Date().toISOString(),
+            version: 'V12',
+            count: 0,
+            agents: []
+        });
+        console.log('[L8] Trending agents: empty placeholder created');
+    }
 }
 
 // V6.3: Generate spaces cache
