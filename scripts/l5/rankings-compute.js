@@ -24,9 +24,18 @@ const PAGE_SIZE = 100;
 const MAX_PAGES = 50; // V6 Constitution limit
 
 /**
- * Load FNI results from batch files
+ * Load FNI results - V13: Prioritize enriched file with percentiles
  */
 function loadFNIResults(computedDir) {
+    // V13: First try to load pre-enriched file with fni_percentile
+    const enrichedFile = path.join(computedDir, 'fni_with_percentiles.json');
+    if (fs.existsSync(enrichedFile)) {
+        const data = JSON.parse(fs.readFileSync(enrichedFile, 'utf8'));
+        console.log(`📦 Loaded ${data.length} entities from fni_with_percentiles.json (with percentiles)`);
+        return data;
+    }
+
+    // Fallback: Load from batch files (no percentiles)
     const results = [];
     const files = fs.readdirSync(computedDir)
         .filter(f => f.startsWith('fni_batch_') && f.endsWith('.json'));
@@ -36,7 +45,7 @@ function loadFNIResults(computedDir) {
         results.push(...data);
     }
 
-    console.log(`📦 Loaded ${results.length} FNI results from ${files.length} batch files`);
+    console.log(`📦 Loaded ${results.length} FNI results from ${files.length} batch files (no percentiles)`);
     return results;
 }
 
@@ -143,12 +152,20 @@ export async function computeAllRankings(computedDir, outputDir) {
     console.log(`   📊 Knowledge Linking: ${recommendedModels.length} models have ≥${MIN_RELATIONS_FOR_RECOMMENDATION} relations (recommendation eligible)`);
     console.log(`   📊 Standard: ${standardModels.length} models have <${MIN_RELATIONS_FOR_RECOMMENDATION} relations`);
 
-    fs.writeFileSync(
+    // V13: Output trending.json with proper structure for frontend
+    const trendingOutput = {
+        generated_at: new Date().toISOString(),
+        version: 'V13',
+        count: trendingModels.length,
+        data: trendingModels,
+        models: trendingModels  // Backward compatibility alias
+    };
 
+    fs.writeFileSync(
         path.join(outputDir, 'trending.json'),
-        JSON.stringify(trendingModels, null, 2)
+        JSON.stringify(trendingOutput, null, 2)
     );
-    console.log(`   ✅ trending.json: ${trendingModels.length} models/agents`);
+    console.log(`   ✅ trending.json: ${trendingModels.length} models/agents (with fni_percentile)`);
 
     // Generate V6.0.1 category stats with full metadata (imported from category-mapping.js)
     const categoryStatsV6 = categoryStats.map(s => {
