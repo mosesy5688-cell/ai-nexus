@@ -1,0 +1,148 @@
+---
+/**
+ * TrendChart Component - V12 Phase 10
+ * 
+ * Constitution Compliant:
+ * - Chart.js renders client-side (no Worker compute)
+ * - Data from pre-computed L5 cache
+ * - Lightweight (~60KB bundled)
+ * 
+ * @component
+ */
+
+interface Props {
+  type?: 'line' | 'bar' | 'doughnut';
+  height?: string;
+}
+
+const { type = 'line', height = '300px' } = Astro.props;
+---
+
+<div class="trend-chart-container" style={`height: ${height}`}>
+  <canvas id="trend-chart" class="w-full h-full"></canvas>
+</div>
+
+<script>
+  import Chart from 'chart.js/auto';
+  
+  async function initChart() {
+    const canvas = document.getElementById('trend-chart') as HTMLCanvasElement;
+    if (!canvas) return;
+    
+    try {
+      // Fetch pre-computed trend data from L5 cache
+      const res = await fetch('/api/cache/trends.json');
+      if (!res.ok) throw new Error('Trend data not available');
+      
+      const data = await res.json();
+      
+      // Create chart
+      new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: data.weeks,
+          datasets: [
+            {
+              label: data.model_count.label,
+              data: data.model_count.data,
+              borderColor: data.model_count.color,
+              backgroundColor: `${data.model_count.color}20`,
+              fill: true,
+              tension: 0.4,
+              yAxisID: 'y'
+            },
+            {
+              label: data.new_models.label,
+              data: data.new_models.data,
+              borderColor: data.new_models.color,
+              backgroundColor: `${data.new_models.color}20`,
+              fill: false,
+              tension: 0.4,
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 20
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              padding: 12,
+              cornerRadius: 8
+            }
+          },
+          scales: {
+            y: {
+              type: 'linear',
+              display: true,
+              position: 'left',
+              title: {
+                display: true,
+                text: 'Total Models'
+              },
+              grid: {
+                color: 'rgba(0, 0, 0, 0.05)'
+              }
+            },
+            y1: {
+              type: 'linear',
+              display: true,
+              position: 'right',
+              title: {
+                display: true,
+                text: 'New Models'
+              },
+              grid: {
+                drawOnChartArea: false,
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('[TrendChart] Could not load trend data:', err);
+      canvas.parentElement!.innerHTML = `
+        <div class="flex items-center justify-center h-full text-gray-400">
+          <span>📊 Trend data loading...</span>
+        </div>
+      `;
+    }
+  }
+  
+  // Initialize on DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChart);
+  } else {
+    initChart();
+  }
+</script>
+
+<style>
+  .trend-chart-container {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  
+  :global(.dark) .trend-chart-container {
+    background: rgb(31, 41, 55);
+  }
+</style>

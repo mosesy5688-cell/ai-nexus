@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-01-01T01:55:46.549Z",
+  "contract_version": "V12",
+  "weeks": [
+    "Dec 11",
+    "Dec 18",
+    "Dec 25",
+    "Jan 1"
+  ],
+  "model_count": {
+    "label": "Total Models",
+    "data": [
+      65800,
+      67116,
+      68458,
+      69827
+    ],
+    "color": "#6366f1"
+  },
+  "weekly_downloads": {
+    "label": "Weekly Downloads (M)",
+    "data": [
+      20,
+      15.5,
+      22.4,
+      22.5
+    ],
+    "color": "#10b981"
+  },
+  "new_models": {
+    "label": "New Models",
+    "data": [
+      1003.2,
+      1370.7,
+      1452.1,
+      1063
+    ],
+    "color": "#f59e0b"
+  },
+  "category_distribution": [
+    {
+      "name": "Text Generation",
+      "value": 45,
+      "color": "#6366f1"
+    },
+    {
+      "name": "Vision",
+      "value": 20,
+      "color": "#f59e0b"
+    },
+    {
+      "name": "Knowledge Retrieval",
+      "value": 15,
+      "color": "#10b981"
+    },
+    {
+      "name": "Automation",
+      "value": 12,
+      "color": "#8b5cf6"
+    },
+    {
+      "name": "Infrastructure",
+      "value": 8,
+      "color": "#64748b"
+    }
+  ],
+  "top_models": [
+    {
+      "name": "Llama 3.2",
+      "trend": "+15%"
+    },
+    {
+      "name": "Qwen 2.5",
+      "trend": "+12%"
+    },
+    {
+      "name": "DeepSeek V2.5",
+      "trend": "+10%"
+    },
+    {
+      "name": "Mistral 7B",
+      "trend": "+8%"
+    },
+    {
+      "name": "Phi-3",
+      "trend": "+5%"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 import Layout from '@/layouts/Layout.astro';
 import ReportCard from '@/components/ReportCard.astro';
 import WeeklyTrendingSection from '@/components/WeeklyTrendingSection.astro';
+import TrendChart from '@/components/charts/TrendChart.astro';
 const reports = await Astro.glob('../../data/reports.json').then(res => res[0].default);
 
 const latestReport = reports.length > 0 ? reports[0] : null;
@@ -22,6 +23,14 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
 
     <!-- V4.8.1: Live Trending from L8 Cache -->
     <WeeklyTrendingSection />
+
+    <!-- V12: Trend Charts Section -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
+        📈 Model Ecosystem Trends
+      </h2>
+      <TrendChart type="line" height="350px" />
+    </section>
 
     {latestReport ? (
       <div class="space-y-12">
