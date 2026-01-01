@@ -9,6 +9,7 @@
 
 import { CategoryId, CATEGORY_PRIORITY } from '../config/categories';
 import { CATEGORY_MAP, PIPELINE_TO_CATEGORY } from '../config/category-mapping';
+import { estimateVram } from './vram-estimator';
 
 // ============================================================================
 // Types
@@ -143,6 +144,8 @@ function bucketFromParams(params: number): string {
     return '<7B';
 }
 
+// VRAM estimation imported from vram-estimator.ts for CES compliance
+
 // ============================================================================
 // Main Enricher
 // ============================================================================
@@ -193,12 +196,14 @@ export function generateTemplateSummary(model: any): string {
 /**
  * V6.0.1 Enricher - Pure high-confidence classification
  * B.19: Now includes template summary generation
+ * V12: Added VRAM estimation (params * 0.6 + 2)
  * Returns fields to be merged into model object
  */
-export function enrichModel(model: any): EnrichedModel & { seo_summary: string } {
+export function enrichModel(model: any): EnrichedModel & { seo_summary: string; vram_estimated_gb: number | null; vram_source: string } {
     const categoryResult = assignCategory(model);
     const sizeResult = estimateSizeBucket(model);
     const seoSummary = generateTemplateSummary(model);
+    const vramResult = estimateVram(model);
 
     return {
         primary_category: categoryResult.category,
@@ -206,7 +211,9 @@ export function enrichModel(model: any): EnrichedModel & { seo_summary: string }
         category_status: categoryResult.status,
         size_bucket: sizeResult.size_bucket,
         size_source: sizeResult.size_source,
-        seo_summary: seoSummary
+        seo_summary: seoSummary,
+        vram_estimated_gb: vramResult.vram_estimated_gb,
+        vram_source: vramResult.vram_source
     };
 }
 
