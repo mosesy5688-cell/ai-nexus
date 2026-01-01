@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-01-01T06:42:32.896Z",
+  "contract_version": "V12",
+  "count": 15,
+  "titles": {
+    "2302.13971": "LLaMA: Open and Efficient Foundation Language Models",
+    "2307.09288": "Llama 2: Open Foundation and Fine-Tuned Chat Models",
+    "2310.06825": "Mistral 7B",
+    "2309.16609": "Qwen Technical Report",
+    "2305.10403": "PaLM 2 Technical Report",
+    "2310.01889": "Ring Attention with Blockwise Transformers for Near-Infinite Context",
+    "2308.12950": "Code Llama: Open Foundation Models for Code",
+    "2401.04088": "Mixtral of Experts",
+    "2312.11805": "Gemini: A Family of Highly Capable Multimodal Models",
+    "2306.05685": "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena",
+    "2305.14314": "QLoRA: Efficient Finetuning of Quantized LLMs",
+    "2305.06161": "StarCoder: may the source be with you!",
+    "2307.06435": "A Comprehensive Overview of Large Language Models",
+    "2304.08485": "Visual Instruction Tuning",
+    "2303.17564": "BloombergGPT: A Large Language Model for Finance"
+  }
+}

@@ -1,0 +1,57 @@
+# L5 Paper & Deduplication Automation - V12
+# 
+# Constitution Compliant:
+# - Runs in Sidecar (GitHub Actions)
+# - Weekly execution for paper titles and deduplication
+# - Outputs to R2-compatible public/api/cache/
+
+name: L5 Paper & Dedup
+
+on:
+  schedule:
+    # Weekly on Sunday at 04:00 UTC
+    - cron: '0 4 * * 0'
+  workflow_dispatch:  # Manual trigger
+
+concurrency:
+  group: l5-paper-dedup
+  cancel-in-progress: false
+
+jobs:
+  paper-titles:
+    name: Fetch Paper Titles
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Fetch Paper Titles
+        run: node scripts/l5/paper-titles-fetch.js
+        
+      - name: Run Deduplication
+        run: node scripts/l5/cross-platform-dedup.js
+        
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet public/api/cache/ || echo "changed=true" >> $GITHUB_OUTPUT
+          
+      - name: Commit and Push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/api/cache/paper-titles.json public/api/cache/deduplication-map.json
+          git commit -m "L5: Update paper titles and dedup map [automated]"
+          git push
