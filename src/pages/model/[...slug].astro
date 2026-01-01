@@ -17,6 +17,7 @@ import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import EntityRelations from '../../components/entity/EntityRelations.astro';
 import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
 import ModelNotFound from '../../components/model-detail/ModelNotFound.astro';
+import QuickStart from '../../components/model-detail/QuickStart.astro';
 
 // V4.9.1: Constitutional D1 = 0 - Use R2 cache reader instead of D1 queries
 import { getModelFromCache } from '../../utils/entity-cache-reader';
@@ -78,7 +79,6 @@ try {
   error = e;
   Astro.response.status = 500;
 }
-
 if (!model && !error) {
   Astro.response.status = 404;
   Astro.response.headers.set('Cache-Control', 'no-store, no-cache, max-age=0');
@@ -148,6 +148,14 @@ const jsonld = model ? {
           lastUpdated={model.last_updated}
           seoDescription={model.seo_summary?.description}
           cleanDescription={cleanDesc}
+        />
+
+        <!-- V12: Quick Start for content depth -->
+        <QuickStart 
+          modelId={modelId}
+          modelName={modelName}
+          pipeline_tag={model.pipeline_tag}
+          author={model.author}
         />
 
         {hasBench && hasBenchmarks && (
@@ -240,9 +248,3 @@ const jsonld = model ? {
     )}
   </main>
 </Layout>
-
-<style>
-  .model-detail-page {
-    padding-top: 1rem;
-  }
-</style>
