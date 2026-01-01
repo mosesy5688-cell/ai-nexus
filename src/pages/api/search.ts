@@ -66,18 +66,41 @@ export const GET: APIRoute = async ({ request, locals }) => {
 
         const r2 = runtime.env.R2_ASSETS;
 
-        // Load trending data for basic search (search-index.json.gz for full search)
-        const object = await r2.get('cache/trending.json');
+        // V13: Try to load full search index first (L5 generated, 150K+ entities)
+        let models: any[] = [];
+        let indexType = 'none';
 
-        if (!object) {
+        try {
+            const searchIndex = await r2.get('public/data/search-index.json');
+            if (searchIndex) {
+                const indexData = await searchIndex.json() as { entries?: any[] };
+                // Search index uses compact format: i=id, n=name, a=author, etc
+                models = (indexData.entries || []).map((e: any) => ({
+                    id: e.i, name: e.n, author: e.a, type: e.t,
+                    category: e.c, fni_score: e.f, description: ''
+                }));
+                indexType = 'full';
+            }
+        } catch (e) {
+            console.warn('[API Search] Failed to load search-index, trying trending');
+        }
+
+        // Fallback to trending.json (top 1000 models)
+        if (models.length === 0) {
+            const trending = await r2.get('cache/trending.json');
+            if (trending) {
+                const data = await trending.json() as { models?: any[], data?: any[] };
+                models = data.models || data.data || [];
+                indexType = 'trending';
+            }
+        }
+
+        if (models.length === 0) {
             return new Response(JSON.stringify({
                 error: 'Search index not available',
                 retry_after: 60
             }), { status: 503, headers: corsHeaders });
         }
-
-        const data = await object.json() as { models?: any[] };
-        const models = data.models || data || [];
 
         // Simple search filter
         const searchLower = query.toLowerCase();
