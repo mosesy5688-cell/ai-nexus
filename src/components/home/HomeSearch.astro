@@ -26,5 +26,27 @@ const { initialQuery = '' } = Astro.props;
                 </div>
             </div>
         </form>
+        <!-- Search Hints -->
+        <div class="mt-3 flex flex-wrap justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <span>Try:</span>
+            <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-query="llama 70b">llama 70b</button>
+            <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-query="code generation">code generation</button>
+            <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-query="gguf quantized">gguf quantized</button>
+            <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-query="embedding">embedding</button>
+        </div>
     </div>
 </div>
+
+<script>
+  document.querySelectorAll('.search-hint').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const query = btn.dataset.query || '';
+      const searchBox = document.getElementById('search-box');
+      if (searchBox) {
+        searchBox.value = query;
+        searchBox.dispatchEvent(new Event('input', { bubbles: true }));
+        searchBox.focus();
+      }
+    });
+  });
+</script>
