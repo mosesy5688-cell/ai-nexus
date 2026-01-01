@@ -10,6 +10,7 @@
 import { CategoryId, CATEGORY_PRIORITY } from '../config/categories';
 import { CATEGORY_MAP, PIPELINE_TO_CATEGORY } from '../config/category-mapping';
 import { estimateVram } from './vram-estimator';
+import { generateTemplateSummary, qualifiesForAiSummary } from './template-summary';
 
 // ============================================================================
 // Types
@@ -149,49 +150,9 @@ function bucketFromParams(params: number): string {
 // ============================================================================
 // Main Enricher
 // ============================================================================
-
-/**
- * Generate template-based SEO summary for entities
- * B.19: Fallback for entities that don't get AI-generated summaries
- * 
- * @param model - The model/entity data
- * @returns SEO-friendly summary string
- */
-export function generateTemplateSummary(model: any): string {
-    const name = model.name || 'AI Model';
-    const author = model.author || 'Unknown';
-    const type = model.type || 'model';
-    const pipelineTag = model.pipeline_tag || '';
-    const description = (model.description || '').substring(0, 150).trim();
-
-    // Build template based on type
-    let summary = '';
-
-    switch (type) {
-        case 'agent':
-            summary = `${name} is an AI agent by ${author}`;
-            if (pipelineTag) summary += ` for ${pipelineTag}`;
-            break;
-        case 'dataset':
-            summary = `${name} is a dataset by ${author}`;
-            if (pipelineTag) summary += ` for ${pipelineTag} tasks`;
-            break;
-        case 'paper':
-            summary = `${name} is a research paper by ${author}`;
-            break;
-        default: // model
-            summary = `${name} is an open-source AI model by ${author}`;
-            if (pipelineTag) summary += ` for ${pipelineTag}`;
-    }
-
-    // Append truncated description if available
-    if (description) {
-        summary += `. ${description}`;
-        if (description.length >= 150) summary += '...';
-    }
-
-    return summary.trim();
-}
+// Template summary imported from template-summary.ts for CES compliance
+// Re-export for backwards compatibility
+export { generateTemplateSummary, qualifiesForAiSummary };
 
 /**
  * V6.0.1 Enricher - Pure high-confidence classification
