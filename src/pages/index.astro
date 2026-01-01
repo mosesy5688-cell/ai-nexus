@@ -12,6 +12,7 @@ import HomeHero from '../components/home/HomeHero.astro';
 import HomeSearch from '../components/home/HomeSearch.astro';
 import HomeWebsiteBanner from '../components/home/HomeWeeklyBanner.astro';
 import HomeSkeleton from '../components/home/HomeSkeleton.astro';
+import OnboardingTour from '../components/common/OnboardingTour.astro';
 
 // V4.3.2 Constitution Core Requirements
 import { buildIndexSEO } from '../utils/seo-schema.js';
@@ -232,4 +233,6 @@ const seoSchema = buildIndexSEO();
         });
     </script>
 
+    <!-- V13: Onboarding Tour for first-time visitors -->
+    <OnboardingTour />
 </Layout>
