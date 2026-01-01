@@ -1,0 +1,111 @@
+---
+/**
+ * QuickStart Component - V12 Phase 7
+ * 
+ * Adds content depth to model detail pages with:
+ * - Installation snippets
+ * - Usage examples
+ * - Download options
+ * 
+ * @component
+ */
+
+interface Props {
+  modelId: string;
+  modelName: string;
+  pipeline_tag?: string;
+  author?: string;
+}
+
+const { modelId, modelName, pipeline_tag, author } = Astro.props;
+
+// Generate HuggingFace model path
+const hfPath = modelId.includes('/') ? modelId : `${author || 'unknown'}/${modelName}`;
+
+// Determine best usage snippet based on pipeline_tag
+const getCodeSnippet = (pipeline: string) => {
+  switch(pipeline) {
+    case 'text-generation':
+      return `from transformers import pipeline
+generator = pipeline("text-generation", model="${hfPath}")
+result = generator("Hello, I am", max_length=50)
+print(result[0]['generated_text'])`;
+    
+    case 'fill-mask':
+      return `from transformers import pipeline
+unmasker = pipeline("fill-mask", model="${hfPath}")
+result = unmasker("Paris is the [MASK] of France.")
+print(result)`;
+    
+    case 'question-answering':
+      return `from transformers import pipeline
+qa = pipeline("question-answering", model="${hfPath}")
+result = qa(question="What is AI?", context="AI is artificial intelligence...")
+print(result)`;
+    
+    case 'image-classification':
+      return `from transformers import pipeline
+classifier = pipeline("image-classification", model="${hfPath}")
+result = classifier("path/to/image.jpg")
+print(result)`;
+    
+    default:
+      return `from transformers import AutoModel, AutoTokenizer
+tokenizer = AutoTokenizer.from_pretrained("${hfPath}")
+model = AutoModel.from_pretrained("${hfPath}")`;
+  }
+};
+
+const codeSnippet = getCodeSnippet(pipeline_tag || '');
+---
+
+<section class="mt-8 mb-10">
+  <h2 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+    ⚡ Quick Start
+  </h2>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Installation -->
+    <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+      <h3 class="font-semibold text-lg mb-3 text-gray-800 dark:text-gray-200 flex items-center gap-2">
+        <span class="text-indigo-500">📦</span> Install
+      </h3>
+      <div class="bg-gray-900 dark:bg-gray-950 rounded-lg p-3 font-mono text-sm text-green-400 overflow-x-auto">
+        <code>pip install transformers torch</code>
+      </div>
+    </div>
+    
+    <!-- Usage -->
+    <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+      <h3 class="font-semibold text-lg mb-3 text-gray-800 dark:text-gray-200 flex items-center gap-2">
+        <span class="text-emerald-500">🚀</span> Use
+      </h3>
+      <pre class="bg-gray-900 dark:bg-gray-950 rounded-lg p-3 font-mono text-sm text-gray-300 overflow-x-auto whitespace-pre-wrap"><code set:text={codeSnippet} /></pre>
+    </div>
+  </div>
+  
+  <!-- Download Options -->
+  <div class="mt-4 flex flex-wrap gap-3">
+    <a 
+      href={`https://huggingface.co/${hfPath}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="inline-flex items-center gap-2 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-medium rounded-lg transition-colors"
+    >
+      🤗 View on HuggingFace
+    </a>
+    <a 
+      href={`https://huggingface.co/${hfPath}/tree/main`}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium rounded-lg transition-colors"
+    >
+      📁 Browse Files
+    </a>
+    {pipeline_tag && (
+      <span class="inline-flex items-center gap-1 px-3 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-sm rounded-lg">
+        🏷️ {pipeline_tag}
+      </span>
+    )}
+  </div>
+</section>
