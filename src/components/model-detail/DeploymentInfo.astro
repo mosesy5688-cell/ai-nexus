@@ -65,7 +65,7 @@ const vramQuant = hasQuant ? calculateVram(paramsB, quantType) : 0;
       <span>🚀</span> Deployment Info
     </h3>
     
-    <div class="grid grid-cols-2 gap-4">
+    <div class="flex items-center gap-4">
       <!-- Difficulty Badge -->
       <div>
         <span class="text-xs text-gray-500 dark:text-gray-400">Difficulty</span>
@@ -81,16 +81,17 @@ const vramQuant = hasQuant ? calculateVram(paramsB, quantType) : 0;
         </div>
       </div>
       
-      <!-- VRAM Estimate -->
-      <div>
-        <span class="text-xs text-gray-500 dark:text-gray-400">VRAM Required</span>
-        <div class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
-          {hasQuant ? `~${vramQuant} GB` : `~${vramFp16} GB`}
-          {hasQuant && (
-            <span class="text-xs font-normal text-gray-500 ml-1">({quantType})</span>
-          )}
+      <!-- Quantization Available -->
+      {hasQuant && (
+        <div>
+          <span class="text-xs text-gray-500 dark:text-gray-400">Optimized</span>
+          <div class="mt-1 flex gap-1">
+            {hasGguf && <span class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded">GGUF</span>}
+            {hasAwq && <span class="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded">AWQ</span>}
+            {hasGptq && <span class="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs rounded">GPTQ</span>}
+          </div>
         </div>
-      </div>
+      )}
     </div>
     
     {/* Hardware recommendations */}
