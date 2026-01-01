@@ -123,9 +123,12 @@ const seoSchema = buildIndexSEO();
         <!-- Static Content Container (hide when searching) -->
         <div id="static-content-container" class="hide-on-search">
             
-            <!-- Hot Models Section -->
+            <!-- V13: Top Picks Section (FNI-ranked) -->
             <section class="mb-16">
-                <h2 class="text-3xl font-bold text-center mb-8">🔥 Hot Models</h2>
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold">⭐ Top Picks</h2>
+                    <p class="text-gray-500 dark:text-gray-400 mt-2">Ranked by FNI (Free2AI Nexus Index)</p>
+                </div>
                 
                 <!-- Loading State with Skeletons -->
                 <HomeSkeleton count={12} />
@@ -136,7 +139,7 @@ const seoSchema = buildIndexSEO();
                     <span class="block sm:inline" id="hot-models-error-msg"></span>
                 </div>
                 
-                <!-- Hot Models Grid -->
+                <!-- Top Picks Grid (FNI-sorted models) -->
                 <div id="hot-models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
                     <!-- Populated by client-side JS with FNI-sorted models -->
                 </div>
