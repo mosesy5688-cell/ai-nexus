@@ -27,7 +27,7 @@ const { model, tagsArray } = Astro.props;
       {tagsArray.filter(t => t.startsWith('arxiv:')).map(tag => (
         <li class="flex items-start gap-2">
           <span class="text-sm font-semibold text-gray-500 dark:text-gray-400">Arxiv:</span>
-          <a href={`https://arxiv.org/abs/${tag.split(':')[1]}`} target="_blank" class="text-sm font-medium text-blue-600 hover:underline">{tag.split(':')[1]}</a>
+          <a href={`/paper/${tag.split(':')[1]}`} class="text-sm font-medium text-blue-600 hover:underline">📄 {tag.split(':')[1]}</a>
         </li>
       ))}
       {/* Extracting 'dataset' tags if any */}
