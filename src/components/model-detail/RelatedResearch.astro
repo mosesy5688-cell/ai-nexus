@@ -134,6 +134,15 @@ const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length
             <span class="text-gray-500 text-sm">+{variants.length - 5} more</span>
           )}
         </div>
+        <!-- V12: Explore Same Family button -->
+        {baseModels.length > 0 && (
+          <a 
+            href={`/models?q=${encodeURIComponent(baseModels[0])}`}
+            class="inline-flex items-center gap-1 mt-3 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-sm font-medium rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all shadow-sm"
+          >
+            <span>🔍</span> Explore Same Family
+          </a>
+        )}
       </div>
     )}
     
