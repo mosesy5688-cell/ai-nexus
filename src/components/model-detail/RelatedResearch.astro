@@ -122,14 +122,26 @@ const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length
           🔀 Variants
         </h3>
         <div class="flex flex-wrap gap-2">
-          {variants.slice(0, 5).map(variantId => (
-            <a 
-              href={`/model/${variantId.replace('huggingface:', '').replace(/:/g, '/')}`}
-              class="inline-flex items-center px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
-            >
-              {variantId.split(':').pop()}
-            </a>
-          ))}
+          {variants.slice(0, 5).map(variantId => {
+            const name = variantId.split(':').pop() || '';
+            // V12: Extract size from name pattern (7b, 70b, etc.)
+            const sizeMatch = name.match(/(\d+\.?\d*)b/i);
+            const sizeB = sizeMatch ? parseFloat(sizeMatch[1]) : null;
+            const vramEst = sizeB ? Math.ceil(sizeB * 0.6 + 2) : null;
+            return (
+              <a 
+                href={`/model/${variantId.replace('huggingface:', '').replace(/:/g, '/')}`}
+                class="inline-flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
+              >
+                <span>{name}</span>
+                {vramEst && (
+                  <span class="text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-300 px-1.5 py-0.5 rounded">
+                    ~{vramEst}GB
+                  </span>
+                )}
+              </a>
+            );
+          })}
           {variants.length > 5 && (
             <span class="text-gray-500 text-sm">+{variants.length - 5} more</span>
           )}
