@@ -10,19 +10,42 @@
  */
 
 /**
- * Normalize slug for cache file lookup (copied from entity-cache-reader.js)
- * Handles both new format (author/model) and legacy format (source:author/model)
- * @param {string} slug - Input slug
- * @returns {string} - Normalized slug for file path
+ * Normalize slug for cache file lookup (Constitutional V6.2)
+ * R2 Path Format: cache/entities/{type}/{source}--{author}--{name}.json
+ * 
+ * For 2-part slugs [author, name], prepends appropriate source prefix
+ * For 3-part slugs [source, author, name], uses as-is
+ * 
+ * @param {string|string[]} slug - Input slug from URL
+ * @param {string} entityType - Entity type for source prefix (space, dataset)
+ * @returns {string} - Normalized slug matching R2 file naming
  */
-function normalizeForCache(slug) {
+function normalizeForCache(slug, entityType = 'model') {
     if (!slug) return '';
-    // Remove any source prefix first (e.g., "huggingface:")
-    let normalized = slug.replace(/^[a-z]+:/i, '');
-    return normalized
-        .toLowerCase()
-        .trim()
-        .replace(/\//g, '--')
+
+    // Handle array slugs from Astro [...slug] routes
+    let parts = Array.isArray(slug) ? slug : slug.split('/');
+
+    // Remove any source prefix separator (e.g., "huggingface:")
+    if (parts.length === 1 && parts[0].includes(':')) {
+        const [source, rest] = parts[0].split(':');
+        parts = [source, ...rest.split('/')];
+    }
+
+    // Constitutional V6.2: Normalize to source--author--name format
+    // 2-part URL: [author, name] → source--author--name
+    // 3-part URL: [source, author, name] → source--author--name
+    if (parts.length === 2) {
+        // Default source prefix based on entity type
+        const sourcePrefix = entityType === 'space' ? 'hf-space'
+            : entityType === 'dataset' ? 'hf-dataset'
+                : 'huggingface';
+        parts = [sourcePrefix, ...parts];
+    }
+
+    return parts
+        .map(p => p.toLowerCase().trim())
+        .join('--')
         .replace(/:/g, '--');
 }
 
