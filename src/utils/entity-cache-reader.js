@@ -129,7 +129,8 @@ export async function resolveEntityFromCache(slug, locals) {
     }
 
     // Also try the original format variations
-    cachePaths.push(`${cachePrefix}/${slug.replace(/\//g, '--')}.json`);
+    const slugStr = Array.isArray(slug) ? slug.join('/') : slug;
+    cachePaths.push(`${cachePrefix}/${slugStr.replace(/\//g, '--')}.json`);
     // V11: Legacy fallback paths
     cachePaths.push(`cache/models/${normalizedSlug}.json`);
 
@@ -139,6 +140,10 @@ export async function resolveEntityFromCache(slug, locals) {
         cachePaths.push(`${cachePrefix}/${slugWithoutHF}.json`);
         console.log(`[EntityCache] Added fallback path for HG prefix: ${slugWithoutHF}`);
     }
+
+    // V14 Debug: Log all attempted paths for 404 troubleshooting
+    console.log(`[EntityCache] Resolving slug: ${JSON.stringify(slug)} → normalized: ${normalizedSlug}`);
+    console.log(`[EntityCache] Will try ${cachePaths.length} paths: ${cachePaths.slice(0, 3).join(', ')}...`);
 
     // Check KV cache first for speed
     const kvKey = `entity:${normalizedSlug}`;

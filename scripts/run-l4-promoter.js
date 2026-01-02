@@ -41,16 +41,16 @@ async function queryD1(sql) {
 
 /**
  * Get high-priority models without summary (idempotent)
- * Phase 2: Top models using fni_score threshold (>40 = Top ~5%)
+ * Phase 2: Top 1% models using fni_percentile (99+ = Top 1%)
  * Uses 'entities' table per V11 unified schema
  */
 async function getModelsWithoutSummary(limit = 500) {
-    const sql = `SELECT id, name, author, description, fni_score 
+    const sql = `SELECT id, name, author, description, fni_score, fni_percentile 
                  FROM entities 
                  WHERE (seo_summary IS NULL OR seo_summary = '') 
                  AND name IS NOT NULL
                  AND type = 'model'
-                 AND fni_score > 40
+                 AND fni_percentile >= 99
                  ORDER BY COALESCE(fni_score, 0) DESC
                  LIMIT ${limit}`;
     return await queryD1(sql);
