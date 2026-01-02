@@ -64,14 +64,11 @@ export async function getSpaceFromCache(slug, locals) {
         return null;
     }
 
-    const normalizedSlug = normalizeForCache(slug);
+    const normalizedSlug = normalizeForCache(slug, 'space');
 
-    // V11: Unified cache path structure
+    // V14: Constitutional cache path - only use cache/entities/space/
     const cachePaths = [
         `cache/entities/space/${normalizedSlug}.json`,
-        `cache/entities/space/hf-space--${normalizedSlug}.json`,
-        // Legacy fallback
-        `cache/spaces/${normalizedSlug}.json`,
     ];
 
     for (const cachePath of cachePaths) {
@@ -110,14 +107,11 @@ export async function getDatasetFromCache(slug, locals) {
         return null;
     }
 
-    const normalizedSlug = normalizeForCache(slug);
+    const normalizedSlug = normalizeForCache(slug, 'dataset');
 
-    // V11: Unified cache path structure
+    // V14: Constitutional cache path - only use cache/entities/dataset/
     const cachePaths = [
         `cache/entities/dataset/${normalizedSlug}.json`,
-        `cache/entities/dataset/hf-dataset--${normalizedSlug}.json`,
-        // Legacy fallback
-        `cache/datasets/${normalizedSlug}.json`,
     ];
 
     for (const cachePath of cachePaths) {
