@@ -22,6 +22,7 @@ import QuickStart from '../../components/model-detail/QuickStart.astro';
 // V4.9.1: Constitutional D1 = 0 - Use R2 cache reader instead of D1 queries
 import { getModelFromCache } from '../../utils/entity-cache-reader';
 import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definitions';
+import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers';
 
 const { slug } = Astro.params;
 
@@ -35,25 +36,15 @@ let pageDescription = "Explore comprehensive information about this AI model.";
 try {
   if (!slug) throw new Error("No slug provided");
   
-  // V4.9.1: Const D1 = 0 - Read from R2 cache only
   model = await getModelFromCache(slug, Astro.locals);
 
-  // V14: Handle malformed 'u/' prefix URLs only
-  // Per URL_ROUTING_SPEC_V1.0: canonical format is /model/{owner}/{name}
+  // V14: Handle malformed 'u/' prefix - redirect to search
   if (!model) {
-    const slugParts = Array.isArray(slug) ? slug : slug.split('/');
-    
-    // Handle 'u/' prefix URLs (e.g., /model/u/deepseek-coder-6.7b-instruct)
-    // The 'u/' is a malformed slug from bad link generation, redirect to search
-    if (slugParts[0] === 'u' && slugParts.length === 2) {
-      const modelName = slugParts[1];
-      const searchUrl = `/search?q=${encodeURIComponent(modelName)}`;
-      console.log(`[V14] Malformed 'u/' slug, redirecting to search: ${searchUrl}`);
-      return Astro.redirect(searchUrl, 302);
+    const parts = Array.isArray(slug) ? slug : slug.split('/');
+    if (parts[0] === 'u' && parts.length === 2) {
+      return Astro.redirect(`/search?q=${encodeURIComponent(parts[1])}`, 302);
     }
   }
-
-
   if (model) {
     const resolution = deriveEntityType(model);
     model.entityType = resolution.type;
@@ -87,8 +78,6 @@ try {
     const cleanedDesc = cleanDescription(model.description);
     pageDescription = model.seo_summary?.description || 
                       (cleanedDesc ? cleanedDesc.substring(0, 160) : `Deep dive into ${modelName}.`);
-    
-    // Fix for 500 Error: Ensure tagsArray is defined for RelatedKnowledge component
     tagsArray = Array.isArray(model.tags) ? model.tags : [];
   }
 } catch (e) {
@@ -100,46 +89,16 @@ if (!model && !error) {
   Astro.response.status = 404;
   Astro.response.headers.set('Cache-Control', 'no-store, no-cache, max-age=0');
 }
-
-// Capability Gating Helpers
-const hasCapability = (capId) => {
-    if (!model || !model.entityDefinition?.capabilities) return true;
-    return model.entityDefinition.capabilities.includes(capId);
-};
-const hasFNI = hasCapability('fni_score') && (model?.fni_score !== undefined || model?.fni_percentile !== undefined);
-const hasBenchmarks = hasCapability('benchmarks');
+// Capability Gating
+const hasFNI = hasCapability(model, 'fni_score') && (model?.fni_score !== undefined || model?.fni_percentile !== undefined);
+const hasBenchmarks = hasCapability(model, 'benchmarks');
 const hasBench = Boolean(model?.mmlu || model?.benchmark_mmlu || model?.benchmark_hellaswag || model?.benchmark_arc);
-
 const placeholderImage = '/images/models/default-model.jpg';
 const coverImage = model?.cover_image_url || placeholderImage;
 const modelName = model?.name || model?.canonical_name || 'Unknown Model';
 const modelId = model?.umid || model?.id || '';
-// Clean description: remove YAML frontmatter, HTML tags, and normalize whitespace
-const rawDesc = model?.description || '';
-const cleanDesc = rawDesc
-  .replace(/^---[\s\S]*?---\s*/m, '')  // Remove complete YAML frontmatter
-  .replace(/^---\s*\n?[\s\S]*$/m, '')  // Remove partial frontmatter (no closing ---)
-  .replace(/\blibrary_name:\s*\w+/gi, '')  // Remove common frontmatter fields
-  .replace(/\blicense:\s*[^\s]+/gi, '')
-  .replace(/\bpipeline_tag:\s*\w+/gi, '')
-  .replace(/\bbase_model\b[^.]*\.?/gi, '')
-  .replace(/<[^>]*>?/gm, '')       // Remove HTML tags
-  .replace(/\s+/g, ' ')            // Normalize whitespace
-  .trim();
-
-// Art 6.1: Schema.org Structured Data
-const jsonld = model ? {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": modelName,
-  "description": cleanDesc.substring(0, 300),
-  "applicationCategory": "AI Model",
-  "operatingSystem": "Any",
-  "author": model.author ? { "@type": "Organization", "name": model.author } : undefined,
-  "dateModified": model.last_updated || new Date().toISOString(),
-  "image": coverImage,
-  "url": `https://free2aitools.com/model/${slug}`
-} : null;
+const cleanDesc = cleanDescription(model?.description);
+const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') : slug, coverImage);
 ---
 
 <Layout title={pageTitle} description={pageDescription} image={coverImage} jsonld={jsonld}>
