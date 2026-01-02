@@ -41,14 +41,16 @@ async function queryD1(sql) {
 
 /**
  * Get high-priority models without summary (idempotent)
- * Phase 2: Top 1% models only (FNI > 70) for AI generation
+ * Phase 2: Top 1% models using fni_percentile (99+ = Top 1%)
+ * Uses 'entities' table per V11 unified schema
  */
 async function getModelsWithoutSummary(limit = 500) {
-    const sql = `SELECT umid, name, author, description, fni_score, downloads 
-                 FROM models 
+    const sql = `SELECT id, name, author, description, fni_score, fni_percentile 
+                 FROM entities 
                  WHERE (seo_summary IS NULL OR seo_summary = '') 
                  AND name IS NOT NULL
-                 AND fni_score > 70
+                 AND type = 'model'
+                 AND fni_percentile >= 99
                  ORDER BY COALESCE(fni_score, 0) DESC
                  LIMIT ${limit}`;
     return await queryD1(sql);
@@ -139,12 +141,13 @@ function generateTemplateSummary(model) {
 
 /**
  * Update model with generated summary
+ * Uses 'entities' table per V11 unified schema
  */
-async function updateModelSummary(umid, summary) {
+async function updateModelSummary(entityId, summary) {
     const safeSummary = summary.replace(/'/g, "''");
-    const sql = `UPDATE models SET seo_summary = '${safeSummary}', 
+    const sql = `UPDATE entities SET seo_summary = '${safeSummary}', 
                  summary_generated_at = datetime('now') 
-                 WHERE umid = '${umid}'`;
+                 WHERE id = ${entityId}`;
     await queryD1(sql);
 }
 
@@ -181,14 +184,14 @@ async function main() {
             }
 
             const summary = await generateSummary(model);
-            await updateModelSummary(model.umid, summary);
+            await updateModelSummary(model.id, summary);
             processed++;
 
             // Rate limiting: 100ms between calls
             await new Promise(r => setTimeout(r, 100));
 
         } catch (error) {
-            console.error(`❌ Failed: ${model.umid} - ${error.message}`);
+            console.error(`❌ Failed: ${model.id} - ${error.message}`);
             failed++;
             // Don't retry - next run will catch
         }
