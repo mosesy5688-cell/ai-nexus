@@ -1,3 +1,6 @@
+// src/pages/api/graph/neighbors.json.js
+// V14.2 Zero-Cost Constitution: D1 REMOVED - Using R2 Static Cache Only
+
 export const prerender = false;
 
 import { getModelBySlug } from '../../../utils/db.js';
@@ -17,14 +20,8 @@ export async function GET({ request, locals }) {
     const links = [];
 
     try {
-        const db = locals.runtime?.env?.DB;
-        if (!db) {
-            return new Response(JSON.stringify({ nodes: [], links: [] }), {
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
-
-        // Fetch main model
+        // V14.2: D1 check REMOVED - getModelBySlug now uses R2
+        // Fetch main model from R2 cache
         const model = await getModelBySlug(modelId, locals);
 
         if (!model) {
@@ -43,7 +40,7 @@ export async function GET({ request, locals }) {
             val: 20
         });
 
-        // Use related_ids from model (primary data source)
+        // Use related_ids from model (embedded in R2 cache)
         let relatedIds = [];
         try {
             if (model.related_ids) {
@@ -55,78 +52,28 @@ export async function GET({ request, locals }) {
             console.warn('[Graph] Failed to parse related_ids:', e);
         }
 
-        // Fetch related models details
-        if (relatedIds.length > 0) {
-            const placeholders = relatedIds.map(() => '?').join(',');
-            const { results: relatedModels } = await db.prepare(`
-                SELECT id, name, author, pipeline_tag, slug FROM models 
-                WHERE id IN (${placeholders})
-                LIMIT 10
-            `).bind(...relatedIds).all();
+        // V14.2: Add nodes for related IDs from cached data
+        // Note: Full details require individual R2 lookups (expensive)
+        // For now, just show IDs as simplified nodes
+        for (const relatedId of relatedIds.slice(0, 10)) {
+            const nodeId = relatedId;
+            nodes.set(nodeId, {
+                id: nodeId,
+                name: nodeId.split('/').pop() || nodeId.split('--').pop(),
+                group: 'related',
+                slug: nodeId.replace(/\//g, '--'),
+                val: 10
+            });
 
-            for (const related of relatedModels || []) {
-                const nodeId = related.id;
-
-                // Add node
-                nodes.set(nodeId, {
-                    id: nodeId,
-                    name: related.name || nodeId.split('/').pop(),
-                    group: 'model',
-                    slug: related.slug || related.id.replace(/\//g, '--'),
-                    author: related.author,
-                    pipeline_tag: related.pipeline_tag,
-                    val: 10
-                });
-
-                // Add link
-                links.push({
-                    source: mainNodeId,
-                    target: nodeId,
-                    type: 'related',
-                    value: 1
-                });
-            }
+            links.push({
+                source: mainNodeId,
+                target: nodeId,
+                type: 'related',
+                value: 1
+            });
         }
 
-        // Fallback: If no related_ids, try graph_edges table
-        if (links.length === 0) {
-            try {
-                const { results: edges } = await db.prepare(`
-                    SELECT * FROM graph_edges 
-                    WHERE source LIKE ? OR target LIKE ?
-                    LIMIT 20
-                `).bind(`%${model.id}%`, `%${model.id}%`).all();
-
-                for (const edge of edges || []) {
-                    const isSource = edge.source.includes(model.id);
-                    const otherUrn = isSource ? edge.target : edge.source;
-
-                    const parts = otherUrn.split(':');
-                    const type = parts[1] || 'unknown';
-                    const value = parts.slice(2).join(':');
-
-                    if (!nodes.has(otherUrn)) {
-                        nodes.set(otherUrn, {
-                            id: otherUrn,
-                            name: value.split('/').pop() || value,
-                            group: type,
-                            slug: value.replace(/\//g, '--'),
-                            val: 5
-                        });
-                    }
-
-                    links.push({
-                        source: mainNodeId,
-                        target: otherUrn,
-                        type: edge.type || 'related',
-                        value: 1
-                    });
-                }
-            } catch (e) {
-                // graph_edges table might not exist, ignore
-                console.warn('[Graph] graph_edges query failed:', e.message);
-            }
-        }
+        // V14.2: D1 graph_edges fallback REMOVED per Zero-Cost Constitution
 
     } catch (e) {
         console.error('[Graph] Error:', e);

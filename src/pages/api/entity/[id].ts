@@ -76,23 +76,8 @@ export const GET: APIRoute = async ({ params, locals }) => {
             }
         }
 
-        // Fallback: Try D1 database
-        if (runtime?.env?.DB) {
-            const db = runtime.env.DB;
-            const result = await db.prepare(`
-        SELECT * FROM entities 
-        WHERE umid = ? OR id = ? OR slug = ?
-        LIMIT 1
-      `).bind(entityId, entityId, entityId).first();
-
-            if (result) {
-                return new Response(JSON.stringify({
-                    success: true,
-                    source: 'd1',
-                    data: result
-                }), { status: 200, headers: corsHeaders });
-            }
-        }
+        // V14.2: D1 fallback REMOVED per Zero-Cost Constitution Art 2.1
+        // Entity not found in R2 cache
 
         return new Response(JSON.stringify({
             error: 'Entity not found',

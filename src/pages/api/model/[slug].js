@@ -42,24 +42,9 @@ export async function GET({ params, locals }) {
 
         // Fetch related models
         let relatedModels = [];
-        if (relatedIds.length === 0 && model.pipeline_tag) {
-            try {
-                const db = locals?.runtime?.env?.DB;
-                if (db) {
-                    const stmt = db.prepare(`
-                        SELECT id, name, author, likes, downloads, cover_image_url, description 
-                        FROM models 
-                        WHERE pipeline_tag = ? AND id != ?
-                        ORDER BY downloads DESC 
-                        LIMIT 6
-                    `);
-                    const { results } = await stmt.bind(model.pipeline_tag, model.id).all();
-                    relatedModels = results || [];
-                }
-            } catch (fallbackErr) {
-                console.warn("Smart fallback failed:", fallbackErr);
-            }
-        }
+        // V14.2: D1 query REMOVED per Zero-Cost Constitution
+        // Related models feature temporarily disabled until R2-based solution is implemented
+        // TODO: Implement related models using R2 cache/relations.json
 
         return new Response(JSON.stringify({
             model,
