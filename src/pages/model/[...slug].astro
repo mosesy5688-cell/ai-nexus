@@ -38,10 +38,27 @@ try {
   // V4.9.1: Const D1 = 0 - Read from R2 cache only
   model = await getModelFromCache(slug, Astro.locals);
 
+  // V14: Handle malformed 'u/' prefix URLs only
+  // Per URL_ROUTING_SPEC_V1.0: canonical format is /model/{owner}/{name}
+  if (!model) {
+    const slugParts = Array.isArray(slug) ? slug : slug.split('/');
+    
+    // Handle 'u/' prefix URLs (e.g., /model/u/deepseek-coder-6.7b-instruct)
+    // The 'u/' is a malformed slug from bad link generation, redirect to search
+    if (slugParts[0] === 'u' && slugParts.length === 2) {
+      const modelName = slugParts[1];
+      const searchUrl = `/search?q=${encodeURIComponent(modelName)}`;
+      console.log(`[V14] Malformed 'u/' slug, redirecting to search: ${searchUrl}`);
+      return Astro.redirect(searchUrl, 302);
+    }
+  }
+
+
   if (model) {
     const resolution = deriveEntityType(model);
     model.entityType = resolution.type;
     model.entityDefinition = ENTITY_DEFINITIONS[model.entityType];
+
 
     // Similar models logical stub (D1 banned)
     if (model.similar_models && Array.isArray(model.similar_models)) {
