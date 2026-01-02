@@ -315,14 +315,30 @@ jobs:
               BATCH_HASH=$(sha256sum "${batch_file}.gz" | cut -d' ' -f1)
               COMPRESSED_SIZE=$(stat -c%s "${batch_file}.gz" 2>/dev/null || stat -f%z "${batch_file}.gz")
               
-              # Upload to V7.1 path: ingest/batches/
+              # Upload to V7.1 path: ingest/batches/ (with retry for transient 502 errors)
               r2_key="ingest/batches/${batch_name}.json.gz"
-              npx wrangler r2 object put "ai-nexus-assets/$r2_key" \
-                --file="${batch_file}.gz" \
-                --content-type="application/json" \
-                --content-encoding="gzip" \
-                --remote
-              echo "✅ Uploaded: $r2_key (${BATCH_ENTITIES} entities, hash: ${BATCH_HASH:0:8}...)"
+              
+              # V14: Retry logic for transient R2 upload failures (502 Bad Gateway)
+              MAX_RETRIES=3
+              for attempt in $(seq 1 $MAX_RETRIES); do
+                if npx wrangler r2 object put "ai-nexus-assets/$r2_key" \
+                  --file="${batch_file}.gz" \
+                  --content-type="application/json" \
+                  --content-encoding="gzip" \
+                  --remote; then
+                  echo "✅ Uploaded: $r2_key (${BATCH_ENTITIES} entities, hash: ${BATCH_HASH:0:8}...)"
+                  break
+                else
+                  if [ $attempt -lt $MAX_RETRIES ]; then
+                    DELAY=$((5 * attempt * attempt))  # Exponential: 5s, 20s, 45s
+                    echo "⚠️ Upload failed (attempt $attempt/$MAX_RETRIES), retrying in ${DELAY}s..."
+                    sleep $DELAY
+                  else
+                    echo "❌ Upload failed after $MAX_RETRIES attempts: $r2_key"
+                    exit 1
+                  fi
+                fi
+              done
               
               # Track batch info with hash
               TOTAL_ENTITIES=$((TOTAL_ENTITIES + BATCH_ENTITIES))
@@ -376,22 +392,37 @@ jobs:
             fs.writeFileSync('data/manifest.json', JSON.stringify(manifest, null, 2));
           "
           
-          npx wrangler r2 object put "ai-nexus-assets/ingest/manifest.json" \
-            --file="data/manifest.json" \
-            --content-type="application/json" \
-            --remote
-          echo "✅ Uploaded: ingest/manifest.json (V7.2 with hash verification)"
+          # V14: Upload manifest with retry
+          for attempt in $(seq 1 3); do
+            if npx wrangler r2 object put "ai-nexus-assets/ingest/manifest.json" \
+              --file="data/manifest.json" \
+              --content-type="application/json" \
+              --remote; then
+              echo "✅ Uploaded: ingest/manifest.json (V7.2 with hash verification)"
+              break
+            else
+              [ $attempt -lt 3 ] && { echo "⚠️ Retry manifest upload..."; sleep $((5 * attempt)); } || exit 1
+            fi
+          done
           
           # Also upload merged.json for L5 compatibility (gzipped)
           if [ -f "data/merged.json" ]; then
             echo "📦 Uploading entities.json.gz for L5 Heavy Compute..."
             gzip -c "data/merged.json" > "data/entities.json.gz"
-            npx wrangler r2 object put "ai-nexus-assets/ingest/current/entities.json.gz" \
-              --file="data/entities.json.gz" \
-              --content-type="application/json" \
-              --content-encoding="gzip" \
-              --remote
-            echo "✅ Uploaded: ingest/current/entities.json.gz"
+            
+            # V14: Upload entities with retry
+            for attempt in $(seq 1 3); do
+              if npx wrangler r2 object put "ai-nexus-assets/ingest/current/entities.json.gz" \
+                --file="data/entities.json.gz" \
+                --content-type="application/json" \
+                --content-encoding="gzip" \
+                --remote; then
+                echo "✅ Uploaded: ingest/current/entities.json.gz"
+                break
+              else
+                [ $attempt -lt 3 ] && { echo "⚠️ Retry entities upload..."; sleep $((5 * attempt)); } || exit 1
+              fi
+            done
           fi
           
           echo ""
