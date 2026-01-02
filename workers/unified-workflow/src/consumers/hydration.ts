@@ -8,6 +8,8 @@ import {
     recordHydrationBatch,
     writeHydrationManifest
 } from '../utils/hydration-manifest';
+import { getAiSummary } from '../utils/ai-summary-reader';
+
 
 // V1.2: Track batch number across invocations
 let currentBatchId = 0;

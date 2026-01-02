@@ -41,29 +41,99 @@ async function queryD1(sql) {
 
 /**
  * Get high-priority models without summary (idempotent)
- * B.19: Only top 10K entities (FNI > 50 OR downloads > 1000)
+ * Phase 2: Top 1% models only (FNI > 70) for AI generation
  */
 async function getModelsWithoutSummary(limit = 500) {
     const sql = `SELECT umid, name, author, description, fni_score, downloads 
                  FROM models 
                  WHERE (seo_summary IS NULL OR seo_summary = '') 
                  AND name IS NOT NULL
-                 AND (fni_score > 50 OR downloads > 1000)
+                 AND fni_score > 70
                  ORDER BY COALESCE(fni_score, 0) DESC
                  LIMIT ${limit}`;
     return await queryD1(sql);
 }
 
 /**
- * Generate summary using Cloudflare AI (placeholder)
- * In production, this would call the Workers AI API
+ * Generate summary using Cloudflare Workers AI
+ * Phase 2: Real AI generation with Llama 3 8B Instruct
+ * Helios Decision: Strict extraction prompt, zero fabrication
  */
 async function generateSummary(model) {
-    // For now, generate a template-based summary
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+
+    // Fallback to template if no API credentials
+    if (!accountId || !apiToken) {
+        console.log('⚠️ No API credentials, using template fallback');
+        return generateTemplateSummary(model);
+    }
+
+    const name = model.name || 'AI Model';
+    const author = model.author || 'Unknown';
+    const desc = (model.description || '').substring(0, 300).replace(/\n/g, ' ').trim();
+
+    // Helios-approved strict extraction prompt
+    const prompt = `ROLE: You are a strict technical database administrator.
+TASK: Summarize the AI model "${name}" created by "${author}".
+INPUT DATA:
+- Description Snippet: ${desc || 'N/A'}
+
+CONSTRAINTS:
+1. Output exactly ONE sentence.
+2. Format: "[Model Name] is an AI model by [Author] designed for [Task], featuring [Key Feature]."
+3. If specific details are missing, omit them. DO NOT HALLUCINATE.
+4. Do not use promotional words like "best", "cutting-edge", "revolutionary".
+5. Maximum 100 words.`;
+
+    try {
+        const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/meta/llama-3-8b-instruct`;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                messages: [
+                    { role: 'system', content: 'You are a factual technical writer. Never fabricate information.' },
+                    { role: 'user', content: prompt }
+                ],
+                max_tokens: 150
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.result?.response) {
+            const summary = data.result.response.trim();
+            // Validate response length
+            if (summary.length > 20 && summary.length < 500) {
+                return summary;
+            }
+        }
+
+        // Fallback to template if AI response invalid
+        return generateTemplateSummary(model);
+
+    } catch (error) {
+        console.error(`AI generation failed: ${error.message}, using template`);
+        return generateTemplateSummary(model);
+    }
+}
+
+/**
+ * Template-based summary fallback (Phase 1)
+ */
+function generateTemplateSummary(model) {
     const name = model.name || 'AI Model';
     const author = model.author || 'Unknown';
     const desc = (model.description || '').substring(0, 200);
-
     return `${name} by ${author} is an open-source AI model. ${desc}`.trim();
 }
 
