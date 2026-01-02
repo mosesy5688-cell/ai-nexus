@@ -7,7 +7,8 @@ name: L1 Harvester - V4.2 Parallel Collection
 
 on:
   schedule:
-    - cron: '0 3 * * *'  # Daily at 03:00 UTC
+    # V14.2 Zero-Cost: Mon/Thu only (73% reduction in R2 writes)
+    - cron: '0 3 * * 1,4'  # Mon & Thu at 03:00 UTC
   workflow_dispatch:
     inputs:
       sources:
