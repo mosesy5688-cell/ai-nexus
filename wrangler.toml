@@ -6,13 +6,8 @@ compatibility_flags = ["nodejs_compat_v2"]
 # Specify the output directory for Cloudflare Pages
 pages_build_output_dir = "dist"
 
-# D1 Database Binding
-[[d1_databases]]
-binding = "DB"
-database_name = "ai-nexus-db"
-database_id = "adac7bc9-46a9-40b4-b609-28479221a17d"
-
-# Workers AI Binding removed (PR #393 - seo-worker deleted)
+# V14.2: D1 Database REMOVED per Zero-Cost Constitution Art 2.1
+# D1 FTS5 caused $106/month cost explosion - PERMANENTLY BANNED
 
 # KV Namespace Bindings
 [[kv_namespaces]]
