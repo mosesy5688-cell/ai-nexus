@@ -8,7 +8,13 @@ export interface ValidationResult {
 
 export function cleanModel(model: any): any {
     const id = model.id || model.modelId || '';
-    const slug = id.replace(/\//g, '-');
+
+    // V13 FIX: Generate correct slug format for R2 cache path
+    // Format: source--author--name (matching hydration.ts and entity-cache-reader.js)
+    // Example: replicate:meta/llama → replicate--meta--llama
+    const source = model.source || id.split(':')[0] || 'huggingface';
+    const idWithoutSource = id.replace(/^[a-z]+:/i, '');
+    const slug = `${source}--${idWithoutSource.replace(/\//g, '--').replace(/:/g, '--')}`.toLowerCase();
 
     const cleanText = (text: string | null): string => {
         if (!text) return '';
@@ -34,6 +40,8 @@ export function cleanModel(model: any): any {
     return {
         id: id,
         slug: slug,
+        // V13 FIX: Preserve source field from L1 adapters
+        source: source,
         name: cleanText(model.title || model.name || model.id || ''),
         author: model.author || '',
         description: cleanText(model.description || ''),
