@@ -25,8 +25,8 @@ if (mParams.length > 0) {
     const m2 = Astro.url.searchParams.get('m2');
     if (m2) modelIds.push(m2);
 }
-// Limit to 4
-modelIds = modelIds.slice(0, 4);
+// V13: Limit to 3 for cleaner comparison UI
+modelIds = modelIds.slice(0, 3);
 
 // Data Fetching (Using R2 Cache)
 let benchmarkData = { data: [] };

@@ -15,7 +15,7 @@ const STORAGE_KEYS = {
 };
 
 const MAX_RECENT = 20;
-const MAX_COMPARE = 4;
+const MAX_COMPARE = 3; // V13: Reduced from 4 for cleaner UI
 
 // ===== FAVORITES =====
 
