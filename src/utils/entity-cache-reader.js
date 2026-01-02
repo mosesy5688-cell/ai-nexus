@@ -16,25 +16,38 @@
 import { urlSlugToLookupFormats } from './url-utils.js';
 
 /**
- * Normalize slug for cache file lookup
- * Handles both new format (author/model) and legacy format (source:author/model)
- * Also handles array slugs from [...slug] routes
- * @param {string|string[]} slug - Input slug
- * @returns {string} - Normalized slug for file path
+ * Normalize slug for cache file lookup (Constitutional V6.2)
+ * R2 Path Format: cache/entities/{type}/{source}--{author}--{name}.json
+ * 
+ * For 2-part slugs [author, name], prepends 'huggingface' as default source
+ * For 3-part slugs [source, author, name], uses as-is
+ * 
+ * @param {string|string[]} slug - Input slug from URL
+ * @returns {string} - Normalized slug matching R2 file naming
  */
 export function normalizeForCache(slug) {
     if (!slug) return '';
 
     // Handle array slugs from Astro [...slug] routes
-    let slugStr = Array.isArray(slug) ? slug.join('--') : slug;
+    let parts = Array.isArray(slug) ? slug : slug.split('/');
 
-    // Remove any source prefix first (e.g., "huggingface:")
-    let normalized = slugStr.replace(/^[a-z]+:/i, '');
+    // Remove any source prefix separator (e.g., "huggingface:")
+    if (parts.length === 1 && parts[0].includes(':')) {
+        const [source, rest] = parts[0].split(':');
+        parts = [source, ...rest.split('/')];
+    }
 
-    return normalized
-        .toLowerCase()
-        .trim()
-        .replace(/\//g, '--')
+    // Constitutional V6.2: Normalize to source--author--name format
+    // 2-part URL: [author, name] → huggingface--author--name
+    // 3-part URL: [source, author, name] → source--author--name
+    if (parts.length === 2) {
+        // Default to huggingface for 2-part URLs
+        parts = ['huggingface', ...parts];
+    }
+
+    return parts
+        .map(p => p.toLowerCase().trim())
+        .join('--')
         .replace(/:/g, '--');
 }
 
@@ -106,44 +119,20 @@ export async function resolveEntityFromCache(slug, locals) {
 
     const normalizedSlug = normalizeForCache(slug);
 
-    // V11: Unified cache path structure
-    // Determine entity type from slug prefix
-    const isDataset = slug.includes('hf-dataset') || slug.startsWith('dataset');
+    // V14: Constitutional cache path structure (URL_ROUTING_SPEC_V1.0 + hydration.ts)
+    // R2 Path: cache/entities/{type}/{source}--{author}--{name}.json
+    // normalizeForCache already converts 2-part URLs to 3-part format
+    const slugParts = Array.isArray(slug) ? slug : slug.split('/');
+    const isDataset = slugParts[0] === 'dataset' || (slugParts.length >= 2 && slugParts[1] === 'dataset');
     const cachePrefix = isDataset ? 'cache/entities/dataset' : 'cache/entities/model';
 
-    // V5.0: Use urlSlugToLookupFormats to try multiple formats
-    // For clean URLs like "author/name", we need to try with source prefixes
-    const lookupFormats = urlSlugToLookupFormats(slug);
-
-    // Build cache paths to try
+    // Primary constitutional path - normalizedSlug is already in source--author--name format
     const cachePaths = [
         `${cachePrefix}/${normalizedSlug}.json`,
     ];
 
-    // V5.0: Add source-prefixed cache paths for models
-    // Clean URL "deepseek-ai/deepseek-r1" should try "huggingface--deepseek-ai--deepseek-r1.json"
-    const sources = ['huggingface', 'github', 'ollama', 'replicate'];
-    for (const source of sources) {
-        const prefixedSlug = `${source}--${normalizedSlug}`;
-        cachePaths.push(`${cachePrefix}/${prefixedSlug}.json`);
-    }
-
-    // Also try the original format variations
-    const slugStr = Array.isArray(slug) ? slug.join('/') : slug;
-    cachePaths.push(`${cachePrefix}/${slugStr.replace(/\//g, '--')}.json`);
-    // V11: Legacy fallback paths
-    cachePaths.push(`cache/models/${normalizedSlug}.json`);
-
-    // V6.4 Patch: Handle 'huggingface:' prefix in URLs (legacy links)
-    if (normalizedSlug.startsWith('huggingface--')) {
-        const slugWithoutHF = normalizedSlug.replace(/^huggingface--/, '');
-        cachePaths.push(`${cachePrefix}/${slugWithoutHF}.json`);
-        console.log(`[EntityCache] Added fallback path for HG prefix: ${slugWithoutHF}`);
-    }
-
-    // V14 Debug: Log all attempted paths for 404 troubleshooting
-    console.log(`[EntityCache] Resolving slug: ${JSON.stringify(slug)} → normalized: ${normalizedSlug}`);
-    console.log(`[EntityCache] Will try ${cachePaths.length} paths: ${cachePaths.slice(0, 3).join(', ')}...`);
+    // V14 Debug: Log attempted path for troubleshooting
+    console.log(`[EntityCache] Resolving: ${JSON.stringify(slug)} → ${normalizedSlug}`);
 
     // Check KV cache first for speed
     const kvKey = `entity:${normalizedSlug}`;
