@@ -5,26 +5,13 @@ export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import ModelCard from '../../components/ModelCard.astro';
 import DataFreshness from '../../components/common/DataFreshness.astro';
-import { getEntityFromCache } from '../../utils/entity-cache-reader.js';
+import { getDatasetFromCache } from '../../utils/entity-cache-reader-v6.js';
 
 // Get slug from URL
 const { slug } = Astro.params;
 
-// Handle slug as array or string, normalize for cache lookup
-// URL: /dataset/author/name -> Cache: hf-dataset--author--name.json
-let normalizedSlug = '';
-let displaySlug = '';
-if (Array.isArray(slug)) {
-  displaySlug = slug.join('/');
-  normalizedSlug = `hf-dataset--${slug.join('--')}`.toLowerCase();
-} else if (typeof slug === 'string') {
-  displaySlug = slug;
-  if (slug.includes('--')) {
-    normalizedSlug = slug.toLowerCase();
-  } else {
-    normalizedSlug = `hf-dataset--${slug.replace(/\//g, '--')}`.toLowerCase();
-  }
-}
+// Display slug for UI (preserve original format)
+const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
 
 // V4.9 Constitution: Fetch from L8 cache (R2), NOT D1
 let dataset: any = null;
@@ -32,31 +19,25 @@ let recommendedModels: any[] = [];
 let cacheVersion = '';
 
 try {
-  // Fetch dataset entity from cache
-  const runtime = Astro.locals.runtime;
-  if (runtime?.env?.R2_ASSETS) {
-    const r2 = runtime.env.R2_ASSETS;
-    
-    // Try to get dataset from cache
-    const cacheFile = await r2.get(`cache/entities/dataset/${normalizedSlug}.json`);
-    if (cacheFile) {
-      const cacheData = await cacheFile.json();
-      dataset = cacheData.entity;
-      cacheVersion = cacheData.contract_version || 'unknown';
-    }
+  // V14: Use constitutional cache reader function
+  dataset = await getDatasetFromCache(slug, Astro.locals);
+  if (dataset) {
+    cacheVersion = dataset._contract_version || 'unknown';
     
     // Fetch recommended models (models that use this dataset)
-    const modelsFile = await r2.get('cache/trending_weekly.json');
-    if (modelsFile && dataset) {
-      const modelsData = await modelsFile.json();
-      // Filter models by dataset tag or pipeline_tag
-      const datasetTags = dataset.tags ? JSON.parse(dataset.tags) : [];
-      recommendedModels = (modelsData.data || [])
-        .filter((m: any) => {
-          const modelTags = Array.isArray(m.tags) ? m.tags : [];
-          return datasetTags.some((dt: string) => modelTags.some((mt: string) => 
-            mt.toLowerCase().includes(dt.toLowerCase()) || dt.toLowerCase().includes(mt.toLowerCase())));
-        }).slice(0, 6);
+    const r2 = Astro.locals.runtime?.env?.R2_ASSETS;
+    if (r2) {
+      const modelsFile = await r2.get('cache/trending_weekly.json');
+      if (modelsFile) {
+        const modelsData = await modelsFile.json();
+        const datasetTags = dataset.tags ? (typeof dataset.tags === 'string' ? JSON.parse(dataset.tags) : dataset.tags) : [];
+        recommendedModels = (modelsData.data || [])
+          .filter((m: any) => {
+            const modelTags = Array.isArray(m.tags) ? m.tags : [];
+            return datasetTags.some((dt: string) => modelTags.some((mt: string) => 
+              mt.toLowerCase().includes(dt.toLowerCase()) || dt.toLowerCase().includes(mt.toLowerCase())));
+          }).slice(0, 6);
+      }
     }
   }
 } catch (e) { console.error('[Dataset Page] Cache error:', e); }

@@ -8,40 +8,22 @@ export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import DataFreshness from '../../components/common/DataFreshness.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
+import { getSpaceFromCache } from '../../utils/entity-cache-reader-v6.js';
 
 const { slug } = Astro.params;
 
-// Handle slug as array or string, normalize for cache lookup
-// URL: /space/author/name -> Cache: hf-space--author--name.json
-let normalizedSlug = '';
-let displaySlug = '';
-if (Array.isArray(slug)) {
-  displaySlug = slug.join('/');
-  normalizedSlug = `hf-space--${slug.join('--')}`.toLowerCase();
-} else if (typeof slug === 'string') {
-  displaySlug = slug;
-  // If already contains --, assume it's cache format
-  if (slug.includes('--')) {
-    normalizedSlug = slug.toLowerCase();
-  } else {
-    normalizedSlug = `hf-space--${slug.replace(/\//g, '--')}`.toLowerCase();
-  }
-}
+// Display slug for UI (preserve original format)
+const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
 
 let space: any = null;
 let relatedModels: any[] = [];
 let cacheVersion = '';
 
 try {
-  const runtime = Astro.locals.runtime;
-  if (runtime?.env?.R2_ASSETS) {
-    const r2 = runtime.env.R2_ASSETS;
-    const cacheFile = await r2.get(`cache/entities/space/${normalizedSlug}.json`);
-    if (cacheFile) {
-      const cacheData = await cacheFile.json();
-      space = cacheData.entity || cacheData;
-      cacheVersion = cacheData.contract_version || 'V12';
-    }
+  // V14: Use constitutional cache reader function
+  space = await getSpaceFromCache(slug, Astro.locals);
+  if (space) {
+    cacheVersion = space._contract_version || 'V12';
   }
 } catch (e) {
   console.error('[Space Page] Cache error:', e);
@@ -126,7 +108,7 @@ const modelsUsed = space?.meta_json?.models_used || [];
     ) : (
       <div class="text-center py-20">
         <h1 class="text-4xl font-bold text-gray-300 mb-4">Space Not Found</h1>
-        <p class="text-gray-500 mb-8">The space "{spaceSlug}" was not found.</p>
+        <p class="text-gray-500 mb-8">The space "{displaySlug}" was not found.</p>
         <a href="/" class="text-indigo-600 hover:underline">← Back to Home</a>
       </div>
     )}
