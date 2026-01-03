@@ -37,6 +37,26 @@ const architectureInfo: Record<string, { icon: string; layers: string[]; descrip
         layers: ['RoPE Embedding', 'Sliding Window Attention', 'SwiGLU FFN', 'RMSNorm', 'LM Head'],
         description: 'Mistral architecture with sliding window attention'
     },
+    'qwen': {
+        icon: '🌟',
+        layers: ['RoPE Embedding', 'GQA + SWA', 'SwiGLU FFN', 'RMSNorm', 'LM Head'],
+        description: 'Alibaba Qwen architecture with hybrid attention'
+    },
+    'gemma': {
+        icon: '💎',
+        layers: ['RoPE Embedding', 'Multi-Query Attention', 'GeGLU FFN', 'RMSNorm', 'LM Head'],
+        description: 'Google Gemma architecture with GeGLU activation'
+    },
+    'phi': {
+        icon: '🎯',
+        layers: ['RoPE Embedding', 'Parallel Attention', 'Dense FFN', 'LayerNorm', 'LM Head'],
+        description: 'Microsoft Phi architecture optimized for efficiency'
+    },
+    'gpt': {
+        icon: '🤖',
+        layers: ['Token Embedding', 'Multi-Head Attention', 'MLP', 'LayerNorm', 'LM Head'],
+        description: 'GPT-style decoder-only transformer'
+    },
     'moe': {
         icon: '🎭',
         layers: ['Embedding', 'Attention', 'Expert Router', 'Top-K Experts', 'Output'],
