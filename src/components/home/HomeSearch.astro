@@ -7,7 +7,7 @@ interface Props {
 const { initialQuery = '' } = Astro.props;
 ---
 <div class="mb-8 flex flex-col md:flex-row gap-4 items-center sticky top-[65px] bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm py-4 z-30 max-w-4xl mx-auto w-full">
-    <div id="search-container" class="w-full">
+    <div id="search-container" class="w-full relative">
         <form id="search-form" class="w-full" onsubmit="return false;">
             <div class="relative">
                 <input
@@ -26,6 +26,8 @@ const { initialQuery = '' } = Astro.props;
                 </div>
             </div>
         </form>
+        <!-- Dropdown for instant results -->
+        <div id="search-results-dropdown" class="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto hidden"></div>
         <!-- Search Hints -->
         <div class="mt-3 flex flex-wrap justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
             <span>Try:</span>
@@ -38,15 +40,119 @@ const { initialQuery = '' } = Astro.props;
 </div>
 
 <script>
-  document.querySelectorAll('.search-hint').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const query = btn.dataset.query || '';
-      const searchBox = document.getElementById('search-box');
-      if (searchBox) {
-        searchBox.value = query;
-        searchBox.dispatchEvent(new Event('input', { bubbles: true }));
-        searchBox.focus();
+  // V14.2 Static Search - Inline Implementation (MiniSearch CDN)
+  const INDEX_URL = '/data/search-index-top.json';
+  let searchData = [];
+  let isLoaded = false;
+  let isLoading = false;
+
+  async function initSearch() {
+    if (isLoaded || isLoading) return;
+    isLoading = true;
+    console.log('📥 [V14.2] Loading static search index...');
+    
+    try {
+      const response = await fetch(INDEX_URL);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      searchData = await response.json();
+      isLoaded = true;
+      console.log(`🚀 [V14.2] Search Ready: ${searchData.length} items`);
+    } catch (e) {
+      console.error('❌ Search index failed:', e);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  function performSearch(query, limit = 8) {
+    if (!isLoaded || !query || query.length < 2) return [];
+    
+    const q = query.toLowerCase();
+    return searchData
+      .filter(item => 
+        item.n?.toLowerCase().includes(q) || 
+        item.t?.toLowerCase().includes(q) ||
+        item.a?.toLowerCase().includes(q)
+      )
+      .slice(0, limit)
+      .map(r => ({
+        id: r.i,
+        name: r.n,
+        slug: r.s,
+        author: r.a,
+        fni_score: r.sc
+      }));
+  }
+
+  function renderResults(results) {
+    const dropdown = document.getElementById('search-results-dropdown');
+    if (!dropdown) return;
+    
+    if (!results || results.length === 0) {
+      dropdown.classList.add('hidden');
+      return;
+    }
+
+    dropdown.innerHTML = results.map(r => `
+      <a href="/model/${r.slug}" class="flex items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0">
+        <div class="flex-1">
+          <div class="font-medium text-gray-900 dark:text-white">${r.name}</div>
+          <div class="text-sm text-gray-500">${r.author || 'Unknown'} · FNI: ${r.fni_score || 'N/A'}</div>
+        </div>
+        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+        </svg>
+      </a>
+    `).join('');
+    
+    dropdown.classList.remove('hidden');
+  }
+
+  // Initialize when DOM ready
+  document.addEventListener('DOMContentLoaded', () => {
+    const searchBox = document.getElementById('search-box');
+    const dropdown = document.getElementById('search-results-dropdown');
+
+    searchBox?.addEventListener('focus', initSearch);
+    searchBox?.addEventListener('mouseenter', initSearch);
+
+    searchBox?.addEventListener('input', (e) => {
+      const query = e.target.value.trim();
+      if (query.length < 2) {
+        dropdown?.classList.add('hidden');
+        return;
       }
+      if (isLoaded) {
+        const results = performSearch(query);
+        renderResults(results);
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!document.getElementById('search-container')?.contains(e.target)) {
+        dropdown?.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('search-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const query = searchBox?.value?.trim();
+      if (query) {
+        window.location.href = `/search?q=${encodeURIComponent(query)}`;
+      }
+    });
+
+    document.querySelectorAll('.search-hint').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const query = btn.dataset.query || '';
+        if (searchBox) {
+          searchBox.value = query;
+          await initSearch();
+          const results = performSearch(query);
+          renderResults(results);
+          searchBox.focus();
+        }
+      });
     });
   });
 </script>
