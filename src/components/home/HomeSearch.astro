@@ -33,10 +33,9 @@ const { initialQuery = '' } = Astro.props;
         <!-- Search Hints -->
         <div class="mt-3 flex flex-wrap justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
             <span>Try:</span>
-            <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-query="llama 70b">llama 70b</button>
-            <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-query="code generation">code generation</button>
-            <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-query="gguf quantized">gguf quantized</button>
-            <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-query="embedding">embedding</button>
+            <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100" data-query="llama 70b">llama 70b</button>
+            <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100" data-query="code generation">code generation</button>
+            <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100" data-query="embedding">embedding</button>
         </div>
         <!-- V14.2: Category Filter Pills -->
         <CategoryPills />
@@ -154,19 +153,20 @@ const { initialQuery = '' } = Astro.props;
     }
     
     const q = query.toLowerCase();
+    
+    // V14.2 Enhanced: Fuzzy + Boost scoring (inlined for Astro client script)
+    const fuzzy = (t, s) => t && (t.toLowerCase().includes(s) || 
+      t.toLowerCase().split(/[\s\-_]/).some(w => w.startsWith(s.slice(0,3))));
+    const score = (i) => (fuzzy(i.n,q)?50:0) + (i.n?.toLowerCase().startsWith(q)?30:0) + 
+      (fuzzy(i.t,q)?20:0) + (fuzzy(i.a,q)?10:0) + (i.n?.toLowerCase()===q?100:0) + (i.sc||0)/10;
+    
     return searchData
-      .filter(item => 
-        item.n?.toLowerCase().includes(q) || 
-        item.t?.toLowerCase().includes(q) ||
-        item.a?.toLowerCase().includes(q)
-      )
+      .map(item => ({ item, s: score(item) }))
+      .filter(({ s }) => s > 0)
+      .sort((a, b) => b.s - a.s)
       .slice(0, limit)
-      .map(r => ({
-        id: r.i,
-        name: r.n,
-        slug: r.s,
-        author: r.a,
-        fni_score: r.sc
+      .map(({ item }) => ({
+        id: item.i, name: item.n, slug: item.s, author: item.a, fni_score: item.sc
       }));
   }
 
