@@ -365,50 +365,23 @@ jobs:
             echo "⚠️ relations.json not found, skipping D1 sync"
           fi
           
-      - name: Upload to R2
+      - name: Upload to R2 (Smart Write)
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          echo "📤 Uploading results to R2..."
+          echo "📤 [V14.2] Using Smart Upload with HEAD-before-PUT..."
           
-          # Upload FNI results
-          for file in data/computed/*.json; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              echo "   Uploading: computed/$filename"
-              npx wrangler r2 object put ai-nexus-assets/computed/$filename --file "$file" --remote
-            fi
-          done
-          
-          # Upload trending.json
+          # Generate search index first
           if [ -f "data/cache/trending.json" ]; then
-            echo "   Uploading: cache/trending.json"
-            npx wrangler r2 object put ai-nexus-assets/cache/trending.json --file data/cache/trending.json --remote
+            echo "🔍 Generating search index..."
+            node scripts/l5/build-search-index.js || echo "⚠️ Search index generation failed"
           fi
           
-          # Upload category_stats.json
-          if [ -f "data/cache/category_stats.json" ]; then
-            echo "   Uploading: cache/category_stats.json"
-            npx wrangler r2 object put ai-nexus-assets/cache/category_stats.json --file data/cache/category_stats.json --remote
-          fi
+          # Smart Upload with concurrency control
+          node scripts/l5/smart-upload.js --concurrency=10
           
-          # Upload rankings pages
-          if [ -d "data/cache/rankings" ]; then
-            find data/cache/rankings -name "*.json" | while read file; do
-              relpath=${file#data/cache/}
-              echo "   Uploading: cache/$relpath"
-              npx wrangler r2 object put "ai-nexus-assets/cache/$relpath" --file "$file" --remote
-            done
-          fi
-          
-          # Upload search index
-          if [ -f "public/data/search-index.json.gz" ]; then
-            echo "   Uploading: public/data/search-index.json.gz"
-            npx wrangler r2 object put ai-nexus-assets/public/data/search-index.json.gz --file public/data/search-index.json.gz --remote
-          fi
-          
-          echo "✅ Upload complete!"
+          echo "✅ Smart Upload complete!"
           
       - name: Summary
         run: |
