@@ -160,6 +160,8 @@ export function detectGGUF(raw) {
 export function extractAssets(raw) {
     const assets = [];
     const siblings = raw.siblings || [];
+    const modelId = raw.modelId || raw.id;
+    const author = modelId?.split('/')[0] || 'unknown';
 
     // Priority 1: Card image (architecture.png, model.png, etc.)
     const cardImages = siblings.filter(f =>
@@ -168,7 +170,7 @@ export function extractAssets(raw) {
     for (const img of cardImages) {
         assets.push({
             type: 'card_image',
-            url: `https://huggingface.co/${raw.modelId}/resolve/main/${img.rfilename}`,
+            url: `https://huggingface.co/${modelId}/resolve/main/${img.rfilename}`,
             filename: img.rfilename
         });
     }
@@ -182,7 +184,7 @@ export function extractAssets(raw) {
             if (!filename.includes('..')) {
                 assets.push({
                     type: 'readme_image',
-                    url: `https://huggingface.co/${raw.modelId}/resolve/main/${filename}`,
+                    url: `https://huggingface.co/${modelId}/resolve/main/${filename}`,
                     filename: filename
                 });
             }
@@ -198,9 +200,18 @@ export function extractAssets(raw) {
         if (firstImage) {
             assets.push({
                 type: 'fallback_image',
-                url: `https://huggingface.co/${raw.modelId}/resolve/main/${firstImage.rfilename}`
+                url: `https://huggingface.co/${modelId}/resolve/main/${firstImage.rfilename}`
             });
         }
+    }
+
+    // Priority 4 (V14.2): Author/Org avatar as universal fallback
+    if (assets.length === 0 && author && author !== 'unknown') {
+        assets.push({
+            type: 'author_avatar',
+            url: `https://huggingface.co/api/users/${author}/avatar`,
+            filename: `${author}-avatar.jpg`
+        });
     }
 
     return assets;
