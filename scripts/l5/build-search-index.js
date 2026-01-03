@@ -5,6 +5,8 @@
  * 
  * Generates a lightweight JSON index for client-side MiniSearch.
  * Run during L5 Heavy Compute phase.
+ * 
+ * V14.2.1: Use entities.json (150K+) for 10K index coverage
  */
 
 import fs from 'fs';
@@ -14,36 +16,27 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Input: Trending models from R2/local cache
-const RAW_DATA_PATH = path.join(__dirname, '../../data/trending.json');
+// Input paths (priority order)
+const DATA_SOURCES = [
+    { path: path.join(__dirname, '../../data/entities.json'), name: 'entities.json' },
+    { path: path.join(__dirname, '../../data/trending.json'), name: 'trending.json' },
+    { path: path.join(__dirname, '../../data/cache/trending.json'), name: 'cache/trending.json' },
+];
 const OUTPUT_PATH = path.join(__dirname, '../../public/data/search-index-top.json');
 
 async function buildIndex() {
     console.log('🔍 [V14.2] Building Static Search Index...');
 
-    // Check if source data exists
-    if (!fs.existsSync(RAW_DATA_PATH)) {
-        console.error(`❌ Source file not found: ${RAW_DATA_PATH}`);
-        console.log('Trying alternative path...');
-
-        // Try alternative paths
-        const altPaths = [
-            path.join(__dirname, '../../public/data/trending.json'),
-            path.join(__dirname, '../../dist/data/trending.json')
-        ];
-
-        for (const altPath of altPaths) {
-            if (fs.existsSync(altPath)) {
-                console.log(`✅ Found: ${altPath}`);
-                return processData(altPath);
-            }
+    // Find first available data source
+    for (const source of DATA_SOURCES) {
+        if (fs.existsSync(source.path)) {
+            console.log(`✅ Using: ${source.name}`);
+            return processData(source.path);
         }
-
-        console.error('❌ No trending data found. Exiting.');
-        process.exit(1);
     }
 
-    return processData(RAW_DATA_PATH);
+    console.error('❌ No data source found. Tried:', DATA_SOURCES.map(s => s.name));
+    process.exit(1);
 }
 
 function processData(dataPath) {
