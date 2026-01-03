@@ -64,8 +64,27 @@ const { initialQuery = '' } = Astro.props;
     }
   }
 
+  // V14.2: Get top trending models for hot suggestions
+  function getTopModels(limit = 10) {
+    if (!isLoaded) return [];
+    return searchData
+      .slice(0, limit)  // Already sorted by FNI score from build-search-index.js
+      .map(r => ({
+        id: r.i,
+        name: r.n,
+        slug: r.s,
+        author: r.a,
+        fni_score: r.sc
+      }));
+  }
+
   function performSearch(query, limit = 8) {
-    if (!isLoaded || !query || query.length < 2) return [];
+    if (!isLoaded || !query) return [];
+    
+    // V14.2: Hot suggestions for 1-char input (show top trending)
+    if (query.length === 1) {
+      return getTopModels(limit);
+    }
     
     const q = query.toLowerCase();
     return searchData
@@ -118,7 +137,8 @@ const { initialQuery = '' } = Astro.props;
 
     searchBox?.addEventListener('input', (e) => {
       const query = e.target.value.trim();
-      if (query.length < 2) {
+      // V14.2: Show hot suggestions even on 1 char
+      if (query.length < 1) {
         dropdown?.classList.add('hidden');
         return;
       }
