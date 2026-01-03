@@ -310,17 +310,80 @@ jobs:
         with:
           name: entities-enriched
           path: |
-            data/entities_with_similarity.json
-            data/relations.json
             data/relations_summary.json
             data/cache/paper-relations/
+          retention-days: 1
+
+  # ============================================================
+  # V14.2: IMAGE PROCESSING (ROOT CAUSE FIX)
+  # Downloads raw_image_url, converts to WebP, uploads to R2
+  # ============================================================
+  process-images:
+    name: Process Entity Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: download-entities
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+        
+      - name: Build Image Optimizer
+        working-directory: tools/rust-img-optimizer
+        run: |
+          echo "🔧 Building Rust image optimizer..."
+          cargo build --release
+          echo "✅ Build complete"
+          
+      - name: Download Entities
+        uses: actions/download-artifact@v4
+        with:
+          name: entities
+          path: data
+          
+      - name: Process Images
+        run: |
+          echo "🖼️ Processing entity images..."
+          mkdir -p data/images
+          
+          # Run Rust optimizer on entities
+          ./tools/rust-img-optimizer/target/release/rust-img-optimizer --input data/entities.json
+          
+          # Count processed images
+          IMG_COUNT=$(ls -1 data/images/*.webp 2>/dev/null | wc -l)
+          echo "✅ Processed $IMG_COUNT images"
+          
+      - name: Upload Images to R2
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          echo "📤 Uploading images to R2..."
+          for img in data/images/*.webp; do
+            if [ -f "$img" ]; then
+              FILENAME=$(basename "$img")
+              npx wrangler r2 object put ai-nexus-assets/cache/images/$FILENAME \
+                --file "$img" \
+                --content-type "image/webp" \
+                --remote
+            fi
+          done
+          echo "✅ Image upload complete"
+          
+      - name: Upload Image Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: processed-images
+          path: data/images/
           retention-days: 1
 
   upload-to-r2:
     name: Upload Results to R2
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [compute-rankings, compute-search-index, compute-similarity, sync-fts-index]
+    needs: [compute-rankings, compute-search-index, compute-similarity, sync-fts-index, process-images]
     
     steps:
       - uses: actions/checkout@v4
