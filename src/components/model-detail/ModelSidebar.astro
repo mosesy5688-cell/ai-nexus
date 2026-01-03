@@ -65,6 +65,54 @@ function formatBytes(bytes: number | undefined): string {
     <p id="compare-status" class="text-xs text-white/70 mt-2 text-center hidden"></p>
   </div>
 
+  <!-- V14.2: Run on Cloud Affiliate CTAs -->
+  <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+    <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
+      ☁️ Run on Cloud
+    </h3>
+    <div class="space-y-2">
+      <a 
+        href={`https://replicate.com/p/${model.name?.split('/')[1] || modelId}?ref=free2aitools`}
+        target="_blank"
+        rel="noopener sponsored"
+        class="flex items-center justify-between w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors group"
+      >
+        <span class="flex items-center gap-2">
+          <span class="text-lg">🚀</span>
+          <span class="font-medium text-gray-700 dark:text-gray-200">Replicate</span>
+        </span>
+        <span class="text-xs text-gray-400 group-hover:text-blue-500">Run →</span>
+      </a>
+      <a 
+        href="https://runpod.io?ref=free2aitools"
+        target="_blank"
+        rel="noopener sponsored"
+        class="flex items-center justify-between w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors group"
+      >
+        <span class="flex items-center gap-2">
+          <span class="text-lg">⚡</span>
+          <span class="font-medium text-gray-700 dark:text-gray-200">RunPod GPU</span>
+        </span>
+        <span class="text-xs text-gray-400 group-hover:text-purple-500">Deploy →</span>
+      </a>
+      {model.source === 'huggingface' && (
+        <a 
+          href={`https://huggingface.co/${model.name}/deploy?ref=free2aitools`}
+          target="_blank"
+          rel="noopener sponsored"
+          class="flex items-center justify-between w-full px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors group"
+        >
+          <span class="flex items-center gap-2">
+            <span class="text-lg">🤗</span>
+            <span class="font-medium text-gray-700 dark:text-gray-200">HF Inference</span>
+          </span>
+          <span class="text-xs text-gray-400 group-hover:text-yellow-600">Try →</span>
+        </a>
+      )}
+    </div>
+    <p class="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">Affiliate links help support this project</p>
+  </div>
+
   {hasSpecsData && (
     <SpecsTable 
       params_billions={model.params_billions || null}
