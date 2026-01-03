@@ -53,88 +53,34 @@ jobs:
           pip install boto3
 
       # ============================================================
-      # TASK 1: SNAPSHOT CURRENT METRICS TO ENTITIES_HISTORY
+      # TASK 1: SNAPSHOT CURRENT METRICS (V14.2: D1 BANNED)
       # ============================================================
       - name: Execute Daily Snapshot
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           echo "📸 [Task 1/5] Creating daily metrics snapshot..."
-          echo "Date: $(date -u +%Y-%m-%d)"
-          
-          wrangler d1 execute ai-nexus-db --remote --command "
-            INSERT INTO entities_history (entity_id, umid, type, downloads, likes, fni_score, snapshot_date)
-            SELECT 
-              id,
-              umid,
-              type,
-              downloads,
-              likes,
-              fni_score,
-              date('now')
-            FROM entities
-            WHERE umid IS NOT NULL
-            ON CONFLICT(entity_id, snapshot_date) DO UPDATE SET
-              downloads = excluded.downloads,
-              likes = excluded.likes,
-              fni_score = excluded.fni_score;
-          "
-          
-          echo "✅ Snapshot completed"
+          echo "⚠️ V14.2: D1 database banned - snapshot skipped"
+          echo "ℹ️ Metrics are now tracked in R2 entities.json with L5 Heavy Compute"
+          echo "✅ Task 1 skipped (V14.2 compliance)"
 
       # ============================================================
-      # TASK 2: CALCULATE FNI VELOCITY (V DIMENSION)
+      # TASK 2: CALCULATE FNI VELOCITY (V14.2: D1 BANNED)
       # ============================================================
       - name: Calculate FNI Velocity
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           echo "📈 [Task 2/5] Calculating FNI Velocity..."
-          
-          wrangler d1 execute ai-nexus-db --remote --command "
-            UPDATE entities SET fni_v = (
-              SELECT CASE 
-                WHEN prev.downloads > 0 AND prev.downloads IS NOT NULL THEN 
-                  ROUND(((curr.downloads - prev.downloads) * 1.0 / prev.downloads) * 100, 2)
-                ELSE 0
-              END
-              FROM entities_history curr
-              LEFT JOIN entities_history prev 
-                ON curr.entity_id = prev.entity_id
-                AND prev.snapshot_date = date('now', '-7 days')
-              WHERE curr.entity_id = entities.id
-                AND curr.snapshot_date = date('now')
-              LIMIT 1
-            )
-            WHERE umid IS NOT NULL;
-          "
-          
-          echo "✅ Velocity calculation completed"
+          echo "⚠️ V14.2: D1 database banned - velocity calculation skipped"
+          echo "ℹ️ FNI velocity is now computed in L5 Heavy Compute (fni-compute.js)"
+          echo "✅ Task 2 skipped (V14.2 compliance)"
 
       # ============================================================
-      # TASK 3: VERIFY SNAPSHOT
+      # TASK 3: VERIFY SNAPSHOT (V14.2: D1 BANNED)
       # ============================================================
       - name: Verify Snapshot
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           echo "🔍 [Task 3/5] Verifying snapshot..."
-          
-          wrangler d1 execute ai-nexus-db --remote --command "
-            SELECT 
-              snapshot_date,
-              COUNT(*) as record_count,
-              SUM(downloads) as total_downloads,
-              AVG(fni_score) as avg_fni
-            FROM entities_history
-            WHERE snapshot_date = date('now')
-            GROUP BY snapshot_date;
-          "
-          
-          echo "✅ Verification completed"
+          echo "⚠️ V14.2: D1 database banned - verification skipped"
+          echo "ℹ️ Data verification now done via R2 file checks in L5 Heavy Compute"
+          echo "✅ Task 3 skipped (V14.2 compliance)"
       # ============================================================
       # TASK 4: GENERATE SITEMAPS (V6.2 - Merged from l5-sitemap.yml)
       # R2_ENDPOINT constructed from CLOUDFLARE_ACCOUNT_ID if not set
