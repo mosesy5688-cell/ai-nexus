@@ -12,6 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import { enforceUpstreamComplete } from './manifest-utils.js';
 import { PIPELINE_TO_V6_CATEGORY, CATEGORY_METADATA } from './category-mapping.js';
+import { filterValidEntities } from './entity-validator.js';
 
 // V1.1-LOCK: Enforce upstream manifest completeness
 const L1_MANIFEST = 'data/manifest.json';
@@ -92,6 +93,9 @@ export async function computeAllRankings(computedDir, outputDir) {
     // Load FNI results
     const fniResults = loadFNIResults(computedDir);
 
+    // V14.3: Filter to only entities with valid R2 cache paths
+    const validEntities = filterValidEntities(fniResults);
+
     // Ensure output directory exists
     const rankingsDir = path.join(outputDir, 'rankings');
     if (!fs.existsSync(rankingsDir)) {
@@ -102,7 +106,7 @@ export async function computeAllRankings(computedDir, outputDir) {
     const byCategory = {};
     const byEntityType = {};
 
-    for (const entity of fniResults) {
+    for (const entity of validEntities) {
         // By category - V6.0.1: Map raw HF pipeline_tag to 5 primary categories
         const rawCat = entity.primary_category || 'uncategorized';
         const cat = PIPELINE_TO_V6_CATEGORY[rawCat] || 'uncategorized';
