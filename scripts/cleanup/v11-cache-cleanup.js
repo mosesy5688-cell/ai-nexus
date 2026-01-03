@@ -1,16 +1,26 @@
 /**
- * V11 Old Cache Cleanup Script
- * Removes legacy cache paths after V11 migration completes
+ * V14.2 R2 Deprecated Files Cleanup Script
+ * Removes legacy cache paths after Constitutional Architecture migration
  * Safe to run: Lists files first, requires confirmation to delete
+ * 
+ * DEPRECATED PATHS (V14.2):
+ * - cache/models.json     → REMOVED (use cache/entities/model/)
+ * - cache/spaces/         → REMOVED (migrate to cache/entities/space/)
+ * - cache/datasets/       → REMOVED (migrate to cache/entities/dataset/)
+ * - cache/models/         → REMOVED (migrate to cache/entities/model/)
+ * - ingest/batches/       → REMOVED (no longer used)
+ * 
  * @module scripts/cleanup/v11-cache-cleanup
  */
 import { execSync } from 'child_process';
 import readline from 'readline';
 
 const R2_BUCKET = 'ai-nexus-assets';
-const OLD_PATHS = [
+const DEPRECATED_PATHS = [
+    'cache/models.json',       // V14.2: Single models file deprecated
     'cache/models/',           // Old model cache path
-    'cache/datasets/',         // Old dataset cache path (if any)
+    'cache/spaces/',           // Old spaces cache path
+    'cache/datasets/',         // Old dataset cache path
     'ingest/batches/',         // Old ingest batches
 ];
 
@@ -18,7 +28,7 @@ async function listFilesToClean() {
     console.log('🔍 V11 Cache Cleanup - Scanning old paths...\n');
     const filesToDelete = [];
 
-    for (const prefix of OLD_PATHS) {
+    for (const prefix of DEPRECATED_PATHS) {
         console.log(`📁 Checking: ${prefix}`);
         try {
             const result = execSync(
