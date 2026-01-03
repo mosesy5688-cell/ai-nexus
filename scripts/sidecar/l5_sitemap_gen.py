@@ -36,25 +36,26 @@ ENTITY_CONFIGS = [
     {"type": "agent", "path_prefix": "/agent/", "changefreq": "weekly"},
 ]
 
-# Static pages - V12: URL-ROUTING-SPEC-V1.0 compliant
+# Static pages - V14.3: URL-ROUTING-SPEC compliant (no 301 redirect pages)
 STATIC_PAGES = [
     {"path": "/", "priority": "1.0", "changefreq": "daily"},
-    {"path": "/models", "priority": "0.9", "changefreq": "daily"},  # V12: New entry
-    {"path": "/ranking", "priority": "0.8", "changefreq": "daily"},
+    {"path": "/models", "priority": "0.9", "changefreq": "daily"},
     {"path": "/search", "priority": "0.8", "changefreq": "daily"},
     {"path": "/knowledge", "priority": "0.7", "changefreq": "weekly"},
-    {"path": "/agent", "priority": "0.7", "changefreq": "weekly"},  # V12: Agent listing
-    {"path": "/space", "priority": "0.7", "changefreq": "weekly"},  # V12: Space listing
-    {"path": "/reports", "priority": "0.7", "changefreq": "weekly"},
+    {"path": "/agent", "priority": "0.7", "changefreq": "weekly"},
+    {"path": "/space", "priority": "0.7", "changefreq": "weekly"},
+    {"path": "/dataset", "priority": "0.7", "changefreq": "weekly"},  # V14.3: Added
+    {"path": "/paper", "priority": "0.7", "changefreq": "weekly"},    # V14.3: Added
+    {"path": "/reports", "priority": "0.6", "changefreq": "weekly"},
     {"path": "/compare", "priority": "0.6", "changefreq": "weekly"},
     {"path": "/methodology", "priority": "0.5", "changefreq": "monthly"},
     {"path": "/about", "priority": "0.4", "changefreq": "monthly"},
     # Category pages
     {"path": "/text-generation", "priority": "0.8", "changefreq": "daily"},
-    {"path": "/knowledge-retrieval", "priority": "0.8", "changefreq": "daily"},
-    {"path": "/vision-multimedia", "priority": "0.8", "changefreq": "daily"},
-    {"path": "/automation-workflow", "priority": "0.8", "changefreq": "daily"},
-    {"path": "/infrastructure-ops", "priority": "0.8", "changefreq": "daily"},
+    {"path": "/knowledge-retrieval", "priority": "0.7", "changefreq": "daily"},
+    {"path": "/vision-multimedia", "priority": "0.7", "changefreq": "daily"},
+    {"path": "/automation-workflow", "priority": "0.7", "changefreq": "daily"},
+    {"path": "/infrastructure-ops", "priority": "0.7", "changefreq": "daily"},
 ]
 
 
