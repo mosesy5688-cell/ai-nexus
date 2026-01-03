@@ -126,10 +126,19 @@ export async function resolveEntityFromCache(slug, locals) {
     const isDataset = slugParts[0] === 'dataset' || (slugParts.length >= 2 && slugParts[1] === 'dataset');
     const cachePrefix = isDataset ? 'cache/entities/dataset' : 'cache/entities/model';
 
-    // Primary constitutional path - normalizedSlug is already in source--author--name format
-    const cachePaths = [
-        `${cachePrefix}/${normalizedSlug}.json`,
-    ];
+    // V14.2 FIX: Try multiple source prefixes for 2-part URLs
+    // Many models in rankings are from replicate/civitai, not huggingface
+    const cachePaths = [`${cachePrefix}/${normalizedSlug}.json`];
+
+    // If slug was 2-part (defaulted to huggingface), also try other sources
+    const slugPartsClean = normalizedSlug.split('--');
+    if (slugPartsClean[0] === 'huggingface') {
+        const authorName = slugPartsClean.slice(1).join('--');
+        // Try other common sources
+        ['replicate', 'civitai', 'github', 'ollama', 'kaggle'].forEach(src => {
+            cachePaths.push(`${cachePrefix}/${src}--${authorName}.json`);
+        });
+    }
 
     // V14 Debug: Log attempted path for troubleshooting
     console.log(`[EntityCache] Resolving: ${JSON.stringify(slug)} → ${normalizedSlug}`);

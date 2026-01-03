@@ -11,7 +11,7 @@ import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
 import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.astro';
-import TechnicalSpecs from '../../components/model-detail/TechnicalSpecs.astro';
+// TechnicalSpecs import removed - rendered inside ModelMainColumn.astro
 import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import EntityRelations from '../../components/entity/EntityRelations.astro';
@@ -148,19 +148,7 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
           </section>
         )}
 
-        <!-- V8.1-LOCK Phase 2: Technical Specs -->
-        <TechnicalSpecs
-          pipelineTag={model.pipeline_tag}
-          libraryName={model.library_name}
-          params={model.params_billions}
-          storageBytes={model.storage_bytes}
-          filesCount={model.files_count}
-          gated={model.gated}
-          architecture={model.architecture}
-          contextLength={model.context_length}
-          quantization={model.quantization}
-          config={model.meta_json?.config}
-        />
+        {/* TechnicalSpecs removed - rendered inside ModelMainColumn.astro */}
 
         <!-- V12: Knowledge Relations Panel -->
         <RelationsPanel
