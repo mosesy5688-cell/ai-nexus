@@ -140,6 +140,24 @@ export async function resolveEntityFromCache(slug, locals) {
         });
     }
 
+    // V14.2 FIX: Try underscore/dash variants in model name
+    // URLs may use dashes but R2 files use underscores (e.g., internvl3-5-30b vs internvl3_5-30b)
+    const addVariants = (basePaths) => {
+        const variants = [];
+        basePaths.forEach(path => {
+            // Try underscore version if contains dash
+            if (path.includes('-')) {
+                variants.push(path.replace(/-/g, '_'));
+            }
+            // Try dash version if contains underscore
+            if (path.includes('_')) {
+                variants.push(path.replace(/_/g, '-'));
+            }
+        });
+        return variants.filter(v => !basePaths.includes(v));
+    };
+    cachePaths.push(...addVariants(cachePaths));
+
     // V14 Debug: Log attempted path for troubleshooting
     console.log(`[EntityCache] Resolving: ${JSON.stringify(slug)} → ${normalizedSlug}`);
 
