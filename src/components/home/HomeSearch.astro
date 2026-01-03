@@ -38,13 +38,93 @@ const { initialQuery = '' } = Astro.props;
 </div>
 
 <script>
+  // V14.2 Static Search Integration
+  import { initSearch, performSearch, getSearchStatus } from '../scripts/static-search.js';
+  
+  const searchBox = document.getElementById('search-box');
+  const searchContainer = document.getElementById('search-container');
+  let resultsDropdown = null;
+
+  // Create dropdown for instant results
+  function createDropdown() {
+    if (!resultsDropdown) {
+      resultsDropdown = document.createElement('div');
+      resultsDropdown.id = 'search-results-dropdown';
+      resultsDropdown.className = 'absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto hidden';
+      searchContainer.style.position = 'relative';
+      searchContainer.appendChild(resultsDropdown);
+    }
+    return resultsDropdown;
+  }
+
+  // Render search results
+  function renderResults(results) {
+    const dropdown = createDropdown();
+    if (!results || results.length === 0) {
+      dropdown.classList.add('hidden');
+      return;
+    }
+
+    dropdown.innerHTML = results.map(r => `
+      <a href="/model/${r.slug}" class="flex items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0">
+        <div class="flex-1">
+          <div class="font-medium text-gray-900 dark:text-white">${r.name}</div>
+          <div class="text-sm text-gray-500">${r.author || 'Unknown'} · FNI: ${r.fni_score || 'N/A'}</div>
+        </div>
+        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+        </svg>
+      </a>
+    `).join('');
+    
+    dropdown.classList.remove('hidden');
+  }
+
+  // Initialize on focus (lazy load)
+  searchBox?.addEventListener('focus', async () => {
+    await initSearch();
+  });
+
+  // Search on input
+  searchBox?.addEventListener('input', (e) => {
+    const query = e.target.value.trim();
+    if (query.length < 2) {
+      resultsDropdown?.classList.add('hidden');
+      return;
+    }
+    
+    const status = getSearchStatus();
+    if (status.isLoaded) {
+      const results = performSearch(query, 8);
+      renderResults(results);
+    }
+  });
+
+  // Hide dropdown on click outside
+  document.addEventListener('click', (e) => {
+    if (!searchContainer?.contains(e.target)) {
+      resultsDropdown?.classList.add('hidden');
+    }
+  });
+
+  // Navigate on Enter
+  document.getElementById('search-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const query = searchBox?.value?.trim();
+    if (query) {
+      window.location.href = `/search?q=${encodeURIComponent(query)}`;
+    }
+  });
+
+  // Search hints
   document.querySelectorAll('.search-hint').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const query = btn.dataset.query || '';
-      const searchBox = document.getElementById('search-box');
       if (searchBox) {
         searchBox.value = query;
-        searchBox.dispatchEvent(new Event('input', { bubbles: true }));
+        await initSearch();
+        const results = performSearch(query, 8);
+        renderResults(results);
         searchBox.focus();
       }
     });
