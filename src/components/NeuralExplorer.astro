@@ -120,7 +120,13 @@ const archInfo = architectureInfo[archType] || architectureInfo['default'];
     
     <div class="learn-more">
         <a href="/knowledge/transformer">Learn about Transformers →</a>
-        {archType.includes('moe') && <a href="/knowledge/moe">Learn about MoE →</a>}
+        {archType.includes('llama') && <a href="/knowledge/llama">LLaMA Architecture →</a>}
+        {archType.includes('mistral') && <a href="/knowledge/mistral">Mistral Guide →</a>}
+        {archType.includes('qwen') && <a href="/knowledge/qwen">Qwen Architecture →</a>}
+        {archType.includes('gemma') && <a href="/knowledge/gemma">Google Gemma →</a>}
+        {archType.includes('phi') && <a href="/knowledge/phi">Microsoft Phi →</a>}
+        {archType.includes('moe') && <a href="/knowledge/moe">Mixture of Experts →</a>}
+        <a href="/knowledge/context-length">Context Length Explained →</a>
     </div>
 </section>
 
