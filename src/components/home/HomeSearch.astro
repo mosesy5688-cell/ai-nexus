@@ -1,5 +1,7 @@
 ---
 // src/components/home/HomeSearch.astro
+import CategoryPills from './CategoryPills.astro';
+
 interface Props {
   initialQuery?: string;
 }
@@ -36,6 +38,8 @@ const { initialQuery = '' } = Astro.props;
             <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-query="gguf quantized">gguf quantized</button>
             <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors" data-query="embedding">embedding</button>
         </div>
+        <!-- V14.2: Category Filter Pills -->
+        <CategoryPills />
     </div>
 </div>
 

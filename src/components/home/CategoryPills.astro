@@ -1,0 +1,29 @@
+---
+/**
+ * CategoryPills Component - V14.2
+ * 
+ * Quick category navigation pills displayed below search
+ * Links to /ranking?category={slug} for filtered results
+ */
+
+const categories = [
+  { name: 'Text Generation', slug: 'text-generation', icon: '💬' },
+  { name: 'Image', slug: 'text-to-image', icon: '🖼️' },
+  { name: 'Code', slug: 'code-generation', icon: '💻' },
+  { name: 'Embedding', slug: 'feature-extraction', icon: '🔢' },
+  { name: 'Audio', slug: 'automatic-speech-recognition', icon: '🎵' },
+  { name: 'Video', slug: 'text-to-video', icon: '🎬' },
+];
+---
+
+<div class="flex flex-wrap justify-center gap-2 mt-3">
+  {categories.map(cat => (
+    <a 
+      href={`/ranking?category=${cat.slug}`}
+      class="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 text-gray-700 dark:text-gray-300 hover:text-indigo-700 dark:hover:text-indigo-300 text-sm rounded-full transition-colors flex items-center gap-1"
+    >
+      <span>{cat.icon}</span>
+      <span>{cat.name}</span>
+    </a>
+  ))}
+</div>
