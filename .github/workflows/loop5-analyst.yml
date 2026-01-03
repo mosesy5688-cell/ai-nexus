@@ -216,6 +216,6 @@ jobs:
           echo "| 4 | Sitemap Generation | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "| 5 | History Cleanup | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Architecture:** L1=采集 | L5=计算" >> $GITHUB_STEP_SUMMARY
+          echo "**Architecture:** L1=Harvest | L5=Compute" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "*Next run: Tomorrow at 04:00 UTC (after L1 Harvester)*" >> $GITHUB_STEP_SUMMARY
