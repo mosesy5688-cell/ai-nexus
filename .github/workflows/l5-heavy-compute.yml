@@ -377,7 +377,8 @@ jobs:
     name: Upload Results to R2
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [compute-rankings, compute-search-index, compute-similarity, process-images]
+    # V14.3: process-images is optional, removed from needs
+    needs: [compute-rankings, compute-search-index, compute-similarity]
     
     steps:
       - uses: actions/checkout@v4
