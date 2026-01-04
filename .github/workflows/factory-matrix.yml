@@ -1,0 +1,368 @@
+# Factory Matrix Workflow V14.4
+# Constitution Reference: Art 3.1 (Matrix), Art 2.3 (Cache Safety)
+# 
+# Phase 1: 20 parallel shards process entities
+# Phase 2: Aggregator combines results
+
+name: Factory Matrix V14.4
+
+on:
+  schedule:
+    # Run Mon/Thu at 03:00 UTC
+    - cron: '0 3 * * 1,4'
+  workflow_dispatch:
+    inputs:
+      force_full:
+        description: 'Force full rebuild (ignore cache)'
+        type: boolean
+        default: false
+
+env:
+  R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  R2_BUCKET: ai-nexus-assets
+
+jobs:
+  # ============================================================
+  # PHASE 0: Prepare Data
+  # ============================================================
+  prepare:
+    name: Prepare Entity Data
+    runs-on: ubuntu-latest
+    outputs:
+      entity-count: ${{ steps.count.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Restore FNI history from cache (Art 2.3)
+      - name: Restore FNI History Cache
+        uses: actions/cache@v3
+        id: fni-cache
+        with:
+          path: cache/fni-history.json
+          key: fni-history-${{ github.run_id }}
+          restore-keys: |
+            fni-history-
+
+      - name: Restore Weekly Accumulator Cache
+        uses: actions/cache@v3
+        id: weekly-cache
+        with:
+          path: cache/weekly-accum.json
+          key: weekly-accum-${{ github.run_id }}
+          restore-keys: |
+            weekly-accum-
+
+      # If cache miss, restore from R2 (Art 2.3 Safety Net)
+      - name: Restore from R2 if cache miss
+        if: steps.fni-cache.outputs.cache-hit != 'true'
+        run: |
+          echo "Cache miss - restoring from R2 backup..."
+          mkdir -p cache
+          aws s3 cp s3://$R2_BUCKET/meta/backup/fni-history.json cache/fni-history.json --endpoint-url $R2_ENDPOINT || echo "{}" > cache/fni-history.json
+          aws s3 cp s3://$R2_BUCKET/meta/backup/weekly-accum.json cache/weekly-accum.json --endpoint-url $R2_ENDPOINT || echo '{"entries":[]}' > cache/weekly-accum.json
+
+      # Fetch latest entity data
+      - name: Fetch Entity Data
+        run: node scripts/collectors/fetch-all.js
+
+      - name: Count Entities
+        id: count
+        run: |
+          COUNT=$(jq length data/entities.json)
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+          echo "Entity count: $COUNT"
+
+      - name: Upload Entity Data
+        uses: actions/upload-artifact@v4
+        with:
+          name: entity-data
+          path: |
+            data/entities.json
+            cache/fni-history.json
+            cache/weekly-accum.json
+          retention-days: 1
+
+  # ============================================================
+  # PHASE 1: Matrix Shards (Art 3.1)
+  # ============================================================
+  matrix-shard:
+    name: Shard ${{ matrix.shard }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+      fail-fast: false
+      max-parallel: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Entity Data
+        uses: actions/download-artifact@v4
+        with:
+          name: entity-data
+          path: ./
+
+      - name: Process Shard ${{ matrix.shard }}
+        env:
+          ENTITIES_PATH: data/entities.json
+          FNI_HISTORY_PATH: cache/fni-history.json
+          ARTIFACT_DIR: artifacts
+        run: |
+          node scripts/factory/shard-processor.js --shard=${{ matrix.shard }} --total=20
+
+      - name: Upload Shard Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.shard }}
+          path: artifacts/
+          retention-days: 1
+
+  # ============================================================
+  # PHASE 2: Aggregator (Art 3.1)
+  # ============================================================
+  aggregate:
+    name: Aggregator
+    needs: matrix-shard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Download all shard artifacts
+      - name: Download Shard 0
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-0
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 1
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-1
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 2
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-2
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 3
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-3
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 4
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-4
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 5
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-5
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 6
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-6
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 7
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-7
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 8
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-8
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 9
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-9
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 10
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-10
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 11
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-11
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 12
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-12
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 13
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-13
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 14
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-14
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 15
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-15
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 16
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-16
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 17
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-17
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 18
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-18
+          path: artifacts/
+        continue-on-error: true
+
+      - name: Download Shard 19
+        uses: actions/download-artifact@v4
+        with:
+          name: shard-19
+          path: artifacts/
+        continue-on-error: true
+
+      # Download cache data
+      - name: Download Cache Data
+        uses: actions/download-artifact@v4
+        with:
+          name: entity-data
+          path: ./
+
+      - name: Run Aggregator
+        run: node scripts/factory/aggregator.js
+
+      # Save updated cache (Art 2.3)
+      - name: Save FNI History Cache
+        uses: actions/cache/save@v3
+        with:
+          path: cache/fni-history.json
+          key: fni-history-${{ github.run_id }}
+
+      - name: Save Weekly Accumulator Cache
+        uses: actions/cache/save@v3
+        with:
+          path: cache/weekly-accum.json
+          key: weekly-accum-${{ github.run_id }}
+
+      - name: Upload Output Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-output
+          path: output/
+          retention-days: 7
+
+  # ============================================================
+  # PHASE 3: Upload to R2
+  # ============================================================
+  upload-to-r2:
+    name: Upload to R2
+    needs: aggregate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Output
+        uses: actions/download-artifact@v4
+        with:
+          name: factory-output
+          path: output/
+
+      - name: Configure AWS CLI for R2
+        run: |
+          aws configure set aws_access_key_id $R2_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $R2_SECRET_ACCESS_KEY
+          aws configure set default.region auto
+
+      - name: Sync to R2
+        run: |
+          aws s3 sync output/ s3://$R2_BUCKET/ --endpoint-url $R2_ENDPOINT --delete
+
+      - name: Purge CDN Cache
+        run: |
+          echo "TODO: Implement Cloudflare cache purge API call"
+          # curl -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/purge_cache" \
+          #   -H "Authorization: Bearer $CF_API_TOKEN" \
+          #   -d '{"purge_everything":true}'
+
+      - name: Summary
+        run: |
+          echo "## Factory V14.4 Complete! 🏭" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Rankings uploaded to R2" >> $GITHUB_STEP_SUMMARY
+          echo "- Search indices updated" >> $GITHUB_STEP_SUMMARY
+          echo "- FNI history synced" >> $GITHUB_STEP_SUMMARY
