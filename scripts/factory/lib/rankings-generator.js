@@ -42,7 +42,8 @@ async function generateCategoryRanking(category, entities, outputDir) {
     const pageSize = 50;
     const totalPages = Math.ceil(entities.length / pageSize) || 1;
 
-    const rankingDir = path.join(outputDir, 'rankings', category);
+    // Write to cache/rankings to match CDN path expectations
+    const rankingDir = path.join(outputDir, 'cache', 'rankings', category);
     await fs.mkdir(rankingDir, { recursive: true });
 
     for (let page = 1; page <= totalPages; page++) {

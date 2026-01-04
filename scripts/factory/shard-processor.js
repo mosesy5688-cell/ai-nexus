@@ -54,8 +54,10 @@ async function processEntity(entity, allEntities) {
                 .digest('hex'),
         };
 
-        // Smart Write (Art 2.2)
-        const key = `entities/${entity.type || 'model'}/${entity.slug || entity.id}.json`;
+        // Smart Write to R2 (Art 2.2)
+        // Path: cache/entities/{type}/{source}--{author}--{name}.json
+        const slugForPath = (entity.slug || entity.id).replace(/:/g, '--').replace(/\//g, '--');
+        const key = `cache/entities/${entity.type || 'model'}/${slugForPath}.json`;
         await smartWrite(key, enriched);
 
         return {
