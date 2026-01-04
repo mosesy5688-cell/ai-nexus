@@ -12,6 +12,7 @@ const pageTitle = "AI Industry Weekly Reports";
 const pageDescription = "Stay updated with the latest trends, breakthroughs, and popular models in the open-source AI landscape with our weekly reports.";
 ---
 
+<!-- V14.4 Art 5.6: News-style Reports Listing -->
 <Layout title={pageTitle} description={pageDescription}>
   <div class="container mx-auto px-4 py-12">
     <header class="text-center mb-12">
@@ -19,6 +20,15 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
       <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">
         Your weekly digest of breakthroughs and trends in the open-source AI world.
       </p>
+      <!-- V14.4 Art 5.5: Annual Reports link -->
+      <div class="mt-4 flex justify-center gap-4">
+        <a href="/reports/archive" class="text-blue-600 dark:text-blue-400 hover:underline">
+          📚 Weekly Archive
+        </a>
+        <a href="/reports/annual" class="text-purple-600 dark:text-purple-400 hover:underline">
+          📊 Annual Reports
+        </a>
+      </div>
     </header>
 
     <!-- V4.8.1: Live Trending from L8 Cache -->
