@@ -3,8 +3,7 @@
  * V14.4 Entity Cache Reader
  * Protocol: Zero-Entropy (R2 direct read)
  * 
- * Matches Factory Output Path:
- * /entities/{type}/{slug}.json
+ * R2 Path: cache/entities/{type}/{source}--{author}--{name}.json
  * 
  * Legacy KV/D1 logic removed.
  */
@@ -57,11 +56,13 @@ export async function resolveEntityFromCache(slug, locals, forceType = null) {
     }
 
     // Try multiple paths to find the entity
-    // V14.4 Standard: entities/{type}/{slug}.json
+    // R2 Structure: cache/entities/{type}/{source}--{author}--{name}.json
     const pathsToTry = [
-        `entities/${type}/${slugStr}.json`,
-        // Retry with flattened slug just in case (legacy compat)
-        `entities/${type}/${slugStr.replace(/\//g, '--')}.json`
+        // V14 Legacy format: cache/entities/{type}/{source}--{author}--{name}.json
+        `cache/entities/${type}/huggingface--${slugStr.replace(/\//g, '--')}.json`,
+        `cache/entities/${type}/${slugStr.replace(/\//g, '--')}.json`,
+        // Try slash format
+        `cache/entities/${type}/${slugStr}.json`,
     ];
 
     for (const path of pathsToTry) {
