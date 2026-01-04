@@ -1,16 +1,19 @@
 /**
  * FNI Configuration
+ * V14.4 Constitution Art 4.1 Compliant
  */
 
 export const CONFIG = {
     // Weight configuration (must sum to 1.0)
-    // V4.7 Constitution: FNI = 0.3P + 0.3V + 0.2C + 0.2U
+    // V14.4 Constitution Art 4.1:
+    // FNI = (P × 0.35) + (V × 0.25) + (C × 0.25) + (U × 0.15)
     WEIGHTS: {
-        P: 0.30,  // Popularity (V4.7)
-        V: 0.30,  // Velocity (V4.7)
-        C: 0.20,  // Credibility (V4.7)
-        U: 0.20   // Utility (V4.7)
+        P: 0.35,  // Popularity (V14.4)
+        V: 0.25,  // Velocity (V14.4)
+        C: 0.25,  // Completeness (V14.4, was Credibility)
+        U: 0.15   // Usability (V14.4)
     },
+
 
     // Normalization baselines (based on data distribution)
     NORMALIZATION: {
