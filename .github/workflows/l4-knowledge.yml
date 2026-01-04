@@ -44,14 +44,14 @@ jobs:
       - name: Check for changes
         id: changes
         run: |
-          git diff --exit-code src/content/knowledge/ || echo "has_changes=true" >> $GITHUB_OUTPUT
+          git diff --exit-code src/pages/knowledge/ || echo "has_changes=true" >> $GITHUB_OUTPUT
       
       - name: Commit and Push
         if: steps.changes.outputs.has_changes == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/content/knowledge/
+          git add src/pages/knowledge/
           git commit -m "L4: Auto-generated knowledge articles [skip ci]"
           git push
         env:
