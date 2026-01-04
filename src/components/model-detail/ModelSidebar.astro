@@ -65,7 +65,10 @@ function formatBytes(bytes: number | undefined): string {
     <p id="compare-status" class="text-xs text-white/70 mt-2 text-center hidden"></p>
   </div>
 
-  <!-- V14.2: Run on Cloud Affiliate CTAs -->
+  {/* V14.3: HIDDEN - Run on Cloud Affiliate CTAs (2026-01-04)
+      Reason: Feature temporarily disabled per user request
+      To re-enable: Remove the comment wrapper around this section
+  
   <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
     <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
       ☁️ Run on Cloud
@@ -112,6 +115,7 @@ function formatBytes(bytes: number | undefined): string {
     </div>
     <p class="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">Affiliate links help support this project</p>
   </div>
+  END HIDDEN */}
 
   {hasSpecsData && (
     <SpecsTable 
