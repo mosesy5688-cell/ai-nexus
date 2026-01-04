@@ -72,9 +72,15 @@ jobs:
           aws s3 cp s3://$R2_BUCKET/meta/backup/fni-history.json cache/fni-history.json --endpoint-url $R2_ENDPOINT || echo "{}" > cache/fni-history.json
           aws s3 cp s3://$R2_BUCKET/meta/backup/weekly-accum.json cache/weekly-accum.json --endpoint-url $R2_ENDPOINT || echo '{"entries":[]}' > cache/weekly-accum.json
 
-      # Fetch latest entity data
+      # Fetch latest entity data using proven L1 orchestrator
       - name: Fetch Entity Data
-        run: node scripts/collectors/fetch-all.js
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/ingestion/orchestrator.js
+          # Orchestrator outputs to data/merged.json, copy to expected path
+          cp data/merged.json data/entities.json
 
       - name: Count Entities
         id: count
