@@ -154,9 +154,48 @@ try {
 const validEntities = entities.filter(e => e && typeof e === 'object' && e.id);
 console.log(`✅ ${validEntities.length} entities have valid IDs`);
 
+/**
+ * V14.3.2: Deep sanitize an entity's string fields
+ * Recursively cleans all string values to ensure Rust compatibility
+ */
+function deepSanitizeEntity(obj) {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj === 'string') {
+        // Remove/fix problematic characters
+        return obj
+            // Remove null bytes
+            .replace(/\x00/g, '')
+            // Remove control characters except \n, \r, \t
+            .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ' ')
+            // Fix incomplete unicode escapes in the string content itself
+            .replace(/\\u([0-9a-fA-F]{0,3})(?![0-9a-fA-F])/g, (match, hex) => {
+                if (hex.length === 0) return '';
+                return String.fromCharCode(parseInt(hex.padStart(4, '0'), 16));
+            })
+            // Remove isolated backslashes that aren't valid escapes
+            .replace(/\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})/g, '');
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(deepSanitizeEntity);
+    }
+    if (typeof obj === 'object') {
+        const cleaned = {};
+        for (const [key, value] of Object.entries(obj)) {
+            cleaned[key] = deepSanitizeEntity(value);
+        }
+        return cleaned;
+    }
+    return obj;
+}
+
+// Deep sanitize each entity
+console.log(`🧼 Deep sanitizing entity string fields...`);
+const cleanedEntities = validEntities.map(deepSanitizeEntity);
+console.log(`✅ Deep sanitization complete`);
+
 // Write output
 try {
-    fs.writeFileSync(outputFile, JSON.stringify(validEntities));
+    fs.writeFileSync(outputFile, JSON.stringify(cleanedEntities));
     const stats = fs.statSync(outputFile);
     console.log(`📤 Wrote ${stats.size} bytes to ${outputFile}`);
     console.log(`🎉 Sanitization complete!`);
@@ -164,3 +203,4 @@ try {
     console.error(`❌ Failed to write output: ${writeErr.message}`);
     process.exit(1);
 }
+
