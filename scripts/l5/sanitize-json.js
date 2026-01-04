@@ -2,21 +2,18 @@
 /**
  * V14.3: JSON Sanitizer for L5 Image Processing
  * 
- * Reads entities.json with Node.js (more forgiving parser),
- * validates each entity, skips malformed ones, and outputs
- * clean JSON for Rust image optimizer.
+ * Uses streaming approach to parse entities one by one,
+ * skipping malformed entries while preserving valid ones.
  * 
  * Usage: node sanitize-json.js input.json output.json
  */
 
 import fs from 'fs';
-import path from 'path';
-
 
 const inputFile = process.argv[2] || 'data/entities.json';
 const outputFile = process.argv[3] || 'data/entities-clean.json';
 
-console.log(`🧹 JSON Sanitizer V14.3`);
+console.log(`🧹 JSON Sanitizer V14.3.1 (Streaming)`);
 console.log(`📥 Input: ${inputFile}`);
 console.log(`📤 Output: ${outputFile}`);
 
@@ -30,101 +27,136 @@ try {
     process.exit(1);
 }
 
-// Fix common JSON escape issues before parsing
+/**
+ * Extract entities by finding JSON object boundaries
+ * More robust than line-by-line parsing
+ */
+function extractEntities(content) {
+    const entities = [];
+    let failed = 0;
+
+    // Remove outer brackets
+    let inner = content.trim();
+    if (inner.startsWith('[')) inner = inner.slice(1);
+    if (inner.endsWith(']')) inner = inner.slice(0, -1);
+
+    // Track brace depth to find object boundaries
+    let depth = 0;
+    let start = -1;
+    let inString = false;
+    let escaped = false;
+
+    for (let i = 0; i < inner.length; i++) {
+        const char = inner[i];
+
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+
+        if (char === '\\') {
+            escaped = true;
+            continue;
+        }
+
+        if (char === '"') {
+            inString = !inString;
+            continue;
+        }
+
+        if (inString) continue;
+
+        if (char === '{') {
+            if (depth === 0) start = i;
+            depth++;
+        } else if (char === '}') {
+            depth--;
+            if (depth === 0 && start !== -1) {
+                // Found complete object
+                const objStr = inner.slice(start, i + 1);
+                try {
+                    const obj = JSON.parse(objStr);
+                    if (obj && obj.id) {
+                        entities.push(obj);
+                    }
+                } catch (parseErr) {
+                    // Try to sanitize and reparse
+                    try {
+                        const sanitized = sanitizeJsonString(objStr);
+                        const obj = JSON.parse(sanitized);
+                        if (obj && obj.id) {
+                            entities.push(obj);
+                        }
+                    } catch (e) {
+                        failed++;
+                    }
+                }
+                start = -1;
+            }
+        }
+    }
+
+    return { entities, failed };
+}
+
+/**
+ * Sanitize a JSON string to fix common escape issues
+ */
 function sanitizeJsonString(str) {
-    // Fix incomplete hex escapes like \u00 without 4 digits
+    // Fix incomplete hex escapes (\u followed by less than 4 hex chars)
     str = str.replace(/\\u([0-9a-fA-F]{0,3})(?![0-9a-fA-F])/g, (match, hex) => {
-        // Pad to 4 digits or replace with space
         if (hex.length === 0) return ' ';
         return '\\u' + hex.padStart(4, '0');
     });
 
-    // Fix invalid escape sequences
+    // Fix invalid escape sequences (\ followed by non-escape char)
     str = str.replace(/\\([^"\\\/bfnrtu])/g, '$1');
 
     // Remove null bytes
     str = str.replace(/\x00/g, '');
 
+    // Remove control characters except \n, \r, \t
+    str = str.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ' ');
+
     return str;
 }
 
-// Sanitize the raw content
-const sanitizedContent = sanitizeJsonString(rawContent);
+// Try direct parse first
+let entities = [];
+let failed = 0;
 
-// Parse JSON
-let entities;
 try {
-    entities = JSON.parse(sanitizedContent);
-    console.log(`✅ Parsed ${entities.length} entities`);
-} catch (parseErr) {
-    console.error(`❌ JSON parse failed after sanitization: ${parseErr.message}`);
+    // First attempt: direct parse (fastest)
+    entities = JSON.parse(rawContent);
+    console.log(`✅ Direct parse succeeded: ${entities.length} entities`);
+} catch (directErr) {
+    console.log(`⚠️ Direct parse failed: ${directErr.message}`);
+    console.log(`🔄 Using streaming extraction...`);
 
-    // Try line-by-line fallback for JSON Lines format
-    console.log(`🔄 Attempting line-by-line recovery...`);
-    entities = [];
-    const lines = sanitizedContent.split('\n');
-    let recovered = 0;
-    let failed = 0;
-
-    for (const line of lines) {
-        if (!line.trim() || line.trim() === '[' || line.trim() === ']') continue;
-        try {
-            // Remove trailing comma for JSON array format
-            const cleanLine = line.replace(/,\s*$/, '');
-            if (cleanLine.trim()) {
-                const entity = JSON.parse(cleanLine);
-                entities.push(entity);
-                recovered++;
-            }
-        } catch (lineErr) {
-            failed++;
-        }
-    }
-
-    if (entities.length === 0) {
-        console.error(`❌ Could not recover any entities`);
-        process.exit(1);
-    }
-
-    console.log(`🔄 Recovered ${recovered} entities, ${failed} failed`);
-}
-
-// Validate and clean each entity
-const cleanEntities = [];
-let skipped = 0;
-
-for (const entity of entities) {
+    // Second attempt: sanitize entire content then parse
     try {
-        // Validate required field
-        if (!entity.id) {
-            skipped++;
-            continue;
-        }
+        const sanitized = sanitizeJsonString(rawContent);
+        entities = JSON.parse(sanitized);
+        console.log(`✅ Sanitized parse succeeded: ${entities.length} entities`);
+    } catch (sanitizedErr) {
+        console.log(`⚠️ Sanitized parse failed: ${sanitizedErr.message}`);
+        console.log(`🔄 Extracting objects one by one...`);
 
-        // Clean string fields
-        const cleanEntity = {};
-        for (const [key, value] of Object.entries(entity)) {
-            if (typeof value === 'string') {
-                // Remove control characters except newline/tab
-                cleanEntity[key] = value.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, ' ');
-            } else {
-                cleanEntity[key] = value;
-            }
-        }
-
-        // Verify it serializes cleanly
-        JSON.stringify(cleanEntity);
-        cleanEntities.push(cleanEntity);
-    } catch (entityErr) {
-        skipped++;
+        // Third attempt: extract objects individually
+        const result = extractEntities(rawContent);
+        entities = result.entities;
+        failed = result.failed;
+        console.log(`🔄 Extracted ${entities.length} entities, ${failed} failed`);
     }
 }
 
-console.log(`✅ Validated ${cleanEntities.length} entities (${skipped} skipped)`);
+// Filter entities that have required fields for image processing
+const validEntities = entities.filter(e => e && typeof e === 'object' && e.id);
+console.log(`✅ ${validEntities.length} entities have valid IDs`);
 
-// Write clean JSON
+// Write output
 try {
-    fs.writeFileSync(outputFile, JSON.stringify(cleanEntities));
+    fs.writeFileSync(outputFile, JSON.stringify(validEntities));
     const stats = fs.statSync(outputFile);
     console.log(`📤 Wrote ${stats.size} bytes to ${outputFile}`);
     console.log(`🎉 Sanitization complete!`);
