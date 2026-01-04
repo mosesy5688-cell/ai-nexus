@@ -66,6 +66,30 @@ fn value_to_string(v: &serde_json::Value) -> String {
     }
 }
 
+/// V14.3: Convert serde_json::Value to Option<String>
+fn value_to_option_string(v: &serde_json::Value) -> Option<String> {
+    match v {
+        serde_json::Value::String(s) => Some(s.clone()),
+        serde_json::Value::Null => None,
+        _ => Some(serde_json::to_string(v).unwrap_or_default()),
+    }
+}
+
+/// V14.3: Convert serde_json::Value to SQL string (quoted or NULL)
+fn value_to_sql_string(v: &serde_json::Value) -> String {
+    match v {
+        serde_json::Value::String(s) if !s.trim().is_empty() => {
+            format!("'{}'", escape_sql_string(s))
+        }
+        serde_json::Value::Null => "NULL".to_string(),
+        serde_json::Value::String(_) => "NULL".to_string(),
+        _ => {
+            let json = serde_json::to_string(v).unwrap_or_default();
+            if json.is_empty() { "NULL".to_string() } else { format!("'{}'", escape_sql_string(&json)) }
+        }
+    }
+}
+
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -379,9 +403,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // UTF-8 safe truncation: use chars() iterator instead of byte slice
                 s.chars().take(1000).collect::<String>()
             }),
-            meta_json: model.meta_json.clone(),
-            assets_json: model.assets_json.clone(),
-            relations_json: model.relations_json.clone(),
+            // V14.3: Convert Value fields to Option<String>
+            meta_json: value_to_option_string(&model.meta_json),
+            assets_json: value_to_option_string(&model.assets_json),
+            relations_json: value_to_option_string(&model.relations_json),
             canonical_id: model.canonical_id.clone(),
             license_spdx: model.license_spdx.clone(),
             compliance_status: model.compliance_status.clone().unwrap_or_else(|| "pending".to_string()),
@@ -494,10 +519,10 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
         format!("'{}'", escape_sql_string(truncated))
     }).unwrap_or("NULL".to_string());
     
-    // Use escape_sql_string for all JSON and string fields
-    let meta_json = sql_string_or_null(&model.meta_json);
-    let assets_json = sql_string_or_null(&model.assets_json);
-    let relations_json = sql_string_or_null(&model.relations_json);
+    // V14.3: Use value_to_sql_string for Value fields
+    let meta_json = value_to_sql_string(&model.meta_json);
+    let assets_json = value_to_sql_string(&model.assets_json);
+    let relations_json = value_to_sql_string(&model.relations_json);
     let canonical_id = sql_string_or_null(&model.canonical_id);
     let license_spdx = sql_string_or_null(&model.license_spdx);
     let compliance_status = model.compliance_status.clone().map(|s| format!("'{}'", escape_sql_string(&s))).unwrap_or("'pending'".to_string());
