@@ -36,19 +36,26 @@ export function generateUrlSlug(entity) {
     // HuggingFace format can be:
     // - "huggingface:meta-llama/Llama-3" (slash-separated)
     // - "huggingface:meta-llama:Llama-3" (colon-separated - from L8)
+    // - "huggingface:hexgrad:kokoro-82m" (colon-separated - from trending.json)
     const id = entity.id || entity.umid || '';
     if (id) {
         // Remove source prefix (huggingface:, arxiv:, github:, hf:)
         let cleanId = id.replace(/^[a-z]+:/i, '');
 
-        // V12 Fix: Handle colon-separated format (author:name from L8)
-        // Convert to slash format for URL
+        // V14.4 Fix: Handle multiple colons (author:name format from trending.json)
+        // Example: "hexgrad:kokoro-82m" -> "hexgrad/kokoro-82m"
         if (cleanId.includes(':') && !cleanId.includes('/')) {
+            // Replace first colon with slash (author:name -> author/name)
             cleanId = cleanId.replace(':', '/');
         }
 
-        // If contains slash, it's owner/name format
+        // If contains slash, it's owner/name format - use it directly
         if (cleanId.includes('/')) {
+            return cleanId.toLowerCase().trim().replace(/_/g, '-');
+        }
+
+        // V14.4: If no slash but has content, try to use it as slug directly
+        if (cleanId && cleanId.length > 0) {
             return cleanId.toLowerCase().trim().replace(/_/g, '-');
         }
     }

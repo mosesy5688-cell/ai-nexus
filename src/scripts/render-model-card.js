@@ -3,10 +3,22 @@
 // V5.0: CES-001 Clean URL format
 
 export function renderModelCard(model) {
-    // V5.0: Generate clean URL format: /model/author/name
-    // Source is stored in model.source or derived from umid
-    const author = model.author || 'unknown';
-    const name = model.name || model.id?.split('/').pop() || 'unknown';
+    // V14.4 Fix: Extract author from entity.id when author field is missing
+    // trending.json format: id = "huggingface:hexgrad:kokoro-82m"
+    // Need to extract "hexgrad" as author
+    let author = model.author;
+    if (!author && model.id) {
+        // Remove source prefix (huggingface:, arxiv:, etc.)
+        const cleanId = model.id.replace(/^[a-z]+:/i, '');
+        // Split by : or / to get author and name
+        const parts = cleanId.split(/[:/]/);
+        if (parts.length >= 2) {
+            author = parts[0]; // First part is author
+        }
+    }
+    author = author || 'unknown';
+
+    const name = model.name || model.id?.split(/[:/]/).pop() || 'unknown';
 
     // V5.0: Clean URL format - lowercase, no source prefix in URL
     const modelUrl = `/model/${author.toLowerCase()}/${name.toLowerCase()}`;
