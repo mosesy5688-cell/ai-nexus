@@ -9,8 +9,9 @@
  * Usage: node sanitize-json.js input.json output.json
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+
 
 const inputFile = process.argv[2] || 'data/entities.json';
 const outputFile = process.argv[3] || 'data/entities-clean.json';
