@@ -5,34 +5,29 @@
  */
 export const DEFAULT_CONFIG = {
     sources: {
-        // Tier 1: Core Sources (use multi-strategy for >1K)
-        huggingface: { enabled: true, options: { limit: 8000 } },
-        'huggingface-datasets': { enabled: true, options: { limit: 2000 } },
-        github: { enabled: true, options: { limit: 4000 } },
+        // V14.4 Factory: Reduced limits to avoid rate limiting (429 errors)
+        // Priority: Get first successful run, then scale up
 
-        // Tier 2: Academic Sources (3s delay required)
-        arxiv: { enabled: true, options: { limit: 5000, category: 'cs.AI OR cs.LG OR cs.CL OR cs.CV' } },
+        // Tier 1: Core Sources - REDUCED for initial Factory run
+        huggingface: { enabled: true, options: { limit: 1000 } },  // Reduced from 8000
+        'huggingface-datasets': { enabled: true, options: { limit: 500 } },  // Reduced from 2000
+        github: { enabled: true, options: { limit: 500 } },  // Reduced from 4000
 
-        // Tier 3: Ecosystem Sources
-        ollama: { enabled: true, options: { limit: 2000 } },
+        // Tier 2: Academic Sources - REDUCED
+        arxiv: { enabled: true, options: { limit: 1000, category: 'cs.AI OR cs.LG OR cs.CL OR cs.CV' } },
 
-        // V6.2: ModelScope enabled with API token
-        modelscope: { enabled: true, options: { limit: 5000 } },
-
-        // PWC disabled (Cloudflare protection) - use ArXiv + SemanticScholar instead
+        // Tier 3: Ecosystem Sources - DISABLED for initial run
+        ollama: { enabled: false, options: { limit: 500 } },  // Disable for now
+        modelscope: { enabled: false, options: { limit: 1000 } },  // Disable for now
         paperswithcode: { enabled: false, options: { limit: 200 } },
+        'huggingface-papers': { enabled: false, options: { limit: 500 } },
 
-        // V6.2: HuggingFace Papers (alternative to blocked PWC)
-        'huggingface-papers': { enabled: true, options: { limit: 1000 } },
-
-        // V4.9.1 Data Expansion
-        openllm: { enabled: true, options: { limit: 1000 } }, // Benchmarks
-        deepspec: { enabled: true, options: { limit: 5000 } }, // Specs
-        civitai: { enabled: true, options: { limit: 2000 } },  // Models (NSFW filtered)
-        semanticscholar: { enabled: true, options: { limit: 2000 } }, // Citations
-
-        // V6.2: MCP Registry (AI Agents / MCP Servers)
-        mcp: { enabled: true, options: { limit: 500 } }
+        // V4.9.1 Data Expansion - DISABLED for initial run
+        openllm: { enabled: false, options: { limit: 500 } },
+        deepspec: { enabled: false, options: { limit: 1000 } },
+        civitai: { enabled: false, options: { limit: 500 } },
+        semanticscholar: { enabled: false, options: { limit: 500 } },
+        mcp: { enabled: false, options: { limit: 200 } }
     },
     deduplication: {
         enabled: true,

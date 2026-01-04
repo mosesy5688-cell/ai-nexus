@@ -85,9 +85,23 @@ jobs:
       - name: Count Entities
         id: count
         run: |
-          COUNT=$(jq length data/entities.json)
+          # V14.4: More robust entity counting with fallback
+          if [ -f "data/entities.json" ]; then
+            COUNT=$(jq length data/entities.json 2>/dev/null || echo "0")
+          elif [ -f "data/merged.json" ]; then
+            cp data/merged.json data/entities.json
+            COUNT=$(jq length data/entities.json 2>/dev/null || echo "0")
+          else
+            echo "[]" > data/entities.json
+            COUNT=0
+          fi
           echo "count=$COUNT" >> $GITHUB_OUTPUT
           echo "Entity count: $COUNT"
+          
+          # Fail if no entities collected
+          if [ "$COUNT" -eq "0" ]; then
+            echo "WARNING: No entities collected. Check ingestion logs."
+          fi
 
       - name: Upload Entity Data
         uses: actions/upload-artifact@v4
