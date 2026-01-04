@@ -96,20 +96,37 @@ export async function resolveEntityFromCache(slug, locals) {
     // Correct R2 path: cache/entities/{type}/{slug}.json
     const cachePrefix = isDataset ? 'cache/entities/dataset' : 'cache/entities/model';
 
-    // Try multiple cache path patterns
-    const cachePaths = [
-        `${cachePrefix}/${normalizedSlug}.json`,
-        `${cachePrefix}/${slug.replace(/\//g, '--')}.json`,
-        `cache/entities/model/${normalizedSlug}.json`, // fallback to models
-    ];
+    // V14.4 Fix: Generate multiple path patterns to match R2 actual filenames
+    // R2 naming: huggingface--author--name.json (source prefix, double-dash)
+    // URL slug: author/name (slash-separated, may be lowercase)
+    const cachePaths = [];
 
-    // V6.4 Patch: Handle 'huggingface:' prefix in URLs (common in legacy/generated links)
-    // Example: huggingface:meta-llama:Llama-3 -> meta-llama:Llama-3
+    // Pattern 1: Full HuggingFace format (huggingface--author--name.json)
+    // From slug "author/name" -> "huggingface--author--name"
+    const slugDashed = slug.replace(/\//g, '--').replace(/:/g, '--');
+    cachePaths.push(`${cachePrefix}/huggingface--${slugDashed}.json`);
+
+    // Pattern 2: Direct slug conversion (author--name.json)
+    cachePaths.push(`${cachePrefix}/${slugDashed}.json`);
+
+    // Pattern 3: Normalized lowercase (legacy compatibility)
+    cachePaths.push(`${cachePrefix}/${normalizedSlug}.json`);
+
+    // Pattern 4: Original slug with slashes (if R2 uses subdirectories)
+    if (slug.includes('/')) {
+        cachePaths.push(`${cachePrefix}/${slug}.json`);
+    }
+
+    // V6.4 Patch: Handle 'huggingface:' prefix in URLs (from trending.json IDs)
+    // Example: huggingface:hexgrad:kokoro-82m -> hexgrad--kokoro-82m
     if (normalizedSlug.startsWith('huggingface--')) {
         const slugWithoutHF = normalizedSlug.replace(/^huggingface--/, '');
         cachePaths.push(`${cachePrefix}/${slugWithoutHF}.json`);
-        console.log(`[EntityCache] Added fallback path for HG prefix: ${slugWithoutHF}`);
+        // Also try with the huggingface prefix kept
+        cachePaths.push(`${cachePrefix}/${normalizedSlug}.json`);
     }
+
+    console.log(`[EntityCache] Trying ${cachePaths.length} path patterns for slug: ${slug}`);
 
     // Check KV cache first for speed
     const kvKey = `entity:${normalizedSlug}`;
