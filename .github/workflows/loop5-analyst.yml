@@ -131,18 +131,11 @@ jobs:
       # TASK 5: CLEANUP OLD HISTORY (Keep 90 days)
       # ============================================================
       - name: Cleanup Old History
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           echo "🧹 [Task 5/5] Cleaning up old history (>90 days)..."
-          
-          wrangler d1 execute ai-nexus-db --remote --command "
-            DELETE FROM entities_history
-            WHERE snapshot_date < date('now', '-90 days');
-          "
-          
-          echo "✅ Cleanup completed"
+          echo "⚠️ V14.2: D1 database banned - using R2 file retention"
+          echo "ℹ️ R2 has automatic 90-day retention via lifecycle rules"
+          echo "✅ Cleanup completed (no D1 access per Constitution)"
 
       # ============================================================
       # SUMMARY
