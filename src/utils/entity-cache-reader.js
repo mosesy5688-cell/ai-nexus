@@ -93,13 +93,14 @@ export async function resolveEntityFromCache(slug, locals) {
 
     // Determine entity type from slug prefix
     const isDataset = slug.includes('hf-dataset') || slug.startsWith('dataset');
-    const cachePrefix = isDataset ? 'cache/datasets' : 'cache/models';
+    // Correct R2 path: cache/entities/{type}/{slug}.json
+    const cachePrefix = isDataset ? 'cache/entities/dataset' : 'cache/entities/model';
 
     // Try multiple cache path patterns
     const cachePaths = [
         `${cachePrefix}/${normalizedSlug}.json`,
         `${cachePrefix}/${slug.replace(/\//g, '--')}.json`,
-        `cache/models/${normalizedSlug}.json`, // fallback to models
+        `cache/entities/model/${normalizedSlug}.json`, // fallback to models
     ];
 
     // V6.4 Patch: Handle 'huggingface:' prefix in URLs (common in legacy/generated links)
