@@ -65,11 +65,14 @@ struct Args {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default)]
 struct Model {
     id: String,
     likes: Option<i32>,
     downloads: Option<i32>,
-    tags: Option<Vec<String>>,
+    // V14.3: Accept any JSON type for tags (string, array, object, null)
+    #[serde(default)]
+    tags: serde_json::Value,
     pipeline_tag: Option<String>,
     author: Option<String>,
     name: Option<String>,
@@ -97,6 +100,41 @@ struct Model {
     velocity: Option<f64>,
     raw_image_url: Option<String>,
 }
+
+impl Default for Model {
+    fn default() -> Self {
+        Model {
+            id: String::new(),
+            likes: None,
+            downloads: None,
+            tags: serde_json::Value::Null,
+            pipeline_tag: None,
+            author: None,
+            name: None,
+            source: None,
+            description: None,
+            image_url: None,
+            source_trail: None,
+            commercial_slots: None,
+            notebooklm_summary: None,
+            velocity_score: None,
+            last_commercial_at: None,
+            entity_type: None,
+            body_content: None,
+            meta_json: None,
+            assets_json: None,
+            relations_json: None,
+            canonical_id: None,
+            license_spdx: None,
+            compliance_status: None,
+            quality_score: None,
+            content_hash: None,
+            velocity: None,
+            raw_image_url: None,
+        }
+    }
+}
+
 
 /// Lightweight model for D1 ingestion (excludes body_content for <50KB JSON files)
 /// Used by R2-First Lakehouse architecture
