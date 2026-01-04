@@ -338,7 +338,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             name: name.clone(),
             author: author.clone(),
             description: model.description.clone().unwrap_or_default(),
-            tags: serde_json::to_string(&model.tags.clone().unwrap_or_default()).unwrap_or("[]".to_string()),
+            // V14.3: tags is serde_json::Value, serialize directly
+            tags: serde_json::to_string(&model.tags).unwrap_or("[]".to_string()),
             pipeline_tag: model.pipeline_tag.clone().unwrap_or_else(|| "other".to_string()),
             likes: model.likes.unwrap_or(0),
             downloads: model.downloads.unwrap_or(0),
@@ -425,7 +426,8 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
 
     // ==================== Build Upsert SQL (Base Data) ====================
     let pipeline = model.pipeline_tag.unwrap_or_else(|| "other".to_string());
-    let tags_json = serde_json::to_string(&model.tags.unwrap_or_default()).unwrap_or("[]".to_string());
+    // V14.3: tags is serde_json::Value, serialize directly
+    let tags_json = serde_json::to_string(&model.tags).unwrap_or("[]".to_string());
     let safe_desc = escape_sql_string(&model.description.unwrap_or_default());
 
     // V3.1 Schema: Handle fields with proper escaping
