@@ -2,13 +2,14 @@
 /**
  * AiDisclaimer.astro
  * 
- * V8.1-LOCK Phase 2: Trust Protocol Component
+ * V14.4 Constitution Art 7.1: AI Summary Disclaimer
  * DATA_DISCLOSURE_TRISTATE: Explicit data source disclosure
  * 
- * Displays disclaimer about data sources and freshness
+ * Required text: "AI Summary: Based on {source} metadata. Not a recommendation."
  * 
  * @component
  */
+
 
 interface Props {
   source?: string;          // e.g., 'huggingface', 'github', 'arxiv'
@@ -83,8 +84,9 @@ const classes = colorClasses[info.color] || colorClasses['gray'];
       <span class="text-xs opacity-60">🔄 {syncFrequency} sync (03:00 UTC)</span>
     </div>
     <p class="opacity-80 text-xs">
-      Based on open-source metadata snapshot.
-      {formattedDate && <span> Last synced: {formattedDate}</span>}
+      <!-- V14.4 Art 7.1: English Default Disclaimer -->
+      <span class="font-medium">AI Summary: Based on {info.name} metadata. Not a recommendation.</span>
+      {formattedDate && <span> • Synced: {formattedDate}</span>}
     </p>
     <div class="flex items-center gap-3 mt-2 text-xs opacity-70">
       <a href="/methodology" class="hover:underline flex items-center gap-1">
