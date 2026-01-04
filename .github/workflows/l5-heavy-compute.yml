@@ -246,27 +246,9 @@ jobs:
           path: public/data/search-index.json.gz
           retention-days: 1
 
-  sync-fts-index:
-    name: Sync D1 FTS5 Index
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: download-entities
-    
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-      - run: npm ci
-      
-      - name: Sync FTS Index (B.17)
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          echo "🔄 Syncing D1 FTS5 index (Metadata only)..."
-          node scripts/l5/fts-sync.js
-          echo "✅ FTS Sync complete!"
+
+  # V14.2: D1 FTS job removed per Zero-Cost Constitution Art 2.1
+  # Search now uses client-side MiniSearch with R2-hosted index
 
   compute-similarity:
     name: Compute Similarity (Smart Recommend)
@@ -383,7 +365,7 @@ jobs:
     name: Upload Results to R2
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [compute-rankings, compute-search-index, compute-similarity, sync-fts-index, process-images]
+    needs: [compute-rankings, compute-search-index, compute-similarity, process-images]
     
     steps:
       - uses: actions/checkout@v4
