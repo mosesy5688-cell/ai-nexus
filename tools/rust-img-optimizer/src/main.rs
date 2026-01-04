@@ -56,6 +56,17 @@ fn sql_string_or_null(s: &Option<String>) -> String {
     }
 }
 
+/// V14.3: Convert serde_json::Value to String
+/// Handles: String -> direct, Null -> empty, Other -> JSON serialize
+fn value_to_string(v: &serde_json::Value) -> String {
+    match v {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Null => String::new(),
+        _ => serde_json::to_string(v).unwrap_or_default(),
+    }
+}
+
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
@@ -67,17 +78,20 @@ struct Args {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default)]
 struct Model {
+    #[serde(default)]
     id: String,
     likes: Option<i32>,
     downloads: Option<i32>,
-    // V14.3: Accept any JSON type for tags (string, array, object, null)
+    // V14.3: Accept any JSON type for flexible fields
     #[serde(default)]
     tags: serde_json::Value,
     pipeline_tag: Option<String>,
     author: Option<String>,
     name: Option<String>,
     source: Option<String>,
-    description: Option<String>,
+    // V14.3: description might be object in some sources
+    #[serde(default)]
+    description: serde_json::Value,
     image_url: Option<String>,
     // V3.1 Schema Fields
     source_trail: Option<String>,
@@ -89,9 +103,13 @@ struct Model {
     #[serde(rename = "type")]
     entity_type: Option<String>,
     body_content: Option<String>,
-    meta_json: Option<String>,
-    assets_json: Option<String>,
-    relations_json: Option<String>,
+    // V14.3: These _json fields might be objects instead of strings
+    #[serde(default)]
+    meta_json: serde_json::Value,
+    #[serde(default)]
+    assets_json: serde_json::Value,
+    #[serde(default)]
+    relations_json: serde_json::Value,
     canonical_id: Option<String>,
     license_spdx: Option<String>,
     compliance_status: Option<String>,
@@ -112,7 +130,7 @@ impl Default for Model {
             author: None,
             name: None,
             source: None,
-            description: None,
+            description: serde_json::Value::Null,
             image_url: None,
             source_trail: None,
             commercial_slots: None,
@@ -121,9 +139,9 @@ impl Default for Model {
             last_commercial_at: None,
             entity_type: None,
             body_content: None,
-            meta_json: None,
-            assets_json: None,
-            relations_json: None,
+            meta_json: serde_json::Value::Null,
+            assets_json: serde_json::Value::Null,
+            relations_json: serde_json::Value::Null,
             canonical_id: None,
             license_spdx: None,
             compliance_status: None,
@@ -134,6 +152,7 @@ impl Default for Model {
         }
     }
 }
+
 
 
 /// Lightweight model for D1 ingestion (excludes body_content for <50KB JSON files)
@@ -337,7 +356,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             slug,
             name: name.clone(),
             author: author.clone(),
-            description: model.description.clone().unwrap_or_default(),
+            // V14.3: description is serde_json::Value, convert to string
+            description: value_to_string(&model.description),
             // V14.3: tags is serde_json::Value, serialize directly
             tags: serde_json::to_string(&model.tags).unwrap_or("[]".to_string()),
             pipeline_tag: model.pipeline_tag.clone().unwrap_or_else(|| "other".to_string()),
@@ -428,7 +448,8 @@ async fn process_model(model: Model) -> Option<(String, Option<String>, String)>
     let pipeline = model.pipeline_tag.unwrap_or_else(|| "other".to_string());
     // V14.3: tags is serde_json::Value, serialize directly
     let tags_json = serde_json::to_string(&model.tags).unwrap_or("[]".to_string());
-    let safe_desc = escape_sql_string(&model.description.unwrap_or_default());
+    // V14.3: description is serde_json::Value, convert to string
+    let safe_desc = escape_sql_string(&value_to_string(&model.description));
 
     // V3.1 Schema: Handle fields with proper escaping
     let source_trail = sql_string_or_null(&model.source_trail);
