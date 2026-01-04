@@ -21,15 +21,32 @@ export function calculateP(model) {
 
 /**
  * Calculate V (Velocity) score [0-100]
+ * V14.4 Art 4.3: Cold Start handling for new entities
  */
 export function calculateV(model) {
     const { MAX_VELOCITY } = CONFIG.NORMALIZATION;
 
-    // Use existing velocity field (7-day growth rate)
+    // V14.4 Art 4.3: Cold Start for new entities (< 7 days)
+    const createdAt = model.created_at || model.createdAt || model.first_seen;
+    if (createdAt) {
+        const ageMs = Date.now() - new Date(createdAt).getTime();
+        const ageDays = ageMs / (1000 * 60 * 60 * 24);
+
+        if (ageDays < 7) {
+            // Incubation mode: use delta approximation
+            const likesDelta = model.likes_delta || model.likes_7d || 0;
+            const downloadsDelta = model.downloads_delta || model.downloads_7d || 0;
+            const coldStartVelocity = (likesDelta + downloadsDelta) * 0.5;
+            return Math.round(Math.min(coldStartVelocity, 100) * 10) / 10;
+        }
+    }
+
+    // Standard mode: use existing velocity field (7-day growth rate)
     const velocity = model.velocity || model.velocity_score || 0;
 
     return Math.round(Math.min((velocity / MAX_VELOCITY) * 100, 100) * 10) / 10;
 }
+
 
 /**
  * Calculate C (Credibility) score [0-100]
