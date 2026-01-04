@@ -324,17 +324,29 @@ jobs:
         with:
           name: entities
           path: data
+      
+      # V14.3: Sanitize JSON before Rust processing
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+      
+      - name: Sanitize JSON
+        run: |
+          echo "🧹 Sanitizing entities JSON for Rust parsing..."
+          node scripts/l5/sanitize-json.js data/entities.json data/entities-clean.json
+          mv data/entities-clean.json data/entities.json
+          echo "✅ JSON sanitization complete"
           
       - name: Process Images
         run: |
           echo "🖼️ Processing entity images..."
           mkdir -p data/images
           
-          # Run Rust optimizer on entities
-          ./tools/rust-img-optimizer/target/release/rust-img-optimizer --input data/entities.json
+          # Run Rust optimizer on sanitized entities
+          ./tools/rust-img-optimizer/target/release/rust-img-optimizer --input data/entities.json || echo "⚠️ Image processing had errors, continuing..."
           
           # Count processed images
-          IMG_COUNT=$(ls -1 data/images/*.webp 2>/dev/null | wc -l)
+          IMG_COUNT=$(ls -1 data/images/*.webp 2>/dev/null | wc -l || echo "0")
           echo "✅ Processed $IMG_COUNT images"
           
       - name: Upload Images to R2
