@@ -451,6 +451,20 @@ jobs:
           
           echo "✅ CDN cache purge requested"
 
+      # V14.5: Warm CDN Cache (pre-populate for first users)
+      - name: Warm CDN Cache
+        run: |
+          echo "🔥 Warming CDN cache..."
+          sleep 5  # Wait for purge to propagate
+          
+          # Request critical files to populate CDN cache
+          curl -s -o /dev/null -w "%{http_code}" https://free2aitools.com/api/cache/trending.json || true
+          curl -s -o /dev/null -w "%{http_code}" https://free2aitools.com/api/cache/search-core.json || true
+          curl -s -o /dev/null -w "%{http_code}" https://free2aitools.com/api/cache/category_stats.json || true
+          curl -s -o /dev/null -w "%{http_code}" https://free2aitools.com/ || true
+          
+          echo "✅ CDN cache warmed"
+
       - name: Summary
         run: |
           echo "## 🔥 V14.4 Phoenix Protocol Complete!" >> $GITHUB_STEP_SUMMARY
