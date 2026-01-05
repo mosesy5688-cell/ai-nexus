@@ -12,6 +12,7 @@ import path from 'path';
 import { generateRankings } from './lib/rankings-generator.js';
 import { generateSearchIndices } from './lib/search-indexer.js';
 import { generateTrending } from './lib/trending-generator.js';
+import { generateSitemap } from './lib/sitemap-generator.js';
 import { updateWeeklyAccumulator, isSunday, generateWeeklyReport } from './lib/weekly-report.js';
 import { backupToR2Output } from './lib/smart-writer.js';
 
@@ -136,6 +137,7 @@ async function main() {
     // 6. Generate outputs
     await generateRankings(rankedEntities, CONFIG.OUTPUT_DIR);
     await generateSearchIndices(rankedEntities, CONFIG.OUTPUT_DIR);
+    await generateSitemap(rankedEntities, CONFIG.OUTPUT_DIR);  // V14.4: Category-based sitemaps
     await updateFniHistory(rankedEntities);
     await updateWeeklyAccumulator(rankedEntities, CONFIG.OUTPUT_DIR);
 
