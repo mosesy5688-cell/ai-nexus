@@ -100,7 +100,10 @@ async function main() {
 
     for (let i = 0; i < allFiles.length; i++) {
         const file = allFiles[i];
-        const remotePath = file.path.replace(OUTPUT_DIR + path.sep, '').replace(/\\/g, '/');
+        // V14.4 Fix: Properly strip output directory prefix for R2 path
+        // Handle both ./output/ and output/ formats (Windows vs Linux)
+        let remotePath = file.path.replace(/\\/g, '/'); // Normalize to forward slashes
+        remotePath = remotePath.replace(/^\.?\/?(output\/)?/, ''); // Strip output/ prefix
 
         // Skip already uploaded files
         if (uploadedSet.has(remotePath)) {
