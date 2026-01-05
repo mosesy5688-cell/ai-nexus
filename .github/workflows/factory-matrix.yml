@@ -355,6 +355,11 @@ jobs:
     name: Upload to R2
     needs: aggregate
     runs-on: ubuntu-latest
+    env:
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
     steps:
       - name: Download Output
         uses: actions/download-artifact@v4
@@ -364,13 +369,14 @@ jobs:
 
       - name: Configure AWS CLI for R2
         run: |
-          aws configure set aws_access_key_id $R2_ACCESS_KEY_ID
-          aws configure set aws_secret_access_key $R2_SECRET_ACCESS_KEY
+          aws configure set aws_access_key_id "$R2_ACCESS_KEY_ID"
+          aws configure set aws_secret_access_key "$R2_SECRET_ACCESS_KEY"
           aws configure set default.region auto
 
       - name: Sync to R2
         run: |
-          aws s3 sync output/ s3://$R2_BUCKET/ --endpoint-url $R2_ENDPOINT --delete
+          echo "Syncing to R2 bucket: $R2_BUCKET"
+          aws s3 sync output/ "s3://$R2_BUCKET/" --endpoint-url "$R2_ENDPOINT" --delete
 
       - name: Purge CDN Cache
         run: |
