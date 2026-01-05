@@ -1,0 +1,181 @@
+# Image Processor Workflow V14.5
+# Constitution Reference: Art 3.4 (Image Processing), V14.5 Architecture
+# 
+# Runs after Factory to download, convert (WebP), and upload entity images to R2
+
+name: Image Processor V14.5
+
+on:
+  # Trigger after Factory Matrix completes
+  workflow_run:
+    workflows: ["Factory Matrix V14.4"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: 'Number of images to process per run'
+        type: number
+        default: 500
+
+env:
+  R2_BUCKET: ai-nexus-assets
+  R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+jobs:
+  process-images:
+    name: Process Entity Images
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          toolchain: stable
+
+      - name: Cache Rust Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            tools/rust-img-optimizer/target/
+          key: rust-img-${{ hashFiles('tools/rust-img-optimizer/Cargo.lock') }}
+
+      - name: Build Rust Optimizer
+        working-directory: tools/rust-img-optimizer
+        run: cargo build --release
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      # Download entity list from R2 to get image URLs
+      - name: Fetch Entity Image URLs
+        run: |
+          mkdir -p data/images
+          
+          # Get trending entities which have image URLs
+          wrangler r2 object get $R2_BUCKET/cache/trending.json --pipe > data/trending.json || echo '[]' > data/trending.json
+          
+          # Extract image URLs needing processing
+          node -e "
+          const fs = require('fs');
+          const trending = JSON.parse(fs.readFileSync('data/trending.json', 'utf-8'));
+          const imageUrls = trending.filter(e => e.image_url && !e.image_url.includes('free2aitools.com'))
+            .slice(0, ${{ github.event.inputs.batch_size || 500 }})
+            .map(e => ({
+              id: e.id || e.slug,
+              source_url: e.image_url,
+              type: e.type || 'model'
+            }));
+          fs.writeFileSync('data/image-queue.json', JSON.stringify(imageUrls, null, 2));
+          console.log('Image queue:', imageUrls.length, 'images');
+          "
+
+      - name: Download and Convert Images
+        run: |
+          echo "🖼️ Processing images..."
+          
+          # Use Node.js for image processing (Rust module is for SQL generation)
+          node -e "
+          const fs = require('fs');
+          const https = require('https');
+          const http = require('http');
+          const path = require('path');
+          
+          const queue = JSON.parse(fs.readFileSync('data/image-queue.json', 'utf-8'));
+          const results = { success: 0, failed: 0, skipped: 0 };
+          
+          async function downloadImage(url, dest) {
+            return new Promise((resolve, reject) => {
+              const protocol = url.startsWith('https') ? https : http;
+              const file = fs.createWriteStream(dest);
+              protocol.get(url, { timeout: 10000 }, (response) => {
+                if (response.statusCode === 200) {
+                  response.pipe(file);
+                  file.on('finish', () => { file.close(); resolve(true); });
+                } else if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+                  downloadImage(response.headers.location, dest).then(resolve).catch(reject);
+                } else {
+                  reject(new Error('Status: ' + response.statusCode));
+                }
+              }).on('error', reject);
+            });
+          }
+          
+          async function processQueue() {
+            for (const item of queue) {
+              const safeName = (item.id || 'unknown').replace(/[/:]/g, '--');
+              const destPath = 'data/images/' + safeName + '.jpg';
+              try {
+                await downloadImage(item.source_url, destPath);
+                results.success++;
+                console.log('✅', safeName);
+              } catch (err) {
+                results.failed++;
+                console.log('❌', safeName, err.message);
+              }
+            }
+            console.log('Results:', results);
+            fs.writeFileSync('data/image-results.json', JSON.stringify(results, null, 2));
+          }
+          
+          processQueue();
+          "
+
+      - name: Convert to WebP (Rust)
+        working-directory: tools/rust-img-optimizer
+        run: |
+          echo "🔄 Converting to WebP..."
+          
+          # Run Rust binary for WebP conversion
+          for img in ../../data/images/*.jpg; do
+            if [ -f "$img" ]; then
+              base=$(basename "$img" .jpg)
+              ./target/release/rust-img-optimizer convert --input "$img" --output "../../data/images/${base}.webp" --format webp --quality 80 --max-width 800 2>/dev/null || true
+            fi
+          done
+          
+          count=$(ls -1 ../../data/images/*.webp 2>/dev/null | wc -l)
+          echo "Converted $count images to WebP"
+
+      - name: Upload Images to R2
+        run: |
+          echo "📤 Uploading to R2..."
+          
+          for webp in data/images/*.webp; do
+            if [ -f "$webp" ]; then
+              base=$(basename "$webp")
+              wrangler r2 object put $R2_BUCKET/images/$base --file="$webp" || true
+            fi
+          done
+          
+          echo "✅ Image upload complete"
+
+      - name: Summary
+        run: |
+          echo "## 🖼️ Image Processor Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "data/image-results.json" ]; then
+            cat data/image-results.json >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          WEBP_COUNT=$(ls -1 data/images/*.webp 2>/dev/null | wc -l)
+          echo "- WebP images created: $WEBP_COUNT" >> $GITHUB_STEP_SUMMARY
