@@ -56,39 +56,51 @@ async function writeToLocal(key, content, metadata, outputDir) {
 }
 
 /**
- * Write with version rotation (Art 2.4)
+ * Smart Write with Version Rotation (Art 2.2 + Art 2.4)
+ * - Only writes if content changed (saves operations)
+ * - Maintains 3-version history for data safety
+ * @param {string} key - R2 object key
+ * @param {Object} data - Data to write
+ * @param {string} outputDir - Output directory
+ * @returns {boolean} Whether write occurred
  */
-export async function writeWithVersioning(key, data, outputDir = './output') {
+export async function smartWriteWithVersioning(key, data, outputDir = './output') {
+    const content = JSON.stringify(data, null, 2);
+    const localHash = generateHash(content);
+
+    // Check if content changed (Art 2.2)
+    const remoteHash = await getRemoteHash(key, outputDir);
+    if (localHash === remoteHash) {
+        return false; // No changes, skip silently
+    }
+
     const filePath = path.join(outputDir, key);
     const dir = path.dirname(filePath);
     const base = path.basename(filePath, '.json');
 
     await fs.mkdir(dir, { recursive: true });
 
-    // Rotate versions
-    try {
-        const v2Path = path.join(dir, `${base}.v-2.json`);
-        const v1Path = path.join(dir, `${base}.v-1.json`);
-        const currentPath = filePath;
+    // Rotate versions (Art 2.4: Keep 3 versions max)
+    const v2Path = path.join(dir, `${base}.v-2.json`);
+    const v1Path = path.join(dir, `${base}.v-1.json`);
 
-        // Delete v-2 if exists
-        await fs.unlink(v2Path).catch(() => { });
+    // Delete v-2 (oldest)
+    await fs.unlink(v2Path).catch(() => { });
+    // Move v-1 to v-2
+    await fs.rename(v1Path, v2Path).catch(() => { });
+    // Move current to v-1
+    await fs.rename(filePath, v1Path).catch(() => { });
 
-        // Move v-1 to v-2
-        await fs.rename(v1Path, v2Path).catch(() => { });
-
-        // Move current to v-1
-        await fs.rename(currentPath, v1Path).catch(() => { });
-    } catch {
-        // First write, no rotation needed
-    }
-
-    // Write new current
-    const content = JSON.stringify(data, null, 2);
-    const checksum = generateHash(content);
-
+    // Write new current version
     await fs.writeFile(filePath, content);
-    await fs.writeFile(`${filePath}.meta.json`, JSON.stringify({ checksum }));
+    await fs.writeFile(`${filePath}.meta.json`, JSON.stringify({ checksum: localHash }));
+
+    return true;
+}
+
+// Keep original for backward compatibility
+export async function writeWithVersioning(key, data, outputDir = './output') {
+    return smartWriteWithVersioning(key, data, outputDir);
 }
 
 /**
