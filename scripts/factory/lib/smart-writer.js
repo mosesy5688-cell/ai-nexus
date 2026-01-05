@@ -21,7 +21,7 @@ export function generateHash(content) {
  * @param {string} outputDir - Output directory
  * @returns {boolean} Whether write occurred
  */
-export async function smartWrite(key, data, outputDir = './artifacts') {
+export async function smartWrite(key, data, outputDir = './output') {
     const content = JSON.stringify(data, null, 2);
     const localHash = generateHash(content);
 
