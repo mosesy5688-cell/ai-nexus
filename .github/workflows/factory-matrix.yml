@@ -426,6 +426,29 @@ jobs:
           path: upload-checkpoint.json
           key: upload-checkpoint-${{ github.run_id }}
 
+      # CDN Cache Purge (Art 6.2)
+      - name: Purge CDN Cache
+        if: success()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        run: |
+          echo "🔄 Purging CDN cache for critical paths..."
+          
+          # Purge specific critical files
+          curl -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{
+              "files": [
+                "https://free2aitools.com/api/cache/trending.json",
+                "https://free2aitools.com/api/cache/search-core.json",
+                "https://free2aitools.com/api/cache/category_stats.json"
+              ]
+            }' || echo "⚠️ CDN purge failed (non-critical)"
+          
+          echo "✅ CDN cache purge requested"
+
       - name: Summary
         run: |
           echo "## 🔥 V14.4 Phoenix Protocol Complete!" >> $GITHUB_STEP_SUMMARY
