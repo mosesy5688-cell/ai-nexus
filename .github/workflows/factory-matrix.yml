@@ -358,8 +358,9 @@ jobs:
     env:
       R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-      R2_BUCKET: ${{ secrets.R2_BUCKET }}
-      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      # R2_BUCKET and R2_ENDPOINT are not secrets - hardcode them
+      R2_BUCKET: ai-nexus-assets
+      R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
     steps:
       - name: Download Output
         uses: actions/download-artifact@v4
@@ -367,13 +368,39 @@ jobs:
           name: factory-output
           path: output/
 
+      - name: Validate R2 Secrets
+        run: |
+          echo "🔐 Validating R2 configuration..."
+          MISSING=""
+          if [ -z "$R2_ACCESS_KEY_ID" ]; then MISSING="$MISSING R2_ACCESS_KEY_ID"; fi
+          if [ -z "$R2_SECRET_ACCESS_KEY" ]; then MISSING="$MISSING R2_SECRET_ACCESS_KEY"; fi
+          if [ -z "$R2_BUCKET" ]; then MISSING="$MISSING R2_BUCKET"; fi
+          if [ -z "$R2_ENDPOINT" ]; then MISSING="$MISSING R2_ENDPOINT"; fi
+          
+          if [ -n "$MISSING" ]; then
+            echo "❌ ERROR: Missing required GitHub Secrets:$MISSING"
+            echo ""
+            echo "To fix, add these secrets in GitHub Settings > Secrets > Actions:"
+            echo "  - R2_ACCESS_KEY_ID: Your Cloudflare R2 access key ID"
+            echo "  - R2_SECRET_ACCESS_KEY: Your Cloudflare R2 secret access key"
+            echo "  - R2_BUCKET: Your R2 bucket name (e.g., ai-nexus-assets)"
+            echo "  - R2_ENDPOINT: Your R2 endpoint (e.g., https://<account_id>.r2.cloudflarestorage.com)"
+            echo ""
+            echo "⚠️ Skipping R2 upload - artifacts saved as factory-output"
+            exit 0  # Don't fail the workflow, just skip upload
+          fi
+          
+          echo "✅ R2 secrets validated"
+
       - name: Configure AWS CLI for R2
+        if: env.R2_BUCKET != '' && env.R2_ENDPOINT != ''
         run: |
           aws configure set aws_access_key_id "$R2_ACCESS_KEY_ID"
           aws configure set aws_secret_access_key "$R2_SECRET_ACCESS_KEY"
           aws configure set default.region auto
 
       - name: Sync to R2
+        if: env.R2_BUCKET != '' && env.R2_ENDPOINT != ''
         run: |
           echo "Syncing to R2 bucket: $R2_BUCKET"
           aws s3 sync output/ "s3://$R2_BUCKET/" --endpoint-url "$R2_ENDPOINT" --delete
