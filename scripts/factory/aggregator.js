@@ -11,6 +11,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { generateRankings } from './lib/rankings-generator.js';
 import { generateSearchIndices } from './lib/search-indexer.js';
+import { generateTrending } from './lib/trending-generator.js';
 import { updateWeeklyAccumulator, isSunday, generateWeeklyReport } from './lib/weekly-report.js';
 import { backupToR2Output } from './lib/smart-writer.js';
 
@@ -129,18 +130,21 @@ async function main() {
     // 4. Calculate percentiles
     const rankedEntities = calculatePercentiles(allEntities);
 
-    // 5. Generate outputs
+    // 5. Generate trending.json (CRITICAL for homepage)
+    await generateTrending(rankedEntities, CONFIG.OUTPUT_DIR);
+
+    // 6. Generate outputs
     await generateRankings(rankedEntities, CONFIG.OUTPUT_DIR);
     await generateSearchIndices(rankedEntities, CONFIG.OUTPUT_DIR);
     await updateFniHistory(rankedEntities);
     await updateWeeklyAccumulator(rankedEntities, CONFIG.OUTPUT_DIR);
 
-    // 6. Sunday: Generate weekly report (Art 5.2)
+    // 7. Sunday: Generate weekly report (Art 5.2)
     if (isSunday()) {
         await generateWeeklyReport(CONFIG.OUTPUT_DIR);
     }
 
-    // 7. Health report (Art 8.3)
+    // 8. Health report (Art 8.3)
     await generateHealthReport(shardResults, rankedEntities);
 
     console.log('[AGGREGATOR] Phase 2 complete!');

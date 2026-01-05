@@ -14,7 +14,8 @@ const SEARCH_CORE_SIZE = 5000; // Art 6.3: Top 5000 for core index
 export async function generateSearchIndices(entities, outputDir = './output') {
     console.log('[SEARCH] Generating search indices...');
 
-    const searchDir = path.join(outputDir, 'search');
+    // V14.4 Fix: Output to cache/ to match frontend paths
+    const searchDir = path.join(outputDir, 'cache');
     await fs.mkdir(searchDir, { recursive: true });
 
     // Core index: Top N by FNI (Art 6.3: <500KB)
