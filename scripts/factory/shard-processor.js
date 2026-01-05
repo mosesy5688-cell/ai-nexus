@@ -12,7 +12,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { calculateFNI } from '../fni/fni-calc.js';
 import { hasValidCachePath } from '../l5/entity-validator.js';
-import { smartWrite } from './lib/smart-writer.js';
+import { smartWriteWithVersioning } from './lib/smart-writer.js';
 
 // Configuration (Art 3.1)
 const CONFIG = {
@@ -54,11 +54,11 @@ async function processEntity(entity, allEntities) {
                 .digest('hex'),
         };
 
-        // Smart Write to R2 (Art 2.2)
+        // Smart Write with Versioning (Art 2.2 + Art 2.4)
         // Path: cache/entities/{type}/{source}--{author}--{name}.json
         const slugForPath = (entity.slug || entity.id).replace(/:/g, '--').replace(/\//g, '--');
         const key = `cache/entities/${entity.type || 'model'}/${slugForPath}.json`;
-        await smartWrite(key, enriched);
+        await smartWriteWithVersioning(key, enriched);
 
         return {
             id: entity.id,
