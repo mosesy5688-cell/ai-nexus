@@ -122,7 +122,7 @@ export class ReplicateAdapter extends BaseAdapter {
     normalize(model) {
         const modelId = `${model.owner}/${model.name}`;
 
-        return {
+        const entity = {
             id: `replicate:${modelId}`,
             source: 'replicate',
             entity_type: 'model',
@@ -160,7 +160,7 @@ export class ReplicateAdapter extends BaseAdapter {
                 cover_image_url: model.cover_image_url
             },
 
-            // System fields
+            // System fields (calculated below)
             content_hash: null,
             compliance_status: null,
             quality_score: null
