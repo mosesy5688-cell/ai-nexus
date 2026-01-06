@@ -64,8 +64,15 @@ async function processEntity(entity, allEntities) {
         return {
             id: entity.id,
             slug: entity.slug,
+            name: entity.name,
             type: entity.type || 'model',
+            source: entity.source || entity.source_platform,
+            description: entity.description,
+            author: entity.author,
+            downloads: entity.downloads || entity.download_count,
+            likes: entity.likes || entity.like_count,
             fni: fni.fni_score,
+            lastModified: entity.lastModified || entity._updated,
             success: true,
         };
     } catch (error) {
