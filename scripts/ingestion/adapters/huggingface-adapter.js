@@ -95,8 +95,25 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
             try {
                 // V6.4: Add expand params for safetensors (params_billions) and config (context_length, architecture)
-                const response = await fetch(`${HF_API_BASE}/models?sort=${strategy.sort}&direction=${strategy.direction}&limit=${limitPerStrategy}&expand[]=safetensors&expand[]=config`, { headers: this.getHeaders() });
-                if (!response.ok) { console.warn(`   ⚠️ API error: ${response.status}`); continue; }
+                let response;
+                let retryCount = 0;
+                const maxRetries = 3;
+
+                while (retryCount <= maxRetries) {
+                    response = await fetch(`${HF_API_BASE}/models?sort=${strategy.sort}&direction=${strategy.direction}&limit=${limitPerStrategy}&expand[]=safetensors&expand[]=config`, { headers: this.getHeaders() });
+
+                    if (response.status === 429) {
+                        retryCount++;
+                        const backoff = calculateBackoff(retryCount);
+                        console.log(`   ⚠️ Rate limited (429), retry ${retryCount}/${maxRetries} after ${backoff}ms...`);
+                        if (retryCount > maxRetries) break;
+                        await delay(backoff);
+                        continue;
+                    }
+                    break; // Success or other error
+                }
+
+                if (!response || !response.ok) { console.warn(`   ⚠️ API error: ${response?.status || 'unknown'}`); continue; }
 
                 const models = await response.json();
                 const newModels = models.filter(m => { const id = m.modelId || m.id; if (collectedIds.has(id)) return false; collectedIds.add(id); return true; });
@@ -140,8 +157,9 @@ export class HuggingFaceAdapter extends BaseAdapter {
 
                     if (!response.ok) {
                         if (response.status === 429) {
-                            console.log(`   ⚠️ Rate limited, waiting 30s...`);
-                            await delay(30000);
+                            const backoff = calculateBackoff(Math.floor(skip / PAGE_SIZE));
+                            console.log(`   ⚠️ Rate limited (429), backing off ${backoff}ms...`);
+                            await delay(backoff);
                             continue; // Retry same request
                         }
                         console.warn(`   ⚠️ API error: ${response.status}`);
