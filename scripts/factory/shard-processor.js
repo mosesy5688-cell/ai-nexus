@@ -1,8 +1,8 @@
 /**
- * Factory Shard Processor V14.4 (CES Compliant)
+ * Factory Shard Processor V14.5 (CES Compliant)
  * 
  * Constitution: Art 3.1-3.4 (Factory Pipeline)
- * Reuses: scripts/fni/fni-calc.js, scripts/l5/entity-validator.js
+ * V14.5: Uses cache-manager for persistent entity checksums (cross-run diff)
  * 
  * Usage: node scripts/factory/shard-processor.js --shard=N --total=20
  */
@@ -13,6 +13,7 @@ import crypto from 'crypto';
 import { calculateFNI } from '../fni/fni-calc.js';
 import { hasValidCachePath } from '../l5/entity-validator.js';
 import { smartWriteWithVersioning } from './lib/smart-writer.js';
+import { loadEntityChecksums, saveEntityChecksums } from './lib/cache-manager.js';
 
 // Configuration (Art 3.1)
 const CONFIG = {
@@ -99,7 +100,7 @@ async function saveCheckpoint(shardId, results, lastEntityId) {
     );
 }
 
-// Main
+// Main (V14.5: with entity checksum tracking)
 async function main() {
     const { shardId, totalShards } = parseArgs();
     console.log(`[SHARD ${shardId}/${totalShards}] Starting...`);
@@ -108,6 +109,9 @@ async function main() {
     const entitiesPath = process.env.ENTITIES_PATH || './data/entities.json';
     const allEntities = JSON.parse(await fs.readFile(entitiesPath, 'utf-8'));
 
+    // V14.5: Load entity checksums for diff detection
+    const entityChecksums = await loadEntityChecksums();
+
     // Partition for this shard
     const shardEntities = allEntities.filter((_, idx) => idx % totalShards === shardId);
     console.log(`[SHARD ${shardId}] Processing ${shardEntities.length} entities`);
@@ -115,6 +119,7 @@ async function main() {
     // Process
     const results = [];
     const startTime = Date.now();
+    let skippedCount = 0;
 
     for (const entity of shardEntities) {
         // Checkpoint check (Art 3.4)
@@ -125,8 +130,31 @@ async function main() {
             break;
         }
 
+        // V14.5: Check if entity changed since last run
+        const entityHash = crypto.createHash('sha256')
+            .update(JSON.stringify(entity))
+            .digest('hex');
+
+        if (entityChecksums[entity.id] === entityHash) {
+            skippedCount++;
+            results.push({ id: entity.id, success: true, skipped: true });
+            continue; // Skip unchanged entity
+        }
+
         const result = await processEntity(entity, allEntities);
         results.push(result);
+
+        // Update checksum on success
+        if (result.success) {
+            entityChecksums[entity.id] = entityHash;
+        }
+    }
+
+    // V14.5: Save updated checksums for next run
+    if (shardId === 0) {
+        // Only shard 0 saves checksums to avoid race conditions
+        await saveEntityChecksums(entityChecksums);
+        console.log(`[SHARD ${shardId}] Saved ${Object.keys(entityChecksums).length} entity checksums`);
     }
 
     // Save shard artifact
@@ -137,11 +165,12 @@ async function main() {
         processedCount: results.length,
         successCount: results.filter(r => r.success).length,
         failureCount: results.filter(r => !r.success).length,
+        skippedCount, // V14.5: Track skipped unchanged entities
         entities: results,
         timestamp: new Date().toISOString(),
     }, null, 2));
 
-    console.log(`[SHARD ${shardId}] Complete. Success: ${results.filter(r => r.success).length}/${results.length}`);
+    console.log(`[SHARD ${shardId}] Complete. Success: ${results.filter(r => r.success).length}/${results.length}, Skipped: ${skippedCount}`);
 }
 
 main().catch(console.error);
