@@ -72,7 +72,7 @@ jobs:
       - name: Setup Data Directories
         run: |
           mkdir -p data cache artifacts output
-          [ -f entities.json ] && mv entities.json data/entities.json
+          [ -f merged.json ] && mv merged.json data/merged.json
           [ -f fni-history.json ] && mv fni-history.json cache/fni-history.json
           [ -f weekly-accum.json ] && mv weekly-accum.json cache/weekly-accum.json
           
@@ -92,7 +92,7 @@ jobs:
       # Process shard
       - name: Process Shard ${{ matrix.shard }}
         env:
-          ENTITIES_PATH: data/entities.json
+          ENTITIES_PATH: data/merged.json
           FNI_HISTORY_PATH: cache/fni-history.json
           ARTIFACT_DIR: artifacts
         run: |
@@ -136,8 +136,8 @@ jobs:
       # Trigger next stage
       - name: Trigger Aggregate Stage
         run: |
-          echo "🚀 Triggering Factory 3/4 - Aggregate..."
-          gh workflow run factory-aggregate.yml
+          echo "🚀 Triggering Factory 3/4 - Aggregate with run-id: ${{ github.run_id }}..."
+          gh workflow run factory-aggregate.yml -f run_id=${{ github.run_id }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
