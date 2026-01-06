@@ -2,7 +2,7 @@
 # V14.5 Phase 4: Modular Factory Architecture
 # 
 # Triggers: Schedule Mon/Thu 03:00 UTC (11:00 Beijing)
-# Outputs: entities.json artifact for downstream processing
+# Outputs: merged.json artifact (entity-data) for downstream processing
 # 
 # Constitution: Art 3.1 (Factory Pipeline)
 
