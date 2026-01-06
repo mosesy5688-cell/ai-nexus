@@ -53,8 +53,11 @@ jobs:
 
       # Run L1 Orchestrator to fetch entity data
       - name: Run L1 Orchestrator
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           echo "🔄 Starting L1 Harvest..."
+          echo "🔑 HF_TOKEN: ${HF_TOKEN:0:8}... (configured)"
           node scripts/ingestion/orchestrator.js
           
           # Validate output
