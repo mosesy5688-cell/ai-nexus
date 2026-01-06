@@ -84,13 +84,11 @@ jobs:
             cache/weekly-accum.json
           retention-days: 3
 
-      # Trigger next stage
-      - name: Trigger Process Stage
+      # Trigger next stage (via workflow_run - automatic)
+      - name: Notify Process Stage
         run: |
-          echo "🚀 Triggering Factory 2/4 - Process..."
-          gh workflow run factory-process.yml
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "✅ Harvest complete. Factory 2/4 - Process will start automatically via workflow_run trigger."
+          echo "📦 Artifact: entity-data ($(du -h data/merged.json | cut -f1))"
 
       - name: Summary
         run: |
