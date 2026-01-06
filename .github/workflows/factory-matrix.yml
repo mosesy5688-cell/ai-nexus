@@ -389,34 +389,34 @@ jobs:
 
       - name: Pre-flight Validation
         run: |
-          echo "🔍 V14.4 Phoenix Protocol - Pre-flight Validation"
+          echo "ð V14.4 Phoenix Protocol - Pre-flight Validation"
           echo "================================================="
           
           # Validate Cloudflare secrets
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "�?ERROR: Missing CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID"
+            echo "â?ERROR: Missing CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID"
             exit 1
           fi
           
           # Count files
           FILE_COUNT=$(find output -type f -name "*.json" 2>/dev/null | wc -l)
-          echo "📊 JSON files: $FILE_COUNT"
+          echo "ð JSON files: $FILE_COUNT"
           
           if [ "$FILE_COUNT" -lt 100 ]; then
-            echo "�?ERROR: Only $FILE_COUNT files. Expected 100+. Aborting."
+            echo "â?ERROR: Only $FILE_COUNT files. Expected 100+. Aborting."
             echo "This prevents uploading empty/incomplete data to R2."
             exit 1
           fi
           
           # Check for critical files
           if [ ! -f "output/cache/trending.json" ]; then
-            echo "⚠️ WARNING: Missing trending.json"
+            echo "â ï¸ WARNING: Missing trending.json"
           fi
           if [ ! -f "output/cache/search-core.json" ]; then
-            echo "⚠️ WARNING: Missing search-core.json"
+            echo "â ï¸ WARNING: Missing search-core.json"
           fi
           
-          echo "�?Pre-flight validation passed"
+          echo "â?Pre-flight validation passed"
 
       - name: Upload to R2 (Wrangler)
         run: node scripts/factory/r2-upload.js
@@ -435,7 +435,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
         run: |
-          echo "🔄 Purging CDN cache for critical paths..."
+          echo "ð Purging CDN cache for critical paths..."
           
           # Purge specific critical files
           curl -X POST "https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE_ID}/purge_cache" \
@@ -447,14 +447,14 @@ jobs:
                 "https://free2aitools.com/api/cache/search-core.json",
                 "https://free2aitools.com/api/cache/category_stats.json"
               ]
-            }' || echo "⚠️ CDN purge failed (non-critical)"
+            }' || echo "â ï¸ CDN purge failed (non-critical)"
           
-          echo "�?CDN cache purge requested"
+          echo "â?CDN cache purge requested"
 
       # V14.5: Warm CDN Cache (pre-populate for first users)
       - name: Warm CDN Cache
         run: |
-          echo "🔥 Warming CDN cache..."
+          echo "ð¥ Warming CDN cache..."
           sleep 5  # Wait for purge to propagate
           
           # Request critical files to populate CDN cache
@@ -463,16 +463,16 @@ jobs:
           curl -s -o /dev/null -w "%{http_code}" https://free2aitools.com/api/cache/category_stats.json || true
           curl -s -o /dev/null -w "%{http_code}" https://free2aitools.com/ || true
           
-          echo "�?CDN cache warmed"
+          echo "â?CDN cache warmed"
 
       - name: Summary
         run: |
-          echo "## 🔥 V14.4 Phoenix Protocol Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "## ð¥ V14.4 Phoenix Protocol Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Upload Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- �?Used Wrangler (not aws sync --delete)" >> $GITHUB_STEP_SUMMARY
-          echo "- �?Non-destructive upload (Art 13.4)" >> $GITHUB_STEP_SUMMARY
-          echo "- �?Checkpoint recovery enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- â?Used Wrangler (not aws sync --delete)" >> $GITHUB_STEP_SUMMARY
+          echo "- â?Non-destructive upload (Art 13.4)" >> $GITHUB_STEP_SUMMARY
+          echo "- â?Checkpoint recovery enabled" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           FILE_COUNT=$(find output -type f | wc -l)
-          echo "- 📊 Files uploaded: $FILE_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "- ð Files uploaded: $FILE_COUNT" >> $GITHUB_STEP_SUMMARY

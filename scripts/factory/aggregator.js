@@ -18,6 +18,7 @@ import { generateRelations } from './lib/relations-generator.js';
 import { updateWeeklyAccumulator, isSunday, generateWeeklyReport } from './lib/weekly-report.js';
 import { backupToR2Output } from './lib/smart-writer.js';
 import { loadFniHistory, saveFniHistory, loadWeeklyAccum, saveWeeklyAccum } from './lib/cache-manager.js';
+import { generateTrendData } from './lib/trend-data-generator.js'; // V14.5 Phase 5
 
 // Config (Art 3.1, 3.3)
 const CONFIG = {
@@ -142,6 +143,11 @@ async function main() {
     await generateCategoryStats(rankedEntities, CONFIG.OUTPUT_DIR);  // V14.4: Homepage categories
     await generateRelations(rankedEntities, CONFIG.OUTPUT_DIR);  // V14.4: Knowledge linking
     await updateFniHistory(rankedEntities);
+
+    // V14.5 Phase 5: Generate trend data for frontend charts
+    const fniHistory = await loadFniHistory();
+    await generateTrendData(fniHistory, path.join(CONFIG.OUTPUT_DIR, 'cache'));
+
     await updateWeeklyAccumulator(rankedEntities, CONFIG.OUTPUT_DIR);
 
     // 7. Sunday: Generate weekly report (Art 5.2)
