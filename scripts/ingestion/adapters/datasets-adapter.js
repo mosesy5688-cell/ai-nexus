@@ -84,13 +84,28 @@ export class DatasetsAdapter extends BaseAdapter {
     }
 
     /**
-     * Fetch complete dataset details including README
-     */
-    async fetchFullDataset(datasetId) {
+ * Fetch complete dataset details including README
+ * V14.5: Added 429 retry logic with exponential backoff
+ */
+    async fetchFullDataset(datasetId, retryCount = 0) {
+        const MAX_RETRIES = 3;
+
         try {
             // Fetch API data
             const apiUrl = `${HF_API_BASE}/datasets/${datasetId}`;
             const apiResponse = await fetch(apiUrl);
+
+            // V14.5: Handle rate limiting with exponential backoff
+            if (apiResponse.status === 429) {
+                if (retryCount < MAX_RETRIES) {
+                    const backoff = Math.min(2000 * Math.pow(2, retryCount), 30000);
+                    console.log(`   ⚠️ Rate limited (429) for ${datasetId}, retry ${retryCount + 1}/${MAX_RETRIES} after ${backoff}ms...`);
+                    await this.delay(backoff);
+                    return this.fetchFullDataset(datasetId, retryCount + 1);
+                }
+                console.warn(`   ❌ Max retries exceeded for ${datasetId}`);
+                return null;
+            }
 
             if (!apiResponse.ok) {
                 console.warn(`   ⚠️ API failed for ${datasetId}: ${apiResponse.status}`);

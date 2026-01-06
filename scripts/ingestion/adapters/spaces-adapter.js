@@ -38,9 +38,25 @@ export class SpacesAdapter extends BaseAdapter {
         return fullSpaces;
     }
 
-    async fetchFullSpace(spaceId) {
+    // V14.5: Added 429 retry logic with exponential backoff
+    async fetchFullSpace(spaceId, retryCount = 0) {
+        const MAX_RETRIES = 3;
+
         try {
             const apiResponse = await fetch(`${HF_API}/spaces/${spaceId}`);
+
+            // V14.5: Handle rate limiting with exponential backoff
+            if (apiResponse.status === 429) {
+                if (retryCount < MAX_RETRIES) {
+                    const backoff = Math.min(2000 * Math.pow(2, retryCount), 30000);
+                    console.log(`   ⚠️ Rate limited (429) for ${spaceId}, retry ${retryCount + 1}/${MAX_RETRIES} after ${backoff}ms...`);
+                    await this.delay(backoff);
+                    return this.fetchFullSpace(spaceId, retryCount + 1);
+                }
+                console.warn(`   ❌ Max retries exceeded for ${spaceId}`);
+                return null;
+            }
+
             if (!apiResponse.ok) return null;
             const data = await apiResponse.json();
 
