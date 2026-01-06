@@ -1,8 +1,8 @@
 /**
- * Factory Aggregator V14.4 (CES Compliant)
+ * Factory Aggregator V14.5 (CES Compliant)
  * 
  * Constitution: Art 3.1 (Aggregator), Art 5 (Weekly), Art 6.3 (Search), Art 8.3 (Health)
- * Reuses: scripts/fni/fni-calc.js, lib/ modules
+ * V14.5: Uses cache-manager for GH Cache + R2 backup strategy
  * 
  * Usage: node scripts/factory/aggregator.js
  */
@@ -17,6 +17,7 @@ import { generateCategoryStats } from './lib/category-stats-generator.js';
 import { generateRelations } from './lib/relations-generator.js';
 import { updateWeeklyAccumulator, isSunday, generateWeeklyReport } from './lib/weekly-report.js';
 import { backupToR2Output } from './lib/smart-writer.js';
+import { loadFniHistory, saveFniHistory, loadWeeklyAccum, saveWeeklyAccum } from './lib/cache-manager.js';
 
 // Config (Art 3.1, 3.3)
 const CONFIG = {
@@ -69,14 +70,13 @@ function calculatePercentiles(entities) {
     }));
 }
 
-// Update FNI history
+// Update FNI history (V14.5: uses cache-manager for GH Cache + R2 backup)
 async function updateFniHistory(entities) {
     console.log('[AGGREGATOR] Updating FNI history...');
 
-    let history = {};
-    try {
-        history = JSON.parse(await fs.readFile('./cache/fni-history.json', 'utf-8'));
-    } catch { /* start fresh */ }
+    // V14.5: Load from GH Cache → R2 backup → cold start
+    const historyData = await loadFniHistory();
+    const history = historyData.entities || {};
 
     const today = new Date().toISOString().split('T')[0];
     for (const e of entities) {
@@ -85,9 +85,8 @@ async function updateFniHistory(entities) {
         history[e.id] = history[e.id].slice(-7); // 7-day rolling (Art 4.2)
     }
 
-    await fs.mkdir('./cache', { recursive: true });
-    await fs.writeFile('./cache/fni-history.json', JSON.stringify(history, null, 2));
-    await backupToR2Output('./cache/fni-history.json', CONFIG.OUTPUT_DIR);
+    // V14.5: Save to GH Cache + R2 backup automatically
+    await saveFniHistory({ entities: history });
 
     console.log(`  [HISTORY] Updated ${Object.keys(history).length} entities`);
 }
