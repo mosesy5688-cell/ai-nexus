@@ -133,13 +133,10 @@ jobs:
           path: cache/entity-checksums.json
           key: entity-checksums-${{ github.run_id }}
 
-      # Trigger next stage
-      - name: Trigger Aggregate Stage
+      # Trigger next stage (via workflow_run - automatic)
+      - name: Notify Aggregate Stage
         run: |
-          echo "🚀 Triggering Factory 3/4 - Aggregate with run-id: ${{ github.run_id }}..."
-          gh workflow run factory-aggregate.yml -f run_id=${{ github.run_id }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "✅ Shard ${{ matrix.shard }} complete. Factory 3/4 - Aggregate will start automatically after all shards complete."
 
       - name: Summary
         run: |

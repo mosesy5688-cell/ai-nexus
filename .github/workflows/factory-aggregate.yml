@@ -142,13 +142,10 @@ jobs:
           path: output/
           retention-days: 7
 
-      # Trigger next stage
-      - name: Trigger Upload Stage
+      # Trigger next stage (via workflow_run - automatic)
+      - name: Notify Upload Stage
         run: |
-          echo "🚀 Triggering Factory 4/4 - Upload..."
-          gh workflow run factory-upload.yml
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "✅ Aggregate complete. Factory 4/4 - Upload will start automatically via workflow_run trigger."
 
       - name: Summary
         run: |
