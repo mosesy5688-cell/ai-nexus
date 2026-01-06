@@ -184,140 +184,140 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: shard-0
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 1
         uses: actions/download-artifact@v4
         with:
           name: shard-1
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 2
         uses: actions/download-artifact@v4
         with:
           name: shard-2
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 3
         uses: actions/download-artifact@v4
         with:
           name: shard-3
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 4
         uses: actions/download-artifact@v4
         with:
           name: shard-4
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 5
         uses: actions/download-artifact@v4
         with:
           name: shard-5
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 6
         uses: actions/download-artifact@v4
         with:
           name: shard-6
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 7
         uses: actions/download-artifact@v4
         with:
           name: shard-7
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 8
         uses: actions/download-artifact@v4
         with:
           name: shard-8
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 9
         uses: actions/download-artifact@v4
         with:
           name: shard-9
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 10
         uses: actions/download-artifact@v4
         with:
           name: shard-10
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 11
         uses: actions/download-artifact@v4
         with:
           name: shard-11
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 12
         uses: actions/download-artifact@v4
         with:
           name: shard-12
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 13
         uses: actions/download-artifact@v4
         with:
           name: shard-13
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 14
         uses: actions/download-artifact@v4
         with:
           name: shard-14
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 15
         uses: actions/download-artifact@v4
         with:
           name: shard-15
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 16
         uses: actions/download-artifact@v4
         with:
           name: shard-16
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 17
         uses: actions/download-artifact@v4
         with:
           name: shard-17
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 18
         uses: actions/download-artifact@v4
         with:
           name: shard-18
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       - name: Download Shard 19
         uses: actions/download-artifact@v4
         with:
           name: shard-19
-          path: ./
+          path: artifacts/
         continue-on-error: true
 
       # Download cache data
@@ -394,7 +394,7 @@ jobs:
           
           # Validate Cloudflare secrets
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "â?ERROR: Missing CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID"
+            echo "âŒ ERROR: Missing CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID"
             exit 1
           fi
           
@@ -403,7 +403,7 @@ jobs:
           echo "ðŸ“Š JSON files: $FILE_COUNT"
           
           if [ "$FILE_COUNT" -lt 100 ]; then
-            echo "â?ERROR: Only $FILE_COUNT files. Expected 100+. Aborting."
+            echo "âŒ ERROR: Only $FILE_COUNT files. Expected 100+. Aborting."
             echo "This prevents uploading empty/incomplete data to R2."
             exit 1
           fi
@@ -416,7 +416,7 @@ jobs:
             echo "âš ï¸ WARNING: Missing search-core.json"
           fi
           
-          echo "âœ?Pre-flight validation passed"
+          echo "âœ… Pre-flight validation passed"
 
       - name: Upload to R2 (Wrangler)
         run: node scripts/factory/r2-upload.js
@@ -449,7 +449,7 @@ jobs:
               ]
             }' || echo "âš ï¸ CDN purge failed (non-critical)"
           
-          echo "âœ?CDN cache purge requested"
+          echo "âœ… CDN cache purge requested"
 
       # V14.5: Warm CDN Cache (pre-populate for first users)
       - name: Warm CDN Cache
@@ -463,16 +463,16 @@ jobs:
           curl -s -o /dev/null -w "%{http_code}" https://free2aitools.com/api/cache/category_stats.json || true
           curl -s -o /dev/null -w "%{http_code}" https://free2aitools.com/ || true
           
-          echo "âœ?CDN cache warmed"
+          echo "âœ… CDN cache warmed"
 
       - name: Summary
         run: |
           echo "## ðŸ”¥ V14.4 Phoenix Protocol Complete!" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Upload Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- âœ?Used Wrangler (not aws sync --delete)" >> $GITHUB_STEP_SUMMARY
-          echo "- âœ?Non-destructive upload (Art 13.4)" >> $GITHUB_STEP_SUMMARY
-          echo "- âœ?Checkpoint recovery enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- âœ… Used Wrangler (not aws sync --delete)" >> $GITHUB_STEP_SUMMARY
+          echo "- âœ… Non-destructive upload (Art 13.4)" >> $GITHUB_STEP_SUMMARY
+          echo "- âœ… Checkpoint recovery enabled" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           FILE_COUNT=$(find output -type f | wc -l)
           echo "- ðŸ“Š Files uploaded: $FILE_COUNT" >> $GITHUB_STEP_SUMMARY
