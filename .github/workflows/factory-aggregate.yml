@@ -14,6 +14,11 @@ on:
     workflows: ["Factory 2/4 - Process"]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Run ID of Process workflow to get shard artifacts from'
+        required: false
+        type: string
 
 jobs:
   aggregate:
@@ -40,7 +45,7 @@ jobs:
           pattern: shard-*
           path: ./downloaded/
           merge-multiple: true
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ inputs.run_id || github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       # Organize downloaded files

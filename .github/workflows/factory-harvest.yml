@@ -61,12 +61,12 @@ jobs:
           node scripts/ingestion/orchestrator.js
           
           # Validate output
-          if [ ! -f "data/entities.json" ]; then
-            echo "❌ entities.json not generated"
+          if [ ! -f "data/merged.json" ]; then
+            echo "❌ merged.json not generated"
             exit 1
           fi
           
-          ENTITY_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/entities.json')).length)")
+          ENTITY_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/merged.json')).length)")
           echo "✅ Harvested $ENTITY_COUNT entities"
           
           if [ "$ENTITY_COUNT" -lt 1000 ]; then
@@ -79,7 +79,7 @@ jobs:
         with:
           name: entity-data
           path: |
-            data/entities.json
+            data/merged.json
             cache/fni-history.json
             cache/weekly-accum.json
           retention-days: 3
@@ -96,6 +96,6 @@ jobs:
         run: |
           echo "## Factory 1/4 - Harvest Complete 🌾" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Entities: $(node -e "console.log(JSON.parse(require('fs').readFileSync('data/entities.json')).length)")" >> $GITHUB_STEP_SUMMARY
+          echo "- Entities: $(node -e "console.log(JSON.parse(require('fs').readFileSync('data/merged.json')).length)")" >> $GITHUB_STEP_SUMMARY
           echo "- Artifact: entity-data" >> $GITHUB_STEP_SUMMARY
           echo "- Next: Factory 2/4 - Process" >> $GITHUB_STEP_SUMMARY
