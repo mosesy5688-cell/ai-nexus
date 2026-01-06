@@ -58,16 +58,20 @@ function getAllFiles(dir, files = []) {
 }
 
 // Upload single file (using npx wrangler)
-function uploadFile(localPath, remotePath) {
+// V14.5: Added verbose logging for debugging upload failures
+function uploadFile(localPath, remotePath, debug = false) {
     try {
         // Use npx to run wrangler without global install
-        execSync(`npx wrangler r2 object put "${BUCKET}/${remotePath}" --file="${localPath}"`, {
-            stdio: 'pipe', // Suppress per-file output
-            timeout: 60000 // 60s timeout
+        const result = execSync(`npx wrangler r2 object put "${BUCKET}/${remotePath}" --file="${localPath}"`, {
+            stdio: debug ? 'inherit' : 'pipe', // Show output for first few files
+            timeout: 60000, // 60s timeout
+            encoding: 'utf-8'
         });
         return true;
     } catch (e) {
-        console.error(`❌ Failed: ${localPath}`);
+        console.error(`\n❌ Failed: ${localPath}`);
+        console.error(`   Error: ${e.message}`);
+        if (e.stderr) console.error(`   Stderr: ${e.stderr}`);
         return false;
     }
 }
@@ -115,7 +119,9 @@ async function main() {
         const progress = ((i + 1) / allFiles.length * 100).toFixed(1);
         process.stdout.write(`\r[${progress}%] Uploading: ${remotePath.substring(0, 50)}...`);
 
-        if (uploadFile(file.path, remotePath)) {
+        // V14.5: Debug first 3 uploads to capture any wrangler errors
+        const debugMode = (i < 3);
+        if (uploadFile(file.path, remotePath, debugMode)) {
             checkpoint.uploaded.push(remotePath);
             success++;
 
