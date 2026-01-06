@@ -99,6 +99,13 @@ jobs:
           
           ENTITY_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/merged.json')).length)")
           echo "✅ Found $ENTITY_COUNT entities in merged.json"
+          
+          # V14.5: Fail if entity count is too low (prevents processing test data)
+          if [ "$ENTITY_COUNT" -lt 1000 ]; then
+            echo "❌ ERROR: Only $ENTITY_COUNT entities found. Expected 1000+."
+            echo "This indicates corrupted data or test files in artifact."
+            exit 1
+          fi
 
       # Restore entity checksums for incremental processing
       - name: Restore Entity Checksums
