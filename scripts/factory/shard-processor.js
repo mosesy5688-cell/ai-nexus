@@ -106,7 +106,7 @@ async function main() {
     console.log(`[SHARD ${shardId}/${totalShards}] Starting...`);
 
     // Load entities
-    const entitiesPath = process.env.ENTITIES_PATH || './data/entities.json';
+    const entitiesPath = process.env.ENTITIES_PATH || './data/merged.json';
     const allEntities = JSON.parse(await fs.readFile(entitiesPath, 'utf-8'));
 
     // V14.5: Load entity checksums for diff detection
