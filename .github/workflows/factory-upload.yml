@@ -19,6 +19,8 @@ env:
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
   CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
   R2_BUCKET: ai-nexus-assets
 
 jobs:
@@ -87,11 +89,11 @@ jobs:
           
           echo "✅ Pre-flight validation passed"
 
-      # Upload to R2
+      # Upload to R2 using S3 API (V14.5 Phase 6 - 10x faster)
       - name: Upload to R2
         run: |
-          echo "📤 Uploading to R2..."
-          node scripts/factory/r2-upload.js
+          echo "📤 Uploading to R2 via S3 API..."
+          node scripts/factory/r2-upload-s3.js
 
       # CDN Purge
       - name: Purge CDN Cache
