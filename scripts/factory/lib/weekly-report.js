@@ -1,27 +1,25 @@
 /**
- * Weekly Report Module V14.4
+ * Weekly Report Module V14.5
  * Constitution Reference: Art 5 (Weekly Report System)
+ * V14.5: Uses cache-manager for GH Cache + R2 backup strategy
  */
 
 import fs from 'fs/promises';
 import path from 'path';
+import { loadWeeklyAccum, saveWeeklyAccum } from './cache-manager.js';
 
 
 const WEEKLY_TOP_ENTITIES = 50;
 
 /**
  * Update weekly accumulator (Art 5.1)
+ * V14.5: Uses cache-manager priority chain (GH Cache → R2 backup)
  */
 export async function updateWeeklyAccumulator(entities, outputDir = './output') {
     console.log('[WEEKLY] Updating weekly accumulator...');
 
-    // Load existing accumulator
-    let accumulator = { entries: [] };
-    try {
-        accumulator = JSON.parse(await fs.readFile('./cache/weekly-accum.json', 'utf-8'));
-    } catch {
-        // Start fresh
-    }
+    // V14.5: Load from GH Cache → R2 backup → cold start
+    const accumulator = await loadWeeklyAccum();
 
     // Get top movers (highest FNI)
     const topMovers = entities
@@ -35,17 +33,12 @@ export async function updateWeeklyAccumulator(entities, outputDir = './output') 
             date: new Date().toISOString().split('T')[0],
         }));
 
+    accumulator.entries = accumulator.entries || [];
     accumulator.entries.push(...topMovers);
     accumulator._updated = new Date().toISOString();
 
-    // Save to cache
-    await fs.mkdir('./cache', { recursive: true });
-    await fs.writeFile('./cache/weekly-accum.json', JSON.stringify(accumulator, null, 2));
-
-    // Backup to R2 (Art 2.3)
-    const backupDir = path.join(outputDir, 'meta', 'backup');
-    await fs.mkdir(backupDir, { recursive: true });
-    await fs.writeFile(path.join(backupDir, 'weekly-accum.json'), JSON.stringify(accumulator, null, 2));
+    // V14.5: Save to GH Cache + R2 backup automatically
+    await saveWeeklyAccum(accumulator);
 
     console.log(`  [WEEKLY] Accumulated ${accumulator.entries.length} entries total`);
 }
@@ -59,15 +52,15 @@ export function isSunday() {
 
 /**
  * Generate weekly report (Art 5.2)
+ * V14.5: Uses cache-manager for loading accumulator
  */
 export async function generateWeeklyReport(outputDir = './output') {
     console.log('[REPORT] Generating weekly report...');
 
-    let accumulator;
-    try {
-        accumulator = JSON.parse(await fs.readFile('./cache/weekly-accum.json', 'utf-8'));
-    } catch {
-        console.warn('[WARN] No weekly accumulator found');
+    // V14.5: Load from cache-manager priority chain
+    const accumulator = await loadWeeklyAccum();
+    if (!accumulator.entries || accumulator.entries.length === 0) {
+        console.warn('[WARN] No weekly accumulator entries found');
         return;
     }
 
@@ -105,8 +98,8 @@ export async function generateWeeklyReport(outputDir = './output') {
     await fs.mkdir(weeklyDir, { recursive: true });
     await fs.writeFile(path.join(weeklyDir, `${weekId}.json`), JSON.stringify(report, null, 2));
 
-    // Step 3: Clear accumulator on success
-    await fs.writeFile('./cache/weekly-accum.json', JSON.stringify({ entries: [] }));
+    // Step 3: Clear accumulator on success (V14.5: uses cache-manager)
+    await saveWeeklyAccum({ entries: [], week: null, startDate: null });
 
     console.log(`  [REPORT] Generated ${weekId}`);
 }
