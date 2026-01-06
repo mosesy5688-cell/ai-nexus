@@ -55,3 +55,36 @@ docs/runbooks/
 *.bak
 
 !docs/TEST_STRATEGY_MASTER_V6.0.md
+
+# ============================================================
+# FACTORY WORKFLOW FILES (V14.5 - Never commit)
+# ============================================================
+
+# Merged entity data from Harvest
+merged.json
+raw.json
+data/merged.json
+
+# Temp files from debugging
+temp_*.json
+temp_*.json.gz
+temp_*.html
+temp_*.bin
+temp_*.sql
+
+# Test/debug directories
+FINAL_PROOF/
+FAILED_RUN*/
+evidence_logs*/
+debug_logs/
+temp-artifacts*/
+final_evidence/
+artifacts/
+output/
+cache/
+
+# Workflow artifacts
+*.log
+workflow.log
+upload-checkpoint.json
+
