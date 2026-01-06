@@ -1,5 +1,6 @@
 ---
 // src/components/home/HomeSearch.astro
+// V14.5: Refactored for CES Art 5.1 compliance - search logic extracted to home-search.js
 import CategoryPills from './CategoryPills.astro';
 
 interface Props {
@@ -37,56 +38,30 @@ const { initialQuery = '' } = Astro.props;
             <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100" data-query="code generation">code generation</button>
             <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100" data-query="embedding">embedding</button>
         </div>
+        <!-- V14.5 Phase 5: Full Search Toggle -->
+        <div class="mt-2 flex justify-center">
+            <label class="inline-flex items-center gap-2 cursor-pointer text-xs text-gray-500 dark:text-gray-400 hover:text-indigo-600">
+                <input type="checkbox" id="fullSearchToggle" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" />
+                <span>Search all 100K+ models</span>
+                <span id="fullSearchStatus" class="text-gray-400"></span>
+            </label>
+        </div>
         <!-- V14.2: Category Filter Pills -->
         <CategoryPills />
     </div>
 </div>
 
 <script>
-  // V14.2 Static Search - Inline Implementation (MiniSearch CDN)
-  const INDEX_URL = '/data/search-index-top.json';
-  let searchData = [];
-  let isLoaded = false;
-  let isLoading = false;
-
-  async function initSearch() {
-    if (isLoaded || isLoading) return;
-    isLoading = true;
-    console.log('📥 [V14.2] Loading static search index...');
-    
-    try {
-      const response = await fetch(INDEX_URL);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      searchData = await response.json();
-      isLoaded = true;
-      console.log(`🚀 [V14.2] Search Ready: ${searchData.length} items`);
-    } catch (e) {
-      console.error('❌ Search index failed:', e);
-    } finally {
-      isLoading = false;
-    }
-  }
-
-  // V14.2: Search History (localStorage)
-  const HISTORY_KEY = 'f2ai_search_history';
-  const MAX_HISTORY = 5;
-
-  function getSearchHistory() {
-    try {
-      return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-    } catch { return []; }
-  }
-
-  function saveSearchHistory(query) {
-    if (!query || query.length < 2) return;
-    const history = getSearchHistory().filter(h => h !== query);
-    history.unshift(query);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
-  }
-
-  function clearSearchHistory() {
-    localStorage.removeItem(HISTORY_KEY);
-  }
+  // V14.5: Import search functions from external module
+  import { 
+    initSearch, 
+    loadFullSearchIndex, 
+    getSearchHistory, 
+    saveSearchHistory, 
+    clearSearchHistory,
+    performSearch,
+    setFullSearchEnabled 
+  } from '../../scripts/home-search.js';
 
   function renderHistory() {
     const dropdown = document.getElementById('search-results-dropdown');
@@ -106,14 +81,12 @@ const { initialQuery = '' } = Astro.props;
     `;
     dropdown.classList.remove('hidden');
     
-    // Bind clear button
     document.getElementById('clear-history')?.addEventListener('click', (e) => {
       e.stopPropagation();
       clearSearchHistory();
       dropdown.classList.add('hidden');
     });
     
-    // Bind history items
     dropdown.querySelectorAll('.history-item').forEach(btn => {
       btn.addEventListener('click', async () => {
         const query = btn.dataset.historyQuery;
@@ -128,46 +101,6 @@ const { initialQuery = '' } = Astro.props;
     });
     
     return true;
-  }
-
-  // V14.2: Get top trending models for hot suggestions
-  function getTopModels(limit = 10) {
-    if (!isLoaded) return [];
-    return searchData
-      .slice(0, limit)  // Already sorted by FNI score from build-search-index.js
-      .map(r => ({
-        id: r.i,
-        name: r.n,
-        slug: r.s,
-        author: r.a,
-        fni_score: r.sc
-      }));
-  }
-
-  function performSearch(query, limit = 8) {
-    if (!isLoaded || !query) return [];
-    
-    // V14.2: Hot suggestions for 1-char input (show top trending)
-    if (query.length === 1) {
-      return getTopModels(limit);
-    }
-    
-    const q = query.toLowerCase();
-    
-    // V14.2 Enhanced: Fuzzy + Boost scoring (inlined for Astro client script)
-    const fuzzy = (t, s) => t && (t.toLowerCase().includes(s) || 
-      t.toLowerCase().split(/[\s\-_]/).some(w => w.startsWith(s.slice(0,3))));
-    const score = (i) => (fuzzy(i.n,q)?50:0) + (i.n?.toLowerCase().startsWith(q)?30:0) + 
-      (fuzzy(i.t,q)?20:0) + (fuzzy(i.a,q)?10:0) + (i.n?.toLowerCase()===q?100:0) + (i.sc||0)/10;
-    
-    return searchData
-      .map(item => ({ item, s: score(item) }))
-      .filter(({ s }) => s > 0)
-      .sort((a, b) => b.s - a.s)
-      .slice(0, limit)
-      .map(({ item }) => ({
-        id: item.i, name: item.n, slug: item.s, author: item.a, fni_score: item.sc
-      }));
   }
 
   function renderResults(results) {
@@ -201,22 +134,26 @@ const { initialQuery = '' } = Astro.props;
 
     searchBox?.addEventListener('focus', () => {
       initSearch();
-      // V14.2: Show history when focused with empty input
       if (!searchBox.value.trim()) renderHistory();
     });
     searchBox?.addEventListener('mouseenter', initSearch);
 
-    searchBox?.addEventListener('input', (e) => {
+    // V14.5 Phase 5: Full Search Toggle
+    document.getElementById('fullSearchToggle')?.addEventListener('change', async (e) => {
+      setFullSearchEnabled(e.target.checked);
+      if (e.target.checked) await loadFullSearchIndex();
+      const query = searchBox?.value?.trim();
+      if (query?.length > 0) renderResults(performSearch(query));
+    });
+
+    searchBox?.addEventListener('input', async (e) => {
       const query = e.target.value.trim();
-      // V14.2: Show history when empty, hot suggestions on 1 char
       if (query.length < 1) {
         if (!renderHistory()) dropdown?.classList.add('hidden');
         return;
       }
-      if (isLoaded) {
-        const results = performSearch(query);
-        renderResults(results);
-      }
+      await initSearch();
+      renderResults(performSearch(query));
     });
 
     document.addEventListener('click', (e) => {
@@ -229,7 +166,7 @@ const { initialQuery = '' } = Astro.props;
       e.preventDefault();
       const query = searchBox?.value?.trim();
       if (query) {
-        saveSearchHistory(query);  // V14.2: Save to history
+        saveSearchHistory(query);
         window.location.href = `/search?q=${encodeURIComponent(query)}`;
       }
     });
@@ -240,8 +177,7 @@ const { initialQuery = '' } = Astro.props;
         if (searchBox) {
           searchBox.value = query;
           await initSearch();
-          const results = performSearch(query);
-          renderResults(results);
+          renderResults(performSearch(query));
           searchBox.focus();
         }
       });
