@@ -6,9 +6,9 @@
 name: Image Processor V14.5
 
 on:
-  # Trigger after Factory Matrix completes
+  # Trigger after Factory Upload completes (V14.5 Modular Factory)
   workflow_run:
-    workflows: ["Factory Matrix V14.4"]
+    workflows: ["Factory 4/4 - Upload"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
