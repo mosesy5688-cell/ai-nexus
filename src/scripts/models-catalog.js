@@ -87,7 +87,7 @@ export async function initModelsCatalog() {
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Try these trending models:</p>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                   ${hotModels.map(m => `
-                    <a href="/model/${m.author || 'unknown'}/${m.name?.split('/').pop() || m.umid}" 
+                    <a href="/model/${m.slug && m.slug.includes('/') ? m.slug.toLowerCase() : `${m.author || 'unknown'}/${m.name?.split('/').pop() || m.umid}`}" 
                        class="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
                       <p class="font-medium text-indigo-700 dark:text-indigo-300 truncate">${m.name?.split('/').pop() || 'Model'}</p>
                       <p class="text-xs text-gray-500 dark:text-gray-400">${m.author || 'Unknown'}</p>
@@ -109,7 +109,7 @@ export async function initModelsCatalog() {
     }
 
     grid.innerHTML = pageModels.map(m => `
-      <a href="/model/${m.author || 'unknown'}/${m.name?.split('/').pop() || m.umid}" 
+      <a href="/model/${m.slug && m.slug.includes('/') ? m.slug.toLowerCase() : `${m.author || 'unknown'}/${m.name?.split('/').pop() || m.umid}`}" 
          class="group bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600">
         <div class="flex items-center justify-between mb-3">
           <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
