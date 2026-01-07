@@ -1,8 +1,10 @@
-# Factory 1/4 - Harvest
-# V14.5 Phase 4: Modular Factory Architecture
+# Factory 1/4 - Harvest (V14.5 Parallel Architecture)
+# 
+# V14.5: 4 parallel job groups for 3x faster harvesting
+# Based on proven L1 Harvester pattern (loop1-harvester-v42.yml)
 # 
 # Triggers: Schedule Mon/Thu 03:00 UTC (11:00 Beijing)
-# Outputs: merged.json artifact (entity-data) for downstream processing
+# Outputs: merged.json artifact for downstream processing
 # 
 # Constitution: Art 3.1 (Factory Pipeline)
 
@@ -13,28 +15,230 @@ on:
     - cron: '0 3 * * 1,4'  # Mon/Thu 03:00 UTC
   workflow_dispatch:
 
-env:
-  HF_TOKEN: ${{ secrets.HF_TOKEN }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+concurrency:
+  group: factory-harvest
+  cancel-in-progress: true
 
+# ============================================================
+# JOB 1: HUGGINGFACE MODELS (10K)
+# ============================================================
 jobs:
-  harvest:
-    name: Harvest Entity Data
+  harvest-huggingface:
+    name: Harvest HuggingFace
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+    
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+      - run: npm ci
+      
+      - name: Harvest HuggingFace Models
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "📥 [Parallel] Harvesting HuggingFace Models..."
+          node scripts/ingestion/harvest-single.js huggingface --limit 10000
+          
+      - name: Upload Batch Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: batch-huggingface
+          path: data/raw_batch_*.json
+          retention-days: 1
 
-      - name: Install Dependencies
-        run: npm ci
+  # ============================================================
+  # JOB 2: GITHUB AGENTS (5K)
+  # ============================================================
+  harvest-github:
+    name: Harvest GitHub
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      
+      - name: Harvest GitHub Repos
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "📥 [Parallel] Harvesting GitHub..."
+          node scripts/ingestion/harvest-single.js github --limit 5000
+          
+      - name: Upload Batch Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: batch-github
+          path: data/raw_batch_*.json
+          retention-days: 1
 
-      # Restore persistent cache (FNI history, weekly accumulator)
+  # ============================================================
+  # JOB 3: ACADEMIC SOURCES (ArXiv + Papers + Datasets)
+  # ============================================================
+  harvest-academic:
+    name: Harvest Academic
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      
+      - name: Harvest ArXiv Papers
+        run: |
+          echo "📥 [Parallel] Harvesting ArXiv..."
+          node scripts/ingestion/harvest-single.js arxiv --limit 50000 || echo "ArXiv adapter skipped"
+          
+      - name: Harvest HuggingFace Papers
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "📥 [Parallel] Harvesting HF Papers..."
+          node scripts/ingestion/harvest-single.js huggingface-papers --limit 3000 || echo "HF Papers adapter skipped"
+
+      - name: Harvest HuggingFace Datasets
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "📥 [Parallel] Harvesting HF Datasets..."
+          node scripts/ingestion/harvest-single.js huggingface-datasets --limit 10000 || echo "HF Datasets adapter skipped"
+
+      - name: Upload Batch Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: batch-academic
+          path: data/raw_batch_*.json
+          retention-days: 1
+
+  # ============================================================
+  # JOB 4: ECOSYSTEM (All remaining sources)
+  # ============================================================
+  harvest-ecosystem:
+    name: Harvest Ecosystem
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      
+      - name: Harvest Ollama Registry
+        run: |
+          echo "📥 Harvesting Ollama..."
+          node scripts/ingestion/harvest-single.js ollama --limit 1000 || echo "Ollama adapter skipped"
+          
+      - name: Harvest MCP Servers
+        run: |
+          echo "📥 Harvesting MCP..."
+          node scripts/ingestion/harvest-single.js mcp --limit 500 || echo "MCP adapter skipped"
+
+      - name: Harvest Replicate
+        env:
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+        run: |
+          echo "📥 Harvesting Replicate..."
+          node scripts/ingestion/harvest-single.js replicate --limit 5000 || echo "Replicate adapter skipped"
+
+      - name: Harvest Kaggle
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          echo "📥 Harvesting Kaggle..."
+          node scripts/ingestion/harvest-single.js kaggle --limit 10000 || echo "Kaggle adapter skipped"
+
+      - name: Harvest CivitAI
+        run: |
+          echo "📥 Harvesting CivitAI..."
+          node scripts/ingestion/harvest-single.js civitai --limit 5000 || echo "CivitAI adapter skipped"
+
+      - name: Harvest Semantic Scholar
+        run: |
+          echo "📥 Harvesting Semantic Scholar..."
+          node scripts/ingestion/harvest-single.js semanticscholar --limit 3000 || echo "Semantic Scholar adapter skipped"
+
+      - name: Harvest OpenLLM Benchmarks
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "📊 Harvesting OpenLLM Leaderboard..."
+          node scripts/ingestion/harvest-single.js openllm --limit 1000 || echo "OpenLLM adapter skipped"
+
+      - name: Harvest DeepSpec Specifications
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "📋 Extracting Model Specifications..."
+          node scripts/ingestion/harvest-single.js deepspec --limit 2000 || echo "DeepSpec adapter skipped"
+
+      - name: Harvest HuggingFace Spaces
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          echo "📥 Harvesting HuggingFace Spaces..."
+          node scripts/ingestion/harvest-single.js huggingface-spaces --limit 2000 || echo "Spaces adapter skipped"
+
+      - name: Harvest AI Agents
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "📥 Harvesting AI Agents..."
+          node scripts/ingestion/harvest-single.js agents --limit 200 || echo "Agents adapter skipped"
+
+      - name: Upload Batch Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: batch-ecosystem
+          path: data/raw_batch_*.json
+          retention-days: 1
+
+  # ============================================================
+  # JOB 5: MERGE AND UPLOAD
+  # ============================================================
+  merge-and-upload:
+    name: Merge & Upload
+    runs-on: ubuntu-latest
+    needs: [harvest-huggingface, harvest-github, harvest-academic, harvest-ecosystem]
+    timeout-minutes: 30
+    
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      
+      # Download all batch artifacts
+      - name: Download All Batch Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: data/
+          pattern: batch-*
+          merge-multiple: true
+          
+      - name: List Downloaded Batches
+        run: |
+          echo "📦 Downloaded batches:"
+          ls -la data/raw_batch_*.json 2>/dev/null || echo "No batch files found"
+          
+      # Restore persistent cache
       - name: Restore FNI History
         uses: actions/cache@v4
         with:
@@ -50,27 +254,23 @@ jobs:
           key: weekly-accum-${{ github.run_id }}
           restore-keys: |
             weekly-accum-
-
-      # Run L1 Orchestrator to fetch entity data
-      - name: Run L1 Orchestrator
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          
+      # Merge batches with ID deduplication
+      - name: Merge Batches
         run: |
-          echo "🔄 Starting L1 Harvest..."
-          echo "🔑 HF_TOKEN: ${HF_TOKEN:0:8}... (configured)"
-          node scripts/ingestion/orchestrator.js
+          echo "🔄 Merging batches with ID deduplication..."
+          node scripts/ingestion/merge-batches.js
           
-          # Validate output
-          if [ ! -f "data/merged.json" ]; then
-            echo "❌ merged.json not generated"
+          if [ -f "data/merged.json" ]; then
+            ENTITY_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/merged.json')).length)")
+            echo "✅ Merged: $ENTITY_COUNT total entities"
+            
+            if [ "$ENTITY_COUNT" -lt 1000 ]; then
+              echo "⚠️ Warning: Low entity count ($ENTITY_COUNT)"
+            fi
+          else
+            echo "❌ Error: merged.json not generated"
             exit 1
-          fi
-          
-          ENTITY_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/merged.json')).length)")
-          echo "✅ Harvested $ENTITY_COUNT entities"
-          
-          if [ "$ENTITY_COUNT" -lt 1000 ]; then
-            echo "⚠️ Warning: Low entity count ($ENTITY_COUNT)"
           fi
 
       # Upload artifact for downstream workflows
@@ -84,16 +284,20 @@ jobs:
             cache/weekly-accum.json
           retention-days: 3
 
-      # Trigger next stage (via workflow_run - automatic)
-      - name: Notify Process Stage
-        run: |
-          echo "✅ Harvest complete. Factory 2/4 - Process will start automatically via workflow_run trigger."
-          echo "📦 Artifact: entity-data ($(du -h data/merged.json | cut -f1))"
-
+      # Pipeline Summary
       - name: Summary
         run: |
+          ENTITY_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/merged.json')).length)")
+          BATCH_COUNT=$(ls -1 data/raw_batch_*.json 2>/dev/null | wc -l)
+          
           echo "## Factory 1/4 - Harvest Complete 🌾" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Entities: $(node -e "console.log(JSON.parse(require('fs').readFileSync('data/merged.json')).length)")" >> $GITHUB_STEP_SUMMARY
-          echo "- Artifact: entity-data" >> $GITHUB_STEP_SUMMARY
-          echo "- Next: Factory 2/4 - Process" >> $GITHUB_STEP_SUMMARY
+          echo "### V14.5 Parallel Harvest Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Entities | $ENTITY_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "| Batch Files | $BATCH_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "| Architecture | 4 Parallel Jobs |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Next: Factory 2/4 - Process" >> $GITHUB_STEP_SUMMARY

@@ -9,6 +9,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { dedupCrossPlatform } from './cross-platform-dedup.js';
 import { generateRankings } from './lib/rankings-generator.js';
 import { generateSearchIndices } from './lib/search-indexer.js';
 import { generateTrending } from './lib/trending-generator.js';
@@ -127,8 +128,15 @@ async function main() {
     }
 
     // 3. Merge entities
-    const allEntities = mergeShardEntities(shardResults);
-    console.log(`[AGGREGATOR] Merged ${allEntities.length} entities`);
+    let allEntities = mergeShardEntities(shardResults);
+    console.log(`[AGGREGATOR] Merged ${allEntities.length} entities (pre-dedup)`);
+
+    // 3.1 Cross-Platform Deduplication (V14.5)
+    console.log('🔄 Cross-platform deduplication...');
+    const dedupResult = dedupCrossPlatform(allEntities);
+    allEntities = dedupResult.entities;
+    console.log(`✓ Dedup complete: ${dedupResult.stats.input} → ${dedupResult.stats.output} entities`);
+    console.log(`  (Merged ${dedupResult.stats.merged} duplicates from ${dedupResult.stats.groups} groups)`);
 
     // 4. Calculate percentiles
     const rankedEntities = calculatePercentiles(allEntities);
