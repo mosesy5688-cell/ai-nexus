@@ -56,10 +56,11 @@ export class DatasetsAdapter extends BaseAdapter {
             return datasets;
         }
 
-        // Fetch full details for each dataset (with rate limiting)
+        // V14.5: Reduced batch size and increased delay to prevent rate limit storms
         console.log(`🔄 [HF Datasets] Fetching full details...`);
         const fullDatasets = [];
-        const batchSize = 10;
+        const batchSize = 2; // Reduced from 10 to prevent parallel 429 storms
+        const batchDelay = 1000; // Increased from 100ms
 
         for (let i = 0; i < datasets.length; i += batchSize) {
             const batch = datasets.slice(i, i + batchSize);
@@ -75,7 +76,7 @@ export class DatasetsAdapter extends BaseAdapter {
 
             // Rate limiting delay
             if (i + batchSize < datasets.length) {
-                await this.delay(100);
+                await this.delay(batchDelay);
             }
         }
 

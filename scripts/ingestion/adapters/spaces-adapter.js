@@ -25,14 +25,16 @@ export class SpacesAdapter extends BaseAdapter {
         console.log(`📦 [HF Spaces] Got ${spaces.length} spaces`);
         if (!full) return spaces;
 
-        // Fetch full details with rate limiting
+        // V14.5: Reduced batch size and increased delay to prevent rate limit storms
         const fullSpaces = [];
-        for (let i = 0; i < spaces.length; i += 10) {
-            const batch = spaces.slice(i, i + 10);
+        const BATCH_SIZE = 2; // Reduced from 10 to prevent parallel 429 storms
+        const BATCH_DELAY = 1000; // Increased from 100ms
+        for (let i = 0; i < spaces.length; i += BATCH_SIZE) {
+            const batch = spaces.slice(i, i + BATCH_SIZE);
             const results = await Promise.all(batch.map(s => this.fetchFullSpace(s.id)));
             fullSpaces.push(...results.filter(Boolean));
-            if ((i + 10) % 50 === 0) console.log(`   Progress: ${Math.min(i + 10, spaces.length)}/${spaces.length}`);
-            if (i + 10 < spaces.length) await this.delay(100);
+            if ((i + BATCH_SIZE) % 50 === 0) console.log(`   Progress: ${Math.min(i + BATCH_SIZE, spaces.length)}/${spaces.length}`);
+            if (i + BATCH_SIZE < spaces.length) await this.delay(BATCH_DELAY);
         }
         console.log(`✅ [HF Spaces] Fetched ${fullSpaces.length} complete spaces`);
         return fullSpaces;
