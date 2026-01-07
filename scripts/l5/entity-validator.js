@@ -32,6 +32,14 @@ export function hasValidCachePath(entity) {
         }
     }
 
+    // V14.5: Check entity type prefixes (hf-space, hf-dataset, github-agent, mcp-server)
+    const TYPE_PREFIXES = ['hf-space--', 'hf-dataset--', 'github-agent--', 'mcp-server--', 'github--'];
+    for (const prefix of TYPE_PREFIXES) {
+        if (idLower.startsWith(prefix)) {
+            return true;
+        }
+    }
+
     // HuggingFace/GitHub: must have author/name format (contains /)
     const hasSlash = id.includes('/') ||
         (id.includes(':') && id.split(':')[1]?.includes('/'));
