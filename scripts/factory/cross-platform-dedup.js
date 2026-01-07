@@ -62,21 +62,36 @@ function normalizeName(name) {
  * Calculate similarity score between two entities
  */
 function calculateSimilarity(e1, e2) {
+    // V14.5 Fix: Only compare same-type entities (don't merge models with papers)
+    const t1 = e1.type || 'model';
+    const t2 = e2.type || 'model';
+    if (t1 !== t2) return 0;
+
     const n1 = normalizeName(e1.name);
     const n2 = normalizeName(e2.name);
 
+    // V14.5 Fix: Require minimum name length to prevent empty string false positives
+    const MIN_NAME_LENGTH = 3;
+    if (n1.length < MIN_NAME_LENGTH || n2.length < MIN_NAME_LENGTH) return 0;
+
     if (n1 === n2) return 1.0;
-    if (n1.includes(n2) || n2.includes(n1)) return 0.8;
+
+    // V14.5 Fix: Only do substring matching if both names are meaningful length
+    if (n1.length >= 5 && n2.length >= 5) {
+        if (n1.includes(n2) || n2.includes(n1)) return 0.8;
+    }
 
     // Check author + partial name
     const a1 = (e1.author || '').toLowerCase();
     const a2 = (e2.author || '').toLowerCase();
 
-    if (a1 && a2 && a1 === a2) {
+    if (a1 && a2 && a1 === a2 && a1.length >= 2) {
         // Same author, check base name similarity
         const base1 = n1.split('/').pop() || n1;
         const base2 = n2.split('/').pop() || n2;
-        if (base1.includes(base2) || base2.includes(base1)) return 0.7;
+        if (base1.length >= 5 && base2.length >= 5 && (base1.includes(base2) || base2.includes(base1))) {
+            return 0.7;
+        }
     }
 
     return 0;
