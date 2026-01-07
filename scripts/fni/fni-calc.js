@@ -106,7 +106,8 @@ export function calculateU(model) {
 
     // 4. Docker support (10 points)
     const tags = Array.isArray(model.tags) ? model.tags : [];
-    if (tags.some(t => t.toLowerCase().includes('docker'))) {
+    // V14.5: Filter non-string tags (Kaggle datasets may have null/object elements)
+    if (tags.filter(t => typeof t === 'string').some(t => t.toLowerCase().includes('docker'))) {
         score += UTILITY.DOCKER_BONUS;
     }
 
