@@ -20,8 +20,16 @@ export function renderModelCard(model) {
 
     const name = model.name || model.id?.split(/[:/]/).pop() || 'unknown';
 
-    // V5.0: Clean URL format - lowercase, no source prefix in URL
-    const modelUrl = `/model/${author.toLowerCase()}/${name.toLowerCase()}`;
+    // V14.5: Use slug from trending.json if available (includes source prefix)
+    // Fallback to author/name format for backward compatibility
+    let modelUrl;
+    if (model.slug && model.slug.includes('/')) {
+        // New format: slug already has source/author/name (e.g., "replicate/openai/gpt-5-nano")
+        modelUrl = `/model/${model.slug.toLowerCase()}`;
+    } else {
+        // Fallback: V5.0 clean URL format
+        modelUrl = `/model/${author.toLowerCase()}/${name.toLowerCase()}`;
+    }
 
     const description = (model.description || 'No description available.')
         .replace(/\<[^>]*>?/gm, '')
