@@ -96,21 +96,18 @@ export class HuggingFaceAdapter extends BaseAdapter {
             try {
                 // V6.4: Add expand params for safetensors (params_billions) and config (context_length, architecture)
                 let response;
-                let retryCount = 0;
                 const maxRetries = 3;
 
-                while (retryCount <= maxRetries) {
+                for (let retryCount = 0; retryCount < maxRetries; retryCount++) {
                     response = await fetch(`${HF_API_BASE}/models?sort=${strategy.sort}&direction=${strategy.direction}&limit=${limitPerStrategy}&expand[]=safetensors&expand[]=config`, { headers: this.getHeaders() });
 
                     if (response.status === 429) {
-                        retryCount++;
-                        const backoff = calculateBackoff(retryCount);
-                        console.log(`   ⚠️ Rate limited (429), retry ${retryCount}/${maxRetries} after ${backoff}ms...`);
-                        if (retryCount > maxRetries) break;
+                        const backoff = calculateBackoff(retryCount + 1);
+                        console.log(`   ⚠️ Rate limited (429), retry ${retryCount + 1}/${maxRetries} after ${backoff}ms...`);
                         await delay(backoff);
                         continue;
                     }
-                    break; // Success or other error
+                    break; // Success or other non-429 error
                 }
 
                 if (!response || !response.ok) { console.warn(`   ⚠️ API error: ${response?.status || 'unknown'}`); continue; }
@@ -127,7 +124,7 @@ export class HuggingFaceAdapter extends BaseAdapter {
                         if (i + batchSize < newModels.length) await delay(delayMs);
                     }
                 } else { allModels.push(...newModels); }
-                await delay(2000);
+                await delay(10000); // V14.5: Increased from 2s to 10s to allow rate limit window reset
             } catch (error) { console.error(`   ❌ Strategy failed: ${error.message}`); }
         }
         console.log(`\n✅ [HuggingFace] Multi-strategy total: ${allModels.length} unique models`);
