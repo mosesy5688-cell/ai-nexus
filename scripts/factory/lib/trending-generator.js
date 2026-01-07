@@ -44,12 +44,23 @@ export async function generateTrending(entities, outputDir = './output') {
 }
 
 function formatEntity(e) {
+    // V14.5: Generate slug with source prefix for correct URL routing
+    // Format: {source}/{author}/{name} -> /model/source/author/name
+    const source = e.source || e.source_platform || 'unknown';
+    let slug = e.slug;
+
+    if (!slug && e.id) {
+        // e.id format: "source:author:name" or "source:author/name"
+        const idWithoutSource = e.id.replace(/^[^:]+:/, ''); // Remove source prefix
+        slug = `${source}/${idWithoutSource.replace(/:/g, '/')}`;
+    }
+
     return {
         id: e.id,
-        slug: e.slug || e.id?.replace(/:/g, '/'),
+        slug: slug || e.id?.replace(/:/g, '/'),
         name: e.name || e.slug,
         type: e.type || 'model',
-        source: e.source || 'unknown',
+        source: source,
         description: (e.description || '').substring(0, 200),
         fni_score: e.fni || e.fni_score || 0,
         downloads: e.downloads || 0,
