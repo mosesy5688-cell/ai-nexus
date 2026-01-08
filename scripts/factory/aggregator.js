@@ -29,6 +29,15 @@ const CONFIG = {
     ARTIFACT_DIR: './artifacts',
 };
 
+// SPEC-BACKUP-V14.5: Get week number for backup file naming
+function getWeekNumber() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const oneJan = new Date(year, 0, 1);
+    const weekNum = Math.ceil(((now - oneJan) / 86400000 + oneJan.getDay() + 1) / 7);
+    return `${year}-W${String(weekNum).padStart(2, '0')}`;
+}
+
 // Load shard artifacts
 async function loadShardArtifacts() {
     const artifacts = [];
@@ -152,11 +161,29 @@ async function main() {
     await generateRelations(rankedEntities, CONFIG.OUTPUT_DIR);  // V14.4: Knowledge linking
     await updateFniHistory(rankedEntities);
 
-    // V14.5 Phase 5: Generate trend data for frontend charts
+    // SPEC-BACKUP-V14.5 Section 3.2: Cold Backup Snapshot for FNI History
     const fniHistory = await loadFniHistory();
+    const weekNumber = getWeekNumber();
+    const fniBackupPath = path.join(CONFIG.OUTPUT_DIR, 'meta', 'backup', 'fni-history', `fni-history-${weekNumber}.json`);
+    await fs.mkdir(path.dirname(fniBackupPath), { recursive: true });
+    await fs.writeFile(fniBackupPath, JSON.stringify(fniHistory, null, 2));
+    console.log(`[BACKUP] FNI History snapshot: ${weekNumber}`);
+
+    // V14.5 Phase 5: Generate trend data for frontend charts
     await generateTrendData(fniHistory, path.join(CONFIG.OUTPUT_DIR, 'cache'));
 
     await updateWeeklyAccumulator(rankedEntities, CONFIG.OUTPUT_DIR);
+
+    // SPEC-BACKUP-V14.5: Cold Backup for Weekly Accumulator
+    const accumBackupPath = path.join(CONFIG.OUTPUT_DIR, 'meta', 'backup', 'accum', `accum-${weekNumber}.json`);
+    await fs.mkdir(path.dirname(accumBackupPath), { recursive: true });
+    try {
+        const accum = await loadWeeklyAccum();
+        await fs.writeFile(accumBackupPath, JSON.stringify(accum, null, 2));
+        console.log(`[BACKUP] Weekly Accumulator snapshot: ${weekNumber}`);
+    } catch (accumErr) {
+        console.warn(`[BACKUP] Weekly Accumulator backup skipped: ${accumErr.message}`);
+    }
 
     // 7. Sunday: Generate weekly report (Art 5.2)
     if (isSunday()) {
