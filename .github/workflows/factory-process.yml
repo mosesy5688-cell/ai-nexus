@@ -38,10 +38,51 @@ jobs:
             echo "run_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
           fi
 
+  # V14.5 Optimization: Single job to restore Cache and re-upload as Artifact
+  # This avoids the cross-workflow artifact download rate limit
+  prepare-data:
+    name: Prepare Entity Data
+    needs: check-upstream
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Directories
+        run: mkdir -p data cache
+        
+      - name: Restore Entity Data from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data/merged.json
+            cache/fni-history.json
+            cache/weekly-accum.json
+          key: factory-entity-data-${{ needs.check-upstream.outputs.upstream-run-id }}
+          fail-on-cache-miss: true
+          
+      - name: Validate Entity Data
+        run: |
+          if [ ! -f "data/merged.json" ]; then
+            echo "❌ ERROR: data/merged.json not found in cache!"
+            exit 1
+          fi
+          ENTITY_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/merged.json')).length)")
+          echo "✅ Found $ENTITY_COUNT entities in cache"
+          
+      - name: Upload for Matrix Jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: prepared-entity-data
+          path: |
+            data/
+            cache/
+          retention-days: 1
+
   # Matrix shards for parallel processing
   matrix-shards:
     name: Shard ${{ matrix.shard }}
-    needs: check-upstream
+    needs: [check-upstream, prepare-data]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -60,21 +101,11 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # V14.5: Stagger artifact downloads to avoid GitHub API rate limit
-      # Each shard waits (shard_number * 3) seconds before downloading
-      - name: Stagger Download (Rate Limit Prevention)
-        run: |
-          DELAY=$(( ${{ matrix.shard }} * 3 ))
-          echo "⏳ Shard ${{ matrix.shard }}: Waiting ${DELAY}s before download..."
-          sleep $DELAY
-
-      # Download entity data from Harvest
+      # V14.5 Optimization: Download from same-workflow artifact (no rate limit issue)
       - name: Download Entity Data
         uses: actions/download-artifact@v4
         with:
-          name: entity-data
-          run-id: ${{ needs.check-upstream.outputs.upstream-run-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: prepared-entity-data
 
       # Move downloaded files to correct locations
       # V14.5 Fix: download-artifact preserves directory structure
