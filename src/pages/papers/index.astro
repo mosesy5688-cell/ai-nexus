@@ -1,0 +1,156 @@
+---
+/**
+ * Paper Index Page - V10.5
+ * Lists AI research papers when no specific paper is requested
+ */
+
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+
+const pageTitle = 'AI Research Papers - arXiv & Beyond';
+const pageDescription = 'Explore the latest AI and machine learning research papers from arXiv. Stay updated with cutting-edge research.';
+const canonicalUrl = 'https://free2aitools.com/papers';
+
+// Research categories
+const categories = [
+  { name: 'Large Language Models', query: 'LLM', icon: '💬', color: 'from-blue-50 to-indigo-50' },
+  { name: 'Computer Vision', query: 'vision transformer', icon: '👁️', color: 'from-green-50 to-emerald-50' },
+  { name: 'Reinforcement Learning', query: 'reinforcement learning', icon: '🎮', color: 'from-purple-50 to-violet-50' },
+  { name: 'Diffusion Models', query: 'diffusion', icon: '🎨', color: 'from-orange-50 to-amber-50' },
+];
+
+// Notable papers (static examples)
+const notablePapers = [
+  { arxivId: '2302.13971', title: 'LLaMA: Open Foundation Models', authors: 'Meta AI' },
+  { arxivId: '2303.08774', title: 'GPT-4 Technical Report', authors: 'OpenAI' },
+  { arxivId: '2305.10601', title: 'Tree of Thoughts', authors: 'Princeton/Google' },
+];
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <link slot="head" rel="canonical" href={canonicalUrl} />
+  
+  <main class="container mx-auto px-4 py-12">
+    <!-- Hero Section -->
+    <header class="text-center mb-12">
+      <div class="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 dark:bg-amber-900/30 rounded-full mb-4">
+        <span class="text-2xl">📄</span>
+        <span class="text-sm font-semibold text-amber-800 dark:text-amber-200">RESEARCH</span>
+      </div>
+      <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
+        AI Research Papers
+      </h1>
+      <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        Explore cutting-edge AI research from arXiv and academic publications.
+      </p>
+    </header>
+
+    <!-- Search Box -->
+    <div class="max-w-2xl mx-auto mb-12">
+      <form action="/" method="get" class="relative">
+        <input 
+          type="text" 
+          name="q" 
+          placeholder="Search papers by title, author, or topic..."
+          class="w-full px-6 py-4 text-lg rounded-full border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 outline-none transition-all"
+        />
+        <input type="hidden" name="type" value="paper" />
+        <button 
+          type="submit"
+          class="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-amber-600 text-white font-semibold rounded-full hover:bg-amber-700 transition-colors"
+        >
+          Search
+        </button>
+      </form>
+    </div>
+
+    <!-- Research Categories -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Research Areas</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {categories.map((cat) => (
+          <a 
+            href={`/?q=${encodeURIComponent(cat.query)}&type=paper`}
+            class={`group p-6 bg-gradient-to-br ${cat.color} dark:from-gray-800 dark:to-gray-900 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700`}
+          >
+            <div class="text-3xl mb-2">{cat.icon}</div>
+            <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-amber-600">{cat.name}</h3>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- Notable Papers -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Notable Papers</h2>
+      <div class="space-y-4">
+        {notablePapers.map((paper) => (
+          <a 
+            href={`/paper/${paper.arxivId}`}
+            class="group flex items-start gap-4 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-700"
+          >
+            <span class="text-3xl">📄</span>
+            <div class="flex-1">
+              <h3 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-amber-600">
+                {paper.title}
+              </h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {paper.authors} • arXiv:{paper.arxivId}
+              </p>
+            </div>
+            <span class="text-amber-600 dark:text-amber-400 text-sm font-semibold self-center">
+              Read →
+            </span>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- How to Read arXiv -->
+    <section class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-8 mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">How to Access Papers</h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-4">
+        All papers link to their original arXiv source where you can:
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg text-center">
+          <span class="text-2xl mb-2 block">📥</span>
+          <span class="text-gray-700 dark:text-gray-300">Download PDF</span>
+        </div>
+        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg text-center">
+          <span class="text-2xl mb-2 block">📝</span>
+          <span class="text-gray-700 dark:text-gray-300">View LaTeX Source</span>
+        </div>
+        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg text-center">
+          <span class="text-2xl mb-2 block">🔗</span>
+          <span class="text-gray-700 dark:text-gray-300">Cite in BibTeX</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Links -->
+    <section class="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-8">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+        <span>🚀</span> Related Resources
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <a href="/ranking" class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all">
+          <div class="text-3xl mb-3">🤖</div>
+          <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-amber-600">Model Rankings</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Models implementing these papers</p>
+        </a>
+        <a href="/knowledge" class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all">
+          <div class="text-3xl mb-3">📚</div>
+          <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-amber-600">Knowledge Base</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Simplified explanations</p>
+        </a>
+        <a href="/reports" class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all">
+          <div class="text-3xl mb-3">📊</div>
+          <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-amber-600">Weekly Reports</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Research trends analysis</p>
+        </a>
+      </div>
+    </section>
+  </main>
+</Layout>

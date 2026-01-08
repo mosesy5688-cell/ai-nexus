@@ -1,0 +1,144 @@
+---
+/**
+ * Tool Index Page - V14.5.1
+ * Lists AI development tools when no specific tool is requested
+ */
+
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+
+const pageTitle = 'AI Development Tools - SDKs, Frameworks & Utilities';
+const pageDescription = 'Discover AI development tools including SDKs, inference engines, fine-tuning frameworks, and deployment utilities.';
+const canonicalUrl = 'https://free2aitools.com/tools';
+
+// Featured tools - slug format matches R2 cache: tool--author--name
+const featuredTools = [
+  { name: 'LangChain', slug: 'tool--langchain--langchain', description: 'Build applications with LLMs through composability', icon: '🔗' },
+  { name: 'LlamaIndex', slug: 'tool--run-llama--llama_index', description: 'Data framework for LLM applications', icon: '🦙' },
+  { name: 'vLLM', slug: 'tool--vllm-project--vllm', description: 'High-throughput inference engine for LLMs', icon: '⚡' },
+  { name: 'Ollama', slug: 'tool--ollama--ollama', description: 'Run LLMs locally with ease', icon: '🦙' },
+  { name: 'Text Generation Inference', slug: 'tool--huggingface--text-generation-inference', description: 'Production-ready inference server', icon: '🤗' },
+  { name: 'LiteLLM', slug: 'tool--berriai--litellm', description: 'Unified API for 100+ LLM providers', icon: '💡' },
+];
+
+// Tool categories
+const toolCategories = [
+  { name: 'Inference Engines', icon: '⚡', description: 'High-performance model serving', count: null },
+  { name: 'Application Frameworks', icon: '🔧', description: 'Build AI-powered apps', count: null },
+  { name: 'Fine-tuning', icon: '🎯', description: 'Train and customize models', count: null },
+  { name: 'Deployment', icon: '🚀', description: 'Deploy AI to production', count: null },
+];
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <link slot="head" rel="canonical" href={canonicalUrl} />
+  
+  <main class="container mx-auto px-4 py-12">
+    <!-- Hero Section -->
+    <header class="text-center mb-12">
+      <div class="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-4">
+        <span class="text-2xl">🔧</span>
+        <span class="text-sm font-semibold text-blue-800 dark:text-blue-200">AI TOOLS</span>
+      </div>
+      <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
+        AI Development Tools
+      </h1>
+      <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        Discover SDKs, inference engines, and frameworks to build, deploy, and scale AI applications.
+      </p>
+    </header>
+
+    <!-- Tool Categories -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Tool Categories</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {toolCategories.map((cat) => (
+          <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl text-center hover:shadow-lg transition-all cursor-pointer border border-gray-100 dark:border-gray-700">
+            <span class="text-3xl mb-2 block">{cat.icon}</span>
+            <h3 class="font-bold text-gray-900 dark:text-white text-sm">{cat.name}</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{cat.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- Featured Tools -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Featured Tools</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {featuredTools.map((tool) => (
+          <a 
+            href={`/tool/${tool.slug}`}
+            class="group p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 rounded-xl hover:shadow-lg transition-all border border-blue-100 dark:border-gray-700"
+          >
+            <div class="flex items-start gap-4">
+              <span class="text-4xl">{tool.icon}</span>
+              <div>
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600">
+                  {tool.name}
+                </h3>
+                <p class="text-gray-600 dark:text-gray-400 mt-1">
+                  {tool.description}
+                </p>
+                <span class="inline-block mt-3 text-blue-600 dark:text-blue-400 text-sm font-semibold">
+                  View details →
+                </span>
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- All Tools (dynamic loading) -->
+    <section>
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">All Tools</h2>
+      <div id="tools-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div class="col-span-full text-center py-8 text-gray-500">
+          Loading tools...
+        </div>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  // Load tools from R2 cache
+  async function loadTools() {
+    const grid = document.getElementById('tools-grid');
+    if (!grid) return;
+
+    try {
+      // Try to fetch from trending which includes tools
+      const res = await fetch('/api/cache/trending.json');
+      if (!res.ok) throw new Error('Failed to load');
+      
+      const data = await res.json();
+      const tools = (data.models || []).filter((e: any) => 
+        e.id?.startsWith('tool--') || e.type === 'tool'
+      );
+
+      if (tools.length === 0) {
+        grid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">No tools found. Check back soon!</div>';
+        return;
+      }
+
+      grid.innerHTML = tools.slice(0, 20).map((tool: any) => `
+        <a href="/tool/${tool.slug || tool.id}" 
+           class="p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
+          <h3 class="font-bold text-gray-900 dark:text-white truncate">${tool.name}</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">${tool.description || ''}</p>
+        </a>
+      `).join('');
+    } catch (err) {
+      grid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">Tools will be available after the next pipeline run.</div>';
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadTools);
+  } else {
+    loadTools();
+  }
+</script>

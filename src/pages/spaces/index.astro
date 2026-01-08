@@ -1,0 +1,79 @@
+---
+/**
+ * Spaces Index Page - V12 Entity Listing
+ * Lists all HuggingFace Spaces (interactive AI demos)
+ */
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+
+let spaces: any[] = [];
+let error = '';
+
+try {
+  const runtime = Astro.locals.runtime;
+  if (runtime?.env?.R2_ASSETS) {
+    const r2 = runtime.env.R2_ASSETS;
+    // Try to get spaces from trending or ranking
+    const trendingFile = await r2.get('cache/trending_spaces.json');
+    if (trendingFile) {
+      const data = await trendingFile.json();
+      spaces = data.data || data.spaces || [];
+    }
+  }
+} catch (e) {
+  error = 'Failed to load spaces';
+}
+
+const pageTitle = 'AI Spaces - Interactive Demos | Free2AITools';
+const pageDescription = 'Explore interactive AI demos and applications powered by HuggingFace Spaces.';
+const canonicalUrl = 'https://free2aitools.com/spaces';
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <link slot="head" rel="canonical" href={canonicalUrl} />
+  <main class="container mx-auto px-4 py-12">
+    <header class="text-center mb-12">
+      <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+        🚀 AI Spaces
+      </h1>
+      <p class="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+        Interactive demos and applications showcasing the latest AI models
+      </p>
+    </header>
+
+    {spaces.length > 0 ? (
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {spaces.slice(0, 24).map((space: any) => (
+          <a href={`/space/${space.id?.replace(/\//g, '--') || space.slug}`}
+             class="block bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div class="flex items-center gap-3 mb-3">
+              <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-sm">
+                {space.sdk || 'Demo'}
+              </span>
+              <span class="text-gray-500 text-sm">{space.author}</span>
+            </div>
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-2">
+              {space.title || space.name}
+            </h2>
+            <p class="text-gray-600 dark:text-gray-300 text-sm line-clamp-2">
+              {space.description?.substring(0, 100) || 'Interactive AI demo'}
+            </p>
+            <div class="mt-4 flex items-center gap-4 text-sm text-gray-500">
+              <span>❤️ {space.likes || 0}</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    ) : (
+      <div class="text-center py-20">
+        <p class="text-gray-500 text-lg">
+          {error || 'Spaces will be available after L1 harvesting completes.'}
+        </p>
+        <a href="/" class="mt-4 inline-block text-indigo-600 hover:underline">
+          ← Back to Home
+        </a>
+      </div>
+    )}
+  </main>
+</Layout>
