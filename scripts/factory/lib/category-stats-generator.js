@@ -17,8 +17,9 @@ const CATEGORY_MAP = {
     'infrastructure-ops': 'Infrastructure & Ops',
 };
 
-// Pipeline tag to category mapping
-const PIPELINE_TO_CATEGORY = {
+// V14.5.1: Map any category string to V6 categories
+const CATEGORY_ALIASES = {
+    // Pipeline tags
     'text-generation': 'text-generation',
     'text2text-generation': 'text-generation',
     'summarization': 'text-generation',
@@ -44,7 +45,39 @@ const PIPELINE_TO_CATEGORY = {
     'robotics': 'automation-workflow',
     'tabular-classification': 'infrastructure-ops',
     'tabular-regression': 'infrastructure-ops',
+    // Replicate/other source categories
+    'audio': 'vision-multimedia',
+    'video': 'vision-multimedia',
+    'image': 'vision-multimedia',
+    'diffusion': 'vision-multimedia',
+    'other': 'text-generation',
 };
+
+/**
+ * Get V6 category from entity
+ */
+function getV6Category(entity) {
+    // Check primary_category first (Replicate, CivitAI, etc.)
+    if (entity.primary_category) {
+        const mapped = CATEGORY_ALIASES[entity.primary_category];
+        if (mapped) return mapped;
+    }
+
+    // Check pipeline_tag (HuggingFace)
+    if (entity.pipeline_tag) {
+        const mapped = CATEGORY_ALIASES[entity.pipeline_tag];
+        if (mapped) return mapped;
+    }
+
+    // Check first tag
+    if (entity.tags?.[0]) {
+        const mapped = CATEGORY_ALIASES[entity.tags[0]];
+        if (mapped) return mapped;
+    }
+
+    // Default
+    return 'text-generation';
+}
 
 /**
  * Generate category statistics from entities
@@ -71,8 +104,7 @@ export async function generateCategoryStats(entities, outputDir = './output') {
     for (const entity of entities) {
         if (entity.type !== 'model' && entity.type !== undefined) continue;
 
-        const pipelineTag = entity.pipeline_tag || entity.tags?.[0] || '';
-        const category = PIPELINE_TO_CATEGORY[pipelineTag] || 'text-generation';
+        const category = getV6Category(entity);
 
         if (stats[category]) {
             stats[category].count++;
