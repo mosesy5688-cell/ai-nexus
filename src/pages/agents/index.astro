@@ -1,0 +1,120 @@
+---
+/**
+ * Agent Index Page - V10.5
+ * Lists AI agents when no specific agent is requested
+ */
+
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+
+const pageTitle = 'AI Agents - Autonomous AI Systems';
+const pageDescription = 'Explore autonomous AI agents like AutoGPT, BabyAGI, and more. Discover agents for coding, research, and automation.';
+const canonicalUrl = 'https://free2aitools.com/agents';
+
+// Featured agents - slug format matches R2 cache: github-agent--author--name
+const featuredAgents = [
+  { name: 'AutoGPT', slug: 'github-agent--significant-gravitas--autogpt', description: 'An autonomous GPT-4 agent for complex tasks', icon: '🤖' },
+  { name: 'BabyAGI', slug: 'github-agent--yoheinakajima--babyagi', description: 'Task-driven autonomous agent', icon: '👶' },
+  { name: 'AgentGPT', slug: 'github-agent--reworkd--agentgpt', description: 'Deploy autonomous AI agents in your browser', icon: '🌐' },
+  { name: 'SuperAGI', slug: 'github-agent--transformeroptimus--superagi', description: 'Open-source autonomous AI framework', icon: '⚡' },
+];
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <link slot="head" rel="canonical" href={canonicalUrl} />
+  
+  <main class="container mx-auto px-4 py-12">
+    <!-- Hero Section -->
+    <header class="text-center mb-12">
+      <div class="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 dark:bg-purple-900/30 rounded-full mb-4">
+        <span class="text-2xl">🤖</span>
+        <span class="text-sm font-semibold text-purple-800 dark:text-purple-200">AI AGENTS</span>
+      </div>
+      <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
+        Autonomous AI Agents
+      </h1>
+      <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        Discover AI agents that can autonomously complete complex tasks, from coding to research.
+      </p>
+    </header>
+
+    <!-- Featured Agents -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Featured Agents</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {featuredAgents.map((agent) => (
+          <a 
+            href={`/agent/${agent.slug}`}
+            class="group p-6 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 rounded-xl hover:shadow-lg transition-all border border-purple-100 dark:border-gray-700"
+          >
+            <div class="flex items-start gap-4">
+              <span class="text-4xl">{agent.icon}</span>
+              <div>
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white group-hover:text-purple-600">
+                  {agent.name}
+                </h3>
+                <p class="text-gray-600 dark:text-gray-400 mt-1">
+                  {agent.description}
+                </p>
+                <span class="inline-block mt-3 text-purple-600 dark:text-purple-400 text-sm font-semibold">
+                  Learn more →
+                </span>
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- What are AI Agents -->
+    <section class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-8 mb-12">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">What are AI Agents?</h2>
+      <p class="text-gray-600 dark:text-gray-400 mb-4">
+        AI agents are autonomous systems that can perceive their environment, make decisions, and take actions to achieve specific goals. Unlike simple chatbots, agents can:
+      </p>
+      <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <li class="flex items-start gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg">
+          <span class="text-xl">🎯</span>
+          <span class="text-gray-700 dark:text-gray-300">Break down complex tasks into subtasks</span>
+        </li>
+        <li class="flex items-start gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg">
+          <span class="text-xl">🔄</span>
+          <span class="text-gray-700 dark:text-gray-300">Learn and adapt from feedback</span>
+        </li>
+        <li class="flex items-start gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg">
+          <span class="text-xl">🛠️</span>
+          <span class="text-gray-700 dark:text-gray-300">Use external tools and APIs</span>
+        </li>
+        <li class="flex items-start gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg">
+          <span class="text-xl">🧠</span>
+          <span class="text-gray-700 dark:text-gray-300">Maintain memory across sessions</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Quick Links -->
+    <section class="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-8">
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+        <span>🚀</span> Explore More
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <a href="/ranking" class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all">
+          <div class="text-3xl mb-3">📈</div>
+          <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-purple-600">Model Rankings</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Top AI models by FNI score</p>
+        </a>
+        <a href="/knowledge" class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all">
+          <div class="text-3xl mb-3">📚</div>
+          <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-purple-600">Knowledge Base</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Learn about AI concepts</p>
+        </a>
+        <a href="/" class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all">
+          <div class="text-3xl mb-3">🔍</div>
+          <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-purple-600">Search All</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Find any AI resource</p>
+        </a>
+      </div>
+    </section>
+  </main>
+</Layout>
