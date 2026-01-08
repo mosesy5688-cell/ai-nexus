@@ -5,12 +5,14 @@
  * - 10x faster than wrangler CLI (parallel uploads)
  * - More stable (connection pooling)
  * - Same cost (R2 Class A operations)
+ * - V14.5: Smart Write - skip unchanged files via ETag comparison
  * 
- * Constitutional: Art 13.4 (Non-Destructive)
+ * Constitutional: Art 13.4 (Non-Destructive), Art 2.2 (No Raw Data)
  */
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 
 // Configuration
 const CONFIG = {
@@ -84,7 +86,8 @@ function toRemotePath(localPath) {
     return remotePath;
 }
 
-// Upload single file using S3 API
+// Upload single file using S3 API with Smart Write (V14.5)
+// Uses smart-writer.js pattern: SHA-256 hash + .meta.json comparison
 async function uploadFile(s3, localPath, remotePath) {
     try {
         const content = await fs.readFile(localPath);
@@ -92,13 +95,47 @@ async function uploadFile(s3, localPath, remotePath) {
             remotePath.endsWith('.xml') ? 'application/xml' :
                 remotePath.endsWith('.gz') ? 'application/gzip' : 'application/octet-stream';
 
+        // V14.5 Smart Write: Compute local SHA-256 hash (consistent with smart-writer.js)
+        const localHash = crypto.createHash('sha256').update(content).digest('hex');
+
+        // Step 1: Check local .meta.json (fast path - no network call)
+        try {
+            const metaPath = `${localPath}.meta.json`;
+            const meta = JSON.parse(await fs.readFile(metaPath, 'utf-8'));
+            if (meta.checksum === localHash) {
+                return { success: true, path: remotePath, skipped: true };
+            }
+        } catch {
+            // No .meta.json, proceed to R2 check
+        }
+
+        // Step 2: Check R2 ETag (MD5) via HeadObject as backup
+        try {
+            const headResult = await s3.send(new HeadObjectCommand({
+                Bucket: CONFIG.BUCKET,
+                Key: remotePath
+            }));
+            // R2 ETag is MD5, compute for comparison
+            const localMD5 = crypto.createHash('md5').update(content).digest('hex');
+            const remoteMD5 = headResult.ETag?.replace(/"/g, '');
+            if (localMD5 === remoteMD5) {
+                return { success: true, path: remotePath, skipped: true };
+            }
+        } catch (headErr) {
+            // 404 means file doesn't exist - proceed with upload
+            if (headErr.name !== 'NotFound' && headErr.$metadata?.httpStatusCode !== 404) {
+                // Log but continue with upload
+            }
+        }
+
+        // Upload if changed or new
         await s3.send(new PutObjectCommand({
             Bucket: CONFIG.BUCKET,
             Key: remotePath,
             Body: content,
             ContentType: contentType
         }));
-        return { success: true, path: remotePath };
+        return { success: true, path: remotePath, skipped: false };
     } catch (e) {
         console.error(`\n❌ Failed: ${remotePath} - ${e.message}`);
         return { success: false, path: remotePath, error: e.message };
@@ -109,8 +146,9 @@ async function uploadFile(s3, localPath, remotePath) {
 async function processQueue(s3, files, uploadedSet, checkpoint) {
     let success = 0;
     let fail = 0;
+    let unchanged = 0;  // V14.5: Smart Write skipped (content unchanged)
 
-    // Filter out already uploaded files
+    // Filter out already uploaded files (from checkpoint)
     const queue = files.filter(f => {
         const remotePath = toRemotePath(f.path);
         return !uploadedSet.has(remotePath);
@@ -120,7 +158,7 @@ async function processQueue(s3, files, uploadedSet, checkpoint) {
 
     if (queue.length === 0) {
         console.log('✅ All files already uploaded!');
-        return { success: 0, fail: 0, skipped: files.length };
+        return { success: 0, fail: 0, skipped: files.length, unchanged: 0 };
     }
 
     // Process in batches
@@ -139,24 +177,28 @@ async function processQueue(s3, files, uploadedSet, checkpoint) {
         for (const result of results) {
             if (result.success) {
                 checkpoint.uploaded.push(result.path);
-                success++;
+                if (result.skipped) {
+                    unchanged++;  // V14.5: Content unchanged, skipped upload
+                } else {
+                    success++;
+                }
             } else {
                 fail++;
             }
         }
 
         // Save checkpoint every 500 files
-        if (success % 500 === 0 && success > 0) {
+        if ((success + unchanged) % 500 === 0 && (success + unchanged) > 0) {
             await saveCheckpoint(checkpoint);
-            console.log(`\n💾 Checkpoint: ${success} files uploaded`);
+            console.log(`\n💾 Checkpoint: ${success} uploaded, ${unchanged} unchanged`);
         }
     }
 
-    return { success, fail, skipped: files.length - queue.length };
+    return { success, fail, skipped: files.length - queue.length, unchanged };
 }
 
 async function main() {
-    console.log('📤 V14.5 Phase 6 - S3 API R2 Upload');
+    console.log('📤 V14.5 Smart Write R2 Upload');
     console.log('=====================================');
 
     const s3 = createR2Client();
@@ -170,9 +212,10 @@ async function main() {
     const totalSize = allFiles.reduce((sum, f) => sum + f.size, 0);
     console.log(`📊 Total size: ${(totalSize / 1024 / 1024).toFixed(2)} MB`);
     console.log(`⚡ Concurrency: ${CONFIG.CONCURRENCY}`);
+    console.log(`🧠 Smart Write: Enabled (ETag comparison)`);
 
     const startTime = Date.now();
-    const { success, fail, skipped } = await processQueue(s3, allFiles, uploadedSet, checkpoint);
+    const { success, fail, skipped, unchanged } = await processQueue(s3, allFiles, uploadedSet, checkpoint);
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 
     // Final checkpoint
@@ -181,9 +224,10 @@ async function main() {
     console.log('\n');
     console.log('=====================================');
     console.log(`✅ Upload Complete in ${duration}s!`);
-    console.log(`   Success: ${success}`);
+    console.log(`   New uploads: ${success}`);
+    console.log(`   Unchanged (skipped): ${unchanged}`);
+    console.log(`   Checkpoint skipped: ${skipped}`);
     console.log(`   Failed: ${fail}`);
-    console.log(`   Skipped: ${skipped}`);
     if (success > 0) {
         console.log(`   Rate: ${(success / parseFloat(duration)).toFixed(1)} files/sec`);
     }
