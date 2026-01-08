@@ -273,16 +273,16 @@ jobs:
             exit 1
           fi
 
-      # Upload artifact for downstream workflows
-      - name: Upload Entity Data Artifact
-        uses: actions/upload-artifact@v4
+      # V14.5 Optimization: Use Cache instead of Artifact to avoid rate limit
+      # Cache restore has no rate limit, while cross-workflow artifact download does
+      - name: Save Entity Data to Cache
+        uses: actions/cache/save@v4
         with:
-          name: entity-data
           path: |
             data/merged.json
             cache/fni-history.json
             cache/weekly-accum.json
-          retention-days: 3
+          key: factory-entity-data-${{ github.run_id }}
 
       # Pipeline Summary
       - name: Summary
