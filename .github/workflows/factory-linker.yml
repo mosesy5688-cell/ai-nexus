@@ -1,0 +1,227 @@
+# Factory 3.5/4 - Knowledge Linker V14.5.2
+# SPEC: SPEC-KNOWLEDGE-V14.5.2
+#
+# Computes knowledge graph relations:
+# - Explicit links: Every run (~2min)
+# - ALT links: Weekly on Monday (~10min)
+# - Knowledge links: Weekly on Monday (~1min)
+#
+# Cost: < $1/month
+
+name: Factory 3.5/4 - Knowledge Linker
+
+on:
+  workflow_run:
+    workflows: ["Factory 3/4 - Aggregate"]
+    types:
+      - completed
+
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      run_alt:
+        description: 'Run ALT computation (normally weekly)'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  NODE_OPTIONS: '--max-old-space-size=6144'
+
+jobs:
+  # Job 1: Explicit Links (runs every time)
+  explicit-links:
+    name: Explicit Relations
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+        
+      - name: Restore entity data from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/entities.json
+            output/cache
+          key: entity-data-${{ github.run_id }}
+          restore-keys: |
+            entity-data-
+            
+      - name: Generate explicit relations
+        run: |
+          echo "📊 Generating explicit relations..."
+          node scripts/factory/lib/relations-generator.js
+          
+      - name: Upload relations artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: explicit-relations
+          path: output/cache/relations/explicit.json
+          retention-days: 1
+
+  # Job 2: ALT Links (runs weekly on Monday OR manual)
+  alt-links:
+    name: ALT Relations (Weekly)
+    runs-on: ubuntu-latest
+    needs: explicit-links
+    # Run on Monday or manual trigger with run_alt=true
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_alt == 'true') ||
+      (github.event_name == 'workflow_run' && contains(github.event.workflow_run.created_at, 'Mon'))
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+        
+      - name: Restore entity data
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/entities.json
+            output/cache
+          key: entity-data-${{ github.run_id }}
+          restore-keys: |
+            entity-data-
+            
+      - name: Compute ALT relations
+        run: |
+          echo "🔗 Computing alternative relations..."
+          node scripts/factory/lib/alt-linker.js output/entities.json output
+          
+      - name: Upload ALT relations
+        uses: actions/upload-artifact@v4
+        with:
+          name: alt-relations
+          path: output/cache/relations/alt-by-category/
+          retention-days: 1
+
+  # Job 3: Knowledge Links (runs weekly on Monday)
+  knowledge-links:
+    name: Knowledge Links (Weekly)
+    runs-on: ubuntu-latest
+    needs: explicit-links
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_alt == 'true') ||
+      (github.event_name == 'workflow_run' && contains(github.event.workflow_run.created_at, 'Mon'))
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+        
+      - name: Restore entity data
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/entities.json
+            output/cache
+          key: entity-data-${{ github.run_id }}
+          restore-keys: |
+            entity-data-
+            
+      - name: Compute knowledge links
+        run: |
+          echo "📚 Computing knowledge links..."
+          node scripts/factory/lib/knowledge-linker.js output/entities.json output
+          
+      - name: Upload knowledge links
+        uses: actions/upload-artifact@v4
+        with:
+          name: knowledge-links
+          path: output/cache/relations/knowledge-links.json
+          retention-days: 1
+
+  # Job 4: Merge and Upload to R2
+  upload-relations:
+    name: Upload to R2
+    runs-on: ubuntu-latest
+    needs: [explicit-links]  # ALT and knowledge are optional weekly
+    if: always() && needs.explicit-links.result == 'success'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Download explicit relations
+        uses: actions/download-artifact@v4
+        with:
+          name: explicit-relations
+          path: output/cache/relations/
+          
+      - name: Download ALT relations (if available)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: alt-relations
+          path: output/cache/relations/alt-by-category/
+          
+      - name: Download knowledge links (if available)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: knowledge-links
+          path: output/cache/relations/
+          
+      - name: Upload to R2 (SPEC-BACKUP-V14.5)
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          echo "☁️ Uploading relations to R2..."
+          node scripts/factory/r2-upload-s3.js --prefix cache/relations/
+          
+      - name: Summary
+        run: |
+          echo "## 🔗 Knowledge Graph Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| File | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| explicit.json | ✅ Uploaded |" >> $GITHUB_STEP_SUMMARY
+          if [ -d "output/cache/relations/alt-by-category" ]; then
+            echo "| alt-by-category/ | ✅ Uploaded |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| alt-by-category/ | ⏭️ Skipped (not Monday) |" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f "output/cache/relations/knowledge-links.json" ]; then
+            echo "| knowledge-links.json | ✅ Uploaded |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| knowledge-links.json | ⏭️ Skipped (not Monday) |" >> $GITHUB_STEP_SUMMARY
+          fi
