@@ -1,0 +1,201 @@
+---
+/**
+ * Model Index Page - V14.5.1
+ * Lists AI models with filtering and sorting
+ * Consistent structure with /agent, /space, /tool, /dataset, /paper
+ */
+
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+
+const pageTitle = 'AI Models - Open Source Model Library';
+const pageDescription = 'Browse 100K+ open-source AI models including LLMs, image generators, and more. Filter by category, sort by FNI score.';
+const canonicalUrl = 'https://free2aitools.com/model';
+
+// Category mapping for V6
+const categories = [
+  { id: 'text-generation', label: 'Text Generation', icon: '💬' },
+  { id: 'knowledge-retrieval', label: 'Knowledge & RAG', icon: '🔍' },
+  { id: 'vision-multimedia', label: 'Vision & Multimedia', icon: '🎨' },
+  { id: 'automation-workflow', label: 'Automation', icon: '⚙️' },
+  { id: 'infrastructure-ops', label: 'Infrastructure', icon: '🛠️' },
+];
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <link slot="head" rel="canonical" href={canonicalUrl} />
+  
+  <main class="container mx-auto px-4 py-12">
+    <!-- Hero Section -->
+    <header class="text-center mb-12">
+      <div class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-full mb-4">
+        <span class="text-2xl">🧠</span>
+        <span class="text-sm font-semibold text-indigo-800 dark:text-indigo-200">AI MODELS</span>
+      </div>
+      <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
+        Open Source AI Models
+      </h1>
+      <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        Discover 100K+ models including LLMs, image generators, speech recognition, and more.
+      </p>
+    </header>
+
+    <!-- Category Quick Filters -->
+    <section class="mb-8">
+      <div class="flex flex-wrap justify-center gap-3">
+        {categories.map((cat) => (
+          <a 
+            href={`/${cat.id}`}
+            class="px-4 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md hover:border-indigo-300 transition-all flex items-center gap-2"
+          >
+            <span>{cat.icon}</span>
+            <span class="font-medium text-gray-700 dark:text-gray-300">{cat.label}</span>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- Filters Bar -->
+    <section class="mb-6">
+      <div class="flex flex-wrap items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+        <!-- Search -->
+        <div class="flex-1 min-w-[200px]">
+          <input 
+            type="text" 
+            id="model-search" 
+            placeholder="Search models..." 
+            class="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        
+        <!-- Sort -->
+        <select id="sort-by" class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+          <option value="fni">🛡️ FNI Score</option>
+          <option value="downloads">📥 Downloads</option>
+          <option value="likes">❤️ Likes</option>
+          <option value="recent">🕐 Recent</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
+      <span id="results-count">Loading models...</span>
+    </div>
+
+    <!-- Models Grid -->
+    <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      <!-- Loading skeleton -->
+      {Array(12).fill(0).map(() => (
+        <div class="animate-pulse bg-white dark:bg-gray-800 rounded-xl p-5 h-48">
+          <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-3"></div>
+          <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
+          <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full mb-2"></div>
+          <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+        </div>
+      ))}
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex justify-center mt-8">
+      <nav id="pagination" class="flex items-center gap-2">
+        <!-- Populated by JS -->
+      </nav>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import { renderModelCard } from '../../scripts/render-model-card.js';
+
+  let allModels = [];
+  let filteredModels = [];
+  let currentPage = 1;
+  const pageSize = 24;
+
+  async function init() {
+    const grid = document.getElementById('models-grid');
+    const searchInput = document.getElementById('model-search');
+    const sortBy = document.getElementById('sort-by');
+    const resultsCount = document.getElementById('results-count');
+    const pagination = document.getElementById('pagination');
+
+    try {
+      const res = await fetch('/api/cache/trending.json');
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
+      allModels = data.models || [];
+      filteredModels = [...allModels];
+      render();
+    } catch (err) {
+      if (grid) {
+        grid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">Failed to load. Try refreshing.</div>';
+      }
+    }
+
+    function applyFilters() {
+      const query = searchInput?.value.toLowerCase() || '';
+      const sort = sortBy?.value || 'fni';
+
+      filteredModels = allModels.filter(m => 
+        !query || m.name?.toLowerCase().includes(query) || m.author?.toLowerCase().includes(query)
+      );
+
+      filteredModels.sort((a, b) => {
+        switch (sort) {
+          case 'fni': return (b.fni_score || 0) - (a.fni_score || 0);
+          case 'downloads': return (b.downloads || 0) - (a.downloads || 0);
+          case 'likes': return (b.likes || 0) - (a.likes || 0);
+          case 'recent': return new Date(b.lastModified || 0) - new Date(a.lastModified || 0);
+          default: return 0;
+        }
+      });
+
+      currentPage = 1;
+      render();
+    }
+
+    function render() {
+      const start = (currentPage - 1) * pageSize;
+      const pageModels = filteredModels.slice(start, start + pageSize);
+
+      if (resultsCount) {
+        resultsCount.textContent = `${filteredModels.length.toLocaleString()} models`;
+      }
+
+      if (grid) {
+        if (pageModels.length === 0) {
+          grid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">No models found.</div>';
+        } else {
+          grid.innerHTML = pageModels.map(m => renderModelCard(m)).join('');
+        }
+      }
+
+      // Pagination
+      const totalPages = Math.ceil(filteredModels.length / pageSize);
+      if (pagination && totalPages > 1) {
+        pagination.innerHTML = Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1)
+          .map(p => `<button data-page="${p}" class="px-3 py-1 rounded ${p === currentPage ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}">${p}</button>`)
+          .join('');
+        
+        pagination.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', () => {
+            currentPage = parseInt(btn.dataset.page);
+            render();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          });
+        });
+      }
+    }
+
+    searchInput?.addEventListener('input', applyFilters);
+    sortBy?.addEventListener('change', applyFilters);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+</script>

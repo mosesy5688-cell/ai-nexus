@@ -142,7 +142,12 @@ export function renderModelCard(model) {
                 </p>
             </div>
             <div class="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700 pt-3">
-                <div class="flex gap-2">
+                <div class="flex gap-2 items-center">
+                    <!-- V14.5.1: Mini trend placeholder for sparklines -->
+                    <div class="mini-trend" data-entity-id="${model.id || ''}" data-w="60" data-h="20">
+                        <canvas class="mini-trend-canvas" width="60" height="20" aria-label="7-day trend"></canvas>
+                        <span class="mini-trend-badge">--</span>
+                    </div>
                     ${firstTag ? `
                     <span class="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full truncate max-w-[80px]">
                         ${firstTag}
