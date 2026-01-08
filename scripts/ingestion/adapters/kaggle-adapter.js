@@ -135,7 +135,8 @@ export class KaggleAdapter extends BaseAdapter {
         let page = 1;
 
         while (allModels.length < limit) {
-            const url = `${KAGGLE_API_BASE}/models/list?sortBy=hotness&page=${page}&pageSize=20`;
+            // V14.5: Try without sortBy parameter which may not be supported
+            const url = `${KAGGLE_API_BASE}/models/list?page=${page}&pageSize=20`;
 
             try {
                 const response = await fetch(url, { headers: this.getHeaders() });
@@ -143,6 +144,11 @@ export class KaggleAdapter extends BaseAdapter {
                 if (!response.ok) {
                     if (response.status === 404) {
                         console.log('   Models endpoint not available, skipping');
+                        break;
+                    }
+                    // V14.5: Handle 400 Bad Request - API may not support models endpoint
+                    if (response.status === 400) {
+                        console.warn('   ⚠️ Models API returned 400, skipping models (datasets only)');
                         break;
                     }
                     if (response.status === 429) {

@@ -60,6 +60,14 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      # V14.5: Stagger artifact downloads to avoid GitHub API rate limit
+      # Each shard waits (shard_number * 3) seconds before downloading
+      - name: Stagger Download (Rate Limit Prevention)
+        run: |
+          DELAY=$(( ${{ matrix.shard }} * 3 ))
+          echo "⏳ Shard ${{ matrix.shard }}: Waiting ${DELAY}s before download..."
+          sleep $DELAY
+
       # Download entity data from Harvest
       - name: Download Entity Data
         uses: actions/download-artifact@v4

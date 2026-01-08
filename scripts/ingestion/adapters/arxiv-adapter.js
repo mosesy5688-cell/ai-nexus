@@ -112,6 +112,10 @@ export class ArXivAdapter extends BaseAdapter {
 
         const batchSize = 100;
         const papers = [];
+        let backoffSeconds = 10;  // V14.5: Exponential backoff starting value
+        const MAX_BACKOFF = 60;   // V14.5: Max backoff 60 seconds
+        let consecutiveErrors = 0;
+        const MAX_CONSECUTIVE_ERRORS = 5;
 
         for (let start = 0; start < limit; start += batchSize) {
             const currentLimit = Math.min(batchSize, limit - start);
@@ -124,14 +128,38 @@ export class ArXivAdapter extends BaseAdapter {
                 });
 
                 if (!response.ok) {
+                    // V14.5: Handle rate limit with exponential backoff
                     if (response.status === 429) {
-                        console.warn(`   ⚠️ [ArXiv] Rate limited, backing off 10s...`);
-                        await this.delay(10000);
+                        console.warn(`   ⚠️ [ArXiv] Rate limited, backing off ${backoffSeconds}s...`);
+                        await this.delay(backoffSeconds * 1000);
+                        backoffSeconds = Math.min(backoffSeconds * 2, MAX_BACKOFF);
                         start -= batchSize;
+                        consecutiveErrors++;
+                        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+                            console.error(`   ❌ [ArXiv] Too many rate limit errors, stopping category ${category}`);
+                            break;
+                        }
+                        continue;
+                    }
+                    // V14.5: Handle 503 Service Unavailable with retry
+                    if (response.status === 503) {
+                        console.warn(`   ⚠️ [ArXiv] Service unavailable (503), retrying in ${backoffSeconds}s...`);
+                        await this.delay(backoffSeconds * 1000);
+                        backoffSeconds = Math.min(backoffSeconds * 2, MAX_BACKOFF);
+                        start -= batchSize;
+                        consecutiveErrors++;
+                        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+                            console.error(`   ❌ [ArXiv] Service unavailable too long, stopping category ${category}`);
+                            break;
+                        }
                         continue;
                     }
                     throw new Error(`ArXiv API error: ${response.status}`);
                 }
+
+                // Success - reset backoff
+                backoffSeconds = 10;
+                consecutiveErrors = 0;
 
                 const xmlText = await response.text();
                 const batch = parseArxivXML(xmlText);
@@ -142,7 +170,13 @@ export class ArXivAdapter extends BaseAdapter {
                 }
             } catch (error) {
                 console.warn(`   ⚠️ [ArXiv] Batch error: ${error.message}`);
-                break;
+                consecutiveErrors++;
+                if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+                    console.error(`   ❌ [ArXiv] Too many errors, stopping category ${category}`);
+                    break;
+                }
+                await this.delay(5000);  // Brief pause before retry
+                start -= batchSize;
             }
         }
 
