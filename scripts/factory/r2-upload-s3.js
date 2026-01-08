@@ -9,7 +9,7 @@
  * 
  * Constitutional: Art 13.4 (Non-Destructive), Art 2.2 (No Raw Data)
  */
-import { S3Client, PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, HeadObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
@@ -128,7 +128,44 @@ async function uploadFile(s3, localPath, remotePath) {
             }
         }
 
-        // Upload if changed or new
+        // SPEC-BACKUP-V14.5 Section 3.1: Entity Versioning
+        // Only version entity files (cache/entities/*.json)
+        if (remotePath.startsWith('cache/entities/') && remotePath.endsWith('.json') && !remotePath.includes('.v-')) {
+            try {
+                // Step 1: Delete .v-2 if exists
+                const v2Key = remotePath.replace('.json', '.v-2.json');
+                await s3.send(new DeleteObjectCommand({ Bucket: CONFIG.BUCKET, Key: v2Key })).catch(() => { });
+
+                // Step 2: Rename .v-1 to .v-2 (via copy + delete)
+                const v1Key = remotePath.replace('.json', '.v-1.json');
+                try {
+                    await s3.send(new CopyObjectCommand({
+                        Bucket: CONFIG.BUCKET,
+                        CopySource: `${CONFIG.BUCKET}/${v1Key}`,
+                        Key: v2Key
+                    }));
+                    await s3.send(new DeleteObjectCommand({ Bucket: CONFIG.BUCKET, Key: v1Key }));
+                } catch (v1Err) {
+                    // .v-1 doesn't exist, that's fine
+                }
+
+                // Step 3: Rename current to .v-1 (via copy + delete)
+                try {
+                    await s3.send(new CopyObjectCommand({
+                        Bucket: CONFIG.BUCKET,
+                        CopySource: `${CONFIG.BUCKET}/${remotePath}`,
+                        Key: v1Key
+                    }));
+                } catch (renameErr) {
+                    // Current doesn't exist, first upload
+                }
+            } catch (versionErr) {
+                // Versioning failed, continue with upload anyway
+                console.warn(`\n⚠️ Versioning failed for ${remotePath}: ${versionErr.message}`);
+            }
+        }
+
+        // Upload new version
         await s3.send(new PutObjectCommand({
             Bucket: CONFIG.BUCKET,
             Key: remotePath,
