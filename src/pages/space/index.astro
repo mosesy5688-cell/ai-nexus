@@ -1,77 +1,115 @@
 ---
 /**
- * Spaces Index Page - V12 Entity Listing
- * Lists all HuggingFace Spaces (interactive AI demos)
+ * Space Index Page - V15.0
+ * Lists HuggingFace Spaces with dynamic R2 data loading
+ * R2 Path: /cache/entities/space/
  */
+
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 
-let spaces: any[] = [];
-let error = '';
-
-try {
-  const runtime = Astro.locals.runtime;
-  if (runtime?.env?.R2_ASSETS) {
-    const r2 = runtime.env.R2_ASSETS;
-    // Try to get spaces from trending or ranking
-    const trendingFile = await r2.get('cache/trending_spaces.json');
-    if (trendingFile) {
-      const data = await trendingFile.json();
-      spaces = data.data || data.spaces || [];
-    }
-  }
-} catch (e) {
-  error = 'Failed to load spaces';
-}
-
 const pageTitle = 'AI Spaces - Interactive Demos | Free2AITools';
 const pageDescription = 'Explore interactive AI demos and applications powered by HuggingFace Spaces.';
+const canonicalUrl = 'https://free2aitools.com/space';
+
+const categories = [
+  { name: 'Gradio Apps', query: 'gradio', icon: '🎨' },
+  { name: 'Streamlit', query: 'streamlit', icon: '📊' },
+  { name: 'Chat Demos', query: 'chat', icon: '💬' },
+  { name: 'Image Gen', query: 'image', icon: '🖼️' },
+];
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
+  <link slot="head" rel="canonical" href={canonicalUrl} />
+  
   <main class="container mx-auto px-4 py-12">
     <header class="text-center mb-12">
-      <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-        🚀 AI Spaces
-      </h1>
-      <p class="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-        Interactive demos and applications showcasing the latest AI models
+      <div class="inline-flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-full mb-4">
+        <span class="text-2xl">🚀</span>
+        <span class="text-sm font-semibold text-green-800 dark:text-green-200">AI SPACES</span>
+      </div>
+      <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">AI Spaces</h1>
+      <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        Interactive demos and applications showcasing the latest AI models.
       </p>
     </header>
 
-    {spaces.length > 0 ? (
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {spaces.slice(0, 24).map((space: any) => (
-          <a href={`/space/${space.id?.replace(/\//g, '--') || space.slug}`}
-             class="block bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div class="flex items-center gap-3 mb-3">
-              <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-sm">
-                {space.sdk || 'Demo'}
-              </span>
-              <span class="text-gray-500 text-sm">{space.author}</span>
-            </div>
-            <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-2">
-              {space.title || space.name}
-            </h2>
-            <p class="text-gray-600 dark:text-gray-300 text-sm line-clamp-2">
-              {space.description?.substring(0, 100) || 'Interactive AI demo'}
-            </p>
-            <div class="mt-4 flex items-center gap-4 text-sm text-gray-500">
-              <span>❤️ {space.likes || 0}</span>
-            </div>
+    <section class="mb-12">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {categories.map((cat) => (
+          <a href={`/?q=${cat.query}&type=space`}
+             class="group p-6 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900 rounded-xl hover:shadow-lg transition-all border border-green-100 dark:border-gray-700">
+            <div class="text-3xl mb-2">{cat.icon}</div>
+            <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-green-600">{cat.name}</h3>
           </a>
         ))}
       </div>
-    ) : (
-      <div class="text-center py-20">
-        <p class="text-gray-500 text-lg">
-          {error || 'Spaces will be available after L1 harvesting completes.'}
-        </p>
-        <a href="/" class="mt-4 inline-block text-indigo-600 hover:underline">
-          ← Back to Home
-        </a>
+    </section>
+
+    <section>
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Popular Spaces</h2>
+        <span id="spaces-count" class="text-sm text-gray-500"></span>
       </div>
-    )}
+      <div id="spaces-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="col-span-full text-center py-12 text-gray-500">Loading spaces...</div>
+      </div>
+    </section>
   </main>
 </Layout>
+
+<script>
+  async function loadSpaces() {
+    const grid = document.getElementById('spaces-grid');
+    const countEl = document.getElementById('spaces-count');
+    if (!grid) return;
+
+    try {
+      // V15.0: Use entity-specific R2 path
+      const res = await fetch('/api/cache/entities/space/index.json');
+      if (!res.ok) {
+        // Fallback to trending.json
+        const fallback = await fetch('/api/cache/trending.json');
+        if (!fallback.ok) throw new Error('No data');
+        const data = await fallback.json();
+        renderSpaces(data.spaces || [], grid, countEl);
+        return;
+      }
+      
+      const spaces = await res.json();
+      renderSpaces(Array.isArray(spaces) ? spaces : spaces.data || [], grid, countEl);
+    } catch (err) {
+      grid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">Spaces will be available after the next pipeline run.</div>';
+    }
+  }
+
+  function renderSpaces(spaces: any[], grid: HTMLElement, countEl: HTMLElement | null) {
+    if (countEl) countEl.textContent = `${spaces.length} spaces`;
+    
+    if (spaces.length === 0) {
+      grid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">No spaces found.</div>';
+      return;
+    }
+
+    grid.innerHTML = spaces.slice(0, 24).map((s: any) => `
+      <a href="/space/${s.slug || s.id?.replace(/\\//g, '--')}" 
+         class="block bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">${s.sdk || 'Demo'}</span>
+          <span class="text-sm text-gray-500">${s.author}</span>
+        </div>
+        <h3 class="font-bold text-gray-900 dark:text-white mb-2">${s.title || s.name}</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">${s.description?.substring(0, 100) || 'Interactive AI demo'}</p>
+        <div class="mt-3 flex items-center gap-3 text-xs text-gray-500">
+          <span>❤️ ${s.likes || 0}</span>
+        </div>
+      </a>
+    `).join('');
+  }
+
+  document.readyState === 'loading' 
+    ? document.addEventListener('DOMContentLoaded', loadSpaces) 
+    : loadSpaces();
+</script>
