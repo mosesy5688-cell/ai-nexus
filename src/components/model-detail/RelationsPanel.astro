@@ -1,18 +1,25 @@
 ---
 /**
- * RelationsPanel - V12 Knowledge Graph Display
- * Shows explicit relationships: base_model, datasets, papers, demos
+ * RelationsPanel - V15.0 Knowledge Graph Display
+ * Shows explicit relationships: base_model, datasets, papers, demos, knowledge
  */
+interface KnowledgeLink {
+  slug: string;
+  title: string;
+  icon: string;
+}
+
 interface Props {
   baseModel?: string | null;
   datasetsUsed?: string[];
   arxivRefs?: string[];
   relatedSpaces?: string[];
+  knowledgeLinks?: KnowledgeLink[];
 }
 
-const { baseModel, datasetsUsed = [], arxivRefs = [], relatedSpaces = [] } = Astro.props;
+const { baseModel, datasetsUsed = [], arxivRefs = [], relatedSpaces = [], knowledgeLinks = [] } = Astro.props;
 
-const hasRelations = baseModel || datasetsUsed.length > 0 || arxivRefs.length > 0 || relatedSpaces.length > 0;
+const hasRelations = baseModel || datasetsUsed.length > 0 || arxivRefs.length > 0 || relatedSpaces.length > 0 || knowledgeLinks.length > 0;
 ---
 
 {hasRelations && (
@@ -111,6 +118,24 @@ const hasRelations = baseModel || datasetsUsed.length > 0 || arxivRefs.length > 
                 <a href={`/space/${space.replace(/\//g, '--')}`}
                    class="px-2 py-1 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-md text-sm hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors">
                   {space.split('/').pop()}
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {knowledgeLinks.length > 0 && (
+        <div class="flex items-start gap-3">
+          <span class="text-purple-500 mt-1">📚</span>
+          <div>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Learn More</span>
+            <div class="flex flex-wrap gap-2 mt-1">
+              {knowledgeLinks.slice(0, 4).map(link => (
+                <a href={`/knowledge/${link.slug}`}
+                   class="px-2 py-1 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-md text-sm hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors flex items-center gap-1">
+                  <span>{link.icon}</span>
+                  {link.title}
                 </a>
               ))}
             </div>
