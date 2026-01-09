@@ -1,0 +1,142 @@
+---
+/**
+ * CommunityStats Component - Zone 2.5
+ * V15.0: Display community engagement metrics
+ * 
+ * Data sources:
+ * - HuggingFace: popularity (likes), downloads
+ * - GitHub: meta_json.stars, meta_json.forks, meta_json.open_issues
+ */
+
+interface Props {
+  source?: string;
+  sourceUrl?: string;
+  // HuggingFace metrics
+  likes?: number;
+  downloads?: number;
+  // GitHub metrics (from meta_json)
+  stars?: number;
+  forks?: number;
+  openIssues?: number;
+  watchers?: number;
+}
+
+const { 
+  source = 'huggingface',
+  sourceUrl,
+  likes = 0, 
+  downloads = 0,
+  stars,
+  forks,
+  openIssues,
+  watchers
+} = Astro.props;
+
+// Format numbers
+function formatNum(num: number | undefined): string {
+  if (!num) return '0';
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+  return num.toString();
+}
+
+const isGitHub = source === 'github' && (stars || forks);
+const isHuggingFace = source === 'huggingface' || (!isGitHub && (likes || downloads));
+
+// Build external links
+const hfDiscussionsUrl = sourceUrl ? `${sourceUrl}/discussions` : null;
+const ghIssuesUrl = sourceUrl ? `${sourceUrl}/issues` : null;
+
+const hasStats = (isHuggingFace && (likes > 0 || downloads > 0)) || 
+                 (isGitHub && (stars || forks));
+---
+
+{hasStats && (
+  <section class="community-stats-section bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl p-4 mb-6 border border-purple-200 dark:border-purple-800">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="text-lg">👥</span>
+      <h3 class="text-sm font-semibold text-purple-700 dark:text-purple-300">社区热度</h3>
+    </div>
+    
+    <div class="grid grid-cols-2 gap-4">
+      {/* HuggingFace Stats */}
+      {isHuggingFace && (
+        <div class="space-y-2">
+          <div class="text-xs text-gray-500 dark:text-gray-400 font-medium">HuggingFace</div>
+          <div class="flex gap-4">
+            {likes > 0 && (
+              <div class="flex items-center gap-1">
+                <span class="text-red-500">❤️</span>
+                <span class="font-semibold text-gray-900 dark:text-white">{formatNum(likes)}</span>
+                <span class="text-xs text-gray-500">Likes</span>
+              </div>
+            )}
+            {downloads > 0 && (
+              <div class="flex items-center gap-1">
+                <span class="text-blue-500">📥</span>
+                <span class="font-semibold text-gray-900 dark:text-white">{formatNum(downloads)}</span>
+                <span class="text-xs text-gray-500">Downloads</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* GitHub Stats */}
+      {isGitHub && (
+        <div class="space-y-2">
+          <div class="text-xs text-gray-500 dark:text-gray-400 font-medium">GitHub</div>
+          <div class="flex gap-4 flex-wrap">
+            {stars !== undefined && stars > 0 && (
+              <div class="flex items-center gap-1">
+                <span class="text-yellow-500">⭐</span>
+                <span class="font-semibold text-gray-900 dark:text-white">{formatNum(stars)}</span>
+                <span class="text-xs text-gray-500">Stars</span>
+              </div>
+            )}
+            {forks !== undefined && forks > 0 && (
+              <div class="flex items-center gap-1">
+                <span class="text-gray-600">🍴</span>
+                <span class="font-semibold text-gray-900 dark:text-white">{formatNum(forks)}</span>
+                <span class="text-xs text-gray-500">Forks</span>
+              </div>
+            )}
+            {openIssues !== undefined && openIssues > 0 && (
+              <div class="flex items-center gap-1">
+                <span class="text-green-500">🐛</span>
+                <span class="font-semibold text-gray-900 dark:text-white">{formatNum(openIssues)}</span>
+                <span class="text-xs text-gray-500">Issues</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+    
+    {/* External links */}
+    <div class="flex gap-3 mt-3 pt-3 border-t border-purple-200 dark:border-purple-700">
+      {isHuggingFace && hfDiscussionsUrl && (
+        <a 
+          href={hfDiscussionsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-xs text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-200 flex items-center gap-1"
+        >
+          📢 查看 HF 讨论
+          <span class="text-[10px]">↗</span>
+        </a>
+      )}
+      {isGitHub && ghIssuesUrl && (
+        <a 
+          href={ghIssuesUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-xs text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-200 flex items-center gap-1"
+        >
+          🐙 查看 GitHub Issues
+          <span class="text-[10px]">↗</span>
+        </a>
+      )}
+    </div>
+  </section>
+)}

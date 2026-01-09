@@ -1,0 +1,161 @@
+---
+/**
+ * UseCases Component - Zone 1.5
+ * V15.0: Display use cases derived from pipeline_tag
+ * 
+ * Shows what the model is good for and what it might not be suitable for
+ * Based on static mapping (Constitutional: no AI inference)
+ */
+
+interface Props {
+  pipelineTag?: string;
+  tags?: string[];
+  contextLength?: number;
+  entityType?: string;
+}
+
+const { pipelineTag, tags = [], contextLength, entityType = 'model' } = Astro.props;
+
+// V15.0: Static mapping from pipeline_tag to use cases (CES compliant)
+const USE_CASE_MAP: Record<string, { good: string[], notGood: string[] }> = {
+  'text-generation': {
+    good: ['对话聊天', '文本续写', '创意写作', '代码生成'],
+    notGood: ['图像处理', '语音识别']
+  },
+  'text2text-generation': {
+    good: ['翻译', '摘要生成', '问答', '改写润色'],
+    notGood: ['长文档生成', '创意写作']
+  },
+  'text-to-image': {
+    good: ['图像生成', 'AI绘画', '概念设计', '插图创作'],
+    notGood: ['文本任务', '代码生成']
+  },
+  'image-to-text': {
+    good: ['图像描述', 'OCR识别', '图表理解'],
+    notGood: ['文本生成', '对话']
+  },
+  'feature-extraction': {
+    good: ['嵌入向量', 'RAG检索', '语义搜索', '相似度计算'],
+    notGood: ['直接对话', '内容生成']
+  },
+  'fill-mask': {
+    good: ['文本补全', '完形填空'],
+    notGood: ['长文本生成', '对话']
+  },
+  'question-answering': {
+    good: ['问答系统', '阅读理解', '知识问答'],
+    notGood: ['长文生成', '创意写作']
+  },
+  'summarization': {
+    good: ['文本摘要', '要点提取', '会议纪要'],
+    notGood: ['对话', '创意写作']
+  },
+  'translation': {
+    good: ['多语言翻译', '本地化'],
+    notGood: ['创意写作', '代码生成']
+  },
+  'automatic-speech-recognition': {
+    good: ['语音转文字', '会议记录', '字幕生成'],
+    notGood: ['文本生成', '翻译']
+  },
+  'text-to-speech': {
+    good: ['语音合成', '有声读物', '配音'],
+    notGood: ['文本理解', '对话']
+  },
+  'object-detection': {
+    good: ['目标检测', '图像分析', '安防监控'],
+    notGood: ['文本任务', '语音任务']
+  },
+  'image-classification': {
+    good: ['图像分类', '内容审核', '标签识别'],
+    notGood: ['文本任务', '生成任务']
+  },
+  'image-segmentation': {
+    good: ['图像分割', '背景移除', '目标提取'],
+    notGood: ['文本任务', '生成任务']
+  },
+  'zero-shot-classification': {
+    good: ['零样本分类', '主题分类', '情感分析'],
+    notGood: ['长文生成', '对话']
+  },
+  'sentence-similarity': {
+    good: ['语义相似度', '文本匹配', '重复检测'],
+    notGood: ['内容生成', '对话']
+  },
+  'other': {
+    good: ['通用AI任务'],
+    notGood: []
+  }
+};
+
+// Get use cases based on pipeline_tag
+const tag = pipelineTag?.toLowerCase() || 'other';
+const useCases = USE_CASE_MAP[tag] || USE_CASE_MAP['other'];
+
+// Add context-based warnings
+let contextWarning = '';
+if (contextLength && contextLength < 4096) {
+  contextWarning = '短文本处理 (上下文较短)';
+} else if (contextLength && contextLength < 32768) {
+  // Add long document warning to notGood if context is limited
+  if (!useCases.notGood.includes('超长文档处理')) {
+    useCases.notGood = [...useCases.notGood, '超长文档处理 (上下文 < 32K)'];
+  }
+}
+
+// Check for specific capabilities from tags
+const hasCode = tags.some(t => t.includes('code') || t.includes('coding'));
+const hasChat = tags.some(t => t.includes('chat') || t.includes('instruct'));
+const hasVision = tags.some(t => t.includes('vision') || t.includes('multimodal'));
+
+if (hasCode && !useCases.good.includes('代码生成')) {
+  useCases.good = [...useCases.good, '代码生成'];
+}
+if (hasChat && !useCases.good.includes('对话聊天')) {
+  useCases.good = ['对话聊天', ...useCases.good];
+}
+if (hasVision && !useCases.good.includes('多模态理解')) {
+  useCases.good = [...useCases.good, '多模态理解'];
+}
+
+// Skip if no meaningful use cases
+const hasUseCases = useCases.good.length > 0 || useCases.notGood.length > 0;
+---
+
+{hasUseCases && (
+  <section class="use-cases-section bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl p-4 mb-6 border border-emerald-200 dark:border-emerald-800">
+    <div class="flex flex-wrap gap-4">
+      {useCases.good.length > 0 && (
+        <div class="flex items-start gap-2 flex-1 min-w-[200px]">
+          <span class="text-emerald-600 dark:text-emerald-400 text-lg">✅</span>
+          <div>
+            <span class="text-sm font-medium text-emerald-700 dark:text-emerald-300">适合:</span>
+            <div class="flex flex-wrap gap-1 mt-1">
+              {useCases.good.slice(0, 5).map(uc => (
+                <span class="inline-block px-2 py-0.5 text-xs bg-emerald-100 dark:bg-emerald-800/50 text-emerald-700 dark:text-emerald-300 rounded-full">
+                  {uc}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {useCases.notGood.length > 0 && (
+        <div class="flex items-start gap-2 flex-1 min-w-[200px]">
+          <span class="text-amber-600 dark:text-amber-400 text-lg">⚠️</span>
+          <div>
+            <span class="text-sm font-medium text-amber-700 dark:text-amber-300">可能不适合:</span>
+            <div class="flex flex-wrap gap-1 mt-1">
+              {useCases.notGood.slice(0, 3).map(uc => (
+                <span class="inline-block px-2 py-0.5 text-xs bg-amber-100 dark:bg-amber-800/50 text-amber-700 dark:text-amber-300 rounded-full">
+                  {uc}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  </section>
+)}
