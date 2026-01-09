@@ -14,10 +14,11 @@ import { rotateEntityVersions } from './lib/entity-versioner.js';
 
 // Configuration
 const CONFIG = {
-    ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
+    // V15.0: Support both naming conventions for Account ID
+    ACCOUNT_ID: process.env.R2_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID,
     ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
     SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
-    BUCKET: 'ai-nexus-assets',
+    BUCKET: process.env.R2_BUCKET || 'ai-nexus-assets',
     OUTPUT_DIR: './output',
     CONCURRENCY: 50,  // V15: Increased from 20
     CHECKPOINT_FILE: './upload-checkpoint.json'
