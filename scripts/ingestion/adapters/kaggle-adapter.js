@@ -129,74 +129,69 @@ export class KaggleAdapter extends BaseAdapter {
 
     /**
      * Fetch models from Kaggle
-     * V14.5.2: Kaggle Models API requires search parameter
+     * V14.5.2: Uses Python sidecar since REST API is deprecated (2025H2)
      */
     async fetchModels(limit) {
-        console.log(`   🤖 Fetching models (limit: ${limit})...`);
-        const allModels = [];
+        console.log(`   🤖 Fetching models via Python sidecar (limit: ${limit})...`);
 
-        // V14.5.2: Kaggle Models API needs search terms to return results
-        // API returns 400 without search parameter
-        const searchTerms = ['llm', 'transformer', 'bert', 'gpt', 'diffusion', 'stable-diffusion', 'llama', 'gemma'];
-        const perTermLimit = Math.ceil(limit / searchTerms.length);
+        // V14.5.2: Kaggle REST API is deprecated, use Python CLI wrapper
+        const { spawn } = await import('child_process');
+        const path = await import('path');
+        const fs = await import('fs/promises');
 
-        for (const term of searchTerms) {
-            if (allModels.length >= limit) break;
+        const sidecarPath = path.join(process.cwd(), 'scripts', 'sidecar', 'kaggle_models_fetch.py');
+        const outputPath = path.join(process.cwd(), 'output', 'kaggle_models_temp.json');
 
-            let page = 1;
-            const termModels = [];
+        try {
+            // Check if sidecar script exists
+            await fs.access(sidecarPath);
 
-            while (termModels.length < perTermLimit && page <= 5) {
-                // V14.5.2: Add search parameter required by Kaggle Models API
-                const url = `${KAGGLE_API_BASE}/models/list?search=${encodeURIComponent(term)}&page=${page}&pageSize=20`;
+            // Run Python sidecar
+            const result = await new Promise((resolve, reject) => {
+                const proc = spawn('python', [sidecarPath, '--limit', String(limit), '--output', outputPath], {
+                    env: { ...process.env },
+                    stdio: ['ignore', 'pipe', 'pipe']
+                });
 
-                try {
-                    const response = await fetch(url, { headers: this.getHeaders() });
+                let stderr = '';
+                proc.stderr.on('data', (data) => {
+                    stderr += data.toString();
+                    // Print progress to console
+                    process.stderr.write(data);
+                });
 
-                    if (!response.ok) {
-                        if (response.status === 404 || response.status === 400) {
-                            console.log(`   Models search '${term}' not available`);
-                            break;
-                        }
-                        if (response.status === 429) {
-                            console.warn('   ⚠️ Rate limited, waiting 60s...');
-                            await this.delay(60000);
-                            continue;
-                        }
-                        break;
+                proc.on('close', (code) => {
+                    if (code === 0) {
+                        resolve({ success: true });
+                    } else {
+                        reject(new Error(`Sidecar exited with code ${code}: ${stderr}`));
                     }
+                });
 
-                    const models = await response.json();
-                    if (!models || models.length === 0) break;
+                proc.on('error', (err) => reject(err));
 
-                    const safe = models.filter(m => this.isSafeForWork(m));
-                    termModels.push(...safe);
-                    page++;
-                    await this.delay(2000);
+                // Timeout after 5 minutes
+                setTimeout(() => {
+                    proc.kill();
+                    reject(new Error('Sidecar timeout'));
+                }, 5 * 60 * 1000);
+            });
 
-                } catch (error) {
-                    console.warn(`   ⚠️ Models search '${term}' error: ${error.message}`);
-                    break;
-                }
-            }
+            // Read output file
+            const data = await fs.readFile(outputPath, 'utf-8');
+            const models = JSON.parse(data);
 
-            console.log(`   Search '${term}': ${termModels.length} models`);
-            allModels.push(...termModels);
+            // Cleanup temp file
+            await fs.unlink(outputPath).catch(() => { });
+
+            console.log(`   ✅ Sidecar returned ${models.length} models`);
+            return models.slice(0, limit);
+
+        } catch (error) {
+            console.warn(`   ⚠️ Python sidecar failed: ${error.message}`);
+            console.log('   Falling back to datasets-only mode (models API deprecated)');
+            return [];
         }
-
-        // Deduplicate by model ID
-        const seen = new Set();
-        const unique = allModels.filter(m => {
-            const id = m.id || m.ref || m.name;
-            if (seen.has(id)) return false;
-            seen.add(id);
-            return true;
-        });
-
-        console.log(`   📊 Total unique models: ${unique.length}`);
-
-        // Return raw entities with _entityType marker for normalize()
-        return unique.slice(0, limit).map(m => ({ ...m, _entityType: 'model' }));
     }
 
     /**
