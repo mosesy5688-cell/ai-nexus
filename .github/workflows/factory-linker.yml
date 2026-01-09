@@ -50,6 +50,12 @@ jobs:
           
       - name: Install dependencies
         run: npm ci --prefer-offline
+
+      # V14.5.2: Debug - Show which run ID we're looking for
+      - name: Debug Cache Key
+        run: |
+          echo "Workflow trigger: ${{ github.event_name }}"
+          echo "Looking for cache key: entity-data-${{ github.event.workflow_run.id || 'MANUAL' }}"
         
       - name: Restore entity data from cache
         uses: actions/cache/restore@v4
@@ -58,7 +64,19 @@ jobs:
             output/entities.json
             output/cache
           key: entity-data-${{ github.event.workflow_run.id }}
-          fail-on-cache-miss: true
+          restore-keys: |
+            entity-data-
+          # Don't fail - we'll check manually
+          
+      - name: Check entity data exists
+        run: |
+          if [ ! -f "./output/entities.json" ]; then
+            echo "❌ ERROR: entities.json not found!"
+            echo "Cache may not have been saved by Factory Aggregate."
+            echo "For manual trigger, run Factory Harvest -> Process -> Aggregate first."
+            exit 1
+          fi
+          echo "✅ entities.json found ($(wc -c < ./output/entities.json) bytes)"
             
       - name: Generate explicit relations
         run: |

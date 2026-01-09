@@ -159,6 +159,12 @@ async function main() {
     await generateSitemap(rankedEntities, CONFIG.OUTPUT_DIR);  // V14.4: Category-based sitemaps
     await generateCategoryStats(rankedEntities, CONFIG.OUTPUT_DIR);  // V14.4: Homepage categories
     await generateRelations(rankedEntities, CONFIG.OUTPUT_DIR);  // V14.4: Knowledge linking
+
+    // V14.5.2: Write entities.json for factory-linker (CRITICAL for Knowledge Graph)
+    const entitiesPath = path.join(CONFIG.OUTPUT_DIR, 'entities.json');
+    await fs.writeFile(entitiesPath, JSON.stringify(rankedEntities, null, 2));
+    console.log(`[AGGREGATOR] Wrote ${rankedEntities.length} entities to ${entitiesPath}`);
+
     await updateFniHistory(rankedEntities);
 
     // SPEC-BACKUP-V14.5 Section 3.2: Cold Backup Snapshot for FNI History
