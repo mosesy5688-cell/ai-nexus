@@ -1,0 +1,66 @@
+---
+/**
+ * CollapsibleSection Component
+ * V15.0 Week 4: Reusable collapsible wrapper with localStorage persistence
+ * All sections default to expanded per V15.0 design philosophy
+ */
+interface Props {
+  id: string;
+  title: string;
+  icon?: string;
+  defaultExpanded?: boolean;
+  badge?: string | number;
+}
+
+const { id, title, icon = '📋', defaultExpanded = true, badge } = Astro.props;
+---
+
+<section class="collapsible-section bg-white dark:bg-gray-800 rounded-xl shadow-sm mb-6" data-section-id={id}>
+  <details open={defaultExpanded}>
+    <summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-t-xl select-none">
+      <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+        <span>{icon}</span> {title}
+      </h3>
+      <div class="flex items-center gap-2">
+        {badge && (
+          <span class="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full">
+            {badge}
+          </span>
+        )}
+        <span class="expand-icon text-gray-400 transition-transform">▼</span>
+      </div>
+    </summary>
+    <div class="section-content p-4 pt-0 border-t border-gray-100 dark:border-gray-700">
+      <slot />
+    </div>
+  </details>
+</section>
+
+<style>
+  details summary::-webkit-details-marker { display: none; }
+  details[open] .expand-icon { transform: rotate(180deg); }
+  details:not([open]) .section-content { display: none; }
+</style>
+
+<script>
+  // Persist collapse state to localStorage
+  document.querySelectorAll('.collapsible-section').forEach(section => {
+    const details = section.querySelector('details');
+    const id = section.getAttribute('data-section-id');
+    
+    if (details && id) {
+      // Restore state from localStorage
+      const stored = localStorage.getItem(`section-${id}`);
+      if (stored === 'closed') {
+        details.removeAttribute('open');
+      } else if (stored === 'open') {
+        details.setAttribute('open', '');
+      }
+      
+      // Save state on toggle
+      details.addEventListener('toggle', () => {
+        localStorage.setItem(`section-${id}`, details.open ? 'open' : 'closed');
+      });
+    }
+  });
+</script>
