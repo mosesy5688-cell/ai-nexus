@@ -1,0 +1,132 @@
+---
+/**
+ * Paper Detail Page - V15.0
+ * ArXiv Papers: Research publications
+ */
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import DataFreshness from '../../components/common/DataFreshness.astro';
+import ShareButtons from '../../components/common/ShareButtons.astro';
+import EntityZones from '../../components/entity/EntityZones.astro';
+
+const { slug } = Astro.params;
+const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
+
+let paper: any = null;
+let cacheVersion = '';
+
+try {
+  const runtime = Astro.locals.runtime;
+  if (runtime?.env?.R2_ASSETS) {
+    const r2 = runtime.env.R2_ASSETS;
+    // Try direct entity path first
+    const cacheFile = await r2.get(`cache/entities/paper/${displaySlug}.json`);
+    if (cacheFile) {
+      const data = await cacheFile.json();
+      paper = data.entity || data;
+      cacheVersion = data._contract_version || 'V15';
+    }
+  }
+} catch (e) {
+  console.error('[Paper Page] Cache error:', e);
+}
+
+const pageTitle = paper ? `${paper.title} - AI Research Paper` : 'Paper Not Found';
+const pageDescription = paper?.abstract?.slice(0, 160) || 'Explore AI/ML research papers';
+const canonicalUrl = `https://free2aitools.com/paper/${displaySlug}`;
+
+const jsonLd = paper ? {
+  "@context": "https://schema.org",
+  "@type": "ScholarlyArticle",
+  "name": paper.title,
+  "headline": paper.title,
+  "abstract": paper.abstract,
+  "url": canonicalUrl,
+  "datePublished": paper.published_date,
+  "author": paper.authors?.map((a: string) => ({ "@type": "Person", "name": a })) || []
+} : null;
+
+const hasPaper = !!paper;
+const authors = paper?.authors || [];
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <link slot="head" rel="canonical" href={canonicalUrl} />
+  {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+
+  <main class="container mx-auto px-4 py-12">
+    {hasPaper ? (
+      <article class="max-w-4xl mx-auto">
+        <nav class="mb-6 text-sm text-gray-500 dark:text-gray-400">
+          <a href="/" class="hover:text-indigo-600">Home</a>
+          <span class="mx-2">/</span>
+          <a href="/paper" class="hover:text-indigo-600">Papers</a>
+          <span class="mx-2">/</span>
+          <span class="font-medium text-gray-700 dark:text-gray-300">{displaySlug}</span>
+        </nav>
+
+        <header class="mb-8">
+          <div class="flex items-center gap-4 mb-4">
+            <span class="text-4xl">📄</span>
+            <span class="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-sm font-medium">
+              PAPER
+            </span>
+            {paper.venue && (
+              <span class="text-gray-500">{paper.venue}</span>
+            )}
+          </div>
+          <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4 leading-tight">
+            {paper.title}
+          </h1>
+          {authors.length > 0 && (
+            <p class="text-gray-600 dark:text-gray-400 mb-4">
+              {authors.slice(0, 5).join(', ')}{authors.length > 5 ? ` +${authors.length - 5} more` : ''}
+            </p>
+          )}
+        </header>
+
+        <!-- V15.0: Entity Metrics Zone -->
+        <EntityZones entityType="paper" entity={paper} />
+
+        <!-- Abstract -->
+        {paper.abstract && (
+          <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 mb-8">
+            <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">📝 Abstract</h2>
+            <p class="text-gray-700 dark:text-gray-300 leading-relaxed">
+              {paper.abstract}
+            </p>
+          </section>
+        )}
+
+        <!-- Actions -->
+        <div class="flex flex-wrap gap-4 mb-8">
+          {paper.source_url && (
+            <a href={paper.source_url} target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+              📄 View on ArXiv →
+            </a>
+          )}
+          {paper.pdf_url && (
+            <a href={paper.pdf_url} target="_blank" rel="noopener noreferrer"
+               class="inline-flex items-center px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+              📥 Download PDF
+            </a>
+          )}
+          <ShareButtons title={paper.title} description={paper.abstract?.slice(0, 100) || ''} />
+        </div>
+
+        <DataFreshness version={cacheVersion} />
+      </article>
+    ) : (
+      <div class="text-center py-20">
+        <div class="text-6xl mb-4">📄</div>
+        <h1 class="text-3xl font-bold text-gray-700 dark:text-gray-300 mb-4">Paper Not Found</h1>
+        <p class="text-gray-500 dark:text-gray-400 mb-8">This paper may not be available yet.</p>
+        <a href="/paper" class="px-6 py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors">
+          Browse All Papers
+        </a>
+      </div>
+    )}
+  </main>
+</Layout>
