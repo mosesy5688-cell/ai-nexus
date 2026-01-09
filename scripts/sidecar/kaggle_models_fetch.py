@@ -24,59 +24,60 @@ import csv
 def fetch_kaggle_models(limit: int = 3000, search_terms: list = None) -> list:
     """
     Fetch models from Kaggle using CLI.
-    Uses multiple search terms to get diverse AI/ML models.
+    V15.0 Fix: Use sorted listings instead of search (search returns 0).
     """
-    if search_terms is None:
-        search_terms = ['llm', 'transformer', 'bert', 'gpt', 'diffusion', 'llama', 'gemma', 'whisper']
-    
     all_models = []
     seen_ids = set()
-    per_term = limit // len(search_terms)
     
-    for term in search_terms:
+    # Strategy: Fetch pages sorted by different criteria to get diverse models
+    sort_methods = ['hotness', 'downloadCount', 'voteCount', 'notebookCount', 'createTime']
+    per_method = limit // len(sort_methods)
+    
+    for sort_by in sort_methods:
         if len(all_models) >= limit:
             break
             
         try:
-            # Use kaggle CLI to list models
+            # Fetch without search filter, just sorted
             result = subprocess.run(
-                ['kaggle', 'models', 'list', '-s', term, '--csv', '--page-size', str(min(per_term, 100))],
+                ['kaggle', 'models', 'list', '--sort-by', sort_by, '--csv', '--page-size', '50'],
                 capture_output=True,
                 text=True,
                 timeout=60
             )
             
             if result.returncode != 0:
-                print(f"   ⚠️ Search '{term}' failed: {result.stderr.strip()}", file=sys.stderr)
+                print(f"   ⚠️ Sort '{sort_by}' failed: {result.stderr.strip()}", file=sys.stderr)
                 continue
                 
             # Parse CSV output
             reader = csv.DictReader(StringIO(result.stdout))
-            term_models = []
+            method_models = []
             
             for row in reader:
                 model_id = row.get('ref') or row.get('id') or row.get('name')
                 if model_id and model_id not in seen_ids:
                     seen_ids.add(model_id)
-                    term_models.append({
-                        'id': model_id,
-                        'title': row.get('title') or model_id,
-                        'owner': row.get('owner') or model_id.split('/')[0] if '/' in model_id else 'unknown',
+                    method_models.append({
+                        'id': f'kaggle-model--{model_id.replace("/", "--")}',
+                        'name': row.get('title') or model_id.split('/')[-1] if '/' in model_id else model_id,
+                        'author': row.get('owner') or (model_id.split('/')[0] if '/' in model_id else 'unknown'),
                         'downloads': int(row.get('downloadCount', 0) or 0),
                         'source': 'kaggle',
                         '_entityType': 'model'
                     })
             
-            print(f"   Search '{term}': {len(term_models)} models", file=sys.stderr)
-            all_models.extend(term_models)
+            print(f"   Sort '{sort_by}': {len(method_models)} models", file=sys.stderr)
+            all_models.extend(method_models)
             
         except subprocess.TimeoutExpired:
-            print(f"   ⚠️ Search '{term}' timed out", file=sys.stderr)
+            print(f"   ⚠️ Sort '{sort_by}' timed out", file=sys.stderr)
         except Exception as e:
-            print(f"   ⚠️ Search '{term}' error: {e}", file=sys.stderr)
+            print(f"   ⚠️ Sort '{sort_by}' error: {e}", file=sys.stderr)
     
     print(f"   📊 Total unique models: {len(all_models)}", file=sys.stderr)
     return all_models[:limit]
+
 
 
 def main():

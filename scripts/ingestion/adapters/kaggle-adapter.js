@@ -58,20 +58,14 @@ export class KaggleAdapter extends BaseAdapter {
             return [];
         }
 
-        console.log(`📥 [Kaggle] Fetching up to ${limit} entities...`);
+        console.log(`📥 [Kaggle] Fetching up to ${limit} entities (datasets only)...`);
 
-        // V14.5.2: Split between datasets (70%) and models (30%)
-        const datasetLimit = Math.ceil(limit * 0.7);
-        const modelLimit = Math.floor(limit * 0.3);
+        // V15.0: Kaggle datasets only - models disabled (low industry impact)
+        // Kaggle's strength is datasets, not models
+        const datasets = await this.fetchDatasets(limit);
 
-        const [datasets, models] = await Promise.all([
-            this.fetchDatasets(datasetLimit),
-            this.fetchModels(modelLimit)
-        ]);
-
-        const all = [...datasets, ...models];
-        console.log(`✅ [Kaggle] Total: ${all.length} entities (${datasets.length} datasets, ${models.length} models)`);
-        return all;
+        console.log(`✅ [Kaggle] Total: ${datasets.length} datasets`);
+        return datasets;
     }
 
     /**
