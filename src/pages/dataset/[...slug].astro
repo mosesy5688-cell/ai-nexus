@@ -5,6 +5,7 @@ export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import ModelCard from '../../components/ModelCard.astro';
 import DataFreshness from '../../components/common/DataFreshness.astro';
+import EntityZones from '../../components/entity/EntityZones.astro';
 import { getDatasetFromCache } from '../../utils/entity-cache-reader-v6.js';
 
 // Get slug from URL
@@ -100,6 +101,9 @@ const hasRecommendedModels = recommendedModels.length > 0;
           </p>
           <DataFreshness timestamp={dataset.last_updated} source={`L8 v${cacheVersion}`} />
         </header>
+
+        <!-- V15.0: Entity Metrics Zone -->
+        <EntityZones entityType="dataset" entity={dataset} />
 
         <!-- Dataset Info Grid -->
         <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
