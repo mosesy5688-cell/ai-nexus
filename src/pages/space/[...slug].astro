@@ -8,6 +8,7 @@ export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import DataFreshness from '../../components/common/DataFreshness.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
+import EntityZones from '../../components/entity/EntityZones.astro';
 import { getSpaceFromCache } from '../../utils/entity-cache-reader-v6.js';
 
 const { slug } = Astro.params;
@@ -77,6 +78,9 @@ const modelsUsed = space?.meta_json?.models_used || [];
             {space.description}
           </p>
         </header>
+
+        <!-- V15.0: Entity Metrics Zone -->
+        <EntityZones entityType="space" entity={space} />
 
         <div class="flex gap-4 mb-8">
           <a href={space.source_url} target="_blank" rel="noopener"
