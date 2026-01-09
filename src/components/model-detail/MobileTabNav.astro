@@ -1,0 +1,86 @@
+---
+/**
+ * MobileTabNav Component
+ * V15.0 Week 4: Bottom tab navigation for mobile detail pages
+ * Allows quick section jumping on small screens
+ */
+interface TabItem {
+  id: string;
+  label: string;
+  icon: string;
+}
+
+interface Props {
+  tabs?: TabItem[];
+  activeTab?: string;
+}
+
+const defaultTabs: TabItem[] = [
+  { id: 'overview', label: 'Overview', icon: '📋' },
+  { id: 'specs', label: 'Specs', icon: '⚙️' },
+  { id: 'download', label: 'Download', icon: '📥' },
+  { id: 'related', label: 'Related', icon: '🔗' },
+];
+
+const { tabs = defaultTabs, activeTab = 'overview' } = Astro.props;
+---
+
+<nav class="mobile-tab-nav md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 z-50 safe-area-bottom">
+  <div class="flex justify-around items-center h-14">
+    {tabs.map(tab => (
+      <a href={`#${tab.id}`}
+         class={`flex flex-col items-center justify-center flex-1 h-full transition-colors
+           ${tab.id === activeTab 
+             ? 'text-indigo-600 dark:text-indigo-400' 
+             : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
+         data-tab={tab.id}>
+        <span class="text-lg">{tab.icon}</span>
+        <span class="text-[10px] mt-0.5">{tab.label}</span>
+      </a>
+    ))}
+  </div>
+</nav>
+
+<style>
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  /* Add bottom padding to main content to prevent overlap */
+  :global(main) {
+    padding-bottom: 4rem;
+  }
+  
+  @media (min-width: 768px) {
+    :global(main) {
+      padding-bottom: 0;
+    }
+  }
+</style>
+
+<script>
+  // Highlight active tab based on scroll position
+  document.addEventListener('DOMContentLoaded', () => {
+    const tabs = document.querySelectorAll('[data-tab]');
+    const sections = ['overview', 'specs', 'download', 'related'];
+    
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          tabs.forEach(tab => {
+            const isActive = tab.getAttribute('data-tab') === id;
+            tab.classList.toggle('text-indigo-600', isActive);
+            tab.classList.toggle('dark:text-indigo-400', isActive);
+            tab.classList.toggle('text-gray-500', !isActive);
+          });
+        }
+      });
+    }, { threshold: 0.3 });
+    
+    sections.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+  });
+</script>
