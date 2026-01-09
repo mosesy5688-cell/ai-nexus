@@ -1,0 +1,80 @@
+---
+/**
+ * TechSpecsFull Component - Zone 4
+ * V15.0: Full technical specifications with collapsible sections
+ * Displays all model technical details for advanced users
+ */
+interface Props {
+  paramsB?: number;
+  contextLength?: number;
+  architecture?: string;
+  quantization?: string;
+  license?: string;
+  libraryName?: string;
+  pipelineTag?: string;
+  baseModel?: string;
+  tensorType?: string;
+  vocabSize?: number;
+  hiddenSize?: number;
+  numLayers?: number;
+  numHeads?: number;
+  defaultExpanded?: boolean;
+}
+
+const { 
+  paramsB, contextLength, architecture, quantization, license,
+  libraryName, pipelineTag, baseModel, tensorType, vocabSize,
+  hiddenSize, numLayers, numHeads, defaultExpanded = true
+} = Astro.props;
+
+interface Spec { label: string; value: string | number | undefined; icon: string; }
+const specs: Spec[] = [];
+
+if (paramsB) specs.push({ label: 'Parameters', value: `${paramsB}B`, icon: '🧠' });
+if (contextLength) specs.push({ label: 'Context', value: `${(contextLength/1000).toFixed(0)}K`, icon: '📏' });
+if (architecture) specs.push({ label: 'Architecture', value: architecture, icon: '🏗️' });
+if (quantization) specs.push({ label: 'Quantization', value: quantization, icon: '⚡' });
+if (license) specs.push({ label: 'License', value: license, icon: '📜' });
+if (libraryName) specs.push({ label: 'Library', value: libraryName, icon: '📚' });
+if (pipelineTag) specs.push({ label: 'Task', value: pipelineTag, icon: '🎯' });
+if (baseModel) specs.push({ label: 'Base Model', value: baseModel, icon: '🧬' });
+if (tensorType) specs.push({ label: 'Tensor Type', value: tensorType, icon: '📊' });
+if (vocabSize) specs.push({ label: 'Vocab Size', value: vocabSize.toLocaleString(), icon: '📖' });
+if (hiddenSize) specs.push({ label: 'Hidden Size', value: hiddenSize.toLocaleString(), icon: '🔢' });
+if (numLayers) specs.push({ label: 'Layers', value: numLayers, icon: '📚' });
+if (numHeads) specs.push({ label: 'Attention Heads', value: numHeads, icon: '👀' });
+
+const hasSpecs = specs.length > 0;
+---
+
+{hasSpecs && (
+  <section class="tech-specs-full bg-white dark:bg-gray-800 rounded-xl shadow-sm mb-6">
+    <details open={defaultExpanded}>
+      <summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-t-xl">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <span>⚙️</span> Technical Specifications
+        </h3>
+        <span class="text-gray-400 text-sm">{specs.length} specs</span>
+      </summary>
+      
+      <div class="p-4 pt-0 border-t border-gray-100 dark:border-gray-700">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {specs.map(spec => (
+            <div class="flex items-start gap-2 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg">
+              <span class="text-lg">{spec.icon}</span>
+              <div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">{spec.label}</div>
+                <div class="font-medium text-gray-900 dark:text-white text-sm">{spec.value}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </details>
+  </section>
+)}
+
+<style>
+  details summary::-webkit-details-marker { display: none; }
+  details[open] summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+</style>
