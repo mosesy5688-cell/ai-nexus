@@ -155,6 +155,15 @@ jobs:
           echo "📥 Harvesting Replicate..."
           node scripts/ingestion/harvest-single.js replicate --limit 5000 || echo "Replicate adapter skipped"
 
+      # V14.5.2: Setup Python for Kaggle models sidecar (REST API deprecated)
+      - name: Setup Python for Kaggle
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install Kaggle CLI
+        run: pip install kaggle
+
       - name: Harvest Kaggle
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
