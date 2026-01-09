@@ -1,0 +1,31 @@
+---
+/**
+ * HomeEntitySection Component
+ * V15: Entity type showcase grid for homepage
+ * Links to /model, /dataset, /paper, /agent, /space, /tool
+ */
+
+const entityTypes = [
+  { href: '/model', icon: '🧠', title: 'AI Models', desc: 'LLMs, Vision, Audio', color: '#6366f1', hoverColor: 'indigo' },
+  { href: '/dataset', icon: '📊', title: 'Datasets', desc: 'Training & eval data', color: '#f59e0b', hoverColor: 'amber' },
+  { href: '/paper', icon: '📄', title: 'Papers', desc: 'Research from arXiv', color: '#ef4444', hoverColor: 'red' },
+  { href: '/agent', icon: '🤖', title: 'AI Agents', desc: 'AutoGPT, BabyAGI', color: '#8b5cf6', hoverColor: 'purple' },
+  { href: '/space', icon: '🚀', title: 'AI Spaces', desc: 'Interactive demos', color: '#10b981', hoverColor: 'emerald' },
+  { href: '/tool', icon: '🔧', title: 'Dev Tools', desc: 'LangChain, vLLM', color: '#0ea5e9', hoverColor: 'cyan' },
+];
+---
+
+<section class="mb-16">
+  <h2 class="text-2xl font-bold text-center mb-6 text-gray-900 dark:text-white">Explore by Entity Type</h2>
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+    {entityTypes.map(e => (
+      <a href={e.href} class="group relative overflow-hidden rounded-2xl p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl"
+         style={`background: linear-gradient(135deg, ${e.color}15 0%, ${e.color}25 100%); border: 1px solid ${e.color}30;`}>
+        <span class="text-3xl mb-2 block">{e.icon}</span>
+        <h3 class="font-bold text-gray-900 dark:text-white">{e.title}</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{e.desc}</p>
+        <span class={`text-${e.hoverColor}-600 dark:text-${e.hoverColor}-400 text-sm mt-2 block group-hover:underline`}>Browse →</span>
+      </a>
+    ))}
+  </div>
+</section>
