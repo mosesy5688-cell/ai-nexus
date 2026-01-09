@@ -1,0 +1,47 @@
+---
+/**
+ * TagsCloud Component - Zone 4
+ * V15.0: Interactive tags display with counts and links
+ */
+interface Props {
+  tags: string[];
+  pipelineTag?: string;
+  maxTags?: number;
+}
+
+const { tags = [], pipelineTag, maxTags = 20 } = Astro.props;
+
+const allTags = pipelineTag ? [pipelineTag, ...tags.filter(t => t !== pipelineTag)] : tags;
+const displayTags = allTags.slice(0, maxTags);
+const hiddenCount = allTags.length - displayTags.length;
+
+function getTagColor(tag: string, index: number): string {
+  if (index === 0 && pipelineTag) return 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border-indigo-200';
+  if (tag.includes('gguf') || tag.includes('quantized')) return 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300';
+  if (tag.includes('chat') || tag.includes('instruct')) return 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300';
+  if (tag.includes('code') || tag.includes('coding')) return 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300';
+  if (tag.includes('vision') || tag.includes('image')) return 'bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300';
+  return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300';
+}
+---
+
+{displayTags.length > 0 && (
+  <section class="tags-cloud bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm mb-6">
+    <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase mb-3 flex items-center gap-2">
+      <span>🏷️</span> Tags
+    </h3>
+    <div class="flex flex-wrap gap-2">
+      {displayTags.map((tag, i) => (
+        <a href={`/?q=${encodeURIComponent(tag)}`}
+           class={`px-3 py-1 text-sm rounded-full border transition-all hover:shadow-sm hover:scale-105 ${getTagColor(tag, i)}`}>
+          {tag}
+        </a>
+      ))}
+      {hiddenCount > 0 && (
+        <span class="px-3 py-1 text-sm text-gray-500 dark:text-gray-400">
+          +{hiddenCount} more
+        </span>
+      )}
+    </div>
+  </section>
+)}
