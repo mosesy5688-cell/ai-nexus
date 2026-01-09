@@ -1,7 +1,5 @@
 ---
 export const prerender = false;
-// Model Detail Page V5.1.2 - Entity-First Architecture
-
 import Layout from '../../layouts/Layout.astro';
 import ModelHeader from '../../components/model-detail/ModelHeader.astro';
 import ModelMainColumn from '../../components/model-detail/ModelMainColumn.astro';
@@ -11,16 +9,14 @@ import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
 import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.astro';
-// TechnicalSpecs import removed - rendered inside ModelMainColumn.astro
 import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import EntityRelations from '../../components/entity/EntityRelations.astro';
 import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
 import ModelNotFound from '../../components/model-detail/ModelNotFound.astro';
 import QuickStart from '../../components/model-detail/QuickStart.astro';
-import MiniTrendChart from '../../components/charts/MiniTrendChart.astro'; // V14.5 Phase 5
-
-// V4.9.1: Constitutional D1 = 0 - Use R2 cache reader instead of D1 queries
+import MiniTrendChart from '../../components/charts/MiniTrendChart.astro';
+import ModelZones from '../../components/model-detail/ModelZones.astro';
 import { getModelFromCache } from '../../utils/entity-cache-reader';
 import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definitions';
 import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers';
@@ -126,6 +122,8 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
           seoDescription={model.seo_summary?.description}
           cleanDescription={cleanDesc}
         />
+
+        <ModelZones model={model} tagsArray={tagsArray} />
 
         <!-- V14.5 Phase 5: FNI Trend Chart -->
         <div class="fni-trend-section mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm flex items-center gap-4">

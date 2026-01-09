@@ -3,8 +3,8 @@
 #
 # Computes knowledge graph relations:
 # - Explicit links: Every run (~2min)
-# - ALT links: Weekly on Monday (~10min)
-# - Knowledge links: Weekly on Monday (~1min)
+# - ALT links: Every run (~10min)
+# - Knowledge links: Every run (~1min)
 #
 # Cost: < $1/month
 
@@ -90,15 +90,12 @@ jobs:
           path: output/cache/relations/explicit.json
           retention-days: 1
 
-  # Job 2: ALT Links (runs weekly on Monday OR manual)
+  # Job 2: ALT Links (runs every time)
   alt-links:
-    name: ALT Relations (Weekly)
+    name: ALT Relations
     runs-on: ubuntu-latest
     needs: explicit-links
-    # Run on Monday or manual trigger with run_alt=true
-    if: |
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_alt == 'true') ||
-      (github.event_name == 'workflow_run' && contains(github.event.workflow_run.created_at, 'Mon'))
+    # V15: Run every Factory cycle (not just weekly)
     
     steps:
       - name: Checkout repository
@@ -137,12 +134,10 @@ jobs:
 
   # Job 3: Knowledge Links (runs weekly on Monday)
   knowledge-links:
-    name: Knowledge Links (Weekly)
+    name: Knowledge Links
     runs-on: ubuntu-latest
     needs: explicit-links
-    if: |
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_alt == 'true') ||
-      (github.event_name == 'workflow_run' && contains(github.event.workflow_run.created_at, 'Mon'))
+    # V15: Run every Factory cycle (not just weekly)
     
     steps:
       - name: Checkout repository
