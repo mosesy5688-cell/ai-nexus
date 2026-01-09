@@ -1,0 +1,145 @@
+---
+/**
+ * Tool Detail Page - V15.0
+ * Dev Tools: LangChain, vLLM, Ollama, etc.
+ */
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import DataFreshness from '../../components/common/DataFreshness.astro';
+import ShareButtons from '../../components/common/ShareButtons.astro';
+import EntityZones from '../../components/entity/EntityZones.astro';
+
+const { slug } = Astro.params;
+const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
+
+let tool: any = null;
+let cacheVersion = '';
+
+try {
+  const runtime = Astro.locals.runtime;
+  if (runtime?.env?.R2_ASSETS) {
+    const r2 = runtime.env.R2_ASSETS;
+    // Try direct entity path first
+    const cacheFile = await r2.get(`cache/entities/tool/${displaySlug}.json`);
+    if (cacheFile) {
+      const data = await cacheFile.json();
+      tool = data.entity || data;
+      cacheVersion = data._contract_version || 'V15';
+    }
+  }
+} catch (e) {
+  console.error('[Tool Page] Cache error:', e);
+}
+
+const pageTitle = tool ? `${tool.name || tool.canonical_name} - AI Development Tool` : 'Tool Not Found';
+const pageDescription = tool?.description?.slice(0, 160) || 'Explore AI development tools';
+const canonicalUrl = `https://free2aitools.com/tool/${displaySlug}`;
+
+const jsonLd = tool ? {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": tool.name || tool.canonical_name,
+  "description": tool.description,
+  "url": canonicalUrl,
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Cross-platform"
+} : null;
+
+const hasTool = !!tool;
+---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <link slot="head" rel="canonical" href={canonicalUrl} />
+  {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+
+  <main class="container mx-auto px-4 py-12">
+    {hasTool ? (
+      <article class="max-w-4xl mx-auto">
+        <nav class="mb-6 text-sm text-gray-500 dark:text-gray-400">
+          <a href="/" class="hover:text-indigo-600">Home</a>
+          <span class="mx-2">/</span>
+          <a href="/tool" class="hover:text-indigo-600">Tools</a>
+          <span class="mx-2">/</span>
+          <span class="font-medium text-gray-700 dark:text-gray-300">{tool.name || tool.canonical_name}</span>
+        </nav>
+
+        <header class="mb-8">
+          <div class="flex items-center gap-4 mb-4">
+            <span class="text-4xl">🔧</span>
+            <span class="px-3 py-1 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-full text-sm font-medium">
+              TOOL
+            </span>
+            {tool.author && (
+              <span class="text-gray-500">by {tool.author}</span>
+            )}
+          </div>
+          <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            {tool.name || tool.canonical_name}
+          </h1>
+          <p class="text-lg text-gray-600 dark:text-gray-300">
+            {tool.description || 'No description available'}
+          </p>
+        </header>
+
+        <!-- V15.0: Entity Metrics Zone -->
+        <EntityZones entityType="tool" entity={tool} />
+
+        <!-- Tool Info Grid -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">📋 Tool Info</h2>
+            <dl class="space-y-3 text-sm">
+              {tool.language && (
+                <div class="flex justify-between">
+                  <dt class="text-gray-500 dark:text-gray-400">Language</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white">{tool.language}</dd>
+                </div>
+              )}
+              {tool.license && (
+                <div class="flex justify-between">
+                  <dt class="text-gray-500 dark:text-gray-400">License</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white">{tool.license}</dd>
+                </div>
+              )}
+              {tool.source_url && (
+                <div class="mt-4">
+                  <a href={tool.source_url} target="_blank" rel="noopener noreferrer"
+                     class="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm">
+                    View on GitHub →
+                  </a>
+                </div>
+              )}
+            </dl>
+          </div>
+
+          {tool.tags && (
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+              <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">🏷️ Tags</h2>
+              <div class="flex flex-wrap gap-2">
+                {(Array.isArray(tool.tags) ? tool.tags : JSON.parse(tool.tags || '[]')).slice(0, 10).map((tag: string) => (
+                  <a href={`/search?q=${encodeURIComponent(tag)}`}
+                     class="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-cyan-100 dark:hover:bg-cyan-900/30 transition-colors">
+                    {tag}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        <ShareButtons title={tool.name || tool.canonical_name} description={tool.description || ''} />
+        <DataFreshness version={cacheVersion} />
+      </article>
+    ) : (
+      <div class="text-center py-20">
+        <div class="text-6xl mb-4">🔧</div>
+        <h1 class="text-3xl font-bold text-gray-700 dark:text-gray-300 mb-4">Tool Not Found</h1>
+        <p class="text-gray-500 dark:text-gray-400 mb-8">This tool may not be available yet.</p>
+        <a href="/tool" class="px-6 py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors">
+          Browse All Tools
+        </a>
+      </div>
+    )}
+  </main>
+</Layout>
