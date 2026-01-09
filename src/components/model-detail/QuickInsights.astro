@@ -1,0 +1,102 @@
+---
+/**
+ * QuickInsights Component - Zone 2
+ * V15.0: Display core metrics for quick decision making
+ * Target: Help user decide in 10 seconds
+ */
+
+interface Props {
+  paramsB?: number;
+  contextLength?: number;
+  downloads?: number;
+  license?: string;
+  hasGguf?: boolean;
+  entityType?: string;
+  stars?: number;
+  forks?: number;
+  language?: string;
+  sizeGb?: number;
+  rowCount?: number;
+  citations?: number;
+  pages?: number;
+}
+
+const { 
+  paramsB, contextLength, downloads = 0, license, hasGguf,
+  entityType = 'model', stars, forks, language, sizeGb, rowCount, citations, pages
+} = Astro.props;
+
+function formatNumber(num: number | undefined): string {
+  if (!num) return '-';
+  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+  return num.toString();
+}
+
+function formatParams(params: number | undefined): string {
+  if (!params) return '-';
+  if (params >= 1) return params.toFixed(1) + 'B';
+  return (params * 1000).toFixed(0) + 'M';
+}
+
+function formatContext(ctx: number | undefined): string {
+  if (!ctx) return '-';
+  if (ctx >= 1000) return (ctx / 1000).toFixed(0) + 'K';
+  return ctx.toString();
+}
+
+function formatLicense(lic: string | undefined): string {
+  if (!lic) return '-';
+  const abbrevs: Record<string, string> = {
+    'apache-2.0': 'Apache 2.0', 'mit': 'MIT', 'gpl-3.0': 'GPL 3.0',
+    'llama2': 'Llama 2', 'llama3': 'Llama 3', 'gemma': 'Gemma'
+  };
+  return abbrevs[lic.toLowerCase()] || lic.slice(0, 12);
+}
+
+interface Metric { value: string; label: string; icon: string; highlight?: boolean; }
+const metrics: Metric[] = [];
+
+if (entityType === 'model') {
+  if (paramsB) metrics.push({ value: formatParams(paramsB), label: 'Params', icon: '🧠' });
+  if (contextLength) metrics.push({ value: formatContext(contextLength), label: 'Context', icon: '📏' });
+  metrics.push({ value: formatNumber(downloads), label: 'Downloads', icon: '📥' });
+  if (license) metrics.push({ value: formatLicense(license), label: 'License', icon: '📜' });
+  if (hasGguf !== undefined) metrics.push({ 
+    value: hasGguf ? 'Yes' : 'No', label: 'GGUF', icon: hasGguf ? '✅' : '❌', highlight: hasGguf
+  });
+} else if (entityType === 'dataset') {
+  if (sizeGb) metrics.push({ value: sizeGb.toFixed(1) + 'GB', label: 'Size', icon: '💾' });
+  if (rowCount) metrics.push({ value: formatNumber(rowCount), label: 'Rows', icon: '📊' });
+  metrics.push({ value: formatNumber(downloads), label: 'Downloads', icon: '📥' });
+  if (license) metrics.push({ value: formatLicense(license), label: 'License', icon: '📜' });
+} else if (entityType === 'paper') {
+  if (citations) metrics.push({ value: formatNumber(citations), label: 'Citations', icon: '📚' });
+  if (pages) metrics.push({ value: pages.toString(), label: 'Pages', icon: '📄' });
+} else if (entityType === 'agent' || entityType === 'tool') {
+  if (stars) metrics.push({ value: formatNumber(stars), label: 'Stars', icon: '⭐' });
+  if (forks) metrics.push({ value: formatNumber(forks), label: 'Forks', icon: '🍴' });
+  if (language) metrics.push({ value: language, label: 'Language', icon: '💻' });
+  if (license) metrics.push({ value: formatLicense(license), label: 'License', icon: '📜' });
+} else if (entityType === 'space') {
+  metrics.push({ value: formatNumber(downloads), label: 'Likes', icon: '❤️' });
+}
+
+const hasMetrics = metrics.length > 0;
+---
+
+{hasMetrics && (
+  <section class="quick-insights-section mb-6">
+    <div class="grid grid-cols-3 sm:grid-cols-5 gap-3">
+      {metrics.map(metric => (
+        <div class={`flex flex-col items-center justify-center p-3 rounded-xl bg-white dark:bg-gray-800 border 
+          ${metric.highlight ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/30' : 'border-gray-200 dark:border-gray-700'}
+          transition-all hover:shadow-md hover:-translate-y-0.5`}>
+          <div class="text-2xl mb-1">{metric.icon}</div>
+          <div class="text-lg font-bold text-gray-900 dark:text-white">{metric.value}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">{metric.label}</div>
+        </div>
+      ))}
+    </div>
+  </section>
+)}

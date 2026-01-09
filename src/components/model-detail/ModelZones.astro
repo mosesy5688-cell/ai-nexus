@@ -1,0 +1,45 @@
+---
+/**
+ * ModelZones Component
+ * V15.0: Encapsulates Zone 1.5, 2, 2.5 components for model detail page
+ * Reduces main page lines (Art 5.1 Monolith Ban compliance)
+ */
+import UseCases from './UseCases.astro';
+import QuickInsights from './QuickInsights.astro';
+import CommunityStats from './CommunityStats.astro';
+
+interface Props {
+  model: any;
+  tagsArray: string[];
+}
+
+const { model, tagsArray } = Astro.props;
+---
+
+<UseCases 
+  pipelineTag={model.pipeline_tag}
+  tags={tagsArray}
+  contextLength={model.context_length}
+  entityType={model.entityType}
+/>
+
+<QuickInsights
+  paramsB={model.params_billions}
+  contextLength={model.context_length}
+  downloads={model.downloads}
+  license={model.license_spdx}
+  hasGguf={model.has_gguf}
+  entityType={model.entityType}
+  stars={model.meta_json?.stars}
+  forks={model.meta_json?.forks}
+/>
+
+<CommunityStats
+  source={model.source}
+  sourceUrl={model.source_url}
+  likes={model.popularity}
+  downloads={model.downloads}
+  stars={model.meta_json?.stars}
+  forks={model.meta_json?.forks}
+  openIssues={model.meta_json?.open_issues}
+/>
