@@ -1,0 +1,54 @@
+---
+/**
+ * EntityZones Component
+ * V15.0: Shared zone components for non-model entity pages
+ * Provides QuickInsights-style metrics and community stats
+ */
+interface Props {
+  entityType: 'dataset' | 'paper' | 'space' | 'agent' | 'tool';
+  entity: any;
+}
+
+const { entityType, entity } = Astro.props;
+
+// Build metrics based on entity type
+const metrics: {icon: string; label: string; value: string}[] = [];
+
+if (entityType === 'dataset') {
+  if (entity.downloads) metrics.push({ icon: '📥', label: 'Downloads', value: entity.downloads.toLocaleString() });
+  if (entity.likes) metrics.push({ icon: '❤️', label: 'Likes', value: entity.likes.toLocaleString() });
+  if (entity.license_spdx) metrics.push({ icon: '📜', label: 'License', value: entity.license_spdx });
+} else if (entityType === 'paper') {
+  if (entity.citations) metrics.push({ icon: '📖', label: 'Citations', value: entity.citations.toLocaleString() });
+  if (entity.year) metrics.push({ icon: '📅', label: 'Year', value: entity.year });
+  if (entity.venue) metrics.push({ icon: '🏛️', label: 'Venue', value: entity.venue });
+} else if (entityType === 'space') {
+  if (entity.likes) metrics.push({ icon: '❤️', label: 'Likes', value: entity.likes.toLocaleString() });
+  if (entity.sdk) metrics.push({ icon: '🔧', label: 'SDK', value: entity.sdk });
+  if (entity.runtime) metrics.push({ icon: '⚡', label: 'Runtime', value: entity.runtime });
+} else if (entityType === 'agent') {
+  if (entity.stars) metrics.push({ icon: '⭐', label: 'Stars', value: entity.stars.toLocaleString() });
+  if (entity.forks) metrics.push({ icon: '🍴', label: 'Forks', value: entity.forks?.toLocaleString() || '—' });
+  if (entity.language) metrics.push({ icon: '💻', label: 'Language', value: entity.language });
+} else if (entityType === 'tool') {
+  if (entity.stars) metrics.push({ icon: '⭐', label: 'Stars', value: entity.stars.toLocaleString() });
+  if (entity.weekly_downloads) metrics.push({ icon: '📥', label: 'Weekly', value: entity.weekly_downloads.toLocaleString() });
+  if (entity.license) metrics.push({ icon: '📜', label: 'License', value: entity.license });
+}
+
+const hasMetrics = metrics.length > 0;
+---
+
+{hasMetrics && (
+  <section class="mb-8">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {metrics.map(m => (
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+          <span class="text-2xl mb-2 block">{m.icon}</span>
+          <div class="text-xs text-gray-500 dark:text-gray-400 uppercase">{m.label}</div>
+          <div class="font-bold text-lg text-gray-900 dark:text-white">{m.value}</div>
+        </div>
+      ))}
+    </div>
+  </section>
+)}
