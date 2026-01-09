@@ -60,8 +60,9 @@ export class KaggleAdapter extends BaseAdapter {
 
         console.log(`📥 [Kaggle] Fetching up to ${limit} entities...`);
 
-        const datasetLimit = Math.ceil(limit * 0.7);  // 70% datasets
-        const modelLimit = Math.floor(limit * 0.3);   // 30% models
+        // V14.5.2: Split between datasets (70%) and models (30%)
+        const datasetLimit = Math.ceil(limit * 0.7);
+        const modelLimit = Math.floor(limit * 0.3);
 
         const [datasets, models] = await Promise.all([
             this.fetchDatasets(datasetLimit),
@@ -69,7 +70,7 @@ export class KaggleAdapter extends BaseAdapter {
         ]);
 
         const all = [...datasets, ...models];
-        console.log(`✅ [Kaggle] Total: ${all.length} entities`);
+        console.log(`✅ [Kaggle] Total: ${all.length} entities (${datasets.length} datasets, ${models.length} models)`);
         return all;
     }
 
@@ -128,57 +129,74 @@ export class KaggleAdapter extends BaseAdapter {
 
     /**
      * Fetch models from Kaggle
+     * V14.5.2: Kaggle Models API requires search parameter
      */
     async fetchModels(limit) {
         console.log(`   🤖 Fetching models (limit: ${limit})...`);
         const allModels = [];
-        let page = 1;
 
-        while (allModels.length < limit) {
-            // V14.5: Try without sortBy parameter which may not be supported
-            const url = `${KAGGLE_API_BASE}/models/list?page=${page}&pageSize=20`;
+        // V14.5.2: Kaggle Models API needs search terms to return results
+        // API returns 400 without search parameter
+        const searchTerms = ['llm', 'transformer', 'bert', 'gpt', 'diffusion', 'stable-diffusion', 'llama', 'gemma'];
+        const perTermLimit = Math.ceil(limit / searchTerms.length);
 
-            try {
-                const response = await fetch(url, { headers: this.getHeaders() });
+        for (const term of searchTerms) {
+            if (allModels.length >= limit) break;
 
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        console.log('   Models endpoint not available, skipping');
+            let page = 1;
+            const termModels = [];
+
+            while (termModels.length < perTermLimit && page <= 5) {
+                // V14.5.2: Add search parameter required by Kaggle Models API
+                const url = `${KAGGLE_API_BASE}/models/list?search=${encodeURIComponent(term)}&page=${page}&pageSize=20`;
+
+                try {
+                    const response = await fetch(url, { headers: this.getHeaders() });
+
+                    if (!response.ok) {
+                        if (response.status === 404 || response.status === 400) {
+                            console.log(`   Models search '${term}' not available`);
+                            break;
+                        }
+                        if (response.status === 429) {
+                            console.warn('   ⚠️ Rate limited, waiting 60s...');
+                            await this.delay(60000);
+                            continue;
+                        }
                         break;
                     }
-                    // V14.5: Handle 400 Bad Request - API may not support models endpoint
-                    if (response.status === 400) {
-                        console.warn('   ⚠️ Models API returned 400, skipping models (datasets only)');
-                        break;
-                    }
-                    if (response.status === 429) {
-                        console.warn('   ⚠️ Rate limited, waiting 60s...');
-                        await this.delay(60000);
-                        continue;
-                    }
-                    throw new Error(`Kaggle Models API error: ${response.status}`);
+
+                    const models = await response.json();
+                    if (!models || models.length === 0) break;
+
+                    const safe = models.filter(m => this.isSafeForWork(m));
+                    termModels.push(...safe);
+                    page++;
+                    await this.delay(2000);
+
+                } catch (error) {
+                    console.warn(`   ⚠️ Models search '${term}' error: ${error.message}`);
+                    break;
                 }
-
-                const models = await response.json();
-
-                if (!models || models.length === 0) break;
-
-                const safe = models.filter(m => this.isSafeForWork(m));
-                allModels.push(...safe);
-
-                console.log(`   Page ${page}: ${safe.length} models (total: ${allModels.length})`);
-
-                page++;
-                await this.delay(2000);
-
-            } catch (error) {
-                console.error(`   ❌ Models error: ${error.message}`);
-                break;
             }
+
+            console.log(`   Search '${term}': ${termModels.length} models`);
+            allModels.push(...termModels);
         }
 
+        // Deduplicate by model ID
+        const seen = new Set();
+        const unique = allModels.filter(m => {
+            const id = m.id || m.ref || m.name;
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
+        });
+
+        console.log(`   📊 Total unique models: ${unique.length}`);
+
         // Return raw entities with _entityType marker for normalize()
-        return allModels.slice(0, limit).map(m => ({ ...m, _entityType: 'model' }));
+        return unique.slice(0, limit).map(m => ({ ...m, _entityType: 'model' }));
     }
 
     /**

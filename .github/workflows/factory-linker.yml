@@ -57,9 +57,8 @@ jobs:
           path: |
             output/entities.json
             output/cache
-          key: entity-data-${{ github.run_id }}
-          restore-keys: |
-            entity-data-
+          key: entity-data-${{ github.event.workflow_run.id }}
+          fail-on-cache-miss: true
             
       - name: Generate explicit relations
         run: |

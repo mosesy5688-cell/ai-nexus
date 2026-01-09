@@ -76,6 +76,47 @@ export class DeepSpecAdapter extends BaseAdapter {
     }
 
     /**
+     * Normalize raw spec to UnifiedEntity format
+     * Required by BaseAdapter abstract method
+     * @param {Object} raw - Raw spec from extractSpec()
+     * @returns {Object} UnifiedEntity
+     */
+    normalize(raw) {
+        if (!raw || !raw.model_id) return null;
+
+        const [author, ...nameParts] = raw.model_id.split('/');
+        const name = nameParts.join('/') || author;
+
+        return {
+            id: this.generateId(author, name),
+            type: 'model',
+            source: 'huggingface_deepspec',
+            source_url: `https://huggingface.co/${raw.model_id}`,
+            title: name,
+            description: `${raw.params_billions || '?'}B parameters, ${raw.context_length || '?'} context length, ${raw.architecture_family || 'unknown'} architecture`,
+            body_content: '',
+            tags: [raw.architecture_family, `${raw.params_billions}B`, 'text-generation'].filter(Boolean),
+            author: author || 'unknown',
+            license_spdx: null,
+            meta_json: {
+                params_billions: raw.params_billions,
+                context_length: raw.context_length,
+                architecture_family: raw.architecture_family,
+                deploy_score: raw.deploy_score,
+                vocab_size: raw.vocab_size,
+                hidden_size: raw.hidden_size,
+                num_layers: raw.num_layers
+            },
+            popularity: 0,
+            raw_image_url: null,
+            relations: [],
+            content_hash: this.generateContentHash({ title: raw.model_id, description: raw.architecture_family }),
+            compliance_status: 'approved',
+            quality_score: this.calculateQualityScore({ body_content: '', popularity: 0 })
+        };
+    }
+
+    /**
      * Fetch deep specs for models from HuggingFace
      * @param {Object} options
      * @param {string[]} options.modelIds - Specific model IDs to fetch

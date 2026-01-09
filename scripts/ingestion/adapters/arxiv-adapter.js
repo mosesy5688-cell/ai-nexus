@@ -110,12 +110,12 @@ export class ArXivAdapter extends BaseAdapter {
             sortOrder = 'descending'
         } = options;
 
-        const batchSize = 100;
+        const batchSize = 50;  // V14.5.2: Reduced batch size for gentler crawling
         const papers = [];
-        let backoffSeconds = 10;  // V14.5: Exponential backoff starting value
-        const MAX_BACKOFF = 60;   // V14.5: Max backoff 60 seconds
+        let backoffSeconds = 15;  // V14.5.2: Increased initial backoff
+        const MAX_BACKOFF = 120;   // V14.5.2: Increased max backoff to 2 minutes
         let consecutiveErrors = 0;
-        const MAX_CONSECUTIVE_ERRORS = 5;
+        const MAX_CONSECUTIVE_ERRORS = 8;  // V14.5.2: More patience
 
         for (let start = 0; start < limit; start += batchSize) {
             const currentLimit = Math.min(batchSize, limit - start);
@@ -158,15 +158,17 @@ export class ArXivAdapter extends BaseAdapter {
                 }
 
                 // Success - reset backoff
-                backoffSeconds = 10;
+                backoffSeconds = 15;  // V14.5.2: Reset to initial value
                 consecutiveErrors = 0;
 
                 const xmlText = await response.text();
                 const batch = parseArxivXML(xmlText);
                 papers.push(...batch);
 
+                // ArXiv official: "no more than one request every three seconds"
+                // Using 3.5s to be safe and respectful of their infrastructure
                 if (start + batchSize < limit) {
-                    await this.delay(3000);
+                    await this.delay(3500);
                 }
             } catch (error) {
                 console.warn(`   ⚠️ [ArXiv] Batch error: ${error.message}`);
@@ -175,7 +177,7 @@ export class ArXivAdapter extends BaseAdapter {
                     console.error(`   ❌ [ArXiv] Too many errors, stopping category ${category}`);
                     break;
                 }
-                await this.delay(5000);  // Brief pause before retry
+                await this.delay(10000);  // V14.5.2: Longer pause before retry
                 start -= batchSize;
             }
         }
