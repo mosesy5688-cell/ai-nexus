@@ -67,8 +67,12 @@ export async function getSpaceFromCache(slug, locals) {
     const normalizedSlug = normalizeForCache(slug, 'space');
 
     // V14: Constitutional cache path - only use cache/entities/space/
+    // V15.0 Fix: Robust multi-path lookup
+    const rawSlug = slug.replace(/\//g, '--').replace(/:/g, '--');
     const cachePaths = [
         `cache/entities/space/${normalizedSlug}.json`,
+        `cache/entities/space/huggingface--${rawSlug}.json`,
+        `cache/entities/space/${rawSlug}.json`
     ];
 
     for (const cachePath of cachePaths) {
@@ -110,8 +114,13 @@ export async function getDatasetFromCache(slug, locals) {
     const normalizedSlug = normalizeForCache(slug, 'dataset');
 
     // V14: Constitutional cache path - only use cache/entities/dataset/
+    // V15.0 Fix: Robust multi-path lookup
+    const rawSlug = slug.replace(/\//g, '--').replace(/:/g, '--');
     const cachePaths = [
         `cache/entities/dataset/${normalizedSlug}.json`,
+        `cache/entities/dataset/huggingface--${rawSlug}.json`,
+        `cache/entities/dataset/${rawSlug}.json`,
+        `cache/entities/dataset/github--${rawSlug}.json`
     ];
 
     for (const cachePath of cachePaths) {
