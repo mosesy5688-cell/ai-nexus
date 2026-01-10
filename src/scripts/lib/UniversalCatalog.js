@@ -55,6 +55,7 @@ export class UniversalCatalog {
         // re-rendering on init ensures ensuring consistency. 
         // For now, we update the count and stats, but maybe not forced re-render grid unless necessary.
         this.updateStats();
+        this.setupPaginationListener(); // <--- CRITICAL FIX: Enable listener
         this.renderPagination();
 
         console.log(`[UniversalCatalog] Initialized ${this.type} catalog with ${this.items.length} items.`);
