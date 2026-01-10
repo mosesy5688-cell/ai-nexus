@@ -162,25 +162,28 @@ const canonicalUrl = 'https://free2aitools.com/models';
 </Layout>
 
 <script define:vars={{ initialModels: models }}>
+  window.initialModels = initialModels;
+</script>
+
+<script>
   import { UniversalCatalog } from '../../scripts/lib/UniversalCatalog.js';
 
-  console.log('[Models Page] Hydrating...', { count: initialModels?.length });
+  console.log('[Models Page] Hydrating...', { count: window.initialModels?.length });
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-         new UniversalCatalog({ 
-            initialData: initialModels, 
-            type: 'model',
-            gridId: 'models-grid',
-            dataUrl: 'https://cdn.free2aitools.com/entities.json'
-         });
-    });
-  } else {
-     new UniversalCatalog({ 
-        initialData: initialModels, 
-        type: 'model', 
+  const init = () => {
+      if (!window.initialModels) return;
+
+      new UniversalCatalog({ 
+        initialData: window.initialModels, 
+        type: 'model',
         gridId: 'models-grid',
         dataUrl: 'https://cdn.free2aitools.com/entities.json'
-     });
+      });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
 </script>

@@ -123,25 +123,28 @@ const categories = [
 </Layout>
 
 <script define:vars={{ initialPapers: papers }}>
+  window.initialPapers = initialPapers;
+</script>
+
+<script>
   import { UniversalCatalog } from '../../scripts/lib/UniversalCatalog.js';
 
-  console.log('[Papers Page] Hydrating...', { count: initialPapers?.length });
+  console.log('[Papers Page] Hydrating...', { count: window.initialPapers?.length });
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-         new UniversalCatalog({ 
-            initialData: initialPapers, 
-            type: 'paper',
-            gridId: 'entity-grid',
-            dataUrl: 'https://cdn.free2aitools.com/entities.json'
-         });
-    });
-  } else {
-     new UniversalCatalog({ 
-        initialData: initialPapers, 
-        type: 'paper', 
+  const init = () => {
+      if (!window.initialPapers) return;
+
+      new UniversalCatalog({ 
+        initialData: window.initialPapers, 
+        type: 'paper',
         gridId: 'entity-grid',
         dataUrl: 'https://cdn.free2aitools.com/entities.json'
-     });
+      });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
 </script>

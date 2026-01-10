@@ -126,25 +126,28 @@ const categories = [
 </Layout>
 
 <script define:vars={{ initialDatasets: datasets }}>
+  window.initialDatasets = initialDatasets;
+</script>
+
+<script>
   import { UniversalCatalog } from '../../scripts/lib/UniversalCatalog.js';
 
-  console.log('[Datasets Page] Hydrating...', { count: initialDatasets?.length });
+  console.log('[Datasets Page] Hydrating...', { count: window.initialDatasets?.length });
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-         new UniversalCatalog({ 
-            initialData: initialDatasets, 
-            type: 'dataset',
-            gridId: 'entity-grid',
-            dataUrl: 'https://cdn.free2aitools.com/entities.json'
-         });
-    });
-  } else {
-     new UniversalCatalog({ 
-        initialData: initialDatasets, 
-        type: 'dataset', 
+  const init = () => {
+      if (!window.initialDatasets) return;
+
+      new UniversalCatalog({ 
+        initialData: window.initialDatasets, 
+        type: 'dataset',
         gridId: 'entity-grid',
         dataUrl: 'https://cdn.free2aitools.com/entities.json'
-     });
+      });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
 </script>

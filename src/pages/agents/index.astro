@@ -139,25 +139,28 @@ const categories = [
 </Layout>
 
 <script define:vars={{ initialEntities: entities }}>
+  window.initialEntities = initialEntities;
+</script>
+
+<script>
   import { UniversalCatalog } from '../../scripts/lib/UniversalCatalog.js';
 
-  console.log('[Agents Page] Hydrating...', { count: initialEntities?.length });
+  console.log('[Agents Page] Hydrating...', { count: window.initialEntities?.length });
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-         new UniversalCatalog({ 
-            initialData: initialEntities, 
-            type: 'agent',
-            gridId: 'entity-grid',
-            dataUrl: 'https://cdn.free2aitools.com/entities.json'
-         });
-    });
-  } else {
-     new UniversalCatalog({ 
-        initialData: initialEntities, 
-        type: 'agent', 
+  const init = () => {
+      if (!window.initialEntities) return;
+      
+      new UniversalCatalog({ 
+        initialData: window.initialEntities, 
+        type: 'agent',
         gridId: 'entity-grid',
         dataUrl: 'https://cdn.free2aitools.com/entities.json'
-     });
+      });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
 </script>
