@@ -60,9 +60,8 @@ export class UniversalCatalog {
         this.renderPagination();
 
 
-        // Lazy Load Full Data (if not already fully loaded via SSR)
-        // If SSR gave us < 1000 items, we assume there is more in the full JSON.
-        if (this.dataUrl && !this.fullDataLoaded && this.items.length < 1000) {
+        // Lazy Load Full Data (Always fetch to ensure complete dataset)
+        if (this.dataUrl && !this.fullDataLoaded) {
             this.loadFullData();
         }
 
