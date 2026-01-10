@@ -1,0 +1,72 @@
+---
+interface Props {
+  dataset: any;
+}
+const { dataset } = Astro.props;
+---
+<section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+    <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">📋 Quick Insights</h2>
+    <dl class="space-y-4">
+        <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
+            <dt class="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+            <span>📏</span> Size
+            </dt>
+            <dd class="font-medium text-gray-900 dark:text-white">
+            {dataset.size_categories ? dataset.size_categories[0] : 'Unknown'}
+            </dd>
+        </div>
+        <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
+            <dt class="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+            <span>🗂️</span> Structure
+            </dt>
+            <dd class="font-medium text-gray-900 dark:text-white">
+            {dataset.task_categories ? dataset.task_categories[0] : 'General'}
+            </dd>
+        </div>
+        <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
+            <dt class="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+            <span>🌍</span> Language
+            </dt>
+            <dd class="font-medium text-gray-900 dark:text-white">
+            {dataset.language ? (Array.isArray(dataset.language) ? dataset.language[0] : dataset.language) : 'English'}
+            </dd>
+        </div>
+        <div class="flex justify-between items-center">
+            <dt class="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+            <span>⚖️</span> License
+            </dt>
+            <dd class="font-medium text-gray-900 dark:text-white">
+            {dataset.license_spdx || dataset.license || 'Unknown'}
+            </dd>
+        </div>
+    </dl>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+    <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">🏷️ Tags & Categories</h2>
+    <div class="flex flex-wrap gap-2">
+        {(dataset.tags ? JSON.parse(dataset.tags) : []).slice(0, 15).map((tag: string) => (
+        <a 
+            href={`/ranking?type=dataset&tag=${encodeURIComponent(tag)}`}
+            class="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors"
+        >
+            {tag}
+        </a>
+        ))}
+    </div>
+        {dataset.source_url && (
+        <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <a 
+            href={dataset.source_url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="flex items-center justify-center gap-2 w-full px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+            >
+            <span>View Data Source</span>
+            <span role="img">↗️</span>
+            </a>
+        </div>
+        )}
+    </div>
+</section>
