@@ -21,8 +21,26 @@ try {
   const runtime = Astro.locals.runtime;
   if (runtime?.env?.R2_ASSETS) {
     const r2 = runtime.env.R2_ASSETS;
-    // Try direct entity path first
-    const cacheFile = await r2.get(`cache/entities/tool/${displaySlug}.json`);
+    // V15.0 Fix: Robust multi-path lookup for Tools (GitHub/HF sources)
+    const normalizedSlug = displaySlug.replace(/\//g, '--').toLowerCase();
+    const cachePaths = [
+        `cache/entities/tool/${normalizedSlug}.json`,
+        `cache/entities/tool/github--${normalizedSlug}.json`, 
+        `cache/entities/tool/huggingface--${normalizedSlug}.json`,
+        `cache/entities/tool/${displaySlug}.json` // Fallback for simple slugs
+    ];
+
+    let cacheFile = null;
+    let hitPath = '';
+
+    for (const path of cachePaths) {
+        cacheFile = await r2.get(path);
+        if (cacheFile) {
+            hitPath = path;
+            break;
+        }
+    }
+
     if (cacheFile) {
       const data = await cacheFile.json();
       tool = data.entity || data;
