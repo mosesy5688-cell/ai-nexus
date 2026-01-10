@@ -9,6 +9,7 @@ import Layout from '../../layouts/Layout.astro';
 import DataFreshness from '../../components/common/DataFreshness.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import EntityZones from '../../components/entity/EntityZones.astro';
+import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
 
 const { slug } = Astro.params;
 const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -101,6 +102,14 @@ const authors = paper?.authors || [];
 
         <!-- Actions -->
         <div class="flex flex-wrap gap-4 mb-8">
+        
+        <!-- V15.0: Relations Panel (Fix Defect 4) -->
+        <RelationsPanel 
+             baseModel={paper.base_model}
+             datasetsUsed={paper.datasets_used}
+             arxivRefs={paper.related_papers}
+             knowledgeLinks={paper.knowledge}
+        />
           {paper.source_url && (
             <a href={paper.source_url} target="_blank" rel="noopener noreferrer"
                class="inline-flex items-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">

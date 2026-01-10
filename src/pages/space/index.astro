@@ -67,21 +67,19 @@ const categories = [
     if (!grid) return;
 
     try {
-      // V15.0: Use entity-specific R2 path
-      const res = await fetch('/api/cache/entities/space/index.json');
-      if (!res.ok) {
-        // Fallback to trending.json
-        const fallback = await fetch('/api/cache/trending.json');
-        if (!fallback.ok) throw new Error('No data');
-        const data = await fallback.json();
-        renderSpaces(data.spaces || [], grid, countEl);
-        return;
-      }
+      // V14.5 Fix: Use trending.json as SSOT for lists (Schema V14.4, Art 1.4)
+      // There is no directory index in R2.
+      const res = await fetch('/api/cache/trending.json');
+      if (!res.ok) throw new Error('Failed to load spaces list');
       
-      const spaces = await res.json();
-      renderSpaces(Array.isArray(spaces) ? spaces : spaces.data || [], grid, countEl);
+      const data = await res.json();
+      // Support both structure formats (array or object with spaces key)
+      const spaces = Array.isArray(data) ? data : (data.spaces || []);
+      
+      renderSpaces(spaces, grid, countEl);
     } catch (err) {
-      grid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">Spaces will be available after the next pipeline run.</div>';
+      console.error('Spaces load error:', err);
+      grid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">Spaces currently unavailable. Please check back later.</div>';
     }
   }
 
