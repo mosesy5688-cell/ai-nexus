@@ -14,16 +14,48 @@ export async function fetchCatalogData(type, runtimeEnv) {
     try {
         // 1. Try env.R2_ASSETS (Cloudflare Internal)
         if (runtimeEnv?.R2_ASSETS) {
+            const r2 = runtimeEnv.R2_ASSETS;
             try {
-                const r2 = runtimeEnv.R2_ASSETS;
+                // A. Try Fast Path: trending.json
                 const file = await r2.get('cache/trending.json');
                 if (file) {
                     const data = await file.json();
                     items = parseData(data, type);
-                    source = 'r2';
+                    source = 'r2-trend';
                 }
             } catch (e) {
-                console.error(`[CatalogFetcher] R2 Load Error:`, e);
+                console.warn(`[CatalogFetcher] R2 Trending Load Error:`, e);
+            }
+
+            // B. Fallback: Scan Bucket (Self-Healing)
+            if (items.length === 0) {
+                console.log(`[CatalogFetcher] Trending empty for ${type}. Scanning R2 bucket path: cache/entities/${type}/`);
+                try {
+                    const list = await r2.list({ prefix: `cache/entities/${type}/`, limit: 40 });
+
+                    // Filter for main JSONs (ignore .meta.json)
+                    const keys = list.objects
+                        .filter(o => !o.key.endsWith('.meta.json'))
+                        .map(o => o.key)
+                        .slice(0, 24); // Limit to one page
+
+                    if (keys.length > 0) {
+                        console.log(`[CatalogFetcher] Found ${keys.length} raw files. Fetching in parallel...`);
+                        const responses = await Promise.all(keys.map(key => r2.get(key)));
+                        const validResponses = responses.filter(r => r);
+
+                        // Parse JSONs
+                        const jsonPromises = validResponses.map(async (r) => {
+                            try { return await r.json(); } catch (e) { return null; }
+                        });
+
+                        const results = await Promise.all(jsonPromises);
+                        items = results.filter(r => r && r.id).map(normalizeItem);
+                        source = 'r2-direct';
+                    }
+                } catch (e) {
+                    console.error(`[CatalogFetcher] R2 Direct Scan Error:`, e);
+                }
             }
         }
 
