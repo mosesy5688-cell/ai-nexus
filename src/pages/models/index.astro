@@ -98,17 +98,22 @@ const canonicalUrl = 'https://free2aitools.com/models';
 
     <!-- Stats Bar -->
     <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
-      <span id="results-count">Loading...</span>
+      <span id="results-count" class="font-medium">Loading models...</span>
       <span>•</span>
       <span>Updated Mon/Thu at 03:00 UTC</span>
     </div>
 
     <!-- Models Grid -->
-    <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow">
+    <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow min-h-[500px]">
+       {/* 
+         Server-Side Rendering Output 
+         We render the initial state here for SEO and immediate paint.
+         The client script will then Hydrate this grid (for filtering/sorting).
+       */}
        {models.length > 0 ? (
            models.slice(0, 24).map((model: any) => (
             <a href={`/model/${model.slug || model.id}`} 
-               class="p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
+               class="model-card p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 block">
               <h3 class="font-bold text-gray-900 dark:text-white truncate">{model.name || model.id}</h3>
               <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{model.description || ''}</p>
             </a>
@@ -155,7 +160,15 @@ const canonicalUrl = 'https://free2aitools.com/models';
 </Layout>
 
 <script define:vars={{ initialModels: models }}>
+  // Inline critical hydration check
+  console.log('[Models Page] Hydrating...', { count: initialModels?.length });
+  
   import { initModelsCatalog } from '../../scripts/models-catalog.js';
-  // Initialize with SSR data
-  initModelsCatalog(initialModels);
+  
+  // Ensure DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => initModelsCatalog(initialModels));
+  } else {
+    initModelsCatalog(initialModels);
+  }
 </script>

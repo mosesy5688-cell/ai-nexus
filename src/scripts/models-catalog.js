@@ -77,8 +77,9 @@ export async function initModelsCatalog(initialData = []) {
     const start = (currentPage - 1) * pageSize;
     const pageModels = filteredModels.slice(start, start + pageSize);
 
-    // Update count
+    // Update count if element exists
     if (resultsCount) {
+      // Logic handled by Astro SSR initially, client updates for filtering
       resultsCount.textContent = `${filteredModels.length.toLocaleString()} models found`;
     }
 
