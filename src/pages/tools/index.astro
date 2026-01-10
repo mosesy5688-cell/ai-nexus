@@ -132,25 +132,30 @@ const categories = [
 </Layout>
 
 <script define:vars={{ initialTools: tools }}>
+  window.initialTools = initialTools;
+</script>
+
+<script>
   import { UniversalCatalog } from '../../scripts/lib/UniversalCatalog.js';
 
-  console.log('[Tools Page] Hydrating...', { count: initialTools?.length });
+  console.log('[Tools Page] Hydrating...', { count: window.initialTools?.length });
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-         new UniversalCatalog({ 
-            initialData: initialTools, 
-            type: 'tool',
-            gridId: 'entity-grid',
-            dataUrl: 'https://cdn.free2aitools.com/entities.json'
-         });
-    });
-  } else {
-     new UniversalCatalog({ 
-        initialData: initialTools, 
-        type: 'tool', 
+  const init = () => {
+      if (!window.initialTools) return;
+
+      new UniversalCatalog({ 
+        initialData: window.initialTools, 
+        type: 'tool',
         gridId: 'entity-grid',
         dataUrl: 'https://cdn.free2aitools.com/entities.json'
-     });
+      });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
 </script>
+
+// Force Rebuild at 01/10/2026 19:59:37

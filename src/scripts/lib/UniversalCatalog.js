@@ -57,12 +57,11 @@ export class UniversalCatalog {
         }
 
         this.updateStats();
-        this.setupPaginationListener();
         this.renderPagination();
 
-        // Lazy Load Full Data (if not already fully loaded via SSR)
-        // If SSR gave us < 1000 items, we assume there is more in the full JSON.
-        if (this.dataUrl && !this.fullDataLoaded && this.items.length < 1000) {
+
+        // Lazy Load Full Data (Always fetch to ensure complete dataset)
+        if (this.dataUrl && !this.fullDataLoaded) {
             this.loadFullData();
         }
 
@@ -186,52 +185,45 @@ export class UniversalCatalog {
         }
     }
 
+    changePage(newPage) {
+        if (newPage >= 1 && newPage <= Math.ceil(this.filtered.length / this.itemsPerPage)) {
+            this.currentPage = newPage;
+            this.renderGrid();
+            this.renderPagination();
+            // Dispatch event for other components if needed, but internal logic is direct now.
+            window.dispatchEvent(new CustomEvent(`${this.type}-page-changed`, { detail: newPage }));
+        }
+    }
+
     renderPagination() {
-        if (!this.paginationContainer) return;
+        if (!this.paginationContainer) {
+            console.warn('[UniversalCatalog] Pagination container not found');
+            return;
+        }
+
+        this.paginationContainer.innerHTML = '';
 
         const totalPages = Math.ceil(this.filtered.length / this.itemsPerPage);
+        console.log(`[UniversalCatalog] Rendering Pagination: ${this.filtered.length} items / ${this.itemsPerPage} = ${totalPages} pages`);
 
         if (totalPages <= 1) {
             this.paginationContainer.innerHTML = '';
             return;
         }
 
-        let html = '';
-
-        // Prev
-        html += `
-            <button 
-                onclick="window.dispatchEvent(new CustomEvent('${this.type}-page', { detail: ${this.currentPage - 1} }))"
-                class="px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-50"
-                ${this.currentPage === 1 ? 'disabled' : ''}
-            >←</button>
+        // Generate HTML structure
+        this.paginationContainer.innerHTML = `
+            <button class="prev-btn px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-50" ${this.currentPage === 1 ? 'disabled' : ''}>←</button>
+            <span class="px-3 py-1 text-sm text-gray-600 dark:text-gray-400">Page ${this.currentPage} of ${totalPages}</span>
+            <button class="next-btn px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-50" ${this.currentPage === totalPages ? 'disabled' : ''}>→</button>
         `;
 
-        // Page Numbers (Simple logic for now: show 1..N and current)
-        // Optimization: Show simple "Page X of Y" to reduce DOM complexity for now
-        html += `<span class="px-3 py-1 text-sm text-gray-600 dark:text-gray-400">Page ${this.currentPage} of ${totalPages}</span>`;
+        // Attach Listeners Directly
+        const prevBtn = this.paginationContainer.querySelector('.prev-btn');
+        const nextBtn = this.paginationContainer.querySelector('.next-btn');
 
-        // Next
-        html += `
-            <button 
-                onclick="window.dispatchEvent(new CustomEvent('${this.type}-page', { detail: ${this.currentPage + 1} }))"
-                class="px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-50"
-                ${this.currentPage === totalPages ? 'disabled' : ''}
-            >→</button>
-        `;
-
-        this.paginationContainer.innerHTML = html;
-    }
-
-    setupPaginationListener() {
-        window.addEventListener(`${this.type}-page`, (e) => {
-            const newPage = e.detail;
-            if (newPage >= 1 && newPage <= Math.ceil(this.filtered.length / this.itemsPerPage)) {
-                this.currentPage = newPage;
-                this.renderGrid();
-                this.renderPagination();
-            }
-        });
+        if (prevBtn) prevBtn.addEventListener('click', () => this.changePage(this.currentPage - 1));
+        if (nextBtn) nextBtn.addEventListener('click', () => this.changePage(this.currentPage + 1));
     }
 
     updateStats() {

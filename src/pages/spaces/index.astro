@@ -139,25 +139,32 @@ const categories = [
 </Layout>
 
 <script define:vars={{ initialSpaces: spaces }}>
+  window.initialSpaces = initialSpaces;
+</script>
+
+<script>
   import { UniversalCatalog } from '../../scripts/lib/UniversalCatalog.js';
 
-  console.log('[Spaces Page] Hydrating...', { count: initialSpaces?.length });
+  console.log('[Spaces Page] Hydrating...', { count: window.initialSpaces?.length });
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-         new UniversalCatalog({ 
-            initialData: initialSpaces, 
-            type: 'space',
-            gridId: 'entity-grid',
-            dataUrl: 'https://cdn.free2aitools.com/entities.json'
-         });
-    });
-  } else {
-     new UniversalCatalog({ 
-        initialData: initialSpaces, 
-        type: 'space', 
+  const init = () => {
+      if (!window.initialSpaces) return;
+
+      new UniversalCatalog({ 
+        initialData: window.initialSpaces, 
+        type: 'space',
         gridId: 'entity-grid',
         dataUrl: 'https://cdn.free2aitools.com/entities.json'
-     });
+      });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
 </script>
+
+// Force Rebuild at 01/10/2026 19:59:31
+
+// Force Rebuild fetcher fix at 01/10/2026 20:46:40
