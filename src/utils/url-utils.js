@@ -149,7 +149,7 @@ export function urlSlugToLookupFormats(urlSlug, source) {
     const formats = [normalized];
 
     // Common source prefixes to try
-    const sources = source ? [source] : ['huggingface', 'github', 'arxiv', 'ollama'];
+    const sources = source ? [source] : ['huggingface', 'github', 'arxiv', 'ollama', 'replicate'];
 
     for (const src of sources) {
         formats.push(`${src}:${normalized}`);
