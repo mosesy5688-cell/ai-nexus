@@ -197,9 +197,15 @@ export class UniversalCatalog {
     }
 
     renderPagination() {
-        if (!this.paginationContainer) return;
+        if (!this.paginationContainer) {
+            console.warn('[UniversalCatalog] Pagination container not found');
+            return;
+        }
+
+        this.paginationContainer.innerHTML = '';
 
         const totalPages = Math.ceil(this.filtered.length / this.itemsPerPage);
+        console.log(`[UniversalCatalog] Rendering Pagination: ${this.filtered.length} items / ${this.itemsPerPage} = ${totalPages} pages`);
 
         if (totalPages <= 1) {
             this.paginationContainer.innerHTML = '';
