@@ -23,7 +23,6 @@ const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
 let dataset: any = null;
 let recommendedModels: any[] = [];
 let cacheVersion = '';
-
 try {
   // V14: Use constitutional cache reader function
   dataset = await getDatasetFromCache(slug, Astro.locals);

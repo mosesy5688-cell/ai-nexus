@@ -43,6 +43,13 @@ export function generateUrlSlug(entity) {
         // Remove source prefix (huggingface:, arxiv:, github:, hf:)
         let cleanId = id.replace(/^[a-z]+:/i, '');
 
+        // V15.0 FIX: Strictly strip known entity prefixes (hf-dataset/, spaces/)
+        // This prevents URLs like /dataset/hf-dataset/author/name
+        cleanId = cleanId.replace(/^hf-dataset\//i, '')
+            .replace(/^spaces\//i, '')
+            .replace(/^datasets\//i, '')
+            .replace(/^models\//i, '');
+
         // V14.4 Fix: Handle multiple colons (author:name format from trending.json)
         // Example: "hexgrad:kokoro-82m" -> "hexgrad/kokoro-82m"
         if (cleanId.includes(':') && !cleanId.includes('/')) {
