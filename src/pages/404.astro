@@ -10,9 +10,57 @@ import Layout from '../layouts/Layout.astro';
             <p class="text-gray-600 dark:text-gray-400 mb-8">
                 The page you're looking for doesn't exist or has been moved.
             </p>
-            <a href="/" class="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                Go Home
-            </a>
+            <div id="redirect-message" class="hidden mb-6 text-sm text-blue-600 dark:text-blue-400">
+                Attempting to find the correct page...
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="/" class="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Go Home
+                </a>
+                <a id="search-fallback" href="/search" class="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700">
+                    Search for it
+                </a>
+            </div>
+
+            <script>
+                // V15.0 Constitutional Fix: Art 13.5 (No Dead Ends)
+                // Client-side redirect logic for broken URLs
+                (function() {
+                    const path = window.location.pathname;
+                    const msg = document.getElementById('redirect-message');
+                    const searchBtn = document.getElementById('search-fallback');
+                    
+                    // 1. Check for old key format (owner--name -> owner/name)
+                    if (path.includes('--')) {
+                        const newPath = path.replace(/--/g, '/');
+                        if (msg) msg.classList.remove('hidden');
+                        setTimeout(() => window.location.href = newPath, 1000); // Small delay to prevent redirect loops if wrong
+                        return;
+                    }
+
+                    // 2. Check for encoded colons (huggingface: -> /)
+                    if (path.includes('%3A') || path.includes(':')) {
+                         const clean = decodeURIComponent(path).replace(/[a-z]+:/i, '');
+                         const parts = clean.split('/');
+                         // Ensure /model prefix if missing
+                         const newPath = clean.startsWith('/') ? clean : `/model/${clean}`;
+                         if (msg) msg.classList.remove('hidden');
+                         setTimeout(() => window.location.href = newPath, 1000);
+                         return;
+                    }
+
+                    // 3. Last Fail-Safe: Redirect to Search
+                    const segments = path.split('/').filter(Boolean);
+                    if (segments.length > 0) {
+                        const query = segments[segments.length - 1]; // Last part is usually the name
+                        if (searchBtn) {
+                            searchBtn.href = `/search?q=${encodeURIComponent(query)}`;
+                            searchBtn.textContent = `Search for "${query}"`;
+                        }
+                    }
+                })();
+            </script>
         </div>
     </div>
 </Layout>

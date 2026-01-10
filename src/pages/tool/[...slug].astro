@@ -9,6 +9,7 @@ import Layout from '../../layouts/Layout.astro';
 import DataFreshness from '../../components/common/DataFreshness.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import EntityZones from '../../components/entity/EntityZones.astro';
+import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
 
 const { slug } = Astro.params;
 const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -84,6 +85,14 @@ const hasTool = !!tool;
 
         <!-- V15.0: Entity Metrics Zone -->
         <EntityZones entityType="tool" entity={tool} />
+
+        <!-- V15.0: Relations Panel (Fix Defect 4) -->
+        <RelationsPanel 
+             datasetsUsed={tool.datasets_used}
+             arxivRefs={tool.arxiv_refs}
+             relatedSpaces={tool.related_spaces}
+             knowledgeLinks={tool.knowledge_links}
+        />
 
         <!-- Tool Info Grid -->
         <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

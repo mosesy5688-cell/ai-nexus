@@ -48,30 +48,69 @@ try {
   console.error("Data fetch error", e);
 }
 
-// Fetch selected models
+// Direct R2 Cache Fetching (V15.0 Constitutional Fix)
 const compareModels = await Promise.all(modelIds.map(async (id) => {
-    const m = await getModelFromCache(id, Astro.locals);
-    if (!m) return null;
-    return {
-        umid: m.umid || m.id,
-        name: m.name || m.id,
-        benchmark: {
-            mmlu: m.mmlu || m.benchmark_mmlu || 0,
-            hellaswag: m.hellaswag || m.benchmark_hellaswag || 0,
-            arc_challenge: m.arc_challenge || m.benchmark_arc || 0,
-            humaneval: m.humaneval || m.benchmark_humaneval || 0,
-            avg_score: m.avg_score || m.benchmark_avg || 0
-        },
-        specs: {
-            params_billions: m.params_billions,
-            context_length: m.context_length,
-            license_spdx: m.license_spdx,
-            has_gguf: m.has_gguf,
-            gguf_variants: m.gguf_variants,
-            has_ollama: m.has_ollama,
-            ollama_pulls: m.ollama_pulls
+    try {
+        let model = null;
+        
+        // 1. Try env.R2_ASSETS (Production)
+        const runtime = Astro.locals.runtime;
+        if (runtime?.env?.R2_ASSETS) {
+             const cleanId = id.replace(/--/g, '/'); // Normalize double-dash to slash
+             // Try common key patterns:
+             // 1. cache/entities/model/source--author--name.json (Standard)
+             // 2. cache/entities/model/owner--name.json (Fallback)
+             const possibleKeys = [
+                 `cache/entities/model/${cleanId.replace(/\//g, '--')}.json`,
+                 `cache/entities/model/${cleanId.split('/').slice(-2).join('--')}.json`
+             ];
+
+             for (const key of possibleKeys) {
+                 const obj = await runtime.env.R2_ASSETS.get(key);
+                 if (obj) {
+                     const data = await obj.json();
+                     model = data.entity || data;
+                     break;
+                 }
+             }
         }
-    };
+        
+        // 2. Try public API (Dev/Fallback)
+        if (!model) {
+            const cleanId = id.replace(/\//g, '--');
+            const res = await fetch(`https://free2aitools.com/api/cache/model/${cleanId}.json`);
+            if (res.ok) {
+                 const data = await res.json();
+                 model = data.entity || data;
+            }
+        }
+
+        if (!model) return null;
+
+        return {
+            umid: model.umid || model.id,
+            name: model.name || model.id,
+            benchmark: {
+                mmlu: model.mmlu || model.benchmark_mmlu || 0,
+                hellaswag: model.hellaswag || model.benchmark_hellaswag || 0,
+                arc_challenge: model.arc_challenge || model.benchmark_arc || 0,
+                humaneval: model.humaneval || model.benchmark_humaneval || 0,
+                avg_score: model.avg_score || model.benchmark_avg || 0
+            },
+            specs: {
+                params_billions: model.params_billions,
+                context_length: model.context_length,
+                license_spdx: model.license_spdx,
+                has_gguf: model.has_gguf,
+                gguf_variants: model.gguf_variants,
+                has_ollama: model.has_ollama,
+                ollama_pulls: model.ollama_pulls
+            }
+        };
+    } catch (e) {
+        console.error(`Compare fetch failed for ${id}:`, e);
+        return null;
+    }
 }));
 
 const validModels = compareModels.filter(m => m !== null);
