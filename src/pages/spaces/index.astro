@@ -1,54 +1,17 @@
 ---
 /**
- * Spaces Index Page - V14.5.6 Unified SSR (Catalog Style)
+ * Spaces Index Page - V14.5.8 Universal Architecture
  * Lists HuggingFace Spaces with filtering and sorting
- * Zero-Runtime SSR
+ * Uses Shared UniversalCatalog Logic + Centralized Fetcher
  */
 
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
+import { fetchCatalogData } from '../../utils/catalog-fetcher.js';
 
-// SSR Data Fetching (Zero-Runtime R2 Access)
-let entities: any[] = [];
-let error = null;
-
-try {
-  // 1. Try env.R2_ASSETS (SSOT: trending.json)
-  const runtime = Astro.locals.runtime;
-  if (runtime?.env?.R2_ASSETS) {
-      const r2 = runtime.env.R2_ASSETS;
-      const trendingFile = await r2.get('cache/trending.json');
-      if (trendingFile) {
-          const data = await trendingFile.json();
-          // Fix: Check data.spaces first, then data.models, then data itself if array
-          const spacesData = data.spaces || [];
-          const modelsData = data.models || (Array.isArray(data) ? data : []);
-          
-          // Combine or select
-          const allData = [...spacesData, ...modelsData];
-          
-          // Standardized Filter
-          entities = allData.filter((i:any) => i.type === 'space' || i.id?.includes('space'));
-      }
-  }
-
-  // 2. Fallback to CDN
-  if (entities.length === 0) {
-      const res = await fetch('https://cdn.free2aitools.com/cache/trending.json');
-      if (res.ok) {
-          const data = await res.json();
-          const spacesData = data.spaces || [];
-          const modelsData = data.models || (Array.isArray(data) ? data : []);
-          const allData = [...spacesData, ...modelsData];
-          
-          entities = allData.filter((i:any) => i.type === 'space' || i.id?.includes('space'));
-      }
-  }
-} catch (e) {
-  console.error("Spaces SSR Load Error:", e);
-  error = 'Failed to load spaces';
-}
+// SSR Data Fetching (Unified)
+const { items: spaces, error, source } = await fetchCatalogData('space', Astro.locals.runtime?.env);
 
 const pageTitle = 'AI Spaces Catalog - Interactive Demos';
 const pageDescription = 'Explore interactive AI demos and applications powered by HuggingFace Spaces.';
@@ -66,7 +29,7 @@ const categories = [
 <Layout title={pageTitle} description={pageDescription}>
   <link slot="head" rel="canonical" href={canonicalUrl} />
   
-  <main class="container mx-auto px-4 py-8">
+  <main class="container mx-auto px-4 py-8 min-h-screen flex flex-col">
     <!-- Page Header (Catalog Style) -->
     <div class="mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
@@ -78,7 +41,7 @@ const categories = [
     </div>
 
     <!-- Filters & Sort Bar -->
-    <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+    <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm z-10 relative">
       <!-- Search -->
       <div class="flex-1 min-w-[200px]">
         <input 
@@ -89,35 +52,63 @@ const categories = [
         />
       </div>
       
-      <!-- Category Filter -->
-      <select id="category-filter" class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
-        <option value="">All SDKs</option>
-        {categories.map(cat => <option value={cat.id}>{cat.icon} {cat.label}</option>)}
-      </select>
+      <!-- Category Filter (Not standard universal yet, but good to keep specific) -->
+      <!-- <select id="category-filter" class="..."> ... </select> -->
+      <!-- For V1 Phase 15.8, we can stick to standard sort or keep category if UniversalCatalog supports it. 
+           The UniversalCatalog class currently only supports text search and standard sorts. 
+           For this first pass, we will prioritize text search and "SDK" tags in the UI. 
+      -->
       
       <!-- Sort -->
       <select id="sort-by" class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
-        <option value="recent">🕐 Recently Updated</option>
+        <option value="fni">🛡️ FNI Score</option>
         <option value="likes">❤️ Likes</option>
+        <option value="recent">🕐 Recently Updated</option>
+         <option value="name">Aa Name</option>
       </select>
     </div>
 
     <!-- Stats Bar -->
     <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
-      <span id="results-count">Loading...</span>
+       <span id="results-count" class="font-medium">
+         {spaces.length > 0 ? `${spaces.length} spaces loaded from ${source.toUpperCase()}` : 'Loading spaces...'}
+      </span>
+      <span>•</span>
+      <span>Updated Mon/Thu</span>
     </div>
 
+    <!-- Debug Block -->
+    {spaces.length === 0 && (
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg mb-6 text-sm text-red-600 dark:text-red-400">
+            <strong>System Status:</strong> Failed to pre-load spaces. 
+            <br/>Source: {source}
+            <br/>Error: {error || 'Unknown Data Fetch Failure'}
+        </div>
+    )}
+
     <!-- Grid -->
-    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-       {entities.length > 0 ? (
-           entities.slice(0, 24).map((item: any) => (
-            <a href={`/space/${item.id?.replace('/','--') || item.slug}`} 
-               class="p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
+    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow min-h-[500px]">
+       {spaces.length > 0 ? (
+           spaces.slice(0, 24).map((item: any) => (
+            <a href={`/space/${item.slug || item.id}`} 
+               class="entity-card p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 block">
               <div class="flex items-center justify-between mb-2">
-                 <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">{item.sdk || 'Space'}</span>
+                 <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 capitalize">{item.sdk || 'Space'}</span>
+                 {item.fni_score > 0 && (
+                    <span class="text-xs font-bold text-gray-500 dark:text-gray-400">
+                       🛡️ {Math.round(item.fni_score)}
+                    </span>
+                  )}
               </div>
-              <h3 class="font-bold text-gray-900 dark:text-white truncate">{item.title || item.name || item.id}</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{item.description || ''}</p>
+              <h3 class="font-bold text-gray-900 dark:text-white truncate">{item.name || item.id}</h3>
+              {/* Sanitized SSR Description */}
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                {item.description ? item.description.replace(/<[^>]*>?/gm, '') : ''}
+              </p>
+               <div class="flex items-center gap-3 mt-3 text-xs text-gray-400">
+                    {item.downloads ? <span>📥 {item.downloads}</span> : null}
+                    {item.likes ? <span>❤️ {item.likes}</span> : null}
+                </div>
             </a>
            ))
        ) : (
@@ -132,95 +123,30 @@ const categories = [
     </div>
 
     <!-- Pagination -->
-    <div class="flex justify-center mt-8">
+    <div class="flex justify-center mt-8 mb-12">
       <nav id="pagination" class="flex items-center gap-2"></nav>
     </div>
   </main>
 </Layout>
 
-<script define:vars={{ initialEntities: entities }}>
-  // Inline Client Logic (Self-Contained for Robustness)
-  const allEntities = initialEntities || [];
-  let currentEntities = [...allEntities];
-  const pageSize = 24;
-  let currentPage = 1;
+<script define:vars={{ initialSpaces: spaces }}>
+  import { UniversalCatalog } from '../../scripts/lib/UniversalCatalog.js';
 
-  document.addEventListener('DOMContentLoaded', () => {
-     const searchInput = document.getElementById('entity-search');
-     const categoryFilter = document.getElementById('category-filter');
-     const sortBy = document.getElementById('sort-by');
-     const grid = document.getElementById('entity-grid');
-     const countSpan = document.getElementById('results-count');
-     const pagination = document.getElementById('pagination');
+  console.log('[Spaces Page] Hydrating...', { count: initialSpaces?.length });
 
-     function render() {
-        if (!grid) return;
-        const start = (currentPage - 1) * pageSize;
-        const pageItems = currentEntities.slice(start, start + pageSize);
-        
-        if (pageItems.length === 0) {
-             grid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">No spaces found.</div>';
-             if(countSpan) countSpan.textContent = '0 spaces';
-             if(pagination) pagination.innerHTML = '';
-             return;
-        }
-
-        if(countSpan) countSpan.textContent = `${currentEntities.length} spaces available`;
-
-        grid.innerHTML = pageItems.map(item => `
-            <a href="/space/${item.id?.replace('/','--') || item.slug}" 
-               class="p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
-               <div class="flex items-center justify-between mb-2">
-                 <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">${item.sdk || 'Space'}</span>
-              </div>
-              <h3 class="font-bold text-gray-900 dark:text-white truncate">${item.title || item.name || item.id}</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">${item.description || ''}</p>
-            </a>
-        `).join('');
-
-        // Pagination Simplified
-        const totalPages = Math.ceil(currentEntities.length / pageSize);
-        if (totalPages > 1) {
-            pagination.innerHTML = `
-                <button class="px-3 py-1 rounded border" ${currentPage===1?'disabled':''} onclick="window.changePage(${currentPage-1})">Prev</button>
-                <span class="px-2">Page ${currentPage} of ${totalPages}</span>
-                <button class="px-3 py-1 rounded border" ${currentPage===totalPages?'disabled':''} onclick="window.changePage(${currentPage+1})">Next</button>
-            `;
-        } else {
-            pagination.innerHTML = '';
-        }
-     }
-
-     window.changePage = (p) => {
-        currentPage = p;
-        render();
-        window.scrollTo(0,0);
-     };
-
-     function applyFilters() {
-        const query = searchInput?.value.toLowerCase() || '';
-        const cat = categoryFilter?.value || '';
-        const sort = sortBy?.value || 'recent';
-
-        currentEntities = allEntities.filter(e => {
-            const matchQ = !query || e.title?.toLowerCase().includes(query) || e.name?.toLowerCase().includes(query);
-            const matchC = !cat || e.sdk === cat; 
-            return matchQ && matchC;
-        });
-
-        // Sort
-        currentEntities.sort((a,b) => {
-            if (sort === 'likes') return (b.likes||0) - (a.likes||0);
-            // Default recent
-            return new Date(b.lastModified||0) - new Date(a.lastModified||0);
-        });
-
-        currentPage = 1;
-        render();
-     }
-
-     searchInput?.addEventListener('input', () => setTimeout(applyFilters, 300));
-     categoryFilter?.addEventListener('change', applyFilters);
-     sortBy?.addEventListener('change', applyFilters);
-  });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+         new UniversalCatalog({ 
+            initialData: initialSpaces, 
+            type: 'space',
+            gridId: 'entity-grid'
+         });
+    });
+  } else {
+     new UniversalCatalog({ 
+        initialData: initialSpaces, 
+        type: 'space', 
+        gridId: 'entity-grid'
+     });
+  }
 </script>

@@ -1,52 +1,17 @@
 ---
 /**
- * Tool Index Page - V14.5.6 Unified SSR (Catalog Style)
- * Lists AI tools with filtering and sorting
- * Zero-Runtime SSR
+ * Tools Index Page - V14.5.8 Universal Architecture
+ * Lists AI Tools/SDKs with filtering and sorting
+ * Uses Shared UniversalCatalog Logic + Centralized Fetcher
  */
 
-// Tools Index Page - V14.5.6 Unified SSR
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
+import { fetchCatalogData } from '../../utils/catalog-fetcher.js';
 
-// SSR Data Fetching (Zero-Runtime R2 Access)
-let entities: any[] = [];
-let error = null;
-
-try {
-  // 1. Try env.R2_ASSETS (SSOT: trending.json)
-  // 1. Try env.R2_ASSETS (SSOT: trending.json)
-  const runtime = Astro.locals.runtime;
-  if (runtime?.env?.R2_ASSETS) {
-      const r2 = runtime.env.R2_ASSETS;
-      const trendingFile = await r2.get('cache/trending.json');
-      if (trendingFile) {
-          const data = await trendingFile.json();
-          const toolsData = data.tools || [];
-          const modelsData = data.models || (Array.isArray(data) ? data : []);
-          const allData = [...toolsData, ...modelsData];
-          
-          entities = allData.filter((i:any) => i.type === 'tool' || i.id?.includes('tool'));
-      }
-  }
-
-  // 2. Fallback to CDN
-  if (entities.length === 0) {
-      const res = await fetch('https://cdn.free2aitools.com/cache/trending.json');
-      if (res.ok) {
-          const data = await res.json();
-          const toolsData = data.tools || [];
-          const modelsData = data.models || (Array.isArray(data) ? data : []);
-          const allData = [...toolsData, ...modelsData];
-          
-          entities = allData.filter((i:any) => i.type === 'tool' || i.id?.includes('tool'));
-      }
-  }
-} catch (e) {
-  console.error("Tools SSR Load Error:", e);
-  error = 'Failed to load tools';
-}
+// SSR Data Fetching (Unified)
+const { items: tools, error, source } = await fetchCatalogData('tool', Astro.locals.runtime?.env);
 
 const pageTitle = 'AI Tools Catalog - SDKs & Frameworks';
 const pageDescription = 'Discover AI development tools including SDKs, inference engines, fine-tuning frameworks, and deployment utilities.';
@@ -64,7 +29,7 @@ const categories = [
 <Layout title={pageTitle} description={pageDescription}>
   <link slot="head" rel="canonical" href={canonicalUrl} />
   
-  <main class="container mx-auto px-4 py-8">
+  <main class="container mx-auto px-4 py-8 min-h-screen flex flex-col">
     <!-- Page Header (Catalog Style) -->
     <div class="mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
@@ -76,7 +41,7 @@ const categories = [
     </div>
 
     <!-- Filters & Sort Bar -->
-    <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+    <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm z-10 relative">
       <!-- Search -->
       <div class="flex-1 min-w-[200px]">
         <input 
@@ -87,36 +52,56 @@ const categories = [
         />
       </div>
       
-      <!-- Category Filter -->
-      <select id="category-filter" class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
-        <option value="">All Categories</option>
-        {categories.map(cat => <option value={cat.id}>{cat.icon} {cat.label}</option>)}
-      </select>
-      
       <!-- Sort -->
       <select id="sort-by" class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
         <option value="fni">🛡️ FNI Score</option>
         <option value="downloads">📥 Downloads</option>
         <option value="likes">❤️ Likes</option>
+        <option value="name">Aa Name</option>
       </select>
     </div>
 
     <!-- Stats Bar -->
     <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
-      <span id="results-count">Loading...</span>
+       <span id="results-count" class="font-medium">
+         {tools.length > 0 ? `${tools.length} tools loaded from ${source.toUpperCase()}` : 'Loading tools...'}
+      </span>
+      <span>•</span>
+      <span>Updated Mon/Thu</span>
     </div>
 
+    <!-- Debug Block -->
+    {tools.length === 0 && (
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg mb-6 text-sm text-red-600 dark:text-red-400">
+            <strong>System Status:</strong> Failed to pre-load tools. 
+            <br/>Source: {source}
+            <br/>Error: {error || 'Unknown Data Fetch Failure'}
+        </div>
+    )}
+
     <!-- Grid -->
-    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-       {entities.length > 0 ? (
-           entities.slice(0, 24).map((item: any) => (
+    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow min-h-[500px]">
+       {tools.length > 0 ? (
+           tools.slice(0, 24).map((item: any) => (
             <a href={`/tool/${item.slug || item.id}`} 
-               class="p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
+               class="entity-card p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 block">
               <div class="flex items-center justify-between mb-2">
                  <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">Tool</span>
+                 {item.fni_score > 0 && (
+                    <span class="text-xs font-bold text-gray-500 dark:text-gray-400">
+                       🛡️ {Math.round(item.fni_score)}
+                    </span>
+                  )}
               </div>
               <h3 class="font-bold text-gray-900 dark:text-white truncate">{item.name || item.id}</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{item.description || ''}</p>
+              {/* Sanitized SSR Description */}
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                {item.description ? item.description.replace(/<[^>]*>?/gm, '') : ''}
+              </p>
+               <div class="flex items-center gap-3 mt-3 text-xs text-gray-400">
+                    {item.downloads ? <span>📥 {item.downloads}</span> : null}
+                    {item.likes ? <span>❤️ {item.likes}</span> : null}
+                </div>
             </a>
            ))
        ) : (
@@ -131,95 +116,30 @@ const categories = [
     </div>
 
     <!-- Pagination -->
-    <div class="flex justify-center mt-8">
+    <div class="flex justify-center mt-8 mb-12">
       <nav id="pagination" class="flex items-center gap-2"></nav>
     </div>
   </main>
 </Layout>
 
-<script define:vars={{ initialEntities: entities }}>
-  // Inline Client Logic (Self-Contained for Robustness)
-  const allEntities = initialEntities || [];
-  let currentEntities = [...allEntities];
-  const pageSize = 24;
-  let currentPage = 1;
+<script define:vars={{ initialTools: tools }}>
+  import { UniversalCatalog } from '../../scripts/lib/UniversalCatalog.js';
 
-  document.addEventListener('DOMContentLoaded', () => {
-     const searchInput = document.getElementById('entity-search');
-     const categoryFilter = document.getElementById('category-filter');
-     const sortBy = document.getElementById('sort-by');
-     const grid = document.getElementById('entity-grid');
-     const countSpan = document.getElementById('results-count');
-     const pagination = document.getElementById('pagination');
+  console.log('[Tools Page] Hydrating...', { count: initialTools?.length });
 
-     function render() {
-        if (!grid) return;
-        const start = (currentPage - 1) * pageSize;
-        const pageItems = currentEntities.slice(start, start + pageSize);
-        
-        if (pageItems.length === 0) {
-             grid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">No tools found.</div>';
-             if(countSpan) countSpan.textContent = '0 tools';
-             if(pagination) pagination.innerHTML = '';
-             return;
-        }
-
-        if(countSpan) countSpan.textContent = `${currentEntities.length} tools available`;
-
-        grid.innerHTML = pageItems.map(item => `
-            <a href="/tool/${item.slug || item.id}" 
-               class="p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
-               <div class="flex items-center justify-between mb-2">
-                 <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300">Tool</span>
-              </div>
-              <h3 class="font-bold text-gray-900 dark:text-white truncate">${item.name || item.id}</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">${item.description || ''}</p>
-            </a>
-        `).join('');
-
-        // Pagination Simplified
-        const totalPages = Math.ceil(currentEntities.length / pageSize);
-        if (totalPages > 1) {
-            pagination.innerHTML = `
-                <button class="px-3 py-1 rounded border" ${currentPage===1?'disabled':''} onclick="window.changePage(${currentPage-1})">Prev</button>
-                <span class="px-2">Page ${currentPage} of ${totalPages}</span>
-                <button class="px-3 py-1 rounded border" ${currentPage===totalPages?'disabled':''} onclick="window.changePage(${currentPage+1})">Next</button>
-            `;
-        } else {
-            pagination.innerHTML = '';
-        }
-     }
-
-     window.changePage = (p) => {
-        currentPage = p;
-        render();
-        window.scrollTo(0,0);
-     };
-
-     function applyFilters() {
-        const query = searchInput?.value.toLowerCase() || '';
-        const cat = categoryFilter?.value || '';
-        const sort = sortBy?.value || 'fni';
-
-        currentEntities = allEntities.filter(e => {
-            const matchQ = !query || e.name?.toLowerCase().includes(query) || e.description?.toLowerCase().includes(query);
-            const matchC = !cat || e.tags?.includes(cat); 
-            return matchQ && matchC;
-        });
-
-        // Sort
-        currentEntities.sort((a,b) => {
-            if (sort === 'downloads') return (b.downloads||0) - (a.downloads||0);
-            if (sort === 'likes') return (b.likes||0) - (a.likes||0);
-            return (b.fni_score||0) - (a.fni_score||0); // default fni
-        });
-
-        currentPage = 1;
-        render();
-     }
-
-     searchInput?.addEventListener('input', () => setTimeout(applyFilters, 300));
-     categoryFilter?.addEventListener('change', applyFilters);
-     sortBy?.addEventListener('change', applyFilters);
-  });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+         new UniversalCatalog({ 
+            initialData: initialTools, 
+            type: 'tool',
+            gridId: 'entity-grid'
+         });
+    });
+  } else {
+     new UniversalCatalog({ 
+        initialData: initialTools, 
+        type: 'tool', 
+        gridId: 'entity-grid'
+     });
+  }
 </script>
