@@ -16,6 +16,7 @@ const ENTITY_URL_PREFIXES = {
     paper: '/paper/',
     agent: '/agent/',
     benchmark: '/benchmark/',
+    tool: '/tool/',
 };
 
 /**
@@ -121,7 +122,7 @@ export function generateEntityUrl(entity, type) {
 export function parseEntityUrl(pathname) {
     if (!pathname) return { type: 'model', slug: '' };
 
-    const match = pathname.match(/^\/(model|dataset|paper|agent|benchmark)\/(.+)$/);
+    const match = pathname.match(/^\/(model|dataset|paper|agent|benchmark|tool)\/(.+)$/);
     if (match) {
         return { type: match[1], slug: match[2] };
     }
