@@ -8,39 +8,10 @@
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
+import { fetchCatalogData } from '../../utils/catalog-fetcher.js';
 
-// SSR Data Fetching (Zero-Runtime R2 Access)
-let models: any[] = [];
-let error = null;
-
-try {
-  // 1. Try env.R2_ASSETS (SSOT: trending.json)
-  const runtime = Astro.locals.runtime;
-  if (runtime?.env?.R2_ASSETS) {
-      const r2 = runtime.env.R2_ASSETS;
-      const trendingFile = await r2.get('cache/trending.json');
-      if (trendingFile) {
-          const data = await trendingFile.json();
-          // Extract models from SSOT
-          const allData = Array.isArray(data) ? data : (data.models || []);
-          // Standardized Filter (Spec Art 7)
-          models = allData.filter((i:any) => i.type === 'model' || (i.id && !i.type && !i.id.startsWith('space/')));
-      }
-  }
-
-  // 2. Fallback to CDN
-  if (models.length === 0) {
-      const res = await fetch('https://cdn.free2aitools.com/cache/trending.json');
-      if (res.ok) {
-          const data = await res.json();
-          const allData = Array.isArray(data) ? data : (data.models || []);
-          models = allData.filter((i:any) => i.id && !i.id.startsWith('space/'));
-      }
-  }
-} catch (e) {
-  console.error("Models SSR Load Error:", e);
-  error = 'Failed to load models';
-}
+// SSR Data Fetching (Unified)
+const { items: models, error, source } = await fetchCatalogData('model', Astro.locals.runtime?.env);
 
 // SEO (Preserve original catalog metadata)
 const pageTitle = "AI Models Catalog | Browse 70K+ Open-Source Models";
@@ -98,10 +69,22 @@ const canonicalUrl = 'https://free2aitools.com/models';
 
     <!-- Stats Bar -->
     <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
-      <span id="results-count" class="font-medium">Loading models...</span>
+      <span id="results-count" class="font-medium">
+         {models.length > 0 ? `${models.length} models loaded from ${source.toUpperCase()}` : 'Loading models...'}
+      </span>
       <span>•</span>
       <span>Updated Mon/Thu at 03:00 UTC</span>
     </div>
+
+    <!-- Debug Block (Only visible if 0 models and in dev/debug mode or just visible as fallback) -->
+    {models.length === 0 && (
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg mb-6 text-sm text-red-600 dark:text-red-400">
+            <strong>System Status:</strong> Failed to pre-load critical catalog data. 
+            <br/>Source Attempted: {source}
+            <br/>Error Detail: {error || 'Unknown Data Fetch Failure'}
+            <br/>Trying Client-Side Recovery...
+        </div>
+    )}
 
     <!-- Models Grid -->
     <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow min-h-[500px]">
@@ -114,8 +97,19 @@ const canonicalUrl = 'https://free2aitools.com/models';
            models.slice(0, 24).map((model: any) => (
             <a href={`/model/${model.slug || model.id}`} 
                class="model-card p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 block">
+              <div class="flex items-center justify-between mb-2">
+                 <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">Model</span>
+                  {model.fni_score > 0 && (
+                    <span class="text-xs font-bold text-gray-500 dark:text-gray-400">
+                       🛡️ {Math.round(model.fni_score)}
+                    </span>
+                  )}
+              </div>
               <h3 class="font-bold text-gray-900 dark:text-white truncate">{model.name || model.id}</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{model.description || ''}</p>
+              {/* Strip HTML simply for SSR preview */}
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                  {model.description ? model.description.replace(/<[^>]*>?/gm, '') : ''}
+              </p>
             </a>
            ))
        ) : (
