@@ -15,16 +15,26 @@ export async function fetchCatalogData(type, runtimeEnv) {
         // 1. Try env.R2_ASSETS (Cloudflare Internal)
         if (runtimeEnv?.R2_ASSETS) {
             const r2 = runtimeEnv.R2_ASSETS;
+            // A. Try Fast Path: entities.json (Root)
             try {
-                // A. Try Fast Path: trending.json
-                const file = await r2.get('cache/trending.json');
+                const file = await r2.get('entities.json');
                 if (file) {
                     const data = await file.json();
                     items = parseData(data, type);
-                    source = 'r2-trend';
+                    source = 'r2-entities';
                 }
             } catch (e) {
-                console.warn(`[CatalogFetcher] R2 Trending Load Error:`, e);
+                console.warn(`[CatalogFetcher] R2 entities.json Load Error:`, e);
+
+                // Fallback to legacy trending.json if entities.json fails
+                try {
+                    const trendFile = await r2.get('cache/trending.json');
+                    if (trendFile) {
+                        const data = await trendFile.json();
+                        items = parseData(data, type);
+                        source = 'r2-trend-fallback';
+                    }
+                } catch (ex) { /* ignore */ }
             }
 
             // B. Fallback: Scan Bucket (Self-Healing)
