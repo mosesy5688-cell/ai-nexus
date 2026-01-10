@@ -5,8 +5,13 @@ export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import ModelCard from '../../components/ModelCard.astro';
 import DataFreshness from '../../components/common/DataFreshness.astro';
-import EntityZones from '../../components/entity/EntityZones.astro';
-import { getDatasetFromCache } from '../../utils/entity-cache-reader-v6.js';
+import DatasetUseCases from '../../components/dataset/DatasetUseCases.astro';
+import DatasetQuickInsights from '../../components/dataset/DatasetQuickInsights.astro';
+import DatasetSchema from '../../components/dataset/DatasetSchema.astro';
+
+// ... (existing imports)
+
+
 
 // Get slug from URL
 const { slug } = Astro.params;
@@ -105,52 +110,14 @@ const hasRecommendedModels = recommendedModels.length > 0;
         <!-- V15.0: Entity Metrics Zone -->
         <EntityZones entityType="dataset" entity={dataset} />
 
-        <!-- Dataset Info Grid -->
-        <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-          <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">📋 Dataset Info</h2>
-            <dl class="space-y-3 text-sm">
-              <div class="flex justify-between">
-                <dt class="text-gray-500 dark:text-gray-400">Author</dt>
-                <dd class="font-medium text-gray-900 dark:text-white">{dataset.author || 'Unknown'}</dd>
-              </div>
-              <div class="flex justify-between">
-                <dt class="text-gray-500 dark:text-gray-400">Downloads</dt>
-                <dd class="font-medium text-gray-900 dark:text-white">{dataset.downloads?.toLocaleString() || '—'}</dd>
-              </div>
-              <div class="flex justify-between">
-                <dt class="text-gray-500 dark:text-gray-400">License</dt>
-                <dd class="font-medium text-gray-900 dark:text-white">{dataset.license_spdx || 'Unknown'}</dd>
-              </div>
-              {dataset.source_url && (
-                <div class="mt-4">
-                  <a 
-                    href={dataset.source_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    class="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
-                  >
-                    View on Source →
-                  </a>
-                </div>
-              )}
-            </dl>
-          </div>
+        <!-- Zone 1.5: Use Cases -->
+        <DatasetUseCases tags={dataset.tags} />
 
-          <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">🏷️ Tags</h2>
-            <div class="flex flex-wrap gap-2">
-              {(dataset.tags ? JSON.parse(dataset.tags) : []).slice(0, 10).map((tag: string) => (
-                <a 
-                  href={`/ranking?type=dataset&tag=${encodeURIComponent(tag)}`}
-                  class="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors"
-                >
-                  {tag}
-                </a>
-              ))}
-            </div>
-          </div>
-        </section>
+        <!-- Zone 2: Quick Insights -->
+        <DatasetQuickInsights dataset={dataset} />
+
+        <!-- Zone 4: Schema -->
+        <DatasetSchema dataset={dataset} />
 
         <!-- V5.0: Recommended Models Section (Dataset → Models) -->
         <section class="mb-12">

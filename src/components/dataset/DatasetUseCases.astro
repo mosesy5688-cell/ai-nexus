@@ -1,0 +1,25 @@
+---
+interface Props {
+  tags: string | string[];
+}
+const { tags } = Astro.props;
+const tagList = Array.isArray(tags) ? tags : (typeof tags === 'string' ? JSON.parse(tags) : []);
+---
+<section class="mb-8">
+    <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">🚀 Use Cases</h2>
+    <div class="flex flex-wrap gap-3">
+            {tagList
+            .filter((t: string) => t.includes('classification') || t.includes('generation') || t.includes('nlp') || t.includes('vision'))
+            .map((tag: string) => (
+            <span class="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 rounded-full text-sm">
+                {tag.replace(/-/g, ' ')}
+            </span>
+            ))}
+            <span class="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full text-sm">
+            Model Training
+            </span>
+            <span class="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full text-sm">
+            Evaluation Benchmark
+            </span>
+    </div>
+</section>

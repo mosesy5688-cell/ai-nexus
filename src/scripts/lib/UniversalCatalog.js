@@ -107,7 +107,7 @@ export class UniversalCatalog {
                 ...item,
                 name: item.name || item.id?.split('/').pop() || 'Untitled',
                 description: item.description || '',
-                slug: item.slug || item.id
+                slug: item.slug || (item.id ? item.id.replace(/^[a-z]+:/i, '').replace(':', '/') : '')
             }));
 
             // Merge with SSR items (De-duplicate by ID)
