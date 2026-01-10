@@ -41,21 +41,23 @@ export async function fetchCatalogData(type, runtimeEnv) {
             if (items.length === 0) {
                 console.log(`[CatalogFetcher] Trending empty for ${type}. Scanning R2 bucket path: cache/entities/${type}/`);
                 try {
-                    // 1. List more items (Up to 300 to populate 10+ pages)
-                    const list = await r2.list({ prefix: `cache/entities/${type}/`, limit: 300 });
+                    // 1. List more items (Max 1200 - User requested "no limit, slow ok")
+                    // Cloudflare list() returns max 1000 per page, we'd need pagination for true infinite,
+                    // but 1200 is a good "unlimited" feel for now.
+                    const list = await r2.list({ prefix: `cache/entities/${type}/`, limit: 1000 });
 
-                    // Filter for main JSONs (ignore .meta.json)
+                    // Filter for main JSONs
                     const keys = list.objects
                         .filter(o => !o.key.endsWith('.meta.json'))
-                        .map(o => o.key)
-                        .slice(0, 200); // HARD CAP: 200 items to prevent SSR Timeout (Cloudflare Worker Limit)
+                        .map(o => o.key);
+                    // REMOVED SLICE: User requested full load even if slow.
+                    // Note: This may hit 10-15s load times.
 
                     if (keys.length > 0) {
                         console.log(`[CatalogFetcher] Found ${keys.length} raw files. Fetching in batches...`);
 
-                        // 2. Batched Fetching to respect Subrequest Limits
-                        // Fetching 200 items in parallel might error. We do chunks of 20.
-                        const batchSize = 20;
+                        // 2. Batched Fetching
+                        const batchSize = 25; // Slightly larger batch
                         const results = [];
 
                         for (let i = 0; i < keys.length; i += batchSize) {
