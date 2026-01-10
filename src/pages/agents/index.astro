@@ -2,10 +2,9 @@
 /**
  * Agent Index Page - V14.5.6 Unified SSR (Catalog Style)
  * Lists AI agents with filtering and sorting
- * Zero-Runtime SSR
+ * Zero-Runtime SSR + Robust Client Hydration
  */
 
-// Agents Index Page - V14.5.6 Unified SSR
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
@@ -15,7 +14,6 @@ let entities: any[] = [];
 let error = null;
 
 try {
-  // 1. Try env.R2_ASSETS (SSOT: trending.json)
   // 1. Try env.R2_ASSETS (SSOT: trending.json)
   const runtime = Astro.locals.runtime;
   if (runtime?.env?.R2_ASSETS) {
@@ -65,7 +63,7 @@ const categories = [
 <Layout title={pageTitle} description={pageDescription}>
   <link slot="head" rel="canonical" href={canonicalUrl} />
   
-  <main class="container mx-auto px-4 py-8">
+  <main class="container mx-auto px-4 py-8 min-h-screen flex flex-col">
     <!-- Page Header (Catalog Style) -->
     <div class="mb-8">
       <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
@@ -77,7 +75,7 @@ const categories = [
     </div>
 
     <!-- Filters & Sort Bar -->
-    <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+    <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm z-10 relative">
       <!-- Search -->
       <div class="flex-1 min-w-[200px]">
         <input 
@@ -105,20 +103,23 @@ const categories = [
 
     <!-- Stats Bar -->
     <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
-      <span id="results-count">Loading...</span>
+      <span id="results-count" class="font-medium">Loading agents...</span>
     </div>
 
     <!-- Grid -->
-    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow">
        {entities.length > 0 ? (
            entities.slice(0, 24).map((item: any) => (
             <a href={`/agent/${item.slug || item.id}`} 
-               class="p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
+               class="agent-card p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 block">
               <div class="flex items-center justify-between mb-2">
                  <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300">Agent</span>
               </div>
               <h3 class="font-bold text-gray-900 dark:text-white truncate">{item.name || item.id}</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{item.description || ''}</p>
+              {/* Ensure no raw HTML in SSR preview by simple stripping (client script does deeper clean) */}
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                {item.description ? item.description.replace(/<[^>]*>?/gm, '') : ''}
+              </p>
             </a>
            ))
        ) : (
@@ -133,97 +134,23 @@ const categories = [
     </div>
 
     <!-- Pagination -->
-    <div class="flex justify-center mt-8">
+    <div class="flex justify-center mt-8 mb-12">
       <nav id="pagination" class="flex items-center gap-2"></nav>
     </div>
   </main>
 </Layout>
 
 <script define:vars={{ initialEntities: entities }}>
-  // Inline Client Logic (Self-Contained for Robustness)
+  // Robust Hydration Logic
   const allEntities = initialEntities || [];
-  let currentEntities = [...allEntities];
-  const pageSize = 24;
-  let currentPage = 1;
+  console.log('[Agents Page] Hydrating...', { count: allEntities.length });
+  
+  import { initAgentsCatalog } from '../../scripts/agents-catalog.js';
 
-  document.addEventListener('DOMContentLoaded', () => {
-     const searchInput = document.getElementById('entity-search');
-     const categoryFilter = document.getElementById('category-filter');
-     const sortBy = document.getElementById('sort-by');
-     const grid = document.getElementById('entity-grid');
-     const countSpan = document.getElementById('results-count');
-     const pagination = document.getElementById('pagination');
-
-     function render() {
-        if (!grid) return;
-        const start = (currentPage - 1) * pageSize;
-        const pageItems = currentEntities.slice(start, start + pageSize);
-        
-        if (pageItems.length === 0) {
-             grid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">No agents found.</div>';
-             if(countSpan) countSpan.textContent = '0 agents';
-             if(pagination) pagination.innerHTML = '';
-             return;
-        }
-
-        if(countSpan) countSpan.textContent = `${currentEntities.length} agents available`;
-
-        grid.innerHTML = pageItems.map(item => `
-            <a href="/agent/${item.slug || item.id}" 
-               class="p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
-               <div class="flex items-center justify-between mb-2">
-                 <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300">Agent</span>
-              </div>
-              <h3 class="font-bold text-gray-900 dark:text-white truncate">${item.name || item.id}</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">${item.description || ''}</p>
-            </a>
-        `).join('');
-
-        // Pagination Simplified
-        const totalPages = Math.ceil(currentEntities.length / pageSize);
-        if (totalPages > 1) {
-            pagination.innerHTML = `
-                <button class="px-3 py-1 rounded border" ${currentPage===1?'disabled':''} onclick="window.changePage(${currentPage-1})">Prev</button>
-                <span class="px-2">Page ${currentPage} of ${totalPages}</span>
-                <button class="px-3 py-1 rounded border" ${currentPage===totalPages?'disabled':''} onclick="window.changePage(${currentPage+1})">Next</button>
-            `;
-        } else {
-            pagination.innerHTML = '';
-        }
-     }
-
-     window.changePage = (p) => {
-        currentPage = p;
-        render();
-        window.scrollTo(0,0);
-     };
-
-     function applyFilters() {
-        const query = searchInput?.value.toLowerCase() || '';
-        const cat = categoryFilter?.value || '';
-        const sort = sortBy?.value || 'fni';
-
-        currentEntities = allEntities.filter(e => {
-            const matchQ = !query || e.name?.toLowerCase().includes(query) || e.description?.toLowerCase().includes(query);
-            // Simpler category match for now
-            const matchC = !cat || e.tags?.includes(cat); 
-            return matchQ && matchC;
-        });
-
-        // Sort
-        currentEntities.sort((a,b) => {
-            if (sort === 'downloads') return (b.downloads||0) - (a.downloads||0);
-            if (sort === 'likes') return (b.likes||0) - (a.likes||0);
-            if (sort === 'recent') return new Date(b.lastModified||0) - new Date(a.lastModified||0);
-            return (b.fni_score||0) - (a.fni_score||0); // default fni
-        });
-
-        currentPage = 1;
-        render();
-     }
-
-     searchInput?.addEventListener('input', () => setTimeout(applyFilters, 300));
-     categoryFilter?.addEventListener('change', applyFilters);
-     sortBy?.addEventListener('change', applyFilters);
-  });
+  // Wait for DOM to be ready to avoid "element not found" errors
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => initAgentsCatalog(allEntities));
+  } else {
+    initAgentsCatalog(allEntities);
+  }
 </script>
