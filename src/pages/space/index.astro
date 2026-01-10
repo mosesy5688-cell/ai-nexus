@@ -18,7 +18,33 @@ const categories = [
   { name: 'Streamlit', query: 'streamlit', icon: '📊' },
   { name: 'Chat Demos', query: 'chat', icon: '💬' },
   { name: 'Image Gen', query: 'image', icon: '🖼️' },
-];
+];// SSR Data Fetching (Zero-Runtime R2 Access)
+let spaces = [];
+let error = null;
+
+try {
+  // 1. Try env.R2_ASSETS (Production)
+  const runtime = Astro.locals.runtime;
+  if (runtime?.env?.R2_ASSETS) {
+    const obj = await runtime.env.R2_ASSETS.get('cache/trending.json');
+    if (obj) {
+      const data = await obj.json();
+      spaces = Array.isArray(data) ? data : (data.spaces || []);
+    }
+  }
+
+  // 2. Try public CDN (Fallback)
+  if (spaces.length === 0) {
+    const res = await fetch('https://cdn.free2aitools.com/cache/trending.json');
+    if (res.ok) {
+      const data = await res.json();
+      spaces = Array.isArray(data) ? data : (data.spaces || []);
+    }
+  }
+} catch (e) {
+  console.error("Spaces SSR load error:", e);
+  error = "Spaces currently unavailable.";
+}
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -51,63 +77,31 @@ const categories = [
     <section>
       <div class="flex items-center justify-between mb-6">
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Popular Spaces</h2>
-        <span id="spaces-count" class="text-sm text-gray-500"></span>
+        <span class="text-sm text-gray-500">{spaces.length} spaces</span>
       </div>
-      <div id="spaces-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div class="col-span-full text-center py-12 text-gray-500">Loading spaces...</div>
-      </div>
+      
+      {error ? (
+        <div class="text-center py-12 text-gray-500">{error}</div>
+      ) : spaces.length === 0 ? (
+         <div class="text-center py-12 text-gray-500">No spaces found.</div>
+      ) : (
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {spaces.slice(0, 24).map((s) => (
+            <a href={`/space/${s.slug || s.id?.replace(/\//g, '--')}`} 
+               class="block bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
+              <div class="flex items-center gap-2 mb-3">
+                <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">{s.sdk || 'Demo'}</span>
+                <span class="text-sm text-gray-500">{s.author}</span>
+              </div>
+              <h3 class="font-bold text-gray-900 dark:text-white mb-2">{s.title || s.name}</h3>
+              <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{s.description?.substring(0, 100) || 'Interactive AI demo'}</p>
+              <div class="mt-3 flex items-center gap-3 text-xs text-gray-500">
+                <span>❤️ {s.likes || 0}</span>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
     </section>
   </main>
 </Layout>
-
-<script>
-  async function loadSpaces() {
-    const grid = document.getElementById('spaces-grid');
-    const countEl = document.getElementById('spaces-count');
-    if (!grid) return;
-
-    try {
-      // V14.5 Fix: Use trending.json as SSOT for lists (Schema V14.4, Art 1.4)
-      // Direct CDN Access (No API Proxy needed)
-      const res = await fetch('https://cdn.free2aitools.com/cache/trending.json');
-      if (!res.ok) throw new Error('Failed to load spaces list');
-      
-      const data = await res.json();
-      // Support both structure formats (array or object with spaces key)
-      const spaces = Array.isArray(data) ? data : (data.spaces || []);
-      
-      renderSpaces(spaces, grid, countEl);
-    } catch (err) {
-      console.error('Spaces load error:', err);
-      grid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">Spaces currently unavailable. Please check back later.</div>';
-    }
-  }
-
-  function renderSpaces(spaces: any[], grid: HTMLElement, countEl: HTMLElement | null) {
-    if (countEl) countEl.textContent = `${spaces.length} spaces`;
-    
-    if (spaces.length === 0) {
-      grid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">No spaces found.</div>';
-      return;
-    }
-
-    grid.innerHTML = spaces.slice(0, 24).map((s: any) => `
-      <a href="/space/${s.slug || s.id?.replace(/\\//g, '--')}" 
-         class="block bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
-        <div class="flex items-center gap-2 mb-3">
-          <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">${s.sdk || 'Demo'}</span>
-          <span class="text-sm text-gray-500">${s.author}</span>
-        </div>
-        <h3 class="font-bold text-gray-900 dark:text-white mb-2">${s.title || s.name}</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">${s.description?.substring(0, 100) || 'Interactive AI demo'}</p>
-        <div class="mt-3 flex items-center gap-3 text-xs text-gray-500">
-          <span>❤️ ${s.likes || 0}</span>
-        </div>
-      </a>
-    `).join('');
-  }
-
-  document.readyState === 'loading' 
-    ? document.addEventListener('DOMContentLoaded', loadSpaces) 
-    : loadSpaces();
-</script>
