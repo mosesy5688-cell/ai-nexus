@@ -132,14 +132,16 @@ const categories = [
          new UniversalCatalog({ 
             initialData: initialPapers, 
             type: 'paper',
-            gridId: 'entity-grid'
+            gridId: 'entity-grid',
+            dataUrl: 'https://cdn.free2aitools.com/entities.json'
          });
     });
   } else {
      new UniversalCatalog({ 
         initialData: initialPapers, 
         type: 'paper', 
-        gridId: 'entity-grid'
+        gridId: 'entity-grid',
+        dataUrl: 'https://cdn.free2aitools.com/entities.json'
      });
   }
 </script>

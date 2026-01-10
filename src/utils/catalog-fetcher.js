@@ -41,23 +41,21 @@ export async function fetchCatalogData(type, runtimeEnv) {
             if (items.length === 0) {
                 console.log(`[CatalogFetcher] Trending empty for ${type}. Scanning R2 bucket path: cache/entities/${type}/`);
                 try {
-                    // 1. List more items (Max 1200 - User requested "no limit, slow ok")
-                    // Cloudflare list() returns max 1000 per page, we'd need pagination for true infinite,
-                    // but 1200 is a good "unlimited" feel for now.
-                    const list = await r2.list({ prefix: `cache/entities/${type}/`, limit: 1000 });
+                    // 1. List valid items (Safe limit for SSR)
+                    // We only need enough to render "Above the Fold". Client loads the rest.
+                    const list = await r2.list({ prefix: `cache/entities/${type}/`, limit: 50 });
 
                     // Filter for main JSONs
                     const keys = list.objects
                         .filter(o => !o.key.endsWith('.meta.json'))
-                        .map(o => o.key);
-                    // REMOVED SLICE: User requested full load even if slow.
-                    // Note: This may hit 10-15s load times.
+                        .map(o => o.key)
+                        .slice(0, 24); // RENDER LIMIT: 24 items (1 page) to ensure fast TTFB on Server.
 
                     if (keys.length > 0) {
                         console.log(`[CatalogFetcher] Found ${keys.length} raw files. Fetching in batches...`);
 
                         // 2. Batched Fetching
-                        const batchSize = 25; // Slightly larger batch
+                        const batchSize = 12; // Smaller batch for speed
                         const results = [];
 
                         for (let i = 0; i < keys.length; i += batchSize) {
@@ -138,7 +136,7 @@ function parseData(data, type) {
 }
 
 // Ensure consistent fields
-function normalizeItem(item) {
+export function normalizeItem(item) {
     return {
         ...item,
         name: item.name || item.id?.split('/').pop() || 'Untitled',

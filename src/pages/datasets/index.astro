@@ -135,14 +135,16 @@ const categories = [
          new UniversalCatalog({ 
             initialData: initialDatasets, 
             type: 'dataset',
-            gridId: 'entity-grid'
+            gridId: 'entity-grid',
+            dataUrl: 'https://cdn.free2aitools.com/entities.json'
          });
     });
   } else {
      new UniversalCatalog({ 
         initialData: initialDatasets, 
         type: 'dataset', 
-        gridId: 'entity-grid'
+        gridId: 'entity-grid',
+        dataUrl: 'https://cdn.free2aitools.com/entities.json'
      });
   }
 </script>
