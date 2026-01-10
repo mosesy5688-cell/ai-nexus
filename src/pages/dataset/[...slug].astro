@@ -105,42 +105,70 @@ const hasRecommendedModels = recommendedModels.length > 0;
         <!-- V15.0: Entity Metrics Zone -->
         <EntityZones entityType="dataset" entity={dataset} />
 
-        <!-- Dataset Info Grid -->
+        <!-- Zone 1.5: Use Cases (Derived from Tags) -->
+        <section class="mb-8">
+            <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">🚀 Use Cases</h2>
+            <div class="flex flex-wrap gap-3">
+                 {(dataset.tags ? JSON.parse(dataset.tags) : [])
+                    .filter((t: string) => t.includes('classification') || t.includes('generation') || t.includes('nlp') || t.includes('vision'))
+                    .map((tag: string) => (
+                    <span class="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 rounded-full text-sm">
+                        {tag.replace(/-/g, ' ')}
+                    </span>
+                 ))}
+                 <span class="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full text-sm">
+                    Model Training
+                 </span>
+                 <span class="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full text-sm">
+                    Evaluation Benchmark
+                 </span>
+            </div>
+        </section>
+
+        <!-- Zone 2: Quick Insights (Structure & Stats) -->
         <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
           <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">📋 Dataset Info</h2>
-            <dl class="space-y-3 text-sm">
-              <div class="flex justify-between">
-                <dt class="text-gray-500 dark:text-gray-400">Author</dt>
-                <dd class="font-medium text-gray-900 dark:text-white">{dataset.author || 'Unknown'}</dd>
-              </div>
-              <div class="flex justify-between">
-                <dt class="text-gray-500 dark:text-gray-400">Downloads</dt>
-                <dd class="font-medium text-gray-900 dark:text-white">{dataset.downloads?.toLocaleString() || '—'}</dd>
-              </div>
-              <div class="flex justify-between">
-                <dt class="text-gray-500 dark:text-gray-400">License</dt>
-                <dd class="font-medium text-gray-900 dark:text-white">{dataset.license_spdx || 'Unknown'}</dd>
-              </div>
-              {dataset.source_url && (
-                <div class="mt-4">
-                  <a 
-                    href={dataset.source_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    class="inline-block px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
-                  >
-                    View on Source →
-                  </a>
-                </div>
-              )}
+            <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">📋 Quick Insights</h2>
+            <dl class="space-y-4">
+               <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
+                 <dt class="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                    <span>📏</span> Size
+                 </dt>
+                 <dd class="font-medium text-gray-900 dark:text-white">
+                    {dataset.size_categories ? dataset.size_categories[0] : 'Unknown'}
+                 </dd>
+               </div>
+               <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
+                 <dt class="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                    <span>🗂️</span> Structure
+                 </dt>
+                 <dd class="font-medium text-gray-900 dark:text-white">
+                    {dataset.task_categories ? dataset.task_categories[0] : 'General'}
+                 </dd>
+               </div>
+               <div class="flex justify-between items-center border-b border-gray-100 dark:border-gray-700 pb-3">
+                 <dt class="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                    <span>🌍</span> Language
+                 </dt>
+                 <dd class="font-medium text-gray-900 dark:text-white">
+                    {dataset.language ? (Array.isArray(dataset.language) ? dataset.language[0] : dataset.language) : 'English'}
+                 </dd>
+               </div>
+               <div class="flex justify-between items-center">
+                 <dt class="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                    <span>⚖️</span> License
+                 </dt>
+                 <dd class="font-medium text-gray-900 dark:text-white">
+                    {dataset.license_spdx || dataset.license || 'Unknown'}
+                 </dd>
+               </div>
             </dl>
           </div>
 
           <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">🏷️ Tags</h2>
+            <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">🏷️ Tags & Categories</h2>
             <div class="flex flex-wrap gap-2">
-              {(dataset.tags ? JSON.parse(dataset.tags) : []).slice(0, 10).map((tag: string) => (
+              {(dataset.tags ? JSON.parse(dataset.tags) : []).slice(0, 15).map((tag: string) => (
                 <a 
                   href={`/ranking?type=dataset&tag=${encodeURIComponent(tag)}`}
                   class="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors"
@@ -149,7 +177,43 @@ const hasRecommendedModels = recommendedModels.length > 0;
                 </a>
               ))}
             </div>
+             {dataset.source_url && (
+                <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <a 
+                    href={dataset.source_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    class="flex items-center justify-center gap-2 w-full px-4 py-2 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+                  >
+                    <span>View Data Source</span>
+                    <span role="img">↗️</span>
+                  </a>
+                </div>
+              )}
           </div>
+        </section>
+
+        <!-- Zone 4: Deep Dive (Schema) -->
+        <section class="mb-12">
+             <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
+                <span>🧬</span> Data Structure
+             </h2>
+             <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-6 border border-gray-200 dark:border-gray-700 font-mono text-sm overflow-x-auto">
+                <p class="text-gray-500 mb-4">// Inferred Schema Overview</p>
+                <div class="space-y-2 text-gray-700 dark:text-gray-300">
+                    <div><span class="text-purple-600 dark:text-purple-400">feature</span>: <span class="text-green-600 dark:text-green-400">string</span></div>
+                    <div><span class="text-purple-600 dark:text-purple-400">label</span>: <span class="text-green-600 dark:text-green-400">int64</span> (Class ID)</div>
+                    <div><span class="text-purple-600 dark:text-purple-400">split</span>: <span class="text-blue-600 dark:text-blue-400">"train" | "test" | "validation"</span></div>
+                    {dataset.configs && (
+                        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
+                            <span class="text-gray-500">// Available Configs</span><br/>
+                            {JSON.parse(dataset.configs || '[]').map((c: any) => (
+                                <span class="inline-block mr-2 px-2 py-1 bg-gray-200 dark:bg-gray-800 rounded text-xs">{c.config_name || c}</span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+             </div>
         </section>
 
         <!-- V5.0: Recommended Models Section (Dataset → Models) -->

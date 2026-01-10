@@ -135,12 +135,14 @@ function parseData(data, type) {
     }).map(normalizeItem);
 }
 
+import { generateUrlSlug } from './url-utils.js';
+
 // Ensure consistent fields
 export function normalizeItem(item) {
     return {
         ...item,
         name: item.name || item.id?.split('/').pop() || 'Untitled',
         description: item.description || '',
-        slug: item.slug || item.id
+        slug: generateUrlSlug(item) || item.slug || item.id // Priority: Clean Slug
     };
 }
