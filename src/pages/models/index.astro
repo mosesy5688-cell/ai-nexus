@@ -226,99 +226,17 @@ const canonicalUrl = 'https://free2aitools.com/models';
   </main>
 </Layout>
 
+<script>
+  import { initModelsCatalog } from '../../scripts/models-catalog.js';
+
+  // Hydrate with SSR data accessible via a global or passed in specialized way if needed.
+  // Since Astro scripts are modules, we can't easily access `initialModels` from `define:vars` directly in the *imported* function unless passed.
+  // But wait, `define:vars` creates local variables in the script tag scope.
+  // We can pass them to the imported function.
+</script>
+
 <script define:vars={{ initialModels: models }}>
-  import { renderModelCard } from '../../scripts/render-model-card.js';
-
-  let allModels = initialModels || [];
-  let filteredModels = [...allModels];
-  let currentPage = 1;
-  const pageSize = 24;
-
-  async function init() {
-    const grid = document.getElementById('models-grid');
-    const searchInput = document.getElementById('model-search');
-    const sortBy = document.getElementById('sort-by');
-    const resultsCount = document.getElementById('results-count');
-    const pagination = document.getElementById('pagination');
-
-    // If SSR provided data, render immediately. Otherwise try fetch (shouldn't happen in V14.5.6)
-    if (allModels.length === 0) {
-        try {
-          const res = await fetch('https://cdn.free2aitools.com/cache/trending.json'); // Fallback URL
-          if (!res.ok) throw new Error('Failed to fetch');
-          const data = await res.json();
-          allModels = data.models || [];
-          filteredModels = [...allModels];
-        } catch (err) {
-          if (grid) grid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">Failed to load. Try refreshing.</div>';
-          return;
-        }
-    }
-
-    render();
-
-    function applyFilters() {
-      const query = searchInput?.value.toLowerCase() || '';
-      const sort = sortBy?.value || 'fni';
-
-      filteredModels = allModels.filter(m => 
-        !query || m.name?.toLowerCase().includes(query) || m.author?.toLowerCase().includes(query)
-      );
-
-      filteredModels.sort((a, b) => {
-        switch (sort) {
-          case 'fni': return (b.fni_score || 0) - (a.fni_score || 0);
-          case 'downloads': return (b.downloads || 0) - (a.downloads || 0);
-          case 'likes': return (b.likes || 0) - (a.likes || 0);
-          case 'recent': return new Date(b.lastModified || 0) - new Date(a.lastModified || 0);
-          default: return 0;
-        }
-      });
-
-      currentPage = 1;
-      render();
-    }
-
-    function render() {
-      const start = (currentPage - 1) * pageSize;
-      const pageModels = filteredModels.slice(start, start + pageSize);
-
-      if (resultsCount) {
-        resultsCount.textContent = `${filteredModels.length.toLocaleString()} models`;
-      }
-
-      if (grid) {
-        if (pageModels.length === 0) {
-          grid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">No models found.</div>';
-        } else {
-          grid.innerHTML = pageModels.map(m => renderModelCard(m)).join('');
-        }
-      }
-
-      // Pagination
-      const totalPages = Math.ceil(filteredModels.length / pageSize);
-      if (pagination && totalPages > 1) {
-        pagination.innerHTML = Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1)
-          .map(p => `<button data-page="${p}" class="px-3 py-1 rounded ${p === currentPage ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}">${p}</button>`)
-          .join('');
-        
-        pagination.querySelectorAll('button').forEach(btn => {
-          btn.addEventListener('click', () => {
-            currentPage = parseInt(btn.dataset.page);
-            render();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          });
-        });
-      }
-    }
-
-    searchInput?.addEventListener('input', applyFilters);
-    sortBy?.addEventListener('change', applyFilters);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+  import { initModelsCatalog } from '../../scripts/models-catalog.js';
+  // Initialize with SSR data
+  initModelsCatalog(initialModels);
 </script>

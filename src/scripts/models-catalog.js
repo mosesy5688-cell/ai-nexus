@@ -5,7 +5,7 @@
  * Fetches from trending.json and applies filters/sorting
  */
 
-export async function initModelsCatalog() {
+export async function initModelsCatalog(initialData = []) {
   const grid = document.getElementById('models-grid');
   const searchInput = document.getElementById('models-search');
   const categoryFilter = document.getElementById('category-filter');
@@ -13,15 +13,17 @@ export async function initModelsCatalog() {
   const resultsCount = document.getElementById('results-count');
   const pagination = document.getElementById('pagination');
 
-  let allModels = [];
-  let filteredModels = [];
+  let allModels = initialData;
+  let filteredModels = [...allModels];
   let currentPage = 1;
   const pageSize = 24;
 
-  // Fetch models from cache
+  // Fetch models from cache if no SSR data
   async function fetchModels() {
+    if (allModels.length > 0) return; // Skip if already hydrated
+
     try {
-      const res = await fetch('/api/cache/trending.json');
+      const res = await fetch('https://cdn.free2aitools.com/cache/trending.json');
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       allModels = data.models || [];
@@ -29,12 +31,14 @@ export async function initModelsCatalog() {
       render();
     } catch (err) {
       console.error('Failed to load models:', err);
-      grid.innerHTML = `
-        <div class="col-span-full text-center py-12">
-          <p class="text-gray-500 dark:text-gray-400">Failed to load models. Please try again.</p>
-          <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg">Retry</button>
-        </div>
-      `;
+      if (grid) {
+        grid.innerHTML = `
+            <div class="col-span-full text-center py-12">
+              <p class="text-gray-500 dark:text-gray-400">Failed to load models. Please try again.</p>
+              <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg">Retry</button>
+            </div>
+          `;
+      }
     }
   }
 
