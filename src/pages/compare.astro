@@ -75,10 +75,10 @@ const compareModels = await Promise.all(modelIds.map(async (id) => {
              }
         }
         
-        // 2. Try public API (Dev/Fallback)
+        // 2. Try public CDN (Direct Access - Zero Runtime)
         if (!model) {
             const cleanId = id.replace(/\//g, '--');
-            const res = await fetch(`https://free2aitools.com/api/cache/model/${cleanId}.json`);
+            const res = await fetch(`https://cdn.free2aitools.com/cache/entities/model/${cleanId}.json`);
             if (res.ok) {
                  const data = await res.json();
                  model = data.entity || data;
