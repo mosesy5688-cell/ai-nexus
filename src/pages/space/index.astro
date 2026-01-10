@@ -68,8 +68,8 @@ const categories = [
 
     try {
       // V14.5 Fix: Use trending.json as SSOT for lists (Schema V14.4, Art 1.4)
-      // There is no directory index in R2.
-      const res = await fetch('/api/cache/trending.json');
+      // Direct CDN Access (No API Proxy needed)
+      const res = await fetch('https://cdn.free2aitools.com/cache/trending.json');
       if (!res.ok) throw new Error('Failed to load spaces list');
       
       const data = await res.json();
