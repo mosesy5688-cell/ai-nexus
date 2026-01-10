@@ -127,10 +127,10 @@ function parseData(data, type) {
         // Strict Type Check
         if (type === 'model') return item.type === 'model' || (item.id && !item.type && !item.id.startsWith('space/'));
         if (type === 'agent') return item.type === 'agent' || (item.id && item.id.includes('agent'));
-        if (type === 'space') return item.type === 'space';
+        if (type === 'space') return item.type === 'space' || (item.id && item.id.startsWith('space/'));
         if (type === 'tool') return item.type === 'tool';
-        if (type === 'dataset') return item.type === 'dataset';
-        if (type === 'paper') return item.type === 'paper';
+        if (type === 'dataset') return item.type === 'dataset' || (item.id && item.id.startsWith('dataset/'));
+        if (type === 'paper') return item.type === 'paper' || (item.id && (item.id.includes('arxiv') || item.id.startsWith('paper')));
         return false;
     }).map(normalizeItem);
 }
