@@ -24,7 +24,6 @@ let dataset: any = null;
 let recommendedModels: any[] = [];
 let cacheVersion = '';
 
-try {
   // V14: Use constitutional cache reader function
   dataset = await getDatasetFromCache(slug, Astro.locals);
   if (dataset) {
