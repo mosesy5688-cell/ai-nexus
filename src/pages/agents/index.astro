@@ -1,120 +1,224 @@
 ---
 /**
- * Agent Index Page - V10.5
- * Lists AI agents when no specific agent is requested
+ * Agent Index Page - V14.5.6 Unified SSR (Catalog Style)
+ * Lists AI agents with filtering and sorting
+ * Zero-Runtime SSR
  */
 
+// Agents Index Page - V14.5.6 Unified SSR
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 
-const pageTitle = 'AI Agents - Autonomous AI Systems';
+// SSR Data Fetching (Zero-Runtime R2 Access)
+let entities: any[] = [];
+let error = null;
+
+try {
+  // 1. Try env.R2_ASSETS (SSOT: trending.json)
+  const runtime = Astro.locals.runtime;
+  if (runtime?.env?.R2_ASSETS) {
+      const r2 = runtime.env.R2_ASSETS;
+      const trendingFile = await r2.get('cache/trending.json');
+      if (trendingFile) {
+          const data = await trendingFile.json();
+          // Extract agents from SSOT
+          const allData = Array.isArray(data) ? data : (data.models || []);
+          // Standardized Filter (Spec Art 7)
+          entities = allData.filter((i:any) => i.type === 'agent' || i.id?.includes('agent'));
+      }
+  }
+
+  // 2. Fallback to CDN
+  if (entities.length === 0) {
+      const res = await fetch('https://cdn.free2aitools.com/cache/trending.json');
+      if (res.ok) {
+          const data = await res.json();
+          const allData = Array.isArray(data) ? data : (data.models || []);
+          entities = allData.filter((i:any) => i.type === 'agent' || i.id?.includes('agent'));
+      }
+  }
+} catch (e) {
+  console.error("Agents SSR Load Error:", e);
+  error = 'Failed to load agents';
+}
+
+const pageTitle = 'AI Agents Catalog - Autonomous AI Systems';
 const pageDescription = 'Explore autonomous AI agents like AutoGPT, BabyAGI, and more. Discover agents for coding, research, and automation.';
 const canonicalUrl = 'https://free2aitools.com/agents';
 
-// Featured agents - slug format matches R2 cache: github-agent--author--name
-const featuredAgents = [
-  { name: 'AutoGPT', slug: 'github-agent--significant-gravitas--autogpt', description: 'An autonomous GPT-4 agent for complex tasks', icon: '🤖' },
-  { name: 'BabyAGI', slug: 'github-agent--yoheinakajima--babyagi', description: 'Task-driven autonomous agent', icon: '👶' },
-  { name: 'AgentGPT', slug: 'github-agent--reworkd--agentgpt', description: 'Deploy autonomous AI agents in your browser', icon: '🌐' },
-  { name: 'SuperAGI', slug: 'github-agent--transformeroptimus--superagi', description: 'Open-source autonomous AI framework', icon: '⚡' },
+// Category mapping for Agents
+const categories = [
+  { id: 'coding-agent', label: 'Coding Agents', icon: '💻' },
+  { id: 'research-agent', label: 'Research Agents', icon: '🔬' },
+  { id: 'autonomous-task', label: 'Autonomous', icon: '🤖' },
+  { id: 'assistant', label: 'Assistants', icon: '👋' },
+  { id: 'framework', label: 'Frameworks', icon: '🏗️' },
 ];
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
   <link slot="head" rel="canonical" href={canonicalUrl} />
   
-  <main class="container mx-auto px-4 py-12">
-    <!-- Hero Section -->
-    <header class="text-center mb-12">
-      <div class="inline-flex items-center gap-2 px-4 py-2 bg-purple-100 dark:bg-purple-900/30 rounded-full mb-4">
-        <span class="text-2xl">🤖</span>
-        <span class="text-sm font-semibold text-purple-800 dark:text-purple-200">AI AGENTS</span>
-      </div>
-      <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
-        Autonomous AI Agents
+  <main class="container mx-auto px-4 py-8">
+    <!-- Page Header (Catalog Style) -->
+    <div class="mb-8">
+      <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+        AI Agents Catalog
       </h1>
-      <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-        Discover AI agents that can autonomously complete complex tasks, from coding to research.
+      <p class="text-gray-600 dark:text-gray-400">
+        Browse and discover autonomous AI agents and frameworks
       </p>
-    </header>
+    </div>
 
-    <!-- Featured Agents -->
-    <section class="mb-12">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Featured Agents</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {featuredAgents.map((agent) => (
-          <a 
-            href={`/agent/${agent.slug}`}
-            class="group p-6 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 rounded-xl hover:shadow-lg transition-all border border-purple-100 dark:border-gray-700"
-          >
-            <div class="flex items-start gap-4">
-              <span class="text-4xl">{agent.icon}</span>
-              <div>
-                <h3 class="text-xl font-bold text-gray-900 dark:text-white group-hover:text-purple-600">
-                  {agent.name}
-                </h3>
-                <p class="text-gray-600 dark:text-gray-400 mt-1">
-                  {agent.description}
-                </p>
-                <span class="inline-block mt-3 text-purple-600 dark:text-purple-400 text-sm font-semibold">
-                  Learn more →
-                </span>
+    <!-- Filters & Sort Bar -->
+    <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+      <!-- Search -->
+      <div class="flex-1 min-w-[200px]">
+        <input 
+          type="text" 
+          id="entity-search" 
+          placeholder="Search agents..." 
+          class="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+        />
+      </div>
+      
+      <!-- Category Filter -->
+      <select id="category-filter" class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+        <option value="">All Categories</option>
+        {categories.map(cat => <option value={cat.id}>{cat.icon} {cat.label}</option>)}
+      </select>
+      
+      <!-- Sort -->
+      <select id="sort-by" class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+        <option value="fni">🛡️ FNI Score</option>
+        <option value="downloads">📥 Downloads</option>
+        <option value="likes">❤️ Likes</option>
+        <option value="recent">🕐 Recently Updated</option>
+      </select>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
+      <span id="results-count">Loading...</span>
+    </div>
+
+    <!-- Grid -->
+    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+       {entities.length > 0 ? (
+           entities.slice(0, 24).map((item: any) => (
+            <a href={`/agent/${item.slug || item.id}`} 
+               class="p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
+              <div class="flex items-center justify-between mb-2">
+                 <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300">Agent</span>
               </div>
+              <h3 class="font-bold text-gray-900 dark:text-white truncate">{item.name || item.id}</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{item.description || ''}</p>
+            </a>
+           ))
+       ) : (
+          /* Skeleton Fallback */
+          Array(8).fill(0).map(() => (
+            <div class="animate-pulse bg-white dark:bg-gray-800 rounded-xl p-5 h-48">
+              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-3"></div>
+              <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full mb-2"></div>
             </div>
-          </a>
-        ))}
-      </div>
-    </section>
+          ))
+       )}
+    </div>
 
-    <!-- What are AI Agents -->
-    <section class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-8 mb-12">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">What are AI Agents?</h2>
-      <p class="text-gray-600 dark:text-gray-400 mb-4">
-        AI agents are autonomous systems that can perceive their environment, make decisions, and take actions to achieve specific goals. Unlike simple chatbots, agents can:
-      </p>
-      <ul class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <li class="flex items-start gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg">
-          <span class="text-xl">🎯</span>
-          <span class="text-gray-700 dark:text-gray-300">Break down complex tasks into subtasks</span>
-        </li>
-        <li class="flex items-start gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg">
-          <span class="text-xl">🔄</span>
-          <span class="text-gray-700 dark:text-gray-300">Learn and adapt from feedback</span>
-        </li>
-        <li class="flex items-start gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg">
-          <span class="text-xl">🛠️</span>
-          <span class="text-gray-700 dark:text-gray-300">Use external tools and APIs</span>
-        </li>
-        <li class="flex items-start gap-3 p-4 bg-white dark:bg-gray-800 rounded-lg">
-          <span class="text-xl">🧠</span>
-          <span class="text-gray-700 dark:text-gray-300">Maintain memory across sessions</span>
-        </li>
-      </ul>
-    </section>
-
-    <!-- Quick Links -->
-    <section class="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-8">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-        <span>🚀</span> Explore More
-      </h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <a href="/ranking" class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all">
-          <div class="text-3xl mb-3">📈</div>
-          <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-purple-600">Model Rankings</h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Top AI models by FNI score</p>
-        </a>
-        <a href="/knowledge" class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all">
-          <div class="text-3xl mb-3">📚</div>
-          <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-purple-600">Knowledge Base</h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Learn about AI concepts</p>
-        </a>
-        <a href="/" class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all">
-          <div class="text-3xl mb-3">🔍</div>
-          <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-purple-600">Search All</h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Find any AI resource</p>
-        </a>
-      </div>
-    </section>
+    <!-- Pagination -->
+    <div class="flex justify-center mt-8">
+      <nav id="pagination" class="flex items-center gap-2"></nav>
+    </div>
   </main>
 </Layout>
+
+<script define:vars={{ initialEntities: entities }}>
+  // Inline Client Logic (Self-Contained for Robustness)
+  const allEntities = initialEntities || [];
+  let currentEntities = [...allEntities];
+  const pageSize = 24;
+  let currentPage = 1;
+
+  document.addEventListener('DOMContentLoaded', () => {
+     const searchInput = document.getElementById('entity-search');
+     const categoryFilter = document.getElementById('category-filter');
+     const sortBy = document.getElementById('sort-by');
+     const grid = document.getElementById('entity-grid');
+     const countSpan = document.getElementById('results-count');
+     const pagination = document.getElementById('pagination');
+
+     function render() {
+        if (!grid) return;
+        const start = (currentPage - 1) * pageSize;
+        const pageItems = currentEntities.slice(start, start + pageSize);
+        
+        if (pageItems.length === 0) {
+             grid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">No agents found.</div>';
+             if(countSpan) countSpan.textContent = '0 agents';
+             if(pagination) pagination.innerHTML = '';
+             return;
+        }
+
+        if(countSpan) countSpan.textContent = `${currentEntities.length} agents available`;
+
+        grid.innerHTML = pageItems.map(item => `
+            <a href="/agent/${item.slug || item.id}" 
+               class="p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
+               <div class="flex items-center justify-between mb-2">
+                 <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300">Agent</span>
+              </div>
+              <h3 class="font-bold text-gray-900 dark:text-white truncate">${item.name || item.id}</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">${item.description || ''}</p>
+            </a>
+        `).join('');
+
+        // Pagination Simplified
+        const totalPages = Math.ceil(currentEntities.length / pageSize);
+        if (totalPages > 1) {
+            pagination.innerHTML = `
+                <button class="px-3 py-1 rounded border" ${currentPage===1?'disabled':''} onclick="window.changePage(${currentPage-1})">Prev</button>
+                <span class="px-2">Page ${currentPage} of ${totalPages}</span>
+                <button class="px-3 py-1 rounded border" ${currentPage===totalPages?'disabled':''} onclick="window.changePage(${currentPage+1})">Next</button>
+            `;
+        } else {
+            pagination.innerHTML = '';
+        }
+     }
+
+     window.changePage = (p) => {
+        currentPage = p;
+        render();
+        window.scrollTo(0,0);
+     };
+
+     function applyFilters() {
+        const query = searchInput?.value.toLowerCase() || '';
+        const cat = categoryFilter?.value || '';
+        const sort = sortBy?.value || 'fni';
+
+        currentEntities = allEntities.filter(e => {
+            const matchQ = !query || e.name?.toLowerCase().includes(query) || e.description?.toLowerCase().includes(query);
+            // Simpler category match for now
+            const matchC = !cat || e.tags?.includes(cat); 
+            return matchQ && matchC;
+        });
+
+        // Sort
+        currentEntities.sort((a,b) => {
+            if (sort === 'downloads') return (b.downloads||0) - (a.downloads||0);
+            if (sort === 'likes') return (b.likes||0) - (a.likes||0);
+            if (sort === 'recent') return new Date(b.lastModified||0) - new Date(a.lastModified||0);
+            return (b.fni_score||0) - (a.fni_score||0); // default fni
+        });
+
+        currentPage = 1;
+        render();
+     }
+
+     searchInput?.addEventListener('input', () => setTimeout(applyFilters, 300));
+     categoryFilter?.addEventListener('change', applyFilters);
+     sortBy?.addEventListener('change', applyFilters);
+  });
+</script>

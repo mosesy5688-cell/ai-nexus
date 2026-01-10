@@ -1,156 +1,227 @@
 ---
 /**
- * Paper Index Page - V10.5
- * Lists AI research papers when no specific paper is requested
+ * Papers Index Page - V14.5.6 Unified SSR (Catalog Style)
+ * Lists AI Research Papers with filtering and sorting
+ * Zero-Runtime SSR
  */
 
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 
-const pageTitle = 'AI Research Papers - arXiv & Beyond';
-const pageDescription = 'Explore the latest AI and machine learning research papers from arXiv. Stay updated with cutting-edge research.';
+// SSR Data Fetching (Zero-Runtime R2 Access)
+let entities: any[] = [];
+let error = null;
+
+try {
+  // 1. Try env.R2_ASSETS (SSOT: trending.json)
+  const runtime = Astro.locals.runtime;
+  if (runtime?.env?.R2_ASSETS) {
+      const r2 = runtime.env.R2_ASSETS;
+      const trendingFile = await r2.get('cache/trending.json');
+      if (trendingFile) {
+          const data = await trendingFile.json();
+          const allData = Array.isArray(data) ? data : (data.models || []);
+          // Standardized Filter (Spec Art 7)
+          entities = allData.filter((i:any) => i.type === 'paper' || i.id?.includes('paper'));
+      }
+  }
+
+  // 2. Fallback to CDN
+  if (entities.length === 0) {
+      const res = await fetch('https://cdn.free2aitools.com/cache/trending.json');
+      if (res.ok) {
+          const data = await res.json();
+          const allData = Array.isArray(data) ? data : (data.models || []);
+          entities = allData.filter((i:any) => i.type === 'paper' || i.id?.includes('paper'));
+      }
+  }
+} catch (e) {
+  console.error("Papers SSR Load Error:", e);
+  error = 'Failed to load papers';
+}
+
+// FALLBACK: Populate with Static Notable Papers if SSR empty
+if (entities.length === 0) {
+    entities = [
+        { id: '2302.13971', type: 'paper', title: 'LLaMA: Open Foundation Models', authors: 'Meta AI', description: 'Technical report on LLaMA 1 foundation models' },
+        { id: '2303.08774', type: 'paper', title: 'GPT-4 Technical Report', authors: 'OpenAI', description: 'Details on GPT-4 capabilities and limitations' },
+        { id: '2305.10601', type: 'paper', title: 'Tree of Thoughts', authors: 'Princeton/Google', description: 'Prompting framework for complex reasoning' }
+    ];
+}
+
+const pageTitle = 'AI Papers Catalog - Latest Research';
+const pageDescription = 'Explore the latest AI and machine learning research papers from arXiv. Read technical reports and academic publications.';
 const canonicalUrl = 'https://free2aitools.com/papers';
 
-// Research categories
+// Category mapping for Papers
 const categories = [
-  { name: 'Large Language Models', query: 'LLM', icon: '💬', color: 'from-blue-50 to-indigo-50' },
-  { name: 'Computer Vision', query: 'vision transformer', icon: '👁️', color: 'from-green-50 to-emerald-50' },
-  { name: 'Reinforcement Learning', query: 'reinforcement learning', icon: '🎮', color: 'from-purple-50 to-violet-50' },
-  { name: 'Diffusion Models', query: 'diffusion', icon: '🎨', color: 'from-orange-50 to-amber-50' },
-];
-
-// Notable papers (static examples)
-const notablePapers = [
-  { arxivId: '2302.13971', title: 'LLaMA: Open Foundation Models', authors: 'Meta AI' },
-  { arxivId: '2303.08774', title: 'GPT-4 Technical Report', authors: 'OpenAI' },
-  { arxivId: '2305.10601', title: 'Tree of Thoughts', authors: 'Princeton/Google' },
+  { id: 'llm', label: 'LLMs', icon: '💬' },
+  { id: 'vision', label: 'Computer Vision', icon: '👁️' },
+  { id: 'rl', label: 'Reinforcement Learning', icon: '🎮' },
+  { id: 'diffusion', label: 'Diffusion', icon: '🎨' },
 ];
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
   <link slot="head" rel="canonical" href={canonicalUrl} />
   
-  <main class="container mx-auto px-4 py-12">
-    <!-- Hero Section -->
-    <header class="text-center mb-12">
-      <div class="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 dark:bg-amber-900/30 rounded-full mb-4">
-        <span class="text-2xl">📄</span>
-        <span class="text-sm font-semibold text-amber-800 dark:text-amber-200">RESEARCH</span>
-      </div>
-      <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">
-        AI Research Papers
+  <main class="container mx-auto px-4 py-8">
+    <!-- Page Header (Catalog Style) -->
+    <div class="mb-8">
+      <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+        AI Papers Catalog
       </h1>
-      <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-        Explore cutting-edge AI research from arXiv and academic publications.
+      <p class="text-gray-600 dark:text-gray-400">
+        Browse and discover the latest AI research papers
       </p>
-    </header>
-
-    <!-- Search Box -->
-    <div class="max-w-2xl mx-auto mb-12">
-      <form action="/" method="get" class="relative">
-        <input 
-          type="text" 
-          name="q" 
-          placeholder="Search papers by title, author, or topic..."
-          class="w-full px-6 py-4 text-lg rounded-full border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-amber-500 focus:ring-4 focus:ring-amber-500/20 outline-none transition-all"
-        />
-        <input type="hidden" name="type" value="paper" />
-        <button 
-          type="submit"
-          class="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2 bg-amber-600 text-white font-semibold rounded-full hover:bg-amber-700 transition-colors"
-        >
-          Search
-        </button>
-      </form>
     </div>
 
-    <!-- Research Categories -->
-    <section class="mb-12">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Research Areas</h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {categories.map((cat) => (
-          <a 
-            href={`/?q=${encodeURIComponent(cat.query)}&type=paper`}
-            class={`group p-6 bg-gradient-to-br ${cat.color} dark:from-gray-800 dark:to-gray-900 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700`}
-          >
-            <div class="text-3xl mb-2">{cat.icon}</div>
-            <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-amber-600">{cat.name}</h3>
-          </a>
-        ))}
+    <!-- Filters & Sort Bar -->
+    <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm">
+      <!-- Search -->
+      <div class="flex-1 min-w-[200px]">
+        <input 
+          type="text" 
+          id="entity-search" 
+          placeholder="Search papers..." 
+          class="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+        />
       </div>
-    </section>
+      
+      <!-- Category Filter -->
+      <select id="category-filter" class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+        <option value="">All Areas</option>
+        {categories.map(cat => <option value={cat.id}>{cat.icon} {cat.label}</option>)}
+      </select>
+      
+      <!-- Sort -->
+      <select id="sort-by" class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+        <option value="recent">🕐 Recent</option>
+        <option value="cited">📚 Citations</option>
+      </select>
+    </div>
 
-    <!-- Notable Papers -->
-    <section class="mb-12">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Notable Papers</h2>
-      <div class="space-y-4">
-        {notablePapers.map((paper) => (
-          <a 
-            href={`/paper/${paper.arxivId}`}
-            class="group flex items-start gap-4 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-700"
-          >
-            <span class="text-3xl">📄</span>
-            <div class="flex-1">
-              <h3 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-amber-600">
-                {paper.title}
-              </h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {paper.authors} • arXiv:{paper.arxivId}
-              </p>
+    <!-- Stats Bar -->
+    <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
+      <span id="results-count">Loading...</span>
+    </div>
+
+    <!-- Grid -->
+    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+       {entities.length > 0 ? (
+           entities.slice(0, 24).map((item: any) => (
+            <a href={`/paper/${item.slug || item.id}`} 
+               class="p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
+              <div class="flex items-center justify-between mb-2">
+                 <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300">Paper</span>
+              </div>
+              <h3 class="font-bold text-gray-900 dark:text-white truncate">{item.title || item.name || item.id}</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">{item.authors || 'Unknown'}</p>
+              <p class="text-xs text-gray-400 mt-2 line-clamp-2">{item.description || ''}</p>
+            </a>
+           ))
+       ) : (
+          /* Skeleton Fallback */
+          Array(8).fill(0).map(() => (
+            <div class="animate-pulse bg-white dark:bg-gray-800 rounded-xl p-5 h-48">
+              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-3"></div>
+              <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full mb-2"></div>
             </div>
-            <span class="text-amber-600 dark:text-amber-400 text-sm font-semibold self-center">
-              Read →
-            </span>
-          </a>
-        ))}
-      </div>
-    </section>
+          ))
+       )}
+    </div>
 
-    <!-- How to Read arXiv -->
-    <section class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-8 mb-12">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">How to Access Papers</h2>
-      <p class="text-gray-600 dark:text-gray-400 mb-4">
-        All papers link to their original arXiv source where you can:
-      </p>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg text-center">
-          <span class="text-2xl mb-2 block">📥</span>
-          <span class="text-gray-700 dark:text-gray-300">Download PDF</span>
-        </div>
-        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg text-center">
-          <span class="text-2xl mb-2 block">📝</span>
-          <span class="text-gray-700 dark:text-gray-300">View LaTeX Source</span>
-        </div>
-        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg text-center">
-          <span class="text-2xl mb-2 block">🔗</span>
-          <span class="text-gray-700 dark:text-gray-300">Cite in BibTeX</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Quick Links -->
-    <section class="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-8">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-        <span>🚀</span> Related Resources
-      </h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <a href="/ranking" class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all">
-          <div class="text-3xl mb-3">🤖</div>
-          <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-amber-600">Model Rankings</h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Models implementing these papers</p>
-        </a>
-        <a href="/knowledge" class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all">
-          <div class="text-3xl mb-3">📚</div>
-          <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-amber-600">Knowledge Base</h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Simplified explanations</p>
-        </a>
-        <a href="/reports" class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all">
-          <div class="text-3xl mb-3">📊</div>
-          <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-amber-600">Weekly Reports</h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Research trends analysis</p>
-        </a>
-      </div>
-    </section>
+    <!-- Pagination -->
+    <div class="flex justify-center mt-8">
+      <nav id="pagination" class="flex items-center gap-2"></nav>
+    </div>
   </main>
 </Layout>
+
+<script define:vars={{ initialEntities: entities }}>
+  // Inline Client Logic (Self-Contained for Robustness)
+  const allEntities = initialEntities || [];
+  let currentEntities = [...allEntities];
+  const pageSize = 24;
+  let currentPage = 1;
+
+  document.addEventListener('DOMContentLoaded', () => {
+     const searchInput = document.getElementById('entity-search');
+     const categoryFilter = document.getElementById('category-filter');
+     const sortBy = document.getElementById('sort-by');
+     const grid = document.getElementById('entity-grid');
+     const countSpan = document.getElementById('results-count');
+     const pagination = document.getElementById('pagination');
+
+     function render() {
+        if (!grid) return;
+        const start = (currentPage - 1) * pageSize;
+        const pageItems = currentEntities.slice(start, start + pageSize);
+        
+        if (pageItems.length === 0) {
+             grid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500">No papers found.</div>';
+             if(countSpan) countSpan.textContent = '0 papers';
+             if(pagination) pagination.innerHTML = '';
+             return;
+        }
+
+        if(countSpan) countSpan.textContent = `${currentEntities.length} papers available`;
+
+        grid.innerHTML = pageItems.map(item => `
+            <a href="/paper/${item.slug || item.id}" 
+               class="p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700">
+               <div class="flex items-center justify-between mb-2">
+                 <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300">Paper</span>
+              </div>
+              <h3 class="font-bold text-gray-900 dark:text-white truncate">${item.title || item.name || item.id}</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">${item.authors || 'Unknown'}</p>
+              <p class="text-xs text-gray-400 mt-2 line-clamp-2">${item.description || ''}</p>
+            </a>
+        `).join('');
+
+        // Pagination Simplified
+        const totalPages = Math.ceil(currentEntities.length / pageSize);
+        if (totalPages > 1) {
+            pagination.innerHTML = `
+                <button class="px-3 py-1 rounded border" ${currentPage===1?'disabled':''} onclick="window.changePage(${currentPage-1})">Prev</button>
+                <span class="px-2">Page ${currentPage} of ${totalPages}</span>
+                <button class="px-3 py-1 rounded border" ${currentPage===totalPages?'disabled':''} onclick="window.changePage(${currentPage+1})">Next</button>
+            `;
+        } else {
+            pagination.innerHTML = '';
+        }
+     }
+
+     window.changePage = (p) => {
+        currentPage = p;
+        render();
+        window.scrollTo(0,0);
+     };
+
+     function applyFilters() {
+        const query = searchInput?.value.toLowerCase() || '';
+        const cat = categoryFilter?.value || '';
+        const sort = sortBy?.value || 'recent';
+
+        currentEntities = allEntities.filter(e => {
+            const matchQ = !query || e.title?.toLowerCase().includes(query) || e.description?.toLowerCase().includes(query) || e.authors?.toLowerCase().includes(query);
+            const matchC = !cat || e.tags?.includes(cat); 
+            return matchQ && matchC;
+        });
+
+        // Sort
+        currentEntities.sort((a,b) => {
+            // Default recent
+            return new Date(b.lastModified||0) - new Date(a.lastModified||0);
+        });
+
+        currentPage = 1;
+        render();
+     }
+
+     searchInput?.addEventListener('input', () => setTimeout(applyFilters, 300));
+     categoryFilter?.addEventListener('change', applyFilters);
+     sortBy?.addEventListener('change', applyFilters);
+  });
+</script>
