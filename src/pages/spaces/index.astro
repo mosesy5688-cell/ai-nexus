@@ -21,8 +21,14 @@ try {
       const trendingFile = await r2.get('cache/trending.json');
       if (trendingFile) {
           const data = await trendingFile.json();
-          const allData = Array.isArray(data) ? data : (data.models || []);
-          // Standardized Filter (Spec Art 7)
+          // Fix: Check data.spaces first, then data.models, then data itself if array
+          const spacesData = data.spaces || [];
+          const modelsData = data.models || (Array.isArray(data) ? data : []);
+          
+          // Combine or select
+          const allData = [...spacesData, ...modelsData];
+          
+          // Standardized Filter
           entities = allData.filter((i:any) => i.type === 'space' || i.id?.includes('space'));
       }
   }
@@ -32,7 +38,10 @@ try {
       const res = await fetch('https://cdn.free2aitools.com/cache/trending.json');
       if (res.ok) {
           const data = await res.json();
-          const allData = Array.isArray(data) ? data : (data.models || []);
+          const spacesData = data.spaces || [];
+          const modelsData = data.models || (Array.isArray(data) ? data : []);
+          const allData = [...spacesData, ...modelsData];
+          
           entities = allData.filter((i:any) => i.type === 'space' || i.id?.includes('space'));
       }
   }

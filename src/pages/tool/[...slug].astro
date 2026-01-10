@@ -142,12 +142,28 @@ const hasTool = !!tool;
       </article>
     ) : (
       <div class="text-center py-20">
-        <div class="text-6xl mb-4">🔧</div>
-        <h1 class="text-3xl font-bold text-gray-700 dark:text-gray-300 mb-4">Tool Not Found</h1>
-        <p class="text-gray-500 dark:text-gray-400 mb-8">This tool may not be available yet.</p>
-        <a href="/tool" class="px-6 py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors">
-          Browse All Tools
-        </a>
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full mb-6">
+          <span class="text-3xl">⏳</span>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+          Tool: {displaySlug}
+        </h1>
+        <p class="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-lg mx-auto">
+          This tool is currently being indexed or the details are not yet available in our cache.
+        </p>
+        
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <button class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium">
+                Request Indexing Priority
+            </button>
+            <a href="/tools" class="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium">
+                ← Return to Catalog
+            </a>
+        </div>
+        
+        <p class="mt-8 text-xs text-gray-400">
+            ID: {displaySlug} • Status: Pending Ingestion
+        </p>
       </div>
     )}
   </main>
