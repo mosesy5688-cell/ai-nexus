@@ -78,11 +78,20 @@ const categories = [
     </div>
 
     <!-- Debug Block -->
-    {spaces.length === 0 && (
+    {error && (
         <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg mb-6 text-sm text-red-600 dark:text-red-400">
             <strong>System Status:</strong> Failed to pre-load spaces. 
             <br/>Source: {source}
-            <br/>Error: {error || 'Unknown Data Fetch Failure'}
+            <br/>Error: {error}
+        </div>
+    )}
+
+    {!error && spaces.length === 0 && (
+        <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 p-8 rounded-xl text-center mb-6">
+            <h3 class="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">No spaces currently available</h3>
+             <p class="text-gray-500 dark:text-gray-400">
+               Our catalog is updating. Please check back later.
+            </p>
         </div>
     )}
 
