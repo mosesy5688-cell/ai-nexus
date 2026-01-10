@@ -3,6 +3,8 @@ interface Props {
   dataset: any;
 }
 const { dataset } = Astro.props;
+
+const tags = Array.isArray(dataset.tags) ? dataset.tags : (typeof dataset.tags === 'string' ? JSON.parse(dataset.tags) : []);
 ---
 <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
     <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
@@ -46,7 +48,7 @@ const { dataset } = Astro.props;
     <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
     <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">🏷️ Tags & Categories</h2>
     <div class="flex flex-wrap gap-2">
-        {(dataset.tags ? JSON.parse(dataset.tags) : []).slice(0, 15).map((tag: string) => (
+        {tags.slice(0, 15).map((tag: string) => (
         <a 
             href={`/ranking?type=dataset&tag=${encodeURIComponent(tag)}`}
             class="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors"

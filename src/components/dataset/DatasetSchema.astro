@@ -3,6 +3,8 @@ interface Props {
   dataset: any;
 }
 const { dataset } = Astro.props;
+
+const configs = Array.isArray(dataset.configs) ? dataset.configs : (typeof dataset.configs === 'string' ? JSON.parse(dataset.configs) : []);
 ---
 <section class="mb-12">
         <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
@@ -14,10 +16,10 @@ const { dataset } = Astro.props;
             <div><span class="text-purple-600 dark:text-purple-400">feature</span>: <span class="text-green-600 dark:text-green-400">string</span></div>
             <div><span class="text-purple-600 dark:text-purple-400">label</span>: <span class="text-green-600 dark:text-green-400">int64</span> (Class ID)</div>
             <div><span class="text-purple-600 dark:text-purple-400">split</span>: <span class="text-blue-600 dark:text-blue-400">"train" | "test" | "validation"</span></div>
-            {dataset.configs && (
+            {configs.length > 0 && (
                 <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
                     <span class="text-gray-500">// Available Configs</span><br/>
-                    {JSON.parse(dataset.configs || '[]').map((c: any) => (
+                    {configs.map((c: any) => (
                         <span class="inline-block mr-2 px-2 py-1 bg-gray-200 dark:bg-gray-800 rounded text-xs">{c.config_name || c}</span>
                     ))}
                 </div>
