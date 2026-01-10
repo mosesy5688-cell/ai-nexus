@@ -8,43 +8,10 @@
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
+import { fetchCatalogData } from '../../utils/catalog-fetcher.js';
 
-// SSR Data Fetching (Zero-Runtime R2 Access)
-let entities: any[] = [];
-let error = null;
-
-try {
-  // 1. Try env.R2_ASSETS (SSOT: trending.json)
-  const runtime = Astro.locals.runtime;
-  if (runtime?.env?.R2_ASSETS) {
-      const r2 = runtime.env.R2_ASSETS;
-      const trendingFile = await r2.get('cache/trending.json');
-      if (trendingFile) {
-          const data = await trendingFile.json();
-          const agentsData = data.agents || [];
-          const modelsData = data.models || (Array.isArray(data) ? data : []);
-          const allData = [...agentsData, ...modelsData];
-          
-          entities = allData.filter((i:any) => i.type === 'agent' || i.id?.includes('agent'));
-      }
-  }
-
-  // 2. Fallback to CDN
-  if (entities.length === 0) {
-      const res = await fetch('https://cdn.free2aitools.com/cache/trending.json');
-      if (res.ok) {
-          const data = await res.json();
-          const agentsData = data.agents || [];
-          const modelsData = data.models || (Array.isArray(data) ? data : []);
-          const allData = [...agentsData, ...modelsData];
-           
-          entities = allData.filter((i:any) => i.type === 'agent' || i.id?.includes('agent'));
-      }
-  }
-} catch (e) {
-  console.error("Agents SSR Load Error:", e);
-  error = 'Failed to load agents';
-}
+// SSR Data Fetching (Unified with Self-Healing)
+const { items: entities, error, source } = await fetchCatalogData('agent', Astro.locals.runtime?.env);
 
 const pageTitle = 'AI Agents Catalog - Autonomous AI Systems';
 const pageDescription = 'Explore autonomous AI agents like AutoGPT, BabyAGI, and more. Discover agents for coding, research, and automation.';
@@ -103,23 +70,54 @@ const categories = [
 
     <!-- Stats Bar -->
     <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
-      <span id="results-count" class="font-medium">Loading agents...</span>
+      <span id="results-count" class="font-medium">
+         {entities.length > 0 ? `${entities.length} agents loaded from ${source.toUpperCase()}` : 'Loading agents...'}
+      </span>
+      <span>•</span>
+      <span>Updated Mon/Thu</span>
     </div>
 
+    <!-- Debug Block -->
+    {error && (
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-4 rounded-lg mb-6 text-sm text-red-600 dark:text-red-400">
+            <strong>System Status:</strong> Failed to pre-load agents. 
+            <br/>Source: {source}
+            <br/>Error: {error}
+        </div>
+    )}
+
+    {!error && entities.length === 0 && (
+        <div class="bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 p-8 rounded-xl text-center mb-6">
+            <h3 class="text-xl font-medium text-gray-900 dark:text-gray-100 mb-2">No agents currently available</h3>
+             <p class="text-gray-500 dark:text-gray-400">
+               Our catalog is updating. Please check back later.
+            </p>
+        </div>
+    )}
+
     <!-- Grid -->
-    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow">
+    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow min-h-[500px]">
        {entities.length > 0 ? (
            entities.slice(0, 24).map((item: any) => (
             <a href={`/agent/${item.slug || item.id}`} 
-               class="agent-card p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 block">
+               class="entity-card p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 block">
               <div class="flex items-center justify-between mb-2">
                  <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300">Agent</span>
+                 {item.fni_score > 0 && (
+                    <span class="text-xs font-bold text-gray-500 dark:text-gray-400">
+                       🛡️ {Math.round(item.fni_score)}
+                    </span>
+                  )}
               </div>
               <h3 class="font-bold text-gray-900 dark:text-white truncate">{item.name || item.id}</h3>
-              {/* Ensure no raw HTML in SSR preview by simple stripping (client script does deeper clean) */}
+              {/* Sanitized SSR Description */}
               <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
                 {item.description ? item.description.replace(/<[^>]*>?/gm, '') : ''}
               </p>
+               <div class="flex items-center gap-3 mt-3 text-xs text-gray-400">
+                    {item.downloads ? <span>📥 {item.downloads}</span> : null}
+                    {item.likes ? <span>❤️ {item.likes}</span> : null}
+                </div>
             </a>
            ))
        ) : (
@@ -141,16 +139,23 @@ const categories = [
 </Layout>
 
 <script define:vars={{ initialEntities: entities }}>
-  // Robust Hydration Logic
-  const allEntities = initialEntities || [];
-  console.log('[Agents Page] Hydrating...', { count: allEntities.length });
-  
-  import { initAgentsCatalog } from '../../scripts/agents-catalog.js';
+  import { UniversalCatalog } from '../../scripts/lib/UniversalCatalog.js';
 
-  // Wait for DOM to be ready to avoid "element not found" errors
+  console.log('[Agents Page] Hydrating...', { count: initialEntities?.length });
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => initAgentsCatalog(allEntities));
+    document.addEventListener('DOMContentLoaded', () => {
+         new UniversalCatalog({ 
+            initialData: initialEntities, 
+            type: 'agent',
+            gridId: 'entity-grid'
+         });
+    });
   } else {
-    initAgentsCatalog(allEntities);
+     new UniversalCatalog({ 
+        initialData: initialEntities, 
+        type: 'agent', 
+        gridId: 'entity-grid'
+     });
   }
 </script>
