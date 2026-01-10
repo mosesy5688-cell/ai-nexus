@@ -31,27 +31,32 @@ export async function fetchCatalogData(type, runtimeEnv) {
             if (items.length === 0) {
                 console.log(`[CatalogFetcher] Trending empty for ${type}. Scanning R2 bucket path: cache/entities/${type}/`);
                 try {
-                    const list = await r2.list({ prefix: `cache/entities/${type}/`, limit: 40 });
+                    // 1. List more items (Up to 300 to populate 10+ pages)
+                    const list = await r2.list({ prefix: `cache/entities/${type}/`, limit: 300 });
 
                     // Filter for main JSONs (ignore .meta.json)
                     const keys = list.objects
                         .filter(o => !o.key.endsWith('.meta.json'))
                         .map(o => o.key)
-                        .slice(0, 24); // Limit to one page
+                        .slice(0, 200); // HARD CAP: 200 items to prevent SSR Timeout (Cloudflare Worker Limit)
 
                     if (keys.length > 0) {
-                        console.log(`[CatalogFetcher] Found ${keys.length} raw files. Fetching in parallel...`);
-                        const responses = await Promise.all(keys.map(key => r2.get(key)));
-                        const validResponses = responses.filter(r => r);
+                        console.log(`[CatalogFetcher] Found ${keys.length} raw files. Fetching in batches...`);
 
-                        // Parse JSONs
-                        const jsonPromises = validResponses.map(async (r) => {
-                            try { return await r.json(); } catch (e) { return null; }
-                        });
+                        // 2. Batched Fetching to respect Subrequest Limits
+                        // Fetching 200 items in parallel might error. We do chunks of 20.
+                        const batchSize = 20;
+                        const results = [];
 
-                        const results = await Promise.all(jsonPromises);
+                        for (let i = 0; i < keys.length; i += batchSize) {
+                            const chunk = keys.slice(i, i + batchSize);
+                            const chunkPromises = chunk.map(key => r2.get(key).then(r => r.json()).catch(e => null));
+                            const chunkResults = await Promise.all(chunkPromises);
+                            results.push(...chunkResults);
+                        }
+
                         items = results.filter(r => r && r.id).map(normalizeItem);
-                        source = 'r2-direct';
+                        source = `r2-direct-scan (${items.length})`;
                     }
                 } catch (e) {
                     console.error(`[CatalogFetcher] R2 Direct Scan Error:`, e);
