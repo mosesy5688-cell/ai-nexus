@@ -171,14 +171,16 @@ const canonicalUrl = 'https://free2aitools.com/models';
          new UniversalCatalog({ 
             initialData: initialModels, 
             type: 'model',
-            gridId: 'models-grid'
+            gridId: 'models-grid',
+            dataUrl: 'https://cdn.free2aitools.com/entities.json'
          });
     });
   } else {
      new UniversalCatalog({ 
         initialData: initialModels, 
         type: 'model', 
-        gridId: 'models-grid'
+        gridId: 'models-grid',
+        dataUrl: 'https://cdn.free2aitools.com/entities.json'
      });
   }
 </script>

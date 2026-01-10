@@ -13,13 +13,17 @@ export class UniversalCatalog {
         paginationId = 'pagination',
         searchId = 'entity-search',
         sortId = 'sort-by',
-        itemsPerPage = 24
+        itemsPerPage = 24,
+        dataUrl = 'https://cdn.free2aitools.com/entities.json' // Default Master JSON
     }) {
-        this.items = initialData; // Full dataset
-        this.filtered = initialData; // Current filtered set
+        this.items = initialData; // Start with SSR data
+        this.filtered = initialData;
         this.type = type;
         this.currentPage = 1;
         this.itemsPerPage = itemsPerPage;
+        this.dataUrl = dataUrl;
+        this.fullDataLoaded = false;
+        this.isLoadingMore = false;
 
         // DOM Elements
         this.grid = document.getElementById(gridId);
@@ -50,15 +54,79 @@ export class UniversalCatalog {
             });
         }
 
-        // Initial Render (if SSR didn't render perfectly or just to attach state)
-        // Actually, we usually want to respect SSR content, but if we have robust hydration, 
-        // re-rendering on init ensures ensuring consistency. 
-        // For now, we update the count and stats, but maybe not forced re-render grid unless necessary.
         this.updateStats();
-        this.setupPaginationListener(); // <--- CRITICAL FIX: Enable listener
+        this.setupPaginationListener();
         this.renderPagination();
 
-        console.log(`[UniversalCatalog] Initialized ${this.type} catalog with ${this.items.length} items.`);
+        // Lazy Load Full Data (if not already fully loaded via SSR)
+        // If SSR gave us < 1000 items, we assume there is more in the full JSON.
+        if (this.dataUrl && !this.fullDataLoaded && this.items.length < 1000) {
+            this.loadFullData();
+        }
+
+        console.log(`[UniversalCatalog] Initialized ${this.type} catalog with ${this.items.length} SSR items.`);
+    }
+
+    async loadFullData() {
+        console.log(`[UniversalCatalog] Lazy loading full dataset from ${this.dataUrl}...`);
+        this.isLoadingMore = true;
+        this.updateStats(); // Show loading state
+
+        try {
+            const res = await fetch(this.dataUrl);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const data = await res.json();
+
+            // Parse & Normalize (Simple logic matching server)
+            let all = [];
+            if (Array.isArray(data)) {
+                all = data;
+            } else if (data.models || data.agents) {
+                all = [
+                    ...(data.models || []),
+                    ...(data.agents || []),
+                    ...(data.spaces || []),
+                    ...(data.tools || []),
+                    ...(data.datasets || []),
+                    ...(data.papers || [])
+                ];
+            }
+
+            // Filter by Type
+            const validItems = all.filter(item => {
+                if (this.type === 'model') return item.type === 'model' || (item.id && !item.type && !item.id.startsWith('space/'));
+                if (this.type === 'agent') return item.type === 'agent' || (item.id && item.id.includes('agent'));
+                if (this.type === 'space') return item.type === 'space';
+                if (this.type === 'tool') return item.type === 'tool';
+                if (this.type === 'dataset') return item.type === 'dataset';
+                if (this.type === 'paper') return item.type === 'paper';
+                return false;
+            }).map(item => ({
+                ...item,
+                name: item.name || item.id?.split('/').pop() || 'Untitled',
+                description: item.description || '',
+                slug: item.slug || item.id
+            }));
+
+            // Merge with SSR items (De-duplicate by ID)
+            const map = new Map();
+            this.items.forEach(i => map.set(i.id, i)); // SSR items first
+            validItems.forEach(i => map.set(i.id, i)); // Overwrite/Add full data
+
+            this.items = Array.from(map.values());
+            console.log(`[UniversalCatalog] Full data loaded. Total: ${this.items.length}`);
+
+            // Update UI
+            this.fullDataLoaded = true;
+            this.handleSearch(this.searchInput?.value || ''); // Re-filter/Sort
+
+        } catch (e) {
+            console.error('[UniversalCatalog] Lazy Load Failed:', e);
+        } finally {
+            this.isLoadingMore = false;
+            this.updateStats();
+        }
     }
 
     handleSearch(query) {
