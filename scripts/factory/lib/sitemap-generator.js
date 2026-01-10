@@ -99,7 +99,7 @@ export async function generateSitemap(entities, outputDir = './output') {
     // Add entity pages
     for (const entity of entities) {
         const type = entity.type || 'model';
-        const slug = entity.slug || entity.id?.replace(/:/g, '/');
+        const slug = entity.slug || entity.id?.replace(/^[a-z]+:/i, '').replace(/:/g, '/');
         if (!slug) continue;
 
         urls.push({
