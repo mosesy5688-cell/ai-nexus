@@ -119,6 +119,8 @@ export async function getDatasetFromCache(slug, locals) {
     const cachePaths = [
         `cache/entities/dataset/${normalizedSlug}.json`,
         `cache/entities/dataset/huggingface--${rawSlug}.json`,
+        `cache/entities/dataset/hf-dataset--${rawSlug}.json`,
+        `cache/entities/dataset/dataset--${rawSlug}.json`,
         `cache/entities/dataset/${rawSlug}.json`,
         `cache/entities/dataset/github--${rawSlug}.json`
     ];
