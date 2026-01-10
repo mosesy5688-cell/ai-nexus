@@ -4,6 +4,8 @@
  * Handles: Search, Filtering, Sorting, Pagination, and Rendering.
  */
 
+import { EntityCardRenderer } from './EntityCardRenderer.js';
+
 export class UniversalCatalog {
     constructor({
         initialData = [],
@@ -175,56 +177,13 @@ export class UniversalCatalog {
         const end = start + this.itemsPerPage;
         const pageItems = this.filtered.slice(start, end);
 
-        this.grid.innerHTML = pageItems.map(item => this.createCardHTML(item)).join('');
+        // Uses Extracted Renderer (CES Compliance)
+        this.grid.innerHTML = pageItems.map(item => EntityCardRenderer.createCardHTML(item, this.type)).join('');
 
         // Scroll to top of grid
         if (this.currentPage > 1) {
             this.grid.scrollIntoView({ behavior: 'smooth' });
         }
-    }
-
-    createCardHTML(item) {
-        // Sanitize description
-        const cleanDesc = (item.description || '').replace(/<[^>]*>?/gm, '');
-        const fniDisplay = item.fni_score && item.fni_score > 0
-            ? `<span class="text-xs font-bold text-gray-500 dark:text-gray-400">🛡️ ${Math.round(item.fni_score)}</span>`
-            : '';
-
-        const typeLabel = this.getTypeLabel(this.type);
-        const link = this.getLink(this.type, item);
-
-        return `
-            <a href="${link}" class="entity-card p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 block fade-in">
-                <div class="flex items-center justify-between mb-2">
-                     <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 capitalize">${typeLabel}</span>
-                     ${fniDisplay}
-                </div>
-                <h3 class="font-bold text-gray-900 dark:text-white truncate">${item.name || item.id}</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2" title="${cleanDesc}">${cleanDesc}</p>
-                 <div class="flex items-center gap-3 mt-3 text-xs text-gray-400">
-                    ${item.downloads ? `<span>📥 ${this.formatNumber(item.downloads)}</span>` : ''}
-                    ${item.likes ? `<span>❤️ ${this.formatNumber(item.likes)}</span>` : ''}
-                </div>
-            </a>
-        `;
-    }
-
-    getLink(type, item) {
-        const slug = item.slug || item.id;
-        // Handle special slug cases if any
-        if (type === 'space') return `/space/${slug}`;
-        if (type === 'tool') return `/tool/${slug}`;
-        if (type === 'dataset') return `/dataset/${slug}`;
-        if (type === 'paper') return `/paper/${slug}`;
-        return `/${type}/${slug}`;
-    }
-
-    getTypeLabel(type) {
-        if (type === 'space') return 'Space';
-        if (type === 'tool') return 'Tool';
-        if (type === 'dataset') return 'Dataset';
-        if (type === 'paper') return 'Paper';
-        return type;
     }
 
     renderPagination() {
@@ -248,7 +207,8 @@ export class UniversalCatalog {
             >←</button>
         `;
 
-        // Page Numbers (Simple logic for now: show current, first, last)
+        // Page Numbers (Simple logic for now: show 1..N and current)
+        // Optimization: Show simple "Page X of Y" to reduce DOM complexity for now
         html += `<span class="px-3 py-1 text-sm text-gray-600 dark:text-gray-400">Page ${this.currentPage} of ${totalPages}</span>`;
 
         // Next
@@ -261,11 +221,6 @@ export class UniversalCatalog {
         `;
 
         this.paginationContainer.innerHTML = html;
-
-        // Bind event listeners for pagination is tricky with innerHTML string, 
-        // so we use window events or we need to addEventListeners after render.
-        // For simplicity in this vanilla class, let's use a custom event listener attached to window 
-        // that THIS class listens to.
     }
 
     setupPaginationListener() {
@@ -281,11 +236,10 @@ export class UniversalCatalog {
 
     updateStats() {
         if (this.countLabel) {
-            this.countLabel.textContent = `${this.filtered.length} ${this.type}s visible`;
+            const total = this.hasMore ? `${this.filtered.length}+` : this.filtered.length;
+            this.countLabel.textContent = this.isLoadingMore
+                ? `Loading more... (${this.items.length})`
+                : `${total} ${this.type}s visible`;
         }
-    }
-
-    formatNumber(num) {
-        return new Intl.NumberFormat('en-US', { notation: "compact", maximumFractionDigits: 1 }).format(num);
     }
 }
