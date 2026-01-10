@@ -16,14 +16,17 @@ let error = null;
 
 try {
   // 1. Try env.R2_ASSETS (SSOT: trending.json)
+  // 1. Try env.R2_ASSETS (SSOT: trending.json)
   const runtime = Astro.locals.runtime;
   if (runtime?.env?.R2_ASSETS) {
       const r2 = runtime.env.R2_ASSETS;
       const trendingFile = await r2.get('cache/trending.json');
       if (trendingFile) {
           const data = await trendingFile.json();
-          const allData = Array.isArray(data) ? data : (data.models || []);
-          // Standardized Filter (Spec Art 7)
+          const toolsData = data.tools || [];
+          const modelsData = data.models || (Array.isArray(data) ? data : []);
+          const allData = [...toolsData, ...modelsData];
+          
           entities = allData.filter((i:any) => i.type === 'tool' || i.id?.includes('tool'));
       }
   }
@@ -33,7 +36,10 @@ try {
       const res = await fetch('https://cdn.free2aitools.com/cache/trending.json');
       if (res.ok) {
           const data = await res.json();
-          const allData = Array.isArray(data) ? data : (data.models || []);
+          const toolsData = data.tools || [];
+          const modelsData = data.models || (Array.isArray(data) ? data : []);
+          const allData = [...toolsData, ...modelsData];
+          
           entities = allData.filter((i:any) => i.type === 'tool' || i.id?.includes('tool'));
       }
   }
