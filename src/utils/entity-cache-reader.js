@@ -105,6 +105,10 @@ export async function resolveEntityFromCache(slug, locals) {
     // From slug "author/name" -> "huggingface--author--name"
     const slugDashed = slug.replace(/\//g, '--').replace(/:/g, '--');
     cachePaths.push(`${cachePrefix}/huggingface--${slugDashed}.json`);
+    // V14.5.6 Fix: Explicitly try other common source prefixes
+    cachePaths.push(`${cachePrefix}/replicate--${slugDashed}.json`);
+    cachePaths.push(`${cachePrefix}/github--${slugDashed}.json`);
+    cachePaths.push(`${cachePrefix}/arxiv--${slugDashed}.json`);
 
     // Pattern 2: Direct slug conversion (author--name.json)
     cachePaths.push(`${cachePrefix}/${slugDashed}.json`);
