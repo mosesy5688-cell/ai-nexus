@@ -83,7 +83,7 @@ export function getQuickInsights(entity, type) {
         insights.push({ label: 'Params', value: entity.params_billions ? `${entity.params_billions}B` : '-' });
         insights.push({ label: 'Context', value: entity.context_length ? `${Math.round(entity.context_length / 1024)}k` : '-' });
         insights.push({ label: 'Downloads', value: formatNum(entity.downloads) });
-        insights.push({ label: 'License', value: entity.license || 'Unknown' });
+        insights.push({ label: 'Likes', value: formatNum(entity.likes) });
         if (entity.has_gguf) insights.push({ label: 'Format', value: 'GGUF ✓', highlight: true });
     }
 

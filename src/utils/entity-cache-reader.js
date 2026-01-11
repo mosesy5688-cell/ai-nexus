@@ -123,11 +123,17 @@ export async function resolveEntityFromCache(slug, locals) {
 
     // V6.4 Patch: Handle 'huggingface:' prefix in URLs (from trending.json IDs)
     // Example: huggingface:hexgrad:kokoro-82m -> hexgrad--kokoro-82m
-    if (normalizedSlug.startsWith('huggingface--')) {
-        const slugWithoutHF = normalizedSlug.replace(/^huggingface--/, '');
-        cachePaths.push(`${cachePrefix}/${slugWithoutHF}.json`);
-        // Also try with the huggingface prefix kept
-        cachePaths.push(`${cachePrefix}/${normalizedSlug}.json`);
+    // V15.1 Fix: Handle multiple source prefixes in URLs (replicate, github, arxiv, huggingface)
+    // Example: replicate--author--name -> author--name
+    const sourcePrefixes = ['huggingface--', 'replicate--', 'github--', 'arxiv--'];
+    for (const prefix of sourcePrefixes) {
+        if (normalizedSlug.startsWith(prefix)) {
+            const slugWithoutPrefix = normalizedSlug.replace(prefix, '');
+            // Push path with stripped prefix
+            cachePaths.push(`${cachePrefix}/${slugWithoutPrefix}.json`);
+            // Also push original (just in case cache file retains prefix)
+            cachePaths.push(`${cachePrefix}/${normalizedSlug}.json`);
+        }
     }
 
     console.log(`[EntityCache] Trying ${cachePaths.length} path patterns for slug: ${slug}`);
@@ -196,12 +202,24 @@ export async function resolveEntityFromCache(slug, locals) {
                 const data = JSON.parse(fileContent);
                 // Simple slug match
                 const found = data.find(m => {
+
+                    // V15.1 Fix: Shim Shim needs to check for stripped prefixes too
                     const s = m.slug || (m.id ? m.id.replace('/', '--') : '');
-                    // Normalize both sides to allow match
-                    // If slug has prefix, matching against non-prefixed ID requires stripping
-                    // But here matching 'normalizedSlug'.
-                    return normalizeForCache(s) === normalizedSlug ||
-                        normalizeForCache('huggingface:' + s) === normalizedSlug;
+                    const matchTarget = s ? normalizeForCache(s) : '';
+
+                    // Direct match
+                    if (matchTarget === normalizedSlug) return true;
+                    if (normalizeForCache('huggingface:' + s) === normalizedSlug) return true;
+
+                    // Check if normalizedSlug has a prefix that we should strip
+                    const sourcePrefixes = ['huggingface--', 'replicate--', 'github--', 'arxiv--'];
+                    for (const prefix of sourcePrefixes) {
+                        if (normalizedSlug.startsWith(prefix)) {
+                            const stripped = normalizedSlug.replace(prefix, '');
+                            if (matchTarget === stripped) return true;
+                        }
+                    }
+                    return false;
                 });
 
                 if (found) {
