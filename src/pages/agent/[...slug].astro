@@ -13,6 +13,7 @@ import AgentHeader from '../../components/agent-detail/AgentHeader.astro';
 import AgentSpecs from '../../components/agent-detail/AgentSpecs.astro';
 import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
 import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.astro';
+import AgentDeepDive from '../../components/agent-detail/AgentDeepDive.astro';
 
 import { getModelFromCache } from '../../utils/entity-cache-reader';
 import { ENTITY_DEFINITIONS } from '../../data/entity-definitions';
@@ -137,29 +138,8 @@ const jsonLd = agent ? {
    </div>
  
    {/* Zone 4: Deep Dive */}
-   <div slot="deep-dive" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-       <div class="lg:col-span-2 space-y-6">
-          {agent.body_content && (
-             <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
-                <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Description</h2>
-                <div class="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
-                   <Fragment set:html={agent.body_content} />
-                </div>
-             </section>
-          )}
-       </div>
-       <div class="lg:col-span-1">
-           <AgentSpecs 
-             framework={agent.framework || agent.library_name}
-             language={agent.language}
-             license={agent.license || agent.license_spdx}
-             stars={agent.stars || agent.github_stars}
-             forks={agent.forks || agent.github_forks}
-             lastCommit={agent.last_commit || agent.github_last_commit}
-             sourceUrl={agent.source_url}
-             metaJson={agent.meta_json}
-           />
-       </div>
+   <div slot="deep-dive">
+       <AgentDeepDive agent={agent} />
    </div>
  
    {/* Zone 5: Community */}
