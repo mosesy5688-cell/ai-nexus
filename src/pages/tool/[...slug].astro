@@ -80,8 +80,6 @@ const hasTool = !!tool;
   description={pageDescription}
   jsonld={jsonLd}
 >
- {tool && (
-  <Fragment>
    {/* Zone 1: Hero */}
    <header slot="hero" class="mb-8">
      <div class="flex items-center gap-4 mb-4">
@@ -155,7 +153,5 @@ const hasTool = !!tool;
           </a>
        </div>
    </div>
-  </Fragment>
- )}
 </EntityLayout>
 

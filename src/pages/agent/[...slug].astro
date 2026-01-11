@@ -91,8 +91,6 @@ const jsonLd = agent ? {
   description={pageDescription}
   jsonld={jsonLd}
 >
- {agent && (
-  <Fragment>
    {/* Zone 1: Hero */}
    <AgentHeader 
      slot="hero"
@@ -148,6 +146,4 @@ const jsonLd = agent ? {
           ← Browse all agents
        </a>
    </div>
-  </Fragment>
- )}
 </EntityLayout>
