@@ -9,6 +9,7 @@ import DataFreshness from '../../components/common/DataFreshness.astro';
 import DatasetUseCases from '../../components/dataset/DatasetUseCases.astro';
 import DatasetQuickInsights from '../../components/dataset/DatasetQuickInsights.astro';
 import DatasetSchema from '../../components/dataset/DatasetSchema.astro';
+import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
 
 import EntityZones from '../../components/entity/EntityZones.astro';
 import { getDatasetFromCache } from '../../utils/entity-cache-reader-v6';
@@ -149,35 +150,7 @@ const hasRecommendedModels = recommendedModels.length > 0;
  
    {/* Zone 4: Deep Dive */}
    <div slot="deep-dive">
-        <h2 class="text-xl font-bold mb-4">Data Preview</h2>
-        {/* Pseudo Data Preview Table if schema allows, otherwise generic placeholder */}
-        <div class="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead class="bg-gray-50 dark:bg-gray-800">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Column</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sample</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
-                    {/* Mock rows for now, real preview needs real data which we don't fetch yet */}
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">text</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">string</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">"Example data content..."</td>
-                    </tr>
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">label</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">int</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1</td>
-                    </tr>
-                </tbody>
-            </table>
-            <div class="p-4 bg-gray-50 dark:bg-gray-800 text-center text-sm text-gray-500">
-                Preview limits: 100 rows. <a href="#" class="text-indigo-600 hover:underline">Login to see more</a>.
-            </div>
-        </div>
+        <DatasetDeepDive dataset={dataset} />
    </div>
  
    {/* Zone 5: Community */}

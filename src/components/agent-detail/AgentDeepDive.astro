@@ -1,0 +1,71 @@
+---
+interface Props {
+  agent: any;
+}
+
+const { agent } = Astro.props;
+import AgentSpecs from './AgentSpecs.astro';
+
+// Mock Config YAML
+const mockConfig = `agent:
+  name: "${agent.name}"
+  framework: "${agent.framework || 'unknown'}"
+  version: "1.0.0"
+capabilities:
+  - web_search
+  - code_interpreter
+`;
+---
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+   <!-- Left Column: Content & Config -->
+   <div class="lg:col-span-2 space-y-8">
+      <!-- Description / Body -->
+      {agent.body_content ? (
+         <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+               <span>📖</span> Description
+            </h2>
+            <div class="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+               <Fragment set:html={agent.body_content} />
+            </div>
+         </section>
+      ) : (
+         <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <p class="text-gray-500 italic">No detailed description available.</p>
+         </section>
+      )}
+
+      <!-- Configuration (V15 Spec) -->
+      <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <span>⚙️</span> Configuration
+         </h2>
+         <pre class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-xs overflow-x-auto">{mockConfig}</pre>
+      </section>
+      
+      <!-- Installation -->
+      <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <span>💻</span> Installation
+         </h2>
+         <div class="bg-gray-900 text-gray-300 p-4 rounded-lg font-mono text-sm">
+            <code>pip install {agent.name.toLowerCase().replace(/ /g, '-')}</code>
+         </div>
+      </section>
+   </div>
+
+   <!-- Right Column: Specs -->
+   <div class="lg:col-span-1">
+       <AgentSpecs 
+             framework={agent.framework || agent.library_name}
+             language={agent.language}
+             license={agent.license || agent.license_spdx}
+             stars={agent.stars || agent.github_stars}
+             forks={agent.forks || agent.github_forks}
+             lastCommit={agent.last_commit || agent.github_last_commit}
+             sourceUrl={agent.source_url}
+             metaJson={agent.meta_json}
+       />
+   </div>
+</div>

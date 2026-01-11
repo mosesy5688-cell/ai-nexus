@@ -1,0 +1,66 @@
+---
+interface Props {
+  paper: any;
+}
+
+const { paper } = Astro.props;
+
+// Mock BibTeX generation
+const generateBibTeX = (p: any) => {
+  const authorFirst = p.authors?.[0]?.split(' ').pop() || 'Unknown';
+  const year = new Date(p.published_date || Date.now()).getFullYear();
+  const id = `${authorFirst}${year}${p.title?.split(' ')[0] || 'Paper'}`;
+  return `@article{${id},
+  title={${p.title}},
+  author={${p.authors?.join(' and ')}},
+  journal={arXiv preprint arXiv:${p.id || '2401.xxxxx'}},
+  year={${year}}
+}`;
+};
+
+const bibtex = generateBibTeX(paper);
+---
+
+<div class="space-y-8">
+  <!-- Section: Abstract -->
+  <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+    <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+       <span>📝</span> Abstract
+    </h2>
+    <p class="text-gray-800 dark:text-gray-200 leading-relaxed text-base font-serif">
+      {paper.abstract}
+    </p>
+  </section>
+
+  <!-- Section: Citation / BibTeX -->
+  <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+    <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+       <span>❝</span> Citation
+    </h2>
+    <div class="relative group">
+       <pre class="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs font-mono overflow-x-auto border border-gray-700"><code>{bibtex}</code></pre>
+       <button 
+         class="absolute top-2 right-2 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity"
+         onclick={`navigator.clipboard.writeText(\`${bibtex}\`)`}
+       >
+         Copy
+       </button>
+    </div>
+  </section>
+
+  <!-- Section: Authors -->
+  {paper.authors && paper.authors.length > 0 && (
+    <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+      <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+         <span>👥</span> Authors
+      </h2>
+      <div class="flex flex-wrap gap-2">
+        {paper.authors.map((author: string) => (
+           <a href={`/search?q=${encodeURIComponent(author)}`} class="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-sm hover:bg-blue-100 transition-colors">
+             {author}
+           </a>
+        ))}
+      </div>
+    </section>
+  )}
+</div>
