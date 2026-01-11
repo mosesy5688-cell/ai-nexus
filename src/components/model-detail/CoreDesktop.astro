@@ -3,7 +3,7 @@ import RelationsPanel from './RelationsPanel.astro';
 import RelatedKnowledge from './RelatedKnowledge.astro';
 import BenchmarkCard from '../benchmark/BenchmarkCard.astro';
 import MiniTrendChart from '../charts/MiniTrendChart.astro';
-import ModelCarousel from '../ModelCarousel.astro';
+import SimilarModels from './SimilarModels.astro';
 
 interface Props {
   model: any;
@@ -57,7 +57,7 @@ const { model, tagsArray, hasBench, modelId, modelName, similarModels } = Astro.
           <span>🔄 Similar Models</span>
        </h3>
        {similarModels.length > 0 ? (
-          <ModelCarousel models={similarModels} />
+          <SimilarModels models={similarModels} currentModelId={modelId} />
        ) : (
           <p class="text-gray-500 italic p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg text-center">No similar models found.</p>
        )}

@@ -140,7 +140,7 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
    {/* QuickInsights is handled by EntityLayout automatically. VramEstimator removed to avoid duplication/clutter. */}
 
    {/* Zone 3: Core (Desktop) - Full Platform Value */}
-   <Fragment slot="core-desktop">
+   <div slot="core-desktop">
       <CoreDesktop
          model={model}
          tagsArray={tagsArray}
@@ -149,7 +149,7 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
          modelName={modelName}
          similarModels={similarModels}
       />
-   </Fragment>
+   </div>
 
    {/* Zone 3: Core (Mobile Tabs) */}
    <div slot="core-knowledge">
