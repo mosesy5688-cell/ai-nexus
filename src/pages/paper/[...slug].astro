@@ -56,24 +56,7 @@ const authors = paper?.authors || [];
   description={pageDescription}
   jsonld={jsonLd}
 >
- {paper && (
-  <Fragment>
-  {/* Zone 1: Hero */}
-  <header slot="hero" class="mb-8">
-      <div class="flex items-center gap-4 mb-4">
-        <span class="text-4xl">📄</span>
-        <span class="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-sm font-medium">
-          PAPER
-        </span>
-        {paper.venue && (
-          <span class="text-gray-500">{paper.venue}</span>
-        )}
-      </div>
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4 leading-tight">
-        {paper.title}
-      </h1>
-      {authors.length > 0 && (
-        <p class="text-gray-600 dark:text-gray-400 mb-4">
+   {/* Zone 1: Hero */}
   <header slot="hero" class="mb-10">
     <div class="flex items-center gap-3 mb-4">
       <span class="px-3 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-md text-xs font-bold tracking-wider uppercase">
@@ -107,7 +90,7 @@ const authors = paper?.authors || [];
   <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
      <div class="space-y-8">
         <RelationsPanel 
-             arxivRefs={[paper.arxiv_id || slug]}
+             arxivRefs={[paper.arxiv_id || (Array.isArray(slug) ? slug.join('/') : slug)]}
         />
      </div>
       <div class="space-y-8">
@@ -118,7 +101,7 @@ const authors = paper?.authors || [];
   {/* Zone 3: Core (Mobile Tabs) */}
   <div slot="core-knowledge">
        <RelationsPanel 
-          arxivRefs={[paper.arxiv_id || slug]}
+          arxivRefs={[paper.arxiv_id || (Array.isArray(slug) ? slug.join('/') : slug)]}
        />
   </div>
   
@@ -143,7 +126,7 @@ const authors = paper?.authors || [];
   <div slot="community">
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-2">
-           <span>📄 arXiv:{paper.arxiv_id || slug}</span>
+           <span>📄 arXiv:{paper.arxiv_id || (Array.isArray(slug) ? slug.join('/') : slug)}</span>
         </div>
       </div>
       <div class="mt-8 text-center">
@@ -152,6 +135,4 @@ const authors = paper?.authors || [];
          </a>
       </div>
   </div>
-</Fragment>
- )}
 </EntityLayout>
