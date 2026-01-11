@@ -26,3 +26,8 @@ description: Standard feature deployment process with CES compliance check
    ```powershell
    gh pr merge --merge --auto --delete-branch
    ```
+8. **Post-Deployment Verification** (MANDATORY):
+   - Pull the latest `main` branch: `git checkout main; git pull`
+   - **Verify** the deployed changes against the original Design Spec.
+   - Confirm: "Does this feature actually work as requested?"
+   - If issues found: Create a Hotfix immediately.
