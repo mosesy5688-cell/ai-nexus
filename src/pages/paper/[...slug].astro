@@ -17,17 +17,12 @@ const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
 let paper: any = null;
 let cacheVersion = '';
 
+import { getPaperFromCache } from '../../utils/entity-cache-reader-v6';
+
 try {
-  const runtime = Astro.locals.runtime;
-  if (runtime?.env?.R2_ASSETS) {
-    const r2 = runtime.env.R2_ASSETS;
-    // Try direct entity path first
-    const cacheFile = await r2.get(`cache/entities/paper/${displaySlug}.json`);
-    if (cacheFile) {
-      const data = await cacheFile.json();
-      paper = data.entity || data;
-      cacheVersion = data._contract_version || 'V15';
-    }
+  paper = await getPaperFromCache(slug, Astro.locals);
+  if (paper) {
+    cacheVersion = paper._contract_version || 'V15';
   }
 } catch (e) {
   console.error('[Paper Page] Cache error:', e);

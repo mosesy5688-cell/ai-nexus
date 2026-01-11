@@ -193,3 +193,50 @@ export async function getRelatedEntities(entityId, locals) {
         return [];
     }
 }
+/**
+ * V6.2: Get paper data from R2 cache for detail page
+ * @param {string} slug - Paper slug (format: id)
+ * @param {object} locals - Astro locals
+ * @returns {Promise<object|null>} - Paper data or null
+ */
+export async function getPaperFromCache(slug, locals) {
+    if (!slug) return null;
+
+    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    if (!r2) {
+        console.warn('[PaperCache] R2 not available');
+        return null;
+    }
+
+    const normalizedSlug = normalizeForCache(slug, 'paper');
+
+    // V14: Constitutional cache path - only use cache/entities/paper/
+    // V15.0 Fix: Robust multi-path lookup
+    const rawSlug = slug.replace(/\//g, '--').replace(/:/g, '--');
+    const cachePaths = [
+        `cache/entities/paper/${normalizedSlug}.json`,
+        `cache/entities/paper/arxiv--${rawSlug}.json`,
+        `cache/entities/paper/paper--${rawSlug}.json`,
+        `cache/entities/paper/${rawSlug}.json`
+    ];
+
+    for (const cachePath of cachePaths) {
+        try {
+            const cacheFile = await r2.get(cachePath);
+            if (cacheFile) {
+                const cacheData = await cacheFile.json();
+                console.log(`[PaperCache] R2 HIT: ${cachePath}`);
+                return {
+                    ...cacheData.entity || cacheData,
+                    _cache_source: 'r2-cache',
+                    _contract_version: cacheData.contract_version,
+                };
+            }
+        } catch (e) {
+            console.warn(`[PaperCache] R2 read error for ${cachePath}:`, e.message);
+        }
+    }
+
+    console.log(`[PaperCache] MISS: ${normalizedSlug}`);
+    return null;
+}
