@@ -40,22 +40,7 @@ export async function resolveEntityFromCache(slug, locals) {
     const isShimTarget = slug === shimTarget || normalizeForCache(slug).endsWith('--' + shimTarget);
 
     if ((import.meta.env.DEV || process.env.NODE_ENV === 'test') && isShimTarget) {
-        console.log('[EntityCache] Shim: Returning Hardcoded Test Model');
-        return {
-            entity: {
-                id: 'huggingface:' + shimTarget, // CES Compliance: source:id
-                name: 'Test Model Llama 3',
-                author: 'Meta',
-                description: 'A test model description.',
-                tags: ['test', 'llama'],
-                likes: 100,
-                downloads: 500,
-                fni_score: 95,
-                entityDefinition: { display: { icon: '🤖', labelSingular: 'Model' } }
-            },
-            source: 'shim-hardcoded',
-            computed: { fni: 95, benchmarks: [] }
-        };
+        // ... (existing shim) ...
     }
 
     const r2 = locals?.runtime?.env?.R2_ASSETS;
