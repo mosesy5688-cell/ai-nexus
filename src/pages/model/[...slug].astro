@@ -65,6 +65,8 @@ try {
         similarModels = (await Promise.all(resolvedPromises)).filter(Boolean);
     }
 
+    tagsArray = Array.isArray(model.tags) ? model.tags : [];
+    
     // V15.0: Derived Use Cases and Limits
     const derivedUseCases = getUseCases(tagsArray, model.pipeline_tag, 'model', model.fni_score);
 
@@ -81,7 +83,6 @@ try {
     const cleanedDesc = cleanDescription(model.description);
     pageDescription = model.seo_summary?.description || 
                       (cleanedDesc ? cleanedDesc.substring(0, 160) : `Deep dive into ${modelName}.`);
-    tagsArray = Array.isArray(model.tags) ? model.tags : [];
   }
 } catch (e) {
   console.error("Error loading model:", e);

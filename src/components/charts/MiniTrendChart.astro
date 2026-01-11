@@ -142,8 +142,16 @@ async function initMiniTrends() {
     const data = await loadTrendData();
     
     charts.forEach(el => {
-        const id = (el as HTMLElement).dataset.entityId;
-        if (!id || !data[id]) return;
+        let id = (el as HTMLElement).dataset.entityId;
+        if (!id) return;
+        
+        // Normalize: some IDs use slashes, some use double dashes
+        if (!data[id]) {
+            const altId = id.replace(/\//g, '--');
+            if (data[altId]) id = altId;
+        }
+
+        if (!data[id]) return;
         
         const d = data[id];
         const canvas = el.querySelector('canvas');
