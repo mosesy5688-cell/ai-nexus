@@ -54,6 +54,8 @@ export function getUseCases(tags = [], pipelineTag = '', entityType = 'model') {
         if (entityType === 'dataset') cases.set('train', { label: 'Model Training', icon: '🏋️' });
         if (entityType === 'space') cases.set('demo', { label: 'Interactive Demo', icon: '🎮' });
         if (entityType === 'paper') cases.set('research', { label: 'Deep Research', icon: '🔬' });
+        if (entityType === 'tool') cases.set('dev', { label: 'Development', icon: '🛠️' });
+        if (entityType === 'agent') cases.set('assist', { label: 'AI Assistant', icon: '🤖' });
     }
 
     // 3. Add Performance Badge (if applicable)
@@ -101,6 +103,18 @@ export function getQuickInsights(entity, type) {
         insights.push({ label: 'Citations', value: formatNum(entity.citations) });
         insights.push({ label: 'Published', value: entity.published_date ? new Date(entity.published_date).getFullYear() : '-' });
         insights.push({ label: 'Pages', value: entity.pages || '-' });
+    }
+
+    else if (type === 'space') {
+        insights.push({ label: 'SDK', value: entity.sdk || '-' });
+        insights.push({ label: 'Likes', value: formatNum(entity.likes) });
+        insights.push({ label: 'Status', value: entity.runtime?.stage || 'Running' });
+    }
+
+    else if (type === 'tool') {
+        insights.push({ label: 'Lang', value: entity.language || '-' });
+        insights.push({ label: 'License', value: entity.license || '-' });
+        insights.push({ label: 'Stars', value: formatNum(entity.stars) });
     }
 
     return insights;
