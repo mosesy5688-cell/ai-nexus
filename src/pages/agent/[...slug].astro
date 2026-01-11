@@ -8,6 +8,7 @@ export const prerender = false;
  */
 
 import Layout from '../../layouts/Layout.astro';
+import EntityLayout from '../../layouts/EntityLayout.astro';
 import AgentHeader from '../../components/agent-detail/AgentHeader.astro';
 import AgentSpecs from '../../components/agent-detail/AgentSpecs.astro';
 import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
@@ -77,10 +78,10 @@ const jsonLd = agent ? {
 } : null;
 ---
 
-import EntityLayout from '../../layouts/EntityLayout.astro';
-/* ... keep other imports ... */
 
-/* ... keep setup logic ... */
+
+
+
 
 <EntityLayout 
   entity={agent} 
@@ -89,82 +90,84 @@ import EntityLayout from '../../layouts/EntityLayout.astro';
   description={pageDescription}
   jsonld={jsonLd}
 >
-  {/* Zone 1: Hero */}
-  <AgentHeader 
-    slot="hero"
-    name={agentName}
-    author={agent.author || agent.organization || 'Unknown'}
-    description={agent.description}
-    sourceUrl={agent.source_url}
-    stars={agent.stars || agent.github_stars}
-    agentType={agent.agent_type || 'agent'}
-  />
-
-  {/* Zone 1 Mobile Actions */}
-  <div slot="actions-mobile">
-     <a href={agent.source_url} target="_blank" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Visit</a>
-  </div>
-
-  {/* Zone 3: Core (Desktop) */}
-  <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-     <div class="space-y-8">
-        <RelatedKnowledge 
-           tags={agent.tags || []}
-           description={agent.description || ''}
-        />
-     </div>
-     <div class="space-y-8">
-        <RelatedResearch modelId={agentId} />
-     </div>
-  </div>
-
-  {/* Zone 3: Core (Mobile Tabs) */}
-  <div slot="core-knowledge">
-     <RelatedKnowledge 
-        tags={agent.tags || []}
-        description={agent.description || ''}
-     />
-  </div>
-  
-  <div slot="core-related">
-      <RelatedResearch modelId={agentId} />
-  </div>
-
-  <div slot="core-benchmarks">
-      <p class="text-gray-500 italic p-4">No benchmarks available for this agent.</p>
-  </div>
-
-  {/* Zone 4: Deep Dive */}
-  <div slot="deep-dive" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div class="lg:col-span-2 space-y-6">
-         {agent.body_content && (
-            <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
-               <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Description</h2>
-               <div class="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
-                  <Fragment set:html={agent.body_content} />
-               </div>
-            </section>
-         )}
+ {agent && (
+  <Fragment>
+   {/* Zone 1: Hero */}
+   <AgentHeader 
+     slot="hero"
+     name={agent.name}
+     author={agent.author}
+     license={agent.license}
+     stars={agent.stars || agent.github_stars}
+     agentType={agent.agent_type || 'agent'}
+   />
+ 
+   {/* Zone 1 Mobile Actions */}
+   <div slot="actions-mobile">
+      <a href={agent.source_url} target="_blank" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Visit</a>
+   </div>
+ 
+   {/* Zone 3: Core (Desktop) */}
+   <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div class="space-y-8">
+         <RelatedKnowledge 
+            tags={agent.tags || []}
+            description={agent.description || ''}
+         />
       </div>
-      <div class="lg:col-span-1">
-          <AgentSpecs 
-            framework={agent.framework || agent.library_name}
-            language={agent.language}
-            license={agent.license || agent.license_spdx}
-            stars={agent.stars || agent.github_stars}
-            forks={agent.forks || agent.github_forks}
-            lastCommit={agent.last_commit || agent.github_last_commit}
-            sourceUrl={agent.source_url}
-            metaJson={agent.meta_json}
-          />
+      <div class="space-y-8">
+         <RelatedResearch modelId={normalizedSlug} />
       </div>
-  </div>
-
-  {/* Zone 5: Community */}
-  <div slot="community" class="text-center py-8">
-      <a href="/ranking" class="text-indigo-500 hover:underline">
-         ← Browse all agents
-      </a>
-  </div>
-
+   </div>
+ 
+   {/* Zone 3: Core (Mobile Tabs) */}
+   <div slot="core-knowledge">
+      <RelatedKnowledge 
+         tags={agent.tags || []}
+         description={agent.description || ''}
+      />
+   </div>
+   
+   <div slot="core-related">
+       <RelatedResearch modelId={normalizedSlug} />
+   </div>
+ 
+   <div slot="core-benchmarks">
+       <p class="text-gray-500 italic p-4">No benchmarks available for this agent.</p>
+   </div>
+ 
+   {/* Zone 4: Deep Dive */}
+   <div slot="deep-dive" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+       <div class="lg:col-span-2 space-y-6">
+          {agent.body_content && (
+             <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">Description</h2>
+                <div class="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                   <Fragment set:html={agent.body_content} />
+                </div>
+             </section>
+          )}
+       </div>
+       <div class="lg:col-span-1">
+           <AgentSpecs 
+             framework={agent.framework || agent.library_name}
+             language={agent.language}
+             license={agent.license || agent.license_spdx}
+             stars={agent.stars || agent.github_stars}
+             forks={agent.forks || agent.github_forks}
+             lastCommit={agent.last_commit || agent.github_last_commit}
+             sourceUrl={agent.source_url}
+             metaJson={agent.meta_json}
+           />
+       </div>
+   </div>
+ 
+   {/* Zone 5: Community */}
+   <div slot="community" class="text-center py-8">
+       <a href="/ranking" class="text-indigo-500 hover:underline">
+          ← Browse all agents
+       </a>
+   </div>
+  </Fragment>
+ )}
 </EntityLayout>
