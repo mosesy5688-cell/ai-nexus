@@ -9,10 +9,8 @@ import DatasetUseCases from '../../components/dataset/DatasetUseCases.astro';
 import DatasetQuickInsights from '../../components/dataset/DatasetQuickInsights.astro';
 import DatasetSchema from '../../components/dataset/DatasetSchema.astro';
 
-// ... (existing imports)
-
-
-
+import EntityZones from '../../components/entity/EntityZones.astro';
+import { getDatasetFromCache } from '../../utils/entity-cache-reader-v6';
 // Get slug from URL
 const { slug } = Astro.params;
 
