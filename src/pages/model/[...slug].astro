@@ -97,12 +97,6 @@ const modelId = model?.umid || model?.id || '';
 const cleanDesc = cleanDescription(model?.description);
 const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') : slug, coverImage);
 ---
-
-
-
-
-
-
 <EntityLayout 
   entity={model} 
   type="model" 
