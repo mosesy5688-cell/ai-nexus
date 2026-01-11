@@ -44,18 +44,18 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
 ) : (
   <Layout title={title} description={description} image={image} jsonld={jsonld}>
     {/* Mobile Sticky Header (Zone 1 Compact) */}
-    <div id="sticky-header" class="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg transform -translate-y-full transition-transform duration-300 lg:hidden px-4 py-3 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
+    <div id="sticky-header" class="fixed top-0 left-0 right-0 z-50 glass-effect shadow-lg transform -translate-y-full transition-all duration-500 lg:hidden px-4 py-3 flex items-center justify-between border-b border-gray-200/50 dark:border-gray-800/50">
       <div class="flex items-center gap-3 min-w-0">
-        <span class="text-xl">📦</span>
+        <span class="text-xl">{type === 'model' ? '🧠' : type === 'agent' ? '🤖' : type === 'dataset' ? '📊' : type === 'paper' ? '📄' : type === 'space' ? '🎮' : '🛠️'}</span>
         <div class="flex flex-col truncate">
           <span class="font-black text-gray-900 dark:text-gray-100 truncate text-sm leading-tight">{displayId}</span>
-          <span class="text-[10px] text-gray-500 font-medium">by {entity.author || 'Unknown'}</span>
+          <span class="text-[10px] text-gray-500 font-bold uppercase tracking-tighter opacity-70">{type} by {entity.author || 'Unknown'}</span>
         </div>
       </div>
       
       <div class="flex items-center gap-3">
         {entity.fni_score && (
-          <div class="px-2 py-0.5 bg-indigo-600 text-white rounded text-[10px] font-black flex items-center gap-1">
+          <div class="px-2 py-0.5 bg-indigo-600 text-white rounded shadow-fni-pulse text-[10px] font-black flex items-center gap-1 animate-pulse-subtle">
              <span class="opacity-80">⭐</span> {entity.fni_score}
           </div>
         )}
@@ -63,18 +63,20 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
       </div>
     </div>
 
-    <main class="container mx-auto px-4 py-6 md:py-10 max-w-7xl">
+    <main class="container mx-auto px-4 py-6 md:py-10 max-w-7xl animate-fade-in">
       
       {/* Zone 1: HERO */}
-      <section class="mb-6">
+      <section class="mb-6 animate-slide-up" style="animation-delay: 0.1s;">
         <slot name="hero" />
       </section>
 
       {/* Zone 1.5: USE CASES (V15.0) */}
-      <slot name="use-cases" />
+      <div class="animate-slide-up" style="animation-delay: 0.2s;">
+        <slot name="use-cases" />
+      </div>
 
       {/* Zone 2: QUICK INSIGHTS */}
-      <section class="mb-12">
+      <section class="mb-12 animate-slide-up" style="animation-delay: 0.3s;">
         <QuickInsights entity={entity} type={type} />
         <slot name="insights-extra" />
       </section>
@@ -164,7 +166,7 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
   const stickyHeader = document.getElementById('sticky-header');
   if (stickyHeader) {
     window.addEventListener('scroll', () => {
-      if (window.scrollY > 300) {
+      if (window.scrollY > 120) {
         stickyHeader.classList.remove('-translate-y-full');
       } else {
         stickyHeader.classList.add('-translate-y-full');

@@ -283,4 +283,68 @@
         outline: none;
         box-shadow: 0 0 0 2px var(--theme-bg), 0 0 0 4px var(--theme-interactive-focus);
     }
+
+    /* V15.0 Design Utilities */
+    .glass-effect {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .dark .glass-effect {
+        background: rgba(31, 41, 55, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    @keyframes pulse-subtle {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        50% {
+            transform: scale(1.05);
+            opacity: 0.9;
+        }
+
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .animate-pulse-subtle {
+        animation: pulse-subtle 3s ease-in-out infinite;
+    }
+
+    @keyframes fade-in {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    .animate-fade-in {
+        animation: fade-in 0.6s ease-out forwards;
+    }
+
+    @keyframes slide-up {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .animate-slide-up {
+        animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
 }
