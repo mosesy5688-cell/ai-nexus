@@ -7,8 +7,9 @@ const { agent } = Astro.props;
 import AgentSpecs from './AgentSpecs.astro';
 
 // Mock Config YAML
+const agentName = agent?.name || agent?.canonical_name || 'unknown-agent';
 const mockConfig = `agent:
-  name: "${agent.name}"
+  name: "${agentName}"
   framework: "${agent.framework || 'unknown'}"
   version: "1.0.0"
 capabilities:
@@ -50,7 +51,7 @@ capabilities:
             <span>💻</span> Installation
          </h2>
          <div class="bg-gray-900 text-gray-300 p-4 rounded-lg font-mono text-sm">
-            <code>pip install {agent.name.toLowerCase().replace(/ /g, '-')}</code>
+            <code>pip install {(agent?.name || agent?.canonical_name || 'agent').toLowerCase().replace(/ /g, '-')}</code>
          </div>
       </section>
    </div>

@@ -5,11 +5,15 @@ interface Props {
 
 const { tool } = Astro.props;
 
-const installCmd = tool.language === 'Python' 
-  ? `pip install ${tool.name.toLowerCase()}` 
-  : (tool.language === 'JavaScript' ? `npm install ${tool.name.toLowerCase()}` : `git clone ${tool.source_url}`);
+const toolName = tool?.name || tool?.canonical_name || 'unknown-tool';
+const safeToolName = toolName.replace(/ /g,'');
+const safeToolLower = toolName.toLowerCase();
 
-const apiExample = `import { ${tool.name.replace(/ /g,'')} } from '${tool.name.toLowerCase()}';\n\nconst client = new ${tool.name.replace(/ /g,'')}();\nawait client.connect();`;
+const installCmd = tool.language === 'Python' 
+  ? `pip install ${safeToolLower}` 
+  : (tool.language === 'JavaScript' ? `npm install ${safeToolLower}` : `git clone ${tool.source_url || '#'}`);
+
+const apiExample = `import { ${safeToolName} } from '${safeToolLower}';\n\nconst client = new ${safeToolName}();\nawait client.connect();`;
 ---
 
 <div class="space-y-8">
