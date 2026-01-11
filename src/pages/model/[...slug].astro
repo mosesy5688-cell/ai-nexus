@@ -19,6 +19,7 @@ import QuickStart from '../../components/model-detail/QuickStart.astro';
 import MiniTrendChart from '../../components/charts/MiniTrendChart.astro';
 import ModelZones from '../../components/model-detail/ModelZones.astro';
 import { getModelFromCache } from '../../utils/entity-cache-reader';
+import CoreDesktop from '../../components/model-detail/CoreDesktop.astro';
 import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definitions';
 import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers';
 
@@ -138,12 +139,8 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
    {/* Zone 2: Insights Extra */}
    {/* QuickInsights is handled by EntityLayout automatically. VramEstimator removed to avoid duplication/clutter. */}
 
-import CoreDesktop from '../../components/model-detail/CoreDesktop.astro';
-
-// ... imports ...
-
    {/* Zone 3: Core (Desktop) - Full Platform Value */}
-   <div slot="core-desktop">
+   <Fragment slot="core-desktop">
       <CoreDesktop
          model={model}
          tagsArray={tagsArray}
@@ -152,7 +149,7 @@ import CoreDesktop from '../../components/model-detail/CoreDesktop.astro';
          modelName={modelName}
          similarModels={similarModels}
       />
-   </div>
+   </Fragment>
 
    {/* Zone 3: Core (Mobile Tabs) */}
    <div slot="core-knowledge">
