@@ -7,9 +7,10 @@ export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 import EntityLayout from '../../layouts/EntityLayout.astro';
+import EntityHeader from '../../components/entity/EntityHeader.astro';
+import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
+import { getUseCases } from '../../utils/inference';
 import DataFreshness from '../../components/common/DataFreshness.astro';
-import ShareButtons from '../../components/common/ShareButtons.astro';
-import EntityZones from '../../components/entity/EntityZones.astro';
 import { getSpaceFromCache } from '../../utils/entity-cache-reader-v6.js';
 import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
 
@@ -49,6 +50,10 @@ const jsonLd = space ? {
 
 const hasSpace = !!space;
 const modelsUsed = space?.meta_json?.models_used || [];
+
+// V15.0: Derived Use Cases and Limits
+const tagsArray = space?.tags ? (typeof space.tags === 'string' ? JSON.parse(space.tags) : space.tags) : [];
+const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_score || 0) : { goodFor: [], limits: [] };
 ---
 
 
@@ -64,23 +69,31 @@ const modelsUsed = space?.meta_json?.models_used || [];
   description={pageDescription}
   jsonld={jsonLd}
 >
-   {/* Zone 1: Hero */}
-   <header slot="hero" class="mb-8">
-     <div class="flex items-center gap-4 mb-4">
-        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-          {space.sdk || 'Demo'}
-        </span>
-        {space.author && (
-           <span class="text-gray-500">by {space.author}</span>
-        )}
-     </div>
-     <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-       {space.title || space.name}
-     </h1>
-     <p class="text-lg text-gray-600 dark:text-gray-300">
-       {space.description}
-     </p>
-   </header>
+    {/* Zone 1: Hero */}
+    <EntityHeader 
+      slot="hero"
+      name={space.title || space.name}
+      entityType="space"
+      entityIcon="🎮"
+      entityLabel={space.sdk || 'Demo Space'}
+      verified={false}
+      author={space.author || 'Unknown'}
+      description={space.description}
+      fniScore={space.fni_score}
+      fniPercentile={space.fni_percentile}
+      sourceUrl={space.source_url}
+    >
+      <div slot="actions" class="flex gap-2">
+         <a href={space.source_url} target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors">Visit Demo</a>
+      </div>
+    </EntityHeader>
+ 
+    {/* Zone 1.5: Use Cases */}
+    <ZoneUseCases 
+      slot="use-cases" 
+      goodFor={derivedUseCases.goodFor} 
+      limits={derivedUseCases.limits} 
+    />
  
     {/* Zone 1 Mobile Actions */}
    <div slot="actions-mobile">

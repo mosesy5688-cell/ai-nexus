@@ -27,7 +27,6 @@ const { entity, type, title, description, image, jsonld } = Astro.props;
 const hasEntity = !!entity;
 
 // Safe derivation of values
-const useCases = hasEntity ? getUseCases(entity.tags || [], entity.pipeline_tag, type) : [];
 const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '';
 ---
 
@@ -45,13 +44,22 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
 ) : (
   <Layout title={title} description={description} image={image} jsonld={jsonld}>
     {/* Mobile Sticky Header (Zone 1 Compact) */}
-    <div id="sticky-header" class="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur shadow-md transform -translate-y-full transition-transform duration-300 lg:hidden px-4 py-3 flex items-center justify-between">
-      <div class="flex flex-col">
-        <span class="font-bold text-gray-900 dark:text-gray-100 truncate max-w-[200px]">{displayId}</span>
-        <span class="text-xs text-gray-500">FNI {entity.fni_score || '-'}</span>
+    <div id="sticky-header" class="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md shadow-lg transform -translate-y-full transition-transform duration-300 lg:hidden px-4 py-3 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="text-xl">📦</span>
+        <div class="flex flex-col truncate">
+          <span class="font-black text-gray-900 dark:text-gray-100 truncate text-sm leading-tight">{displayId}</span>
+          <span class="text-[10px] text-gray-500 font-medium">by {entity.author || 'Unknown'}</span>
+        </div>
       </div>
-      <div class="flex gap-2">
-         <slot name="actions-mobile" />
+      
+      <div class="flex items-center gap-3">
+        {entity.fni_score && (
+          <div class="px-2 py-0.5 bg-indigo-600 text-white rounded text-[10px] font-black flex items-center gap-1">
+             <span class="opacity-80">⭐</span> {entity.fni_score}
+          </div>
+        )}
+        <slot name="actions-mobile" />
       </div>
     </div>
 
@@ -62,19 +70,11 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
         <slot name="hero" />
       </section>
 
-      {/* Zone 1.5: USE CASES (Inferred) */}
-      {useCases.length > 0 && (
-        <section class="mb-6 flex flex-wrap gap-2 animate-fade-in">
-          {useCases.map(uc => (
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
-              <span>{uc.icon}</span> {uc.label}
-            </span>
-          ))}
-        </section>
-      )}
+      {/* Zone 1.5: USE CASES (V15.0) */}
+      <slot name="use-cases" />
 
       {/* Zone 2: QUICK INSIGHTS */}
-      <section class="mb-10">
+      <section class="mb-12">
         <QuickInsights entity={entity} type={type} />
         <slot name="insights-extra" />
       </section>
@@ -97,18 +97,21 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
       <section class="hidden md:block mb-12 space-y-10">
         <slot name="core-desktop" />
       </section>
-
+      
       {/* Mobile: Tab Navigation */}
       <section class="md:hidden mb-12">
         <div class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 mb-4 no-scrollbar">
-          <button class="z3-tab-btn px-4 py-2 text-sm font-medium text-indigo-600 border-b-2 border-indigo-600 whitespace-nowrap" data-target="z3-knowledge">
+          <button class="z3-tab-btn px-4 py-2 text-sm font-bold text-indigo-600 border-b-2 border-indigo-600 whitespace-nowrap" data-target="z3-knowledge">
             Knowledge
           </button>
-          <button class="z3-tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap" data-target="z3-related">
+          <button class="z3-tab-btn px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap" data-target="z3-related">
             Similar
           </button>
-          <button class="z3-tab-btn px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap" data-target="z3-benchmarks">
+          <button class="z3-tab-btn px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap" data-target="z3-benchmarks">
             Benchmarks
+          </button>
+          <button class="z3-tab-btn px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap" data-target="z3-trends">
+            Trends
           </button>
         </div>
         
@@ -121,61 +124,106 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
         <div id="z3-benchmarks" class="z3-tab-content hidden animate-fade-in">
            <slot name="core-benchmarks" />
         </div>
+        <div id="z3-trends" class="z3-tab-content hidden animate-fade-in">
+           <slot name="core-trends" />
+        </div>
       </section>
 
-      {/* Zone 4: DEEP DIVE */}
-      <section id="deep-dive-section" class="mb-12 space-y-6">
-        <h2 class="text-xl font-bold flex items-center gap-2">
-          <span>🔬 Deep Dive</span>
-          <span class="h-px flex-1 bg-gray-200 dark:bg-gray-700"></span>
-        </h2>
-        <slot name="deep-dive" />
+      {/* Zone 4: DEEP DIVE (Collapsible by Default per Spec) */}
+      <section id="deep-dive-section" class="mb-12">
+        <details id="z4-details" open class="group">
+          <summary class="list-none cursor-pointer flex items-center justify-between mb-6 group-open:mb-4">
+             <h2 class="text-2xl font-black flex items-center gap-2 text-gray-900 dark:text-white">
+                <span>🔬</span> <span>Deep Dive</span>
+             </h2>
+             <span class="text-indigo-600 dark:text-indigo-400 text-sm font-bold uppercase tracking-wider group-open:hidden">Expand Details [+]</span>
+             <span class="text-gray-400 group-open:block hidden text-2xl transition-transform duration-300 group-open:rotate-180">▾</span>
+          </summary>
+          <div class="space-y-8 animate-slide-up">
+            <slot name="deep-dive" />
+          </div>
+        </details>
       </section>
 
       {/* Zone 5: COMMUNITY */}
-      <section class="border-t border-gray-200 dark:border-gray-800 pt-8">
-        <slot name="community" />
+      <section class="border-t border-gray-100 dark:border-gray-800 pt-12 mb-10">
+        <div class="flex flex-col md:flex-row justify-between gap-8">
+           <div class="flex-1">
+              <slot name="community" />
+           </div>
+           <div class="md:w-1/3">
+              <slot name="community-sidebar" />
+           </div>
+        </div>
       </section>
     </main>
   </Layout>
 )}
-<script>
+<script is:inline>
   // Mobile Sticky Header Logic
-  const header = document.getElementById('sticky-header');
-  const heroSection = document.querySelector('main');
-  
-  if (header && heroSection) {
+  const stickyHeader = document.getElementById('sticky-header');
+  if (stickyHeader) {
     window.addEventListener('scroll', () => {
-      const offset = 300; // Show after scrolling 300px
-      if (window.scrollY > offset) {
-        header.classList.remove('-translate-y-full');
+      if (window.scrollY > 300) {
+        stickyHeader.classList.remove('-translate-y-full');
       } else {
-        header.classList.add('-translate-y-full');
+        stickyHeader.classList.add('-translate-y-full');
       }
-    });
+    }, { passive: true });
   }
 
-  // Mobile Zone 3 Tab Logic
+  // V15.0: Mobile Zone 3 Tab Logic with Persistence
   const tabs = document.querySelectorAll('.z3-tab-btn');
   const contents = document.querySelectorAll('.z3-tab-content');
+  const tabKey = 'f2a_detail_z3_tab';
+
+  function setActiveTab(targetId) {
+    tabs.forEach(tab => {
+      const isActive = tab.getAttribute('data-target') === targetId;
+      if (isActive) {
+        tab.classList.add('text-indigo-600', 'border-indigo-600', 'font-black');
+        tab.classList.remove('text-gray-500', 'border-transparent', 'font-bold');
+      } else {
+        tab.classList.remove('text-indigo-600', 'border-indigo-600', 'font-black');
+        tab.classList.add('text-gray-500', 'border-transparent', 'font-bold');
+      }
+    });
+
+    contents.forEach(content => {
+      if (content.id === targetId) {
+        content.classList.remove('hidden');
+      } else {
+        content.classList.add('hidden');
+      }
+    });
+
+    localStorage.setItem(tabKey, targetId);
+  }
+
+  // Restore Saved Tab
+  const savedTab = localStorage.getItem(tabKey);
+  if (savedTab && document.getElementById(savedTab)) {
+    setActiveTab(savedTab);
+  }
 
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
-      // Reset Tabs
-      tabs.forEach(t => {
-        t.classList.remove('text-indigo-600', 'border-indigo-600');
-        t.classList.add('text-gray-500', 'border-transparent');
-      });
-      // Activate Clicked
-      tab.classList.remove('text-gray-500', 'border-transparent');
-      tab.classList.add('text-indigo-600', 'border-indigo-600');
-
-      // Show Content
-      const targetId = tab.getAttribute('data-target');
-      contents.forEach(c => c.classList.add('hidden'));
-      document.getElementById(targetId)?.classList.remove('hidden');
+      setActiveTab(tab.getAttribute('data-target'));
     });
   });
+
+  // Zone 4 Collapsible Persistence
+  const z4 = document.getElementById('z4-details');
+  const z4Key = 'f2a_detail_z4_open';
+  
+  if (z4) {
+    const savedZ4 = localStorage.getItem(z4Key);
+    if (savedZ4 === 'false') z4.open = false;
+
+    z4.addEventListener('toggle', () => {
+      localStorage.setItem(z4Key, z4.open);
+    });
+  }
 </script>
 
 <style>

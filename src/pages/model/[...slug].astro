@@ -2,7 +2,9 @@
 export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import EntityLayout from '../../layouts/EntityLayout.astro';
-import ModelHeader from '../../components/model-detail/ModelHeader.astro';
+import EntityHeader from '../../components/entity/EntityHeader.astro';
+import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
+import { getUseCases } from '../../utils/inference';
 import ModelMainColumn from '../../components/model-detail/ModelMainColumn.astro';
 import ModelSidebar from '../../components/model-detail/ModelSidebar.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
@@ -63,6 +65,9 @@ try {
         similarModels = (await Promise.all(resolvedPromises)).filter(Boolean);
     }
 
+    // V15.0: Derived Use Cases and Limits
+    const derivedUseCases = getUseCases(tagsArray, model.pipeline_tag, 'model', model.fni_score);
+
     const modelName = model.name || model.canonical_name || model.id || 'Unknown Model';
     pageTitle = `${modelName} - AI Model Insights & Benchmarks`;
     
@@ -107,20 +112,20 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
   jsonld={jsonld}
 >
    {/* Zone 1: Hero */}
-   <ModelHeader 
+   <EntityHeader 
      slot="hero"
-     modelName={modelName}
-     modelId={modelId}
-     entityType={model?.entityType || 'model'}
+     name={modelName}
+     entityType="model"
      entityIcon={model?.entityDefinition?.display?.icon || '🧠'}
      entityLabel={model?.entityDefinition?.display?.labelSingular || 'Model'}
      verified={false} 
      author={model?.author}
      lastUpdated={model?.last_updated}
-     seoDescription={model?.seo_summary?.description}
-     cleanDescription={cleanDesc}
+     description={model?.seo_summary?.description || cleanDesc}
+     fniScore={model?.fni_score}
+     fniPercentile={model?.fni_percentile}
    >
-      <div slot="actions" class="flex gap-2 mt-4">
+      <div slot="actions" class="flex gap-2">
          <QuickStart 
            modelId={modelId}
            modelName={modelName}
@@ -129,8 +134,14 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
            compact={true}
          />
       </div>
-   </ModelHeader>
- 
+   </EntityHeader>
+
+   <ZoneUseCases 
+     slot="use-cases" 
+     goodFor={derivedUseCases.goodFor} 
+     limits={derivedUseCases.limits} 
+   />
+  
    {/* Zone 1 Mobile Actions */}
    <div slot="actions-mobile">
       <button class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Download</button>
@@ -174,23 +185,27 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
       )}
    </div>
 
-   <div slot="core-benchmarks">
-       {hasBench && (
-         <BenchmarkCard 
-           umid={modelId}
-           name={modelName}
-           mmlu={model?.mmlu || model?.benchmark_mmlu}
-           humaneval={model?.humaneval || model?.benchmark_humaneval}
-           hellaswag={model?.hellaswag || model?.benchmark_hellaswag}
-           arc_challenge={model?.arc_challenge || model?.benchmark_arc}
-           avg_score={model?.avg_score || model?.benchmark_avg || 0}
-         />
-       )}
-       <div class="mt-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-         <h3 class="font-bold mb-4 text-gray-900 dark:text-white">7-Day Trend</h3>
-         <MiniTrendChart entityId={modelId} width={300} height={100} />
+    <div slot="core-benchmarks">
+        {hasBench && (
+          <BenchmarkCard 
+            umid={modelId}
+            name={modelName}
+            mmlu={model?.mmlu || model?.benchmark_mmlu}
+            humaneval={model?.humaneval || model?.benchmark_humaneval}
+            hellaswag={model?.hellaswag || model?.benchmark_hellaswag}
+            arc_challenge={model?.arc_challenge || model?.benchmark_arc}
+            avg_score={model?.avg_score || model?.benchmark_avg || 0}
+          />
+        )}
+    </div>
+
+    <div slot="core-trends">
+       <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+         <h3 class="font-bold mb-4 text-gray-900 dark:text-white">7-Day Interaction Trend</h3>
+         <MiniTrendChart entityId={modelId} width={500} height={200} />
+         <p class="text-xs text-gray-500 mt-4 italic">* Interactions include clicks, shares, and search appearances.</p>
        </div>
-   </div>
+    </div>
  
    {/* Zone 4: Deep Dive */}
    <div slot="deep-dive" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
