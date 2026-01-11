@@ -33,35 +33,75 @@ export const USE_CASE_MAP = {
 
 /**
  * Get distinct use cases for Zone 1.5
- * @param {string[]} tags - List of entity tags
- * @param {string} pipelineTag - HuggingFace pipeline tag
- * @param {string} entityType - model, agent, etc.
+ * V15.0: "What can this be used for?" (3-5 second evaluation)
  */
-export function getUseCases(tags = [], pipelineTag = '', entityType = 'model') {
-    const cases = new Map();
+export function getUseCases(tags = [], pipelineTag = '', entityType = 'model', fniScore = 0) {
+    const goodFor = new Set();
+    const limits = new Set();
     const allTags = [...(tags || []), pipelineTag].filter(Boolean).map(t => t.toLowerCase());
 
-    // 1. Map known tags
-    allTags.forEach(tag => {
-        if (USE_CASE_MAP[tag]) {
-            cases.set(USE_CASE_MAP[tag].id, USE_CASE_MAP[tag]);
-        }
-    });
+    // 1. Entity Type Logic
+    if (entityType === 'model') {
+        if (allTags.includes('text-generation')) goodFor.add('Chat & Dialogue');
+        if (allTags.includes('code') || allTags.includes('python')) goodFor.add('Coding Assistant');
+        if (allTags.includes('translation')) goodFor.add('Translation');
+        if (allTags.includes('summarization')) goodFor.add('Content Summary');
+        if (allTags.includes('rag') || allTags.includes('knowledge')) goodFor.add('RAG Systems');
+        if (allTags.includes('text-to-image')) goodFor.add('AI Art Gen');
 
-    // 2. Infer from Entity Type defaults if empty
-    if (cases.size === 0) {
-        if (entityType === 'model') cases.set('general', { id: 'general', label: 'General Task', icon: '⚡' });
-        if (entityType === 'dataset') cases.set('train', { id: 'train', label: 'Model Training', icon: '🏋️' });
-        if (entityType === 'space') cases.set('demo', { id: 'demo', label: 'Interactive Demo', icon: '🎮' });
-        if (entityType === 'paper') cases.set('research', { id: 'research', label: 'Deep Research', icon: '🔬' });
-        if (entityType === 'tool') cases.set('dev', { id: 'dev', label: 'Development', icon: '🛠️' });
-        if (entityType === 'agent') cases.set('assist', { id: 'assist', label: 'AI Assistant', icon: '🤖' });
+        // Limits
+        if (fniScore < 50 && fniScore > 0) limits.add('Experimental / High Latency');
+        if (allTags.includes('small-model')) limits.add('Limited Complexity');
     }
 
-    // 3. Add Performance Badge (if applicable)
-    // This would ideally come from a passed FNI score, but logic kept simple here
+    else if (entityType === 'agent') {
+        if (allTags.includes('framework')) goodFor.add('Agent Orchestration');
+        if (allTags.includes('mcp-server')) goodFor.add('External Tools');
+        if (allTags.includes('autonomous')) goodFor.add('Long-term Planning');
 
-    return Array.from(cases.values()).slice(0, 4); // Max 4 items
+        // Limits
+        limits.add('Requires API Keys');
+    }
+
+    else if (entityType === 'paper') {
+        if (allTags.includes('nlp')) goodFor.add('Language Theory');
+        if (allTags.includes('cv')) goodFor.add('Object Detection');
+        if (allTags.includes('benchmark')) goodFor.add('Model Analytics');
+
+        // Defaults if tags sparse
+        if (goodFor.size === 0) goodFor.add('SOTA Research');
+        limits.add('Academic Implementation');
+    }
+
+    else if (entityType === 'dataset') {
+        if (allTags.includes('sft')) goodFor.add('Instruction Tuning');
+        if (allTags.includes('rlhf')) goodFor.add('Alignment Training');
+        if (allTags.includes('pretrain')) goodFor.add('Base Training');
+
+        if (goodFor.size === 0) goodFor.add('Data Science');
+    }
+
+    else if (entityType === 'space') {
+        goodFor.add('Interactive UI Demo');
+        if (allTags.includes('chat')) goodFor.add('Live Sandbox');
+    }
+
+    else if (entityType === 'tool') {
+        goodFor.add('Developer SDK');
+        if (allTags.includes('deployment')) goodFor.add('Model Serving');
+    }
+
+    // Performance Badge
+    if (fniScore >= 90) goodFor.add('SOTA Performance');
+
+    // Defaults
+    if (goodFor.size === 0) goodFor.add('Innovative Solution');
+    if (limits.size === 0) limits.add('Generic Use');
+
+    return {
+        goodFor: Array.from(goodFor).slice(0, 3),
+        limits: Array.from(limits).slice(0, 2)
+    };
 }
 
 /**
@@ -89,32 +129,37 @@ export function getQuickInsights(entity, type) {
 
     else if (type === 'agent') {
         insights.push({ label: 'Tools', value: entity.tools_count || '-' });
+        insights.push({ label: 'Language', value: entity.language || 'Python' });
         insights.push({ label: 'Stars', value: formatNum(entity.stars || entity.github_stars) });
-        insights.push({ label: 'Framework', value: entity.framework || '-' });
+        insights.push({ label: 'Verified', value: entity.verified ? 'Yes' : 'No', highlight: entity.verified });
     }
 
     else if (type === 'dataset') {
         insights.push({ label: 'Size', value: entity.size_gb ? `${entity.size_gb} GB` : '-' });
         insights.push({ label: 'Rows', value: formatNum(entity.rows) });
-        insights.push({ label: 'Format', value: entity.format || '-' });
+        insights.push({ label: 'Format', value: entity.format || 'Parquet' });
+        insights.push({ label: 'Likes', value: formatNum(entity.likes) });
     }
 
     else if (type === 'paper') {
-        insights.push({ label: 'Citations', value: formatNum(entity.citations) });
-        insights.push({ label: 'Published', value: entity.published_date ? new Date(entity.published_date).getFullYear() : '-' });
-        insights.push({ label: 'Pages', value: entity.pages || '-' });
+        insights.push({ label: 'Citations', value: formatNum(entity.citations || entity.citation_count) });
+        insights.push({ label: 'Published', value: entity.published_date ? new Date(entity.published_date).getFullYear() : '2024' });
+        insights.push({ label: 'Pages', value: entity.pages || 'N/A' });
+        insights.push({ label: 'FNI Rank', value: entity.fni_score ? `Top ${100 - (entity.fni_percentile || 0)}%` : '-', highlight: true });
     }
 
     else if (type === 'space') {
-        insights.push({ label: 'SDK', value: entity.sdk || '-' });
+        insights.push({ label: 'SDK', value: entity.sdk || 'Gradio' });
+        insights.push({ label: 'Config', value: entity.hardware || 'CPU' });
+        insights.push({ label: 'Status', value: entity.runtime?.stage || 'Running', highlight: true });
         insights.push({ label: 'Likes', value: formatNum(entity.likes) });
-        insights.push({ label: 'Status', value: entity.runtime?.stage || 'Running' });
     }
 
     else if (type === 'tool') {
         insights.push({ label: 'Lang', value: entity.language || '-' });
-        insights.push({ label: 'License', value: entity.license || '-' });
-        insights.push({ label: 'Stars', value: formatNum(entity.stars) });
+        insights.push({ label: 'Stars', value: formatNum(entity.stars || entity.github_stars) });
+        insights.push({ label: 'Version', value: entity.version || 'v1.0.0' });
+        insights.push({ label: 'License', value: entity.license || 'MIT', highlight: true });
     }
 
     return insights;

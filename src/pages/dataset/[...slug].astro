@@ -4,10 +4,11 @@ export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 import EntityLayout from '../../layouts/EntityLayout.astro';
+import EntityHeader from '../../components/entity/EntityHeader.astro';
+import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
+import { getUseCases } from '../../utils/inference';
 import ModelCard from '../../components/ModelCard.astro';
 import DataFreshness from '../../components/common/DataFreshness.astro';
-import DatasetUseCases from '../../components/dataset/DatasetUseCases.astro';
-import DatasetQuickInsights from '../../components/dataset/DatasetQuickInsights.astro';
 import DatasetSchema from '../../components/dataset/DatasetSchema.astro';
 import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
 
@@ -68,6 +69,10 @@ const jsonLd = dataset ? {
 
 const hasDataset = !!dataset;
 const hasRecommendedModels = recommendedModels.length > 0;
+
+// V15.0: Derived Use Cases and Limits
+const tagsArray = dataset?.tags ? (typeof dataset.tags === 'string' ? JSON.parse(dataset.tags) : dataset.tags) : [];
+const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.fni_score || 0) : { goodFor: [], limits: [] };
 ---
 
 
@@ -80,20 +85,31 @@ const hasRecommendedModels = recommendedModels.length > 0;
   description={pageDescription}
   jsonld={jsonLd}
 >
-   {/* Zone 1: Hero */}
-   <header slot="hero" class="mb-8">
-     <div class="flex items-center gap-4 mb-4">
-        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-          {dataset.source || 'Dataset'}
-        </span>
-     </div>
-     <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-       {dataset.title || dataset.name}
-     </h1>
-     <p class="text-lg text-gray-600 dark:text-gray-300">
-       {dataset.description}
-     </p>
-   </header>
+    {/* Zone 1: Hero */}
+    <EntityHeader 
+      slot="hero"
+      name={dataset.name || dataset.title}
+      entityType="dataset"
+      entityIcon="📊"
+      entityLabel="Dataset"
+      verified={false}
+      author={dataset.author || 'Unknown'}
+      description={dataset.description}
+      fniScore={dataset.fni_score}
+      fniPercentile={dataset.fni_percentile}
+      sourceUrl={dataset.source_url}
+    >
+      <div slot="actions" class="flex gap-2">
+         <a href={dataset.source_url} target="_blank" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors">Download Dataset</a>
+      </div>
+    </EntityHeader>
+ 
+    {/* Zone 1.5: Use Cases */}
+    <ZoneUseCases 
+      slot="use-cases" 
+      goodFor={derivedUseCases.goodFor} 
+      limits={derivedUseCases.limits} 
+    />
  
     {/* Zone 1 Mobile Actions */}
    <div slot="actions-mobile">
@@ -103,11 +119,10 @@ const hasRecommendedModels = recommendedModels.length > 0;
    {/* Zone 3: Core (Desktop) */}
    <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <div class="space-y-8">
-         <DatasetUseCases tags={dataset.tags} />
          <DatasetSchema dataset={dataset} />
       </div>
        <div class="space-y-8">
-           <DatasetQuickInsights dataset={dataset} />
+           <p class="text-gray-500 italic p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">Technical datasets often require specific loading scripts (see Deep Dive).</p>
        </div>
    </div>
  

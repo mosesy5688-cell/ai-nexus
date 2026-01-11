@@ -7,9 +7,10 @@ export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 import EntityLayout from '../../layouts/EntityLayout.astro';
+import EntityHeader from '../../components/entity/EntityHeader.astro';
+import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
+import { getUseCases } from '../../utils/inference';
 import DataFreshness from '../../components/common/DataFreshness.astro';
-import ShareButtons from '../../components/common/ShareButtons.astro';
-import EntityZones from '../../components/entity/EntityZones.astro';
 import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
 import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
 
@@ -68,6 +69,10 @@ const jsonLd = tool ? {
 } : null;
 
 const hasTool = !!tool;
+
+// V15.0: Derived Use Cases and Limits
+const tagsArray = tool?.tags ? (typeof tool.tags === 'string' ? JSON.parse(tool.tags) : tool.tags) : [];
+const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score || 0) : { goodFor: [], limits: [] };
 ---
 
 
@@ -80,24 +85,33 @@ const hasTool = !!tool;
   description={pageDescription}
   jsonld={jsonLd}
 >
-   {/* Zone 1: Hero */}
-   <header slot="hero" class="mb-8">
-     <div class="flex items-center gap-4 mb-4">
-       <span class="text-4xl">🔧</span>
-       <span class="px-3 py-1 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-full text-sm font-medium">
-         TOOL
-       </span>
-       {tool.author && (
-         <span class="text-gray-500">by {tool.author}</span>
-       )}
-     </div>
-     <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-       {tool.name || tool.canonical_name}
-     </h1>
-     <p class="text-lg text-gray-600 dark:text-gray-300">
-       {tool.description || 'No description available'}
-     </p>
-   </header>
+    {/* Zone 1: Hero */}
+    <EntityHeader 
+      slot="hero"
+      name={tool.name || tool.canonical_name}
+      entityType="tool"
+      entityIcon="🛠️"
+      entityLabel={tool.language || 'Tool'}
+      verified={false}
+      author={tool.author || 'Unknown'}
+      description={tool.description}
+      fniScore={tool.fni_score}
+      fniPercentile={tool.fni_percentile}
+      sourceUrl={tool.source_url}
+    >
+      <div slot="actions" class="flex gap-2">
+         {tool.source_url && (
+           <a href={tool.source_url} target="_blank" class="px-4 py-2 bg-gray-800 text-white rounded-lg font-bold hover:bg-gray-900 transition-colors">View on GitHub</a>
+         )}
+      </div>
+    </EntityHeader>
+ 
+    {/* Zone 1.5: Use Cases */}
+    <ZoneUseCases 
+      slot="use-cases" 
+      goodFor={derivedUseCases.goodFor} 
+      limits={derivedUseCases.limits} 
+    />
  
     {/* Zone 1 Mobile Actions */}
    <div slot="actions-mobile">

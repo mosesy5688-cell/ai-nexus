@@ -9,11 +9,13 @@ export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 import EntityLayout from '../../layouts/EntityLayout.astro';
-import AgentHeader from '../../components/agent-detail/AgentHeader.astro';
+import EntityHeader from '../../components/entity/EntityHeader.astro';
 import AgentSpecs from '../../components/agent-detail/AgentSpecs.astro';
 import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
 import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.astro';
 import AgentDeepDive from '../../components/agent-detail/AgentDeepDive.astro';
+import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
+import { getUseCases } from '../../utils/inference';
 
 import { getModelFromCache } from '../../utils/entity-cache-reader';
 import { ENTITY_DEFINITIONS } from '../../data/entity-definitions';
@@ -65,6 +67,9 @@ try {
   console.error('[AgentPage] Error:', error);
 }
 
+// V15.0: Derived Use Cases and Limits
+const derivedUseCases = agent ? getUseCases(agent.tags || [], '', 'agent', agent.fni_score || 0) : { goodFor: [], limits: [] };
+
 const agentId = agent?.id || agent?.umid || normalizedSlug || '';
 const agentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
 
@@ -91,15 +96,31 @@ const jsonLd = agent ? {
   description={pageDescription}
   jsonld={jsonLd}
 >
-   {/* Zone 1: Hero */}
-   <AgentHeader 
-     slot="hero"
-     name={agent.name}
-     author={agent.author}
-     license={agent.license}
-     stars={agent.stars || agent.github_stars}
-     agentType={agent.agent_type || 'agent'}
-   />
+    {/* Zone 1: Hero */}
+    <EntityHeader 
+      slot="hero"
+      name={agentName}
+      entityType="agent"
+      entityIcon="🤖"
+      entityLabel={agent.agent_type || 'Agent'}
+      verified={agent.verified}
+      author={agent.author || 'Unknown'}
+      description={agent.description}
+      fniScore={agent.fni_score}
+      fniPercentile={agent.fni_percentile}
+      sourceUrl={agent.source_url}
+    >
+      <div slot="actions" class="flex gap-2">
+         <a href={agent.source_url} target="_blank" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors">Visit Agent</a>
+      </div>
+    </EntityHeader>
+ 
+    {/* Zone 1.5: Use Cases */}
+    <ZoneUseCases 
+      slot="use-cases" 
+      goodFor={derivedUseCases.goodFor} 
+      limits={derivedUseCases.limits} 
+    />
  
    {/* Zone 1 Mobile Actions */}
    <div slot="actions-mobile">
