@@ -21,9 +21,25 @@ export interface Props {
 }
 
 const { entity, type, title, description } = Astro.props;
-const useCases = getUseCases(entity.tags, entity.pipeline_tag, type);
 
-const displayId = entity.id || entity.name;
+// Defensive: Handle missing entity (404/Loading)
+if (!entity) {
+  return (
+    <Layout title={title || "Entity Not Found"} description="Entity details not available.">
+       <div class="container mx-auto px-4 py-20 text-center">
+          <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 text-gray-500 rounded-full mb-6">
+             <span class="text-3xl">❓</span>
+          </div>
+          <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">Entity Not Found</h1>
+          <p class="text-gray-600 dark:text-gray-400 mb-8">The requested {type} could not be found or is currently indexing.</p>
+          <a href="/" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Return Home</a>
+       </div>
+    </Layout>
+  );
+}
+
+const useCases = getUseCases(entity.tags || [], entity.pipeline_tag, type);
+const displayId = entity.id || entity.name || 'Unknown Entity';
 ---
 
 <Layout title={title} description={description}>
