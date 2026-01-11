@@ -64,8 +64,6 @@ const modelsUsed = space?.meta_json?.models_used || [];
   description={pageDescription}
   jsonld={jsonLd}
 >
- {space && (
-  <Fragment>
    {/* Zone 1: Hero */}
    <header slot="hero" class="mb-8">
      <div class="flex items-center gap-4 mb-4">
@@ -159,6 +157,4 @@ const modelsUsed = space?.meta_json?.models_used || [];
           </a>
        </div>
    </div>
-  </Fragment>
- )}
 </EntityLayout>

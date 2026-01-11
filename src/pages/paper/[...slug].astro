@@ -74,64 +74,64 @@ const authors = paper?.authors || [];
       </h1>
       {authors.length > 0 && (
         <p class="text-gray-600 dark:text-gray-400 mb-4">
-          {authors.slice(0, 5).join(', ')}{authors.length > 5 ? ` +${authors.length - 5} more` : ''}
-        </p>
+  <header slot="hero" class="mb-10">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="px-3 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-md text-xs font-bold tracking-wider uppercase">
+        Research Paper
+      </span>
+      {paper.published_date && (
+        <span class="text-sm text-gray-500">
+           Published: {new Date(paper.published_date).toLocaleDateString()}
+        </span>
       )}
-      
-      <div class="flex flex-wrap gap-4 mt-6">
-          {paper.pdf_url && (
-            <a href={paper.pdf_url} target="_blank" rel="noopener noreferrer"
-               class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-bold text-sm">
-              📥 Download PDF
-            </a>
-          )}
-          {paper.source_url && (
-            <a href={paper.source_url} target="_blank" rel="noopener noreferrer"
-               class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm">
-              View on ArXiv
-            </a>
-          )}
-      </div>
+    </div>
+    <h1 class="text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6">
+      {paper.title}
+    </h1>
+    <div class="flex flex-wrap gap-2 mb-6">
+      {paper.authors?.slice(0, 5).map((author: string) => (
+        <span class="text-sm text-gray-600 dark:text-gray-400">
+          {author}{author !== paper.authors[4] && author !== paper.authors[paper.authors.length-1] ? ',' : ''}
+        </span>
+      ))}
+      {paper.authors?.length > 5 && <span class="text-sm text-gray-500">et al.</span>}
+    </div>
   </header>
 
    {/* Zone 1 Mobile Actions */}
   <div slot="actions-mobile">
-      {paper.pdf_url && (
-         <a href={paper.pdf_url} target="_blank" class="px-3 py-1 bg-red-600 text-white rounded text-xs font-bold">PDF</a>
-      )}
+      <a href={paper.source_url} target="_blank" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">PDF</a>
   </div>
 
   {/* Zone 3: Core (Desktop) */}
   <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div class="space-y-8">
+     <div class="space-y-8">
         <RelationsPanel 
-             baseModel={paper.base_model}
-             datasetsUsed={paper.datasets_used}
-             arxivRefs={paper.related_papers}
-             knowledgeLinks={paper.knowledge}
+             arxivRefs={[paper.arxiv_id || slug]}
         />
-      </div>
+     </div>
       <div class="space-y-8">
-           <ShareButtons title={paper.title} description={paper.abstract?.slice(0, 100) || ''} />
+          <ShareButtons title={paper.title} description={paper.abstract || ''} />
       </div>
   </div>
 
   {/* Zone 3: Core (Mobile Tabs) */}
   <div slot="core-knowledge">
-      <RelationsPanel 
-           baseModel={paper.base_model}
-           datasetsUsed={paper.datasets_used}
-           arxivRefs={paper.related_papers}
-           knowledgeLinks={paper.knowledge}
-      />
+       <RelationsPanel 
+          arxivRefs={[paper.arxiv_id || slug]}
+       />
   </div>
   
   <div slot="core-related">
-      <p class="text-gray-500 italic p-4">No related papers indexed.</p>
+       <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
+           <p class="text-gray-500 italic">Similarity graph for papers is being indexed.</p>
+       </div>
   </div>
 
   <div slot="core-benchmarks">
-      <p class="text-gray-500 italic p-4">No benchmarks available.</p>
+      <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
+          <p class="text-gray-500 italic">No benchmark metadata attached to this paper.</p>
+      </div>
   </div>
 
   {/* Zone 4: Deep Dive */}
@@ -141,13 +141,17 @@ const authors = paper?.authors || [];
 
   {/* Zone 5: Community */}
   <div slot="community">
-      <DataFreshness version={cacheVersion} />
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+           <span>📄 arXiv:{paper.arxiv_id || slug}</span>
+        </div>
+      </div>
       <div class="mt-8 text-center">
-         <a href="/ranking?type=paper" class="text-indigo-500 hover:underline">
+         <a href="/ranking" class="text-indigo-500 hover:underline">
             ← Browse all papers
          </a>
       </div>
   </div>
-  </Fragment>
+</Fragment>
  )}
 </EntityLayout>

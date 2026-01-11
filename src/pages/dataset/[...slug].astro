@@ -80,56 +80,40 @@ const hasRecommendedModels = recommendedModels.length > 0;
   description={pageDescription}
   jsonld={jsonLd}
 >
- {dataset && (
-  <Fragment>
    {/* Zone 1: Hero */}
    <header slot="hero" class="mb-8">
-     <div class="flex items-center gap-3 mb-2">
-       <span class="text-3xl" role="img" aria-label="Dataset">📊</span>
-       <span class="px-2 py-1 text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded">
-         DATASET
-       </span>
+     <div class="flex items-center gap-4 mb-4">
+        <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+          {dataset.source || 'Dataset'}
+        </span>
      </div>
-     <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
-       {dataset.name}
+     <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+       {dataset.title || dataset.name}
      </h1>
-     <p class="text-gray-600 dark:text-gray-400 text-lg">
-       {dataset.description || 'No description available'}
+     <p class="text-lg text-gray-600 dark:text-gray-300">
+       {dataset.description}
      </p>
    </header>
  
     {/* Zone 1 Mobile Actions */}
    <div slot="actions-mobile">
-       <button class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Download</button>
+       <a href={dataset.source_url} target="_blank" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Download</a>
    </div>
  
    {/* Zone 3: Core (Desktop) */}
    <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* Reuse Relations Logic manually since space object is simple */}
+      <div class="space-y-8">
+         <DatasetUseCases tags={dataset.tags} />
+         <DatasetSchema dataset={dataset} />
+      </div>
        <div class="space-y-8">
-           <section>
-             <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
-               <span>🤖</span> Trained Models
-             </h2>
-              {hasRecommendedModels ? (
-                 <div class="flex flex-col gap-4">
-                   {recommendedModels.slice(0, 3).map(model => (
-                     <ModelCard model={model} />
-                   ))}
-                 </div>
-               ) : (
-                 <p class="text-gray-500 italic">No linked models found.</p>
-               )}
-           </section>
-       </div>
-       <div class="space-y-8">
-            <DatasetSchema dataset={dataset} />
+           <DatasetQuickInsights dataset={dataset} />
        </div>
    </div>
  
    {/* Zone 3: Core (Mobile Tabs) */}
    <div slot="core-knowledge">
-        <DatasetSchema dataset={dataset} />
+        <DatasetUseCases tags={dataset.tags} />
    </div>
    
    <div slot="core-related">
@@ -145,7 +129,9 @@ const hasRecommendedModels = recommendedModels.length > 0;
    </div>
  
    <div slot="core-benchmarks">
-       <p class="text-gray-500 italic p-4">No benchmarks available.</p>
+        <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
+            <p class="text-gray-500 italic">No benchmark correlations for this dataset.</p>
+        </div>
    </div>
  
    {/* Zone 4: Deep Dive */}
