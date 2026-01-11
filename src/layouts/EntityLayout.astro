@@ -18,9 +18,11 @@ export interface Props {
   type: 'model' | 'agent' | 'space' | 'tool' | 'dataset' | 'paper';
   title: string;
   description: string;
+  image?: string;
+  jsonld?: object;
 }
 
-const { entity, type, title, description } = Astro.props;
+const { entity, type, title, description, image, jsonld } = Astro.props;
 
 // Defensive: Handle missing entity (404/Loading)
 if (!entity) {
@@ -42,7 +44,7 @@ const useCases = getUseCases(entity.tags || [], entity.pipeline_tag, type);
 const displayId = entity.id || entity.name || 'Unknown Entity';
 ---
 
-<Layout title={title} description={description}>
+<Layout title={title} description={description} image={image} jsonld={jsonld}>
   {/* Mobile Sticky Header (Zone 1 Compact) */}
   <div id="sticky-header" class="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur shadow-md transform -translate-y-full transition-transform duration-300 lg:hidden px-4 py-3 flex items-center justify-between">
     <div class="flex flex-col">

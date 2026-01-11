@@ -68,20 +68,15 @@ const jsonLd = tool ? {
 const hasTool = !!tool;
 ---
 
-<Layout title={pageTitle} description={pageDescription}>
-  <link slot="head" rel="canonical" href={canonicalUrl} />
-  {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
-
 import EntityLayout from '../../layouts/EntityLayout.astro';
 /* ... keep other imports ... */
-
-/* ... keep setup logic ... */
 
 <EntityLayout 
   entity={tool} 
   type="tool" 
   title={pageTitle} 
   description={pageDescription}
+  jsonld={jsonLd}
 >
   {/* Zone 1: Hero */}
   <header slot="hero" class="mb-8">
@@ -199,4 +194,4 @@ import EntityLayout from '../../layouts/EntityLayout.astro';
   </div>
 
 </EntityLayout>
-</Layout>
+
