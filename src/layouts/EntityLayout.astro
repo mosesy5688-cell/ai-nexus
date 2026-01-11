@@ -11,6 +11,7 @@
  */
 import Layout from '../layouts/Layout.astro';
 import QuickInsights from '../components/entity/QuickInsights.astro';
+import CommunityStats from '../components/model-detail/CommunityStats.astro';
 import { getUseCases } from '../utils/inference';
 
 export interface Props {
@@ -77,6 +78,19 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
         <QuickInsights entity={entity} type={type} />
         <slot name="insights-extra" />
       </section>
+
+      {/* Zone 2.5: COMMUNITY STATS (Global Upgrade) */}
+      {hasEntity && (
+         <CommunityStats 
+            source={entity.source || 'huggingface'}
+            sourceUrl={entity.source_url}
+            likes={entity.likes || entity.github_stars}
+            downloads={entity.downloads}
+            stars={entity.github_stars || entity.stars}
+            forks={entity.github_forks || entity.forks}
+            openIssues={entity.github_issues}
+         />
+      )}
 
       {/* Zone 3: CORE FEATURES */}
       {/* Desktop: Stacked / Grid */}

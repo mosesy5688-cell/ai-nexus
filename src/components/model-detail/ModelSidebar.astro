@@ -3,7 +3,9 @@
 // V6.2: Pass all available specs fields for complete data display
 // B.6: Added meta_json display for complete information
 // B.8: Added DeploymentInfo for VRAM/difficulty
-import SpecsTable from '../specs/SpecsTable.astro';
+import TechSpecsFull from './TechSpecsFull.astro';
+import GGUFList from './GGUFList.astro';
+import TagsCloud from './TagsCloud.astro';
 import ModelInfoTable from '../ModelInfoTable.astro';
 import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
 import DeploymentInfo from './DeploymentInfo.astro';
@@ -117,18 +119,31 @@ function formatBytes(bytes: number | undefined): string {
   </div>
   END HIDDEN */}
 
+  <TagsCloud 
+    tags={model.tags || []} 
+    pipelineTag={model.pipeline_tag} 
+  />
+
   {hasSpecsData && (
-    <SpecsTable 
-      params_billions={model.params_billions || null}
-      context_length={model.context_length || null}
-      vocab_size={model.vocab_size || null}
-      hidden_size={model.hidden_size || null}
-      num_layers={model.num_layers || null}
-      architecture={model.architecture || null}
-      architecture_family={model.architecture_family || null}
-      deploy_score={model.deploy_score || null}
+    <TechSpecsFull 
+      paramsB={model.params_billions}
+      contextLength={model.context_length}
+      vocabSize={model.vocab_size}
+      hiddenSize={model.hidden_size}
+      numLayers={model.num_layers}
+      architecture={model.architecture}
+      license={model.license || metaJson.license}
+      libraryName={libraryName}
+      pipelineTag={model.pipeline_tag}
+      quantization={quantization}
     />
   )}
+
+  <GGUFList 
+     modelId={modelId}
+     hasGguf={model.has_gguf}
+     variants={metaJson.quantization ? [{name: 'Quantized', quantType: metaJson.quantization}] : []}
+  />
   
   {/* B.8: Deployment Info with VRAM estimation */}
   <DeploymentInfo 
