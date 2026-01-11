@@ -111,7 +111,7 @@ const jsonLd = agent ? {
       sourceUrl={agent.source_url}
     >
       <div slot="actions" class="flex gap-2">
-         <a href={agent.source_url} target="_blank" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors">Visit Agent</a>
+         <a href={agent.source_url} target="_blank" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-sm">Visit Agent</a>
       </div>
     </EntityHeader>
  
@@ -121,50 +121,55 @@ const jsonLd = agent ? {
       goodFor={derivedUseCases.goodFor} 
       limits={derivedUseCases.limits} 
     />
+  
+    {/* Zone 3: Core (Desktop) */}
+    <div slot="core-desktop">
+       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <RelatedKnowledge 
+             tags={agent.tags || []}
+             description={agent.description || ''}
+          />
+          <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+             <h3 class="font-bold mb-4">Agent Research</h3>
+             <RelatedResearch modelId={normalizedSlug} />
+          </div>
+       </div>
+    </div>
  
-   {/* Zone 1 Mobile Actions */}
-   <div slot="actions-mobile">
-      <a href={agent.source_url} target="_blank" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Visit</a>
-   </div>
- 
-   {/* Zone 3: Core (Desktop) */}
-   <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div class="space-y-8">
-         <RelatedKnowledge 
-            tags={agent.tags || []}
-            description={agent.description || ''}
-         />
-      </div>
-      <div class="space-y-8">
-         <RelatedResearch modelId={normalizedSlug} />
-      </div>
-   </div>
- 
-   {/* Zone 3: Core (Mobile Tabs) */}
-   <div slot="core-knowledge">
-      <RelatedKnowledge 
-         tags={agent.tags || []}
-         description={agent.description || ''}
-      />
-   </div>
-   
-   <div slot="core-related">
-       <RelatedResearch modelId={normalizedSlug} />
-   </div>
- 
-   <div slot="core-benchmarks">
-       <p class="text-gray-500 italic p-4">No benchmarks available for this agent.</p>
-   </div>
- 
-   {/* Zone 4: Deep Dive */}
-   <div slot="deep-dive">
-       <AgentDeepDive agent={agent} />
-   </div>
- 
-   {/* Zone 5: Community */}
-   <div slot="community" class="text-center py-8">
-       <a href="/ranking" class="text-indigo-500 hover:underline">
-          ← Browse all agents
-       </a>
-   </div>
+    {/* Zone 3: Core (Mobile Tabs) */}
+    <div slot="core-knowledge">
+       <RelatedKnowledge 
+          tags={agent.tags || []}
+          description={agent.description || ''}
+       />
+    </div>
+    
+    <div slot="core-similar">
+        <RelatedResearch modelId={normalizedSlug} />
+    </div>
+  
+    <div slot="core-benchmarks">
+        <p class="text-gray-500 italic p-4 text-center">No benchmarks available for this agent.</p>
+    </div>
+  
+    {/* Zone 4: Deep Dive */}
+    <div slot="deep-dive">
+        <AgentDeepDive agent={agent} />
+    </div>
+
+    <div slot="sidebar" class="space-y-8">
+       <div class="p-6 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/50">
+          <h3 class="font-bold text-purple-900 dark:text-indigo-100 mb-2">Autonomous Agent</h3>
+          <p class="text-xs text-purple-700 dark:text-indigo-300 leading-relaxed">This agent is indexed as a specialized autonomous entity. Features and benchmarks are derived from technical meta-analysis.</p>
+       </div>
+    </div>
+
+    <div slot="full-metadata">
+       <FullMetadata entity={agent} />
+    </div>
+  
+    {/* Zone 5: Community */}
+    <div slot="community" class="py-4">
+        <p class="text-sm text-gray-500">Agent data version: {agent._contract_version || 'V15'}</p>
+    </div>
 </EntityLayout>

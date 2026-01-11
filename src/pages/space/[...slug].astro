@@ -84,7 +84,7 @@ const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_sc
       sourceUrl={space.source_url}
     >
       <div slot="actions" class="flex gap-2">
-         <a href={space.source_url} target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors">Visit Demo</a>
+         <a href={space.source_url} target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm">Visit Demo</a>
       </div>
     </EntityHeader>
  
@@ -94,80 +94,65 @@ const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_sc
       goodFor={derivedUseCases.goodFor} 
       limits={derivedUseCases.limits} 
     />
- 
-    {/* Zone 1 Mobile Actions */}
-   <div slot="actions-mobile">
-       <a href={space.source_url} target="_blank" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Open Demo</a>
-   </div>
- 
-   {/* Zone 3: Core (Desktop) */}
-   <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div class="space-y-8">
-         {/* Reuse Relations Logic manually since space object is simple */}
-         <div>
-            <h3 class="font-bold mb-4">Uses Models</h3>
-            {modelsUsed.length > 0 ? (
-              <div class="flex flex-wrap gap-2">
-               {modelsUsed.map((model: string) => (
-                 <a href={`/model/${model.replace(/\//g, '--')}`}
-                    class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm hover:bg-blue-200 transition-colors">
-                   {model}
-                 </a>
-               ))}
-              </div>
-            ) : <p class="text-gray-500 italic">No models specified.</p>}
-         </div>
-      </div>
-       <div class="space-y-8">
-           <ShareButtons title={space.title || space.name} description={space.description || ''} />
+  
+    {/* Zone 3: Core (Desktop) */}
+    <div slot="core-desktop">
+       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+             <h3 class="font-bold mb-4">Uses Models</h3>
+             {modelsUsed.length > 0 ? (
+               <div class="flex flex-wrap gap-2">
+                {modelsUsed.map((model: string) => (
+                  <a href={`/model/${model.replace(/\//g, '--')}`}
+                     class="px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
+                    {model}
+                  </a>
+                ))}
+               </div>
+             ) : <p class="text-gray-500 italic">No models specified.</p>}
+          </div>
+          <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+             <h3 class="font-bold mb-4">Share Demo</h3>
+             <ShareButtons title={space.title || space.name} description={space.description || ''} />
+          </div>
        </div>
-   </div>
+    </div>
  
-   {/* Zone 3: Core (Mobile Tabs) */}
-   <div slot="core-knowledge">
-        {/* Simple Knowledge stub for Space */}
-        <div class="p-4 bg-gray-50 rounded text-center text-sm text-gray-500">
-           Knowledge Relations not available for Spaces yet.
-        </div>
-   </div>
-   
-   <div slot="core-related">
-        <div>
-            <h3 class="font-bold mb-4">Uses Models</h3>
-            {modelsUsed.length > 0 ? (
-              <div class="flex flex-wrap gap-2">
-               {modelsUsed.map((model: string) => (
-                 <a href={`/model/${model.replace(/\//g, '--')}`}
-                    class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm hover:bg-blue-200 transition-colors">
-                   {model}
-                 </a>
-               ))}
-              </div>
-            ) : <p class="text-gray-500 italic dark:text-gray-400">No models specified.</p>}
+    {/* Zone 3: Core (Mobile Tabs) */}
+    <div slot="core-knowledge">
+         <div class="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl text-center text-sm text-gray-500 italic">
+            Knowledge Relations not available for Spaces yet.
          </div>
-   </div>
- 
-   <div slot="core-benchmarks">
-       <p class="text-gray-500 italic p-4">No benchmarks available.</p>
-   </div>
- 
-   {/* Zone 4: Deep Dive */}
-   <div slot="deep-dive">
-        <SpaceDeepDive space={space} />
-   </div>
- 
-   {/* Zone 5: Community */}
-   <div slot="community">
-       <div class="flex items-center justify-between mb-4">
-         <div class="flex items-center gap-2">
-            <span>❤️ {space.likes || 0} Likes</span>
+    </div>
+    
+    <div slot="core-similar">
+         <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center text-gray-500 italic">
+             No related spaces indexed.
          </div>
-         <DataFreshness version={cacheVersion} />
+    </div>
+  
+    <div slot="core-benchmarks">
+        <p class="text-gray-500 italic p-4 text-center">No benchmarks available.</p>
+    </div>
+  
+    {/* Zone 4: Deep Dive */}
+    <div slot="deep-dive">
+         <SpaceDeepDive space={space} />
+    </div>
+
+    <div slot="sidebar" class="space-y-8">
+       <div class="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800/50">
+          <h3 class="font-bold text-blue-900 dark:text-blue-100 mb-2">Interactive Space</h3>
+          <p class="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">This space is hosted on HuggingFace and provides a live demonstration of AI capabilities. Please follow original author's usage policies.</p>
        </div>
-       <div class="mt-8 text-center">
-          <a href="/ranking" class="text-indigo-500 hover:underline">
-             ← Browse all spaces
-          </a>
-       </div>
-   </div>
+    </div>
+
+    <div slot="full-metadata">
+       <FullMetadata entity={space} />
+    </div>
+  
+    {/* Zone 5: Community */}
+    <div slot="community" class="py-4">
+        <DataFreshness version={cacheVersion} />
+    </div>
 </EntityLayout>

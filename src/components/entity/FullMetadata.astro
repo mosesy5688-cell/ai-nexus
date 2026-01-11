@@ -1,0 +1,70 @@
+---
+/**
+ * FullMetadata - V15.0 Data Transparency Module
+ * Iterates through the entire entity object to ensure 100% data disclosure.
+ * Sorts keys alphabetically and formats values for readability.
+ */
+interface Props {
+  entity: any;
+  title?: string;
+}
+
+const { entity, title = "Full Collected Metadata" } = Astro.props;
+
+// Filter out internal fields (starting with _) and large blobs if necessary
+// But standard V15.0 requires "All harvested data"
+const keys = Object.keys(entity)
+  .filter(k => !k.startsWith('_'))
+  .sort();
+
+function formatValue(val: any): string {
+  if (val === null || val === undefined) return '<span class="text-gray-400 italic">null</span>';
+  if (typeof val === 'boolean') return val ? '<span class="text-green-600 font-bold">true</span>' : '<span class="text-red-600 font-bold">false</span>';
+  if (typeof val === 'object') {
+    return `<pre class="text-[10px] bg-gray-50 dark:bg-gray-900/50 p-2 rounded overflow-x-auto max-h-40">${JSON.stringify(val, null, 2)}</pre>`;
+  }
+  return String(val);
+}
+---
+
+<section class="mt-20 pt-10 border-t border-gray-100 dark:border-gray-800">
+  <div class="flex items-center justify-between mb-8">
+    <h2 class="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+      <span>📑</span> {title}
+    </h2>
+    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-widest rounded-full">
+      Transparency Mode Active
+    </span>
+  </div>
+
+  <div class="bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 rounded-2xl overflow-hidden shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-700">
+            <th class="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest w-1/3">Property</th>
+            <th class="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Harvested Value</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50 dark:divide-gray-800">
+          {keys.map(key => (
+            <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
+              <td class="px-6 py-4 font-mono text-sm text-indigo-600 dark:text-indigo-400 font-bold align-top">
+                {key}
+              </td>
+              <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 break-words align-top" set:html={formatValue(entity[key])}>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <p class="mt-6 text-sm text-gray-400 italic flex items-center gap-2">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    This data is automatically harvested and displayed without manual filtering to ensure 100% transparency.
+  </p>
+</section>
