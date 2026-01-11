@@ -138,52 +138,20 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
    {/* Zone 2: Insights Extra */}
    {/* QuickInsights is handled by EntityLayout automatically. VramEstimator removed to avoid duplication/clutter. */}
 
-   {/* Zone 3: Core (Desktop) - Full Platform Value */}
-   <div slot="core-desktop" class="space-y-12">
-      {/* 1. Knowledge Graph */}
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div class="space-y-6">
-             <RelationsPanel
-               baseModel={model?.base_model}
-               datasetsUsed={model?.datasets_used || []}
-               arxivRefs={model?.arxiv_refs || []}
-             />
-             <RelatedKnowledge 
-               tags={tagsArray} 
-               description={model?.description || ''}
-               metaJson={model?.meta_json}
-             />
-          </div>
-          <div class="space-y-6">
-             {hasBench && (
-               <BenchmarkCard 
-                 umid={modelId}
-                 name={modelName}
-                 mmlu={model?.mmlu || model?.benchmark_mmlu}
-                 humaneval={model?.humaneval || model?.benchmark_humaneval}
-                 hellaswag={model?.hellaswag || model?.benchmark_hellaswag}
-                 arc_challenge={model?.arc_challenge || model?.benchmark_arc}
-                 avg_score={model?.avg_score || model?.benchmark_avg || 0}
-               />
-             )}
-             <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-                <h3 class="font-bold mb-4 text-gray-900 dark:text-white">7-Day Trend</h3>
-                <MiniTrendChart entityId={modelId} width={400} height={100} />
-             </div>
-          </div>
-      </div>
+import CoreDesktop from '../../components/model-detail/CoreDesktop.astro';
 
-      {/* 2. Similar Models (Carousel) */}
-      <div>
-         <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
-            <span>🔄 Similar Models</span>
-         </h3>
-         {similarModels.length > 0 ? (
-            <ModelCarousel models={similarModels} />
-         ) : (
-            <p class="text-gray-500 italic p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg text-center">No similar models found.</p>
-         )}
-      </div>
+// ... imports ...
+
+   {/* Zone 3: Core (Desktop) - Full Platform Value */}
+   <div slot="core-desktop">
+      <CoreDesktop
+         model={model}
+         tagsArray={tagsArray}
+         hasBench={hasBench}
+         modelId={modelId}
+         modelName={modelName}
+         similarModels={similarModels}
+      />
    </div>
 
    {/* Zone 3: Core (Mobile Tabs) */}
