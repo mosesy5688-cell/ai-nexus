@@ -56,52 +56,52 @@ const authors = paper?.authors || [];
   description={pageDescription}
   jsonld={jsonLd}
 >
-   {/* Zone 1: Hero */}
+  {/* Zone 1: Hero */}
   <header slot="hero" class="mb-10">
     <div class="flex items-center gap-3 mb-4">
       <span class="px-3 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded-md text-xs font-bold tracking-wider uppercase">
         Research Paper
       </span>
-      {paper.published_date && (
+      {paper?.published_date && (
         <span class="text-sm text-gray-500">
            Published: {new Date(paper.published_date).toLocaleDateString()}
         </span>
       )}
     </div>
     <h1 class="text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6">
-      {paper.title}
+      {paper?.title}
     </h1>
     <div class="flex flex-wrap gap-2 mb-6">
-      {paper.authors?.slice(0, 5).map((author: string) => (
+      {paper?.authors?.slice(0, 5).map((author: string) => (
         <span class="text-sm text-gray-600 dark:text-gray-400">
           {author}{author !== paper.authors[4] && author !== paper.authors[paper.authors.length-1] ? ',' : ''}
         </span>
       ))}
-      {paper.authors?.length > 5 && <span class="text-sm text-gray-500">et al.</span>}
+      {paper?.authors?.length > 5 && <span class="text-sm text-gray-500">et al.</span>}
     </div>
   </header>
 
    {/* Zone 1 Mobile Actions */}
   <div slot="actions-mobile">
-      <a href={paper.source_url} target="_blank" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">PDF</a>
+      <a href={paper?.source_url} target="_blank" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">PDF</a>
   </div>
 
   {/* Zone 3: Core (Desktop) */}
   <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
      <div class="space-y-8">
         <RelationsPanel 
-             arxivRefs={[paper.arxiv_id || (Array.isArray(slug) ? slug.join('/') : slug)]}
+             arxivRefs={[paper?.arxiv_id || displaySlug]}
         />
      </div>
       <div class="space-y-8">
-          <ShareButtons title={paper.title} description={paper.abstract || ''} />
+          <ShareButtons title={paper?.title} description={paper?.abstract || ''} />
       </div>
   </div>
 
   {/* Zone 3: Core (Mobile Tabs) */}
   <div slot="core-knowledge">
        <RelationsPanel 
-          arxivRefs={[paper.arxiv_id || (Array.isArray(slug) ? slug.join('/') : slug)]}
+          arxivRefs={[paper?.arxiv_id || displaySlug]}
        />
   </div>
   
@@ -126,7 +126,7 @@ const authors = paper?.authors || [];
   <div slot="community">
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-2">
-           <span>📄 arXiv:{paper.arxiv_id || (Array.isArray(slug) ? slug.join('/') : slug)}</span>
+           <span>📄 arXiv:{paper?.arxiv_id || displaySlug}</span>
         </div>
       </div>
       <div class="mt-8 text-center">
