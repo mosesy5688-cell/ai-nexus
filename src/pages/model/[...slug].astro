@@ -1,6 +1,7 @@
 ---
 export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
+import EntityLayout from '../../layouts/EntityLayout.astro';
 import ModelHeader from '../../components/model-detail/ModelHeader.astro';
 import ModelMainColumn from '../../components/model-detail/ModelMainColumn.astro';
 import ModelSidebar from '../../components/model-detail/ModelSidebar.astro';
@@ -96,12 +97,6 @@ const modelId = model?.umid || model?.id || '';
 const cleanDesc = cleanDescription(model?.description);
 const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') : slug, coverImage);
 ---
-
-import EntityLayout from '../../layouts/EntityLayout.astro';
-/* ... keep other imports ... */
-
-/* ... keep setup logic ... */
-
 <EntityLayout 
   entity={model} 
   type="model" 
@@ -110,141 +105,144 @@ import EntityLayout from '../../layouts/EntityLayout.astro';
   image={coverImage}
   jsonld={jsonld}
 >
-  {/* Zone 1: Hero */}
-  <ModelHeader 
-    slot="hero"
-    modelName={modelName}
-    modelId={modelId}
-    entityType={model.entityType}
-    entityIcon={model.entityDefinition?.display?.icon}
-    entityLabel={model.entityDefinition?.display?.labelSingular}
-    verified={false} 
-    author={model.author}
-    lastUpdated={model.last_updated}
-    seoDescription={model.seo_summary?.description}
-    cleanDescription={cleanDesc}
-  >
-     <div slot="actions" class="flex gap-2 mt-4">
-        <QuickStart 
-          modelId={modelId}
-          modelName={modelName}
-          pipeline_tag={model.pipeline_tag}
-          author={model.author}
-          compact={true}
-        />
-     </div>
-  </ModelHeader>
-
-  {/* Zone 1 Mobile Actions */}
-  <div slot="actions-mobile">
-     <button class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Download</button>
-  </div>
-
-  {/* Zone 2: Insights Extra */}
-  <div slot="insights-extra">
-     <VramEstimator paramsB={model.params_billions} />
-  </div>
-
-  {/* Zone 3: Core (Desktop) */}
-  <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-     <div class="space-y-8">
-        <RelationsPanel
-          baseModel={model.base_model}
-          datasetsUsed={model.datasets_used || []}
-          arxivRefs={model.arxiv_refs || []}
-        />
-        <RelatedKnowledge 
-          tags={tagsArray} 
-          description={model.description || ''}
-          metaJson={model.meta_json}
-        />
-     </div>
-     <div class="space-y-8">
-        {hasBench && (
-          <BenchmarkCard 
-            umid={model.umid || model.id || ''}
-            name={modelName}
-            mmlu={model.mmlu || model.benchmark_mmlu}
-            humaneval={model.humaneval || model.benchmark_humaneval}
-            hellaswag={model.hellaswag || model.benchmark_hellaswag}
-            arc_challenge={model.arc_challenge || model.benchmark_arc}
-            avg_score={model.avg_score || model.benchmark_avg || 0}
-          />
-        )}
-        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
-           <h3 class="font-bold mb-4">7-Day Trend</h3>
-           <MiniTrendChart entityId={modelId} width={400} height={100} />
-        </div>
-     </div>
-  </div>
-
-  {/* Zone 3: Core (Mobile Tabs) */}
-  <div slot="core-knowledge">
-     <RelationsPanel
-        baseModel={model.base_model}
-        datasetsUsed={model.datasets_used || []}
-        arxivRefs={model.arxiv_refs || []}
-     />
-     <RelatedKnowledge 
-       tags={tagsArray} 
-       description={model.description || ''}
-     />
-  </div>
-
-  <div slot="core-related">
-     {similarModels.length > 0 ? (
-        <ModelCarousel models={similarModels} />
-     ) : (
-        <p class="text-gray-500 italic p-4">No similar models found.</p>
-     )}
-  </div>
-
-  <div slot="core-benchmarks">
-      {hasBench && (
-        <BenchmarkCard 
-          umid={model.umid || model.id || ''}
-          name={modelName}
-          mmlu={model.mmlu || model.benchmark_mmlu}
-          humaneval={model.humaneval || model.benchmark_humaneval}
-          hellaswag={model.hellaswag || model.benchmark_hellaswag}
-          arc_challenge={model.arc_challenge || model.benchmark_arc}
-          avg_score={model.avg_score || model.benchmark_avg || 0}
-        />
-      )}
-      <div class="mt-6">
-        <MiniTrendChart entityId={modelId} width={300} height={100} />
-      </div>
-  </div>
-
-  {/* Zone 4: Deep Dive */}
-  <div slot="deep-dive" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div class="lg:col-span-2">
-         {/* Reuse Main Column for Description & Readme */}
-         <ModelMainColumn 
-            model={model} 
-            hasFNI={hasFNI} 
-            hasBenchmarkCap={hasBenchmarks} 
-            modelName={modelName} 
-            modelId={modelId} 
-          />
-      </div>
-      <div class="lg:col-span-1">
-          <ModelSidebar 
-            model={model} 
-            modelId={modelId} 
-          />
-      </div>
-  </div>
-
-  {/* Zone 5: Community */}
-  <div slot="community">
-      <AiDisclaimer source={model.source} lastUpdated={model.last_updated} />
-      <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-800">
-         <ModelNavigation 
-            pipelineTag={model.pipeline_tag}
-            hasGguf={model.has_gguf}
+ {model && (
+  <Fragment>
+   {/* Zone 1: Hero */}
+   <ModelHeader 
+     slot="hero"
+     modelName={modelName}
+     modelId={modelId}
+     entityType={model.entityType}
+     entityIcon={model.entityDefinition?.display?.icon}
+     entityLabel={model.entityDefinition?.display?.labelSingular}
+     verified={false} 
+     author={model.author}
+     lastUpdated={model.last_updated}
+     seoDescription={model.seo_summary?.description}
+     cleanDescription={cleanDesc}
+   >
+      <div slot="actions" class="flex gap-2 mt-4">
+         <QuickStart 
+           modelId={modelId}
+           modelName={modelName}
+           pipeline_tag={model.pipeline_tag}
+           author={model.author}
+           compact={true}
          />
       </div>
-  </div>
-
+   </ModelHeader>
+ 
+   {/* Zone 1 Mobile Actions */}
+   <div slot="actions-mobile">
+      <button class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Download</button>
+   </div>
+ 
+   {/* Zone 2: Insights Extra */}
+   <div slot="insights-extra">
+      <VramEstimator paramsB={model.params_billions} />
+   </div>
+ 
+   {/* Zone 3: Core (Desktop) */}
+   <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div class="space-y-8">
+         <RelationsPanel
+           baseModel={model.base_model}
+           datasetsUsed={model.datasets_used || []}
+           arxivRefs={model.arxiv_refs || []}
+         />
+         <RelatedKnowledge 
+           tags={tagsArray} 
+           description={model.description || ''}
+           metaJson={model.meta_json}
+         />
+      </div>
+      <div class="space-y-8">
+         {hasBench && (
+           <BenchmarkCard 
+             umid={model.umid || model.id || ''}
+             name={modelName}
+             mmlu={model.mmlu || model.benchmark_mmlu}
+             humaneval={model.humaneval || model.benchmark_humaneval}
+             hellaswag={model.hellaswag || model.benchmark_hellaswag}
+             arc_challenge={model.arc_challenge || model.benchmark_arc}
+             avg_score={model.avg_score || model.benchmark_avg || 0}
+           />
+         )}
+         <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+            <h3 class="font-bold mb-4">7-Day Trend</h3>
+            <MiniTrendChart entityId={modelId} width={400} height={100} />
+         </div>
+      </div>
+   </div>
+ 
+   {/* Zone 3: Core (Mobile Tabs) */}
+   <div slot="core-knowledge">
+      <RelationsPanel
+         baseModel={model.base_model}
+         datasetsUsed={model.datasets_used || []}
+         arxivRefs={model.arxiv_refs || []}
+      />
+      <RelatedKnowledge 
+        tags={tagsArray} 
+        description={model.description || ''}
+      />
+   </div>
+ 
+   <div slot="core-related">
+      {similarModels.length > 0 ? (
+         <ModelCarousel models={similarModels} />
+      ) : (
+         <p class="text-gray-500 italic p-4">No similar models found.</p>
+      )}
+   </div>
+ 
+   <div slot="core-benchmarks">
+       {hasBench && (
+         <BenchmarkCard 
+           umid={model.umid || model.id || ''}
+           name={modelName}
+           mmlu={model.mmlu || model.benchmark_mmlu}
+           humaneval={model.humaneval || model.benchmark_humaneval}
+           hellaswag={model.hellaswag || model.benchmark_hellaswag}
+           arc_challenge={model.arc_challenge || model.benchmark_arc}
+           avg_score={model.avg_score || model.benchmark_avg || 0}
+         />
+       )}
+       <div class="mt-6">
+         <MiniTrendChart entityId={modelId} width={300} height={100} />
+       </div>
+   </div>
+ 
+   {/* Zone 4: Deep Dive */}
+   <div slot="deep-dive" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+       <div class="lg:col-span-2">
+          {/* Reuse Main Column for Description & Readme */}
+          <ModelMainColumn 
+             model={model} 
+             hasFNI={hasFNI} 
+             hasBenchmarkCap={hasBenchmarks} 
+             modelName={modelName} 
+             modelId={modelId} 
+           />
+       </div>
+       <div class="lg:col-span-1">
+           <ModelSidebar 
+             model={model} 
+             modelId={modelId} 
+           />
+       </div>
+   </div>
+ 
+   {/* Zone 5: Community */}
+   <div slot="community">
+       <AiDisclaimer source={model.source} lastUpdated={model.last_updated} />
+       <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-800">
+          <ModelNavigation 
+             pipelineTag={model.pipeline_tag}
+             hasGguf={model.has_gguf}
+          />
+       </div>
+   </div>
+  </Fragment>
+ )}
 </EntityLayout>

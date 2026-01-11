@@ -6,6 +6,7 @@
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
+import EntityLayout from '../../layouts/EntityLayout.astro';
 import DataFreshness from '../../components/common/DataFreshness.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import EntityZones from '../../components/entity/EntityZones.astro';
@@ -47,16 +48,15 @@ const hasPaper = !!paper;
 const authors = paper?.authors || [];
 ---
 
-import EntityLayout from '../../layouts/EntityLayout.astro';
-/* ... keep other imports ... */
-
-<EntityLayout 
-  entity={paper} 
-  type="paper" 
-  title={pageTitle} 
+<EntityLayout
+  entity={paper}
+  type="paper"
+  title={pageTitle}
   description={pageDescription}
   jsonld={jsonLd}
 >
+ {paper && (
+  <Fragment>
   {/* Zone 1: Hero */}
   <header slot="hero" class="mb-8">
       <div class="flex items-center gap-4 mb-4">
@@ -155,6 +155,6 @@ import EntityLayout from '../../layouts/EntityLayout.astro';
          </a>
       </div>
   </div>
-
+  </Fragment>
+ )}
 </EntityLayout>
-
