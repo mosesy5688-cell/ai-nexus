@@ -50,12 +50,12 @@ export function getUseCases(tags = [], pipelineTag = '', entityType = 'model') {
 
     // 2. Infer from Entity Type defaults if empty
     if (cases.size === 0) {
-        if (entityType === 'model') cases.set('general', { label: 'General Task', icon: '⚡' });
-        if (entityType === 'dataset') cases.set('train', { label: 'Model Training', icon: '🏋️' });
-        if (entityType === 'space') cases.set('demo', { label: 'Interactive Demo', icon: '🎮' });
-        if (entityType === 'paper') cases.set('research', { label: 'Deep Research', icon: '🔬' });
-        if (entityType === 'tool') cases.set('dev', { label: 'Development', icon: '🛠️' });
-        if (entityType === 'agent') cases.set('assist', { label: 'AI Assistant', icon: '🤖' });
+        if (entityType === 'model') cases.set('general', { id: 'general', label: 'General Task', icon: '⚡' });
+        if (entityType === 'dataset') cases.set('train', { id: 'train', label: 'Model Training', icon: '🏋️' });
+        if (entityType === 'space') cases.set('demo', { id: 'demo', label: 'Interactive Demo', icon: '🎮' });
+        if (entityType === 'paper') cases.set('research', { id: 'research', label: 'Deep Research', icon: '🔬' });
+        if (entityType === 'tool') cases.set('dev', { id: 'dev', label: 'Development', icon: '🛠️' });
+        if (entityType === 'agent') cases.set('assist', { id: 'assist', label: 'AI Assistant', icon: '🤖' });
     }
 
     // 3. Add Performance Badge (if applicable)
