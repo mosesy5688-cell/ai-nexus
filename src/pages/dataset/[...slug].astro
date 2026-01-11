@@ -75,135 +75,125 @@ const hasRecommendedModels = recommendedModels.length > 0;
   <!-- JSON-LD -->
   {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
 
-  <main class="container mx-auto px-4 py-12">
-    {hasDataset ? (
-      <article class="max-w-4xl mx-auto">
-        <!-- Breadcrumb -->
-        <nav class="mb-6 text-sm text-gray-500 dark:text-gray-400" aria-label="Breadcrumb">
-          <a href="/" class="hover:text-indigo-600">Home</a>
-          <span class="mx-2">→</span>
-          <a href="/ranking?type=dataset" class="hover:text-indigo-600">Datasets</a>
-          <span class="mx-2">→</span>
-          <span class="text-gray-700 dark:text-gray-300">{dataset.name}</span>
-        </nav>
+import EntityLayout from '../../layouts/EntityLayout.astro';
+/* ... keep other imports ... */
 
-        <!-- Header -->
-        <header class="mb-8">
-          <div class="flex items-center gap-3 mb-2">
-            <span class="text-3xl" role="img" aria-label="Dataset">📊</span>
-            <span class="px-2 py-1 text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded">
-              DATASET
-            </span>
-          </div>
-          <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
-            {dataset.name}
-          </h1>
-          <p class="text-gray-600 dark:text-gray-400 text-lg">
-            {dataset.description || 'No description available'}
-          </p>
-          <DataFreshness timestamp={dataset.last_updated} source={`L8 v${cacheVersion}`} />
-        </header>
+/* ... keep setup logic ... */
 
-        <!-- V15.0: Entity Metrics Zone -->
-        <EntityZones entityType="dataset" entity={dataset} />
+<EntityLayout 
+  entity={dataset} 
+  type="dataset" 
+  title={pageTitle} 
+  description={pageDescription}
+>
+  {/* Zone 1: Hero */}
+  <header slot="hero" class="mb-8">
+    <div class="flex items-center gap-3 mb-2">
+      <span class="text-3xl" role="img" aria-label="Dataset">📊</span>
+      <span class="px-2 py-1 text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded">
+        DATASET
+      </span>
+    </div>
+    <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white mb-4">
+      {dataset.name}
+    </h1>
+    <p class="text-gray-600 dark:text-gray-400 text-lg">
+      {dataset.description || 'No description available'}
+    </p>
+  </header>
 
-        <!-- Zone 1.5: Use Cases -->
-        <DatasetUseCases tags={dataset.tags} />
+   {/* Zone 1 Mobile Actions */}
+  <div slot="actions-mobile">
+      <button class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Download</button>
+  </div>
 
-        <!-- Zone 2: Quick Insights -->
-        <DatasetQuickInsights dataset={dataset} />
-
-        <!-- Zone 4: Schema -->
-        <DatasetSchema dataset={dataset} />
-
-        <!-- V5.0: Recommended Models Section (Dataset → Models) -->
-        <section class="mb-12">
-          <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
-            <span>🤖</span> Recommended Models
-            <span class="text-sm font-normal text-gray-500 dark:text-gray-400">(trained on similar data)</span>
-          </h2>
-          
-          {hasRecommendedModels ? (
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {recommendedModels.map(model => (
-                <ModelCard model={model} />
-              ))}
-            </div>
-          ) : (
-            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-8 text-center">
-              <p class="text-gray-500 dark:text-gray-400 mb-4">
-                No recommended models available yet.
-              </p>
-              <a 
-                href="/models" 
-                class="text-indigo-600 hover:underline"
-              >
-                Browse all models →
-              </a>
-            </div>
-          )}
-        </section>
-
-        <!-- Next Step Navigation (V5.0: Related Entities Full Chain) -->
-        <section class="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-900 rounded-xl p-8">
-          <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
-            <span>🚀</span> What's Next?
-          </h2>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <a href="/models" 
-               class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
-              <div class="text-3xl mb-3">🤖</div>
-              <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-emerald-600">Find Compatible Models</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Discover models trained on this dataset
-              </p>
-            </a>
-
-            <a href="/ranking" 
-               class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
-              <div class="text-3xl mb-3">📈</div>
-              <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-emerald-600">View Benchmarks</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Compare model performance on standard tests
-              </p>
-            </a>
-
-            <a href="/knowledge" 
-               class="group p-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all border border-gray-200 dark:border-gray-700">
-              <div class="text-3xl mb-3">📚</div>
-              <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-emerald-600">Learn More</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Understand AI concepts and best practices
-              </p>
-            </a>
-          </div>
-        </section>
-      </article>
-    ) : (
-      <div class="text-center py-20">
-        <div class="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full mb-6">
-          <span class="text-3xl">⏳</span>
-        </div>
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          Dataset: {displaySlug}
-        </h1>
-        <p class="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-lg mx-auto">
-          This dataset is currently being indexed or the details are not yet available in our cache.
-        </p>
-        
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <button class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium">
-                Request Indexing Priority
-            </button>
-            <a href="/datasets" class="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium">
-                ← Return to Catalog
-            </a>
-        </div>
-        
-        <p class="mt-8 text-xs text-gray-400">
-            ID: {displaySlug} • Status: Pending Ingestion
-        </p>
+  {/* Zone 3: Core (Desktop) */}
+  <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+     {/* Reuse Relations Logic manually since space object is simple */}
+      <div class="space-y-8">
+          <section>
+            <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
+              <span>🤖</span> Trained Models
+            </h2>
+             {hasRecommendedModels ? (
+                <div class="flex flex-col gap-4">
+                  {recommendedModels.slice(0, 3).map(model => (
+                    <ModelCard model={model} />
+                  ))}
+                </div>
+              ) : (
+                <p class="text-gray-500 italic">No linked models found.</p>
+              )}
+          </section>
       </div>
-    )}
-  </main>
+      <div class="space-y-8">
+           <DatasetSchema dataset={dataset} />
+      </div>
+  </div>
+
+  {/* Zone 3: Core (Mobile Tabs) */}
+  <div slot="core-knowledge">
+       <DatasetSchema dataset={dataset} />
+  </div>
+  
+  <div slot="core-related">
+       {hasRecommendedModels ? (
+          <div class="flex flex-col gap-4">
+            {recommendedModels.map(model => (
+              <ModelCard model={model} />
+            ))}
+          </div>
+        ) : (
+          <p class="text-gray-500 italic">No linked models found.</p>
+        )}
+  </div>
+
+  <div slot="core-benchmarks">
+      <p class="text-gray-500 italic p-4">No benchmarks available.</p>
+  </div>
+
+  {/* Zone 4: Deep Dive */}
+  <div slot="deep-dive">
+       <h2 class="text-xl font-bold mb-4">Data Preview</h2>
+       {/* Pseudo Data Preview Table if schema allows, otherwise generic placeholder */}
+       <div class="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+           <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+               <thead class="bg-gray-50 dark:bg-gray-800">
+                   <tr>
+                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Column</th>
+                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                       <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sample</th>
+                   </tr>
+               </thead>
+               <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
+                   {/* Mock rows for now, real preview needs real data which we don't fetch yet */}
+                   <tr>
+                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">text</td>
+                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">string</td>
+                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">"Example data content..."</td>
+                   </tr>
+                   <tr>
+                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">label</td>
+                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">int</td>
+                       <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1</td>
+                   </tr>
+               </tbody>
+           </table>
+           <div class="p-4 bg-gray-50 dark:bg-gray-800 text-center text-sm text-gray-500">
+               Preview limits: 100 rows. <a href="#" class="text-indigo-600 hover:underline">Login to see more</a>.
+           </div>
+       </div>
+  </div>
+
+  {/* Zone 5: Community */}
+  <div slot="community">
+      <DataFreshness timestamp={dataset.last_updated} source={`L8 v${cacheVersion}`} />
+      <div class="mt-8 text-center">
+         <a href="/ranking?type=dataset" class="text-indigo-500 hover:underline">
+            ← Browse all datasets
+         </a>
+      </div>
+  </div>
+
+</EntityLayout>
 </Layout>
