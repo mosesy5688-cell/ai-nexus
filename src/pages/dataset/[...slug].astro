@@ -98,7 +98,7 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
       sourceUrl={dataset?.source_url}
     >
       <div slot="actions" class="flex gap-2">
-         <a href={dataset.source_url} target="_blank" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors">Download Dataset</a>
+         <a href={dataset.source_url} target="_blank" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm">Download Dataset</a>
       </div>
     </EntityHeader>
  
@@ -108,57 +108,66 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
       goodFor={derivedUseCases.goodFor} 
       limits={derivedUseCases.limits} 
     />
- 
-    {/* Zone 1 Mobile Actions */}
-   <div slot="actions-mobile">
-       <a href={dataset.source_url} target="_blank" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Download</a>
-   </div>
- 
-   {/* Zone 3: Core (Desktop) */}
-   <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div class="space-y-8">
-         <DatasetSchema dataset={dataset} />
-      </div>
-       <div class="space-y-8">
-           <p class="text-gray-500 italic p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">Technical datasets often require specific loading scripts (see Deep Dive).</p>
+  
+    {/* Zone 3: Core (Desktop) */}
+    <div slot="core-desktop">
+       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <DatasetSchema dataset={dataset} />
+          <div class="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
+             <h3 class="font-bold mb-4 text-gray-900 dark:text-white">Dataset Usage</h3>
+             <p class="text-sm text-gray-600 dark:text-gray-400">Technical datasets often require specific loading scripts. See the Deep Dive section for integration examples and metadata previews.</p>
+          </div>
        </div>
-   </div>
+    </div>
  
-   {/* Zone 3: Core (Mobile Tabs) */}
-   <div slot="core-knowledge">
-        <DatasetUseCases tags={dataset.tags} />
-   </div>
-   
-   <div slot="core-related">
-        {hasRecommendedModels ? (
-           <div class="flex flex-col gap-4">
-             {recommendedModels.map(model => (
-               <ModelCard model={model} />
-             ))}
-           </div>
-         ) : (
-           <p class="text-gray-500 italic">No linked models found.</p>
-         )}
-   </div>
- 
-   <div slot="core-benchmarks">
-        <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
-            <p class="text-gray-500 italic">No benchmark correlations for this dataset.</p>
-        </div>
-   </div>
- 
-   {/* Zone 4: Deep Dive */}
-   <div slot="deep-dive">
-        <DatasetDeepDive dataset={dataset} />
-   </div>
- 
-   {/* Zone 5: Community */}
-   <div slot="community">
-       <DataFreshness timestamp={dataset.last_updated} source={`L8 v${cacheVersion}`} />
-       <div class="mt-8 text-center">
-          <a href="/ranking?type=dataset" class="text-indigo-500 hover:underline">
-             ← Browse all datasets
-          </a>
+    {/* Zone 3: Core (Mobile Tabs) */}
+    <div slot="core-knowledge">
+         <div class="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 class="font-bold mb-2">Capabilities</h3>
+            <ul class="space-y-2">
+               {derivedUseCases.goodFor.map(useCase => (
+                 <li class="text-sm flex items-center gap-2">✅ {useCase}</li>
+               ))}
+            </ul>
+         </div>
+    </div>
+    
+    <div slot="core-similar">
+         {hasRecommendedModels ? (
+            <div class="space-y-4">
+              {recommendedModels.map(model => (
+                <ModelCard model={model} />
+              ))}
+            </div>
+          ) : (
+            <p class="text-gray-500 italic p-4 text-center">No linked models found.</p>
+          )}
+    </div>
+  
+    <div slot="core-benchmarks">
+         <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
+             <p class="text-gray-500 italic">No benchmark correlations for this dataset.</p>
+         </div>
+    </div>
+  
+    {/* Zone 4: Deep Dive */}
+    <div slot="deep-dive">
+         <DatasetDeepDive dataset={dataset} />
+    </div>
+
+    <div slot="sidebar" class="space-y-8">
+       <div class="p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/50">
+          <h3 class="font-bold text-indigo-900 dark:text-indigo-100 mb-2">Dataset Information</h3>
+          <p class="text-xs text-indigo-700 dark:text-indigo-300 leading-relaxed">This dataset is part of the open-source AI ecosystem. License and usage terms are governed by the original author.</p>
        </div>
-   </div>
+    </div>
+
+    <div slot="full-metadata">
+       <FullMetadata entity={dataset} />
+    </div>
+  
+    {/* Zone 5: Community */}
+    <div slot="community">
+        <DataFreshness timestamp={dataset.last_updated} source={`L8 v${cacheVersion}`} />
+    </div>
 </EntityLayout>

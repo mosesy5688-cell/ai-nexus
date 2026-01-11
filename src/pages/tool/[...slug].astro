@@ -101,7 +101,7 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
     >
       <div slot="actions" class="flex gap-2">
          {tool.source_url && (
-           <a href={tool.source_url} target="_blank" class="px-4 py-2 bg-gray-800 text-white rounded-lg font-bold hover:bg-gray-900 transition-colors">View on GitHub</a>
+           <a href={tool.source_url} target="_blank" class="px-4 py-2 bg-gray-800 text-white rounded-lg font-bold hover:bg-gray-900 transition-colors shadow-sm">View on GitHub</a>
          )}
       </div>
     </EntityHeader>
@@ -112,60 +112,59 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
       goodFor={derivedUseCases.goodFor} 
       limits={derivedUseCases.limits} 
     />
- 
-    {/* Zone 1 Mobile Actions */}
-   <div slot="actions-mobile">
-       {tool.source_url && (
-          <a href={tool.source_url} target="_blank" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">GitHub</a>
-       )}
-   </div>
- 
-   {/* Zone 3: Core (Desktop) */}
-   <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div class="space-y-8">
-         <RelationsPanel 
-              datasetsUsed={tool.datasets_used}
-              arxivRefs={tool.arxiv_refs}
-              relatedSpaces={tool.related_spaces}
-              knowledgeLinks={tool.knowledge_links}
-         />
-      </div>
-       <div class="space-y-8">
-           <ShareButtons title={tool.name || tool.canonical_name} description={tool.description || ''} />
+  
+    {/* Zone 3: Core (Desktop) */}
+    <div slot="core-desktop">
+       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <RelationsPanel 
+               datasetsUsed={tool.datasets_used}
+               arxivRefs={tool.arxiv_refs}
+               relatedSpaces={tool.related_spaces}
+               knowledgeLinks={tool.knowledge_links}
+          />
+          <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+             <h3 class="font-bold mb-4">Quick Share</h3>
+             <ShareButtons title={tool.name || tool.canonical_name} description={tool.description || ''} />
+          </div>
        </div>
-   </div>
+    </div>
  
-   {/* Zone 3: Core (Mobile Tabs) */}
-   <div slot="core-knowledge">
-       <RelationsPanel 
-           datasetsUsed={tool.datasets_used}
-           arxivRefs={tool.arxiv_refs}
-           relatedSpaces={tool.related_spaces}
-           knowledgeLinks={tool.knowledge_links}
-       />
-   </div>
-   
-   <div slot="core-related">
-       <p class="text-gray-500 italic p-4">No related tools indexed yet.</p>
-   </div>
- 
-   <div slot="core-benchmarks">
-       <p class="text-gray-500 italic p-4">No benchmarks available.</p>
-   </div>
- 
-   {/* Zone 4: Deep Dive */}
-   <div slot="deep-dive">
-        <ToolDeepDive tool={tool} />
-   </div>
- 
-   {/* Zone 5: Community */}
-   <div slot="community">
-       <DataFreshness version={cacheVersion} />
-       <div class="mt-8 text-center">
-          <a href="/ranking" class="text-indigo-500 hover:underline">
-             ← Browse all tools
-          </a>
-       </div>
-   </div>
-</EntityLayout>
+    {/* Zone 3: Core (Mobile Tabs) */}
+    <div slot="core-knowledge">
+        <RelationsPanel 
+            datasetsUsed={tool.datasets_used}
+            arxivRefs={tool.arxiv_refs}
+            relatedSpaces={tool.related_spaces}
+            knowledgeLinks={tool.knowledge_links}
+        />
+    </div>
+    
+    <div slot="core-similar">
+        <p class="text-gray-500 italic p-4 text-center">No related tools indexed yet.</p>
+    </div>
+  
+    <div slot="core-benchmarks">
+        <p class="text-gray-500 italic p-4 text-center">No benchmarks available.</p>
+    </div>
+  
+    {/* Zone 4: Deep Dive */}
+    <div slot="deep-dive">
+         <ToolDeepDive tool={tool} />
+    </div>
 
+    <div slot="sidebar" class="space-y-8">
+       <div class="p-6 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/50">
+          <h3 class="font-bold text-purple-900 dark:text-purple-100 mb-2">Development Tool</h3>
+          <p class="text-xs text-purple-700 dark:text-purple-300 leading-relaxed">Integrated via the Free2AITools Open Source Harvester. This information is harvested directly from the root repository metadata.</p>
+       </div>
+    </div>
+
+    <div slot="full-metadata">
+       <FullMetadata entity={tool} />
+    </div>
+  
+    {/* Zone 5: Community */}
+    <div slot="community">
+        <DataFreshness version={cacheVersion} />
+    </div>
+</EntityLayout>

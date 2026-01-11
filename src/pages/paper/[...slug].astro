@@ -60,83 +60,85 @@ const derivedUseCases = paper ? getUseCases(paper.tags || [], '', 'paper', paper
   description={pageDescription}
   jsonld={jsonLd}
 >
-   {/* Zone 1: Hero */}
-   <EntityHeader 
-     slot="hero"
-     name={paper?.title || displaySlug} // Modified for robust fallback
-     entityType="paper"
-     entityIcon="📄"
-     entityLabel="Research Paper"
-     author={authors[0] || 'Unknown'}
-     description={paper?.abstract}
-     fniScore={paper?.fni_score}
-     fniPercentile={paper?.fni_percentile}
-     sourceUrl={paper?.source_url}
-   >
-      <div slot="actions" class="flex gap-2">
-         <a href={paper?.source_url} target="_blank" class="px-4 py-2 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700 transition-colors">View on arXiv</a>
-      </div>
-   </EntityHeader>
-
-   {/* Zone 1.5: Use Cases */}
-   <ZoneUseCases 
-     slot="use-cases" 
-     goodFor={derivedUseCases.goodFor} 
-     limits={derivedUseCases.limits} 
-   />
-
-   {/* Zone 1 Mobile Actions */}
-  <div slot="actions-mobile">
-      <a href={paper?.source_url} target="_blank" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">PDF</a>
-  </div>
-
-  {/* Zone 3: Core (Desktop) */}
-  <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-     <div class="space-y-8">
-        <RelationsPanel 
-             arxivRefs={[paper?.arxiv_id || displaySlug]}
-        />
-     </div>
-      <div class="space-y-8">
-          <ShareButtons title={paper?.title} description={paper?.abstract || ''} />
-      </div>
-  </div>
-
-  {/* Zone 3: Core (Mobile Tabs) */}
-  <div slot="core-knowledge">
-       <RelationsPanel 
-          arxivRefs={[paper?.arxiv_id || displaySlug]}
-       />
-  </div>
-  
-  <div slot="core-related">
-       <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
-           <p class="text-gray-500 italic">Similarity graph for papers is being indexed.</p>
+    {/* Zone 1: Hero */}
+    <EntityHeader 
+      slot="hero"
+      name={paper?.title || displaySlug}
+      entityType="paper"
+      entityIcon="📄"
+      entityLabel="Research Paper"
+      author={authors[0] || 'Unknown'}
+      description={paper?.abstract}
+      fniScore={paper?.fni_score}
+      fniPercentile={paper?.fni_percentile}
+      sourceUrl={paper?.source_url}
+    >
+       <div slot="actions" class="flex gap-2">
+          <a href={paper?.source_url} target="_blank" class="px-4 py-2 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700 transition-colors shadow-sm">View on arXiv</a>
        </div>
-  </div>
-
-  <div slot="core-benchmarks">
-      <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
-          <p class="text-gray-500 italic">No benchmark metadata attached to this paper.</p>
-      </div>
-  </div>
-
-  {/* Zone 4: Deep Dive */}
-  <div slot="deep-dive">
-      <PaperDeepDive paper={paper} />
-  </div>
-
-  {/* Zone 5: Community */}
-  <div slot="community">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-           <span>📄 arXiv:{paper?.arxiv_id || displaySlug}</span>
+    </EntityHeader>
+ 
+    {/* Zone 1.5: Use Cases */}
+    <ZoneUseCases 
+      slot="use-cases" 
+      goodFor={derivedUseCases.goodFor} 
+      limits={derivedUseCases.limits} 
+    />
+  
+    {/* Zone 3: Core (Desktop) */}
+    <div slot="core-desktop">
+       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <RelationsPanel 
+               arxivRefs={[paper?.arxiv_id || displaySlug]}
+          />
+          <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+             <h3 class="font-bold mb-4">Paper Insights</h3>
+             <ShareButtons title={paper?.title} description={paper?.abstract || ''} />
+          </div>
+       </div>
+    </div>
+ 
+    {/* Zone 3: Core (Mobile Tabs) */}
+    <div slot="core-knowledge">
+         <RelationsPanel 
+            arxivRefs={[paper?.arxiv_id || displaySlug]}
+         />
+    </div>
+    
+    <div slot="core-similar">
+         <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
+             <p class="text-gray-500 italic">Similarity graph for papers is being indexed.</p>
+         </div>
+    </div>
+  
+    <div slot="core-benchmarks">
+        <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
+            <p class="text-gray-500 italic">No benchmark metadata attached to this paper.</p>
         </div>
-      </div>
-      <div class="mt-8 text-center">
-         <a href="/ranking" class="text-indigo-500 hover:underline">
-            ← Browse all papers
-         </a>
-      </div>
-  </div>
+    </div>
+  
+    {/* Zone 4: Deep Dive */}
+    <div slot="deep-dive">
+        <PaperDeepDive paper={paper} />
+    </div>
+
+    <div slot="sidebar" class="space-y-8">
+       <div class="p-6 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-800/50">
+          <h3 class="font-bold text-rose-900 dark:text-rose-100 mb-2">Research Publication</h3>
+          <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">This research paper is indexed via the ArXiv API. Citations and related models are derived through our Knowledge Graph.</p>
+       </div>
+    </div>
+
+    <div slot="full-metadata">
+       <FullMetadata entity={paper} />
+    </div>
+  
+    {/* Zone 5: Community */}
+    <div slot="community">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2 text-sm text-gray-500">
+             <span>📄 arXiv:{paper?.arxiv_id || displaySlug}</span>
+          </div>
+        </div>
+    </div>
 </EntityLayout>
