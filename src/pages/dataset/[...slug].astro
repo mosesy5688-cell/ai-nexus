@@ -68,23 +68,15 @@ const hasDataset = !!dataset;
 const hasRecommendedModels = recommendedModels.length > 0;
 ---
 
-<Layout title={pageTitle} description={pageDescription}>
-  <!-- Canonical URL -->
-  <link slot="head" rel="canonical" href={canonicalUrl} />
-  
-  <!-- JSON-LD -->
-  {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
-
 import EntityLayout from '../../layouts/EntityLayout.astro';
 /* ... keep other imports ... */
-
-/* ... keep setup logic ... */
 
 <EntityLayout 
   entity={dataset} 
   type="dataset" 
   title={pageTitle} 
   description={pageDescription}
+  jsonld={jsonLd}
 >
   {/* Zone 1: Hero */}
   <header slot="hero" class="mb-8">
@@ -196,4 +188,4 @@ import EntityLayout from '../../layouts/EntityLayout.astro';
   </div>
 
 </EntityLayout>
-</Layout>
+

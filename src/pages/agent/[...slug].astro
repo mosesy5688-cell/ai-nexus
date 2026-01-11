@@ -65,6 +65,16 @@ try {
 
 const agentId = agent?.id || agent?.umid || normalizedSlug || '';
 const agentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
+
+const jsonLd = agent ? {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": agentName,
+  "description": agent.description,
+  "url": `https://free2aitools.com/agent/${normalizedSlug}`,
+  "applicationCategory": "AutonomousAgent",
+  "operatingSystem": "Cross-platform"
+} : null;
 ---
 
 import EntityLayout from '../../layouts/EntityLayout.astro';
@@ -77,6 +87,7 @@ import EntityLayout from '../../layouts/EntityLayout.astro';
   type="agent" 
   title={pageTitle} 
   description={pageDescription}
+  jsonld={jsonLd}
 >
   {/* Zone 1: Hero */}
   <AgentHeader 
