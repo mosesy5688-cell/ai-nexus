@@ -22,3 +22,7 @@ description: Standard feature deployment process with CES compliance check
    ```powershell
    gh pr create --title "feat: [Feature Title]" --body "[Description]"
    ```
+7. Merge Pull Request (once approved/ready):
+   ```powershell
+   gh pr merge --merge --auto --delete-branch
+   ```
