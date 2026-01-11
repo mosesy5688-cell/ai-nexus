@@ -286,15 +286,19 @@
 
     /* V15.0 Design Utilities */
     .glass-effect {
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.8) !important;
+        backdrop-filter: blur(12px) saturate(180%);
+        -webkit-backdrop-filter: blur(12px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
     .dark .glass-effect {
-        background: rgba(31, 41, 55, 0.7);
+        background: rgba(17, 24, 39, 0.8) !important;
         border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .shadow-fni-pulse {
+        box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
     }
 
     @keyframes pulse-subtle {

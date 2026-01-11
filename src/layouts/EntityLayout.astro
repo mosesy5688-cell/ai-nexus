@@ -66,17 +66,17 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
     <main class="container mx-auto px-4 py-6 md:py-10 max-w-7xl animate-fade-in">
       
       {/* Zone 1: HERO */}
-      <section class="mb-6 animate-slide-up" style="animation-delay: 0.1s;">
+      <section id="hero-zone" class="mb-10 animate-slide-up" style="animation-delay: 0.1s;">
         <slot name="hero" />
       </section>
 
       {/* Zone 1.5: USE CASES (V15.0) */}
-      <div class="animate-slide-up" style="animation-delay: 0.2s;">
+      <div id="use-cases-zone" class="mb-12 animate-slide-up" style="animation-delay: 0.2s;">
         <slot name="use-cases" />
       </div>
 
       {/* Zone 2: QUICK INSIGHTS */}
-      <section class="mb-12 animate-slide-up" style="animation-delay: 0.3s;">
+      <section id="insights-zone" class="mb-12 animate-slide-up" style="animation-delay: 0.3s;">
         <QuickInsights entity={entity} type={type} />
         <slot name="insights-extra" />
       </section>

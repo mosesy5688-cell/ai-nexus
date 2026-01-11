@@ -54,14 +54,14 @@ try {
   console.error('[Tool Page] Cache error:', e);
 }
 
-const pageTitle = tool ? `${tool.name || tool.canonical_name} - AI Development Tool` : 'Tool Not Found';
-const pageDescription = tool?.description?.slice(0, 160) || 'Explore AI development tools';
+const pageTitle = tool?.name ? `${tool.name} - AI Development Tool` : (tool?.canonical_name ? `${tool.canonical_name} - AI Development Tool` : `${displaySlug} - AI Development Tool`);
+const pageDescription = tool?.description?.slice(0, 160) || `Explore ${displaySlug} AI development tool on Free2AITools.`;
 const canonicalUrl = `https://free2aitools.com/tool/${displaySlug}`;
 
 const jsonLd = tool ? {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": tool.name || tool.canonical_name,
+  "name": tool.name || tool.canonical_name || displaySlug,
   "description": tool.description,
   "url": canonicalUrl,
   "applicationCategory": "DeveloperApplication",
@@ -88,16 +88,16 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
     {/* Zone 1: Hero */}
     <EntityHeader 
       slot="hero"
-      name={tool.name || tool.canonical_name}
+      name={tool?.name || tool?.canonical_name || displaySlug}
       entityType="tool"
       entityIcon="🛠️"
-      entityLabel={tool.language || 'Tool'}
+      entityLabel={tool?.language || 'Tool'}
       verified={false}
-      author={tool.author || 'Unknown'}
-      description={tool.description}
-      fniScore={tool.fni_score}
-      fniPercentile={tool.fni_percentile}
-      sourceUrl={tool.source_url}
+      author={tool?.author || 'Unknown'}
+      description={tool?.description}
+      fniScore={tool?.fni_score}
+      fniPercentile={tool?.fni_percentile}
+      sourceUrl={tool?.source_url}
     >
       <div slot="actions" class="flex gap-2">
          {tool.source_url && (

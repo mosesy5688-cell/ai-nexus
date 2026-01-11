@@ -67,9 +67,6 @@ try {
 
     tagsArray = Array.isArray(model.tags) ? model.tags : [];
     
-    // V15.0: Derived Use Cases and Limits
-    const derivedUseCases = getUseCases(tagsArray, model.pipeline_tag, 'model', model.fni_score);
-
     const modelName = model.name || model.canonical_name || model.id || 'Unknown Model';
     pageTitle = `${modelName} - AI Model Insights & Benchmarks`;
     
@@ -100,7 +97,16 @@ const hasBench = Boolean(model?.mmlu || model?.benchmark_mmlu || model?.benchmar
 const placeholderImage = '/images/models/default-model.jpg';
 const coverImage = model?.cover_image_url || placeholderImage;
 const modelName = model?.name || model?.canonical_name || 'Unknown Model';
+// V15.0: Derived Use Cases and Limits
 const modelId = model?.umid || model?.id || '';
+const modelName = model?.name || model?.canonical_name || 'Unknown Model';
+const derivedUseCases = model ? getUseCases(Array.isArray(model.tags) ? model.tags : [], model.pipeline_tag, 'model', model.fni_score) : { goodFor: [], limits: [] };
+
+if (model) {
+    pageTitle = `${modelName} - AI Model Insights & Benchmarks`;
+    pageDescription = model.seo_summary?.description || (cleanDescription(model.description)?.substring(0, 160) || `Deep dive into ${modelName}.`);
+}
+
 const cleanDesc = cleanDescription(model?.description);
 const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') : slug, coverImage);
 ---
