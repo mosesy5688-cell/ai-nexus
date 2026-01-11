@@ -49,91 +49,132 @@ const hasSpace = !!space;
 const modelsUsed = space?.meta_json?.models_used || [];
 ---
 
-<Layout title={pageTitle} description={pageDescription}>
-  <link slot="head" rel="canonical" href={canonicalUrl} />
-  {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+import EntityLayout from '../../layouts/EntityLayout.astro';
+import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
+/* ... keep other imports ... */
 
-  <main class="container mx-auto px-4 py-12">
-    {hasSpace ? (
-      <article class="max-w-4xl mx-auto">
-        <nav class="mb-6 text-sm text-gray-500 dark:text-gray-400">
-          <a href="/" class="hover:text-indigo-600">Home</a>
-          <span class="mx-2">/</span>
-          <span class="font-medium text-gray-700 dark:text-gray-300">Space</span>
-        </nav>
+/* ... keep setup logic ... */
 
-        <header class="mb-8">
-          <div class="flex items-center gap-4 mb-4">
-            <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-              {space.sdk || 'Demo'}
-            </span>
-            {space.author && (
-              <span class="text-gray-500">by {space.author}</span>
-            )}
-          </div>
-          <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            {space.title || space.name}
-          </h1>
-          <p class="text-lg text-gray-600 dark:text-gray-300">
-            {space.description}
-          </p>
-        </header>
+<EntityLayout 
+  entity={space} 
+  type="space" 
+  title={pageTitle} 
+  description={pageDescription}
+>
+  {/* Zone 1: Hero */}
+  <header slot="hero" class="mb-8">
+    <div class="flex items-center gap-4 mb-4">
+       <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+         {space.sdk || 'Demo'}
+       </span>
+       {space.author && (
+          <span class="text-gray-500">by {space.author}</span>
+       )}
+    </div>
+    <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+      {space.title || space.name}
+    </h1>
+    <p class="text-lg text-gray-600 dark:text-gray-300">
+      {space.description}
+    </p>
+  </header>
 
-        <!-- V15.0: Entity Metrics Zone -->
-        <EntityZones entityType="space" entity={space} />
+   {/* Zone 1 Mobile Actions */}
+  <div slot="actions-mobile">
+      <a href={space.source_url} target="_blank" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Open Demo</a>
+  </div>
 
-        <div class="flex gap-4 mb-8">
-          <a href={space.source_url} target="_blank" rel="noopener"
-             class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-            🚀 Open Demo
-          </a>
-          <div class="flex items-center gap-2 text-gray-500">
-            <span>❤️ {space.likes || 0}</span>
-          </div>
-          <ShareButtons title={space.title || space.name} description={space.description || ''} />
-        </div>
-
-        {modelsUsed.length > 0 && (
-          <section class="mb-8">
-            <h2 class="text-2xl font-bold mb-4">Uses Models</h2>
-            <div class="flex flex-wrap gap-2">
+  {/* Zone 3: Core (Desktop) */}
+  <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+     <div class="space-y-8">
+        {/* Reuse Relations Logic manually since space object is simple */}
+        <div>
+           <h3 class="font-bold mb-4">Uses Models</h3>
+           {modelsUsed.length > 0 ? (
+             <div class="flex flex-wrap gap-2">
               {modelsUsed.map((model: string) => (
                 <a href={`/model/${model.replace(/\//g, '--')}`}
                    class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm hover:bg-blue-200 transition-colors">
                   {model}
                 </a>
               ))}
-            </div>
-          </section>
-        )}
-
-        <DataFreshness version={cacheVersion} />
-      </article>
-    ) : (
-      <div class="text-center py-20">
-        <div class="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full mb-6">
-          <span class="text-3xl">⏳</span>
+             </div>
+           ) : <p class="text-gray-500 italic">No models specified.</p>}
         </div>
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          Space: {displaySlug}
-        </h1>
-        <p class="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-lg mx-auto">
-          This space is currently being indexed or the details are not yet available in our cache.
-        </p>
-        
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <button class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium">
-                Request Indexing Priority
-            </button>
-            <a href="/spaces" class="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium">
-                ← Return to Catalog
-            </a>
-        </div>
-        
-        <p class="mt-8 text-xs text-gray-400">
-            ID: {displaySlug} • Status: Pending Ingestion
-        </p>
+     </div>
+      <div class="space-y-8">
+          <ShareButtons title={space.title || space.name} description={space.description || ''} />
       </div>
-    )}
-  </main>
-</Layout>
+  </div>
+
+  {/* Zone 3: Core (Mobile Tabs) */}
+  <div slot="core-knowledge">
+       {/* Simple Knowledge stub for Space */}
+       <div class="p-4 bg-gray-50 rounded text-center text-sm text-gray-500">
+          Knowledge Relations not available for Spaces yet.
+       </div>
+  </div>
+  
+  <div slot="core-related">
+       <div>
+           <h3 class="font-bold mb-4">Uses Models</h3>
+           {modelsUsed.length > 0 ? (
+             <div class="flex flex-wrap gap-2">
+              {modelsUsed.map((model: string) => (
+                <a href={`/model/${model.replace(/\//g, '--')}`}
+                   class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm hover:bg-blue-200 transition-colors">
+                  {model}
+                </a>
+              ))}
+             </div>
+           ) : <p class="text-gray-500 italic">No models specified.</p>}
+        </div>
+  </div>
+
+  <div slot="core-benchmarks">
+      <p class="text-gray-500 italic p-4">No benchmarks available.</p>
+  </div>
+
+  {/* Zone 4: Deep Dive */}
+  <div slot="deep-dive">
+        <h2 class="text-xl font-bold mb-4">Demo Preview</h2>
+        {/* Iframe Logic: Try to embed if SDK is supported */}
+        <div class="w-full aspect-video bg-gray-100 border border-gray-200 rounded-lg overflow-hidden mb-6 relative">
+            {space.sdk === 'gradio' || space.sdk === 'streamlit' || space.sdk === 'docker' ? (
+                <iframe 
+                   src={`https://hf.space/embed/${space.author}/${space.name}/+`} 
+                   class="w-full h-full" 
+                   frameborder="0"
+                   loading="lazy"
+                   title="Space Demo"
+                ></iframe>
+            ) : (
+                <div class="flex flex-col items-center justify-center h-full">
+                   <p class="text-gray-500 mb-4">Preview not available for {space.sdk}.</p>
+                   <a href={space.source_url} target="_blank" class="px-6 py-3 bg-indigo-600 text-white rounded-lg">
+                      Launch External Demo
+                   </a>
+                </div>
+            )}
+            <div class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 text-center backdrop-blur-sm">
+               Interact with caution. Content generated by third-party code.
+            </div>
+        </div>
+  </div>
+
+  {/* Zone 5: Community */}
+  <div slot="community">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+           <span>❤️ {space.likes || 0} Likes</span>
+        </div>
+        <DataFreshness version={cacheVersion} />
+      </div>
+      <div class="mt-8 text-center">
+         <a href="/ranking" class="text-indigo-500 hover:underline">
+            ← Browse all spaces
+         </a>
+      </div>
+  </div>
+
+</EntityLayout>

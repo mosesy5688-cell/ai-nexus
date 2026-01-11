@@ -22,7 +22,6 @@ import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definiti
 import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers';
 
 const { slug } = Astro.params;
-
 let model = null;
 let error = null;
 let similarModels = [];
@@ -98,122 +97,154 @@ const cleanDesc = cleanDescription(model?.description);
 const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') : slug, coverImage);
 ---
 
-<Layout title={pageTitle} description={pageDescription} image={coverImage} jsonld={jsonld}>
-  <main class="model-detail-page bg-gray-50 dark:bg-gray-900 min-h-screen">
-    {error ? (
-      <div class="container mx-auto px-4 py-12 text-center">
-        <div class="bg-red-50 text-red-800 p-8 rounded-lg max-w-2xl mx-auto">
-          <h1 class="text-3xl font-bold mb-4">Error Loading Page</h1>
-          <p class="text-gray-600 mb-6">{error.message}</p>
-          <a href="/explore" class="inline-block bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700">Browse Models</a>
-        </div>
-      </div>
-    ) : model ? (
-      <article class="container mx-auto px-4 py-8 max-w-7xl">
-        <ModelHeader 
-          modelName={modelName}
-          modelId={modelId}
-          entityType={model.entityType}
-          entityIcon={model.entityDefinition?.display?.icon}
-          entityLabel={model.entityDefinition?.display?.labelSingular}
-          verified={false} 
-          author={model.author}
-          lastUpdated={model.last_updated}
-          seoDescription={model.seo_summary?.description}
-          cleanDescription={cleanDesc}
-        />
+import EntityLayout from '../../layouts/EntityLayout.astro';
+/* ... keep other imports ... */
 
-        <ModelZones model={model} tagsArray={tagsArray} />
+/* ... keep setup logic ... */
 
-        <!-- V14.5 Phase 5: FNI Trend Chart -->
-        <div class="fni-trend-section mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm flex items-center gap-4">
-          <span class="text-sm font-medium text-gray-600 dark:text-gray-400">7-Day FNI Trend:</span>
-          <MiniTrendChart entityId={modelId} showBadge={true} width={100} height={32} />
-        </div>
-
-        <!-- V12: Quick Start for content depth -->
+<EntityLayout 
+  entity={model} 
+  type="model" 
+  title={pageTitle} 
+  description={pageDescription}
+  image={coverImage}
+  jsonld={jsonld}
+>
+  {/* Zone 1: Hero */}
+  <ModelHeader 
+    slot="hero"
+    modelName={modelName}
+    modelId={modelId}
+    entityType={model.entityType}
+    entityIcon={model.entityDefinition?.display?.icon}
+    entityLabel={model.entityDefinition?.display?.labelSingular}
+    verified={false} 
+    author={model.author}
+    lastUpdated={model.last_updated}
+    seoDescription={model.seo_summary?.description}
+    cleanDescription={cleanDesc}
+  >
+     <div slot="actions" class="flex gap-2 mt-4">
         <QuickStart 
           modelId={modelId}
           modelName={modelName}
           pipeline_tag={model.pipeline_tag}
           author={model.author}
+          compact={true}
         />
+     </div>
+  </ModelHeader>
 
-        {hasBench && hasBenchmarks && (
-          <section class="mb-8">
-            <BenchmarkCard 
-              umid={model.umid || model.id || ''}
-              name={modelName}
-              mmlu={model.mmlu || model.benchmark_mmlu}
-              humaneval={model.humaneval || model.benchmark_humaneval}
-              hellaswag={model.hellaswag || model.benchmark_hellaswag}
-              arc_challenge={model.arc_challenge || model.benchmark_arc}
-              avg_score={model.avg_score || model.benchmark_avg || 0}
-            />
-          </section>
-        )}
+  {/* Zone 1 Mobile Actions */}
+  <div slot="actions-mobile">
+     <button class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">Download</button>
+  </div>
 
-        {/* TechnicalSpecs removed - rendered inside ModelMainColumn.astro */}
+  {/* Zone 2: Insights Extra */}
+  <div slot="insights-extra">
+     <VramEstimator paramsB={model.params_billions} />
+  </div>
 
-        <!-- V12: Knowledge Relations Panel -->
+  {/* Zone 3: Core (Desktop) */}
+  <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+     <div class="space-y-8">
         <RelationsPanel
           baseModel={model.base_model}
           datasetsUsed={model.datasets_used || []}
           arxivRefs={model.arxiv_refs || []}
         />
+        <RelatedKnowledge 
+          tags={tagsArray} 
+          description={model.description || ''}
+          metaJson={model.meta_json}
+        />
+     </div>
+     <div class="space-y-8">
+        {hasBench && (
+          <BenchmarkCard 
+            umid={model.umid || model.id || ''}
+            name={modelName}
+            mmlu={model.mmlu || model.benchmark_mmlu}
+            humaneval={model.humaneval || model.benchmark_humaneval}
+            hellaswag={model.hellaswag || model.benchmark_hellaswag}
+            arc_challenge={model.arc_challenge || model.benchmark_arc}
+            avg_score={model.avg_score || model.benchmark_avg || 0}
+          />
+        )}
+        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+           <h3 class="font-bold mb-4">7-Day Trend</h3>
+           <MiniTrendChart entityId={modelId} width={400} height={100} />
+        </div>
+     </div>
+  </div>
 
-        <!-- V8.1-LOCK Phase 2: VRAM Estimator -->
-        <VramEstimator paramsB={model.params_billions} />
+  {/* Zone 3: Core (Mobile Tabs) */}
+  <div slot="core-knowledge">
+     <RelationsPanel
+        baseModel={model.base_model}
+        datasetsUsed={model.datasets_used || []}
+        arxivRefs={model.arxiv_refs || []}
+     />
+     <RelatedKnowledge 
+       tags={tagsArray} 
+       description={model.description || ''}
+     />
+  </div>
 
-        <!-- V8.1-LOCK Phase 2: Trust Protocol Disclaimer -->
-        <AiDisclaimer source={model.source} lastUpdated={model.last_updated} />
+  <div slot="core-related">
+     {similarModels.length > 0 ? (
+        <ModelCarousel models={similarModels} />
+     ) : (
+        <p class="text-gray-500 italic p-4">No similar models found.</p>
+     )}
+  </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <ModelMainColumn 
+  <div slot="core-benchmarks">
+      {hasBench && (
+        <BenchmarkCard 
+          umid={model.umid || model.id || ''}
+          name={modelName}
+          mmlu={model.mmlu || model.benchmark_mmlu}
+          humaneval={model.humaneval || model.benchmark_humaneval}
+          hellaswag={model.hellaswag || model.benchmark_hellaswag}
+          arc_challenge={model.arc_challenge || model.benchmark_arc}
+          avg_score={model.avg_score || model.benchmark_avg || 0}
+        />
+      )}
+      <div class="mt-6">
+        <MiniTrendChart entityId={modelId} width={300} height={100} />
+      </div>
+  </div>
+
+  {/* Zone 4: Deep Dive */}
+  <div slot="deep-dive" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="lg:col-span-2">
+         {/* Reuse Main Column for Description & Readme */}
+         <ModelMainColumn 
             model={model} 
             hasFNI={hasFNI} 
             hasBenchmarkCap={hasBenchmarks} 
             modelName={modelName} 
             modelId={modelId} 
           />
-          
+      </div>
+      <div class="lg:col-span-1">
           <ModelSidebar 
             model={model} 
             modelId={modelId} 
           />
-        </div>
+      </div>
+  </div>
 
-        <RelatedResearch modelId={modelId} />
+  {/* Zone 5: Community */}
+  <div slot="community">
+      <AiDisclaimer source={model.source} lastUpdated={model.last_updated} />
+      <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-800">
+         <ModelNavigation 
+            pipelineTag={model.pipeline_tag}
+            hasGguf={model.has_gguf}
+         />
+      </div>
+  </div>
 
-        <!-- V8.1-LOCK Phase 3: Entity Relations (Model ↔ Paper) -->
-        {model.entity_relations && model.entity_relations.length > 0 && (
-          <EntityRelations
-            entityId={modelId}
-            entityType="model"
-            relations={model.entity_relations}
-          />
-        )}
-        
-        <RelatedKnowledge 
-          tags={tagsArray} 
-          description={model.description || ''}
-          metaJson={model.meta_json}
-        />
-
-        {similarModels.length > 0 && (
-          <section class="mt-12">
-            <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Similar Models</h2>
-             <ModelCarousel models={similarModels} />
-          </section>
-        )}
-
-        <ModelNavigation 
-          pipelineTag={model.pipeline_tag}
-          hasGguf={model.has_gguf}
-        />
-      </article>
-    ) : (
-      <ModelNotFound slug={slug} />
-    )}
-  </main>
-</Layout>
+</EntityLayout>

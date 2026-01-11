@@ -1,0 +1,45 @@
+---
+/**
+ * Zone 2: Quick Insights
+ * Displays key decision metrics (Params, Context, Downloads, etc.)
+ * Adapts to 6 entity types via `inference.js`
+ */
+import { getQuickInsights } from '../../utils/inference';
+
+export interface Props {
+  entity: any;
+  type: 'model' | 'agent' | 'space' | 'tool' | 'dataset' | 'paper';
+}
+
+const { entity, type } = Astro.props;
+const insights = getQuickInsights(entity, type);
+---
+
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-6">
+  {insights.map((item) => (
+    <div class={`
+      flex flex-col items-center justify-center p-3 rounded-lg border
+      ${item.highlight 
+        ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800' 
+        : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 shadow-sm'}
+    `}>
+      <span class="text-lg font-bold text-gray-900 dark:text-white">
+        {item.value}
+      </span>
+      <span class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+        {item.label}
+      </span>
+    </div>
+  ))}
+
+  {/* Quick Action: Inference Code / Install Command */}
+  {/* Only show on MD+ screens to save vertical space on mobile */}
+  <div class="hidden md:flex col-span-1 items-center justify-center">
+    <button 
+      class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+      onclick="document.getElementById('deep-dive-section').scrollIntoView({behavior: 'smooth'})"
+    >
+      <span>📋 View Usage Code</span>
+    </button>
+  </div>
+</div>

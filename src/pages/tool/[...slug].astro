@@ -72,47 +72,79 @@ const hasTool = !!tool;
   <link slot="head" rel="canonical" href={canonicalUrl} />
   {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
 
-  <main class="container mx-auto px-4 py-12">
-    {hasTool ? (
-      <article class="max-w-4xl mx-auto">
-        <nav class="mb-6 text-sm text-gray-500 dark:text-gray-400">
-          <a href="/" class="hover:text-indigo-600">Home</a>
-          <span class="mx-2">/</span>
-          <a href="/tool" class="hover:text-indigo-600">Tools</a>
-          <span class="mx-2">/</span>
-          <span class="font-medium text-gray-700 dark:text-gray-300">{tool.name || tool.canonical_name}</span>
-        </nav>
+import EntityLayout from '../../layouts/EntityLayout.astro';
+/* ... keep other imports ... */
 
-        <header class="mb-8">
-          <div class="flex items-center gap-4 mb-4">
-            <span class="text-4xl">🔧</span>
-            <span class="px-3 py-1 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-full text-sm font-medium">
-              TOOL
-            </span>
-            {tool.author && (
-              <span class="text-gray-500">by {tool.author}</span>
-            )}
-          </div>
-          <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            {tool.name || tool.canonical_name}
-          </h1>
-          <p class="text-lg text-gray-600 dark:text-gray-300">
-            {tool.description || 'No description available'}
-          </p>
-        </header>
+/* ... keep setup logic ... */
 
-        <!-- V15.0: Entity Metrics Zone -->
-        <EntityZones entityType="tool" entity={tool} />
+<EntityLayout 
+  entity={tool} 
+  type="tool" 
+  title={pageTitle} 
+  description={pageDescription}
+>
+  {/* Zone 1: Hero */}
+  <header slot="hero" class="mb-8">
+    <div class="flex items-center gap-4 mb-4">
+      <span class="text-4xl">🔧</span>
+      <span class="px-3 py-1 bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded-full text-sm font-medium">
+        TOOL
+      </span>
+      {tool.author && (
+        <span class="text-gray-500">by {tool.author}</span>
+      )}
+    </div>
+    <h1 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+      {tool.name || tool.canonical_name}
+    </h1>
+    <p class="text-lg text-gray-600 dark:text-gray-300">
+      {tool.description || 'No description available'}
+    </p>
+  </header>
 
-        <!-- V15.0: Relations Panel (Fix Defect 4) -->
+   {/* Zone 1 Mobile Actions */}
+  <div slot="actions-mobile">
+      {tool.source_url && (
+         <a href={tool.source_url} target="_blank" class="px-3 py-1 bg-indigo-600 text-white rounded text-xs font-bold">GitHub</a>
+      )}
+  </div>
+
+  {/* Zone 3: Core (Desktop) */}
+  <div slot="core-desktop" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+     <div class="space-y-8">
         <RelationsPanel 
              datasetsUsed={tool.datasets_used}
              arxivRefs={tool.arxiv_refs}
              relatedSpaces={tool.related_spaces}
              knowledgeLinks={tool.knowledge_links}
         />
+     </div>
+      <div class="space-y-8">
+          <ShareButtons title={tool.name || tool.canonical_name} description={tool.description || ''} />
+      </div>
+  </div>
 
-        <!-- Tool Info Grid -->
+  {/* Zone 3: Core (Mobile Tabs) */}
+  <div slot="core-knowledge">
+      <RelationsPanel 
+          datasetsUsed={tool.datasets_used}
+          arxivRefs={tool.arxiv_refs}
+          relatedSpaces={tool.related_spaces}
+          knowledgeLinks={tool.knowledge_links}
+      />
+  </div>
+  
+  <div slot="core-related">
+      <p class="text-gray-500 italic p-4">No related tools indexed yet.</p>
+  </div>
+
+  <div slot="core-benchmarks">
+      <p class="text-gray-500 italic p-4">No benchmarks available.</p>
+  </div>
+
+  {/* Zone 4: Deep Dive */}
+  <div slot="deep-dive">
+        {/* Tool Info Grid */}
         <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
             <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white">📋 Tool Info</h2>
@@ -154,35 +186,17 @@ const hasTool = !!tool;
             </div>
           )}
         </section>
+  </div>
 
-        <ShareButtons title={tool.name || tool.canonical_name} description={tool.description || ''} />
-        <DataFreshness version={cacheVersion} />
-      </article>
-    ) : (
-      <div class="text-center py-20">
-        <div class="inline-flex items-center justify-center w-16 h-16 bg-yellow-100 text-yellow-600 rounded-full mb-6">
-          <span class="text-3xl">⏳</span>
-        </div>
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          Tool: {displaySlug}
-        </h1>
-        <p class="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-lg mx-auto">
-          This tool is currently being indexed or the details are not yet available in our cache.
-        </p>
-        
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <button class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium">
-                Request Indexing Priority
-            </button>
-            <a href="/tools" class="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium">
-                ← Return to Catalog
-            </a>
-        </div>
-        
-        <p class="mt-8 text-xs text-gray-400">
-            ID: {displaySlug} • Status: Pending Ingestion
-        </p>
+  {/* Zone 5: Community */}
+  <div slot="community">
+      <DataFreshness version={cacheVersion} />
+      <div class="mt-8 text-center">
+         <a href="/ranking" class="text-indigo-500 hover:underline">
+            ← Browse all tools
+         </a>
       </div>
-    )}
-  </main>
+  </div>
+
+</EntityLayout>
 </Layout>
