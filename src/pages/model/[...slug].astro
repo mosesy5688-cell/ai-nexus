@@ -97,9 +97,9 @@ const hasBench = Boolean(model?.mmlu || model?.benchmark_mmlu || model?.benchmar
 const placeholderImage = '/images/models/default-model.jpg';
 const coverImage = model?.cover_image_url || placeholderImage;
 const modelName = model?.name || model?.canonical_name || 'Unknown Model';
-// V15.0: Derived Use Cases and Limits
 const modelId = model?.umid || model?.id || '';
-const modelName = model?.name || model?.canonical_name || 'Unknown Model';
+
+// V15.0: Derived Use Cases and Limits
 const derivedUseCases = model ? getUseCases(Array.isArray(model.tags) ? model.tags : [], model.pipeline_tag, 'model', model.fni_score) : { goodFor: [], limits: [] };
 
 if (model) {
