@@ -1,0 +1,73 @@
+---
+interface Props {
+  modelId: string;
+  modelName: string;
+}
+
+const { modelId, modelName } = Astro.props;
+---
+
+<div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-4 shadow-lg">
+  <h3 class="text-sm font-semibold text-white/80 uppercase tracking-wide mb-3">📊 Compare Models</h3>
+  <button 
+    id="add-to-compare-btn"
+    data-model-id={modelId}
+    data-model-name={modelName}
+    class="w-full px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors border border-white/30"
+  >
+    + Add to Compare
+  </button>
+  <a 
+    href="/compare" 
+    class="block w-full mt-2 px-4 py-2 bg-white text-indigo-600 rounded-lg font-medium text-center hover:bg-indigo-50 transition-colors"
+  >
+    View Compare Page
+  </a>
+  <p id="compare-status" class="text-xs text-white/70 mt-2 text-center hidden"></p>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const STORAGE_KEY = 'compareModels';
+    const MAX_COMPARE = 4;
+    const btn = document.getElementById('add-to-compare-btn');
+    const status = document.getElementById('compare-status');
+    
+    if (!btn) return;
+    
+    const modelId = btn.dataset.modelId;
+    const modelName = btn.dataset.modelName;
+    
+    // Check if already added
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    const alreadyAdded = saved.some((m: any) => m.id === modelId);
+    
+    if (alreadyAdded) {
+      btn.textContent = '✓ Added to Compare';
+      btn.classList.add('bg-white/40');
+    }
+    
+    btn.addEventListener('click', () => {
+      let models = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      
+      if (models.some((m: any) => m.id === modelId)) {
+        // Remove from list
+        models = models.filter((m: any) => m.id !== modelId);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(models));
+        btn.textContent = '+ Add to Compare';
+        btn.classList.remove('bg-white/40');
+        if (status) { status.textContent = 'Removed from compare list'; status.classList.remove('hidden'); }
+      } else {
+        if (models.length >= MAX_COMPARE) {
+          if (status) { status.textContent = `Max ${MAX_COMPARE} models. Remove one first.`; status.classList.remove('hidden'); }
+          return;
+        }
+        models.push({ id: modelId, name: modelName });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(models));
+        btn.textContent = '✓ Added to Compare';
+        btn.classList.add('bg-white/40');
+        if (status) { status.textContent = `${models.length}/${MAX_COMPARE} models selected`; status.classList.remove('hidden'); }
+      }
+    });
+  });
+</script>
