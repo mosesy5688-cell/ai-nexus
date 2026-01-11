@@ -31,8 +31,8 @@ try {
   console.error('[Paper Page] Cache error:', e);
 }
 
-const pageTitle = paper ? `${paper.title} - AI Research Paper` : 'Paper Not Found';
-const pageDescription = paper?.abstract?.slice(0, 160) || 'Explore AI/ML research papers';
+const pageTitle = paper?.title ? `${paper.title} - AI Research Paper` : `${displaySlug} - AI Research Paper`; // Modified for robust fallback
+const pageDescription = paper?.abstract?.slice(0, 160) || `Explore ${displaySlug} AI research paper.`; // Modified for robust fallback
 const canonicalUrl = `https://free2aitools.com/paper/${displaySlug}`;
 
 const jsonLd = paper ? {
@@ -59,10 +59,11 @@ const derivedUseCases = paper ? getUseCases(paper.tags || [], '', 'paper', paper
   title={pageTitle}
   description={pageDescription}
   jsonld={jsonLd}
+>
    {/* Zone 1: Hero */}
    <EntityHeader 
      slot="hero"
-     name={paper?.title}
+     name={paper?.title || displaySlug} // Modified for robust fallback
      entityType="paper"
      entityIcon="📄"
      entityLabel="Research Paper"

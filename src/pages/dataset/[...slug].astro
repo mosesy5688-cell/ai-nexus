@@ -48,15 +48,15 @@ try {
   }
 } catch (e) { console.error('[Dataset Page] Cache error:', e); }
 
-const pageTitle = dataset ? `${dataset.name} - AI Dataset` : 'Dataset Not Found';
-const pageDescription = dataset?.description?.slice(0, 160) || 'Browse AI/ML datasets';
+const pageTitle = dataset?.name ? `${dataset.name} - AI Dataset` : (dataset?.title ? `${dataset.title} - AI Dataset` : `${displaySlug} - AI Dataset`);
+const pageDescription = dataset?.description?.slice(0, 160) || `Explore ${displaySlug} AI dataset on Free2AITools.`;
 const canonicalUrl = `https://free2aitools.com/dataset/${displaySlug}`;
 
 // JSON-LD for SEO
 const jsonLd = dataset ? {
   "@context": "https://schema.org",
   "@type": "Dataset",
-  "name": dataset.name,
+  "name": dataset.name || dataset.title || displaySlug,
   "description": dataset.description,
   "url": canonicalUrl,
   "creator": {
@@ -76,8 +76,6 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
 ---
 
 
-
-
 <EntityLayout 
   entity={dataset} 
   type="dataset" 
@@ -88,16 +86,16 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
     {/* Zone 1: Hero */}
     <EntityHeader 
       slot="hero"
-      name={dataset.name || dataset.title}
+      name={dataset?.name || dataset?.title || displaySlug}
       entityType="dataset"
       entityIcon="📊"
       entityLabel="Dataset"
       verified={false}
-      author={dataset.author || 'Unknown'}
-      description={dataset.description}
-      fniScore={dataset.fni_score}
-      fniPercentile={dataset.fni_percentile}
-      sourceUrl={dataset.source_url}
+      author={dataset?.author || 'Unknown'}
+      description={dataset?.description}
+      fniScore={dataset?.fni_score}
+      fniPercentile={dataset?.fni_percentile}
+      sourceUrl={dataset?.source_url}
     >
       <div slot="actions" class="flex gap-2">
          <a href={dataset.source_url} target="_blank" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors">Download Dataset</a>
