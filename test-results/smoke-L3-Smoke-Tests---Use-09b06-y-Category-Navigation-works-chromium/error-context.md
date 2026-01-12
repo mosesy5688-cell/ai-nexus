@@ -1,0 +1,332 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link "Free AI Tools" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e6]: Free AI Tools
+        - generic [ref=e8]:
+          - link "Home" [ref=e9] [cursor=pointer]:
+            - /url: /
+          - link "Models" [ref=e10] [cursor=pointer]:
+            - /url: /models
+          - link "Agents" [ref=e11] [cursor=pointer]:
+            - /url: /agents
+          - link "Spaces" [ref=e12] [cursor=pointer]:
+            - /url: /spaces
+          - link "Tools" [ref=e13] [cursor=pointer]:
+            - /url: /tools
+          - link "Datasets" [ref=e14] [cursor=pointer]:
+            - /url: /datasets
+          - link "Papers" [ref=e15] [cursor=pointer]:
+            - /url: /papers
+          - link "Compare" [ref=e16] [cursor=pointer]:
+            - /url: /compare
+          - link "Reports" [ref=e17] [cursor=pointer]:
+            - /url: /reports
+          - link "Knowledge" [ref=e18] [cursor=pointer]:
+            - /url: /knowledge
+          - link "View on GitHub" [ref=e19] [cursor=pointer]:
+            - /url: https://github.com/mosesy5688-cell/ai-nexus
+            - img [ref=e20]
+  - generic [ref=e23]:
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - generic [ref=e29]: 🤖
+        - heading "Welcome to Free2AI Tools!" [level=2] [ref=e30]
+        - paragraph [ref=e31]: Your gateway to the open-source AI ecosystem
+      - list [ref=e32]:
+        - listitem [ref=e33]:
+          - generic [ref=e34]: 🔍
+          - generic [ref=e35]: Search 70,000+ AI Models
+        - listitem [ref=e36]:
+          - generic [ref=e37]: 📊
+          - generic [ref=e38]: Compare & Rank with FNI Scores
+        - listitem [ref=e39]:
+          - generic [ref=e40]: 📚
+          - generic [ref=e41]: Explore Papers, Datasets & Agents
+    - generic [ref=e42]:
+      - button "Skip tour" [ref=e43] [cursor=pointer]
+      - button "Next" [ref=e45] [cursor=pointer]
+  - generic [ref=e46]:
+    - generic [ref=e47]:
+      - heading "AI Models Catalog" [level=1] [ref=e48]
+      - paragraph [ref=e49]: Browse and discover 70,000+ open-source AI models
+    - generic [ref=e50]:
+      - textbox "Search models..." [ref=e52]
+      - combobox [ref=e53]:
+        - option "All Categories" [selected]
+        - option "💬 Text Generation"
+        - option "🎨 Image Generation"
+        - option "📋 Classification"
+        - option "❓ Question Answering"
+        - option "📝 Summarization"
+        - option "🌐 Translation"
+        - option "🔍 Embeddings"
+      - combobox [ref=e54]:
+        - option "🛡️ FNI Score" [selected]
+        - option "📥 Downloads"
+        - option "❤️ Likes"
+        - option "🕐 Recently Updated"
+    - generic [ref=e55]:
+      - generic [ref=e56]: Loading more... (357)
+      - generic [ref=e57]: •
+      - generic [ref=e58]: Updated Mon/Thu at 03:00 UTC
+    - generic [ref=e59]:
+      - link "Model 🛡️ 16 gpt-4.1-mini Fast, affordable version of GPT-4.1" [ref=e60] [cursor=pointer]:
+        - /url: /model/openai/gpt-4.1-mini
+        - generic [ref=e61]:
+          - generic [ref=e62]: Model
+          - generic [ref=e63]: 🛡️ 16
+        - heading "gpt-4.1-mini" [level=3] [ref=e64]
+        - paragraph [ref=e65]: Fast, affordable version of GPT-4.1
+      - link "Model 🛡️ 16 llama-2-70b-chat A 70 billion parameter language model from Meta, fine tuned for chat completions" [ref=e66] [cursor=pointer]:
+        - /url: /model/meta/llama-2-70b-chat
+        - generic [ref=e67]:
+          - generic [ref=e68]: Model
+          - generic [ref=e69]: 🛡️ 16
+        - heading "llama-2-70b-chat" [level=3] [ref=e70]
+        - paragraph [ref=e71]: A 70 billion parameter language model from Meta, fine tuned for chat completions
+      - link "Model 🛡️ 16 claude-3.7-sonnet The most intelligent Claude model and the first hybrid reasoning model on the market (claude-3-7-sonnet-20250219)" [ref=e72] [cursor=pointer]:
+        - /url: /model/anthropic/claude-3.7-sonnet
+        - generic [ref=e73]:
+          - generic [ref=e74]: Model
+          - generic [ref=e75]: 🛡️ 16
+        - heading "claude-3.7-sonnet" [level=3] [ref=e76]
+        - paragraph [ref=e77]: The most intelligent Claude model and the first hybrid reasoning model on the market (claude-3-7-sonnet-20250219)
+      - link "Model 🛡️ 16 stable-diffusion-inpainting Fill in masked parts of images with Stable Diffusion" [ref=e78] [cursor=pointer]:
+        - /url: /model/stability-ai/stable-diffusion-inpainting
+        - generic [ref=e79]:
+          - generic [ref=e80]: Model
+          - generic [ref=e81]: 🛡️ 16
+        - heading "stable-diffusion-inpainting" [level=3] [ref=e82]
+        - paragraph [ref=e83]: Fill in masked parts of images with Stable Diffusion
+      - link "Model 🛡️ 16 llama-2-13b-chat A 13 billion parameter language model from Meta, fine tuned for chat completions" [ref=e84] [cursor=pointer]:
+        - /url: /model/meta/llama-2-13b-chat
+        - generic [ref=e85]:
+          - generic [ref=e86]: Model
+          - generic [ref=e87]: 🛡️ 16
+        - heading "llama-2-13b-chat" [level=3] [ref=e88]
+        - paragraph [ref=e89]: A 13 billion parameter language model from Meta, fine tuned for chat completions
+      - link "Model 🛡️ 16 gpt-5-nano Fastest, most cost-effective GPT-5 model from OpenAI" [ref=e90] [cursor=pointer]:
+        - /url: /model/openai/gpt-5-nano
+        - generic [ref=e91]:
+          - generic [ref=e92]: Model
+          - generic [ref=e93]: 🛡️ 16
+        - heading "gpt-5-nano" [level=3] [ref=e94]
+        - paragraph [ref=e95]: Fastest, most cost-effective GPT-5 model from OpenAI
+      - link "Model 🛡️ 16 stable-diffusion A latent text-to-image diffusion model capable of generating photo-realistic images given any text input" [ref=e96] [cursor=pointer]:
+        - /url: /model/stability-ai/stable-diffusion
+        - generic [ref=e97]:
+          - generic [ref=e98]: Model
+          - generic [ref=e99]: 🛡️ 16
+        - heading "stable-diffusion" [level=3] [ref=e100]
+        - paragraph [ref=e101]: A latent text-to-image diffusion model capable of generating photo-realistic images given any text input
+      - link "Model 🛡️ 16 llama-4-maverick-instruct A 17 billion parameter model with 128 experts" [ref=e102] [cursor=pointer]:
+        - /url: /model/meta/llama-4-maverick-instruct
+        - generic [ref=e103]:
+          - generic [ref=e104]: Model
+          - generic [ref=e105]: 🛡️ 16
+        - heading "llama-4-maverick-instruct" [level=3] [ref=e106]
+        - paragraph [ref=e107]: A 17 billion parameter model with 128 experts
+      - link "Model 🛡️ 16 gpt-4o-mini Low latency, low cost version of OpenAI's GPT-4o model" [ref=e108] [cursor=pointer]:
+        - /url: /model/openai/gpt-4o-mini
+        - generic [ref=e109]:
+          - generic [ref=e110]: Model
+          - generic [ref=e111]: 🛡️ 16
+        - heading "gpt-4o-mini" [level=3] [ref=e112]
+        - paragraph [ref=e113]: Low latency, low cost version of OpenAI's GPT-4o model
+      - link "Model 🛡️ 16 mistral-7b-v0.1 A 7 billion parameter language model from Mistral." [ref=e114] [cursor=pointer]:
+        - /url: /model/mistralai/mistral-7b-v0.1
+        - generic [ref=e115]:
+          - generic [ref=e116]: Model
+          - generic [ref=e117]: 🛡️ 16
+        - heading "mistral-7b-v0.1" [level=3] [ref=e118]
+        - paragraph [ref=e119]: A 7 billion parameter language model from Mistral.
+      - link "Model 🛡️ 16 imagen-4 Google's Imagen 4 flagship model" [ref=e120] [cursor=pointer]:
+        - /url: /model/google/imagen-4
+        - generic [ref=e121]:
+          - generic [ref=e122]: Model
+          - generic [ref=e123]: 🛡️ 16
+        - heading "imagen-4" [level=3] [ref=e124]
+        - paragraph [ref=e125]: Google's Imagen 4 flagship model
+      - link "Model 🛡️ 16 clip Official CLIP models, generate CLIP (clip-vit-large-patch14) text & image embeddings" [ref=e126] [cursor=pointer]:
+        - /url: /model/openai/clip
+        - generic [ref=e127]:
+          - generic [ref=e128]: Model
+          - generic [ref=e129]: 🛡️ 16
+        - heading "clip" [level=3] [ref=e130]
+        - paragraph [ref=e131]: Official CLIP models, generate CLIP (clip-vit-large-patch14) text & image embeddings
+      - link "Model 🛡️ 16 llama-2-7b-chat A 7 billion parameter language model from Meta, fine tuned for chat completions" [ref=e132] [cursor=pointer]:
+        - /url: /model/meta/llama-2-7b-chat
+        - generic [ref=e133]:
+          - generic [ref=e134]: Model
+          - generic [ref=e135]: 🛡️ 16
+        - heading "llama-2-7b-chat" [level=3] [ref=e136]
+        - paragraph [ref=e137]: A 7 billion parameter language model from Meta, fine tuned for chat completions
+      - link "Model 🛡️ 16 gpt-image-1 A multimodal image generation model that creates high-quality images. You need to bring your own verified OpenAI key to use this model. Your OpenAI account will be charged for usage." [ref=e138] [cursor=pointer]:
+        - /url: /model/openai/gpt-image-1
+        - generic [ref=e139]:
+          - generic [ref=e140]: Model
+          - generic [ref=e141]: 🛡️ 16
+        - heading "gpt-image-1" [level=3] [ref=e142]
+        - paragraph [ref=e143]: A multimodal image generation model that creates high-quality images. You need to bring your own verified OpenAI key to use this model. Your OpenAI account will be charged for usage.
+      - link "Model 🛡️ 16 nano-banana Google's latest image editing model in Gemini 2.5" [ref=e144] [cursor=pointer]:
+        - /url: /model/google/nano-banana
+        - generic [ref=e145]:
+          - generic [ref=e146]: Model
+          - generic [ref=e147]: 🛡️ 16
+        - heading "nano-banana" [level=3] [ref=e148]
+        - paragraph [ref=e149]: Google's latest image editing model in Gemini 2.5
+      - 'link "Model 🛡️ 16 sana-sprint-1.6b SANA-Sprint: One-Step Diffusion with Continuous-Time Consistency Distillation" [ref=e150] [cursor=pointer]':
+        - /url: /model/nvidia/sana-sprint-1.6b
+        - generic [ref=e151]:
+          - generic [ref=e152]: Model
+          - generic [ref=e153]: 🛡️ 16
+        - heading "sana-sprint-1.6b" [level=3] [ref=e154]
+        - paragraph [ref=e155]: "SANA-Sprint: One-Step Diffusion with Continuous-Time Consistency Distillation"
+      - link "Model 🛡️ 16 imagen-4-fast Use this fast version of Imagen 4 when speed and cost are more important than quality" [ref=e156] [cursor=pointer]:
+        - /url: /model/google/imagen-4-fast
+        - generic [ref=e157]:
+          - generic [ref=e158]: Model
+          - generic [ref=e159]: 🛡️ 16
+        - heading "imagen-4-fast" [level=3] [ref=e160]
+        - paragraph [ref=e161]: Use this fast version of Imagen 4 when speed and cost are more important than quality
+      - link "Model 🛡️ 16 imagen-3 Google's highest quality text-to-image model, capable of generating images with detail, rich lighting and beauty" [ref=e162] [cursor=pointer]:
+        - /url: /model/google/imagen-3
+        - generic [ref=e163]:
+          - generic [ref=e164]: Model
+          - generic [ref=e165]: 🛡️ 16
+        - heading "imagen-3" [level=3] [ref=e166]
+        - paragraph [ref=e167]: Google's highest quality text-to-image model, capable of generating images with detail, rich lighting and beauty
+      - link "Model 🛡️ 16 claude-4-sonnet Claude Sonnet 4 is a significant upgrade to 3.7, delivering superior coding and reasoning while responding more precisely to your instructions" [ref=e168] [cursor=pointer]:
+        - /url: /model/anthropic/claude-4-sonnet
+        - generic [ref=e169]:
+          - generic [ref=e170]: Model
+          - generic [ref=e171]: 🛡️ 16
+        - heading "claude-4-sonnet" [level=3] [ref=e172]
+        - paragraph [ref=e173]: Claude Sonnet 4 is a significant upgrade to 3.7, delivering superior coding and reasoning while responding more precisely to your instructions
+      - link "Model 🛡️ 16 claude-3.5-haiku Anthropic's fastest, most cost-effective model, with a 200K token context window (claude-3-5-haiku-20241022)" [ref=e174] [cursor=pointer]:
+        - /url: /model/anthropic/claude-3.5-haiku
+        - generic [ref=e175]:
+          - generic [ref=e176]: Model
+          - generic [ref=e177]: 🛡️ 16
+        - heading "claude-3.5-haiku" [level=3] [ref=e178]
+        - paragraph [ref=e179]: Anthropic's fastest, most cost-effective model, with a 200K token context window (claude-3-5-haiku-20241022)
+      - link "Model 🛡️ 16 whisper Accelerated transcription, word-level timestamps and diarization with whisperX large-v3 for large audio files" [ref=e180] [cursor=pointer]:
+        - /url: /model/openai/whisper
+        - generic [ref=e181]:
+          - generic [ref=e182]: Model
+          - generic [ref=e183]: 🛡️ 16
+        - heading "whisper" [level=3] [ref=e184]
+        - paragraph [ref=e185]: Accelerated transcription, word-level timestamps and diarization with whisperX large-v3 for large audio files
+      - link "Model 🛡️ 16 sdxl A text-to-image generative AI model that creates beautiful images" [ref=e186] [cursor=pointer]:
+        - /url: /model/stability-ai/sdxl
+        - generic [ref=e187]:
+          - generic [ref=e188]: Model
+          - generic [ref=e189]: 🛡️ 16
+        - heading "sdxl" [level=3] [ref=e190]
+        - paragraph [ref=e191]: A text-to-image generative AI model that creates beautiful images
+      - link "Model 🛡️ 16 llama-4-scout-instruct A 17 billion parameter model with 16 experts" [ref=e192] [cursor=pointer]:
+        - /url: /model/meta/llama-4-scout-instruct
+        - generic [ref=e193]:
+          - generic [ref=e194]: Model
+          - generic [ref=e195]: 🛡️ 16
+        - heading "llama-4-scout-instruct" [level=3] [ref=e196]
+        - paragraph [ref=e197]: A 17 billion parameter model with 16 experts
+      - link "Model 🛡️ 16 meta-llama-3-8b-instruct An 8 billion parameter language model from Meta, fine tuned for chat completions" [ref=e198] [cursor=pointer]:
+        - /url: /model/meta/meta-llama-3-8b-instruct
+        - generic [ref=e199]:
+          - generic [ref=e200]: Model
+          - generic [ref=e201]: 🛡️ 16
+        - heading "meta-llama-3-8b-instruct" [level=3] [ref=e202]
+        - paragraph [ref=e203]: An 8 billion parameter language model from Meta, fine tuned for chat completions
+    - navigation [ref=e205]:
+      - button "←" [disabled] [ref=e206]
+      - generic [ref=e207]: Page 1 of 15
+      - button "→" [ref=e208] [cursor=pointer]
+    - generic [ref=e209]:
+      - heading "Quick Navigation" [level=2] [ref=e210]
+      - generic [ref=e211]:
+        - link "🏆 FNI Leaderboard" [ref=e212] [cursor=pointer]:
+          - /url: /ranking
+          - generic [ref=e213]: 🏆
+          - text: FNI Leaderboard
+        - link "🛠️ Dev Tools" [ref=e214] [cursor=pointer]:
+          - /url: /tools
+          - generic [ref=e215]: 🛠️
+          - text: Dev Tools
+        - link "📄 Research Papers" [ref=e216] [cursor=pointer]:
+          - /url: /papers
+          - generic [ref=e217]: 📄
+          - text: Research Papers
+        - link "🚀 AI Spaces" [ref=e218] [cursor=pointer]:
+          - /url: /spaces
+          - generic [ref=e219]: 🚀
+          - text: AI Spaces
+  - contentinfo [ref=e220]:
+    - generic [ref=e221]:
+      - generic [ref=e222]:
+        - generic [ref=e223]:
+          - heading "Free2AITools" [level=3] [ref=e224]
+          - paragraph [ref=e225]: Open-Source AI Model Selection Hub. Find the best LLM for your needs with our VRAM calculator and one-click deploy guides.
+          - paragraph [ref=e226]: Powered by the Fair Nexus Index (methodology-based, non-commercial)
+        - generic [ref=e227]:
+          - heading "Resources" [level=4] [ref=e228]
+          - list [ref=e229]:
+            - listitem [ref=e230]:
+              - link "Model Rankings" [ref=e231] [cursor=pointer]:
+                - /url: /ranking
+            - listitem [ref=e232]:
+              - link "FNI Methodology" [ref=e233] [cursor=pointer]:
+                - /url: /methodology
+            - listitem [ref=e234]:
+              - link "AI Reports" [ref=e235] [cursor=pointer]:
+                - /url: /reports
+        - generic [ref=e236]:
+          - heading "Legal" [level=4] [ref=e237]
+          - list [ref=e238]:
+            - listitem [ref=e239]:
+              - link "Data Compliance" [ref=e240] [cursor=pointer]:
+                - /url: /compliance
+            - listitem [ref=e241]:
+              - link "About Us" [ref=e242] [cursor=pointer]:
+                - /url: /about
+        - generic [ref=e243]:
+          - heading "Connect" [level=4] [ref=e244]
+          - list [ref=e245]:
+            - listitem [ref=e246]:
+              - link "GitHub" [ref=e247] [cursor=pointer]:
+                - /url: https://github.com/mosesy5688-cell/ai-nexus
+                - img [ref=e248]
+                - text: GitHub
+            - listitem [ref=e250]:
+              - link "Contact" [ref=e251] [cursor=pointer]:
+                - /url: mailto:compliance@free2aitools.com
+      - generic [ref=e252]:
+        - paragraph [ref=e253]: © 2026 Free2AITools. An open-source project to help you find the best AI models.
+        - generic [ref=e254]:
+          - link "How we score models" [ref=e255] [cursor=pointer]:
+            - /url: /methodology
+          - generic [ref=e256]: •
+          - link "Data Policy" [ref=e257] [cursor=pointer]:
+            - /url: /compliance
+  - generic [ref=e260]:
+    - button "Menu" [ref=e261]:
+      - img [ref=e263]
+      - generic: Menu
+    - button "Inspect" [ref=e267]:
+      - img [ref=e269]
+      - generic: Inspect
+    - button "Audit" [ref=e271]:
+      - generic [ref=e272]:
+        - img [ref=e273]
+        - img [ref=e276]
+      - generic: Audit
+    - button "Settings" [ref=e279]:
+      - img [ref=e281]
+      - generic: Settings
+```

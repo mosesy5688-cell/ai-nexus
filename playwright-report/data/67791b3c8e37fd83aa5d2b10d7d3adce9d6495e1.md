@@ -1,0 +1,491 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link "Free AI Tools" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e6]: Free AI Tools
+        - generic [ref=e8]:
+          - link "Home" [ref=e9] [cursor=pointer]:
+            - /url: /
+          - link "Models" [ref=e10] [cursor=pointer]:
+            - /url: /models
+          - link "Agents" [ref=e11] [cursor=pointer]:
+            - /url: /agents
+          - link "Spaces" [ref=e12] [cursor=pointer]:
+            - /url: /spaces
+          - link "Tools" [ref=e13] [cursor=pointer]:
+            - /url: /tools
+          - link "Datasets" [ref=e14] [cursor=pointer]:
+            - /url: /datasets
+          - link "Papers" [ref=e15] [cursor=pointer]:
+            - /url: /papers
+          - link "Compare" [ref=e16] [cursor=pointer]:
+            - /url: /compare
+          - link "Reports" [ref=e17] [cursor=pointer]:
+            - /url: /reports
+          - link "Knowledge" [ref=e18] [cursor=pointer]:
+            - /url: /knowledge
+          - link "View on GitHub" [ref=e19] [cursor=pointer]:
+            - /url: https://github.com/mosesy5688-cell/ai-nexus
+            - img [ref=e20]
+  - generic [ref=e23]:
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - generic [ref=e29]: 🤖
+        - heading "Welcome to Free2AI Tools!" [level=2] [ref=e30]
+        - paragraph [ref=e31]: Your gateway to the open-source AI ecosystem
+      - list [ref=e32]:
+        - listitem [ref=e33]:
+          - generic [ref=e34]: 🔍
+          - generic [ref=e35]: Search 70,000+ AI Models
+        - listitem [ref=e36]:
+          - generic [ref=e37]: 📊
+          - generic [ref=e38]: Compare & Rank with FNI Scores
+        - listitem [ref=e39]:
+          - generic [ref=e40]: 📚
+          - generic [ref=e41]: Explore Papers, Datasets & Agents
+    - generic [ref=e42]:
+      - button "Skip tour" [ref=e43] [cursor=pointer]
+      - button "Next" [ref=e45] [cursor=pointer]
+  - generic [ref=e46]:
+    - banner [ref=e47]:
+      - heading "Find the Best Open-Source LLM" [level=1] [ref=e48]
+      - paragraph [ref=e49]: Compare models by size, VRAM requirements, and real-world benchmarks.
+    - generic [ref=e51]:
+      - generic [ref=e53]:
+        - searchbox "Search AI Models" [ref=e54]
+        - generic:
+          - img
+      - generic [ref=e55]:
+        - generic [ref=e56]: "Try:"
+        - button "llama 70b" [ref=e57] [cursor=pointer]
+        - button "code generation" [ref=e58] [cursor=pointer]
+        - button "embedding" [ref=e59] [cursor=pointer]
+      - generic [ref=e61] [cursor=pointer]:
+        - checkbox "Search all 100K+ models" [ref=e62]
+        - generic [ref=e63]: Search all 100K+ models
+      - generic [ref=e64]:
+        - link "💬 Text Generation" [ref=e65] [cursor=pointer]:
+          - /url: /ranking?category=text-generation
+          - generic [ref=e66]: 💬
+          - generic [ref=e67]: Text Generation
+        - link "🖼️ Image" [ref=e68] [cursor=pointer]:
+          - /url: /ranking?category=text-to-image
+          - generic [ref=e69]: 🖼️
+          - generic [ref=e70]: Image
+        - link "💻 Code" [ref=e71] [cursor=pointer]:
+          - /url: /ranking?category=code-generation
+          - generic [ref=e72]: 💻
+          - generic [ref=e73]: Code
+        - link "🔢 Embedding" [ref=e74] [cursor=pointer]:
+          - /url: /ranking?category=feature-extraction
+          - generic [ref=e75]: 🔢
+          - generic [ref=e76]: Embedding
+        - link "🎵 Audio" [ref=e77] [cursor=pointer]:
+          - /url: /ranking?category=automatic-speech-recognition
+          - generic [ref=e78]: 🎵
+          - generic [ref=e79]: Audio
+        - link "🎬 Video" [ref=e80] [cursor=pointer]:
+          - /url: /ranking?category=text-to-video
+          - generic [ref=e81]: 🎬
+          - generic [ref=e82]: Video
+    - generic [ref=e83]:
+      - heading "Explore AI Models by Category" [level=2] [ref=e84]
+      - generic [ref=e85]:
+        - link "💬 Text Generation & Content Creation ChatGPT alternatives, code assistants, content writing, summarization Explore models → Browse" [ref=e86] [cursor=pointer]:
+          - /url: /text-generation
+          - generic [ref=e87]: 💬
+          - heading "Text Generation & Content Creation" [level=3] [ref=e88]
+          - paragraph [ref=e89]: ChatGPT alternatives, code assistants, content writing, summarization
+          - generic [ref=e90]:
+            - generic [ref=e91]: Explore models →
+            - generic [ref=e92]: Browse
+        - link "🔍 Knowledge Retrieval RAG, embeddings, Q&A systems Explore → Browse" [ref=e93] [cursor=pointer]:
+          - /url: /knowledge-retrieval
+          - generic [ref=e94]: 🔍
+          - heading "Knowledge Retrieval" [level=3] [ref=e95]
+          - paragraph [ref=e96]: RAG, embeddings, Q&A systems
+          - generic [ref=e97]:
+            - generic [ref=e98]: Explore →
+            - generic [ref=e99]: Browse
+        - link "🎨 Vision & Multimedia Image generation, video, speech Explore → Browse" [ref=e100] [cursor=pointer]:
+          - /url: /vision-multimedia
+          - generic [ref=e101]: 🎨
+          - heading "Vision & Multimedia" [level=3] [ref=e102]
+          - paragraph [ref=e103]: Image generation, video, speech
+          - generic [ref=e104]:
+            - generic [ref=e105]: Explore →
+            - generic [ref=e106]: Browse
+        - link "⚡ Automation AI agents, workflow tools Explore → Browse" [ref=e107] [cursor=pointer]:
+          - /url: /automation-workflow
+          - generic [ref=e108]: ⚡
+          - heading "Automation" [level=3] [ref=e109]
+          - paragraph [ref=e110]: AI agents, workflow tools
+          - generic [ref=e111]:
+            - generic [ref=e112]: Explore →
+            - generic [ref=e113]: Browse
+        - link "🔧 Infrastructure Fine-tuning, optimization Explore → Browse" [ref=e114] [cursor=pointer]:
+          - /url: /infrastructure-ops
+          - generic [ref=e115]: 🔧
+          - heading "Infrastructure" [level=3] [ref=e116]
+          - paragraph [ref=e117]: Fine-tuning, optimization
+          - generic [ref=e118]:
+            - generic [ref=e119]: Explore →
+            - generic [ref=e120]: Browse
+    - generic [ref=e121]:
+      - generic [ref=e122]:
+        - generic [ref=e123]:
+          - heading "⭐ Top Picks" [level=2] [ref=e124]
+          - paragraph [ref=e125]: Ranked by FNI (Free2AI Nexus Index)
+        - alert [ref=e126]:
+          - strong [ref=e127]: "Error:"
+          - text: "Status: 404"
+      - generic [ref=e128]:
+        - heading "Explore by Entity Type" [level=2] [ref=e129]
+        - generic [ref=e130]:
+          - link "🧠 AI Models LLMs, Vision, Audio Browse →" [ref=e131] [cursor=pointer]:
+            - /url: /models
+            - generic [ref=e132]: 🧠
+            - heading "AI Models" [level=3] [ref=e133]
+            - paragraph [ref=e134]: LLMs, Vision, Audio
+            - generic [ref=e135]: Browse →
+          - link "📊 Datasets Training & eval data Browse →" [ref=e136] [cursor=pointer]:
+            - /url: /datasets
+            - generic [ref=e137]: 📊
+            - heading "Datasets" [level=3] [ref=e138]
+            - paragraph [ref=e139]: Training & eval data
+            - generic [ref=e140]: Browse →
+          - link "📄 Papers Research from arXiv Browse →" [ref=e141] [cursor=pointer]:
+            - /url: /papers
+            - generic [ref=e142]: 📄
+            - heading "Papers" [level=3] [ref=e143]
+            - paragraph [ref=e144]: Research from arXiv
+            - generic [ref=e145]: Browse →
+          - link "🤖 AI Agents AutoGPT, BabyAGI Browse →" [ref=e146] [cursor=pointer]:
+            - /url: /agents
+            - generic [ref=e147]: 🤖
+            - heading "AI Agents" [level=3] [ref=e148]
+            - paragraph [ref=e149]: AutoGPT, BabyAGI
+            - generic [ref=e150]: Browse →
+          - link "🚀 AI Spaces Interactive demos Browse →" [ref=e151] [cursor=pointer]:
+            - /url: /spaces
+            - generic [ref=e152]: 🚀
+            - heading "AI Spaces" [level=3] [ref=e153]
+            - paragraph [ref=e154]: Interactive demos
+            - generic [ref=e155]: Browse →
+          - link "🔧 Dev Tools LangChain, vLLM Browse →" [ref=e156] [cursor=pointer]:
+            - /url: /tools
+            - generic [ref=e157]: 🔧
+            - heading "Dev Tools" [level=3] [ref=e158]
+            - paragraph [ref=e159]: LangChain, vLLM
+            - generic [ref=e160]: Browse →
+  - contentinfo [ref=e161]:
+    - generic [ref=e162]:
+      - generic [ref=e163]:
+        - generic [ref=e164]:
+          - heading "Free2AITools" [level=3] [ref=e165]
+          - paragraph [ref=e166]: Open-Source AI Model Selection Hub. Find the best LLM for your needs with our VRAM calculator and one-click deploy guides.
+          - paragraph [ref=e167]: Powered by the Fair Nexus Index (methodology-based, non-commercial)
+        - generic [ref=e168]:
+          - heading "Resources" [level=4] [ref=e169]
+          - list [ref=e170]:
+            - listitem [ref=e171]:
+              - link "Model Rankings" [ref=e172] [cursor=pointer]:
+                - /url: /ranking
+            - listitem [ref=e173]:
+              - link "FNI Methodology" [ref=e174] [cursor=pointer]:
+                - /url: /methodology
+            - listitem [ref=e175]:
+              - link "AI Reports" [ref=e176] [cursor=pointer]:
+                - /url: /reports
+        - generic [ref=e177]:
+          - heading "Legal" [level=4] [ref=e178]
+          - list [ref=e179]:
+            - listitem [ref=e180]:
+              - link "Data Compliance" [ref=e181] [cursor=pointer]:
+                - /url: /compliance
+            - listitem [ref=e182]:
+              - link "About Us" [ref=e183] [cursor=pointer]:
+                - /url: /about
+        - generic [ref=e184]:
+          - heading "Connect" [level=4] [ref=e185]
+          - list [ref=e186]:
+            - listitem [ref=e187]:
+              - link "GitHub" [ref=e188] [cursor=pointer]:
+                - /url: https://github.com/mosesy5688-cell/ai-nexus
+                - img [ref=e189]
+                - text: GitHub
+            - listitem [ref=e191]:
+              - link "Contact" [ref=e192] [cursor=pointer]:
+                - /url: mailto:compliance@free2aitools.com
+      - generic [ref=e193]:
+        - paragraph [ref=e194]: © 2026 Free2AITools. An open-source project to help you find the best AI models.
+        - generic [ref=e195]:
+          - link "How we score models" [ref=e196] [cursor=pointer]:
+            - /url: /methodology
+          - generic [ref=e197]: •
+          - link "Data Policy" [ref=e198] [cursor=pointer]:
+            - /url: /compliance
+  - generic [ref=e201]:
+    - generic [ref=e202]:
+      - checkbox "Use dark theme" [ref=e203]
+      - generic [ref=e204] [cursor=pointer]:
+        - img [ref=e205]
+        - img [ref=e209]
+        - generic [ref=e213]: Use dark theme
+    - banner [ref=e214]:
+      - generic [ref=e215]:
+        - heading "UnhandledRejection" [level=2] [ref=e216]
+        - heading "Unhandled rejection" [level=1] [ref=e217]
+      - img [ref=e220]
+    - generic [ref=e223]:
+      - generic [ref=e224]:
+        - img [ref=e226]
+        - generic [ref=e228]: "Astro detected an unhandled rejection. Here's the stack trace: ReferenceError: cleanedDesc is not defined at Object.hero (G:/ai-nexus/src/pages/model/[...slug].astro:94:5237) at new AstroComponentInstance (G:/ai-nexus/node_modules/astro/dist/runtime/server/render/astro/instance.js:25:30) at createAstroComponentInstance (G:/ai-nexus/node_modules/astro/dist/runtime/server/render/astro/instance.js:77:20) at renderAstroComponent (G:/ai-nexus/node_modules/astro/dist/runtime/server/render/component.js:356:74) at renderComponent (G:/ai-nexus/node_modules/astro/dist/runtime/server/render/component.js:377:12) at eval (G:/ai-nexus/src/pages/model/[...slug].astro:94:82) at process.processTicksAndRejections (node:internal/process/task_queues:95:5) at async callComponentAsTemplateResultOrResponse (file:///G:/ai-nexus/node_modules/astro/dist/runtime/server/render/astro/render.js:91:25) at async renderToAsyncIterable (file:///G:/ai-nexus/node_modules/astro/dist/runtime/server/render/astro/render.js:133:26) at async renderPage (file:///G:/ai-nexus/node_modules/astro/dist/runtime/server/render/page.js:36:24)"
+        - link "See Docs Reference" [ref=e230] [cursor=pointer]:
+          - /url: https://docs.astro.build/en/reference/errors/unhandled-rejection/
+          - text: See Docs Reference
+          - img [ref=e231]
+      - generic [ref=e234]:
+        - img [ref=e236]
+        - generic [ref=e238]:
+          - text: Make sure your promises all have an
+          - code [ref=e239]: await
+          - text: or a
+          - code [ref=e240]: .catch()
+          - text: handler.
+    - generic [ref=e241]:
+      - generic [ref=e242]:
+        - heading "model/[...slug].astro:122:20" [level=2] [ref=e243]
+        - button "Open in editor" [ref=e245]:
+          - text: Open in editor
+          - img [ref=e246]
+      - code [ref=e251]:
+        - generic [ref=e252]: "---"
+        - generic [ref=e253]: export const prerender = false;
+        - generic [ref=e254]: import Layout from '../../layouts/Layout.astro';
+        - generic [ref=e255]: import EntityLayout from '../../layouts/EntityLayout.astro';
+        - generic [ref=e256]: import EntityHeader from '../../components/entity/EntityHeader.astro';
+        - generic [ref=e257]: import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
+        - generic [ref=e258]: "import { getUseCases } from '../../utils/inference';"
+        - generic [ref=e259]: import FullMetadata from '../../components/entity/FullMetadata.astro';
+        - generic [ref=e260]: import ModelMainColumn from '../../components/model-detail/ModelMainColumn.astro';
+        - generic [ref=e261]: import ModelSidebar from '../../components/model-detail/ModelSidebar.astro';
+        - generic [ref=e262]: import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
+        - generic [ref=e263]: import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
+        - generic [ref=e264]: import ModelCarousel from '../../components/ModelCarousel.astro';
+        - generic [ref=e265]: import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
+        - generic [ref=e266]: import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.astro';
+        - generic [ref=e267]: import VramEstimator from '../../components/model-detail/VramEstimator.astro';
+        - generic [ref=e268]: import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
+        - generic [ref=e269]: import EntityRelations from '../../components/entity/EntityRelations.astro';
+        - generic [ref=e270]: import CoreDesktop from '../../components/model-detail/CoreDesktop.astro';
+        - generic [ref=e271]: import MiniTrendChart from '../../components/charts/MiniTrendChart.astro';
+        - generic [ref=e272]: import ModelZones from '../../components/model-detail/ModelZones.astro';
+        - generic [ref=e273]: import QuickStart from '../../components/model-detail/QuickStart.astro';
+        - generic [ref=e274]: "import { getModelFromCache } from '../../utils/entity-cache-reader';"
+        - generic [ref=e275]: "import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definitions';"
+        - generic [ref=e276]: "import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers';"
+        - generic [ref=e278]: "const { slug } = Astro.params;"
+        - generic [ref=e279]: let model = null;
+        - generic [ref=e280]: let error = null;
+        - generic [ref=e281]: let similarModels = [];
+        - generic [ref=e282]: let tagsArray = [];
+        - generic [ref=e283]: let pageTitle = "AI Model Details - Free AI Tools";
+        - generic [ref=e284]: let pageDescription = "Explore comprehensive information about this AI model.";
+        - generic [ref=e286]: "try {"
+        - generic [ref=e287]: if (!slug) throw new Error("No slug provided");
+        - generic [ref=e289]: model = await getModelFromCache(slug, Astro.locals);
+        - generic [ref=e291]: "// V14: Handle malformed 'u/' prefix - redirect to search"
+        - generic [ref=e292]: "if (!model) {"
+        - generic [ref=e293]: "const parts = Array.isArray(slug) ? slug : slug.split('/');"
+        - generic [ref=e294]: "if (parts[0] === 'u' && parts.length === 2) {"
+        - generic [ref=e295]: "return Astro.redirect(`/search?q=${encodeURIComponent(parts[1])}`, 302);"
+        - generic [ref=e296]: "}"
+        - generic [ref=e297]: "}"
+        - generic [ref=e298]: "if (model) {"
+        - generic [ref=e299]: const resolution = deriveEntityType(model);
+        - generic [ref=e300]: model.entityType = resolution.type;
+        - generic [ref=e301]: model.entityDefinition = ENTITY_DEFINITIONS[model.entityType];
+        - generic [ref=e303]: // Similar models logical stub (D1 banned)
+        - generic [ref=e304]: "if (model.similar_models && Array.isArray(model.similar_models)) {"
+        - generic [ref=e305]: const rawSimilar = model.similar_models;
+        - generic [ref=e306]: "const resolvedPromises = rawSimilar.map(async (item) => {"
+        - generic [ref=e307]: "if (typeof item === 'string') {"
+        - generic [ref=e308]: return await getModelFromCache(item, Astro.locals);
+        - generic [ref=e309]: "}"
+        - generic [ref=e310]: return item;
+        - generic [ref=e311]: "});"
+        - generic [ref=e312]: similarModels = (await Promise.all(resolvedPromises)).filter(Boolean);
+        - generic [ref=e313]: "}"
+        - generic [ref=e315]: "tagsArray = Array.isArray(model.tags) ? model.tags : [];"
+        - generic [ref=e317]: const modelName = model.name || model.canonical_name || model.id || 'Unknown Model';
+        - generic [ref=e318]: "pageTitle = `${modelName} - AI Model Insights & Benchmarks`;"
+        - generic [ref=e320]: "const cleanDescriptionFn = (desc) => !desc ? '' : desc"
+        - generic [ref=e321]: .replace(/^---[\s\S]*?---\s*/m, '').replace(/^---\s*\n?[\s\S]*$/m, '')
+        - generic [ref=e322]: .replace(/\blibrary_name:\s*\w+/gi, '').replace(/\blicense:\s*[^\s]+/gi, '')
+        - generic [ref=e323]: .replace(/\bpipeline_tag:\s*\w+/gi, '').replace(/\bbase_model\b[^.]*\.?/gi, '')
+        - generic [ref=e324]: .replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
+        - generic [ref=e326]: const cleanedDesc = cleanDescriptionFn(model.description);
+        - generic [ref=e327]: pageDescription = model.seo_summary?.description ||
+        - generic [ref=e328]: "(cleanedDesc ? cleanedDesc.substring(0, 160) : `Deep dive into ${modelName}.`);"
+        - generic [ref=e329]: "}"
+        - generic [ref=e330]: "} catch (e) {"
+        - generic [ref=e331]: console.error("Error loading model:", e);
+        - generic [ref=e332]: error = e;
+        - generic [ref=e333]: Astro.response.status = 500;
+        - generic [ref=e334]: "}"
+        - generic [ref=e336]: "if (!model && !error) {"
+        - generic [ref=e337]: Astro.response.status = 404;
+        - generic [ref=e338]: "}"
+        - generic [ref=e340]: // Capability Gating
+        - generic [ref=e341]: const hasFNI = hasCapability(model, 'fni_score') && (model?.fni_score !== undefined || model?.fni_percentile !== undefined);
+        - generic [ref=e342]: const hasBenchmarks = hasCapability(model, 'benchmarks');
+        - generic [ref=e343]: const hasBench = Boolean(model?.mmlu || model?.benchmark_mmlu || model?.benchmark_hellaswag || model?.benchmark_arc);
+        - generic [ref=e344]: const placeholderImage = '/images/models/default-model.jpg';
+        - generic [ref=e345]: const coverImage = model?.cover_image_url || placeholderImage;
+        - generic [ref=e346]: const modelName = model?.name || model?.canonical_name || 'Unknown Model';
+        - generic [ref=e347]: const modelId = model?.umid || model?.id || '';
+        - generic [ref=e349]: "// V15.0: Derived Use Cases and Limits"
+        - generic [ref=e350]: "const derivedUseCases = model ? getUseCases(tagsArray, model.pipeline_tag, 'model', model.fni_score) : { goodFor: [], limits: [] };"
+        - generic [ref=e352]: "const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') : slug, coverImage);"
+        - generic [ref=e353]: "---"
+        - generic [ref=e355]: <EntityLayout
+        - generic [ref=e356]: "entity={model}"
+        - generic [ref=e357]: type="model"
+        - generic [ref=e358]: "title={pageTitle}"
+        - generic [ref=e359]: "description={pageDescription}"
+        - generic [ref=e360]: "image={coverImage}"
+        - generic [ref=e361]: "jsonld={jsonld}"
+        - generic [ref=e362]: ">"
+        - generic [ref=e363]: "{/* Zone 1: Hero */}"
+        - generic [ref=e364]: <EntityHeader
+        - generic [ref=e365]: slot="hero"
+        - generic [ref=e366]: "name={modelName}"
+        - generic [ref=e367]: entityType="model"
+        - generic [ref=e368]: "entityIcon={model?.entityDefinition?.display?.icon || '🧠'}"
+        - generic [ref=e369]: "entityLabel={model?.entityDefinition?.display?.labelSingular || 'Model'}"
+        - generic [ref=e370]: "verified={false}"
+        - generic [ref=e371]: "author={model?.author}"
+        - generic [ref=e372]: "lastUpdated={model?.last_updated}"
+        - generic [ref=e373]: "description={model?.seo_summary?.description || cleanedDesc}"
+        - generic [ref=e374]: ^
+        - generic [ref=e375]: "fniScore={model?.fni_score}"
+        - generic [ref=e376]: "fniPercentile={model?.fni_percentile}"
+        - generic [ref=e377]: ">"
+        - generic [ref=e378]: <div slot="actions" class="flex gap-2">
+        - generic [ref=e379]: "<a href={model?.source_url} target=\"_blank\" class=\"px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-sm hover:shadow-md transition-all\">"
+        - generic [ref=e380]: View Source
+        - generic [ref=e381]: </a>
+        - generic [ref=e382]: </div>
+        - generic [ref=e383]: </EntityHeader>
+        - generic [ref=e385]: "{/* Zone 1.5: Use Cases */}"
+        - generic [ref=e386]: <ZoneUseCases
+        - generic [ref=e387]: slot="use-cases"
+        - generic [ref=e388]: "goodFor={derivedUseCases.goodFor}"
+        - generic [ref=e389]: "limits={derivedUseCases.limits}"
+        - generic [ref=e390]: />
+        - generic [ref=e392]: "{/* Zone 3: Core (Desktop) */}"
+        - generic [ref=e393]: <div slot="core-desktop">
+        - generic [ref=e394]: <CoreDesktop
+        - generic [ref=e395]: "model={model}"
+        - generic [ref=e396]: "tagsArray={tagsArray}"
+        - generic [ref=e397]: "hasBench={hasBench}"
+        - generic [ref=e398]: "modelId={modelId}"
+        - generic [ref=e399]: "modelName={modelName}"
+        - generic [ref=e400]: "similarModels={similarModels}"
+        - generic [ref=e401]: />
+        - generic [ref=e402]: </div>
+        - generic [ref=e404]: "{/* Zone 3: Core (Mobile Tabs) */}"
+        - generic [ref=e405]: <div slot="core-knowledge">
+        - generic [ref=e406]: <RelationsPanel
+        - generic [ref=e407]: "baseModel={model?.base_model}"
+        - generic [ref=e408]: "datasetsUsed={model?.datasets_used || []}"
+        - generic [ref=e409]: "arxivRefs={model?.arxiv_refs || []}"
+        - generic [ref=e410]: />
+        - generic [ref=e411]: "<RelatedKnowledge tags={tagsArray} description={model?.description || ''} />"
+        - generic [ref=e412]: </div>
+        - generic [ref=e414]: <div slot="core-similar">
+        - generic [ref=e415]: "{similarModels.length > 0 ? ("
+        - generic [ref=e416]: "<ModelCarousel models={similarModels} />"
+        - generic [ref=e417]: ") : ("
+        - generic [ref=e418]: <p class="text-gray-500 italic p-4 text-center">No similar models found.</p>
+        - generic [ref=e419]: ")}"
+        - generic [ref=e420]: </div>
+        - generic [ref=e422]: <div slot="core-benchmarks">
+        - generic [ref=e423]: "{hasBench && ("
+        - generic [ref=e424]: <BenchmarkCard
+        - generic [ref=e425]: "umid={modelId}"
+        - generic [ref=e426]: "name={modelName}"
+        - generic [ref=e427]: "mmlu={model?.mmlu || model?.benchmark_mmlu}"
+        - generic [ref=e428]: "humaneval={model?.humaneval || model?.benchmark_humaneval}"
+        - generic [ref=e429]: "hellaswag={model?.hellaswag || model?.benchmark_hellaswag}"
+        - generic [ref=e430]: "arc_challenge={model?.arc_challenge || model?.benchmark_arc}"
+        - generic [ref=e431]: "avg_score={model?.avg_score || model?.benchmark_avg || 0}"
+        - generic [ref=e432]: />
+        - generic [ref=e433]: ")}"
+        - generic [ref=e434]: </div>
+        - generic [ref=e436]: <div slot="core-trends">
+        - generic [ref=e437]: <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+        - generic [ref=e438]: <h3 class="font-bold mb-4 text-gray-900 dark:text-white">Interaction Trend</h3>
+        - generic [ref=e439]: "<MiniTrendChart entityId={modelId} width={500} height={200} />"
+        - generic [ref=e440]: </div>
+        - generic [ref=e441]: </div>
+        - generic [ref=e443]: "{/* Zone 4: Deep Dive */}"
+        - generic [ref=e444]: <div slot="deep-dive">
+        - generic [ref=e445]: <div class="space-y-12">
+        - generic [ref=e446]: <QuickStart
+        - generic [ref=e447]: "modelId={modelId}"
+        - generic [ref=e448]: "modelName={modelName}"
+        - generic [ref=e449]: "pipeline_tag={model?.pipeline_tag}"
+        - generic [ref=e450]: "author={model?.author}"
+        - generic [ref=e451]: />
+        - generic [ref=e452]: <ModelMainColumn
+        - generic [ref=e453]: "model={model}"
+        - generic [ref=e454]: "hasFNI={hasFNI}"
+        - generic [ref=e455]: "hasBenchmarkCap={hasBenchmarks}"
+        - generic [ref=e456]: "modelName={modelName}"
+        - generic [ref=e457]: "modelId={modelId}"
+        - generic [ref=e458]: />
+        - generic [ref=e459]: </div>
+        - generic [ref=e460]: </div>
+        - generic [ref=e462]: <div slot="sidebar" class="space-y-12">
+        - generic [ref=e463]: "<ModelSidebar model={model} modelId={modelId} />"
+        - generic [ref=e464]: <ModelNavigation
+        - generic [ref=e465]: "pipelineTag={model?.pipeline_tag}"
+        - generic [ref=e466]: "hasGguf={model?.has_gguf}"
+        - generic [ref=e467]: />
+        - generic [ref=e468]: </div>
+        - generic [ref=e470]: <div slot="full-metadata">
+        - generic [ref=e471]: "<FullMetadata entity={model} />"
+        - generic [ref=e472]: </div>
+        - generic [ref=e474]: "{/* Zone 5: Community */}"
+        - generic [ref=e475]: <div slot="community">
+        - generic [ref=e476]: "<AiDisclaimer source={model?.source} lastUpdated={model?.last_updated} />"
+        - generic [ref=e477]: </div>
+        - generic [ref=e478]: </EntityLayout>
+    - generic [ref=e479]:
+      - generic [ref=e480]:
+        - heading "Stack Trace" [level=2] [ref=e481]
+        - img [ref=e483] [cursor=pointer]
+      - generic [ref=e487]: "UnhandledRejection: Astro detected an unhandled rejection. Here's the stack trace: ReferenceError: cleanedDesc is not defined at Object.hero (G:\\ai-nexus\\src\\pages\\model\\[...slug].astro:122:20) at new AstroComponentInstance (G:\\ai-nexus\\node_modules\\astro\\dist\\runtime\\server\\render\\astro\\instance.js:20:30) at createAstroComponentInstance (G:\\ai-nexus\\node_modules\\astro\\dist\\runtime\\server\\render\\astro\\instance.js:72:20) at renderAstroComponent (G:\\ai-nexus\\node_modules\\astro\\dist\\runtime\\server\\render\\component.js:352:48) at renderComponent (G:\\ai-nexus\\node_modules\\astro\\dist\\runtime\\server\\render\\component.js:373:12) at G:\\ai-nexus\\src\\pages\\model\\[...slug].astro:1:1 at process.processTicksAndRejections (node:internal/process/task_queues:95:5) at async callComponentAsTemplateResultOrResponse (file:///G:/ai-nexus/node_modules/astro/dist/runtime/server/render/astro/render.js:91:25) at async renderToAsyncIterable (file:///G:/ai-nexus/node_modules/astro/dist/runtime/server/render/astro/render.js:133:26) at async renderPage (file:///G:/ai-nexus/node_modules/astro/dist/runtime/server/render/page.js:36:24) at process.handleUnhandledRejection (file:///G:/ai-nexus/node_modules/astro/dist/vite-plugin-astro-server/plugin.js:115:62) at process.emit (node:events:518:28) at process.emit (node:domain:489:12) at process.processEmit [as emit] (G:\\ai-nexus\\node_modules\\wrangler\\wrangler-dist\\cli.js:40709:38) at emitUnhandledRejection (node:internal/process/promises:250:13) at throwUnhandledRejectionsMode (node:internal/process/promises:385:19) at processPromiseRejections (node:internal/process/promises:470:17) at process.processTicksAndRejections (node:internal/process/task_queues:96:32)"
+  - generic [ref=e490]:
+    - button "Menu" [ref=e491]:
+      - img [ref=e493]
+      - generic: Menu
+    - button "Inspect" [ref=e497]:
+      - img [ref=e499]
+      - generic: Inspect
+    - button "Audit" [ref=e501]:
+      - generic [ref=e502]:
+        - img [ref=e503]
+        - img [ref=e506]
+      - generic: Audit
+    - button "Settings" [ref=e509]:
+      - img [ref=e511]
+      - generic: Settings
+```

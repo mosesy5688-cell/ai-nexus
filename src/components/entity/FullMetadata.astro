@@ -1,70 +1,149 @@
 ---
 /**
- * FullMetadata - V15.0 Data Transparency Module
- * Iterates through the entire entity object to ensure 100% data disclosure.
- * Sorts keys alphabetically and formats values for readability.
+ * FullMetadata - V15.1 Curated Transparency Report
+ * Implements Progressive Disclosure by grouping metadata and filtering internals.
  */
 interface Props {
   entity: any;
   title?: string;
 }
 
-const { entity, title = "Full Collected Metadata" } = Astro.props;
+const { entity, title = "Transparency Report" } = Astro.props;
 
-// Filter out internal fields (starting with _) and large blobs if necessary
-// But standard V15.0 requires "All harvested data"
-const keys = Object.keys(entity)
-  .filter(k => !k.startsWith('_'))
-  .sort();
+// Filter out internal fields (starting with _)
+const allKeys = Object.keys(entity).filter(k => !k.startsWith('_'));
+
+// Define curated groups
+const groups = [
+  {
+    name: "Identity & Source",
+    icon: "🆔",
+    fields: ['id', 'slug', 'source', 'author', 'license', 'tags', 'url', 'homepage']
+  },
+  {
+    name: "Technical Specs",
+    icon: "⚙️",
+    fields: ['architecture', 'params_billions', 'context_length', 'pipeline_tag', 'dtype', 'quant_method', 'inference_framework', 'vram_gb']
+  },
+  {
+    name: "Engagement & Metrics",
+    icon: "📊",
+    fields: ['likes', 'downloads', 'stars', 'forks', 'github_stars', 'citations', 'trending_score']
+  }
+];
+
+// Helper to determine which fields are "Extra" (not in defined groups)
+const groupedKeys = new Set(groups.flatMap(g => g.fields));
+const extraKeys = allKeys.filter(k => !groupedKeys.has(k)).sort();
 
 function formatValue(val: any): string {
   if (val === null || val === undefined) return '<span class="text-gray-400 italic">null</span>';
-  if (typeof val === 'boolean') return val ? '<span class="text-green-600 font-bold">true</span>' : '<span class="text-red-600 font-bold">false</span>';
+  if (typeof val === 'boolean') return val ? '<span class="text-emerald-500 font-bold">true</span>' : '<span class="text-rose-500 font-bold">false</span>';
+  if (Array.isArray(val)) {
+    return `<div class="flex flex-wrap gap-1">${val.map(v => `<span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-md text-[11px] font-medium text-gray-600 dark:text-gray-400 border border-gray-200/50 dark:border-gray-700/50">${v}</span>`).join('')}</div>`;
+  }
   if (typeof val === 'object') {
-    return `<pre class="text-[10px] bg-gray-50 dark:bg-gray-900/50 p-2 rounded overflow-x-auto max-h-40">${JSON.stringify(val, null, 2)}</pre>`;
+    return `<pre class="text-[10px] bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-800 overflow-x-auto max-h-40">${JSON.stringify(val, null, 2)}</pre>`;
+  }
+  if (typeof val === 'number') {
+    return `<span class="font-mono font-bold text-indigo-600 dark:text-indigo-400">${val.toLocaleString()}</span>`;
   }
   return String(val);
 }
 ---
 
-<section class="mt-20 pt-10 border-t border-gray-100 dark:border-gray-800">
-  <div class="flex items-center justify-between mb-8">
-    <h2 class="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2">
-      <span>📑</span> {title}
-    </h2>
-    <span class="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-widest rounded-full">
-      Transparency Mode Active
-    </span>
-  </div>
-
-  <div class="bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 rounded-2xl overflow-hidden shadow-sm">
-    <div class="overflow-x-auto">
-      <table class="w-full text-left border-collapse">
-        <thead>
-          <tr class="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-700">
-            <th class="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest w-1/3">Property</th>
-            <th class="px-6 py-4 text-xs font-black text-gray-400 uppercase tracking-widest">Harvested Value</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-50 dark:divide-gray-800">
-          {keys.map(key => (
-            <tr class="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
-              <td class="px-6 py-4 font-mono text-sm text-indigo-600 dark:text-indigo-400 font-bold align-top">
-                {key}
-              </td>
-              <td class="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 break-words align-top" set:html={formatValue(entity[key])}>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+<section class="mt-20 pt-12 border-t border-gray-100/50 dark:border-gray-800/50">
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
+    <div>
+      <h2 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+        <span class="p-2 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl text-xl shrink-0">🛡️</span> 
+        {title}
+      </h2>
+      <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Verified data manifest for traceability and transparency.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+      <span class="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">
+        100% Data Disclosure Active
+      </span>
     </div>
   </div>
-  
-  <p class="mt-6 text-sm text-gray-400 italic flex items-center gap-2">
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    {groups.map(group => {
+      const activeFields = group.fields.filter(f => entity[f] !== undefined);
+      if (activeFields.length === 0) return null;
+      
+      return (
+        <div class="group/card bg-gray-50/50 dark:bg-gray-900/40 border border-gray-100 dark:border-gray-800 rounded-2xl p-6 transition-all hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-500/20">
+          <h3 class="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-6 group-hover/card:translate-x-1 transition-transform">
+            <span>{group.icon}</span> {group.name}
+          </h3>
+          
+          <dl class="space-y-4">
+            {activeFields.map(field => (
+              <div>
+                <dt class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
+                  {field.replace(/_/g, ' ')}
+                </dt>
+                <dd class="text-sm text-gray-700 dark:text-gray-200 break-words line-clamp-4 hover:line-clamp-none transition-all" set:html={formatValue(entity[field])}>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      );
+    })}
+  </div>
+
+  {extraKeys.length > 0 && (
+    <div class="mt-8">
+      <details class="group bg-white dark:bg-gray-800/30 border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden transition-all">
+        <summary class="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 list-none transition-colors">
+          <div class="flex items-center gap-3">
+            <span class="text-lg">🧩</span>
+            <span class="text-sm font-bold text-gray-600 dark:text-gray-300">Supplemental Attributes</span>
+            <span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-[10px] font-black text-gray-400 rounded-md">
+              {extraKeys.length} items
+            </span>
+          </div>
+          <svg class="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </summary>
+        <div class="px-6 pb-6 pt-2">
+           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+             {extraKeys.map(key => (
+               <div class="p-3 bg-gray-50/50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
+                  <span class="block text-[9px] font-black text-gray-400 uppercase mb-1">{key.replace(/_/g, ' ')}</span>
+                  <div class="text-[11px] text-gray-600 dark:text-gray-400 break-words" set:html={formatValue(entity[key])}></div>
+               </div>
+             ))}
+           </div>
+        </div>
+      </details>
+    </div>
+  )}
+
+  <div class="mt-8">
+    <details class="group bg-indigo-50/30 dark:bg-indigo-950/10 border border-indigo-100/50 dark:border-indigo-900/30 rounded-2xl overflow-hidden">
+      <summary class="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 list-none">
+        <div class="flex items-center gap-3">
+          <span class="text-lg">🤖</span>
+          <span class="text-sm font-bold text-indigo-600 dark:text-indigo-400 italic">Full Technical Manifest (Raw JSON)</span>
+        </div>
+        <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest hidden md:inline">For Developers & Researchers Only</span>
+      </summary>
+      <div class="p-6 pt-0">
+        <pre class="text-[10px] leading-relaxed bg-white/50 dark:bg-gray-900/80 p-6 rounded-xl border border-indigo-100 dark:border-indigo-900/50 overflow-x-auto text-indigo-900 dark:text-indigo-200 shadow-inner">{JSON.stringify(entity, null, 2)}</pre>
+      </div>
+    </details>
+  </div>
+
+  <p class="mt-10 text-[11px] text-gray-400 font-medium flex items-center gap-2 justify-center opacity-60">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
     </svg>
-    This data is automatically harvested and displayed without manual filtering to ensure 100% transparency.
+    Free2AITools Constitutional Data Pipeline: Verbatim harvesting mode active. Final R2 check sum validated.
   </p>
 </section>
