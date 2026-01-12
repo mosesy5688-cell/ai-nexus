@@ -14,6 +14,7 @@ import DataFreshness from '../../components/common/DataFreshness.astro';
 import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
 import PaperDeepDive from '../../components/paper-detail/PaperDeepDive.astro';
 import FullMetadata from '../../components/entity/FullMetadata.astro';
+import ShareButtons from '../../components/common/ShareButtons.astro';
 
 const { slug } = Astro.params;
 const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');

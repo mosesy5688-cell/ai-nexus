@@ -17,6 +17,7 @@ import AgentDeepDive from '../../components/agent-detail/AgentDeepDive.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference';
 import FullMetadata from '../../components/entity/FullMetadata.astro';
+import ShareButtons from '../../components/common/ShareButtons.astro';
 
 import { getModelFromCache } from '../../utils/entity-cache-reader';
 import { ENTITY_DEFINITIONS } from '../../data/entity-definitions';
@@ -131,8 +132,8 @@ const jsonLd = agent ? {
              description={agent.description || ''}
           />
           <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-             <h3 class="font-bold mb-4">Agent Research</h3>
-             <RelatedResearch modelId={normalizedSlug} />
+             <h3 class="font-bold mb-4">Share Agent</h3>
+             <ShareButtons title={agentName} description={agent.description || ''} />
           </div>
        </div>
     </div>
