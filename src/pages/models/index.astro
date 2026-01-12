@@ -9,10 +9,13 @@
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
-import { fetchCatalogData } from '../../utils/catalog-fetcher.js';
+import { fetchCatalogData, truncateListingItem } from '../../utils/catalog-fetcher.js';
 
 // SSR Data Fetching (Unified)
-const { items: models, error, source } = await fetchCatalogData('model', Astro.locals.runtime?.env);
+const { items: allModels, error, source } = await fetchCatalogData('model', Astro.locals.runtime?.env);
+
+// V15.8: Payload Optimization (Limit SSR to top 100 truncated items)
+const models = allModels.slice(0, 100).map(truncateListingItem);
 
 // SEO (Preserve original catalog metadata)
 const pageTitle = "AI Models Catalog | Browse 70K+ Open-Source Models";
@@ -71,7 +74,7 @@ const canonicalUrl = 'https://free2aitools.com/models';
     <!-- Stats Bar -->
     <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
       <span id="results-count" class="font-medium">
-         {models.length > 0 ? `${models.length} models loaded from ${source.toUpperCase()}` : 'Loading models...'}
+         {allModels.length > 0 ? `${allModels.length} models loaded from ${source.toUpperCase()}` : 'Loading models...'}
       </span>
       <span>•</span>
       <span>Updated Mon/Thu at 03:00 UTC</span>

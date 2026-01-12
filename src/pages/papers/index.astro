@@ -9,10 +9,13 @@
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
-import { fetchCatalogData } from '../../utils/catalog-fetcher.js';
+import { fetchCatalogData, truncateListingItem } from '../../utils/catalog-fetcher.js';
 
 // SSR Data Fetching (Unified)
-const { items: papers, error, source } = await fetchCatalogData('paper', Astro.locals.runtime?.env);
+const { items: allPapers, error, source } = await fetchCatalogData('paper', Astro.locals.runtime?.env);
+
+// V15.8: Payload Optimization
+const papers = allPapers.slice(0, 100).map(truncateListingItem);
 
 const pageTitle = 'AI Papers Catalog - Latest Research';
 const pageDescription = 'Explore the latest AI and machine learning research papers from arXiv. Read technical reports and academic publications.';
@@ -64,7 +67,7 @@ const categories = [
     <!-- Stats Bar -->
     <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
        <span id="results-count" class="font-medium">
-         {papers.length > 0 ? `${papers.length} papers loaded from ${source.toUpperCase()}` : 'Loading papers...'}
+         {allPapers.length > 0 ? `${allPapers.length} papers loaded from ${source.toUpperCase()}` : 'Loading papers...'}
       </span>
       <span>•</span>
       <span>Updated Mon/Thu</span>

@@ -8,10 +8,13 @@
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
-import { fetchCatalogData } from '../../utils/catalog-fetcher.js';
+import { fetchCatalogData, truncateListingItem } from '../../utils/catalog-fetcher.js';
 
 // SSR Data Fetching (Unified with Self-Healing)
-const { items: entities, error, source } = await fetchCatalogData('agent', Astro.locals.runtime?.env);
+const { items: allEntities, error, source } = await fetchCatalogData('agent', Astro.locals.runtime?.env);
+
+// V15.8: Payload Optimization
+const entities = allEntities.slice(0, 100).map(truncateListingItem);
 
 const pageTitle = 'AI Agents Catalog - Autonomous AI Systems';
 const pageDescription = 'Explore autonomous AI agents like AutoGPT, BabyAGI, and more. Discover agents for coding, research, and automation.';
@@ -71,7 +74,7 @@ const categories = [
     <!-- Stats Bar -->
     <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
       <span id="results-count" class="font-medium">
-         {entities.length > 0 ? `${entities.length} agents loaded from ${source.toUpperCase()}` : 'Loading agents...'}
+         {allEntities.length > 0 ? `${allEntities.length} agents loaded from ${source.toUpperCase()}` : 'Loading agents...'}
       </span>
       <span>•</span>
       <span>Updated Mon/Thu</span>

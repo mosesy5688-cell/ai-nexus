@@ -8,10 +8,13 @@
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
-import { fetchCatalogData } from '../../utils/catalog-fetcher.js';
+import { fetchCatalogData, truncateListingItem } from '../../utils/catalog-fetcher.js';
 
 // SSR Data Fetching (Unified)
-const { items: spaces, error, source } = await fetchCatalogData('space', Astro.locals.runtime?.env);
+const { items: allSpaces, error, source } = await fetchCatalogData('space', Astro.locals.runtime?.env);
+
+// V15.8: Payload Optimization
+const spaces = allSpaces.slice(0, 100).map(truncateListingItem);
 
 const pageTitle = 'AI Spaces Catalog - Interactive Demos';
 const pageDescription = 'Explore interactive AI demos and applications powered by HuggingFace Spaces.';
@@ -71,7 +74,7 @@ const categories = [
     <!-- Stats Bar -->
     <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
        <span id="results-count" class="font-medium">
-         {spaces.length > 0 ? `${spaces.length} spaces loaded from ${source.toUpperCase()}` : 'Loading spaces...'}
+         {allSpaces.length > 0 ? `${allSpaces.length} spaces loaded from ${source.toUpperCase()}` : 'Loading spaces...'}
       </span>
       <span>•</span>
       <span>Updated Mon/Thu</span>

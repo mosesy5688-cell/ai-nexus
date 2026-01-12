@@ -146,3 +146,23 @@ export function normalizeItem(item) {
         slug: generateUrlSlug(item) || item.slug || item.id // Priority: Clean Slug
     };
 }
+
+/**
+ * Truncate item for Minimal Listing Schema (SSR Optimization)
+ * Keeps only fields required by EntityCardRenderer.js
+ */
+export function truncateListingItem(item) {
+    if (!item) return null;
+    return {
+        id: item.id || '',
+        slug: item.slug || '',
+        name: item.name || '',
+        description: item.description ? item.description.substring(0, 160) : '',
+        type: item.type || '',
+        fni_score: item.fni_score || 0,
+        downloads: item.downloads || 0,
+        likes: item.likes || 0,
+        authors: item.authors || item.author || '', // Compatibility
+        sdk: item.sdk || '' // For Spaces
+    };
+}
