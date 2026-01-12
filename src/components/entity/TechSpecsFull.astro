@@ -1,0 +1,82 @@
+---
+/**
+ * TechSpecsFull - V15.0 Unified Technical Specification Section
+ * Aggregates SpecCards into logical groups (Hardware, Training, Metadata)
+ */
+import SpecCard from './SpecCard.astro';
+
+interface Props {
+  entity: any;
+  type: string;
+}
+
+const { entity, type } = Astro.props;
+
+// 1. Hardware & Scale Mapping
+const hardwareSpecs = [];
+if (type === 'model') {
+  hardwareSpecs.push({ label: 'Parameters', value: entity.params_billions ? `${entity.params_billions}B` : entity.params, highlight: true });
+  hardwareSpecs.push({ label: 'Architecture', value: entity.architecture || entity.config?.model_type });
+  hardwareSpecs.push({ label: 'Context Length', value: entity.context_length ? `${(entity.context_length / 1024).toFixed(0)}K` : null });
+} else if (type === 'dataset') {
+  hardwareSpecs.push({ label: 'Size', value: entity.size_gb ? `${entity.size_gb} GB` : null, highlight: true });
+  hardwareSpecs.push({ label: 'Total Rows', value: entity.rows ? (Number(entity.rows) / 1e6).toFixed(1) + 'M' : null });
+  hardwareSpecs.push({ label: 'Files', value: entity.files_count });
+} else if (type === 'paper') {
+  hardwareSpecs.push({ label: 'Citations', value: entity.citations || entity.citation_count, highlight: true });
+  hardwareSpecs.push({ label: 'Year', value: entity.published_date ? new Date(entity.published_date).getFullYear() : entity.year });
+  hardwareSpecs.push({ label: 'Page Count', value: entity.pages });
+} else if (type === 'agent' || type === 'tool') {
+  hardwareSpecs.push({ label: 'GitHub Stars', value: entity.github_stars || entity.stars, highlight: true });
+  hardwareSpecs.push({ label: 'Language', value: entity.language || 'Python' });
+  hardwareSpecs.push({ label: 'Version', value: entity.version || 'v1.0.0' });
+} else if (type === 'space') {
+  hardwareSpecs.push({ label: 'SDK', value: entity.sdk, highlight: true });
+  hardwareSpecs.push({ label: 'Hardware', value: entity.hardware || 'V100' });
+  hardwareSpecs.push({ label: 'Status', value: entity.runtime?.stage || 'Running' });
+}
+
+// 2. Training & Environment
+const trainingSpecs = [];
+if (type === 'model') {
+  trainingSpecs.push({ label: 'Library', value: entity.library_name || entity.config?._name_or_path });
+  trainingSpecs.push({ label: 'Precision', value: entity.precision || entity.config?.torch_dtype || 'float16' });
+  trainingSpecs.push({ label: 'Tokenizer', value: entity.config?.tokenizer_class });
+} else if (type === 'dataset') {
+  trainingSpecs.push({ label: 'Format', value: entity.format || 'Parquet' });
+  trainingSpecs.push({ label: 'Cleaning', value: entity.cleaned ? 'Pre-cleaned' : 'Raw' });
+} else if (type === 'agent' || type === 'tool') {
+  trainingSpecs.push({ label: 'License', value: entity.license });
+  trainingSpecs.push({ label: 'Forks', value: entity.github_forks || entity.forks });
+}
+
+// 3. Cloud & Access Rights
+const cloudSpecs = [
+  { label: 'Source', value: entity.source || 'HuggingFace' },
+  { label: 'License', value: entity.license_spdx || entity.license || 'Open Access' },
+].filter(s => s.value);
+
+---
+
+<section class="space-y-8">
+  <div class="flex items-center gap-4">
+    <h2 class="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-3">
+      <span>🛠️</span> Technical Profile
+    </h2>
+    <div class="h-1 flex-grow bg-gradient-to-r from-gray-100 to-transparent dark:from-gray-800"></div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {hardwareSpecs.length > 0 && (
+      <SpecCard title="Hardware & Scale" icon="⚡" specs={hardwareSpecs} accentColor="indigo" />
+    )}
+    
+    {trainingSpecs.length > 0 && (
+      <SpecCard title="Training & Env" icon="🧠" specs={trainingSpecs} accentColor="emerald" />
+    )}
+
+    {cloudSpecs.length > 0 && (
+      <SpecCard title="Cloud & Rights" icon="🌐" specs={cloudSpecs} accentColor="rose" />
+    )}
+  </div>
+</section>

@@ -5,7 +5,6 @@ import EntityLayout from '../../layouts/EntityLayout.astro';
 import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference';
-import FullMetadata from '../../components/entity/FullMetadata.astro';
 import ModelMainColumn from '../../components/model-detail/ModelMainColumn.astro';
 import ModelSidebar from '../../components/model-detail/ModelSidebar.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
@@ -17,10 +16,8 @@ import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
 import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import EntityRelations from '../../components/entity/EntityRelations.astro';
-import CoreDesktop from '../../components/model-detail/CoreDesktop.astro';
-import MiniTrendChart from '../../components/charts/MiniTrendChart.astro';
-import ModelZones from '../../components/model-detail/ModelZones.astro';
-import QuickStart from '../../components/model-detail/QuickStart.astro';
+import UniversalCore from '../../components/entity/UniversalCore.astro';
+import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import { getModelFromCache } from '../../utils/entity-cache-reader';
 import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definitions';
 import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers';
@@ -141,24 +138,12 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
 
     {/* Zone 3: Core (Desktop) */}
     <div slot="core-desktop">
-       <CoreDesktop
-          model={model}
-          tagsArray={tagsArray}
-          hasBench={hasBench}
-          modelId={modelId}
-          modelName={modelName}
-          similarModels={similarModels}
-       />
+       <UniversalCore entity={model} type="model" />
     </div>
 
     {/* Zone 3: Core (Mobile Tabs) */}
     <div slot="core-knowledge">
-       <RelationsPanel
-          baseModel={model?.base_model}
-          datasetsUsed={model?.datasets_used || []}
-          arxivRefs={model?.arxiv_refs || []}
-       />
-       <RelatedKnowledge tags={tagsArray} description={model?.description || ''} />
+       <UniversalCore entity={model} type="model" />
     </div>
 
     <div slot="core-similar">
@@ -182,23 +167,11 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
            />
          )}
      </div>
-
-     <div slot="core-trends">
-        <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-          <h3 class="font-bold mb-4 text-gray-900 dark:text-white">Interaction Trend</h3>
-          <MiniTrendChart entityId={modelId} width={500} height={200} />
-        </div>
-     </div>
   
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">
        <div class="space-y-12">
-          <QuickStart 
-            modelId={modelId}
-            modelName={modelName}
-            pipeline_tag={model?.pipeline_tag}
-            author={model?.author}
-          />
+          <TechSpecsFull entity={model} type="model" />
           <ModelMainColumn 
              model={model} 
              hasFNI={hasFNI} 
@@ -217,10 +190,6 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
        />
     </div>
 
-    <div slot="full-metadata">
-       <FullMetadata entity={model} />
-    </div>
-  
     {/* Zone 5: Community */}
     <div slot="community">
         <AiDisclaimer source={model?.source} lastUpdated={model?.last_updated} />

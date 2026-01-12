@@ -22,7 +22,7 @@ interface Props {
 
 const {
   name,
-  author = 'Unknown',
+  author = '',
   entityType = 'model',
   entityIcon = '📦',
   entityLabel = 'Entity',
@@ -51,7 +51,7 @@ const cleanDescription = description
   : '';
 
 // V15.1: Author fallback
-const displayAuthor = (author && author !== 'Unknown') ? author : 'Independent / Community';
+const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author : 'Independent / Community';
 ---
 
 <header class="mb-10">

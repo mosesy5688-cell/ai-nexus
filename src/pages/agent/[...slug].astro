@@ -14,7 +14,6 @@ import AgentDeepDive from '../../components/agent-detail/AgentDeepDive.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import { getUseCases } from '../../utils/inference';
-import FullMetadata from '../../components/entity/FullMetadata.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 
 import { getModelFromCache } from '../../utils/entity-cache-reader';
@@ -158,10 +157,6 @@ const jsonLd = agent ? {
        </div>
     </div>
 
-    <div slot="full-metadata">
-       <FullMetadata entity={agent} />
-    </div>
-  
     {/* Zone 5: Community */}
     <div slot="community" class="py-4">
         <p class="text-sm text-gray-500">Agent data version: {agent?._contract_version || 'V15'}</p>

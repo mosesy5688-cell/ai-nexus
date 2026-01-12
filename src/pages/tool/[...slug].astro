@@ -13,7 +13,7 @@ import { getUseCases } from '../../utils/inference';
 import DataFreshness from '../../components/common/DataFreshness.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
-import FullMetadata from '../../components/entity/FullMetadata.astro';
+import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 
 const { slug } = Astro.params;
@@ -132,8 +132,8 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
         <p class="text-gray-500 italic p-4 text-center">Performance benchmarks for CLI tools are being aggregated.</p>
     </div>
   
-    {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive">
+    <div slot="deep-dive" class="space-y-12">
+         <TechSpecsFull entity={tool} type="tool" />
          <ToolDeepDive tool={tool} />
     </div>
 
@@ -144,10 +144,6 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
        </div>
     </div>
 
-    <div slot="full-metadata">
-       <FullMetadata entity={tool} />
-    </div>
-  
     {/* Zone 5: Community */}
     <div slot="community">
         <DataFreshness version={cacheVersion} />

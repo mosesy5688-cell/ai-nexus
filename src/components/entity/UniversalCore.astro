@@ -8,6 +8,7 @@ import RelatedKnowledge from '../model-detail/RelatedKnowledge.astro';
 import BenchmarkCard from '../benchmark/BenchmarkCard.astro';
 import MiniTrendChart from '../charts/MiniTrendChart.astro';
 import SimilarModels from '../model-detail/SimilarModels.astro';
+import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
 
 interface Props {
   entity: any;
@@ -31,6 +32,11 @@ const baseModel = entity?.base_model || entity?.parent_model || null;
 ---
 
 <div class="space-y-12">
+    {/* 0. Core Value: Knowledge Graph (Full Width) */}
+    <div class="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <NeuralGraphExplorer currentModelId={entityId} />
+    </div>
+
     {/* 1. Primary Relations & Knowledge */}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div class="space-y-6">

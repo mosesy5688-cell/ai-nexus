@@ -12,7 +12,7 @@ import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference';
 import DataFreshness from '../../components/common/DataFreshness.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
-import FullMetadata from '../../components/entity/FullMetadata.astro';
+import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import PaperDeepDive from '../../components/paper-detail/PaperDeepDive.astro';
 
@@ -110,7 +110,8 @@ const derivedUseCases = paper ? getUseCases(paper.tags || [], '', 'paper', paper
     </div>
   
     {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive">
+    <div slot="deep-dive" class="space-y-12">
+        <TechSpecsFull entity={paper} type="paper" />
         <PaperDeepDive paper={paper} />
     </div>
 
@@ -121,10 +122,6 @@ const derivedUseCases = paper ? getUseCases(paper.tags || [], '', 'paper', paper
        </div>
     </div>
 
-    <div slot="full-metadata">
-       <FullMetadata entity={paper} />
-    </div>
-  
     {/* Zone 5: Community */}
     <div slot="community">
         <div class="flex items-center justify-between mb-4">

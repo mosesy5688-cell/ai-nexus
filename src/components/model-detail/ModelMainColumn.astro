@@ -6,7 +6,7 @@ import NeuralExplorer from '../NeuralExplorer.astro';
 import ModelNotices from './ModelNotices.astro';
 import ModelResources from './ModelResources.astro';
 import EntityLinksSection from '../EntityLinksSection.astro';
-import TechnicalSpecs from './TechnicalSpecs.astro';
+import TechSpecsFull from '../entity/TechSpecsFull.astro';
 import FullReadmeSection from './FullReadmeSection.astro';
 // Phase B.8: New components for user understanding
 import BenchmarkScores from './BenchmarkScores.astro';
@@ -66,18 +66,9 @@ try {
     hidden_size: model.hidden_size
   }} />
   
-  <!-- B.6: Technical Specifications from meta_json -->
-  <TechnicalSpecs 
-    pipelineTag={model.pipeline_tag || metaJson.pipeline_tag}
-    libraryName={metaJson.library_name}
-    params={model.params_billions || metaJson.params}
-    storageBytes={metaJson.storage_bytes}
-    filesCount={metaJson.files_count}
-    gated={metaJson.gated}
-    config={metaJson.config}
-    architecture={model.architecture}
-    contextLength={model.context_length}
-    quantization={metaJson.quantization}
+  <TechSpecsFull 
+    entity={model} 
+    type="model"
   />
   
   {/* Phase B.8: Benchmark Scores with semantic explanations */}

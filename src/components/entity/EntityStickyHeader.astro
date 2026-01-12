@@ -11,7 +11,7 @@ const { type, entity, displayId } = Astro.props;
     <span class="text-xl">{type === 'model' ? '🧠' : type === 'agent' ? '🤖' : type === 'dataset' ? '📊' : type === 'paper' ? '📄' : type === 'space' ? '🎮' : '🛠️'}</span>
     <div class="flex flex-col truncate">
       <span class="font-black text-gray-900 dark:text-gray-100 truncate text-sm leading-tight">{displayId}</span>
-      <span class="text-[10px] text-gray-500 font-bold uppercase tracking-tighter opacity-70">{type} by {entity.author || 'Unknown'}</span>
+      <span class="text-[10px] text-gray-500 font-bold uppercase tracking-tighter opacity-70">{type} by {entity.author && entity.author !== 'Unknown' ? entity.author : 'Independent / Community'}</span>
     </div>
   </div>
   

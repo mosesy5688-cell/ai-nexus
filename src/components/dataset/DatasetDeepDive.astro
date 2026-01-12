@@ -4,6 +4,7 @@ interface Props {
 }
 
 const { dataset } = Astro.props;
+import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
 
 // Helper for mock data generation if real data isn't available
 const columns = dataset.features 
@@ -98,16 +99,9 @@ const configs = Array.isArray(dataset.configs)
      </div>
   </section>
   
-  <!-- Section: README Placeholder -->
-  <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-    <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-       <span>📄</span> Dataset Card
-    </h2>
-    <div class="prose dark:prose-invert max-w-none text-sm text-gray-600 dark:text-gray-400">
-       {dataset.description}
-       <p class="mt-4 italic text-xs border-t pt-4">
-         Full README content is lazy-loaded in production. 
-       </p>
-    </div>
-  </section>
+  <!-- Section: README / Dataset Card -->
+  <FullReadmeSection 
+    bodyContent={dataset.body_content || dataset.description}
+    maxPreviewLength={3000}
+  />
 </div>
