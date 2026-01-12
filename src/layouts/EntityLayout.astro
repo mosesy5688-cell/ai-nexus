@@ -59,66 +59,52 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
         <slot name="hero" />
       </section>
 
-      {/* Zone 1.5: USE CASES (V15.0) */}
-      <div id="use-cases-zone" class="mb-12 animate-slide-up relative z-10" style="animation-delay: 0.2s;">
-        <slot name="use-cases" />
-      </div>
-
-      {/* Zone 2: QUICK INSIGHTS & COMMUNITY */}
-      <section id="insights-zone" class="mb-16 animate-slide-up relative z-10" style="animation-delay: 0.3s;">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-           <div class="lg:col-span-8">
-              <QuickInsights entity={entity} type={type} />
-           </div>
-           <div class="lg:col-span-4">
-              {hasEntity && (
-                 <CommunityStats 
-                    source={entity.source || 'huggingface'}
-                    sourceUrl={entity.source_url}
-                    likes={entity.likes || entity.github_stars}
-                    downloads={entity.downloads}
-                    stars={entity.github_stars || entity.stars}
-                    forks={entity.github_forks || entity.forks}
-                    openIssues={entity.github_issues}
-                 />
-              )}
-           </div>
-        </div>
-        <slot name="insights-extra" />
-      </section>
-
-      {/* Zone 3 & 4: UNIFIED CONTENT GRID (Fixed Alignment) */}
+      {/* V15.0: UNIFIED CONTENT GRID (Absolute Alignment) */}
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start mb-16">
         
-        {/* Main Content Column (Zones 3-4 Mobile Hybrid) */}
+        {/* LEFT COLUMN: Main Content Ecosystem */}
         <div class="lg:col-span-8">
           <div class="space-y-16">
-            {/* Zone 3 Desktop Core */}
-            <section class="hidden md:block">
-              <slot name="core-desktop" />
+            
+            {/* Zone 1.5: USE CASES (Now inside Grid for Alignment) */}
+            <section id="use-cases-zone" class="animate-slide-up" style="animation-delay: 0.2s;">
+              <slot name="use-cases" />
             </section>
 
-            {/* Zone 3 Mobile Tabs */}
-            <section class="md:hidden">
-              {/* Tab navigation code remains the same */}
-              <div class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 mb-6 no-scrollbar">
-                {['Knowledge', 'Similar', 'Benchmarks', 'Trends'].map((tab) => (
-                  <button 
-                    class="z3-tab-btn px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap" 
-                    data-target={`z3-${tab.toLowerCase()}`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-              
-              <div id="z3-knowledge" class="z3-tab-content block animate-fade-in"><slot name="core-knowledge" /></div>
-              <div id="z3-similar" class="z3-tab-content hidden animate-fade-in"><slot name="core-similar" /></div>
-              <div id="z3-benchmarks" class="z3-tab-content hidden animate-fade-in"><slot name="core-benchmarks" /></div>
-              <div id="z3-trends" class="z3-tab-content hidden animate-fade-in"><slot name="core-trends" /></div>
+            {/* Zone 2: QUICK INSIGHTS (Main Part) */}
+            <section id="insights-zone" class="animate-slide-up" style="animation-delay: 0.3s;">
+               <QuickInsights entity={entity} type={type} />
+               <slot name="insights-extra" />
             </section>
 
-            {/* Zone 4: DEEP DIVE (Inside Main Content) */}
+            {/* Zone 3: CORE (Values & Relations) */}
+            <section id="core-zone" class="space-y-12">
+               {/* Zone 3 Desktop */}
+               <div class="hidden md:block">
+                 <slot name="core-desktop" />
+               </div>
+
+               {/* Zone 3 Mobile Tabs */}
+               <div class="md:hidden">
+                 <div class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 mb-6 no-scrollbar">
+                   {['Knowledge', 'Similar', 'Benchmarks', 'Trends'].map((tab) => (
+                     <button 
+                       class="z3-tab-btn px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap" 
+                       data-target={`z3-${tab.toLowerCase()}`}
+                     >
+                       {tab}
+                     </button>
+                   ))}
+                 </div>
+                 
+                 <div id="z3-knowledge" class="z3-tab-content block animate-fade-in"><slot name="core-knowledge" /></div>
+                 <div id="z3-similar" class="z3-tab-content hidden animate-fade-in"><slot name="core-similar" /></div>
+                 <div id="z3-benchmarks" class="z3-tab-content hidden animate-fade-in"><slot name="core-benchmarks" /></div>
+                 <div id="z3-trends" class="z3-tab-content hidden animate-fade-in"><slot name="core-trends" /></div>
+               </div>
+            </section>
+
+            {/* Zone 4: DEEP DIVE */}
             <section id="deep-dive-section">
               <details id="z4-details" open class="group">
                 <summary class="list-none cursor-pointer flex items-center justify-between mb-8 group-open:mb-4">
@@ -134,31 +120,39 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
               </details>
             </section>
 
-            {/* V15.0: Full Metadata Disclosure (Ensured Visibility) */}
-            <div class="mt-20 pt-12 border-t border-gray-100 dark:border-gray-800">
+            {/* V15.0: FULL METADATA DISCLOSURE (Absolute Transparency) */}
+            <div class="pt-12 border-t border-gray-100 dark:border-gray-800">
                <slot name="full-metadata" />
             </div>
           </div>
         </div>
 
-        {/* Sidebar Column (Desktop Only Fixed Position/Alignment) */}
-        <aside id="sidebar-zone" class="lg:col-span-4 sticky top-10 space-y-8 self-start pt-0">
+        {/* RIGHT COLUMN: Sidebar Ecosystem (Sticky) */}
+        <aside id="sidebar-zone" class="lg:col-span-4 sticky top-10 space-y-12 self-start pt-0">
+          
+          {/* Zone 2: COMMUNITY STATS (Sidebar Part - Now strictly aligned with Use Cases) */}
+          {hasEntity && (
+             <CommunityStats 
+                source={entity.source || 'huggingface'}
+                sourceUrl={entity.source_url}
+                likes={entity.likes || entity.github_stars}
+                downloads={entity.downloads}
+                stars={entity.github_stars || entity.stars}
+                forks={entity.github_forks || entity.forks}
+                openIssues={entity.github_issues}
+             />
+          )}
+
           <slot name="sidebar" />
-          <slot name="community" />
+          
+          {/* Zone 5 Sub-slot */}
+          <slot name="community-sidebar" />
+          
+          <div class="pt-8 border-t border-gray-50 dark:border-gray-800">
+             <slot name="community" />
+          </div>
         </aside>
       </div>
-
-      {/* Zone 5: COMMUNITY */}
-      <section class="border-t border-gray-100 dark:border-gray-800 pt-16">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
-           <div class="lg:col-span-8">
-              <slot name="community" />
-           </div>
-           <div class="lg:col-span-4">
-              <slot name="community-sidebar" />
-           </div>
-        </div>
-      </section>
     </main>
   </Layout>
 )}
