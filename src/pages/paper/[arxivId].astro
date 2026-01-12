@@ -25,6 +25,7 @@ let pageDescription = "Explore this AI research paper and related models.";
 
 if (isValidArxivId) {
   try {
+    // V15.1: getPaperFromCache is now robust and unified
     paper = await getPaperFromCache(arxivId, Astro.locals);
     if (paper) {
       pageTitle = `${paper.title || `arXiv:${arxivId}`} - AI Research Paper`;

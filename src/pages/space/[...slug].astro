@@ -27,10 +27,10 @@ let relatedModels: any[] = [];
 let cacheVersion = '';
 
 try {
-  // V14: Use constitutional cache reader function
+  // V15.1: getSpaceFromCache now uses unified core reader
   space = await getSpaceFromCache(slug, Astro.locals);
   if (space) {
-    cacheVersion = space._contract_version || 'V12';
+    cacheVersion = space._contract_version || 'V15';
   }
 } catch (e) {
   console.error('[Space Page] Cache error:', e);

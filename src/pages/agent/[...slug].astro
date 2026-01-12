@@ -16,20 +16,13 @@ import UniversalCore from '../../components/entity/UniversalCore.astro';
 import { getUseCases } from '../../utils/inference';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 
-import { getModelFromCache } from '../../utils/entity-cache-reader';
+import { fetchEntityFromR2, normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
 import { ENTITY_DEFINITIONS } from '../../data/entity-definitions';
 
 const { slug } = Astro.params;
 
-// Handle slug as array (from [...slug]) or string
-// URL formats: /agent/github-agent--author--name OR /agent/github-agent/author/name
-let normalizedSlug = '';
-if (Array.isArray(slug)) {
-  // If URL was /agent/github-agent/author/name, join with --
-  normalizedSlug = slug.join('--').toLowerCase();
-} else if (typeof slug === 'string') {
-  normalizedSlug = slug.toLowerCase();
-}
+// V15.1: Use unified normalization and fetcher
+const normalizedSlug = normalizeEntitySlug(slug, 'agent');
 
 let agent = null;
 let error = null;
@@ -39,19 +32,9 @@ let pageDescription = "Explore this AI agent's capabilities and features.";
 try {
   if (!normalizedSlug) throw new Error("No slug provided");
   
-  // V12: Get agent from cache/entities/agent/ path
-  const runtime = Astro.locals.runtime;
-  if (runtime?.env?.R2_ASSETS) {
-    const r2 = runtime.env.R2_ASSETS;
-    const cacheFile = await r2.get(`cache/entities/agent/${normalizedSlug}.json`);
-    if (cacheFile) {
-      const cacheData = await cacheFile.json();
-      agent = cacheData.entity || cacheData;
-    }
-  }
-  // Fallback to old cache reader
-  if (!agent) {
-    agent = await getModelFromCache(normalizedSlug, Astro.locals);
+  const result = await fetchEntityFromR2('agent', normalizedSlug, Astro.locals);
+  if (result) {
+    agent = result.entity;
   }
 
   if (agent) {

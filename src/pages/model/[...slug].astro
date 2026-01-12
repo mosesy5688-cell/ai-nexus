@@ -34,21 +34,15 @@ let cleanedDesc = "";
 try {
   if (!slug) throw new Error("No slug provided");
   
+  // V15.1: getModelFromCache now uses unified core reader
   model = await getModelFromCache(slug, Astro.locals);
 
-  // V14: Handle malformed 'u/' prefix - redirect to search
-  if (!model) {
-    const parts = Array.isArray(slug) ? slug : slug.split('/');
-    if (parts[0] === 'u' && parts.length === 2) {
-      return Astro.redirect(`/search?q=${encodeURIComponent(parts[1])}`, 302);
-    }
-  }
   if (model) {
     const resolution = deriveEntityType(model);
     model.entityType = resolution.type;
     model.entityDefinition = ENTITY_DEFINITIONS[model.entityType];
 
-    // Similar models logical stub (D1 banned)
+    // Similar models logical stub
     if (model.similar_models && Array.isArray(model.similar_models)) {
         const rawSimilar = model.similar_models;
         const resolvedPromises = rawSimilar.map(async (item) => {
@@ -65,13 +59,7 @@ try {
     const modelName = model.name || model.canonical_name || model.id || 'Unknown Model';
     pageTitle = `${modelName} - AI Model Insights & Benchmarks`;
     
-    const cleanDescriptionFn = (desc) => !desc ? '' : desc
-      .replace(/^---[\s\S]*?---\s*/m, '').replace(/^---\s*\n?[\s\S]*$/m, '')
-      .replace(/\blibrary_name:\s*\w+/gi, '').replace(/\blicense:\s*[^\s]+/gi, '')
-      .replace(/\bpipeline_tag:\s*\w+/gi, '').replace(/\bbase_model\b[^.]*\.?/gi, '')
-      .replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
-    
-    cleanedDesc = cleanDescriptionFn(model.description);
+    cleanedDesc = cleanDescription(model.description);
     pageDescription = model.seo_summary?.description || 
                       (cleanedDesc ? cleanedDesc.substring(0, 160) : `Deep dive into ${modelName}.`);
   }
