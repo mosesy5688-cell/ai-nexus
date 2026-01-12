@@ -11,7 +11,7 @@ import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference';
 import DataFreshness from '../../components/common/DataFreshness.astro';
-import FullMetadata from '../../components/entity/FullMetadata.astro';
+import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
@@ -118,7 +118,8 @@ const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_sc
     </div>
   
     {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive">
+    <div slot="deep-dive" class="space-y-12">
+         <TechSpecsFull entity={space} type="space" />
          <SpaceDeepDive space={space} />
     </div>
 
@@ -129,10 +130,6 @@ const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_sc
        </div>
     </div>
 
-    <div slot="full-metadata">
-       <FullMetadata entity={space} />
-    </div>
-  
     {/* Zone 5: Community */}
     <div slot="community" class="py-4">
         <DataFreshness version={cacheVersion} />

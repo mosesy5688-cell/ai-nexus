@@ -12,7 +12,7 @@ import DataFreshness from '../../components/common/DataFreshness.astro';
 import DatasetSchema from '../../components/dataset/DatasetSchema.astro';
 import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
-import FullMetadata from '../../components/entity/FullMetadata.astro';
+import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 
 import EntityZones from '../../components/entity/EntityZones.astro';
 import { getDatasetFromCache } from '../../utils/entity-cache-reader-v6';
@@ -146,8 +146,8 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
          </div>
     </div>
   
-    {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive">
+    <div slot="deep-dive" class="space-y-12">
+         <TechSpecsFull entity={dataset} type="dataset" />
          <DatasetDeepDive dataset={dataset} />
     </div>
 
@@ -158,10 +158,6 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
        </div>
     </div>
 
-    <div slot="full-metadata">
-       <FullMetadata entity={dataset} />
-    </div>
-  
     {/* Zone 5: Community */}
     <div slot="community">
         <DataFreshness timestamp={dataset?.last_updated} source={`L8 v${cacheVersion}`} />

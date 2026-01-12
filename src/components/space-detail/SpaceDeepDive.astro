@@ -4,6 +4,7 @@ interface Props {
 }
 
 const { space } = Astro.props;
+import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
 
 // Helper to determine install command based on SDK
 const getInstallCommand = (sdk: string) => {
@@ -71,14 +72,9 @@ const getInstallCommand = (sdk: string) => {
       </div>
   </section>
 
-  <!-- Section: README (Lazy) -->
-  <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-      <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-         <span>📄</span> README
-      </h2>
-      <div class="prose dark:prose-invert max-w-none text-sm text-gray-600 dark:text-gray-400">
-         <p>{space.description}</p>
-         <p class="italic text-xs mt-4 text-gray-500">Full documentation lazily loaded.</p>
-      </div>
-  </section>
+  <!-- Section: README -->
+  <FullReadmeSection 
+    bodyContent={space.body_content || space.description}
+    maxPreviewLength={2000}
+  />
 </div>

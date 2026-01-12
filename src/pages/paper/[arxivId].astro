@@ -11,10 +11,7 @@ import EntityLayout from '../../layouts/EntityLayout.astro';
 import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference';
-import UniversalCore from '../../components/entity/UniversalCore.astro';
-import FullMetadata from '../../components/entity/FullMetadata.astro';
-import PaperDeepDive from '../../components/paper-detail/PaperDeepDive.astro';
-import DataFreshness from '../../components/common/DataFreshness.astro';
+import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import { getPaperFromCache } from '../../utils/entity-cache-reader-v6';
 
 const { arxivId } = Astro.params;
@@ -104,7 +101,8 @@ const authors = paper?.authors || [];
       </div>
 
       {/* Zone 4: Deep Dive */}
-      <div slot="deep-dive">
+      <div slot="deep-dive" class="space-y-12">
+          <TechSpecsFull entity={paper} type="paper" />
           <PaperDeepDive paper={paper} />
       </div>
 
@@ -115,14 +113,9 @@ const authors = paper?.authors || [];
          </div>
       </div>
 
-      <div slot="full-metadata">
-         <FullMetadata entity={paper} />
-      </div>
-
       <div slot="community">
           <DataFreshness timestamp={paper?.published_date} source="arXiv API" />
       </div>
     </>
   )}
 </EntityLayout>
-

@@ -1,0 +1,43 @@
+---
+/**
+ * SpecCard - V15.0 Technical Data Card
+ * Displays a group of technical specifications (e.g., Hardware, Architecture)
+ */
+interface Props {
+  title: string;
+  icon: string;
+  specs: { label: string; value: any; highlight?: boolean }[];
+  accentColor?: string;
+}
+
+const { title, icon, specs, accentColor = 'indigo' } = Astro.props;
+
+const colorClasses: Record<string, string> = {
+  indigo: 'border-indigo-100 dark:border-indigo-900/30 text-indigo-600',
+  emerald: 'border-emerald-100 dark:border-emerald-900/30 text-emerald-600',
+  rose: 'border-rose-100 dark:border-rose-900/30 text-rose-600',
+  amber: 'border-amber-100 dark:border-amber-900/30 text-amber-600',
+};
+
+const activeColor = colorClasses[accentColor] || colorClasses.indigo;
+---
+
+<div class={`bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border ${activeColor} transition-transform hover:scale-[1.02] duration-300`}>
+  <h3 class="flex items-center gap-3 text-sm font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-6">
+    <span class="text-xl">{icon}</span>
+    {title}
+  </h3>
+
+  <div class="space-y-4">
+    {specs.map(spec => (
+      <div class="flex flex-col gap-1">
+        <span class="text-[10px] font-black uppercase tracking-wider text-gray-400 dark:text-gray-500">
+          {spec.label}
+        </span>
+        <div class={`font-bold text-gray-900 dark:text-white break-words ${spec.highlight ? 'text-lg text-indigo-600 dark:text-indigo-400' : 'text-sm'}`}>
+          {spec.value || '—'}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>

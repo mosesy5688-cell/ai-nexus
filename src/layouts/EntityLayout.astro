@@ -55,29 +55,28 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
     <main class="container mx-auto px-4 py-8 max-w-7xl animate-fade-in relative">
       
       {/* Zone 1: HERO */}
-      <section id="hero-zone" class="mb-12 animate-slide-up relative z-10" style="animation-delay: 0.1s;">
+      <section id="hero-zone" class="mb-8 animate-slide-up relative z-10" style="animation-delay: 0.1s;">
         <slot name="hero" />
       </section>
 
-      {/* V15.0: UNIFIED CONTENT GRID (Absolute Alignment) */}
+      {/* Zone 1.5: USE CASES */}
+      <section id="use-cases-zone" class="mb-12 animate-slide-up" style="animation-delay: 0.2s;">
+        <slot name="use-cases" />
+      </section>
+
+      {/* V15.0: UNIFIED CONTENT GRID */}
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start mb-16">
         
         {/* LEFT COLUMN: Main Content Ecosystem */}
         <div class="lg:col-span-8">
           <div class="space-y-16">
             
-            {/* Zone 1.5: USE CASES (Now inside Grid for Alignment) */}
-            <section id="use-cases-zone" class="animate-slide-up" style="animation-delay: 0.2s;">
-              <slot name="use-cases" />
-            </section>
-
-            {/* Zone 2: QUICK INSIGHTS (Main Part) */}
+            {/* Zone 2: QUICK INSIGHTS */}
             <section id="insights-zone" class="animate-slide-up" style="animation-delay: 0.3s;">
                <QuickInsights entity={entity} type={type} />
                <slot name="insights-extra" />
             </section>
 
-            {/* Zone 3: CORE (Values & Relations) */}
             <section id="core-zone" class="space-y-12">
                {/* Zone 3 Desktop */}
                <div class="hidden md:block">
@@ -122,7 +121,6 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
 
             {/* V15.0: FULL METADATA DISCLOSURE (Absolute Transparency) */}
             <div class="pt-12 border-t border-gray-100 dark:border-gray-800">
-               <slot name="full-metadata" />
             </div>
           </div>
         </div>

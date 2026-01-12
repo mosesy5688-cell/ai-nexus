@@ -4,7 +4,7 @@ interface Props {
 }
 
 const { agent } = Astro.props;
-import AgentSpecs from './AgentSpecs.astro';
+import TechSpecsFull from '../entity/TechSpecsFull.astro';
 
 // Mock Config YAML
 const agentName = agent?.name || agent?.canonical_name || 'unknown-agent';
@@ -28,7 +28,7 @@ capabilities:
                <span>📖</span> Description
             </h2>
             <div class="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
-               <Fragment set:html={agent.body_content.replace(/<img[^>]*>/g, '')} />
+               <Fragment set:html={agent.body_content} />
             </div>
          </section>
       ) : (
@@ -58,15 +58,6 @@ capabilities:
 
    <!-- Right Column: Specs -->
    <div class="lg:col-span-1">
-       <AgentSpecs 
-             framework={agent.framework || agent.library_name}
-             language={agent.language}
-             license={agent.license || agent.license_spdx}
-             stars={agent.stars || agent.github_stars}
-             forks={agent.forks || agent.github_forks}
-             lastCommit={agent.last_commit || agent.github_last_commit}
-             sourceUrl={agent.source_url}
-             metaJson={agent.meta_json}
-       />
+       <TechSpecsFull entity={agent} type="agent" />
    </div>
 </div>
