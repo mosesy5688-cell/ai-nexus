@@ -11,7 +11,7 @@ import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference';
 import DataFreshness from '../../components/common/DataFreshness.astro';
-import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
+import UniversalCore from '../../components/entity/UniversalCore.astro';
 import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
 import FullMetadata from '../../components/entity/FullMetadata.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
@@ -102,8 +102,8 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
       sourceUrl={tool?.source_url}
     >
       <div slot="actions" class="flex gap-2">
-         {tool.source_url && (
-           <a href={tool.source_url} target="_blank" class="px-4 py-2 bg-gray-800 text-white rounded-lg font-bold hover:bg-gray-900 transition-colors shadow-sm">View on GitHub</a>
+         {tool?.source_url && (
+           <a href={tool?.source_url} target="_blank" class="px-4 py-2 bg-gray-800 text-white rounded-lg font-bold hover:bg-gray-900 transition-colors shadow-sm">View on GitHub</a>
          )}
       </div>
     </EntityHeader>
@@ -115,38 +115,21 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
       limits={derivedUseCases.limits} 
     />
   
-    {/* Zone 3: Core (Desktop) */}
+    {/* Zone 3: Core (Desktop/Mobile) */}
     <div slot="core-desktop">
-       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <RelationsPanel 
-               datasetsUsed={tool.datasets_used}
-               arxivRefs={tool.arxiv_refs}
-               relatedSpaces={tool.related_spaces}
-               knowledgeLinks={tool.knowledge_links}
-          />
-          <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-             <h3 class="font-bold mb-4">Quick Share</h3>
-             <ShareButtons title={tool.name || tool.canonical_name} description={tool.description || ''} />
-          </div>
-       </div>
+       <UniversalCore entity={tool} type="tool" />
     </div>
  
-    {/* Zone 3: Core (Mobile Tabs) */}
     <div slot="core-knowledge">
-        <RelationsPanel 
-            datasetsUsed={tool.datasets_used}
-            arxivRefs={tool.arxiv_refs}
-            relatedSpaces={tool.related_spaces}
-            knowledgeLinks={tool.knowledge_links}
-        />
+       <UniversalCore entity={tool} type="tool" />
     </div>
     
     <div slot="core-similar">
-        <p class="text-gray-500 italic p-4 text-center">No related tools indexed yet.</p>
+        <p class="text-gray-500 italic p-4 text-center">Identifying similar developer tools...</p>
     </div>
   
     <div slot="core-benchmarks">
-        <p class="text-gray-500 italic p-4 text-center">No benchmarks available.</p>
+        <p class="text-gray-500 italic p-4 text-center">Performance benchmarks for CLI tools are being aggregated.</p>
     </div>
   
     {/* Zone 4: Deep Dive */}

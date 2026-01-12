@@ -2,156 +2,127 @@
 export const prerender = false;
 
 /**
- * Paper Detail Page V2.0 (B.1.0 Phase 3)
+ * Paper Detail Page V15.0 (B.1.0 Phase 3)
  * Displays ArXiv paper info and citing models from R2 cache
  */
 
 import Layout from '../../layouts/Layout.astro';
-import PaperHeader from '../../components/paper-detail/PaperHeader.astro';
-import { generateEntityUrl } from '../../utils/url-utils.js';
+import EntityLayout from '../../layouts/EntityLayout.astro';
+import EntityHeader from '../../components/entity/EntityHeader.astro';
+import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
+import { getUseCases } from '../../utils/inference';
+import UniversalCore from '../../components/entity/UniversalCore.astro';
+import FullMetadata from '../../components/entity/FullMetadata.astro';
+import PaperDeepDive from '../../components/paper-detail/PaperDeepDive.astro';
+import DataFreshness from '../../components/common/DataFreshness.astro';
+import { getPaperFromCache } from '../../utils/entity-cache-reader-v6';
 
 const { arxivId } = Astro.params;
 
 // Validate ArXiv ID format
 const isValidArxivId = arxivId && /^\d{4}\.\d{4,5}$/.test(arxivId);
 
+let paper = null;
 let pageTitle = "AI Research Paper - Free AI Tools";
 let pageDescription = "Explore this AI research paper and related models.";
 
-// Paper-relations cache data
-let paperRelations = null;
-let citingModels = [];
-
 if (isValidArxivId) {
-  pageTitle = `arXiv:${arxivId} - AI Research Paper`;
-  pageDescription = `View paper arXiv:${arxivId} and discover AI models that cite this research.`;
-
-  // Fetch paper-relations from R2 cache
   try {
-    const runtime = Astro.locals.runtime;
-    if (runtime?.env?.R2_ASSETS) {
-      const r2 = runtime.env.R2_ASSETS;
-      const cacheFile = await r2.get(`cache/paper-relations/${arxivId}.json`);
-      if (cacheFile) {
-        paperRelations = await cacheFile.json();
-        citingModels = paperRelations?.citing_models || [];
-      }
+    paper = await getPaperFromCache(arxivId, Astro.locals);
+    if (paper) {
+      pageTitle = `${paper.title || `arXiv:${arxivId}`} - AI Research Paper`;
+      pageDescription = paper.abstract?.slice(0, 160) || `View paper arXiv:${arxivId} and discover AI models that cite this research.`;
     }
   } catch (e) {
     console.error('[Paper] R2 cache error:', e.message);
   }
 }
 
-const arxivAbsUrl = `https://arxiv.org/abs/${arxivId}`;
-const arxivPdfUrl = `https://arxiv.org/pdf/${arxivId}.pdf`;
-const hasCitingModels = citingModels.length > 0;
+// V15.0: Derived Use Cases and Limits
+const derivedUseCases = paper ? getUseCases(paper.tags || [], '', 'paper', paper.fni_score || 0) : { goodFor: [], limits: [] };
+const authors = paper?.authors || [];
 ---
 
-<Layout title={pageTitle} description={pageDescription}>
-  <main class="container mx-auto px-4 py-8 max-w-4xl">
-    {!isValidArxivId ? (
-      <div class="text-center py-16">
-        <h1 class="text-3xl font-bold text-red-500 mb-4">Invalid Paper ID</h1>
-        <p class="text-gray-600 dark:text-gray-400">
-          The ArXiv ID format should be like: 2407.21783
-        </p>
-        <a href="/" class="mt-4 inline-block text-indigo-500 hover:underline">
-          ← Back to Home
-        </a>
-      </div>
-    ) : (
-      <article>
-        <PaperHeader 
-          arxivId={arxivId}
-          arxivUrl={arxivAbsUrl}
-          pdfUrl={arxivPdfUrl}
-        />
-        
-        <section class="mt-8 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
-          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4">
-            📄 Paper Links
-          </h2>
-          <div class="flex flex-wrap gap-4">
-            <a 
-              href={arxivAbsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors"
-            >
-              View on ArXiv
-            </a>
-            <a 
-              href={arxivPdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-            >
-              Download PDF
-            </a>
-          </div>
-        </section>
-        
-        <section class="mt-8 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
-          <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            🧠 Models Citing This Paper
-            {hasCitingModels && (
-              <span class="px-2 py-1 text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full">
-                {paperRelations?.total_citations || citingModels.length}
-              </span>
-            )}
-          </h2>
-          
-          {hasCitingModels ? (
-            <div class="space-y-3">
-              {citingModels.map((model) => (
-                <a 
-                  href={generateEntityUrl(model.id, 'model')}
-                  class="block p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
-                >
-                  <div class="flex justify-between items-start">
-                    <div>
-                      <span class="font-semibold text-gray-900 dark:text-white">
-                        {model.name}
-                      </span>
-                      <span class="text-gray-500 dark:text-gray-400 text-sm ml-2">
-                        by {model.author}
-                      </span>
-                    </div>
-                    {model.fni_score > 0 && (
-                      <span class="px-2 py-1 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded">
-                        FNI: {model.fni_score.toFixed(2)}
-                      </span>
-                    )}
-                  </div>
-                </a>
-              ))}
-            </div>
-          ) : (
-            <div class="text-gray-600 dark:text-gray-400">
-              <p>No models found citing this paper yet.</p>
-              <p class="text-sm mt-2">
-                Models that reference arXiv:{arxivId} in their documentation will appear here.
-              </p>
-            </div>
-          )}
-          
-          <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <a 
-              href="/ranking"
-              class="text-indigo-500 hover:underline text-sm"
-            >
-              Explore model rankings →
-            </a>
-          </div>
-        </section>
-        
-        <div class="mt-8 text-center">
-          <a href="/" class="text-indigo-500 hover:underline">
-            ← Back to Home
-          </a>
+<EntityLayout 
+  entity={paper} 
+  type="paper" 
+  title={pageTitle} 
+  description={pageDescription}
+>
+  {!isValidArxivId ? (
+    <div slot="hero" class="text-center py-16">
+      <h1 class="text-3xl font-bold text-red-500 mb-4">Invalid Paper ID</h1>
+      <p class="text-gray-600 dark:text-gray-400">
+        The ArXiv ID format should be like: 2407.21783
+      </p>
+      <a href="/" class="mt-4 inline-block text-indigo-500 hover:underline">
+        ← Back to Home
+      </a>
+    </div>
+  ) : (
+    <>
+      {/* Zone 1: Hero */}
+      <EntityHeader 
+        slot="hero"
+        name={paper?.title || `arXiv:${arxivId}`}
+        entityType="paper"
+        entityIcon="📄"
+        entityLabel="Research Paper"
+        author={authors[0] || 'Unknown'}
+        description={paper?.abstract}
+        fniScore={paper?.fni_score}
+        fniPercentile={paper?.fni_percentile}
+        sourceUrl={`https://arxiv.org/abs/${arxivId}`}
+      >
+        <div slot="actions" class="flex gap-2">
+           <a href={`https://arxiv.org/pdf/${arxivId}.pdf`} target="_blank" class="px-4 py-2 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700 transition-colors shadow-sm">Download PDF</a>
         </div>
-      </article>
-    )}
-  </main>
-</Layout>
+      </EntityHeader>
+
+      {/* Zone 1.5: Use Cases */}
+      <ZoneUseCases 
+        slot="use-cases" 
+        goodFor={derivedUseCases.goodFor} 
+        limits={derivedUseCases.limits} 
+      />
+
+      {/* Zone 3: Core (Desktop/Mobile) */}
+      <div slot="core-desktop">
+         <UniversalCore entity={paper} type="paper" />
+      </div>
+
+      <div slot="core-knowledge">
+         <UniversalCore entity={paper} type="paper" />
+      </div>
+
+      <div slot="core-similar">
+          <p class="text-gray-500 italic p-4 text-center">Identifying similar research papers...</p>
+      </div>
+
+      <div slot="core-benchmarks">
+          <p class="text-gray-500 italic p-4 text-center">No benchmarks linked to this publication.</p>
+      </div>
+
+      {/* Zone 4: Deep Dive */}
+      <div slot="deep-dive">
+          <PaperDeepDive paper={paper} />
+      </div>
+
+      <div slot="sidebar" class="space-y-8">
+         <div class="p-6 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-800/50">
+            <h3 class="font-bold text-rose-900 dark:text-rose-100 mb-2">Academic Research</h3>
+            <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">This paper is part of the open-access scientific literatures. Citation graphs are generated via CrossRef and Semantic Scholar.</p>
+         </div>
+      </div>
+
+      <div slot="full-metadata">
+         <FullMetadata entity={paper} />
+      </div>
+
+      <div slot="community">
+          <DataFreshness timestamp={paper?.published_date} source="arXiv API" />
+      </div>
+    </>
+  )}
+</EntityLayout>
 

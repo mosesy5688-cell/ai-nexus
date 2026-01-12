@@ -11,10 +11,10 @@ import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference';
 import DataFreshness from '../../components/common/DataFreshness.astro';
-import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
-import PaperDeepDive from '../../components/paper-detail/PaperDeepDive.astro';
+import UniversalCore from '../../components/entity/UniversalCore.astro';
 import FullMetadata from '../../components/entity/FullMetadata.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
+import PaperDeepDive from '../../components/paper-detail/PaperDeepDive.astro';
 
 const { slug } = Astro.params;
 const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -89,22 +89,12 @@ const derivedUseCases = paper ? getUseCases(paper.tags || [], '', 'paper', paper
   
     {/* Zone 3: Core (Desktop) */}
     <div slot="core-desktop">
-       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <RelationsPanel 
-               arxivRefs={[paper?.arxiv_id || displaySlug]}
-          />
-          <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-             <h3 class="font-bold mb-4">Paper Insights</h3>
-             <ShareButtons title={paper?.title} description={paper?.abstract || ''} />
-          </div>
-       </div>
+       <UniversalCore entity={paper} type="paper" />
     </div>
  
     {/* Zone 3: Core (Mobile Tabs) */}
     <div slot="core-knowledge">
-         <RelationsPanel 
-            arxivRefs={[paper?.arxiv_id || displaySlug]}
-         />
+         <UniversalCore entity={paper} type="paper" />
     </div>
     
     <div slot="core-similar">

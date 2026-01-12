@@ -1,0 +1,92 @@
+---
+/**
+ * UniversalCore - V15.0 Standardized Zone 3
+ * Adapts to all 6 entity types to provide maximum content density.
+ */
+import RelationsPanel from '../model-detail/RelationsPanel.astro';
+import RelatedKnowledge from '../model-detail/RelatedKnowledge.astro';
+import BenchmarkCard from '../benchmark/BenchmarkCard.astro';
+import MiniTrendChart from '../charts/MiniTrendChart.astro';
+import SimilarModels from '../model-detail/SimilarModels.astro';
+
+interface Props {
+  entity: any;
+  type: 'model' | 'agent' | 'space' | 'tool' | 'dataset' | 'paper';
+}
+
+const { entity, type } = Astro.props;
+
+// Identification
+const entityId = entity?.id || entity?.name || '';
+const entityName = entity?.name || entity?.title || 'Unknown';
+const tagsArray = entity?.tags ? (typeof entity.tags === 'string' ? JSON.parse(entity.tags) : entity.tags) : [];
+
+// Feature availability
+const hasBench = !!(entity?.mmlu || entity?.humaneval || entity?.avg_score || entity?.benchmark_avg);
+const similarEntities = entity?.similar_models || entity?.similar_entities || entity?.relations?.links || [];
+const arxivRefs = entity?.arxiv_refs || entity?.citations || [];
+const datasetsUsed = entity?.datasets_used || entity?.training_data || [];
+const baseModel = entity?.base_model || entity?.parent_model || null;
+
+---
+
+<div class="space-y-12">
+    {/* 1. Primary Relations & Knowledge */}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="space-y-6">
+           <RelationsPanel
+             baseModel={baseModel}
+             datasetsUsed={datasetsUsed}
+             arxivRefs={arxivRefs}
+             relatedSpaces={entity?.related_spaces}
+             knowledgeLinks={entity?.knowledge_links}
+           />
+           <RelatedKnowledge 
+             tags={tagsArray} 
+             description={entity?.description || ''}
+             metaJson={entity?.meta_json}
+           />
+        </div>
+        
+        <div class="space-y-6">
+           {hasBench && (
+             <BenchmarkCard 
+               umid={entityId}
+               name={entityName}
+               mmlu={entity?.mmlu}
+               humaneval={entity?.humaneval}
+               hellaswag={entity?.hellaswag}
+               avg_score={entity?.avg_score}
+             />
+           )}
+           
+           <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+              <h3 class="text-sm font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                 <span>📈</span> Interest Trend
+              </h3>
+              <div class="relative min-h-[120px] flex items-center justify-center">
+                <MiniTrendChart entityId={entityId} width={400} height={120} />
+                {/* Overlay for restricted data or empty states */}
+                {!entityId && (
+                  <div class="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm flex items-center justify-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    No Trend Data Available
+                  </div>
+                )}
+              </div>
+              <p class="text-[10px] text-gray-400 mt-4 leading-tight uppercase font-bold tracking-tighter">
+                * Real-time activity index across HuggingFace, GitHub and Research citations.
+              </p>
+           </div>
+        </div>
+    </div>
+
+    {/* 2. Horizontal Entity Carousel (Similar Items) */}
+    {similarEntities.length > 0 && (
+      <div>
+         <h3 class="text-xl font-bold mb-6 flex items-center gap-2 text-gray-900 dark:text-white">
+            <span>🔄 Similar {type.charAt(0).toUpperCase() + type.slice(1)}s</span>
+         </h3>
+         <SimilarModels models={similarEntities} currentModelId={entityId} />
+      </div>
+    )}
+</div>
