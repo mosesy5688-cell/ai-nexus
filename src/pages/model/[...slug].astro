@@ -31,6 +31,7 @@ let similarModels = [];
 let tagsArray = [];
 let pageTitle = "AI Model Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI model.";
+let cleanedDesc = "";
 
 try {
   if (!slug) throw new Error("No slug provided");
@@ -72,7 +73,7 @@ try {
       .replace(/\bpipeline_tag:\s*\w+/gi, '').replace(/\bbase_model\b[^.]*\.?/gi, '')
       .replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
     
-    const cleanedDesc = cleanDescriptionFn(model.description);
+    cleanedDesc = cleanDescriptionFn(model.description);
     pageDescription = model.seo_summary?.description || 
                       (cleanedDesc ? cleanedDesc.substring(0, 160) : `Deep dive into ${modelName}.`);
   }
