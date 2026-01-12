@@ -30,6 +30,26 @@ try {
   paper = hydrateEntity(result, 'paper');
   if (paper) {
     cacheVersion = paper._contract_version || 'V15';
+  } else {
+    // V15.6 Fallback Logic
+    const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+    const cleanSlug = slugStr.replace(/--/g, '/');
+    
+    // Attempt to extract ArXiv ID from slug
+    const arxivMatch = cleanSlug.match(/(\d{4}\.\d{4,5})/);
+    const arxivId = arxivMatch ? arxivMatch[1] : cleanSlug;
+
+    paper = {
+      id: `arxiv--${arxivId.replace(/\//g, '--')}`,
+      title: arxivMatch ? `Research Paper: ${arxivId}` : (slugStr.split('/').pop() || 'Unknown Paper'),
+      arxiv_id: arxivId,
+      abstract: `Open-access research publication: ${cleanSlug}`,
+      source_url: `https://arxiv.org/abs/${arxivId}`,
+      authors: ['Research Community'],
+      tags: [],
+      _cache_source: 'fallback-ui'
+    };
+    cacheVersion = 'Fallback';
   }
 } catch (e) {
   console.error('[Paper Page] Cache error:', e);

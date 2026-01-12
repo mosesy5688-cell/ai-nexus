@@ -63,6 +63,32 @@ try {
     cleanedDesc = cleanDescription(model.description);
     pageDescription = model.seo_summary?.description || 
                       (cleanedDesc ? cleanedDesc.substring(0, 160) : `Deep dive into ${modelName}.`);
+  } else {
+    // V15.6 Fallback Logic (Mirroring /space/ strategy)
+    const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+    const cleanSlug = slugStr.replace(/--/g, '/');
+    const parts = cleanSlug.split('/');
+    const repoName = parts.pop() || 'Unknown Model';
+    const authorName = parts.join('/') || 'huggingface';
+    
+    model = {
+      id: `hf-model--${slugStr.replace(/\//g, '--')}`,
+      name: repoName,
+      author: authorName,
+      source: 'huggingface',
+      source_url: `https://huggingface.co/${cleanSlug}`,
+      description: `State-of-the-art AI model: ${repoName} by ${authorName}.`,
+      tags: [],
+      fni_score: 0,
+      _cache_source: 'fallback-ui'
+    };
+    
+    // Minimal resolution for EntityHeader
+    model.entityType = 'model';
+    model.entityDefinition = ENTITY_DEFINITIONS['model'];
+    
+    pageTitle = `${repoName} - AI Model`;
+    pageDescription = `Technical specifications and insights for ${repoName} AI model.`;
   }
 } catch (e) {
   console.error("Error loading model:", e);
