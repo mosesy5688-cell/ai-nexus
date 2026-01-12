@@ -8,10 +8,13 @@
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
-import { fetchCatalogData } from '../../utils/catalog-fetcher.js';
+import { fetchCatalogData, truncateListingItem } from '../../utils/catalog-fetcher.js';
 
 // SSR Data Fetching (Unified)
-const { items: tools, error, source } = await fetchCatalogData('tool', Astro.locals.runtime?.env);
+const { items: allTools, error, source } = await fetchCatalogData('tool', Astro.locals.runtime?.env);
+
+// V15.8: Payload Optimization
+const tools = allTools.slice(0, 100).map(truncateListingItem);
 
 const pageTitle = 'AI Tools Catalog - SDKs & Frameworks';
 const pageDescription = 'Discover AI development tools including SDKs, inference engines, fine-tuning frameworks, and deployment utilities.';
@@ -64,7 +67,7 @@ const categories = [
     <!-- Stats Bar -->
     <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
        <span id="results-count" class="font-medium">
-         {tools.length > 0 ? `${tools.length} tools loaded from ${source.toUpperCase()}` : 'Loading tools...'}
+         {allTools.length > 0 ? `${allTools.length} tools loaded from ${source.toUpperCase()}` : 'Loading tools...'}
       </span>
       <span>•</span>
       <span>Updated Mon/Thu</span>

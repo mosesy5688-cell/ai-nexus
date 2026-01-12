@@ -8,10 +8,13 @@
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
-import { fetchCatalogData } from '../../utils/catalog-fetcher.js';
+import { fetchCatalogData, truncateListingItem } from '../../utils/catalog-fetcher.js';
 
 // SSR Data Fetching (Unified)
-const { items: datasets, error, source } = await fetchCatalogData('dataset', Astro.locals.runtime?.env);
+const { items: allDatasets, error, source } = await fetchCatalogData('dataset', Astro.locals.runtime?.env);
+
+// V15.8: Payload Optimization
+const datasets = allDatasets.slice(0, 100).map(truncateListingItem);
 
 const pageTitle = 'AI Datasets Catalog - Open Source Data';
 const pageDescription = 'Explore thousands of AI and machine learning datasets. Find training data for NLP, computer vision, and more.';
@@ -63,7 +66,7 @@ const categories = [
     <!-- Stats Bar -->
     <div class="flex items-center gap-4 mb-6 text-sm text-gray-500 dark:text-gray-400">
        <span id="results-count" class="font-medium">
-         {datasets.length > 0 ? `${datasets.length} datasets loaded from ${source.toUpperCase()}` : 'Loading datasets...'}
+         {allDatasets.length > 0 ? `${allDatasets.length} datasets loaded from ${source.toUpperCase()}` : 'Loading datasets...'}
       </span>
       <span>•</span>
       <span>Updated Mon/Thu</span>
