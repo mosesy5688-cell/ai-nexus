@@ -28,7 +28,7 @@ capabilities:
                <span>📖</span> Description
             </h2>
             <div class="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
-               <Fragment set:html={agent.body_content} />
+               <Fragment set:html={agent.body_content.replace(/<img[^>]*>/g, '')} />
             </div>
          </section>
       ) : (

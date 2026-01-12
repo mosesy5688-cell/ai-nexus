@@ -71,7 +71,14 @@ try {
 const derivedUseCases = agent ? getUseCases(agent.tags || [], '', 'agent', agent.fni_score || 0) : { goodFor: [], limits: [] };
 
 const agentId = agent?.id || agent?.umid || normalizedSlug || '';
-const agentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
+let agentName = agent?.name || agent?.canonical_name || '';
+
+// V15.1: Robust name fallback if "Unknown"
+if (!agentName || agentName === 'Unknown Agent') {
+  const slugParts = normalizedSlug.split('--');
+  agentName = slugParts[slugParts.length - 1].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+const displayAuthor = (agent?.author && agent.author !== 'Unknown') ? agent.author : 'Open Source Community';
 
 const jsonLd = agent ? {
   "@context": "https://schema.org",
@@ -104,7 +111,7 @@ const jsonLd = agent ? {
       entityIcon="🤖"
       entityLabel={agent?.agent_type || 'Agent'}
       verified={agent?.verified}
-      author={agent?.author || 'Unknown'}
+      author={displayAuthor}
       description={agent?.description}
       fniScore={agent?.fni_score}
       fniPercentile={agent?.fni_percentile}
