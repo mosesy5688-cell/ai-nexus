@@ -11,10 +11,11 @@ import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference';
 import DataFreshness from '../../components/common/DataFreshness.astro';
-import { getSpaceFromCache } from '../../utils/entity-cache-reader-v6.js';
 import FullMetadata from '../../components/entity/FullMetadata.astro';
 import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
+import UniversalCore from '../../components/entity/UniversalCore.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
+import { getSpaceFromCache } from '../../utils/entity-cache-reader-v6.js';
 
 const { slug } = Astro.params;
 
@@ -74,19 +75,19 @@ const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_sc
     {/* Zone 1: Hero */}
     <EntityHeader 
       slot="hero"
-      name={space.title || space.name}
+      name={space?.title || space?.name}
       entityType="space"
       entityIcon="🎮"
-      entityLabel={space.sdk || 'Demo Space'}
+      entityLabel={space?.sdk || 'Demo Space'}
       verified={false}
-      author={space.author || 'Unknown'}
-      description={space.description}
-      fniScore={space.fni_score}
-      fniPercentile={space.fni_percentile}
-      sourceUrl={space.source_url}
+      author={space?.author || 'Unknown'}
+      description={space?.description}
+      fniScore={space?.fni_score}
+      fniPercentile={space?.fni_percentile}
+      sourceUrl={space?.source_url}
     >
       <div slot="actions" class="flex gap-2">
-         <a href={space.source_url} target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm">Visit Demo</a>
+         <a href={space?.source_url} target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm">Visit Demo</a>
       </div>
     </EntityHeader>
  
@@ -97,44 +98,23 @@ const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_sc
       limits={derivedUseCases.limits} 
     />
   
-    {/* Zone 3: Core (Desktop) */}
+    {/* Zone 3: Core (Desktop/Mobile) */}
     <div slot="core-desktop">
-       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-             <h3 class="font-bold mb-4">Uses Models</h3>
-             {modelsUsed.length > 0 ? (
-               <div class="flex flex-wrap gap-2">
-                {modelsUsed.map((model: string) => (
-                  <a href={`/model/${model.replace(/\//g, '--')}`}
-                     class="px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
-                    {model}
-                  </a>
-                ))}
-               </div>
-             ) : <p class="text-gray-500 italic">No models specified.</p>}
-          </div>
-          <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-             <h3 class="font-bold mb-4">Share Demo</h3>
-             <ShareButtons title={space.title || space.name} description={space.description || ''} />
-          </div>
-       </div>
+       <UniversalCore entity={space} type="space" />
     </div>
  
-    {/* Zone 3: Core (Mobile Tabs) */}
     <div slot="core-knowledge">
-         <div class="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl text-center text-sm text-gray-500 italic">
-            Knowledge Relations not available for Spaces yet.
-         </div>
+       <UniversalCore entity={space} type="space" />
     </div>
     
     <div slot="core-similar">
          <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center text-gray-500 italic">
-             No related spaces indexed.
+             Discovering demos with similar interaction patterns...
          </div>
     </div>
   
     <div slot="core-benchmarks">
-        <p class="text-gray-500 italic p-4 text-center">No benchmarks available.</p>
+        <p class="text-gray-500 italic p-4 text-center">Benchmark integration for interactive spaces is in preview.</p>
     </div>
   
     {/* Zone 4: Deep Dive */}

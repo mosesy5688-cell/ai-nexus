@@ -10,11 +10,9 @@ export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import EntityLayout from '../../layouts/EntityLayout.astro';
 import EntityHeader from '../../components/entity/EntityHeader.astro';
-import AgentSpecs from '../../components/agent-detail/AgentSpecs.astro';
-import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
-import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.astro';
 import AgentDeepDive from '../../components/agent-detail/AgentDeepDive.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
+import UniversalCore from '../../components/entity/UniversalCore.astro';
 import { getUseCases } from '../../utils/inference';
 import FullMetadata from '../../components/entity/FullMetadata.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
@@ -104,16 +102,16 @@ const jsonLd = agent ? {
       name={agentName}
       entityType="agent"
       entityIcon="🤖"
-      entityLabel={agent.agent_type || 'Agent'}
-      verified={agent.verified}
-      author={agent.author || 'Unknown'}
-      description={agent.description}
-      fniScore={agent.fni_score}
-      fniPercentile={agent.fni_percentile}
-      sourceUrl={agent.source_url}
+      entityLabel={agent?.agent_type || 'Agent'}
+      verified={agent?.verified}
+      author={agent?.author || 'Unknown'}
+      description={agent?.description}
+      fniScore={agent?.fni_score}
+      fniPercentile={agent?.fni_percentile}
+      sourceUrl={agent?.source_url}
     >
       <div slot="actions" class="flex gap-2">
-         <a href={agent.source_url} target="_blank" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-sm">Visit Agent</a>
+         <a href={agent?.source_url} target="_blank" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-sm">Visit Agent</a>
       </div>
     </EntityHeader>
  
@@ -124,34 +122,21 @@ const jsonLd = agent ? {
       limits={derivedUseCases.limits} 
     />
   
-    {/* Zone 3: Core (Desktop) */}
+    {/* Zone 3: Core (Desktop/Mobile) */}
     <div slot="core-desktop">
-       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <RelatedKnowledge 
-             tags={agent.tags || []}
-             description={agent.description || ''}
-          />
-          <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-             <h3 class="font-bold mb-4">Share Agent</h3>
-             <ShareButtons title={agentName} description={agent.description || ''} />
-          </div>
-       </div>
+       <UniversalCore entity={agent} type="agent" />
     </div>
  
-    {/* Zone 3: Core (Mobile Tabs) */}
     <div slot="core-knowledge">
-       <RelatedKnowledge 
-          tags={agent.tags || []}
-          description={agent.description || ''}
-       />
+       <UniversalCore entity={agent} type="agent" />
     </div>
     
     <div slot="core-similar">
-        <RelatedResearch modelId={normalizedSlug} />
+        <p class="text-gray-500 italic p-4 text-center">Identifying similar autonomous agents...</p>
     </div>
   
     <div slot="core-benchmarks">
-        <p class="text-gray-500 italic p-4 text-center">No benchmarks available for this agent.</p>
+        <p class="text-gray-500 italic p-4 text-center">Benchmarks for agents are indexed under theoretical meta-analysis.</p>
     </div>
   
     {/* Zone 4: Deep Dive */}
@@ -172,6 +157,6 @@ const jsonLd = agent ? {
   
     {/* Zone 5: Community */}
     <div slot="community" class="py-4">
-        <p class="text-sm text-gray-500">Agent data version: {agent._contract_version || 'V15'}</p>
+        <p class="text-sm text-gray-500">Agent data version: {agent?._contract_version || 'V15'}</p>
     </div>
 </EntityLayout>

@@ -9,6 +9,8 @@
  * V9.0: Copied normalizeForCache locally to break circular dependency
  */
 
+export { getDatasetFromCache, getPaperFromCache } from './entity-cache-reader-depth.js';
+
 /**
  * Normalize slug for cache file lookup (Constitutional V6.2)
  * R2 Path Format: cache/entities/{type}/{source}--{author}--{name}.json
@@ -60,6 +62,21 @@ export async function getSpaceFromCache(slug, locals) {
 
     const r2 = locals?.runtime?.env?.R2_ASSETS;
     if (!r2) {
+        if (import.meta.env.DEV || process.env.NODE_ENV === 'test') {
+            const normalizedSlug = normalizeForCache(slug, 'space');
+            console.log(`[SpaceCache] Shim: Checking local FS...`);
+            try {
+                const fs = await import('fs');
+                const localPath = 'G:/ai-nexus/data/merged.json';
+                if (fs.existsSync(localPath)) {
+                    const data = JSON.parse(fs.readFileSync(localPath, 'utf-8'));
+                    const found = data.find(m => normalizeForCache(m.slug || m.id, 'space') === normalizedSlug);
+                    if (found) return { ...found, _cache_source: 'local-fs-shim' };
+                }
+            } catch (e) {
+                console.error('[SpaceCache] Shim Error:', e);
+            }
+        }
         console.warn('[SpaceCache] R2 not available');
         return null;
     }
@@ -96,54 +113,8 @@ export async function getSpaceFromCache(slug, locals) {
     return null;
 }
 
-/**
- * V6.2: Get dataset data from R2 cache for detail page
- * @param {string} slug - Dataset slug (format: author--name)
- * @param {object} locals - Astro locals
- * @returns {Promise<object|null>} - Dataset data or null
- */
-export async function getDatasetFromCache(slug, locals) {
-    if (!slug) return null;
-
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
-    if (!r2) {
-        console.warn('[DatasetCache] R2 not available');
-        return null;
-    }
-
-    const normalizedSlug = normalizeForCache(slug, 'dataset');
-
-    // V14: Constitutional cache path - only use cache/entities/dataset/
-    // V15.0 Fix: Robust multi-path lookup
-    const rawSlug = slug.replace(/\//g, '--').replace(/:/g, '--');
-    const cachePaths = [
-        `cache/entities/dataset/${normalizedSlug}.json`,
-        `cache/entities/dataset/huggingface--${rawSlug}.json`,
-        `cache/entities/dataset/hf-dataset--${rawSlug}.json`,
-        `cache/entities/dataset/dataset--${rawSlug}.json`,
-        `cache/entities/dataset/${rawSlug}.json`,
-        `cache/entities/dataset/github--${rawSlug}.json`
-    ];
-
-    for (const cachePath of cachePaths) {
-        try {
-            const cacheFile = await r2.get(cachePath);
-            if (cacheFile) {
-                const cacheData = await cacheFile.json();
-                console.log(`[DatasetCache] R2 HIT: ${cachePath}`);
-                return {
-                    ...cacheData.entity || cacheData,
-                    _cache_source: 'r2-cache',
-                    _contract_version: cacheData.contract_version,
-                };
-            }
-        } catch (e) {
-            console.warn(`[DatasetCache] R2 read error for ${cachePath}:`, e.message);
-        }
-    }
-
-    console.log(`[DatasetCache] MISS: ${normalizedSlug}`);
-    return null;
+console.log(`[DatasetCache] MISS: ${normalizedSlug}`);
+return null;
 }
 
 /**
@@ -192,51 +163,4 @@ export async function getRelatedEntities(entityId, locals) {
         console.warn('[RelationsCache] Error reading relations:', e.message);
         return [];
     }
-}
-/**
- * V6.2: Get paper data from R2 cache for detail page
- * @param {string} slug - Paper slug (format: id)
- * @param {object} locals - Astro locals
- * @returns {Promise<object|null>} - Paper data or null
- */
-export async function getPaperFromCache(slug, locals) {
-    if (!slug) return null;
-
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
-    if (!r2) {
-        console.warn('[PaperCache] R2 not available');
-        return null;
-    }
-
-    const normalizedSlug = normalizeForCache(slug, 'paper');
-
-    // V14: Constitutional cache path - only use cache/entities/paper/
-    // V15.0 Fix: Robust multi-path lookup
-    const rawSlug = slug.replace(/\//g, '--').replace(/:/g, '--');
-    const cachePaths = [
-        `cache/entities/paper/${normalizedSlug}.json`,
-        `cache/entities/paper/arxiv--${rawSlug}.json`,
-        `cache/entities/paper/paper--${rawSlug}.json`,
-        `cache/entities/paper/${rawSlug}.json`
-    ];
-
-    for (const cachePath of cachePaths) {
-        try {
-            const cacheFile = await r2.get(cachePath);
-            if (cacheFile) {
-                const cacheData = await cacheFile.json();
-                console.log(`[PaperCache] R2 HIT: ${cachePath}`);
-                return {
-                    ...cacheData.entity || cacheData,
-                    _cache_source: 'r2-cache',
-                    _contract_version: cacheData.contract_version,
-                };
-            }
-        } catch (e) {
-            console.warn(`[PaperCache] R2 read error for ${cachePath}:`, e.message);
-        }
-    }
-
-    console.log(`[PaperCache] MISS: ${normalizedSlug}`);
-    return null;
 }

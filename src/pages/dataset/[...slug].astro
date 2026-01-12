@@ -11,6 +11,7 @@ import ModelCard from '../../components/ModelCard.astro';
 import DataFreshness from '../../components/common/DataFreshness.astro';
 import DatasetSchema from '../../components/dataset/DatasetSchema.astro';
 import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
+import UniversalCore from '../../components/entity/UniversalCore.astro';
 import FullMetadata from '../../components/entity/FullMetadata.astro';
 
 import EntityZones from '../../components/entity/EntityZones.astro';
@@ -99,7 +100,7 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
       sourceUrl={dataset?.source_url}
     >
       <div slot="actions" class="flex gap-2">
-         <a href={dataset.source_url} target="_blank" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm">Download Dataset</a>
+         <a href={dataset?.source_url} target="_blank" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm">Download Dataset</a>
       </div>
     </EntityHeader>
  
@@ -110,15 +111,9 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
       limits={derivedUseCases.limits} 
     />
   
-    {/* Zone 3: Core (Desktop) */}
+    {/* Zone 3: Core (Desktop/Mobile) */}
     <div slot="core-desktop">
-       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <DatasetSchema dataset={dataset} />
-          <div class="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
-             <h3 class="font-bold mb-4 text-gray-900 dark:text-white">Dataset Usage</h3>
-             <p class="text-sm text-gray-600 dark:text-gray-400">Technical datasets often require specific loading scripts. See the Deep Dive section for integration examples and metadata previews.</p>
-          </div>
-       </div>
+       <UniversalCore entity={dataset} type="dataset" />
     </div>
  
     {/* Zone 3: Core (Mobile Tabs) */}
@@ -141,7 +136,7 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
               ))}
             </div>
           ) : (
-            <p class="text-gray-500 italic p-4 text-center">No linked models found.</p>
+            <p class="text-gray-500 italic p-4 text-center">Finding datasets with similar distribution...</p>
           )}
     </div>
   
@@ -169,6 +164,6 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
   
     {/* Zone 5: Community */}
     <div slot="community">
-        <DataFreshness timestamp={dataset.last_updated} source={`L8 v${cacheVersion}`} />
+        <DataFreshness timestamp={dataset?.last_updated} source={`L8 v${cacheVersion}`} />
     </div>
 </EntityLayout>

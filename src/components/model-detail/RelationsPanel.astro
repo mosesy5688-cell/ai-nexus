@@ -84,7 +84,7 @@ const hasRelations = baseModel || datasetsUsed.length > 0 || arxivRefs.length > 
                  class="group flex items-center gap-3 p-3 rounded-xl bg-blue-50/30 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/50 hover:border-blue-300 transition-all"
                  data-arxiv={arxiv}>
                 <span class="text-lg">📄</span>
-                <span class="paper-title text-sm font-bold text-gray-800 dark:text-gray-200 truncate">arXiv:{arxiv}</span>
+                <span class="paper-title text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{arxiv.startsWith('arxiv:') ? arxiv : `arXiv:${arxiv}`}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-auto text-blue-400 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7-7 7" />
                 </svg>

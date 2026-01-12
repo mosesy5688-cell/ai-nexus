@@ -28,7 +28,7 @@ const bibtex = generateBibTeX(paper);
        <span>📝</span> Abstract
     </h2>
     <p class="text-gray-800 dark:text-gray-200 leading-relaxed text-base font-serif">
-      {paper.abstract}
+      {paper?.abstract || 'Technical abstract for this publication is currently being indexed and will be available shortly.'}
     </p>
   </section>
 
