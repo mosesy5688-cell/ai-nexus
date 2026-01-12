@@ -68,7 +68,7 @@ const authors = paper?.authors || [];
         entityType="paper"
         entityIcon="📄"
         entityLabel="Research Paper"
-        author={authors[0] || 'Unknown'}
+        author={authors[0] && authors[0] !== 'Unknown' ? authors[0] : 'Research Community'}
         description={paper?.abstract}
         fniScore={paper?.fni_score}
         fniPercentile={paper?.fni_percentile}
