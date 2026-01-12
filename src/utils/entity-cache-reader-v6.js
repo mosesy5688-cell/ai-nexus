@@ -113,9 +113,6 @@ export async function getSpaceFromCache(slug, locals) {
     return null;
 }
 
-console.log(`[DatasetCache] MISS: ${normalizedSlug}`);
-return null;
-}
 
 /**
  * V6.2: Get related entities from R2 cache
@@ -134,11 +131,11 @@ export async function getRelatedEntities(entityId, locals) {
 
     try {
         // Try to get entity relations from precomputed cache
-        const cachePath = 'cache/entity_links.json';
+        const cachePath = 'cache/relations.json';
         const cacheFile = await r2.get(cachePath);
 
         if (!cacheFile) {
-            console.log('[RelationsCache] entity_links.json not found');
+            console.log('[RelationsCache] relations.json not found');
             return [];
         }
 
