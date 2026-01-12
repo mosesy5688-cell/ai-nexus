@@ -2,7 +2,6 @@
 export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import EntityLayout from '../../layouts/EntityLayout.astro';
-import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
 import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference';
@@ -19,10 +18,9 @@ import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import EntityRelations from '../../components/entity/EntityRelations.astro';
 import CoreDesktop from '../../components/model-detail/CoreDesktop.astro';
 import MiniTrendChart from '../../components/charts/MiniTrendChart.astro';
-import FullMetadata from '../../components/entity/FullMetadata.astro';
 import ModelZones from '../../components/model-detail/ModelZones.astro';
+import QuickStart from '../../components/model-detail/QuickStart.astro';
 import { getModelFromCache } from '../../utils/entity-cache-reader';
-import CoreDesktop from '../../components/model-detail/CoreDesktop.astro';
 import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definitions';
 import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers';
 
