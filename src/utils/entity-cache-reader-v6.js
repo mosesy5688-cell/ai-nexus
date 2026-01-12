@@ -11,105 +11,73 @@
 
 export { getDatasetFromCache, getPaperFromCache } from './entity-cache-reader-depth.js';
 
-/**
- * Normalize slug for cache file lookup (Constitutional V6.2)
- * R2 Path Format: cache/entities/{type}/{source}--{author}--{name}.json
- * 
- * For 2-part slugs [author, name], prepends appropriate source prefix
- * For 3-part slugs [source, author, name], uses as-is
- * 
- * @param {string|string[]} slug - Input slug from URL
- * @param {string} entityType - Entity type for source prefix (space, dataset)
- * @returns {string} - Normalized slug matching R2 file naming
- */
-function normalizeForCache(slug, entityType = 'model') {
-    if (!slug) return '';
-
-    // Handle array slugs from Astro [...slug] routes
-    let parts = Array.isArray(slug) ? slug : slug.split('/');
-
-    // Remove any source prefix separator (e.g., "huggingface:")
-    if (parts.length === 1 && parts[0].includes(':')) {
-        const [source, rest] = parts[0].split(':');
-        parts = [source, ...rest.split('/')];
-    }
-
-    // Constitutional V6.2: Normalize to source--author--name format
-    // 2-part URL: [author, name] → source--author--name
-    // 3-part URL: [source, author, name] → source--author--name
-    if (parts.length === 2) {
-        // Default source prefix based on entity type
-        const sourcePrefix = entityType === 'space' ? 'hf-space'
-            : entityType === 'dataset' ? 'hf-dataset'
-                : 'huggingface';
-        parts = [sourcePrefix, ...parts];
-    }
-
-    return parts
-        .map(p => p.toLowerCase().trim())
-        .join('--')
-        .replace(/:/g, '--');
-}
+import { fetchEntityFromR2 } from './entity-cache-reader-core.js';
 
 /**
  * V6.2: Get space data from R2 cache for detail page
- * @param {string} slug - Space slug (format: author--name)
- * @param {object} locals - Astro locals
- * @returns {Promise<object|null>} - Space data or null
  */
 export async function getSpaceFromCache(slug, locals) {
     if (!slug) return null;
 
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
-    if (!r2) {
-        if (import.meta.env.DEV || process.env.NODE_ENV === 'test') {
-            const normalizedSlug = normalizeForCache(slug, 'space');
-            console.log(`[SpaceCache] Shim: Checking local FS...`);
-            try {
-                const fs = await import('fs');
-                const localPath = 'G:/ai-nexus/data/merged.json';
-                if (fs.existsSync(localPath)) {
-                    const data = JSON.parse(fs.readFileSync(localPath, 'utf-8'));
-                    const found = data.find(m => normalizeForCache(m.slug || m.id, 'space') === normalizedSlug);
-                    if (found) return { ...found, _cache_source: 'local-fs-shim' };
-                }
-            } catch (e) {
-                console.error('[SpaceCache] Shim Error:', e);
-            }
-        }
-        console.warn('[SpaceCache] R2 not available');
-        return null;
+    const result = await fetchEntityFromR2('space', slug, locals);
+    if (result) {
+        return {
+            ...result.entity,
+            _cache_source: 'r2-cache',
+            _contract_version: result.entity._contract_version || 'V15',
+        };
     }
 
-    const normalizedSlug = normalizeForCache(slug, 'space');
-
-    // V14: Constitutional cache path - only use cache/entities/space/
-    // V15.0 Fix: Robust multi-path lookup
-    const rawSlug = slug.replace(/\//g, '--').replace(/:/g, '--');
-    const cachePaths = [
-        `cache/entities/space/${normalizedSlug}.json`,
-        `cache/entities/space/huggingface--${rawSlug}.json`,
-        `cache/entities/space/${rawSlug}.json`
-    ];
-
-    for (const cachePath of cachePaths) {
+    // Dev Shim
+    if (import.meta.env.DEV || process.env.NODE_ENV === 'test') {
+        console.log(`[SpaceCache] Shim: Checking local FS...`);
         try {
-            const cacheFile = await r2.get(cachePath);
-            if (cacheFile) {
-                const cacheData = await cacheFile.json();
-                console.log(`[SpaceCache] R2 HIT: ${cachePath}`);
-                return {
-                    ...cacheData.entity || cacheData,
-                    _cache_source: 'r2-cache',
-                    _contract_version: cacheData.contract_version,
-                };
+            const fs = await import('fs');
+            const localPath = 'G:/ai-nexus/data/merged.json';
+            if (fs.existsSync(localPath)) {
+                const data = JSON.parse(fs.readFileSync(localPath, 'utf-8'));
+                // Use core normalization for shim matching
+                const { normalizeEntitySlug } = await import('./entity-cache-reader-core.js');
+                const targetId = normalizeEntitySlug(slug, 'space');
+                const found = data.find(m => normalizeEntitySlug(m.id || m.slug, 'space') === targetId);
+                if (found) return { ...found, _cache_source: 'local-fs-shim' };
             }
-        } catch (e) {
-            console.warn(`[SpaceCache] R2 read error for ${cachePath}:`, e.message);
-        }
+        } catch (e) { }
     }
 
-    console.log(`[SpaceCache] MISS: ${normalizedSlug}`);
+    return null;
+}
+
+/**
+ * V15.1: Get tool data from R2 cache
+ */
+export async function getToolFromCache(slug, locals) {
+    if (!slug) return null;
+
+    const result = await fetchEntityFromR2('tool', slug, locals);
+    if (result) {
+        return {
+            ...result.entity,
+            _cache_source: 'r2-cache',
+            _contract_version: result.entity._contract_version || 'V15',
+        };
+    }
+
+    // Dev Shim
+    if (import.meta.env.DEV || process.env.NODE_ENV === 'test') {
+        try {
+            const fs = await import('fs');
+            const localPath = 'G:/ai-nexus/data/merged.json';
+            if (fs.existsSync(localPath)) {
+                const data = JSON.parse(fs.readFileSync(localPath, 'utf-8'));
+                const { normalizeEntitySlug } = await import('./entity-cache-reader-core.js');
+                const targetId = normalizeEntitySlug(slug, 'tool');
+                const found = data.find(m => normalizeEntitySlug(m.id || m.slug, 'tool') === targetId);
+                if (found) return { ...found, _cache_source: 'local-fs-shim' };
+            }
+        } catch (e) { }
+    }
+
     return null;
 }
 

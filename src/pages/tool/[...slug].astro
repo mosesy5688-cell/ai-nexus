@@ -15,6 +15,7 @@ import UniversalCore from '../../components/entity/UniversalCore.astro';
 import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
+import { getToolFromCache } from '../../utils/entity-cache-reader-v6.js';
 
 const { slug } = Astro.params;
 const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -23,34 +24,10 @@ let tool: any = null;
 let cacheVersion = '';
 
 try {
-  const runtime = Astro.locals.runtime;
-  if (runtime?.env?.R2_ASSETS) {
-    const r2 = runtime.env.R2_ASSETS;
-    // V15.0 Fix: Robust multi-path lookup for Tools (GitHub/HF sources)
-    const normalizedSlug = displaySlug.replace(/\//g, '--').toLowerCase();
-    const cachePaths = [
-        `cache/entities/tool/${normalizedSlug}.json`,
-        `cache/entities/tool/github--${normalizedSlug}.json`, 
-        `cache/entities/tool/huggingface--${normalizedSlug}.json`,
-        `cache/entities/tool/${displaySlug}.json` // Fallback for simple slugs
-    ];
-
-    let cacheFile = null;
-    let hitPath = '';
-
-    for (const path of cachePaths) {
-        cacheFile = await r2.get(path);
-        if (cacheFile) {
-            hitPath = path;
-            break;
-        }
-    }
-
-    if (cacheFile) {
-      const data = await cacheFile.json();
-      tool = data.entity || data;
-      cacheVersion = data._contract_version || 'V15';
-    }
+  // V15.1: Use standardized tool reader
+  tool = await getToolFromCache(slug, Astro.locals);
+  if (tool) {
+    cacheVersion = tool._contract_version || 'V15';
   }
 } catch (e) {
   console.error('[Tool Page] Cache error:', e);

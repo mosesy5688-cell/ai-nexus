@@ -90,4 +90,21 @@ export const TIER_ECOSYSTEM_ENTITIES: Record<string, EntityDefinition> = {
             labelPlural: 'Deployments',
         },
     },
+
+    tool: {
+        type: 'tool',
+        schema: 'entity.v1',
+        idPrefix: 'tool--',
+        seoType: 'SoftwareApplication',
+        tier: 'ecosystem',
+        capabilities: ['benchmark', 'integrations', 'architecture'],
+        modules: ['BenchmarkModule', 'IntegrationsModule', 'ArchitectureModule'],
+        requiredFields: ['name', 'author', 'source_url'],
+        display: {
+            icon: '🛠️',
+            color: 'purple',
+            labelSingular: 'Tool',
+            labelPlural: 'Tools',
+        },
+    },
 };

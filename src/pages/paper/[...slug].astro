@@ -25,6 +25,7 @@ let cacheVersion = '';
 import { getPaperFromCache } from '../../utils/entity-cache-reader-v6';
 
 try {
+  // slug can be array from [...slug]
   paper = await getPaperFromCache(slug, Astro.locals);
   if (paper) {
     cacheVersion = paper._contract_version || 'V15';
