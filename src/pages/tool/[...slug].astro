@@ -13,6 +13,7 @@ import { getUseCases } from '../../utils/inference';
 import DataFreshness from '../../components/common/DataFreshness.astro';
 import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
 import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
+import FullMetadata from '../../components/entity/FullMetadata.astro';
 
 const { slug } = Astro.params;
 const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
