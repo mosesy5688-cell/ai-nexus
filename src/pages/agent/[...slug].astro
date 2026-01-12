@@ -16,7 +16,7 @@ import UniversalCore from '../../components/entity/UniversalCore.astro';
 import { getUseCases } from '../../utils/inference';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 
-import { fetchEntityFromR2, normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import { ENTITY_DEFINITIONS } from '../../data/entity-definitions';
 
 const { slug } = Astro.params;
@@ -34,7 +34,22 @@ try {
   
   const result = await fetchEntityFromR2('agent', normalizedSlug, Astro.locals);
   if (result) {
-    agent = result.entity;
+    agent = hydrateEntity(result, 'agent');
+  } else {
+    // V15.6 Fallback Logic
+    const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+    const cleanSlug = slugStr.replace(/--/g, '/');
+    const parts = cleanSlug.split('/');
+    
+    agent = {
+      id: `agent--${slugStr.replace(/\//g, '--')}`,
+      name: parts.pop() || 'Unknown Agent',
+      author: parts.join('/') || 'github',
+      description: `Autonomous AI agent: ${cleanSlug}`,
+      source_url: `https://github.com/${cleanSlug}`,
+      tags: [],
+      _cache_source: 'fallback-ui'
+    };
   }
 
   if (agent) {

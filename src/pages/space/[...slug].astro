@@ -15,6 +15,7 @@ import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
+import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import { getSpaceFromCache } from '../../utils/entity-cache-reader-v6.js';
 
 const { slug } = Astro.params;
@@ -28,9 +29,30 @@ let cacheVersion = '';
 
 try {
   // V15.1: getSpaceFromCache now uses unified core reader
-  space = await getSpaceFromCache(slug, Astro.locals);
+  const result = await fetchEntityFromR2('space', slug, Astro.locals);
+  space = hydrateEntity(result, 'space');
+  
   if (space) {
     cacheVersion = space._contract_version || 'V15';
+  } else {
+    // V15.6 Fallback Logic (Mirroring /spaces/ route)
+    const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+    const cleanSlug = slugStr.replace(/--/g, '/');
+    const parts = cleanSlug.split('/');
+    
+    space = {
+      id: `hf-space--${slugStr.replace(/\//g, '--')}`,
+      name: parts.pop() || 'Unknown Space',
+      author: parts.join('/') || 'huggingface',
+      likes: 0,
+      sdk: 'gradio',
+      running_status: 'RUNNING',
+      description: `Interactive AI demo: ${cleanSlug}`,
+      source_url: `https://huggingface.co/spaces/${cleanSlug}`,
+      embed_url: `https://huggingface.co/spaces/${cleanSlug}?embed=true`,
+      _cache_source: 'fallback-ui'
+    };
+    cacheVersion = 'Fallback';
   }
 } catch (e) {
   console.error('[Space Page] Cache error:', e);
