@@ -138,6 +138,8 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
                 stars={entity.github_stars || entity.stars}
                 forks={entity.github_forks || entity.forks}
                 openIssues={entity.github_issues}
+                fniScore={entity.fni_score}
+                fniPercentile={entity.fni_percentile}
              />
           )}
           <slot name="sidebar" />

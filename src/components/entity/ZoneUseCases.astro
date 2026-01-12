@@ -2,6 +2,7 @@
 /**
  * ZoneUseCases - V15.0 Zone 1.5
  * Displays inferred "Good For" and "Limit" badges for quick evaluation.
+ * Follows the "Scene Translation" philosophy - converting tags to scenarios.
  */
 interface Props {
   goodFor: string[];
@@ -9,37 +10,77 @@ interface Props {
 }
 
 const { goodFor = [], limits = [] } = Astro.props;
+
+// Icon mapping for common curated labels
+const getIcon = (label: string) => {
+  const l = label.toLowerCase();
+  if (l.includes('chat')) return '💬';
+  if (l.includes('code') || l.includes('coding')) return '💻';
+  if (l.includes('translate')) return '🌐';
+  if (l.includes('summary')) return '📝';
+  if (l.includes('rag')) return '📚';
+  if (l.includes('art') || l.includes('image')) return '🎨';
+  if (l.includes('vision')) return '👁️';
+  if (l.includes('performance') || l.includes('sota')) return '🏆';
+  if (l.includes('research')) return '🔬';
+  if (l.includes('orchestration')) return '⚙️';
+  return '✨';
+};
 ---
 
-<section class="bg-gray-50 dark:bg-gray-800/40 rounded-xl p-6 border border-gray-100 dark:border-gray-700/50 mb-8 shadow-inner">
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <!-- Good For -->
-    <div>
-      <h3 class="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-        <span>✅ Best For</span>
-        <span class="h-px flex-1 bg-green-100 dark:bg-green-900/30"></span>
-      </h3>
-      <div class="flex flex-wrap gap-2">
+<section class="relative overflow-hidden bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/50 mb-12 shadow-sm">
+  {/* Decorator */}
+  <div class="absolute -top-12 -right-12 w-24 h-24 bg-indigo-500/5 dark:bg-indigo-400/5 rounded-full blur-3xl"></div>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+    <!-- Good For: Scene Translation -->
+    <div class="space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center justify-center w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">
+          Best Scenarios
+        </h3>
+      </div>
+      
+      <div class="flex flex-col gap-2">
         {goodFor.map(item => (
-          <span class="px-3 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg text-sm font-semibold border border-green-100 dark:border-green-800/50">
-            {item}
-          </span>
+          <div class="flex items-center gap-3 p-2 rounded-lg hover:bg-white dark:hover:bg-gray-800 transition-colors border border-transparent hover:border-gray-100 dark:hover:border-gray-700">
+            <span class="text-xl filter drop-shadow-sm">{getIcon(item)}</span>
+            <span class="text-sm font-bold text-gray-700 dark:text-gray-300">
+              {item}
+            </span>
+          </div>
         ))}
+        {goodFor.length === 0 && <span class="text-xs italic text-gray-400">Evaluating capabilities...</span>}
       </div>
     </div>
 
-    <!-- Limits -->
-    <div>
-      <h3 class="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-        <span>⚠️ Considerations</span>
-        <span class="h-px flex-1 bg-amber-100 dark:bg-amber-900/30"></span>
-      </h3>
-      <div class="flex flex-wrap gap-2">
+    <!-- Limits: Technical Constraints -->
+    <div class="space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+          </svg>
+        </div>
+        <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">
+          Technical Constraints
+        </h3>
+      </div>
+      
+      <div class="flex flex-col gap-2">
         {limits.map(item => (
-          <span class="px-3 py-1 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 rounded-lg text-sm font-semibold border border-amber-100 dark:border-amber-800/50">
-            {item}
-          </span>
+          <div class="flex items-center gap-3 p-2 rounded-lg border border-dashed border-gray-200 dark:border-gray-700/60 bg-gray-50/30 dark:bg-gray-800/20">
+            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">
+              {item}
+            </span>
+          </div>
         ))}
+        {limits.length === 0 && <span class="text-xs italic text-gray-400">No major constraints identified.</span>}
       </div>
     </div>
   </div>

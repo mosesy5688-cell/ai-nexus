@@ -96,12 +96,8 @@ const modelName = model?.name || model?.canonical_name || 'Unknown Model';
 const modelId = model?.umid || model?.id || '';
 
 // V15.0: Derived Use Cases and Limits
-const derivedUseCases = model ? getUseCases(Array.isArray(model.tags) ? model.tags : [], model.pipeline_tag, 'model', model.fni_score) : { goodFor: [], limits: [] };
+const derivedUseCases = model ? getUseCases(tagsArray, model.pipeline_tag, 'model', model.fni_score) : { goodFor: [], limits: [] };
 
-const cleanDescriptionFn = (desc) => !desc ? '' : desc
-  .replace(/^---[\s\S]*?---\s*/m, '').replace(/^---\s*\n?[\s\S]*$/m, '')
-  .replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
-const cleanDesc = cleanDescriptionFn(model?.description);
 const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') : slug, coverImage);
 ---
 
@@ -123,7 +119,7 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
       verified={false} 
       author={model?.author}
       lastUpdated={model?.last_updated}
-      description={model?.seo_summary?.description || cleanDesc}
+      description={model?.seo_summary?.description || cleanedDesc}
       fniScore={model?.fni_score}
       fniPercentile={model?.fni_percentile}
     >

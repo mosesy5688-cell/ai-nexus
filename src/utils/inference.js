@@ -38,10 +38,15 @@ export const USE_CASE_MAP = {
 export function getUseCases(tags = [], pipelineTag = '', entityType = 'model', fniScore = 0) {
     const goodFor = new Set();
     const limits = new Set();
-    const allTags = [...(tags || []), pipelineTag].filter(Boolean).map(t => t.toLowerCase());
+
+    // Defensive check for tags
+    const safeTags = Array.isArray(tags) ? tags : [];
+    const allTags = [...safeTags, pipelineTag].filter(Boolean).map(t => String(t).toLowerCase());
+
+    const safeType = entityType || 'model';
 
     // 1. Entity Type Logic
-    if (entityType === 'model') {
+    if (safeType === 'model') {
         if (allTags.includes('text-generation')) goodFor.add('Chat & Dialogue');
         if (allTags.includes('code') || allTags.includes('python')) goodFor.add('Coding Assistant');
         if (allTags.includes('translation')) goodFor.add('Translation');
@@ -54,7 +59,7 @@ export function getUseCases(tags = [], pipelineTag = '', entityType = 'model', f
         if (allTags.includes('small-model')) limits.add('Limited Complexity');
     }
 
-    else if (entityType === 'agent') {
+    else if (safeType === 'agent') {
         if (allTags.includes('framework')) goodFor.add('Agent Orchestration');
         if (allTags.includes('mcp-server')) goodFor.add('External Tools');
         if (allTags.includes('autonomous')) goodFor.add('Long-term Planning');
@@ -63,7 +68,7 @@ export function getUseCases(tags = [], pipelineTag = '', entityType = 'model', f
         limits.add('Requires API Keys');
     }
 
-    else if (entityType === 'paper') {
+    else if (safeType === 'paper') {
         if (allTags.includes('nlp')) goodFor.add('Language Theory');
         if (allTags.includes('cv')) goodFor.add('Object Detection');
         if (allTags.includes('benchmark')) goodFor.add('Model Analytics');
@@ -73,20 +78,20 @@ export function getUseCases(tags = [], pipelineTag = '', entityType = 'model', f
         limits.add('Academic Implementation');
     }
 
-    else if (entityType === 'dataset') {
-        if (allTags.includes('sft')) goodFor.add('Instruction Tuning');
-        if (allTags.includes('rlhf')) goodFor.add('Alignment Training');
-        if (allTags.includes('pretrain')) goodFor.add('Base Training');
+    else if (safeType === 'dataset') {
+        if (allTags.includes('sft')) { goodFor.add('Instruction Tuning'); }
+        if (allTags.includes('rlhf')) { goodFor.add('Alignment Training'); }
+        if (allTags.includes('pretrain')) { goodFor.add('Base Training'); }
 
-        if (goodFor.size === 0) goodFor.add('Data Science');
+        if (goodFor.size === 0) { goodFor.add('Data Science'); }
     }
 
-    else if (entityType === 'space') {
+    else if (safeType === 'space') {
         goodFor.add('Interactive UI Demo');
         if (allTags.includes('chat')) goodFor.add('Live Sandbox');
     }
 
-    else if (entityType === 'tool') {
+    else if (safeType === 'tool') {
         goodFor.add('Developer SDK');
         if (allTags.includes('deployment')) goodFor.add('Model Serving');
     }
@@ -113,13 +118,18 @@ export function getQuickInsights(entity, type) {
 
     // Helper to format numbers (e.g. 1.2M)
     const formatNum = (n) => {
-        if (!n) return '-';
-        if (n > 1000000) return (n / 1000000).toFixed(1) + 'M';
-        if (n > 1000) return (n / 1000).toFixed(1) + 'K';
-        return n;
+        if (n === null || n === undefined || isNaN(n)) return '-';
+        const num = Number(n);
+        if (num > 1000000) return (num / 1000000).toFixed(1) + 'M';
+        if (num > 1000) return (num / 1000).toFixed(1) + 'K';
+        return num;
     };
 
-    if (type === 'model') {
+    if (!entity) return insights;
+
+    const safeType = type || 'model';
+
+    if (safeType === 'model') {
         insights.push({ label: 'Params', value: entity.params_billions ? `${entity.params_billions}B` : '-' });
         insights.push({ label: 'Context', value: entity.context_length ? `${Math.round(entity.context_length / 1024)}k` : '-' });
         insights.push({ label: 'Downloads', value: formatNum(entity.downloads) });
@@ -127,35 +137,35 @@ export function getQuickInsights(entity, type) {
         if (entity.has_gguf) insights.push({ label: 'Format', value: 'GGUF ✓', highlight: true });
     }
 
-    else if (type === 'agent') {
+    else if (safeType === 'agent') {
         insights.push({ label: 'Tools', value: entity.tools_count || '-' });
         insights.push({ label: 'Language', value: entity.language || 'Python' });
         insights.push({ label: 'Stars', value: formatNum(entity.stars || entity.github_stars) });
         insights.push({ label: 'Verified', value: entity.verified ? 'Yes' : 'No', highlight: entity.verified });
     }
 
-    else if (type === 'dataset') {
+    else if (safeType === 'dataset') {
         insights.push({ label: 'Size', value: entity.size_gb ? `${entity.size_gb} GB` : '-' });
         insights.push({ label: 'Rows', value: formatNum(entity.rows) });
         insights.push({ label: 'Format', value: entity.format || 'Parquet' });
         insights.push({ label: 'Likes', value: formatNum(entity.likes) });
     }
 
-    else if (type === 'paper') {
+    else if (safeType === 'paper') {
         insights.push({ label: 'Citations', value: formatNum(entity.citations || entity.citation_count) });
-        insights.push({ label: 'Published', value: entity.published_date ? new Date(entity.published_date).getFullYear() : '2024' });
+        insights.push({ label: 'Published', value: entity.published_date ? new Date(entity.published_date).getFullYear() : (entity.year || '2024') });
         insights.push({ label: 'Pages', value: entity.pages || 'N/A' });
-        insights.push({ label: 'FNI Rank', value: entity.fni_score ? `Top ${100 - (entity.fni_percentile || 0)}%` : '-', highlight: true });
+        insights.push({ label: 'FNI Rank', value: (entity.fni_score || entity.fni_percentile) ? `Top ${100 - (entity.fni_percentile || 0)}%` : '-', highlight: true });
     }
 
-    else if (type === 'space') {
+    else if (safeType === 'space') {
         insights.push({ label: 'SDK', value: entity.sdk || 'Gradio' });
         insights.push({ label: 'Config', value: entity.hardware || 'CPU' });
         insights.push({ label: 'Status', value: entity.runtime?.stage || 'Running', highlight: true });
         insights.push({ label: 'Likes', value: formatNum(entity.likes) });
     }
 
-    else if (type === 'tool') {
+    else if (safeType === 'tool') {
         insights.push({ label: 'Lang', value: entity.language || '-' });
         insights.push({ label: 'Stars', value: formatNum(entity.stars || entity.github_stars) });
         insights.push({ label: 'Version', value: entity.version || 'v1.0.0' });
