@@ -12,6 +12,7 @@
 import Layout from '../layouts/Layout.astro';
 import QuickInsights from '../components/entity/QuickInsights.astro';
 import CommunityStats from '../components/model-detail/CommunityStats.astro';
+import EntityStickyHeader from '../components/entity/EntityStickyHeader.astro';
 import { getUseCases } from '../utils/inference';
 
 export interface Props {
@@ -43,25 +44,13 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
   </Layout>
 ) : (
   <Layout title={title} description={description} image={image} jsonld={jsonld}>
-    {/* Mobile Sticky Header (Zone 1 Compact) */}
-    <div id="sticky-header" class="fixed top-0 left-0 right-0 z-50 glass-effect shadow-lg transform -translate-y-full transition-all duration-500 lg:hidden px-4 py-3 flex items-center justify-between border-b border-gray-200/50 dark:border-gray-800/50">
-      <div class="flex items-center gap-3 min-w-0">
-        <span class="text-xl">{type === 'model' ? '🧠' : type === 'agent' ? '🤖' : type === 'dataset' ? '📊' : type === 'paper' ? '📄' : type === 'space' ? '🎮' : '🛠️'}</span>
-        <div class="flex flex-col truncate">
-          <span class="font-black text-gray-900 dark:text-gray-100 truncate text-sm leading-tight">{displayId}</span>
-          <span class="text-[10px] text-gray-500 font-bold uppercase tracking-tighter opacity-70">{type} by {entity.author || 'Unknown'}</span>
-        </div>
-      </div>
-      
-      <div class="flex items-center gap-3">
-        {entity.fni_score && (
-          <div class="px-2 py-0.5 bg-indigo-600 text-white rounded shadow-fni-pulse text-[10px] font-black flex items-center gap-1 animate-pulse-subtle">
-             <span class="opacity-80">⭐</span> {entity.fni_score}
-          </div>
-        )}
-        <slot name="actions-mobile" />
-      </div>
-    </div>
+    <EntityStickyHeader 
+      type={type} 
+      entity={entity} 
+      displayId={displayId}
+    >
+      <slot name="actions-mobile" slot="actions-mobile" />
+    </EntityStickyHeader>
 
     <main class="container mx-auto px-4 py-8 max-w-7xl animate-fade-in relative">
       
@@ -174,17 +163,6 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
   </Layout>
 )}
 <script is:inline>
-  // Mobile Sticky Header Logic
-  const stickyHeader = document.getElementById('sticky-header');
-  if (stickyHeader) {
-    window.addEventListener('scroll', () => {
-      if (window.scrollY > 120) {
-        stickyHeader.classList.remove('-translate-y-full');
-      } else {
-        stickyHeader.classList.add('-translate-y-full');
-      }
-    }, { passive: true });
-  }
 
   // V15.0: Mobile Zone 3 Tab Logic with Persistence
   const tabs = document.querySelectorAll('.z3-tab-btn');
