@@ -11,41 +11,15 @@
 
 export { getDatasetFromCache, getPaperFromCache } from './entity-cache-reader-depth.js';
 
-import { fetchEntityFromR2 } from './entity-cache-reader-core.js';
+import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity } from './entity-cache-reader-core.js';
 
 /**
  * V6.2: Get space data from R2 cache for detail page
  */
 export async function getSpaceFromCache(slug, locals) {
     if (!slug) return null;
-
     const result = await fetchEntityFromR2('space', slug, locals);
-    if (result) {
-        return {
-            ...result.entity,
-            _cache_source: 'r2-cache',
-            _contract_version: result.entity._contract_version || 'V15',
-        };
-    }
-
-    // Dev Shim
-    if (import.meta.env.DEV || process.env.NODE_ENV === 'test') {
-        console.log(`[SpaceCache] Shim: Checking local FS...`);
-        try {
-            const fs = await import('fs');
-            const localPath = 'G:/ai-nexus/data/merged.json';
-            if (fs.existsSync(localPath)) {
-                const data = JSON.parse(fs.readFileSync(localPath, 'utf-8'));
-                // Use core normalization for shim matching
-                const { normalizeEntitySlug } = await import('./entity-cache-reader-core.js');
-                const targetId = normalizeEntitySlug(slug, 'space');
-                const found = data.find(m => normalizeEntitySlug(m.id || m.slug, 'space') === targetId);
-                if (found) return { ...found, _cache_source: 'local-fs-shim' };
-            }
-        } catch (e) { }
-    }
-
-    return null;
+    return hydrateEntity(result, 'space');
 }
 
 /**
@@ -53,32 +27,8 @@ export async function getSpaceFromCache(slug, locals) {
  */
 export async function getToolFromCache(slug, locals) {
     if (!slug) return null;
-
     const result = await fetchEntityFromR2('tool', slug, locals);
-    if (result) {
-        return {
-            ...result.entity,
-            _cache_source: 'r2-cache',
-            _contract_version: result.entity._contract_version || 'V15',
-        };
-    }
-
-    // Dev Shim
-    if (import.meta.env.DEV || process.env.NODE_ENV === 'test') {
-        try {
-            const fs = await import('fs');
-            const localPath = 'G:/ai-nexus/data/merged.json';
-            if (fs.existsSync(localPath)) {
-                const data = JSON.parse(fs.readFileSync(localPath, 'utf-8'));
-                const { normalizeEntitySlug } = await import('./entity-cache-reader-core.js');
-                const targetId = normalizeEntitySlug(slug, 'tool');
-                const found = data.find(m => normalizeEntitySlug(m.id || m.slug, 'tool') === targetId);
-                if (found) return { ...found, _cache_source: 'local-fs-shim' };
-            }
-        } catch (e) { }
-    }
-
-    return null;
+    return hydrateEntity(result, 'tool');
 }
 
 

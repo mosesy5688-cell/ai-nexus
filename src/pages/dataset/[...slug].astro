@@ -15,6 +15,7 @@ import UniversalCore from '../../components/entity/UniversalCore.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 
 import EntityZones from '../../components/entity/EntityZones.astro';
+import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import { getDatasetFromCache } from '../../utils/entity-cache-reader-v6';
 // Get slug from URL
 const { slug } = Astro.params;
@@ -28,7 +29,9 @@ let recommendedModels: any[] = [];
 let cacheVersion = '';
 try {
   // V15.1: getDatasetFromCache now uses unified core reader
-  dataset = await getDatasetFromCache(slug, Astro.locals);
+  const result = await fetchEntityFromR2('dataset', slug, Astro.locals);
+  dataset = hydrateEntity(result, 'dataset');
+  
   if (dataset) {
     cacheVersion = dataset._contract_version || 'V15';
     
@@ -47,6 +50,22 @@ try {
           }).slice(0, 6);
       }
     }
+  } else {
+    // V15.6 Fallback Logic
+    const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+    const cleanSlug = slugStr.replace(/--/g, '/');
+    const parts = cleanSlug.split('/');
+    
+    dataset = {
+      id: `hf-dataset--${slugStr.replace(/\//g, '--')}`,
+      name: parts.pop() || 'Unknown Dataset',
+      author: parts.join('/') || 'huggingface',
+      description: `AI research dataset: ${cleanSlug}`,
+      source_url: `https://huggingface.co/datasets/${cleanSlug}`,
+      tags: [],
+      _cache_source: 'fallback-ui'
+    };
+    cacheVersion = 'Fallback';
   }
 } catch (e) { console.error('[Dataset Page] Cache error:', e); }
 

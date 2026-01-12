@@ -22,11 +22,12 @@ const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
 let paper: any = null;
 let cacheVersion = '';
 
+import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import { getPaperFromCache } from '../../utils/entity-cache-reader-v6';
 
 try {
-  // slug can be array from [...slug]
-  paper = await getPaperFromCache(slug, Astro.locals);
+  const result = await fetchEntityFromR2('paper', slug, Astro.locals);
+  paper = hydrateEntity(result, 'paper');
   if (paper) {
     cacheVersion = paper._contract_version || 'V15';
   }
