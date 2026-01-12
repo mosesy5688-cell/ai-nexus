@@ -128,9 +128,7 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
         </div>
 
         {/* RIGHT COLUMN: Sidebar Ecosystem (Sticky) */}
-        <aside id="sidebar-zone" class="lg:col-span-4 sticky top-10 space-y-12 self-start pt-0">
-          
-          {/* Zone 2: COMMUNITY STATS (Sidebar Part - Now strictly aligned with Use Cases) */}
+        <aside id="sidebar-zone" class="lg:col-span-4 sticky top-10 flex flex-col gap-12 self-start pt-0">
           {hasEntity && (
              <CommunityStats 
                 source={entity.source || 'huggingface'}
@@ -142,12 +140,8 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
                 openIssues={entity.github_issues}
              />
           )}
-
           <slot name="sidebar" />
-          
-          {/* Zone 5 Sub-slot */}
           <slot name="community-sidebar" />
-          
           <div class="pt-8 border-t border-gray-50 dark:border-gray-800">
              <slot name="community" />
           </div>

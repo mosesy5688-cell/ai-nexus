@@ -49,14 +49,11 @@ try {
     model.entityType = resolution.type;
     model.entityDefinition = ENTITY_DEFINITIONS[model.entityType];
 
-
     // Similar models logical stub (D1 banned)
     if (model.similar_models && Array.isArray(model.similar_models)) {
-        // V6.3: Resolve IDs if they are strings (from similarity-compute)
         const rawSimilar = model.similar_models;
         const resolvedPromises = rawSimilar.map(async (item) => {
             if (typeof item === 'string') {
-                // Fetch minimal model info for card (name, author, stats)
                 return await getModelFromCache(item, Astro.locals);
             }
             return item;
@@ -69,14 +66,13 @@ try {
     const modelName = model.name || model.canonical_name || model.id || 'Unknown Model';
     pageTitle = `${modelName} - AI Model Insights & Benchmarks`;
     
-    // Clean description: remove frontmatter, HTML, normalize whitespace
-    const cleanDescription = (desc) => !desc ? '' : desc
+    const cleanDescriptionFn = (desc) => !desc ? '' : desc
       .replace(/^---[\s\S]*?---\s*/m, '').replace(/^---\s*\n?[\s\S]*$/m, '')
       .replace(/\blibrary_name:\s*\w+/gi, '').replace(/\blicense:\s*[^\s]+/gi, '')
       .replace(/\bpipeline_tag:\s*\w+/gi, '').replace(/\bbase_model\b[^.]*\.?/gi, '')
       .replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
     
-    const cleanedDesc = cleanDescription(model.description);
+    const cleanedDesc = cleanDescriptionFn(model.description);
     pageDescription = model.seo_summary?.description || 
                       (cleanedDesc ? cleanedDesc.substring(0, 160) : `Deep dive into ${modelName}.`);
   }
@@ -85,10 +81,11 @@ try {
   error = e;
   Astro.response.status = 500;
 }
+
 if (!model && !error) {
   Astro.response.status = 404;
-  Astro.response.headers.set('Cache-Control', 'no-store, no-cache, max-age=0');
 }
+
 // Capability Gating
 const hasFNI = hasCapability(model, 'fni_score') && (model?.fni_score !== undefined || model?.fni_percentile !== undefined);
 const hasBenchmarks = hasCapability(model, 'benchmarks');
@@ -101,14 +98,13 @@ const modelId = model?.umid || model?.id || '';
 // V15.0: Derived Use Cases and Limits
 const derivedUseCases = model ? getUseCases(Array.isArray(model.tags) ? model.tags : [], model.pipeline_tag, 'model', model.fni_score) : { goodFor: [], limits: [] };
 
-if (model) {
-    pageTitle = `${modelName} - AI Model Insights & Benchmarks`;
-    pageDescription = model.seo_summary?.description || (cleanDescription(model.description)?.substring(0, 160) || `Deep dive into ${modelName}.`);
-}
-
-const cleanDesc = cleanDescription(model?.description);
+const cleanDescriptionFn = (desc) => !desc ? '' : desc
+  .replace(/^---[\s\S]*?---\s*/m, '').replace(/^---\s*\n?[\s\S]*$/m, '')
+  .replace(/<[^>]*>?/gm, '').replace(/\s+/g, ' ').trim();
+const cleanDesc = cleanDescriptionFn(model?.description);
 const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') : slug, coverImage);
 ---
+
 <EntityLayout 
   entity={model} 
   type="model" 
@@ -132,13 +128,13 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
       fniPercentile={model?.fni_percentile}
     >
        <div slot="actions" class="flex gap-2">
-          {/* V15.0 Compact Header Actions only (Download/Source) */}
           <a href={model?.source_url} target="_blank" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-sm hover:shadow-md transition-all">
              View Source
           </a>
        </div>
     </EntityHeader>
 
+    {/* Zone 1.5: Use Cases */}
     <ZoneUseCases 
       slot="use-cases" 
       goodFor={derivedUseCases.goodFor} 
@@ -215,8 +211,12 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
        </div>
     </div>
 
-    <div slot="sidebar" class="space-y-8">
+    <div slot="sidebar" class="space-y-12">
        <ModelSidebar model={model} modelId={modelId} />
+       <ModelNavigation 
+          pipelineTag={model?.pipeline_tag}
+          hasGguf={model?.has_gguf}
+       />
     </div>
 
     <div slot="full-metadata">
@@ -227,11 +227,4 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
     <div slot="community">
         <AiDisclaimer source={model?.source} lastUpdated={model?.last_updated} />
     </div>
-</EntityLayout>
-          <ModelNavigation 
-             pipelineTag={model?.pipeline_tag}
-             hasGguf={model?.has_gguf}
-          />
-       </div>
-   </div>
 </EntityLayout>
