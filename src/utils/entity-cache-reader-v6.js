@@ -12,7 +12,6 @@
 export { getDatasetFromCache, getPaperFromCache } from './entity-cache-reader-depth.js';
 
 import { fetchEntityFromR2 } from './entity-cache-reader-core.js';
-export { getDatasetFromCache, getPaperFromCache } from './entity-cache-reader-depth.js';
 
 /**
  * V6.2: Get space data from R2 cache for detail page
