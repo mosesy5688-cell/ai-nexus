@@ -33,29 +33,46 @@ import Layout from '../layouts/Layout.astro';
                     const msg = document.getElementById('redirect-message');
                     const searchBtn = document.getElementById('search-fallback');
                     
-                    // 1. Check for old key format (owner--name -> owner/name)
+                    // 1. Plural to Singular Correction (e.g., /models/ -> /model/)
+                    const pluralMappings = {
+                        '/models/': '/model/',
+                        '/papers/': '/paper/',
+                        '/spaces/': '/space/',
+                        '/datasets/': '/dataset/',
+                        '/agents/': '/agent/'
+                    };
+
+                    for (const [plural, singular] of Object.entries(pluralMappings)) {
+                        if (path.startsWith(plural)) {
+                            const newPath = path.replace(plural, singular);
+                            if (msg) msg.classList.remove('hidden');
+                            setTimeout(() => window.location.href = newPath, 800);
+                            return;
+                        }
+                    }
+
+                    // 2. Check for old key format (owner--name -> owner/name)
                     if (path.includes('--')) {
                         const newPath = path.replace(/--/g, '/');
                         if (msg) msg.classList.remove('hidden');
-                        setTimeout(() => window.location.href = newPath, 1000); // Small delay to prevent redirect loops if wrong
+                        setTimeout(() => window.location.href = newPath, 1000); 
                         return;
                     }
 
-                    // 2. Check for encoded colons (huggingface: -> /)
+                    // 3. Check for encoded colons (huggingface: -> /)
                     if (path.includes('%3A') || path.includes(':')) {
                          const clean = decodeURIComponent(path).replace(/[a-z]+:/i, '');
                          const parts = clean.split('/');
-                         // Ensure /model prefix if missing
                          const newPath = clean.startsWith('/') ? clean : `/model/${clean}`;
                          if (msg) msg.classList.remove('hidden');
                          setTimeout(() => window.location.href = newPath, 1000);
                          return;
                     }
 
-                    // 3. Last Fail-Safe: Redirect to Search
+                    // 4. Last Fail-Safe: Redirect to Search
                     const segments = path.split('/').filter(Boolean);
                     if (segments.length > 0) {
-                        const query = segments[segments.length - 1]; // Last part is usually the name
+                        const query = segments[segments.length - 1]; 
                         if (searchBtn) {
                             searchBtn.href = `/search?q=${encodeURIComponent(query)}`;
                             searchBtn.textContent = `Search for "${query}"`;
