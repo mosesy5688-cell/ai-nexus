@@ -2,9 +2,11 @@
 export const prerender = false;
 import Layout from '../../layouts/Layout.astro';
 import EntityLayout from '../../layouts/EntityLayout.astro';
+import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
 import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference';
+import FullMetadata from '../../components/entity/FullMetadata.astro';
 import ModelMainColumn from '../../components/model-detail/ModelMainColumn.astro';
 import ModelSidebar from '../../components/model-detail/ModelSidebar.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
@@ -15,10 +17,9 @@ import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.ast
 import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import EntityRelations from '../../components/entity/EntityRelations.astro';
-import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
-import ModelNotFound from '../../components/model-detail/ModelNotFound.astro';
-import QuickStart from '../../components/model-detail/QuickStart.astro';
+import CoreDesktop from '../../components/model-detail/CoreDesktop.astro';
 import MiniTrendChart from '../../components/charts/MiniTrendChart.astro';
+import FullMetadata from '../../components/entity/FullMetadata.astro';
 import ModelZones from '../../components/model-detail/ModelZones.astro';
 import { getModelFromCache } from '../../utils/entity-cache-reader';
 import CoreDesktop from '../../components/model-detail/CoreDesktop.astro';

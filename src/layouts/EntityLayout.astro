@@ -102,49 +102,50 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start mb-16">
         
         {/* Main Content Column (Zones 3-4 Mobile Hybrid) */}
-        <div class="lg:col-span-8 space-y-16">
-          
-          {/* Zone 3 Desktop Core */}
-          <section class="hidden md:block">
-            <slot name="core-desktop" />
-          </section>
+        <div class="lg:col-span-8">
+          <div class="space-y-16">
+            {/* Zone 3 Desktop Core */}
+            <section class="hidden md:block">
+              <slot name="core-desktop" />
+            </section>
 
-          {/* Zone 3 Mobile Tabs */}
-          <section class="md:hidden">
-            <div class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 mb-6 no-scrollbar">
-              {['Knowledge', 'Similar', 'Benchmarks', 'Trends'].map((tab) => (
-                <button 
-                  class="z3-tab-btn px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap" 
-                  data-target={`z3-${tab.toLowerCase()}`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-            
-            <div id="z3-knowledge" class="z3-tab-content block animate-fade-in"><slot name="core-knowledge" /></div>
-            <div id="z3-similar" class="z3-tab-content hidden animate-fade-in"><slot name="core-similar" /></div>
-            <div id="z3-benchmarks" class="z3-tab-content hidden animate-fade-in"><slot name="core-benchmarks" /></div>
-            <div id="z3-trends" class="z3-tab-content hidden animate-fade-in"><slot name="core-trends" /></div>
-          </section>
-
-          {/* Zone 4: DEEP DIVE (Inside Main Content) */}
-          <section id="deep-dive-section">
-            <details id="z4-details" open class="group">
-              <summary class="list-none cursor-pointer flex items-center justify-between mb-8 group-open:mb-4">
-                 <h2 class="text-2xl font-black flex items-center gap-2 text-gray-900 dark:text-white">
-                    <span>🔬</span> <span>Deep Dive</span>
-                 </h2>
-                 <span class="text-indigo-600 dark:text-indigo-400 text-sm font-bold uppercase tracking-wider group-open:hidden">Expand Details [+]</span>
-                 <span class="text-gray-400 group-open:block hidden text-2xl transition-transform duration-300 group-open:rotate-180">▾</span>
-              </summary>
-              <div class="space-y-12 animate-slide-up">
-                <slot name="deep-dive" />
+            {/* Zone 3 Mobile Tabs */}
+            <section class="md:hidden">
+              <div class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 mb-6 no-scrollbar">
+                {['Knowledge', 'Similar', 'Benchmarks', 'Trends'].map((tab) => (
+                  <button 
+                    class="z3-tab-btn px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap" 
+                    data-target={`z3-${tab.toLowerCase()}`}
+                  >
+                    {tab}
+                  </button>
+                ))}
               </div>
-            </details>
-          </section>
+              
+              <div id="z3-knowledge" class="z3-tab-content block animate-fade-in"><slot name="core-knowledge" /></div>
+              <div id="z3-similar" class="z3-tab-content hidden animate-fade-in"><slot name="core-similar" /></div>
+              <div id="z3-benchmarks" class="z3-tab-content hidden animate-fade-in"><slot name="core-benchmarks" /></div>
+              <div id="z3-trends" class="z3-tab-content hidden animate-fade-in"><slot name="core-trends" /></div>
+            </section>
 
-          <slot name="full-metadata" />
+            {/* Zone 4: DEEP DIVE (Inside Main Content) */}
+            <section id="deep-dive-section">
+              <details id="z4-details" open class="group">
+                <summary class="list-none cursor-pointer flex items-center justify-between mb-8 group-open:mb-4">
+                   <h2 class="text-2xl font-black flex items-center gap-2 text-gray-900 dark:text-white">
+                      <span>🔬</span> <span>Deep Dive</span>
+                   </h2>
+                   <span class="text-indigo-600 dark:text-indigo-400 text-sm font-bold uppercase tracking-wider group-open:hidden">Expand Details [+]</span>
+                   <span class="text-gray-400 group-open:block hidden text-2xl transition-transform duration-300 group-open:rotate-180">▾</span>
+                </summary>
+                <div class="space-y-12 animate-slide-up">
+                  <slot name="deep-dive" />
+                </div>
+              </details>
+            </section>
+
+            <slot name="full-metadata" />
+          </div>
         </div>
 
         {/* Sidebar Column (Desktop Only Fixed Position/Alignment) */}
