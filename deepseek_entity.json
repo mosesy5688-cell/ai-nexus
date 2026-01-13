@@ -1,0 +1,41 @@
+{
+  "id": "replicate:deepseek-ai/deepseek-v3",
+  "source": "replicate",
+  "entity_type": "model",
+  "name": "deepseek-v3",
+  "author": "deepseek-ai",
+  "description": "DeepSeek-V3-0324 is the leading non-reasoning model, a milestone for open source",
+  "source_url": "https://replicate.com/deepseek-ai/deepseek-v3",
+  "downloads": 4560862,
+  "likes": 0,
+  "tags": [
+    "public"
+  ],
+  "license": "custom",
+  "primary_category": "other",
+  "params_billions": null,
+  "has_gguf": false,
+  "created_at": "2025-03-25T20:54:06.267598Z",
+  "last_modified": "2025-03-25T22:55:21.829257Z",
+  "meta_json": {
+    "replicate_url": "https://replicate.com/deepseek-ai/deepseek-v3",
+    "github_url": "https://github.com/deepseek-ai/DeepSeek-V3",
+    "paper_url": null,
+    "license_url": "https://github.com/deepseek-ai/DeepSeek-V3/blob/main/LICENSE-MODEL",
+    "visibility": "public",
+    "latest_version": "5500ea20e92e133d8981dc6f5b820d2eedd9b52f4ab8a856fccd4ddbb992396e",
+    "run_count": 4560862,
+    "cover_image_url": "https://tjzk.replicate.delivery/models_models_featured_image/1fb6b760-d41b-4421-94f9-9539fc928fce/deepseek-v3-cover.jpg"
+  },
+  "content_hash": "8b28eba9aef7e95a4e4fe12e137c0cf7",
+  "compliance_status": "pending",
+  "quality_score": 0,
+  "fni_score": 12.8,
+  "fni_p": 30,
+  "fni_v": 0,
+  "fni_c": 15,
+  "fni_u": 0,
+  "_version": "14.4.0",
+  "_updated": "2026-01-12T05:42:18.676Z",
+  "_checksum": "ec47153eea06f339dc4bcebce6e63765b2fbf7eec85199dc9dd379908e4e0829"
+}

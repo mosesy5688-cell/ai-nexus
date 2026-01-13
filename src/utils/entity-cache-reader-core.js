@@ -39,26 +39,32 @@ export function getR2PathCandidates(type, normalizedSlug) {
     const singular = type.endsWith('s') ? type.slice(0, -1) : type;
     const plural = type.endsWith('s') ? type : `${type}s`;
 
-    // Support dot-to-dash normalization (Art 2.4/V15 Storage Law)
-    // This is for legacy/fallback, new slugs should not have dots in this position
-    const dotFreeSlug = normalizedSlug.replace(/\./g, '-');
+    // V15.2: Try multiple source prefixes since URL doesn't contain source info
+    // R2 stores files as: {source}--{author}--{name}.json
+    const sourcePrefixes = ['replicate--', 'huggingface--', 'github--', 'civitai--', 'ollama--', ''];
+
+    // Normalize for case-insensitive matching
+    const lowerSlug = normalizedSlug.toLowerCase();
+    const dotFreeSlug = lowerSlug.replace(/\./g, '-');
 
     const candidates = [];
     [singular, plural].forEach(t => {
         const prefix = `cache/entities/${t}`;
-        // Primary path (case-preserved, new normalization)
-        candidates.push(`${prefix}/${normalizedSlug}.json`);
-        // Fallback for older slugs that might have dots or were lowercased
-        candidates.push(`${prefix}/${normalizedSlug.toLowerCase()}.json`);
-        candidates.push(`${prefix}/${dotFreeSlug}.json`);
-        candidates.push(`${prefix}/${dotFreeSlug.toLowerCase()}.json`);
-        // Legacy versioned paths (should be deprecated but kept for robustness)
-        candidates.push(`${prefix}/${normalizedSlug}.v-1.json`);
-        candidates.push(`${prefix}/${normalizedSlug}.v-2.json`);
+
+        // For each source prefix, try both original case and lowercase
+        sourcePrefixes.forEach(srcPrefix => {
+            // Lowercase with source prefix (most common in R2)
+            candidates.push(`${prefix}/${srcPrefix}${lowerSlug}.json`);
+            // Original case with source prefix
+            candidates.push(`${prefix}/${srcPrefix}${normalizedSlug}.json`);
+            // Dot-free variants
+            candidates.push(`${prefix}/${srcPrefix}${dotFreeSlug}.json`);
+        });
     });
 
     return [...new Set(candidates)];
 }
+
 
 /**
  * Universal hydration for entity objects.
@@ -123,10 +129,49 @@ export async function fetchEntityFromR2(type, slug, locals) {
                 console.warn(`[R2Reader] Error reading ${path}:`, e.message);
             }
         }
+
+        // 1.5. V15.2: CDN Fallback - Search in entities.json
+        console.log(`[R2Reader] MISS for ${normalized}, trying CDN fallback...`);
+        try {
+
+            const cdnUrl = 'https://cdn.free2aitools.com/entities.json';
+            const response = await fetch(cdnUrl);
+            if (response.ok) {
+                const allEntities = await response.json();
+                const searchSlug = normalized.toLowerCase();
+
+                // Search with multiple matching strategies
+                const found = allEntities.find(e => {
+                    const eid = (e.id || '').toLowerCase().replace(/:/g, '--').replace(/\//g, '--');
+                    const ename = ((e.author || '') + '--' + (e.name || '')).toLowerCase();
+
+                    // Match by ID suffix (ignores source prefix)
+                    if (eid.endsWith(searchSlug)) return true;
+                    // Match by author--name
+                    if (ename === searchSlug) return true;
+                    // Match by partial ID
+                    if (eid.includes(searchSlug)) return true;
+
+                    return false;
+                });
+
+                if (found) {
+                    console.log(`[CDN Fallback] HIT: ${found.id}`);
+                    return {
+                        entity: found,
+                        computed: { fni: found.fni_score || 0 },
+                        _cache_source: 'cdn-fallback'
+                    };
+                }
+            }
+        } catch (e) {
+            console.warn(`[CDN Fallback] Error:`, e.message);
+        }
     }
 
     // 2. Dev Shim: Local Filesystem (Art 2.4 / B14 Compatibility)
     if (import.meta.env.DEV || process.env.NODE_ENV === 'test') {
+
         try {
             const fs = await import('node:fs');
             // Try specific type path first, then merged, then type-merged
