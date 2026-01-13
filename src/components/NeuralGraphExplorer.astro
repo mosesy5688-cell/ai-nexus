@@ -25,15 +25,18 @@ try {
     const runtime = Astro.locals.runtime;
     if (runtime?.env?.R2_ASSETS) {
         const r2 = runtime.env.R2_ASSETS;
-        const graphFile = await r2.get('cache/neural_graph.json');
+        // V15: Use centralized relations.json instead of separate graph file
+        const graphFile = await r2.get('cache/relations.json');
         if (graphFile) {
             graphData = await graphFile.json() as any;
-            graphVersion = graphData?.version;
+            graphVersion = graphData?.version || '15.0';
             
-            // Find related nodes for current model
-            if (currentModelId && graphData?.links) {
+            // Map relations.json structure to Graph Explorer
+            const links = graphData.links || [];
+            
+            if (currentModelId) {
                 const relatedIds = new Set<string>();
-                for (const link of graphData.links) {
+                for (const link of links) {
                     if (link.source === currentModelId) {
                         relatedIds.add(link.target);
                     } else if (link.target === currentModelId) {
@@ -41,6 +44,8 @@ try {
                     }
                 }
                 
+                // Fetch basic node info from graphData.nodes or hydrate from entities.json
+                // For now, use the node information embedded in relations.json if available
                 relatedNodes = (graphData.nodes || [])
                     .filter(n => relatedIds.has(n.id))
                     .slice(0, 6);

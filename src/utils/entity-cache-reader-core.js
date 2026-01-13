@@ -8,61 +8,23 @@
  */
 
 /**
- * Normalizes a slug or ID into the definitive R2 cache filename format.
- * R2 Path: {type}/{source}--{author}--{name}.json
- * 
- * @param {string|string[]} input - The slug (e.g., 'meta-llama/Llama-3') or ID ('huggingface:meta-llama/Llama-2')
- * @param {string} type - Entity type (model, agent, paper, dataset, space)
- * @returns {string} - Normalized string (e.g., 'huggingface--meta-llama--llama-3')
+ * V15.1: Normalize entity slug for R2 storage path
+ * ALIGNED WITH aggregator/shard-processor.js conventions
  */
-export function normalizeEntitySlug(input, type = 'model') {
-    if (!input) return '';
+export function normalizeEntitySlug(id, source = 'huggingface') {
+    if (!id) return '';
 
-    // Convert array slugs (from Astro) to string
-    let slug = Array.isArray(input) ? input.join('/') : String(input);
-    slug = slug.toLowerCase().trim();
+    // V15.1 Fix: Remove mandatory source prefix (huggingface-- etc)
+    // The aggregator writes directly using author--name or arxiv-id
+    // Case sensitivity MUST be preserved for R2 lookups
+    let slug = id;
 
-    // 1. Identify raw identifier (strip existing source prefixes if present)
-    let identifier = slug;
+    // Standard transformations for all types
+    slug = slug
+        .replace(/:/g, '--')  // Replace colons
+        .replace(/\//g, '--'); // Replace slashes
 
-    // Known prefixes to strip for normalization
-    const prefixes = ['huggingface--', 'github--', 'arxiv--', 'replicate--', 'civitai--', 'ollama--', 'hf-space--', 'hf-dataset--'];
-    for (const p of prefixes) {
-        if (slug.startsWith(p)) {
-            identifier = slug.substring(p.length);
-            break;
-        }
-    }
-
-    // Handle slash/colon separators
-    if (identifier.includes(':')) {
-        identifier = identifier.split(':').pop();
-    } else if (identifier.includes('/')) {
-        const parts = identifier.split('/');
-        // If it's a 3-part path (source/author/name), the first part is source
-        if (parts.length >= 3 && ['huggingface', 'github', 'arxiv', 'replicate', 'hf-space', 'hf-dataset'].includes(parts[0])) {
-            identifier = parts.slice(1).join('/');
-        } else {
-            identifier = parts.join('/');
-        }
-    }
-
-    // 2. Determine Canonical Source based on Type
-    let source = 'huggingface';
-    if (type === 'paper' || slug.includes('arxiv')) source = 'arxiv';
-    else if (type === 'space') source = 'hf-space';
-    else if (type === 'dataset') source = 'hf-dataset';
-    else if (slug.startsWith('replicate')) source = 'replicate';
-    else if (slug.startsWith('github')) source = 'github';
-
-    // 3. Normalize Identifier contents
-    // Replace slashes/colons with double-dash, underscores with single dash
-    const cleanId = identifier
-        .replace(/[\/:]/g, '--')
-        .replace(/_/g, '-');
-
-    // 4. Final Key
-    return `${source}--${cleanId}`;
+    return slug;
 }
 
 /**
@@ -78,13 +40,19 @@ export function getR2PathCandidates(type, normalizedSlug) {
     const plural = type.endsWith('s') ? type : `${type}s`;
 
     // Support dot-to-dash normalization (Art 2.4/V15 Storage Law)
+    // This is for legacy/fallback, new slugs should not have dots in this position
     const dotFreeSlug = normalizedSlug.replace(/\./g, '-');
 
     const candidates = [];
     [singular, plural].forEach(t => {
         const prefix = `cache/entities/${t}`;
+        // Primary path (case-preserved, new normalization)
         candidates.push(`${prefix}/${normalizedSlug}.json`);
+        // Fallback for older slugs that might have dots or were lowercased
+        candidates.push(`${prefix}/${normalizedSlug.toLowerCase()}.json`);
         candidates.push(`${prefix}/${dotFreeSlug}.json`);
+        candidates.push(`${prefix}/${dotFreeSlug.toLowerCase()}.json`);
+        // Legacy versioned paths (should be deprecated but kept for robustness)
         candidates.push(`${prefix}/${normalizedSlug}.v-1.json`);
         candidates.push(`${prefix}/${normalizedSlug}.v-2.json`);
     });
