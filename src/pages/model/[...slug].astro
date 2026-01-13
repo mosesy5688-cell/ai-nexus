@@ -18,6 +18,7 @@ import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import EntityRelations from '../../components/entity/EntityRelations.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
+import TagsCloud from '../../components/entity/TagsCloud.astro';
 import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definitions';
 import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers';
@@ -151,6 +152,12 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
       limits={derivedUseCases.limits} 
     />
 
+    {/* Zone 2 Extra: VRAM Estimator (V15.2) */}
+    <div slot="insights-extra" class="mt-4">
+      <VramEstimator paramsB={model?.params_billions} />
+    </div>
+
+
     {/* Zone 3: Core (Desktop) */}
     <div slot="core-desktop">
        <UniversalCore entity={model} type="model" />
@@ -187,6 +194,7 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
     <div slot="deep-dive">
        <div class="space-y-12">
           <TechSpecsFull entity={model} type="model" />
+          <TagsCloud tags={tagsArray} type="model" />
           <ModelMainColumn 
              model={model} 
              hasFNI={hasFNI} 
