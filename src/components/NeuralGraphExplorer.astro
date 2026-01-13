@@ -1,8 +1,8 @@
 ---
 /**
- * Neural Graph Explorer V4.8.1
- * Art.11-G: Version-locked static graph from neural_graph.json
- * NO DB fallback, NO dynamic computation
+ * Neural Graph Explorer V15.2
+ * Art.11-G: Version-locked static graph from relations.json
+ * V15.2: Updated to parse actual relations.json structure
  */
 
 interface Props {
@@ -11,42 +11,79 @@ interface Props {
 
 const { currentModelId } = Astro.props;
 
-// Fetch neural graph from R2 cache (Art.11-G: version-locked)
-let graphData: {
-    version: string;
-    nodes: { id: string; name: string; author: string; arch: string; fni: number; local: boolean }[];
-    links: { source: string; target: string; type: string; weight: number }[];
-} | null = null;
-
-let graphVersion = null;
-let relatedNodes: typeof graphData.nodes = [];
+// Graph data structures
+let graphNodes: { id: string; name: string; author: string; type: string; fni: number }[] = [];
+let graphLinks: { source: string; target: string; type: string; weight: number }[] = [];
+let graphVersion = '15.2';
+let relatedNodes: typeof graphNodes = [];
+let totalNodes = 0;
+let totalLinks = 0;
 
 try {
     const runtime = Astro.locals.runtime;
     if (runtime?.env?.R2_ASSETS) {
         const r2 = runtime.env.R2_ASSETS;
-        // V15: Use centralized relations.json instead of separate graph file
         const graphFile = await r2.get('cache/relations.json');
         if (graphFile) {
-            graphData = await graphFile.json() as any;
-            graphVersion = graphData?.version || '15.0';
+            const rawData = await graphFile.json() as any;
             
-            // Map relations.json structure to Graph Explorer
-            const links = graphData.links || [];
+            // V15.2: Transform relations[] into nodes[] and links[]
+            const relations = rawData.relations || [];
+            const nodeMap = new Map<string, typeof graphNodes[0]>();
             
+            // Build nodes from unique source/target IDs
+            for (const rel of relations) {
+                if (rel.source_id && !nodeMap.has(rel.source_id)) {
+                    const parts = rel.source_id.split('--');
+                    nodeMap.set(rel.source_id, {
+                        id: rel.source_id,
+                        name: parts[parts.length - 1] || rel.source_id,
+                        author: parts.length > 1 ? parts[parts.length - 2] : '',
+                        type: rel.source_type || 'model',
+                        fni: 0
+                    });
+                }
+                if (rel.target_id && !nodeMap.has(rel.target_id)) {
+                    const parts = rel.target_id.split('--');
+                    nodeMap.set(rel.target_id, {
+                        id: rel.target_id,
+                        name: parts[parts.length - 1] || rel.target_id,
+                        author: parts.length > 1 ? parts[parts.length - 2] : '',
+                        type: rel.target_type || 'tool',
+                        fni: 0
+                    });
+                }
+                
+                // Build links
+                graphLinks.push({
+                    source: rel.source_id,
+                    target: rel.target_id,
+                    type: rel.relation_type || 'RELATED',
+                    weight: rel.confidence || 0.8
+                });
+            }
+            
+            graphNodes = Array.from(nodeMap.values());
+            totalNodes = graphNodes.length;
+            totalLinks = graphLinks.length;
+            
+            // Find related nodes for the current model
             if (currentModelId) {
+                const normalizedId = currentModelId.toLowerCase();
                 const relatedIds = new Set<string>();
-                for (const link of links) {
-                    if (link.source === currentModelId) {
+                
+                for (const link of graphLinks) {
+                    const srcLower = link.source.toLowerCase();
+                    const tgtLower = link.target.toLowerCase();
+                    
+                    if (srcLower.includes(normalizedId) || normalizedId.includes(srcLower.split('--').pop() || '')) {
                         relatedIds.add(link.target);
-                    } else if (link.target === currentModelId) {
+                    } else if (tgtLower.includes(normalizedId) || normalizedId.includes(tgtLower.split('--').pop() || '')) {
                         relatedIds.add(link.source);
                     }
                 }
                 
-                // Fetch basic node info from graphData.nodes or hydrate from entities.json
-                // For now, use the node information embedded in relations.json if available
-                relatedNodes = (graphData.nodes || [])
+                relatedNodes = graphNodes
                     .filter(n => relatedIds.has(n.id))
                     .slice(0, 6);
             }
@@ -56,9 +93,10 @@ try {
     console.error('[NeuralGraphExplorer] Error:', e);
 }
 
-const hasGraph = graphData && graphData.nodes && graphData.nodes.length > 0;
+const hasGraph = totalNodes > 0;
 const hasRelatedNodes = relatedNodes.length > 0;
 ---
+
 
 <section class="neural-graph-explorer">
     <div class="header">
@@ -77,14 +115,13 @@ const hasRelatedNodes = relatedNodes.length > 0;
                     <p class="subtitle">Related Models in the Graph</p>
                     <div class="related-grid">
                         {relatedNodes.map(node => (
-                            <a href={`/model/${node.id}`} class="related-card">
+                            <a href={`/${node.type}/${node.id}`} class="related-card">
                                 <div class="card-header">
                                     <span class="model-name">{node.name}</span>
-                                    {node.local && <span class="local-badge">Local</span>}
+                                    <span class="type-badge">{node.type}</span>
                                 </div>
                                 <div class="card-meta">
                                     <span class="author">{node.author}</span>
-                                    <span class="arch">{node.arch}</span>
                                 </div>
                                 {node.fni > 0 && (
                                     <div class="fni-score">
@@ -102,11 +139,11 @@ const hasRelatedNodes = relatedNodes.length > 0;
                     <p class="subtitle">Graph Overview</p>
                     <div class="stats-row">
                         <div class="stat">
-                            <span class="stat-value">{graphData.nodes.length}</span>
-                            <span class="stat-label">Models</span>
+                            <span class="stat-value">{totalNodes}</span>
+                            <span class="stat-label">Entities</span>
                         </div>
                         <div class="stat">
-                            <span class="stat-value">{graphData.links.length}</span>
+                            <span class="stat-value">{totalLinks}</span>
                             <span class="stat-label">Connections</span>
                         </div>
                     </div>
@@ -198,12 +235,13 @@ const hasRelatedNodes = relatedNodes.length > 0;
         white-space: nowrap;
     }
     
-    .local-badge {
-        background: rgba(34, 197, 94, 0.2);
-        color: #4ade80;
+    .type-badge {
+        background: rgba(99, 102, 241, 0.2);
+        color: #818cf8;
         font-size: 0.6rem;
         padding: 0.125rem 0.375rem;
         border-radius: 9999px;
+        text-transform: capitalize;
     }
     
     .card-meta {
