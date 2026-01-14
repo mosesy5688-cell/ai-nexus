@@ -71,14 +71,16 @@ export function hydrateEntity(data, type) {
     } else if (type === 'paper') {
         hydrated.title = derivedName;
         hydrated.abstract = entity.abstract || entity.description;
-    } else if (type === 'tool' || type === 'dataset') {
+    } else if (type === 'tool' || type === 'dataset' || type === 'agent' || type === 'space') {
         if (entity.id && (!entity.name || entity.name.includes('--'))) {
             const parts = entity.id.split('--');
+            // Handle space IDs: hf-space--author--name
+            // Handle agent IDs: github--author--name
             const namePart = parts.length > 2 ? parts.slice(2).join('/') : parts[parts.length - 1];
             hydrated.name = entity.pretty_name || namePart || derivedName;
+            if (type === 'space' || type === 'dataset') hydrated.title = hydrated.name;
         }
         hydrated.author = entity.author || (entity.id && entity.id.split('--').length > 1 ? entity.id.split('--')[1] : 'Unknown');
-        if (type === 'dataset') hydrated.title = hydrated.name;
     }
 
     return hydrated;
