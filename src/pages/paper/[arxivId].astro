@@ -30,8 +30,9 @@ let pageDescription = "Explore this AI research paper and related models.";
 
 if (isValidArxivId) {
   try {
-    // V15.1: getPaperFromCache is now robust and unified
-    paper = await getPaperFromCache(arxivId, Astro.locals);
+    // V15.9: Use arxiv-- prefix to match R2 file naming
+    paper = await getPaperFromCache(`arxiv--${arxivId}`, Astro.locals);
+
     
     // V15.6 Fallback Logic
     if (!paper) {
