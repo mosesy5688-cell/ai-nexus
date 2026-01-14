@@ -44,37 +44,52 @@ function simpleMarkdownToHtml(md: string): string {
   // Code blocks (triple backticks)
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
     const langClass = lang ? `language-${lang}` : '';
-    return `<pre class="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 overflow-x-auto my-4"><code class="${langClass}">${escapeHtml(code.trim())}</code></pre>`;
+    const cleanCode = code.trim();
+    return `
+      <div class="code-block-wrapper relative group my-6 rounded-xl overflow-hidden border border-gray-800 shadow-2xl bg-black">
+        <div class="flex items-center justify-between px-4 py-1.5 bg-[#0a0a0a] border-b border-gray-800">
+          <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest font-mono">${lang || 'code'}</span>
+          <button 
+            class="markdown-copy-btn flex items-center gap-1 px-2 py-0.5 bg-gray-800 hover:bg-white text-gray-400 hover:text-black text-[10px] font-bold rounded transition-all active:scale-95"
+            data-code="${escapeHtml(cleanCode)}"
+          >
+            <span class="btn-icon">📋</span>
+            <span class="btn-text">Copy</span>
+          </button>
+        </div>
+        <pre class="p-4 overflow-x-auto text-sm scrollbar-thin scrollbar-thumb-gray-800 m-0"><code class="${langClass} text-white selection:bg-indigo-500/30">${escapeHtml(cleanCode)}</code></pre>
+      </div>
+    `;
   });
   
   // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-sm">$1</code>');
+  html = html.replace(/`([^`]+)`/g, '<code class="bg-black text-indigo-300 px-1.5 py-0.5 rounded text-sm border border-gray-800 font-mono shadow-sm">$1</code>');
   
   // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 hover:underline">$1</a>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">$1</a>');
   
   // Images
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto rounded-lg my-4" loading="lazy" />');
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto rounded-xl my-6 shadow-lg border border-gray-100 dark:border-gray-800" loading="lazy" />');
   
   // Lists
   html = html.replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>');
-  html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, '<ul class="list-disc list-inside space-y-1 my-4">$&</ul>');
+  html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, '<ul class="list-disc list-inside space-y-2 my-6 text-gray-700 dark:text-gray-300">$&</ul>');
   
   // Numbered lists
   html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-4">$1</li>');
   
   // Blockquotes
-  html = html.replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-indigo-500 pl-4 italic text-gray-600 dark:text-gray-400 my-4">$1</blockquote>');
+  html = html.replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-indigo-500 pl-4 py-1 italic text-gray-600 dark:text-gray-400 my-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-r">$1</blockquote>');
   
   // Horizontal rules
-  html = html.replace(/^---$/gm, '<hr class="border-gray-200 dark:border-gray-700 my-8" />');
+  html = html.replace(/^---$/gm, '<hr class="border-gray-200 dark:border-gray-800 my-10" />');
   
   // Paragraphs (double newlines)
-  html = html.replace(/\n\n/g, '</p><p class="mb-4">');
+  html = html.replace(/\n\n/g, '</p><p class="mb-5 leading-relaxed text-gray-800 dark:text-gray-200">');
   
   // Wrap in paragraph
   if (!html.startsWith('<')) {
-    html = '<p class="mb-4">' + html + '</p>';
+    html = '<p class="mb-5 leading-relaxed text-gray-800 dark:text-gray-200">' + html + '</p>';
   }
   
   return html;
@@ -96,10 +111,60 @@ const renderedHtml = simpleMarkdownToHtml(processedContent);
   <Fragment set:html={renderedHtml} />
 </div>
 
+<script>
+  // Simplified copy for markdown blocks
+  function initMarkdownCopy() {
+    document.querySelectorAll('.markdown-copy-btn').forEach(btn => {
+      // Avoid double listeners if script runs multiple times
+      if (btn.getAttribute('data-init')) return;
+      btn.setAttribute('data-init', 'true');
+
+      btn.addEventListener('click', async () => {
+        const b = btn as HTMLButtonElement;
+        const code = b.dataset.code || '';
+        const text = b.querySelector('.btn-text');
+        const icon = b.querySelector('.btn-icon');
+        
+        try {
+            await navigator.clipboard.writeText(code);
+            if (text) text.textContent = 'Done!';
+            if (icon) icon.textContent = '✅';
+            
+            setTimeout(() => {
+              if (text) text.textContent = 'Copy';
+              if (icon) icon.textContent = '📋';
+            }, 2000);
+        } catch (err) {
+            console.error('Copy failed', err);
+        }
+      });
+    });
+  }
+
+  // Initial load
+  initMarkdownCopy();
+  
+  // Run on page transition if needed (Astro View Transitions)
+  document.addEventListener('astro:after-swap', initMarkdownCopy);
+</script>
+
 <style>
   .markdown-content :global(pre) {
-    max-height: 400px;
+    max-height: 500px;
     overflow-y: auto;
+  }
+  
+  .markdown-content :global(code) {
+    font-family: 'Fira Code', 'JetBrains Mono', monospace;
+  }
+
+  .markdown-content :global(.scrollbar-thin::-webkit-scrollbar) {
+    height: 4px;
+    width: 4px;
+  }
+  .markdown-content :global(.scrollbar-thin::-webkit-scrollbar-thumb) {
+    background-color: #444;
+    border-radius: 4px;
   }
   
   .markdown-content :global(img) {
