@@ -19,8 +19,8 @@ const { content, maxLength, className = '' } = Astro.props;
 // Clean and prepare content
 let processedContent = content || '';
 
-// Remove YAML frontmatter if present
-processedContent = processedContent.replace(/^---[\s\S]*?---\n?/g, '');
+// Remove YAML frontmatter if present (V15.8: Resilient Regex)
+processedContent = processedContent.replace(/^---\s*[\s\S]*?---\s*\n?/g, '');
 
 // Apply max length if specified
 if (maxLength && processedContent.length > maxLength) {

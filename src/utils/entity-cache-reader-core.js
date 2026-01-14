@@ -44,79 +44,9 @@ export function getR2PathCandidates(type, normalizedSlug) {
 }
 
 
-// Universal hydration for entity objects
-export function hydrateEntity(data, type) {
-    if (!data) return null;
+import { hydrateEntity } from './entity-hydrator.js';
+export { hydrateEntity };
 
-    const entity = data.entity || data;
-    const computed = data.computed || {};
-    const seo = data.seo || {};
-
-    // V15.2: Derive name from ID if missing (common in entities.json)
-    const derivedName = entity.name || entity.title || entity.pretty_name ||
-        (entity.id ? entity.id.split('--').pop() : 'Unknown');
-
-    // Standard mappings for all types
-    const hydrated = {
-        ...entity,
-        // V15.2: Enhanced FNI fallback chain
-        fni_score: computed.fni ?? entity.fni_score ?? entity.fni ?? 0,
-        fni_percentile: computed.fni_percentile ?? entity.fni_percentile ?? entity.percentile,
-        // V15.2: Ensure name is always populated
-        name: derivedName,
-        relations: computed.relations || entity.relations || {},
-        _computed: computed,
-        _seo: seo,
-        _hydrated: true
-    };
-
-    // Type-specific hydration
-    if (type === 'model') {
-        const benchmarks = computed.benchmarks || [];
-        const firstBench = benchmarks[0] || {};
-        hydrated.mmlu = firstBench.mmlu || entity.mmlu;
-        hydrated.hellaswag = firstBench.hellaswag || entity.hellaswag;
-        hydrated.arc_challenge = firstBench.arc_challenge || entity.arc_challenge;
-        hydrated.avg_score = firstBench.avg_score || entity.avg_score;
-        // V15.6: Model-specific name derivation - normalize ID first
-        // ID formats: source--author--name, source:author/name, etc.
-        if (entity.id && (!entity.name || entity.name.includes('--') || entity.name.includes(':') || entity.name.includes('/'))) {
-            // Normalize ID: replace : and / with -- for consistent parsing
-            const normalizedId = entity.id.replace(/:/g, '--').replace(/\//g, '--');
-            const parts = normalizedId.split('--').filter(p => p);
-            // Extract last part as name (e.g., gpt-image-1)
-            const namePart = parts[parts.length - 1] || entity.id;
-            hydrated.name = entity.pretty_name || namePart || derivedName;
-            hydrated.author = entity.author || (parts.length > 1 ? parts[parts.length - 2] : 'Unknown');
-        }
-
-    } else if (type === 'paper') {
-        hydrated.title = derivedName;
-        hydrated.abstract = entity.abstract || entity.description;
-    } else if (type === 'space') {
-        hydrated.title = derivedName;
-    } else if (type === 'tool') {
-        // ID format: github--author--name or ollama--name
-        if (entity.id && (!entity.name || entity.name.includes('--'))) {
-            const parts = entity.id.split('--');
-            const namePart = parts.length > 2 ? parts.slice(2).join('/') : parts[parts.length - 1];
-            hydrated.name = entity.pretty_name || namePart || derivedName;
-        }
-        hydrated.author = entity.author || (entity.id ? entity.id.split('--')[1] : 'Unknown');
-    } else if (type === 'dataset') {
-        // ID format: hf-dataset--author--name
-        if (entity.id && (!entity.name || entity.name.includes('--'))) {
-            const parts = entity.id.split('--');
-            const namePart = parts.length > 2 ? parts.slice(2).join('/') : parts[parts.length - 1];
-            hydrated.name = entity.pretty_name || namePart || derivedName;
-        }
-        hydrated.author = entity.author || (entity.id && entity.id.split('--').length > 1 ? entity.id.split('--')[1] : 'Unknown');
-
-        hydrated.title = hydrated.name;
-    }
-
-    return hydrated;
-}
 
 
 
