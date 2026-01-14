@@ -9,11 +9,14 @@ interface Props {
   maxTags?: number;
 }
 
-const { tags = [], pipelineTag, maxTags = 20 } = Astro.props;
+const { tags: rawTags = [], pipelineTag, maxTags = 20 } = Astro.props;
 
+// V15.12: Defensive array check - tags may be string or undefined in malformed data
+const tags = Array.isArray(rawTags) ? rawTags : (typeof rawTags === 'string' ? [rawTags] : []);
 const allTags = pipelineTag ? [pipelineTag, ...tags.filter(t => t !== pipelineTag)] : tags;
 const displayTags = allTags.slice(0, maxTags);
 const hiddenCount = allTags.length - displayTags.length;
+
 
 function getTagColor(tag: string, index: number): string {
   if (index === 0 && pipelineTag) return 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border-indigo-200';
