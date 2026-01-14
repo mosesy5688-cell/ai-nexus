@@ -1,49 +1,23 @@
-// src/utils/entity-cache-reader-core.js
-/**
- * V15.1 Unified Entity Cache Reader Core
- * Constitutional: Art.I-Extended - Frontend D1 = 0
- * 
- * Centralizes slug normalization and R2 path resolution to prevent 
- * duplication and inconsistencies across specialized readers.
- */
+// V15.1 Unified Entity Cache Reader Core (Art.I-Extended: Frontend D1 = 0)
 
-/**
- * V15.1: Normalize entity slug for R2 storage path
- * ALIGNED WITH aggregator/shard-processor.js conventions
- */
+// Normalize entity slug for R2 storage path
 export function normalizeEntitySlug(id, source = 'huggingface') {
     if (!id) return '';
 
-    // V15.1 Fix: Remove mandatory source prefix (huggingface-- etc)
-    // The aggregator writes directly using author--name or arxiv-id
-    // Case sensitivity MUST be preserved for R2 lookups
     let slug = id;
 
-    // Standard transformations for all types
-    slug = slug
-        .replace(/:/g, '--')  // Replace colons
-        .replace(/\//g, '--'); // Replace slashes
-
+    slug = slug.replace(/:/g, '--').replace(/\//g, '--');
     return slug;
 }
 
-/**
- * Generates the prioritized R2 path candidates for an entity.
- * 
- * @param {string} type - Entity type
- * @param {string} normalizedSlug - Normalized slug from normalizeEntitySlug
- * @returns {string[]} - Array of path candidates
- */
+// Generates prioritized R2 path candidates for an entity
 export function getR2PathCandidates(type, normalizedSlug) {
     // Standardize type (handle singular/plural inconsistencies)
     const singular = type.endsWith('s') ? type.slice(0, -1) : type;
     const plural = type.endsWith('s') ? type : `${type}s`;
 
-    // V15.2: Try multiple source prefixes since URL doesn't contain source info
-    // R2 stores files as: {source}--{author}--{name}.json
     const sourcePrefixes = ['replicate--', 'huggingface--', 'github--', 'civitai--', 'ollama--', ''];
 
-    // Normalize for case-insensitive matching
     const lowerSlug = normalizedSlug.toLowerCase();
     const dotFreeSlug = lowerSlug.replace(/\./g, '-');
 
@@ -51,13 +25,9 @@ export function getR2PathCandidates(type, normalizedSlug) {
     [singular, plural].forEach(t => {
         const prefix = `cache/entities/${t}`;
 
-        // For each source prefix, try both original case and lowercase
         sourcePrefixes.forEach(srcPrefix => {
-            // Lowercase with source prefix (most common in R2)
             candidates.push(`${prefix}/${srcPrefix}${lowerSlug}.json`);
-            // Original case with source prefix
             candidates.push(`${prefix}/${srcPrefix}${normalizedSlug}.json`);
-            // Dot-free variants
             candidates.push(`${prefix}/${srcPrefix}${dotFreeSlug}.json`);
         });
     });
@@ -65,12 +35,7 @@ export function getR2PathCandidates(type, normalizedSlug) {
     return [...new Set(candidates)];
 }
 
-
-/**
- * Universal hydration for entity objects.
- * Merges raw entity data with computed metrics and SEO metadata.
- * V15.2: Enhanced to handle entities.json schema variations.
- */
+// Universal hydration for entity objects
 export function hydrateEntity(data, type) {
     if (!data) return null;
 
@@ -111,10 +76,32 @@ export function hydrateEntity(data, type) {
     } else if (type === 'space') {
         // V15.2: Space-specific hydration
         hydrated.title = derivedName;
+    } else if (type === 'tool') {
+        // V15.3: Tool-specific hydration - extract friendly name from ID
+        // ID format: github--author--name or ollama--name
+        if (entity.id && !entity.name) {
+            const parts = entity.id.split('--');
+            // Remove source prefix (github, ollama, etc.)
+            const namePart = parts.length > 2 ? parts.slice(2).join('/') : parts[parts.length - 1];
+            hydrated.name = entity.pretty_name || namePart || derivedName;
+        }
+        hydrated.author = entity.author || (entity.id ? entity.id.split('--')[1] : 'Unknown');
+    } else if (type === 'dataset') {
+        // V15.3: Dataset-specific hydration - extract friendly name from ID
+        // ID format: hf-dataset--author--name
+        if (entity.id && !entity.name) {
+            const parts = entity.id.split('--');
+            // Remove source prefix (hf-dataset)
+            const namePart = parts.length > 2 ? parts.slice(2).join('/') : parts[parts.length - 1];
+            hydrated.name = entity.pretty_name || namePart || derivedName;
+        }
+        hydrated.author = entity.author || (entity.id && entity.id.split('--').length > 1 ? entity.id.split('--')[1] : 'Unknown');
+        hydrated.title = hydrated.name;
     }
 
     return hydrated;
 }
+
 
 
 /**
