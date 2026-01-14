@@ -20,8 +20,9 @@ import { getPaperFromCache } from '../../utils/entity-cache-reader-v6';
 
 const { arxivId } = Astro.params;
 
-// Validate ArXiv ID format
-const isValidArxivId = arxivId && /^\d{4}\.\d{4,5}$/.test(arxivId);
+// Validate ArXiv ID format (supports optional version suffix like v1, v2)
+const isValidArxivId = arxivId && /^\d{4}\.\d{4,5}(v\d+)?$/.test(arxivId);
+
 
 let paper = null;
 let pageTitle = "AI Research Paper - Free AI Tools";
