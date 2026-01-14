@@ -1,93 +1,93 @@
 ---
 /**
- * GGUFList Component - Zone 4
- * V15.0: Display GGUF quantization variants for download
+ * GGUFList.astro
+ * 
+ * V15.0 Zone 4 Component
+ * Displays available GGUF file variants (quantization levels) for a model.
+ * 
+ * @component
  */
-interface GGUFVariant {
-  name: string;
-  size?: string;
-  quantType?: string;
-  url?: string;
-}
 
 interface Props {
-  variants: GGUFVariant[];
-  hasGguf?: boolean;
+  files?: any[];
   modelId?: string;
-  defaultExpanded?: boolean;
 }
 
-const { variants = [], hasGguf, modelId, defaultExpanded = true } = Astro.props;
+const { files = [], modelId } = Astro.props;
 
-const displayVariants = variants.slice(0, 10);
-const hasVariants = displayVariants.length > 0 || hasGguf;
+// Filter for .gguf files
+const ggufFiles = files.filter(f => f.rfilename?.endsWith('.gguf'));
+const hasFiles = ggufFiles.length > 0;
 
-function getQuantBadgeColor(quant: string): string {
-  if (quant?.includes('Q8') || quant?.includes('F16')) return 'bg-green-100 text-green-700';
-  if (quant?.includes('Q6') || quant?.includes('Q5')) return 'bg-blue-100 text-blue-700';
-  if (quant?.includes('Q4')) return 'bg-yellow-100 text-yellow-700';
-  if (quant?.includes('Q3') || quant?.includes('Q2')) return 'bg-orange-100 text-orange-700';
-  return 'bg-gray-100 text-gray-700';
-}
+// Helper to extract quantization tag (e.g., Q4_K_M) from filename
+const getQuant = (filename: string) => {
+  const match = filename.match(/(Q\d+[A-Z0-9_]*)/i);
+  return match ? match[1].toUpperCase() : 'UNKNOWN';
+};
+
+// Helper to format bytes
+const formatSize = (bytes: number) => {
+  if (!bytes) return '-';
+  const gb = bytes / (1024 * 1024 * 1024);
+  return `${gb.toFixed(2)} GB`;
+};
 ---
 
-{hasVariants && (
-  <section class="gguf-list bg-white dark:bg-gray-800 rounded-xl shadow-sm mb-6">
-    <details open={defaultExpanded}>
-      <summary class="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-t-xl">
-        <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-          <span>📦</span> GGUF Downloads
-        </h3>
-        <span class="px-2 py-1 text-xs bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 rounded-full">
-          {variants.length || 'Available'}
-        </span>
-      </summary>
-      
-      <div class="p-4 pt-0 border-t border-gray-100 dark:border-gray-700">
-        {displayVariants.length > 0 ? (
-          <div class="space-y-2">
-            {displayVariants.map(v => (
-              <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
-                <div class="flex items-center gap-3">
-                  <span class="text-lg">📄</span>
-                  <div>
-                    <div class="font-medium text-gray-900 dark:text-white text-sm">{v.name}</div>
-                    {v.size && <div class="text-xs text-gray-500">{v.size}</div>}
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  {v.quantType && (
-                    <span class={`px-2 py-0.5 text-xs rounded ${getQuantBadgeColor(v.quantType)} dark:bg-opacity-20`}>
-                      {v.quantType}
-                    </span>
-                  )}
-                  {v.url && (
-                    <a href={v.url} target="_blank" rel="noopener noreferrer"
-                       class="px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700">
-                      Download
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div class="text-center py-4 text-gray-500 dark:text-gray-400">
-            <p class="text-sm">GGUF variants available on HuggingFace</p>
-            {modelId && (
-              <a href={`https://huggingface.co/${modelId.replace('--', '/')}/tree/main`} 
-                 target="_blank" rel="noopener noreferrer"
-                 class="inline-block mt-2 px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">
-                View on HuggingFace
-              </a>
-            )}
-          </div>
-        )}
-      </div>
-    </details>
+{hasFiles && (
+  <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mb-8">
+    <div class="p-6 border-b border-gray-100 dark:border-gray-700">
+       <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+         <span>📦</span> Available GGUF Files
+       </h2>
+       <p class="text-sm text-gray-500 mt-1">
+         Optimized quantized versions for local inference (llama.cpp, Ollama, LM Studio).
+       </p>
+    </div>
+    
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead class="bg-gray-50 dark:bg-gray-900/50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filename</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantization</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+          {ggufFiles.map((file) => (
+            <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white font-mono">
+                {file.rfilename}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                <span class="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-bold border border-blue-100 dark:border-blue-800">
+                  {getQuant(file.rfilename)}
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                {formatSize(file.size)}
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <a 
+                  href={`https://huggingface.co/${modelId}/resolve/main/${file.rfilename}?download=true`}
+                  target="_blank"
+                  class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                >
+                  Download
+                </a>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="bg-gray-50 dark:bg-gray-900/50 px-6 py-3 border-t border-gray-100 dark:border-gray-700">
+        <p class="text-xs text-gray-500 flex items-center gap-2">
+            <span>ℹ️</span>
+            <span>Files hosted on HuggingFace. Downloading incurs standard bandwidth usage.</span>
+        </p>
+    </div>
   </section>
 )}
-
-<style>
-  details summary::-webkit-details-marker { display: none; }
-</style>

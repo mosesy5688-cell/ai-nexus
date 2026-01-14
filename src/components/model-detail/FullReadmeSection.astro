@@ -26,8 +26,20 @@ const {
 } = Astro.props;
 
 // V15.8: Dynamic labeling based on type
-const displayTitle = title || (type === 'dataset' ? 'Dataset Card' : (type === 'paper' ? 'Paper Details' : (type === 'agent' ? 'Agent Profile' : (type === 'space' ? 'Space Overview' : 'Model Card'))));
-const toggleLabel = type === 'dataset' ? 'Dataset Card' : 'Profile';
+const getTitle = (t: string, provided?: string) => {
+  if (provided) return provided;
+  switch(t) {
+    case 'dataset': return 'Dataset Card';
+    case 'paper': return 'Paper Details';
+    case 'agent': return 'Agent Profile';
+    case 'space': return 'Space Overview';
+    case 'tool': return 'Tool Documentation';
+    default: return 'Model Card';
+  }
+};
+
+const displayTitle = getTitle(type, title);
+const toggleLabel = type === 'dataset' ? 'Dataset Card' : (type === 'tool' ? 'Documentation' : 'Profile');
 
 // Clean content (V15.8: Resilient Regex)
 const content = (bodyContent || '').replace(/^---\s*[\s\S]*?---\s*\n?/g, '');
