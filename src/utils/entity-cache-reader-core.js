@@ -130,7 +130,10 @@ export async function fetchEntityFromR2(type, slug, locals) {
     const r2 = locals?.runtime?.env?.R2_ASSETS;
     if (r2) {
         const paths = getR2PathCandidates(type, normalized);
+        // V15.11: Debug logging for path resolution
+        console.log(`[R2Reader] Checking ${paths.length} paths for ${type}/${normalized}, first 5:`, paths.slice(0, 5));
         for (const path of paths) {
+
             try {
                 const file = await r2.get(path);
                 if (file) {
