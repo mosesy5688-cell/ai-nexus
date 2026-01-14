@@ -21,8 +21,8 @@ const {
   maxPreviewLength = 3000 
 } = Astro.props;
 
-// Clean content
-const content = (bodyContent || '').replace(/^---[\s\S]*?---\n?/g, '');
+// Clean content (V15.8: Resilient Regex)
+const content = (bodyContent || '').replace(/^---\s*[\s\S]*?---\s*\n?/g, '');
 const hasLongContent = content.length > maxPreviewLength;
 const previewContent = hasLongContent ? content.substring(0, maxPreviewLength) : content;
 ---

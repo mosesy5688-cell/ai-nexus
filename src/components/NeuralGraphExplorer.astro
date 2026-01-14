@@ -30,16 +30,18 @@ try {
         const parts = rootId.split('--');
         
         // Add root node
-        nodeMap.set(rootId, {
-            id: rootId,
-            name: entity.name || parts[parts.length - 1] || 'Current',
-            author: entity.author || (parts.length > 1 ? parts[parts.length - 2] : ''),
-            type: entity.type || 'model',
-            fni: entity.fni_score || 0
-        });
+        if (!nodeMap.has(rootId)) {
+            nodeMap.set(rootId, {
+                id: rootId,
+                name: entity.name || parts[parts.length - 1] || 'Current',
+                author: entity.author || (parts.length > 1 ? parts[parts.length - 2] : ''),
+                type: entity.type || 'model',
+                fni: entity.fni_score || 0
+            });
+        }
 
         // Extract Knowledge Links (EXPLAIN)
-        const kLinks = entity.knowledge_links || entity.relations?.knowledge || [];
+        const kLinks = entity.knowledge_links || entity.relations?.knowledge || entity.meta?.extended?.relations?.knowledge || [];
         kLinks.forEach((link: any) => {
             const lid = typeof link === 'string' ? link : link.id;
             const lname = typeof link === 'string' ? link : (link.name || link.title || lid);
@@ -50,7 +52,7 @@ try {
         });
 
         // Extract Paper Refs (IMPLEMENTS)
-        const aRefs = entity.arxiv_refs || entity.relations?.papers || [];
+        const aRefs = entity.arxiv_refs || entity.relations?.papers || entity.meta?.extended?.relations?.papers || [];
         aRefs.forEach((ref: any) => {
             const rid = typeof ref === 'string' ? `arxiv--${ref}` : (ref.id || `arxiv--${ref.arxiv_id}`);
             const rname = typeof ref === 'string' ? `Paper ${ref}` : (ref.title || ref.id);
@@ -61,7 +63,7 @@ try {
         });
 
         // Extract Similar (ALT)
-        const sModels = entity.similar_models || entity.relations?.similar || [];
+        const sModels = entity.similar_models || entity.relations?.similar || entity.meta?.extended?.relations?.similar || [];
         sModels.forEach((sim: any) => {
             const sid = typeof sim === 'string' ? sim : sim.id;
             const sname = typeof sim === 'string' ? sid.split('--').pop() : (sim.name || sid);
