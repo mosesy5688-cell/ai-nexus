@@ -24,26 +24,27 @@ const lines = displayCode.split('\n').length;
 ---
 
 {code && (
-  <section class="code-example bg-gray-900 rounded-xl overflow-hidden">
-    <div class="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700">
+  <section class="code-example bg-black rounded-xl overflow-hidden border border-gray-800 shadow-2xl">
+    <div class="flex items-center justify-between px-4 py-2 bg-[#0a0a0a] border-b border-gray-800">
       <div class="flex items-center gap-2">
         <span class="text-yellow-400">💻</span>
-        <span class="text-sm font-semibold text-gray-300">Quick Start</span>
-        <span class="text-xs px-2 py-0.5 bg-gray-700 text-gray-400 rounded">{language}</span>
+        <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Quick Start</span>
+        <span class="text-[10px] px-2 py-0.5 bg-gray-900 text-gray-500 rounded border border-gray-800 font-mono">{language}</span>
       </div>
       <button 
-        class="copy-btn text-xs text-gray-400 hover:text-white transition-colors"
+        class="copy-btn flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-gray-200 text-black text-[11px] font-bold rounded-md transition-all active:scale-95 shadow-lg"
         data-code={code}
       >
-        📋 Copy
+        <span class="icon">📋</span>
+        <span class="label">Copy Code</span>
       </button>
     </div>
     
-    <pre class="p-4 overflow-x-auto text-sm"><code class={`language-${language} text-gray-100`}>{displayCode}</code></pre>
+    <pre class="p-5 overflow-x-auto text-sm leading-relaxed scrollbar-thin scrollbar-thumb-gray-800"><code class={`language-${language} text-white selection:bg-indigo-500/30`}>{displayCode}</code></pre>
     
     {lines > 20 && (
-      <div class="px-4 py-2 bg-gray-800 border-t border-gray-700 text-xs text-gray-500">
-        Showing first 20 lines • View full code in README
+      <div class="px-4 py-2 bg-[#0a0a0a] border-t border-gray-800 text-[10px] text-gray-600 font-bold uppercase tracking-tighter">
+        Showing first 20 lines • Full code available in Readme
       </div>
     )}
   </section>
@@ -53,10 +54,27 @@ const lines = displayCode.split('\n').length;
   // Copy button functionality
   document.querySelectorAll('.copy-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const code = btn.dataset.code || '';
-      await navigator.clipboard.writeText(code);
-      btn.textContent = '✓ Copied!';
-      setTimeout(() => btn.textContent = '📋 Copy', 2000);
+      const b = btn as HTMLButtonElement;
+      const code = b.dataset.code || '';
+      const label = b.querySelector('.label');
+      const icon = b.querySelector('.icon');
+      
+      try {
+          await navigator.clipboard.writeText(code);
+          if (label) label.textContent = 'Copied!';
+          if (icon) icon.textContent = '✅';
+          b.classList.replace('bg-white', 'bg-emerald-500');
+          b.classList.add('text-white');
+          
+          setTimeout(() => {
+            if (label) label.textContent = 'Copy Code';
+            if (icon) icon.textContent = '📋';
+            b.classList.replace('bg-emerald-500', 'bg-white');
+            b.classList.remove('text-white');
+          }, 2000);
+      } catch (err) {
+          console.error('Failed to copy!', err);
+      }
     });
   });
 </script>
@@ -64,11 +82,21 @@ const lines = displayCode.split('\n').length;
 <style>
   .code-example pre {
     margin: 0;
-    max-height: 400px;
+    max-height: 500px;
   }
   
   .code-example code {
-    font-family: 'Fira Code', 'Monaco', monospace;
-    line-height: 1.5;
+    font-family: 'Fira Code', 'JetBrains Mono', 'Monaco', monospace;
+    font-variant-ligatures: normal;
+  }
+
+  /* Custom scrollbar for better visibility on black */
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #333;
+    border-radius: 10px;
   }
 </style>

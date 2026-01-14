@@ -7,32 +7,81 @@
 
 interface Props {
     currentModelId?: string;
+    entity?: any;
 }
 
-const { currentModelId } = Astro.props;
+const { currentModelId, entity } = Astro.props;
 
 // Graph data structures
 let graphNodes: { id: string; name: string; author: string; type: string; fni: number }[] = [];
 let graphLinks: { source: string; target: string; type: string; weight: number }[] = [];
-let graphVersion = '15.2';
+let graphVersion = '15.13';
 let relatedNodes: typeof graphNodes = [];
 let totalNodes = 0;
 let totalLinks = 0;
 
 try {
     const runtime = Astro.locals.runtime;
+    const nodeMap = new Map<string, typeof graphNodes[0]>();
+
+    // 1. Local Extraction (Highest Priority for Instant Value)
+    if (entity) {
+        const rootId = currentModelId || entity.id || 'current';
+        const parts = rootId.split('--');
+        
+        // Add root node
+        nodeMap.set(rootId, {
+            id: rootId,
+            name: entity.name || parts[parts.length - 1] || 'Current',
+            author: entity.author || (parts.length > 1 ? parts[parts.length - 2] : ''),
+            type: entity.type || 'model',
+            fni: entity.fni_score || 0
+        });
+
+        // Extract Knowledge Links (EXPLAIN)
+        const kLinks = entity.knowledge_links || entity.relations?.knowledge || [];
+        kLinks.forEach((link: any) => {
+            const lid = typeof link === 'string' ? link : link.id;
+            const lname = typeof link === 'string' ? link : (link.name || link.title || lid);
+            if (!nodeMap.has(lid)) {
+                nodeMap.set(lid, { id: lid, name: lname, author: 'Wiki', type: 'concept', fni: 0 });
+            }
+            graphLinks.push({ source: rootId, target: lid, type: 'EXPLAIN', weight: 1.0 });
+        });
+
+        // Extract Paper Refs (IMPLEMENTS)
+        const aRefs = entity.arxiv_refs || entity.relations?.papers || [];
+        aRefs.forEach((ref: any) => {
+            const rid = typeof ref === 'string' ? `arxiv--${ref}` : (ref.id || `arxiv--${ref.arxiv_id}`);
+            const rname = typeof ref === 'string' ? `Paper ${ref}` : (ref.title || ref.id);
+            if (!nodeMap.has(rid)) {
+                nodeMap.set(rid, { id: rid, name: rname, author: 'ArXiv', type: 'paper', fni: 0 });
+            }
+            graphLinks.push({ source: rootId, target: rid, type: 'IMPLEMENTS', weight: 0.9 });
+        });
+
+        // Extract Similar (ALT)
+        const sModels = entity.similar_models || entity.relations?.similar || [];
+        sModels.forEach((sim: any) => {
+            const sid = typeof sim === 'string' ? sim : sim.id;
+            const sname = typeof sim === 'string' ? sid.split('--').pop() : (sim.name || sid);
+            if (!nodeMap.has(sid)) {
+                nodeMap.set(sid, { id: sid, name: sname, author: 'Similar', type: 'model', fni: (sim.fni_score || 0) });
+            }
+            graphLinks.push({ source: rootId, target: sid, type: 'ALT', weight: 0.8 });
+        });
+    }
+
+    // 2. Global Backup (Optional sync)
     if (runtime?.env?.R2_ASSETS) {
         const r2 = runtime.env.R2_ASSETS;
         const graphFile = await r2.get('cache/relations.json');
         if (graphFile) {
             const rawData = await graphFile.json() as any;
-            
-            // V15.2: Transform relations[] into nodes[] and links[]
             const relations = rawData.relations || [];
-            const nodeMap = new Map<string, typeof graphNodes[0]>();
             
-            // Build nodes from unique source/target IDs
             for (const rel of relations) {
+                // Only add if not already in map (prefer local data)
                 if (rel.source_id && !nodeMap.has(rel.source_id)) {
                     const parts = rel.source_id.split('--');
                     nodeMap.set(rel.source_id, {
@@ -54,7 +103,6 @@ try {
                     });
                 }
                 
-                // Build links
                 graphLinks.push({
                     source: rel.source_id,
                     target: rel.target_id,
@@ -62,45 +110,41 @@ try {
                     weight: rel.confidence || 0.8
                 });
             }
-            
-            graphNodes = Array.from(nodeMap.values());
-            totalNodes = graphNodes.length;
-            totalLinks = graphLinks.length;
-            
-            // V15.2: Find related nodes for the current entity (improved matching)
-            if (currentModelId) {
-                // Strip common entity prefixes for flexible matching
-                const normalizedId = currentModelId.toLowerCase()
-                    .replace(/^(arxiv|hf-space|hf-model|hf-dataset|github|model|agent|tool|dataset)--/, '');
-                const relatedIds = new Set<string>();
-                
-                for (const link of graphLinks) {
-                    // Strip prefixes from graph node IDs too
-                    const srcClean = link.source.toLowerCase()
-                        .replace(/^(arxiv|hf-space|hf-model|hf-dataset|github|model|agent|tool|dataset)--/, '');
-                    const tgtClean = link.target.toLowerCase()
-                        .replace(/^(arxiv|hf-space|hf-model|hf-dataset|github|model|agent|tool|dataset)--/, '');
-                    
-                    // Match by cleaned ID or by last segment (author--name -> name)
-                    const srcLastPart = srcClean.split('--').pop() || '';
-                    const tgtLastPart = tgtClean.split('--').pop() || '';
-                    const idLastPart = normalizedId.split('--').pop() || normalizedId;
-                    
-                    if (srcClean === normalizedId || srcClean.includes(normalizedId) || 
-                        srcLastPart === idLastPart) {
-                        relatedIds.add(link.target);
-                    } else if (tgtClean === normalizedId || tgtClean.includes(normalizedId) || 
-                               tgtLastPart === idLastPart) {
-                        relatedIds.add(link.source);
-                    }
-                }
-                
-                relatedNodes = graphNodes
-                    .filter(n => relatedIds.has(n.id))
-                    .slice(0, 6);
-            }
-
         }
+    }
+
+    graphNodes = Array.from(nodeMap.values());
+    totalNodes = graphNodes.length;
+    totalLinks = graphLinks.length;
+    
+    // Find related nodes for the current entity (Now including the locally extracted ones)
+    if (currentModelId || (entity && entity.id)) {
+        const targetId = currentModelId || entity.id;
+        const normalizedId = targetId.toLowerCase()
+            .replace(/^(arxiv|hf-space|hf-model|hf-dataset|github|model|agent|tool|dataset)--/, '');
+        
+        const relatedIds = new Set<string>();
+        
+        for (const link of graphLinks) {
+            const srcClean = link.source.toLowerCase()
+                .replace(/^(arxiv|hf-space|hf-model|hf-dataset|github|model|agent|tool|dataset)--/, '');
+            const tgtClean = link.target.toLowerCase()
+                .replace(/^(arxiv|hf-space|hf-model|hf-dataset|github|model|agent|tool|dataset)--/, '');
+            
+            const srcLastPart = srcClean.split('--').pop() || '';
+            const tgtLastPart = tgtClean.split('--').pop() || '';
+            const idLastPart = normalizedId.split('--').pop() || normalizedId;
+            
+            if (srcClean === normalizedId || srcClean.includes(normalizedId) || srcLastPart === idLastPart) {
+                if (link.target !== targetId) relatedIds.add(link.target);
+            } else if (tgtClean === normalizedId || tgtClean.includes(normalizedId) || tgtLastPart === idLastPart) {
+                if (link.source !== targetId) relatedIds.add(link.source);
+            }
+        }
+        
+        relatedNodes = graphNodes
+            .filter(n => relatedIds.has(n.id))
+            .slice(0, 12); // Increased for better view
     }
 } catch (e) {
     console.error('[NeuralGraphExplorer] Error:', e);
