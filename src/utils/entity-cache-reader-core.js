@@ -71,33 +71,37 @@ export function hydrateEntity(data, type) {
         hydrated.hellaswag = firstBench.hellaswag || entity.hellaswag;
         hydrated.arc_challenge = firstBench.arc_challenge || entity.arc_challenge;
         hydrated.avg_score = firstBench.avg_score || entity.avg_score;
+        // V15.5: Model-specific name derivation (handles replicate, huggingface, etc.)
+        // ID format: source--author--name or source--name
+        if (entity.id && (!entity.name || entity.name.includes('--') || entity.name.includes(':'))) {
+            const parts = entity.id.split('--');
+            // Extract last part as name (e.g., claude-4-sonnet from replicate--anthropic--claude-4-sonnet)
+            const namePart = parts[parts.length - 1] || entity.id;
+            hydrated.name = entity.pretty_name || namePart || derivedName;
+        }
+        hydrated.author = entity.author || (entity.id && entity.id.split('--').length > 1 ? entity.id.split('--')[1] : 'Unknown');
     } else if (type === 'paper') {
-        // V15.2: Paper-specific hydration
         hydrated.title = derivedName;
         hydrated.abstract = entity.abstract || entity.description;
     } else if (type === 'space') {
-        // V15.2: Space-specific hydration
         hydrated.title = derivedName;
     } else if (type === 'tool') {
-        // V15.3: Tool-specific hydration - extract friendly name from ID
         // ID format: github--author--name or ollama--name
-        if (entity.id && !entity.name) {
+        if (entity.id && (!entity.name || entity.name.includes('--'))) {
             const parts = entity.id.split('--');
-            // Remove source prefix (github, ollama, etc.)
             const namePart = parts.length > 2 ? parts.slice(2).join('/') : parts[parts.length - 1];
             hydrated.name = entity.pretty_name || namePart || derivedName;
         }
         hydrated.author = entity.author || (entity.id ? entity.id.split('--')[1] : 'Unknown');
     } else if (type === 'dataset') {
-        // V15.3: Dataset-specific hydration - extract friendly name from ID
         // ID format: hf-dataset--author--name
-        if (entity.id && !entity.name) {
+        if (entity.id && (!entity.name || entity.name.includes('--'))) {
             const parts = entity.id.split('--');
-            // Remove source prefix (hf-dataset)
             const namePart = parts.length > 2 ? parts.slice(2).join('/') : parts[parts.length - 1];
             hydrated.name = entity.pretty_name || namePart || derivedName;
         }
         hydrated.author = entity.author || (entity.id && entity.id.split('--').length > 1 ? entity.id.split('--')[1] : 'Unknown');
+
         hydrated.title = hydrated.name;
     }
 
