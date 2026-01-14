@@ -67,9 +67,16 @@ const apiExample = `import { ${safeToolName} } from '${safeToolLower}';\n\nconst
       <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
          <span>💻</span> Installation
       </h2>
-      <div class="bg-gray-900 text-gray-300 p-4 rounded-lg font-mono text-sm relative group">
-         <code>{installCmd}</code>
-         <button class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 px-2 py-1 bg-gray-700 rounded text-xs">Copy</button>
+      <div class="relative group">
+         <div class="bg-black text-gray-300 p-5 rounded-xl font-mono text-sm border border-gray-800 flex justify-between items-center pr-16">
+            <code id="tool-install-cmd">{installCmd}</code>
+         </div>
+         <button 
+           class="absolute top-3.5 right-3.5 px-3 py-1 bg-white hover:bg-gray-200 text-black text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 shadow-lg border border-gray-200"
+           onclick={`navigator.clipboard.writeText(document.getElementById('tool-install-cmd').innerText).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000); })`}
+         >
+           Copy
+         </button>
       </div>
   </section>
   
@@ -78,8 +85,16 @@ const apiExample = `import { ${safeToolName} } from '${safeToolLower}';\n\nconst
       <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
          <span>🔌</span> API Reference
       </h2>
-      <div class="bg-gray-900 text-blue-300 p-4 rounded-lg font-mono text-xs overflow-x-auto">
-         <pre>{apiExample}</pre>
+      <div class="relative group">
+         <div class="bg-black text-blue-300 p-5 rounded-xl font-mono text-xs overflow-x-auto border border-gray-800 scrollbar-thin scrollbar-thumb-gray-800">
+            <pre id="tool-api-example">{apiExample}</pre>
+         </div>
+         <button 
+           class="absolute top-3 right-3 px-3 py-1 bg-white hover:bg-gray-200 text-black text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 shadow-lg border border-gray-200"
+           onclick={`navigator.clipboard.writeText(document.getElementById('tool-api-example').innerText).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000); })`}
+         >
+           Copy
+         </button>
       </div>
       <p class="mt-4 text-center text-sm text-gray-500">
          <a href={tool.source_url} target="_blank" class="text-indigo-500 hover:underline">Read full documentation</a>
