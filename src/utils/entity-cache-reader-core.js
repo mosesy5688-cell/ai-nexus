@@ -69,6 +69,7 @@ export function getR2PathCandidates(type, normalizedSlug) {
 /**
  * Universal hydration for entity objects.
  * Merges raw entity data with computed metrics and SEO metadata.
+ * V15.2: Enhanced to handle entities.json schema variations.
  */
 export function hydrateEntity(data, type) {
     if (!data) return null;
@@ -77,11 +78,18 @@ export function hydrateEntity(data, type) {
     const computed = data.computed || {};
     const seo = data.seo || {};
 
+    // V15.2: Derive name from ID if missing (common in entities.json)
+    const derivedName = entity.name || entity.title || entity.pretty_name ||
+        (entity.id ? entity.id.split('--').pop() : 'Unknown');
+
     // Standard mappings for all types
     const hydrated = {
         ...entity,
-        fni_score: computed.fni ?? entity.fni_score,
-        fni_percentile: computed.fni_percentile ?? entity.fni_percentile,
+        // V15.2: Enhanced FNI fallback chain
+        fni_score: computed.fni ?? entity.fni_score ?? entity.fni ?? 0,
+        fni_percentile: computed.fni_percentile ?? entity.fni_percentile ?? entity.percentile,
+        // V15.2: Ensure name is always populated
+        name: derivedName,
         relations: computed.relations || entity.relations || {},
         _computed: computed,
         _seo: seo,
@@ -96,10 +104,18 @@ export function hydrateEntity(data, type) {
         hydrated.hellaswag = firstBench.hellaswag || entity.hellaswag;
         hydrated.arc_challenge = firstBench.arc_challenge || entity.arc_challenge;
         hydrated.avg_score = firstBench.avg_score || entity.avg_score;
+    } else if (type === 'paper') {
+        // V15.2: Paper-specific hydration
+        hydrated.title = derivedName;
+        hydrated.abstract = entity.abstract || entity.description;
+    } else if (type === 'space') {
+        // V15.2: Space-specific hydration
+        hydrated.title = derivedName;
     }
 
     return hydrated;
 }
+
 
 /**
  * Base fetcher for R2 assets with local FS shim for development

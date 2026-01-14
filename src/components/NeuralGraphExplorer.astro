@@ -67,18 +67,30 @@ try {
             totalNodes = graphNodes.length;
             totalLinks = graphLinks.length;
             
-            // Find related nodes for the current model
+            // V15.2: Find related nodes for the current entity (improved matching)
             if (currentModelId) {
-                const normalizedId = currentModelId.toLowerCase();
+                // Strip common entity prefixes for flexible matching
+                const normalizedId = currentModelId.toLowerCase()
+                    .replace(/^(arxiv|hf-space|hf-model|hf-dataset|github|model|agent|tool|dataset)--/, '');
                 const relatedIds = new Set<string>();
                 
                 for (const link of graphLinks) {
-                    const srcLower = link.source.toLowerCase();
-                    const tgtLower = link.target.toLowerCase();
+                    // Strip prefixes from graph node IDs too
+                    const srcClean = link.source.toLowerCase()
+                        .replace(/^(arxiv|hf-space|hf-model|hf-dataset|github|model|agent|tool|dataset)--/, '');
+                    const tgtClean = link.target.toLowerCase()
+                        .replace(/^(arxiv|hf-space|hf-model|hf-dataset|github|model|agent|tool|dataset)--/, '');
                     
-                    if (srcLower.includes(normalizedId) || normalizedId.includes(srcLower.split('--').pop() || '')) {
+                    // Match by cleaned ID or by last segment (author--name -> name)
+                    const srcLastPart = srcClean.split('--').pop() || '';
+                    const tgtLastPart = tgtClean.split('--').pop() || '';
+                    const idLastPart = normalizedId.split('--').pop() || normalizedId;
+                    
+                    if (srcClean === normalizedId || srcClean.includes(normalizedId) || 
+                        srcLastPart === idLastPart) {
                         relatedIds.add(link.target);
-                    } else if (tgtLower.includes(normalizedId) || normalizedId.includes(tgtLower.split('--').pop() || '')) {
+                    } else if (tgtClean === normalizedId || tgtClean.includes(normalizedId) || 
+                               tgtLastPart === idLastPart) {
                         relatedIds.add(link.source);
                     }
                 }
@@ -87,6 +99,7 @@ try {
                     .filter(n => relatedIds.has(n.id))
                     .slice(0, 6);
             }
+
         }
     }
 } catch (e) {
