@@ -12,28 +12,30 @@ export function normalizeEntitySlug(id, source = 'huggingface') {
 
 // Generates prioritized R2 path candidates for an entity
 export function getR2PathCandidates(type, normalizedSlug) {
-    // Standardize type (handle singular/plural inconsistencies)
     const singular = type.endsWith('s') ? type.slice(0, -1) : type;
     const plural = type.endsWith('s') ? type : `${type}s`;
-
     const sourcePrefixes = ['replicate--', 'huggingface--', 'github--', 'civitai--', 'ollama--', ''];
-
     const lowerSlug = normalizedSlug.toLowerCase();
     const dotFreeSlug = lowerSlug.replace(/\./g, '-');
+
+    // V15.4: ArXiv version suffixes (v1-v9) for paper matching
+    const arxivVersions = (singular === 'paper') ? ['', 'v1', 'v2', 'v3', 'v4', 'v5'] : [''];
 
     const candidates = [];
     [singular, plural].forEach(t => {
         const prefix = `cache/entities/${t}`;
-
         sourcePrefixes.forEach(srcPrefix => {
-            candidates.push(`${prefix}/${srcPrefix}${lowerSlug}.json`);
-            candidates.push(`${prefix}/${srcPrefix}${normalizedSlug}.json`);
-            candidates.push(`${prefix}/${srcPrefix}${dotFreeSlug}.json`);
+            arxivVersions.forEach(ver => {
+                const suffix = ver ? ver : '';
+                candidates.push(`${prefix}/${srcPrefix}${lowerSlug}${suffix}.json`);
+                candidates.push(`${prefix}/${srcPrefix}${normalizedSlug}${suffix}.json`);
+                candidates.push(`${prefix}/${srcPrefix}${dotFreeSlug}${suffix}.json`);
+            });
         });
     });
-
     return [...new Set(candidates)];
 }
+
 
 // Universal hydration for entity objects
 export function hydrateEntity(data, type) {
