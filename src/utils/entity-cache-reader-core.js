@@ -14,15 +14,18 @@ export function normalizeEntitySlug(id, source = 'huggingface') {
 export function getR2PathCandidates(type, normalizedSlug) {
     const singular = type.endsWith('s') ? type.slice(0, -1) : type;
     const plural = type.endsWith('s') ? type : `${type}s`;
-    // V15.8: Add arxiv-- prefix for papers
+
+    // V15.10: Check if slug already has arxiv-- prefix to avoid double prefixing
+    const hasArxivPrefix = normalizedSlug.toLowerCase().startsWith('arxiv--');
     const sourcePrefixes = singular === 'paper'
-        ? ['arxiv--', '']
+        ? (hasArxivPrefix ? [''] : ['arxiv--', ''])  // Skip adding prefix if already present
         : ['replicate--', 'huggingface--', 'github--', 'civitai--', 'ollama--', ''];
     const lowerSlug = normalizedSlug.toLowerCase();
     const dotFreeSlug = lowerSlug.replace(/\./g, '-');
 
     // V15.4: ArXiv version suffixes (v1-v9) for paper matching
     const arxivVersions = (singular === 'paper') ? ['', 'v1', 'v2', 'v3', 'v4', 'v5'] : [''];
+
 
 
     const candidates = [];
