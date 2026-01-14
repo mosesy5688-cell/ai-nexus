@@ -40,16 +40,24 @@ export function hydrateEntity(data, type) {
     };
 
     // Promotion of high-fidelity technical specs from meta_json (Data Vacuum Fix)
-    if (meta.extended) {
-        hydrated.context_length = hydrated.context_length || meta.extended.context_length;
-        hydrated.architecture = hydrated.architecture || meta.extended.architecture;
-        hydrated.params_billions = hydrated.params_billions || meta.extended.params_billions;
-        hydrated.example_code = hydrated.example_code || meta.extended.example_code;
+    if (meta.extended || meta.config || entity.config) {
+        const config = entity.config || meta.config || meta.extended?.config || {};
+
+        hydrated.context_length = hydrated.context_length || meta.extended?.context_length || config.max_position_embeddings || config.n_ctx;
+        hydrated.architecture = hydrated.architecture || meta.extended?.architecture || config.model_type || config.architectures?.[0];
+        hydrated.params_billions = hydrated.params_billions || meta.extended?.params_billions || config.num_parameters;
+        hydrated.example_code = hydrated.example_code || meta.extended?.example_code || meta.usage || meta.sample_code;
+        hydrated.license_spdx = hydrated.license_spdx || meta.extended?.license || meta.license || config.license;
 
         // V15.8 (Fix): Promote README/Model Card to body_content if top-level is empty
         // This unlocks the "Data Vacuum" for Models, Agents, and Tools
         if (!hydrated.body_content) {
-            hydrated.body_content = meta.readme || meta.model_card || meta.body_content || meta.extended?.readme || null;
+            hydrated.body_content = entity.body_content || meta.readme || meta.model_card || meta.body_content || meta.description || meta.extended?.readme || null;
+        }
+
+        // Secondary fallback for description if body_content is still empty
+        if (!hydrated.description && hydrated.body_content) {
+            hydrated.description = hydrated.body_content.substring(0, 500).split('\n')[0];
         }
     }
 
