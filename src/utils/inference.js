@@ -57,6 +57,15 @@ export function getUseCases(tags = [], pipelineTag = '', entityType = 'model', f
         // Limits
         if (fniScore < 50 && fniScore > 0) limits.add('Experimental / High Latency');
         if (allTags.includes('small-model')) limits.add('Limited Complexity');
+
+        // V15.9 Trust Signal: Restrictive License Detection
+        const license = (pipelineTag || '').toLowerCase(); // Fallback if no specific license arg, usually passed in tags
+        const fullTags = allTags.join(' ');
+        if (fullTags.includes('non-commercial') || fullTags.includes('cc-by-nc') || fullTags.includes('research-only')) {
+            limits.add('Non-Commercial Use');
+        } else if (fullTags.includes('apache') || fullTags.includes('mit')) {
+            // permissible, do nothing
+        }
     }
 
     else if (safeType === 'agent') {
@@ -135,6 +144,11 @@ export function getQuickInsights(entity, type) {
         insights.push({ label: 'Downloads', value: formatNum(entity.downloads) });
         insights.push({ label: 'Likes', value: formatNum(entity.likes) });
         if (entity.has_gguf) insights.push({ label: 'Format', value: 'GGUF ✓', highlight: true });
+
+        // V15.9 Trust Signal
+        if (entity.license) {
+            insights.push({ label: 'License', value: entity.license, highlight: entity.license.includes('apache') || entity.license.includes('mit') });
+        }
     }
 
     else if (safeType === 'agent') {
@@ -142,6 +156,7 @@ export function getQuickInsights(entity, type) {
         insights.push({ label: 'Language', value: entity.language || 'Python' });
         insights.push({ label: 'Stars', value: formatNum(entity.stars || entity.github_stars) });
         insights.push({ label: 'Verified', value: entity.verified ? 'Yes' : 'No', highlight: entity.verified });
+        if (entity.license) insights.push({ label: 'License', value: entity.license });
     }
 
     else if (safeType === 'dataset') {

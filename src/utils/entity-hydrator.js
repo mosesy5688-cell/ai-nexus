@@ -45,6 +45,12 @@ export function hydrateEntity(data, type) {
         hydrated.architecture = hydrated.architecture || meta.extended.architecture;
         hydrated.params_billions = hydrated.params_billions || meta.extended.params_billions;
         hydrated.example_code = hydrated.example_code || meta.extended.example_code;
+
+        // V15.8 (Fix): Promote README/Model Card to body_content if top-level is empty
+        // This unlocks the "Data Vacuum" for Models, Agents, and Tools
+        if (!hydrated.body_content) {
+            hydrated.body_content = meta.readme || meta.model_card || meta.body_content || meta.extended?.readme || null;
+        }
     }
 
     // Type-specific hydration
