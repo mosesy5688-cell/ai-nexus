@@ -71,15 +71,18 @@ export function hydrateEntity(data, type) {
         hydrated.hellaswag = firstBench.hellaswag || entity.hellaswag;
         hydrated.arc_challenge = firstBench.arc_challenge || entity.arc_challenge;
         hydrated.avg_score = firstBench.avg_score || entity.avg_score;
-        // V15.5: Model-specific name derivation (handles replicate, huggingface, etc.)
-        // ID format: source--author--name or source--name
-        if (entity.id && (!entity.name || entity.name.includes('--') || entity.name.includes(':'))) {
-            const parts = entity.id.split('--');
-            // Extract last part as name (e.g., claude-4-sonnet from replicate--anthropic--claude-4-sonnet)
+        // V15.6: Model-specific name derivation - normalize ID first
+        // ID formats: source--author--name, source:author/name, etc.
+        if (entity.id && (!entity.name || entity.name.includes('--') || entity.name.includes(':') || entity.name.includes('/'))) {
+            // Normalize ID: replace : and / with -- for consistent parsing
+            const normalizedId = entity.id.replace(/:/g, '--').replace(/\//g, '--');
+            const parts = normalizedId.split('--').filter(p => p);
+            // Extract last part as name (e.g., gpt-image-1)
             const namePart = parts[parts.length - 1] || entity.id;
             hydrated.name = entity.pretty_name || namePart || derivedName;
+            hydrated.author = entity.author || (parts.length > 1 ? parts[parts.length - 2] : 'Unknown');
         }
-        hydrated.author = entity.author || (entity.id && entity.id.split('--').length > 1 ? entity.id.split('--')[1] : 'Unknown');
+
     } else if (type === 'paper') {
         hydrated.title = derivedName;
         hydrated.abstract = entity.abstract || entity.description;
