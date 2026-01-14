@@ -74,10 +74,10 @@ try {
   {/* Phase B.8: Benchmark Scores with semantic explanations */}
   <BenchmarkScores benchmarks={metaJson.extended?.benchmarks} />
   
-  {/* Phase B.8: Code Example from README */}
+  {/* Phase B.8: Code Example from README (Robust Hydration) */}
   <CodeExample 
-    code={metaJson.extended?.example_code} 
-    language={metaJson.extended?.example_lang || 'python'} 
+    code={metaJson.extended?.example_code || metaJson.example_code || metaJson.code_snippet || metaJson.usage || metaJson.sample_code} 
+    language={metaJson.extended?.example_lang || metaJson.example_lang || metaJson.language || 'python'} 
   />
   
   <!-- B.6: Full README/Model Card Section -->
