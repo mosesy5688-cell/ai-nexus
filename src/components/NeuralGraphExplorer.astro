@@ -127,8 +127,16 @@ const hasRelatedNodes = relatedNodes.length > 0;
                 <>
                     <p class="subtitle">Related Models in the Graph</p>
                     <div class="related-grid">
-                        {relatedNodes.map(node => (
-                            <a href={`/${node.type}/${node.id}`} class="related-card">
+                        {relatedNodes.map(node => {
+                            // V15.3: Convert node ID to URL-friendly slug
+                            // e.g. hf-dataset--openai--gsm8k -> openai/gsm8k
+                            const slugParts = node.id.split('--');
+                            // Remove source prefix (github, hf-dataset, arxiv, etc.)
+                            const cleanParts = slugParts.length > 2 ? slugParts.slice(1) : slugParts;
+                            const urlSlug = cleanParts.join('/');
+                            
+                            return (
+                            <a href={`/${node.type}/${urlSlug}`} class="related-card">
                                 <div class="card-header">
                                     <span class="model-name">{node.name}</span>
                                     <span class="type-badge">{node.type}</span>
@@ -144,9 +152,10 @@ const hasRelatedNodes = relatedNodes.length > 0;
                                     </div>
                                 )}
                             </a>
-                        ))}
+                        )})}
                     </div>
                 </>
+
             ) : (
                 <div class="graph-stats">
                     <p class="subtitle">Graph Overview</p>
