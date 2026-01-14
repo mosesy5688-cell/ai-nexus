@@ -11,15 +11,23 @@ import MarkdownRenderer from './MarkdownRenderer.astro';
 
 interface Props {
   bodyContent: string | null | undefined;
+  title?: string;
+  type?: string;
   initialCollapsed?: boolean;
   maxPreviewLength?: number;
 }
 
 const { 
   bodyContent, 
+  title,
+  type = 'model',
   initialCollapsed = true,
   maxPreviewLength = 3000 
 } = Astro.props;
+
+// V15.8: Dynamic labeling based on type
+const displayTitle = title || (type === 'dataset' ? 'Dataset Card' : (type === 'paper' ? 'Paper Details' : (type === 'agent' ? 'Agent Profile' : (type === 'space' ? 'Space Overview' : 'Model Card'))));
+const toggleLabel = type === 'dataset' ? 'Dataset Card' : 'Profile';
 
 // Clean content (V15.8: Resilient Regex)
 const content = (bodyContent || '').replace(/^---\s*[\s\S]*?---\s*\n?/g, '');
@@ -34,7 +42,7 @@ const previewContent = hasLongContent ? content.substring(0, maxPreviewLength) :
         <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        Model Card
+        {displayTitle}
       </h2>
       
       <div id="readme-preview" class="readme-content">
@@ -57,8 +65,9 @@ const previewContent = hasLongContent ? content.substring(0, maxPreviewLength) :
                  hover:from-indigo-100 hover:to-purple-100 dark:hover:from-indigo-900/40 dark:hover:to-purple-900/40
                  transition-all duration-200 flex items-center justify-center gap-2"
           data-expanded="false"
+          data-type-label={toggleLabel}
         >
-          <span class="toggle-text">Show Full Model Card</span>
+          <span class="toggle-text">Show Full {toggleLabel}</span>
           <svg class="w-4 h-4 toggle-icon transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
           </svg>
@@ -79,6 +88,8 @@ const previewContent = hasLongContent ? content.substring(0, maxPreviewLength) :
     const full = document.getElementById('readme-full');
     
     if (toggleBtn && preview && full) {
+      const typeLabel = toggleBtn.getAttribute('data-type-label') || 'Card';
+      
       toggleBtn.addEventListener('click', () => {
         const isExpanded = toggleBtn.dataset.expanded === 'true';
         
@@ -87,7 +98,7 @@ const previewContent = hasLongContent ? content.substring(0, maxPreviewLength) :
           preview.classList.remove('hidden');
           full.classList.add('hidden');
           toggleBtn.dataset.expanded = 'false';
-          toggleBtn.querySelector('.toggle-text')!.textContent = 'Show Full Model Card';
+          toggleBtn.querySelector('.toggle-text')!.textContent = `Show Full ${typeLabel}`;
           toggleBtn.querySelector('.toggle-icon')!.classList.remove('rotate-180');
         } else {
           // Expand
@@ -101,6 +112,7 @@ const previewContent = hasLongContent ? content.substring(0, maxPreviewLength) :
     }
   });
 </script>
+
 
 <style>
   .readme-content {

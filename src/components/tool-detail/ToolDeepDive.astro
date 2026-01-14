@@ -100,4 +100,10 @@ const apiExample = `import { ${safeToolName} } from '${safeToolLower}';\n\nconst
          <a href={tool.source_url} target="_blank" class="text-indigo-500 hover:underline">Read full documentation</a>
       </p>
   </section>
+  <!-- Section: README / Tool Card -->
+  <FullReadmeSection 
+    bodyContent={tool.body_content || tool.description}
+    type="tool"
+    maxPreviewLength={2000}
+  />
 </div>
