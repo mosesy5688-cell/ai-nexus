@@ -37,15 +37,15 @@ const bibtex = generateBibTeX(paper);
     <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
        <span>❝</span> Citation
     </h2>
-    <div class="relative group">
-       <pre class="bg-gray-900 text-gray-300 p-4 rounded-lg text-xs font-mono overflow-x-auto border border-gray-700"><code>{bibtex}</code></pre>
-       <button 
-         class="absolute top-2 right-2 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity"
-         onclick={`navigator.clipboard.writeText(\`${bibtex}\`)`}
-       >
-         Copy
-       </button>
-    </div>
+     <div class="relative group">
+        <pre class="bg-black text-white p-5 rounded-xl text-xs font-mono overflow-x-auto border border-gray-800 scrollbar-thin scrollbar-thumb-gray-800"><code>{bibtex}</code></pre>
+        <button 
+          class="absolute top-3 right-3 px-3 py-1 bg-white hover:bg-gray-200 text-black text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 shadow-lg border border-gray-200"
+          onclick={`navigator.clipboard.writeText(\`${bibtex}\`).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000); })`}
+        >
+          Copy
+        </button>
+     </div>
   </section>
 
   <!-- Section: Authors -->
