@@ -12,10 +12,10 @@ import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference';
 import DataFreshness from '../../components/common/DataFreshness.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
-import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
-import { getToolFromCache } from '../../utils/entity-cache-reader-v6.js';
+import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
+
 
 const { slug } = Astro.params;
 const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -24,14 +24,15 @@ let tool: any = null;
 let cacheVersion = '';
 
 try {
-  // V15.1: Use standardized tool reader
-  tool = await getToolFromCache(slug, Astro.locals);
+  const result = await fetchEntityFromR2('tool', slug, Astro.locals);
+  tool = hydrateEntity(result, 'tool');
   if (tool) {
     cacheVersion = tool._contract_version || 'V15';
   }
 } catch (e) {
   console.error('[Tool Page] Cache error:', e);
 }
+
 
 const pageTitle = tool?.name ? `${tool.name} - AI Development Tool` : (tool?.canonical_name ? `${tool.canonical_name} - AI Development Tool` : `${displaySlug} - AI Development Tool`);
 const pageDescription = tool?.description?.slice(0, 160) || `Explore ${displaySlug} AI development tool on Free2AITools.`;
