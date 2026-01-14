@@ -63,4 +63,10 @@ const bibtex = generateBibTeX(paper);
       </div>
     </section>
   )}
+  <!-- Section: Full Abstract / Content -->
+  <FullReadmeSection 
+    bodyContent={paper.body_content || paper.abstract}
+    type="paper"
+    maxPreviewLength={2000}
+  />
 </div>

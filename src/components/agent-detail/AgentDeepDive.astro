@@ -4,6 +4,7 @@ interface Props {
 }
 
 const { agent } = Astro.props;
+import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
 import TechSpecsFull from '../entity/TechSpecsFull.astro';
 
 // Mock Config YAML
@@ -21,21 +22,13 @@ capabilities:
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
    <!-- Left Column: Content & Config -->
    <div class="lg:col-span-2 space-y-8">
-      <!-- Description / Body -->
-      {agent.body_content ? (
-         <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-               <span>📖</span> Description
-            </h2>
-            <div class="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
-               <Fragment set:html={agent.body_content} />
-            </div>
-         </section>
-      ) : (
-         <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <p class="text-gray-500 italic">No detailed description available.</p>
-         </section>
-      )}
+      <!-- Full README / Agent Profile -->
+      <FullReadmeSection 
+        bodyContent={agent.body_content || agent.description}
+        type="agent"
+        maxPreviewLength={3000}
+      />
+
 
       <!-- Configuration (V15 Spec) -->
       <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
