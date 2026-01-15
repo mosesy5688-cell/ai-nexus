@@ -93,17 +93,33 @@ export function hydrateEntity(data, type) {
         }
     } else if (type === 'paper') {
         hydrated.title = derivedName;
-        hydrated.abstract = entity.abstract || entity.description;
+        hydrated.abstract = entity.abstract || entity.description || meta.abstract || meta.description;
+        hydrated.arxiv_id = entity.arxiv_id || meta.arxiv_id || meta.extended?.arxiv_id;
+        hydrated.citations = entity.citations || entity.citation_count || meta.citations || meta.extended?.citations;
+        hydrated.published_date = entity.published_date || meta.published_date || meta.extended?.published_date;
+        hydrated.authors = entity.authors || meta.authors || meta.extended?.authors || [];
     } else if (type === 'tool' || type === 'dataset' || type === 'agent' || type === 'space') {
         if (entity.id && (!entity.name || entity.name.includes('--'))) {
             const parts = entity.id.split('--');
-            // Handle space IDs: hf-space--author--name
-            // Handle agent IDs: github--author--name
             const namePart = parts.length > 2 ? parts.slice(2).join('/') : parts[parts.length - 1];
             hydrated.name = entity.pretty_name || namePart || derivedName;
             if (type === 'space' || type === 'dataset') hydrated.title = hydrated.name;
         }
         hydrated.author = entity.author || (entity.id && entity.id.split('--').length > 1 ? entity.id.split('--')[1] : 'Unknown');
+
+        // Promotion of specialized metadata for max density
+        if (type === 'dataset') {
+            hydrated.size_bytes = entity.size_bytes || meta.size_bytes || meta.extended?.size_bytes;
+            hydrated.rows = entity.rows || meta.rows || meta.extended?.rows;
+            hydrated.files_count = entity.files_count || meta.files_count || meta.extended?.files;
+        } else if (type === 'agent' || type === 'tool') {
+            hydrated.github_stars = entity.github_stars || entity.stars || meta.stars || meta.stargazers_count || meta.extended?.stars;
+            hydrated.github_forks = entity.github_forks || entity.forks || meta.forks || meta.forks_count || meta.extended?.forks;
+            hydrated.language = entity.language || meta.language || meta.extended?.language || 'Python';
+        } else if (type === 'space') {
+            hydrated.sdk = entity.sdk || meta.sdk || meta.extended?.sdk || 'gradio';
+            hydrated.hardware = entity.hardware || meta.hardware || meta.extended?.hardware;
+        }
     }
 
     return hydrated;
@@ -116,7 +132,7 @@ export function hydrateEntity(data, type) {
 export function augmentEntity(hydrated, summaryData) {
     if (!hydrated || !summaryData) return hydrated;
 
-    // 1. Tech Specs Augmentation
+    // 1. Tech Specs Augmentation (Universal)
     if (summaryData.params_billions !== undefined && !hydrated.params_billions) {
         hydrated.params_billions = summaryData.params_billions;
     }
@@ -125,6 +141,17 @@ export function augmentEntity(hydrated, summaryData) {
     }
     if (summaryData.architecture_family && !hydrated.architecture) {
         hydrated.architecture = summaryData.architecture_family;
+    }
+
+    // V15.10: Support for non-model augmentation
+    if (summaryData.citations !== undefined && !hydrated.citations) {
+        hydrated.citations = summaryData.citations;
+    }
+    if (summaryData.size_bytes !== undefined && !hydrated.size_bytes) {
+        hydrated.size_bytes = summaryData.size_bytes;
+    }
+    if (summaryData.github_stars !== undefined && !hydrated.github_stars) {
+        hydrated.github_stars = summaryData.github_stars;
     }
 
     // 2. Benchmarks Augmentation
