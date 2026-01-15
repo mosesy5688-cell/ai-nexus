@@ -112,13 +112,18 @@ export function hydrateEntity(data, type) {
             hydrated.size_bytes = entity.size_bytes || meta.size_bytes || meta.extended?.size_bytes;
             hydrated.rows = entity.rows || meta.rows || meta.extended?.rows;
             hydrated.files_count = entity.files_count || meta.files_count || meta.extended?.files;
+            hydrated.features = entity.features || meta.features || meta.extended?.features;
+            hydrated.configs = entity.configs || meta.configs || meta.extended?.configs || [];
         } else if (type === 'agent' || type === 'tool') {
             hydrated.github_stars = entity.github_stars || entity.stars || meta.stars || meta.stargazers_count || meta.extended?.stars;
             hydrated.github_forks = entity.github_forks || entity.forks || meta.forks || meta.forks_count || meta.extended?.forks;
             hydrated.language = entity.language || meta.language || meta.extended?.language || 'Python';
+            hydrated.version = entity.version || meta.version || meta.extended?.version || '1.0.0';
+            hydrated.framework = entity.framework || meta.framework || meta.extended?.framework;
         } else if (type === 'space') {
             hydrated.sdk = entity.sdk || meta.sdk || meta.extended?.sdk || 'gradio';
             hydrated.hardware = entity.hardware || meta.hardware || meta.extended?.hardware;
+            hydrated.running_status = entity.running_status || meta.running_status || meta.extended?.runtime_stage || 'RUNNING';
         }
     }
 
