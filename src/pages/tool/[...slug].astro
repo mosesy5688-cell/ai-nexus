@@ -14,12 +14,14 @@ import DataFreshness from '../../components/common/DataFreshness.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
+import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
 import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
 import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
 
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+const displaySlug = slugStr;
 
 let tool: any = null;
 let cacheVersion = '';

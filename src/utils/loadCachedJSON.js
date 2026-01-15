@@ -39,24 +39,7 @@ export async function loadCachedJSON(path, options = {}) {
         console.warn(`[loadCachedJSON] CDN fetch failed for ${path}:`, e.message);
     }
 
-    // Strategy 2: KV fallback API
-    try {
-        const kvUrl = `/api/cache-fallback?file=${encodeURIComponent(path)}`;
-        const kvRes = await fetch(kvUrl);
-
-        if (kvRes.ok) {
-            const data = await kvRes.json();
-            return {
-                data,
-                source: 'kv',
-                freshness: data.generated_at || 'unknown'
-            };
-        }
-    } catch (e) {
-        console.warn(`[loadCachedJSON] KV fallback failed for ${path}:`, e.message);
-    }
-
-    // Strategy 3: Return fallback data
+    // Strategy 2: Return fallback data
     return {
         data: fallbackData,
         source: 'fallback',
