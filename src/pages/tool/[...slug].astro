@@ -14,11 +14,12 @@ import DataFreshness from '../../components/common/DataFreshness.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
-import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
+import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
+import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
 
 
 const { slug } = Astro.params;
-const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
+const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
 
 let tool: any = null;
 let cacheVersion = '';
@@ -26,6 +27,18 @@ let cacheVersion = '';
 try {
   const result = await fetchEntityFromR2('tool', slug, Astro.locals);
   tool = hydrateEntity(result, 'tool');
+
+  // V15.10: Augmentation Layer for Tools
+  try {
+    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
+    const specEntry = specsResult.data?.data?.find(s => s.umid === slugStr.replace(/\//g, '-') || s.umid === slugStr.replace(/\//g, '--'));
+    if (specEntry) {
+      tool = augmentEntity(tool || {}, specEntry);
+    }
+  } catch (specError) {
+    console.warn("[ToolPage] Spec augmentation failed:", specError.message);
+  }
+
   if (tool) {
     cacheVersion = tool._contract_version || 'V15';
   }

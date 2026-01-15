@@ -22,12 +22,25 @@ const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
 let paper: any = null;
 let cacheVersion = '';
 
-import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
+import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
 import { getPaperFromCache } from '../../utils/entity-cache-reader-v6';
+import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
 
 try {
   const result = await fetchEntityFromR2('paper', slug, Astro.locals);
   paper = hydrateEntity(result, 'paper');
+
+  // V15.10: Augmentation Layer for Papers
+  try {
+    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
+    const specEntry = specsResult.data?.data?.find(s => s.umid === slugStr.replace(/\//g, '-') || s.umid === slugStr.replace(/\//g, '--'));
+    if (specEntry) {
+      paper = augmentEntity(paper || {}, specEntry);
+    }
+  } catch (specError) {
+    console.warn("[PaperPage] Spec augmentation failed:", specError.message);
+  }
+  
   if (paper) {
     cacheVersion = paper._contract_version || 'V15';
   } else {

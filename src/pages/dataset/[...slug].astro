@@ -15,13 +15,15 @@ import UniversalCore from '../../components/entity/UniversalCore.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 
 import EntityZones from '../../components/entity/EntityZones.astro';
-import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
+import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
 import { getDatasetFromCache } from '../../utils/entity-cache-reader-v6';
+import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
 // Get slug from URL
 const { slug } = Astro.params;
+const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
 
 // Display slug for UI (preserve original format)
-const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
+const displaySlug = slugStr;
 
 // V4.9 Constitution: Fetch from L8 cache (R2), NOT D1
 let dataset: any = null;
@@ -31,6 +33,17 @@ try {
   // V15.1: getDatasetFromCache now uses unified core reader
   const result = await fetchEntityFromR2('dataset', slug, Astro.locals);
   dataset = hydrateEntity(result, 'dataset');
+
+  // V15.10: Augmentation Layer for Datasets
+  try {
+    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
+    const specEntry = specsResult.data?.data?.find(s => s.umid === slugStr.replace(/\//g, '-') || s.umid === slugStr.replace(/\//g, '--'));
+    if (specEntry) {
+      dataset = augmentEntity(dataset || {}, specEntry);
+    }
+  } catch (specError) {
+    console.warn("[DatasetPage] Spec augmentation failed:", specError.message);
+  }
   
   if (dataset) {
     cacheVersion = dataset._contract_version || 'V15';

@@ -15,13 +15,15 @@ import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
-import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
+import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
 import { getSpaceFromCache } from '../../utils/entity-cache-reader-v6.js';
+import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
 
 const { slug } = Astro.params;
+const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
 
 // Display slug for UI (preserve original format)
-const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
+const displaySlug = slugStr;
 
 let space: any = null;
 let relatedModels: any[] = [];
@@ -31,12 +33,22 @@ try {
   // V15.1: getSpaceFromCache now uses unified core reader
   const result = await fetchEntityFromR2('space', slug, Astro.locals);
   space = hydrateEntity(result, 'space');
+
+  // V15.10: Augmentation Layer for Spaces
+  try {
+    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
+    const specEntry = specsResult.data?.data?.find(s => s.umid === slugStr.replace(/\//g, '-') || s.umid === slugStr.replace(/\//g, '--'));
+    if (specEntry) {
+      space = augmentEntity(space || {}, specEntry);
+    }
+  } catch (specError) {
+    console.warn("[SpacePage] Spec augmentation failed:", specError.message);
+  }
   
   if (space) {
     cacheVersion = space._contract_version || 'V15';
   } else {
     // V15.6 Fallback Logic (Mirroring /spaces/ route)
-    const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
     const cleanSlug = slugStr.replace(/--/g, '/');
     const parts = cleanSlug.split('/');
     
