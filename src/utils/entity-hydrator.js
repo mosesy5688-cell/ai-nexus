@@ -99,3 +99,35 @@ export function hydrateEntity(data, type) {
 
     return hydrated;
 }
+
+/**
+ * Augment an already hydrated entity with data from global summary files (V15.5)
+ * Standardizes technical specs like parameters, context, and benchmark scores.
+ */
+export function augmentEntity(hydrated, summaryData) {
+    if (!hydrated || !summaryData) return hydrated;
+
+    // 1. Tech Specs Augmentation
+    if (summaryData.params_billions !== undefined && !hydrated.params_billions) {
+        hydrated.params_billions = summaryData.params_billions;
+    }
+    if (summaryData.context_length !== undefined && !hydrated.context_length) {
+        hydrated.context_length = summaryData.context_length;
+    }
+    if (summaryData.architecture_family && !hydrated.architecture) {
+        hydrated.architecture = summaryData.architecture_family;
+    }
+
+    // 2. Benchmarks Augmentation
+    if (summaryData.mmlu !== undefined && !hydrated.mmlu) hydrated.mmlu = summaryData.mmlu;
+    if (summaryData.humaneval !== undefined && !hydrated.humaneval) hydrated.humaneval = summaryData.humaneval;
+    if (summaryData.hellaswag !== undefined && !hydrated.hellaswag) hydrated.hellaswag = summaryData.hellaswag;
+    if (summaryData.arc_challenge !== undefined && !hydrated.arc_challenge) hydrated.arc_challenge = summaryData.arc_challenge;
+    if (summaryData.avg_score !== undefined && !hydrated.avg_score) hydrated.avg_score = summaryData.avg_score;
+
+    // 3. FNI/Percentile Augmentation (Best effort)
+    if (summaryData.fni_score !== undefined && !hydrated.fni_score) hydrated.fni_score = summaryData.fni_score;
+    if (summaryData.fni_percentile !== undefined && !hydrated.fni_percentile) hydrated.fni_percentile = summaryData.fni_percentile;
+
+    return hydrated;
+}

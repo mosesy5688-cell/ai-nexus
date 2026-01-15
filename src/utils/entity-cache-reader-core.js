@@ -44,8 +44,8 @@ export function getR2PathCandidates(type, normalizedSlug) {
 }
 
 
-import { hydrateEntity } from './entity-hydrator.js';
-export { hydrateEntity };
+import { hydrateEntity, augmentEntity } from './entity-hydrator.js';
+export { hydrateEntity, augmentEntity };
 
 
 
