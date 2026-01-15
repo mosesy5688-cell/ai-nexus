@@ -25,7 +25,7 @@ const tagsArray = entity?.tags ? (typeof entity.tags === 'string' ? JSON.parse(e
 // Feature availability
 const hasBench = !!(entity?.mmlu || entity?.humaneval || entity?.avg_score || entity?.benchmark_avg);
 const similarEntities = entity?.similar_models || entity?.similar_entities || entity?.relations?.links || [];
-const arxivRefs = entity?.arxiv_refs || entity?.citations || [];
+const arxivRefs = Array.isArray(entity?.arxiv_refs) ? entity.arxiv_refs : (Array.isArray(entity?.arxiv_ids) ? entity.arxiv_ids : []);
 const datasetsUsed = entity?.datasets_used || entity?.training_data || [];
 const baseModel = entity?.base_model || entity?.parent_model || null;
 
