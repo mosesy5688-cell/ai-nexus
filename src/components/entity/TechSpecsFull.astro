@@ -69,7 +69,16 @@ if (type === 'model') {
   trainingSpecs.push({ label: 'Forks', value: entity.github_forks || entity.forks });
 }
 
-// 3. Cloud & Access Rights
+// 3. Model Configuration (V15.9 Enhanced)
+const configSpecs = [];
+if (type === 'model') {
+  if (entity.num_layers) configSpecs.push({ label: 'Layers', value: entity.num_layers });
+  if (entity.hidden_size) configSpecs.push({ label: 'Hidden Size', value: entity.hidden_size });
+  if (entity.num_heads) configSpecs.push({ label: 'Heads', value: entity.num_heads });
+  if (entity.vocab_size) configSpecs.push({ label: 'Vocab Size', value: entity.vocab_size.toLocaleString() });
+}
+
+// 4. Cloud & Access Rights
 const cloudSpecs = [
   { label: 'Source', value: entity.source || 'HuggingFace' },
   { label: 'License', value: entity.license_spdx || entity.license || 'Open Access' },
@@ -92,6 +101,10 @@ const cloudSpecs = [
     
     {trainingSpecs.length > 0 && (
       <SpecCard title="Training & Env" icon="🧠" specs={trainingSpecs} accentColor="emerald" />
+    )}
+
+    {configSpecs.length > 0 && (
+      <SpecCard title="Model Config" icon="⚙️" specs={configSpecs} accentColor="amber" />
     )}
 
     {cloudSpecs.length > 0 && (
