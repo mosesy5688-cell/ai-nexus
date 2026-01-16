@@ -91,6 +91,9 @@ export function hydrateEntity(data, type) {
             hydrated.name = entity.pretty_name || namePart || derivedName;
             hydrated.author = entity.author || (parts.length > 1 ? parts[parts.length - 2] : 'Unknown');
         }
+
+        // V15.0: Enhanced Technical Transparency (VRAM Parity Fix)
+        applyVramLogic(hydrated);
     } else if (type === 'paper') {
         hydrated.title = derivedName;
         hydrated.abstract = entity.abstract || entity.description || meta.abstract || meta.description;
@@ -170,5 +173,29 @@ export function augmentEntity(hydrated, summaryData) {
     if (summaryData.fni_score !== undefined && !hydrated.fni_score) hydrated.fni_score = summaryData.fni_score;
     if (summaryData.fni_percentile !== undefined && !hydrated.fni_percentile) hydrated.fni_percentile = summaryData.fni_percentile;
 
+    // V15.11: Recalculate VRAM if parameters were added via augmentation
+    if (hydrated.params_billions && !hydrated.vram_gb) {
+        applyVramLogic(hydrated);
+    }
+
     return hydrated;
+}
+
+/**
+ * Apply VRAM estimation logic based on parameters
+ * V15.0: (Params * Factor) + 0.5GB Overhead
+ */
+function applyVramLogic(hydrated) {
+    if (hydrated.params_billions) {
+        const params = typeof hydrated.params_billions === 'string'
+            ? parseFloat(hydrated.params_billions.replace(/[^0-9.]/g, ''))
+            : hydrated.params_billions;
+
+        if (params > 0) {
+            hydrated.vram_gb = Math.round((params * 2.0 + 0.5) * 10) / 10;
+            hydrated.vram_gb_est_q4 = Math.round((params * 0.75 + 0.5) * 10) / 10;
+            hydrated.vram_formula = "VRAM = (params * factor) + 0.5GB (FP16 factor: 2.0, Q4 factor: 0.75)";
+            hydrated.vram_is_estimated = true;
+        }
+    }
 }

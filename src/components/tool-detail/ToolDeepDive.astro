@@ -14,6 +14,7 @@ const installCmd = tool.language === 'Python'
   : (tool.language === 'JavaScript' ? `npm install ${safeToolLower}` : `git clone ${tool.source_url || '#'}`);
 
 const apiExample = `import { ${safeToolName} } from '${safeToolLower}';\n\nconst client = new ${safeToolName}();\nawait client.connect();`;
+import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
 ---
 
 <div class="space-y-8">
