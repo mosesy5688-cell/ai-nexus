@@ -91,6 +91,21 @@ export function hydrateEntity(data, type) {
             hydrated.name = entity.pretty_name || namePart || derivedName;
             hydrated.author = entity.author || (parts.length > 1 ? parts[parts.length - 2] : 'Unknown');
         }
+
+        // V15.0: Enhanced Technical Transparency (VRAM Parity Fix)
+        if (hydrated.params_billions) {
+            const params = typeof hydrated.params_billions === 'string'
+                ? parseFloat(hydrated.params_billions.replace(/[^0-9.]/g, ''))
+                : hydrated.params_billions;
+
+            if (params > 0) {
+                // Formula per SPEC-DATA-PIPELINE-V15.0: (Params * Factor) + 0.5GB Overhead
+                hydrated.vram_gb = Math.round((params * 2.0 + 0.5) * 10) / 10;
+                hydrated.vram_gb_est_q4 = Math.round((params * 0.75 + 0.5) * 10) / 10;
+                hydrated.vram_formula = "VRAM = (params * factor) + 0.5GB (FP16 factor: 2.0, Q4 factor: 0.75)";
+                hydrated.vram_is_estimated = true;
+            }
+        }
     } else if (type === 'paper') {
         hydrated.title = derivedName;
         hydrated.abstract = entity.abstract || entity.description || meta.abstract || meta.description;

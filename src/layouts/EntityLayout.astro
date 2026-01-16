@@ -13,6 +13,7 @@ import Layout from '../layouts/Layout.astro';
 import QuickInsights from '../components/entity/QuickInsights.astro';
 import CommunityStats from '../components/model-detail/CommunityStats.astro';
 import EntityStickyHeader from '../components/entity/EntityStickyHeader.astro';
+import FullMetadata from '../components/entity/FullMetadata.astro';
 import { getUseCases } from '../utils/inference';
 
 export interface Props {
@@ -121,6 +122,7 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
 
             {/* V15.0: FULL METADATA DISCLOSURE (Absolute Transparency) */}
             <div class="pt-12 border-t border-gray-100 dark:border-gray-800">
+               <FullMetadata entity={entity} title={`${type.charAt(0).toUpperCase() + type.slice(1)} Transparency Report`} />
             </div>
           </div>
         </div>
