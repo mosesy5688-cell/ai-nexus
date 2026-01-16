@@ -5,6 +5,7 @@ const INDEX_URL = '/data/search-index-top.json';
 const FULL_INDEX_URL = '/api/cache/search-full.json'; // V14.5 Phase 5
 
 let searchData = [];
+let knowledgeData = []; // V15.5: Added for Unified Search
 let fullSearchData = null;
 let isLoaded = false;
 let isLoading = false;
@@ -13,6 +14,7 @@ let isFullSearchLoading = false;
 
 const HISTORY_KEY = 'f2ai_search_history';
 const MAX_HISTORY = 5;
+const KNOWLEDGE_INDEX_URL = '/data/knowledge-index.json'; // Pre-computed or generated at build
 
 export async function initSearch() {
     if (isLoaded || isLoading) return;
@@ -20,11 +22,22 @@ export async function initSearch() {
     console.log('📥 [V14.2] Loading static search index...');
 
     try {
-        const response = await fetch(INDEX_URL);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        searchData = await response.json();
+        const [searchRes, knowledgeRes] = await Promise.all([
+            fetch(INDEX_URL),
+            fetch(KNOWLEDGE_INDEX_URL).catch(() => null) // Fallback if not yet generated
+        ]);
+
+        if (searchRes.ok) searchData = await searchRes.json();
+
+        if (knowledgeRes && knowledgeRes.ok) {
+            knowledgeData = await knowledgeRes.json();
+        } else {
+            // V15.5 Static Fallback: If index.json missing, we can stub from basic patterns
+            console.warn('⚠️ Knowledge index missing. Search will be model-only.');
+        }
+
         isLoaded = true;
-        console.log(`🚀 [V14.2] Search Ready: ${searchData.length} items`);
+        console.log(`🚀 [V14.5] Search Ready: ${searchData.length} models, ${knowledgeData.length} guides`);
     } catch (e) {
         console.error('❌ Search index failed:', e);
     } finally {
@@ -84,26 +97,45 @@ export function getTopModels(limit = 10) {
 
 export function performSearch(query, limit = 8) {
     const dataSource = (isFullSearchEnabled && fullSearchData) ? fullSearchData : searchData;
-    if (!dataSource.length || !query) return [];
-
-    if (query.length === 1 && !isFullSearchEnabled) {
-        return getTopModels(limit);
-    }
+    if (!dataSource.length && !knowledgeData.length || !query) return [];
 
     const q = query.toLowerCase();
+
+    // 1. Search Knowledge Articles (Higher priority for exact concept matches)
+    const knowledgeResults = knowledgeData
+        .filter(k => k.n?.toLowerCase().includes(q) || k.d?.toLowerCase().includes(q))
+        .map(k => ({
+            id: k.id,
+            name: k.n,
+            slug: k.s,
+            type: 'knowledge',
+            score: (k.n?.toLowerCase().startsWith(q) ? 100 : 50) + (k.n?.toLowerCase() === q ? 200 : 0)
+        }));
+
+    // 2. Search Models
     const fuzzy = (t, s) => t && (t.toLowerCase().includes(s) ||
         t.toLowerCase().split(/[\s\-_]/).some(w => w.startsWith(s.slice(0, 3))));
+
     const score = (i) => (fuzzy(i.n, q) ? 50 : 0) + (i.n?.toLowerCase().startsWith(q) ? 30 : 0) +
         (fuzzy(i.t, q) ? 20 : 0) + (fuzzy(i.a, q) ? 10 : 0) + (i.n?.toLowerCase() === q ? 100 : 0) + (i.sc || 0) / 10;
 
-    return dataSource
+    const modelResults = dataSource
         .map(item => ({ item, s: score(item) }))
         .filter(({ s }) => s > 0)
-        .sort((a, b) => b.s - a.s)
-        .slice(0, limit)
-        .map(({ item }) => ({
-            id: item.i, name: item.n, slug: item.s, author: item.a, fni_score: item.sc
+        .map(({ item, s }) => ({
+            id: item.i,
+            name: item.n,
+            slug: item.s,
+            author: item.a,
+            fni_score: item.sc,
+            type: 'model',
+            score: s
         }));
+
+    // Merge and sort
+    return [...knowledgeResults, ...modelResults]
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit);
 }
 
 export function setFullSearchEnabled(enabled) {

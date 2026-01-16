@@ -4,17 +4,45 @@ interface Props {
   title: string;
   description: string;
   category: string;
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
+  effort?: string;
 }
 
-const { title, description, category } = Astro.props;
+const { title, description, category, difficulty, effort } = Astro.props;
+
+// Difficulty color mapping
+const difficultyColors = {
+  Beginner: 'bg-emerald-100 text-emerald-700',
+  Intermediate: 'bg-amber-100 text-amber-700',
+  Advanced: 'bg-rose-100 text-rose-700'
+};
 ---
 
-<header class="article-header">
-  <nav class="breadcrumb">
-    <a href="/knowledge">Knowledge Base</a>
+<header class="mb-12">
+  <nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+    <a href="/knowledge" class="hover:text-indigo-600">Knowledge Base</a>
     <span>›</span>
-    <span>{category}</span>
+    <span class="capitalize">{category}</span>
   </nav>
-  <h1 class="article-title">{title}</h1>
-  <p class="article-description">{description}</p>
+
+  <div class="flex flex-wrap items-center gap-3 mb-4">
+    {difficulty && (
+      <span class={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${difficultyColors[difficulty] || 'bg-gray-100 text-gray-600'}`}>
+        {difficulty}
+      </span>
+    )}
+    {effort && (
+      <span class="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold uppercase tracking-wide">
+        <span>⏱️</span>
+        {effort}
+      </span>
+    )}
+  </div>
+
+  <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4 leading-tight">
+    {title}
+  </h1>
+  <p class="text-xl text-gray-600 dark:text-gray-300 max-w-3xl leading-relaxed">
+    {description}
+  </p>
 </header>
