@@ -39,6 +39,8 @@ const relatedArticles = Object.entries(articles)
           title={article.title} 
           description={article.description} 
           category={article.category} 
+          difficulty={article.difficulty}
+          effort={article.effort}
         />
 
         <KnowledgeContent content={article.content} />
@@ -50,17 +52,62 @@ const relatedArticles = Object.entries(articles)
         <KnowledgeSidebar slug={slug || ''} />
 
         <!-- CTA -->
-        <div class="article-cta">
-          <a href="/ranking" class="btn-primary">View Rankings</a>
-          <a href="/models" class="btn-secondary">Browse Models</a>
+        <div class="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 p-8 bg-gray-50 dark:bg-gray-800/40 rounded-3xl border border-gray-100 dark:border-gray-700">
+          <div class="flex items-center gap-4">
+             <button id="mark-read-btn" class="px-6 py-3 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-bold rounded-2xl border border-gray-200 dark:border-gray-600 hover:border-emerald-500 hover:text-emerald-600 transition-all shadow-sm">
+                Mark as Read
+             </button>
+             <span id="read-status" class="hidden text-emerald-600 font-bold flex items-center gap-1">
+                <span>✓</span> Read
+             </span>
+          </div>
+          <div class="flex gap-4">
+            <a href="/ranking" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">View Rankings</a>
+            <a href="/models" class="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white font-bold rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all">Browse Models</a>
+          </div>
         </div>
       </>
     ) : (
-      <div class="not-found">
-        <h1>Article Not Found</h1>
-        <p>The article you're looking for doesn't exist.</p>
-        <a href="/knowledge" class="btn-primary">Back to Knowledge Base</a>
+      <div class="min-h-[60vh] flex flex-col items-center justify-center text-center">
+        <div class="text-6xl mb-6">🔍</div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">Article Not Found</h1>
+        <p class="text-gray-600 dark:text-gray-400 mb-8 max-w-md">The article you're looking for doesn't exist or has been moved.</p>
+        <a href="/knowledge" class="px-8 py-3 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg">Back to Knowledge Base</a>
       </div>
     )}
   </div>
 </Layout>
+
+<script is:inline define:vars={{ slug }}>
+  (function() {
+      const STORAGE_KEY = 'f2ai_kb_progress';
+      const btn = document.getElementById('mark-read-btn');
+      const status = document.getElementById('read-status');
+      
+      if (!btn || !slug) return;
+
+      // Load initial state
+      let progress = {};
+      try {
+          progress = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      } catch (e) {}
+
+      if (progress[slug]) {
+          showRead();
+      }
+
+      btn.addEventListener('click', () => {
+          progress[slug] = true;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+          showRead();
+          
+          // Trigger custom event for other components (like index page)
+          window.dispatchEvent(new CustomEvent('kb-progress-updated', { detail: { slug, read: true } }));
+      });
+
+      function showRead() {
+          btn.classList.add('hidden');
+          status.classList.remove('hidden');
+      }
+  })();
+</script>

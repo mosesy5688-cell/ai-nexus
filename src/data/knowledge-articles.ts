@@ -11,6 +11,8 @@ export interface KnowledgeArticle {
   description: string;
   category: string;
   content: string;
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
+  effort?: string;
 }
 
 export const articles: Record<string, KnowledgeArticle> = {

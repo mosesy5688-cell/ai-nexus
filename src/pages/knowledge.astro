@@ -127,3 +127,31 @@ const totalArticles = getTotalArticleCount();
     </section>
   </div>
 </Layout>
+
+<script is:inline>
+  (function() {
+      const STORAGE_KEY = 'f2ai_kb_progress';
+      
+      function hydrateProgress() {
+          let progress = {};
+          try {
+              progress = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+          } catch (e) {}
+
+          Object.keys(progress).forEach(slug => {
+              const el = document.getElementById(`status-${slug}`);
+              if (el) el.classList.remove('hidden');
+          });
+      }
+
+      // Initial load
+      hydrateProgress();
+
+      // Listen for updates from other tabs or components
+      window.addEventListener('storage', (e) => {
+          if (e.key === STORAGE_KEY) hydrateProgress();
+      });
+      
+      window.addEventListener('kb-progress-updated', hydrateProgress);
+  })();
+</script>

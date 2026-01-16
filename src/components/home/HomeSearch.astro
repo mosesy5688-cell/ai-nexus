@@ -112,17 +112,29 @@ const { initialQuery = '' } = Astro.props;
       return;
     }
 
-    dropdown.innerHTML = results.map(r => `
-      <a href="/model/${r.slug}" class="flex items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0">
+    dropdown.innerHTML = results.map(r => {
+      const isKnowledge = r.type === 'knowledge';
+      const path = isKnowledge ? `/knowledge/${r.slug}` : `/model/${r.slug}`;
+      const badge = isKnowledge ? 
+        `<span class="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-[10px] font-bold uppercase tracking-wider">GUIDE</span>` : 
+        `<span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold uppercase tracking-wider">MODEL</span>`;
+
+      return `
+      <a href="${path}" class="flex items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0">
         <div class="flex-1">
-          <div class="font-medium text-gray-900 dark:text-white">${r.name}</div>
-          <div class="text-sm text-gray-500">${r.author || 'Unknown'} · FNI: ${r.fni_score || 'N/A'}</div>
+          <div class="flex items-center gap-2">
+            <div class="font-medium text-gray-900 dark:text-white">${r.name}</div>
+            ${badge}
+          </div>
+          <div class="text-xs text-gray-500 mt-0.5">
+            ${isKnowledge ? 'Concepts & Foundations' : `${r.author || 'Unknown'} · FNI: ${r.fni_score || 'N/A'}`}
+          </div>
         </div>
         <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
         </svg>
       </a>
-    `).join('');
+    `}).join('');
     
     dropdown.classList.remove('hidden');
   }
