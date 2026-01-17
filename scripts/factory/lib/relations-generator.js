@@ -15,6 +15,7 @@ import { extractEntityRelations, normalizeId } from './relation-extractors.js';
 const RELATION_STATS = {
     BASED_ON: 0, TRAINED_ON: 0, CITES: 0, IMPLEMENTS: 0,
     USES: 0, DEMO_OF: 0, STACK: 0, DEP: 0,
+    FEATURES: 0, TRENDING: 0, EXPLAIN: 0, FOLLOWS: 0
 };
 
 /**
@@ -32,6 +33,56 @@ export async function generateRelations(entities, outputDir = './output') {
     const counts = { ...RELATION_STATS };
     const nodes = {};
     const edges = {};
+
+    const HUB_NODES = ['concept--trending-now', 'concept--weekly-highlights', 'concept--agentic-ai'];
+    for (const hubId of HUB_NODES) {
+        nodes[hubId] = { t: 'concept', f: 10.0, hub: true };
+    }
+
+    // V15: Inject Weekly Reports (Time Dimension)
+    try {
+        const weeklyDir = path.join(outputDir, 'weekly');
+        const reportFiles = await fs.readdir(weeklyDir).catch(() => []);
+        for (const file of reportFiles) {
+            if (file.endsWith('.json')) {
+                const reportData = JSON.parse(await fs.readFile(path.join(weeklyDir, file), 'utf-8'));
+                if (reportData.id) {
+                    const rId = `report--${reportData.id}`;
+                    nodes[rId] = { t: 'report', f: 5.0, title: reportData.title, week: reportData.id };
+
+                    // Link report to highlights
+                    if (reportData.highlights) {
+                        for (const h of reportData.highlights) {
+                            const hId = normalizeId(h.id, h.type);
+                            allRelations.push({
+                                source_id: rId, source_type: 'report',
+                                target_id: hId, target_type: h.type || 'model',
+                                relation_type: 'FEATURES', confidence: 1.0
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // V15: Link sequential reports (FOLLOWS)
+        const sortedReports = Object.values(nodes)
+            .filter(n => n.t === 'report')
+            .sort((a, b) => b.week.localeCompare(a.week)); // Newest first
+
+        for (let i = 0; i < sortedReports.length - 1; i++) {
+            allRelations.push({
+                source_id: sortedReports[i].id || `report--${sortedReports[i].week}`,
+                source_type: 'report',
+                target_id: sortedReports[i + 1].id || `report--${sortedReports[i + 1].week}`,
+                target_type: 'report',
+                relation_type: 'FOLLOWS',
+                confidence: 1.0
+            });
+        }
+    } catch (e) {
+        console.warn('  [RELATIONS] Could not inject reports into graph:', e.message);
+    }
 
     // Extract relations from each entity
     for (const entity of entities) {
@@ -63,7 +114,13 @@ export async function generateRelations(entities, outputDir = './output') {
             source_id: rel.source_id,
             source_type: rel.source_type,
             relation_type: rel.relation_type,
+            confidence: rel.confidence || 1.0
         });
+
+        // Ensure target node exists in nodes map
+        if (!nodes[rel.target_id]) {
+            nodes[rel.target_id] = { t: rel.target_type || 'concept', f: 0 };
+        }
     }
 
     // V14.5.2 Output

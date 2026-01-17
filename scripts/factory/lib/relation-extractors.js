@@ -17,6 +17,10 @@ const KNOWN_TOOLS = {
     'exl2': 'tool--turboderp--exllamav2',
     'awq': 'tool--casper-hansen--autoawq',
     'gptq': 'tool--autogptq--autogptq',
+    'moe': 'knowledge--what-is-moe',
+    'rag': 'knowledge--what-is-rag',
+    'quantization': 'knowledge--what-is-quantization',
+    'agentic': 'knowledge--agentic-ai',
 };
 
 /** Normalize entity ID to standard format */
@@ -103,6 +107,23 @@ export function extractEntityRelations(entity) {
     if ((type === 'agent' || type === 'tool') && entity.dependencies) {
         for (const dep of toArray(entity.dependencies)) {
             if (dep?.length > 2) relations.push(rel(id, type, dep, 'tool', 'DEP'));
+        }
+    }
+
+    // V15: FEATURES - Extract from "features" or "highlights"
+    for (const f of toArray(entity.features || entity.highlights)) {
+        if (f?.length > 2) relations.push(rel(id, type, f, 'concept', 'FEATURES', 0.9));
+    }
+
+    // V15: TRENDING - Detect from velocity if present
+    if (entity.velocity > 0.5) {
+        relations.push(rel(id, type, 'concept--trending-now', 'concept', 'TRENDING', 0.8));
+    }
+
+    // V15: EXPLAIN - Support for knowledge articles
+    if (entity.knowledge_tags) {
+        for (const kt of toArray(entity.knowledge_tags)) {
+            relations.push(rel(id, type, kt, 'concept', 'EXPLAIN', 1.0));
         }
     }
 
