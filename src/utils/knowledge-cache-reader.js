@@ -33,18 +33,46 @@ export async function fetchMeshRelations(locals, filterEntityId = null) {
         });
 
         const results = await Promise.all(fetchPromises);
-        results.forEach(rels => {
-            rels.forEach(rel => {
-                const sourceId = rel.source_id || rel.source || rel.from;
-                const targetId = rel.target_id || rel.target || rel.to;
-                if (!sourceId || !targetId) return;
+        results.forEach(data => {
+            // If it's the V15 adjacency list format (object with source_id keys)
+            if (data && typeof data === 'object' && !Array.isArray(data)) {
+                Object.entries(data).forEach(([source_id, links]) => {
+                    if (Array.isArray(links)) {
+                        links.forEach(link => {
+                            // Link format: [target_id, relation_type, confidence]
+                            if (Array.isArray(link) && link.length >= 2) {
+                                allRelations.push({
+                                    source_id,
+                                    target_id: link[0],
+                                    relation_type: link[1],
+                                    confidence: (link[2] || 100) / 100
+                                });
+                            } else if (link && typeof link === 'object') {
+                                // Fallback for mixed formats
+                                allRelations.push({
+                                    source_id: link.source_id || source_id,
+                                    target_id: link.target_id,
+                                    relation_type: link.relation_type || 'RELATED',
+                                    confidence: link.confidence || 1.0
+                                });
+                            }
+                        });
+                    }
+                });
+            } else if (Array.isArray(data)) {
+                // Legacy flat array format
+                data.forEach(rel => {
+                    const sourceId = rel.source_id || rel.source || rel.from;
+                    const targetId = rel.target_id || rel.target || rel.to;
+                    if (!sourceId || !targetId) return;
 
-                const key = `${sourceId}|${targetId}|${rel.relation_type || rel.type || 'RELATED'}`;
-                if (!seen.has(key)) {
-                    allRelations.push(rel);
-                    seen.add(key);
-                }
-            });
+                    const key = `${sourceId}|${targetId}|${rel.relation_type || rel.type || 'RELATED'}`;
+                    if (!seen.has(key)) {
+                        allRelations.push(rel);
+                        seen.add(key);
+                    }
+                });
+            }
         });
     }
 
