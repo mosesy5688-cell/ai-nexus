@@ -1,0 +1,103 @@
+// Knowledge Cache Reader (V15.15)
+// Art 5.1 Compliance: Extracted from entity-cache-reader-core.js
+
+/**
+ * V15.15 Universal Mesh Relations Aggregator
+ * Fetches and merges relations from multiple fragmented R2 sources on-the-fly.
+ */
+export async function fetchMeshRelations(locals, filterEntityId = null) {
+    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    const sources = [
+        'cache/explicit.json',
+        'cache/relations.json', // Legacy fallback
+        'cache/knowledge/knowledge-links.json',
+        'cache/meta/alt-by-category/alt-base.json'
+    ];
+
+    let allRelations = [];
+    const seen = new Set();
+
+    if (r2) {
+        const fetchPromises = sources.map(async (path) => {
+            try {
+                const file = await r2.get(path);
+                if (file) {
+                    const data = await file.json();
+                    return data.relations || (Array.isArray(data) ? data : []);
+                }
+            } catch (e) {
+                console.warn(`[MeshAggregator] Failed to fetch ${path}:`, e.message);
+            }
+            return [];
+        });
+
+        const results = await Promise.all(fetchPromises);
+        results.forEach(rels => {
+            rels.forEach(rel => {
+                const key = `${rel.source_id}|${rel.target_id}|${rel.relation_type}`;
+                if (!seen.has(key)) {
+                    allRelations.push(rel);
+                    seen.add(key);
+                }
+            });
+        });
+    }
+
+    const relations = [];
+    const filterNormalized = filterEntityId ? filterEntityId.toLowerCase().replace(/[:/]/g, '--') : null;
+
+    for (const obj of allRelations) {
+        const source = obj.source_id || obj.source || obj.from;
+        const target = obj.target_id || obj.target || obj.to;
+        if (!source || !target) continue;
+
+        const normalizedSource = source.toLowerCase().replace(/[:/]/g, '--');
+        const normalizedTarget = target.toLowerCase().replace(/[:/]/g, '--');
+
+        const sourceMatches = filterNormalized && (normalizedSource === filterNormalized || normalizedSource.endsWith('--' + filterNormalized));
+        const targetMatches = filterNormalized && (normalizedTarget === filterNormalized || normalizedTarget.endsWith('--' + filterNormalized));
+
+        if (filterNormalized && !sourceMatches && !targetMatches) {
+            continue;
+        }
+
+        let relType = obj.type || obj.relation_type || 'RELATED';
+        let sourceType = obj.source_type || obj.from_type || 'entity';
+        let targetType = obj.target_type || obj.to_type || 'entity';
+
+        if (normalizedSource.includes('concept--')) sourceType = 'concept';
+        if (normalizedTarget.includes('concept--')) targetType = 'concept';
+        if (normalizedSource.includes('report--')) sourceType = 'report';
+        if (normalizedTarget.includes('report--')) targetType = 'report';
+
+        relations.push({
+            source_id: source,
+            target_id: target,
+            type: relType,
+            source_type: sourceType,
+            target_type: targetType,
+            metadata: obj.metadata || {}
+        });
+    }
+
+    return relations;
+}
+
+/**
+ * Fetch Concept/Article Metadata for node enrichment (V15.15)
+ */
+export async function fetchConceptMetadata(locals) {
+    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    try {
+        if (r2) {
+            const file = await r2.get('cache/knowledge/index.json');
+            if (file) {
+                const data = await file.json();
+                return data.articles || data;
+            }
+        }
+    } catch (e) {
+        console.warn('[ConceptReader] Failed to fetch knowledge index:', e.message);
+    }
+    return [];
+}

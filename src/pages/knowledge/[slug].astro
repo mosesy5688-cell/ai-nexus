@@ -49,35 +49,49 @@ const relatedArticles = article ? Object.entries(articles)
   .slice(0, 3) : [];
 
 // FETCH LINKED ENTITIES (Mesh Integration)
-import { fetchMeshRelations } from '../../utils/entity-cache-reader-core';
-const meshId = `concept:${slug}`;
+import { fetchMeshRelations } from '../../utils/knowledge-cache-reader';
+const meshId = `concept--${slug}`;
 const meshRelations = await fetchMeshRelations(Astro.locals, meshId);
 
 // Group linked entities by type
 const linkedEntities = meshRelations.reduce((acc, rel) => {
-  const otherId = rel.source === meshId ? rel.target : rel.source;
+  const src = rel.source_id.toLowerCase().replace(/[:/]/g, '--');
+  const tgt = rel.target_id.toLowerCase().replace(/[:/]/g, '--');
+  const otherId = src === meshId ? tgt : src;
+  
   if (!otherId || otherId === meshId) return acc;
   
   let type = 'Other';
   let path = '#';
   let name = otherId;
 
-  if (otherId.includes('/')) {
+  if (otherId.startsWith('hf-model--') || otherId.includes('--')) {
     type = 'Model';
-    path = `/model/${otherId}`;
-    name = otherId.split('/').pop() || otherId;
-  } else if (otherId.startsWith('report:')) {
+    const cleanId = otherId.replace('hf-model--', '');
+    path = `/model/${cleanId.replace(/--/g, '/')}`;
+    name = cleanId.split('--').pop() || cleanId;
+  } else if (otherId.startsWith('report--')) {
     type = 'Report';
-    path = `/reports/${otherId.replace('report:', '')}`;
-    name = otherId.replace('report:', '').replace(/-/g, ' ');
-  } else if (otherId.startsWith('dataset:')) {
+    const cleanId = otherId.replace('report--', '');
+    path = `/reports/${cleanId}`;
+    name = cleanId.replace(/-/g, ' ');
+  } else if (otherId.startsWith('dataset--')) {
     type = 'Dataset';
-    path = `/dataset/${otherId.replace('dataset:', '')}`;
-    name = otherId.replace('dataset:', '');
+    const cleanId = otherId.replace('dataset--', '');
+    path = `/dataset/${cleanId}`;
+    name = cleanId;
+  } else if (otherId.startsWith('arxiv--') || otherId.startsWith('paper--')) {
+    type = 'Paper';
+    const cleanId = otherId.replace(/^(arxiv|paper)--/, '');
+    path = `/paper/${cleanId}`;
+    name = cleanId;
   }
 
   if (!acc[type]) acc[type] = [];
-  acc[type].push({ id: otherId, name, path });
+  // De-duplicate in tabular view
+  if (!acc[type].find(e => e.id === otherId)) {
+    acc[type].push({ id: otherId, name, path });
+  }
   return acc;
 }, {} as Record<string, any[]>);
 
@@ -103,7 +117,9 @@ import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
             <span class="text-indigo-600">🕸️</span> Knowledge Mesh
           </h2>
-          <NeuralGraphExplorer rootId={meshId} />
+          <div class="h-[600px] rounded-2xl overflow-hidden border border-slate-700/50 bg-slate-900/50 shadow-inner">
+        <NeuralGraphExplorer currentModelId={meshId} />
+      </div>
         </div>
 
         <!-- Linked Entities (Tabular View) -->

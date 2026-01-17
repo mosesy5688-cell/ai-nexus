@@ -4,7 +4,7 @@
  * Art.11-G: Version-locked static graph from relations.json
  * V15.15: Unified Mesh Aggregation (Frontend-Only)
  */
-import { fetchMeshRelations, fetchConceptMetadata } from '../utils/entity-cache-reader-core.js';
+import { fetchMeshRelations, fetchConceptMetadata } from '../utils/knowledge-cache-reader.js';
 
 interface Props {
     currentModelId?: string;
@@ -49,13 +49,24 @@ try {
         const meta = conceptMap.get(id);
         const name = meta?.title || id.split('--').pop().split(':').pop();
 
+        const icons = {
+            model: '📦',
+            paper: '📄',
+            concept: '🧠',
+            report: '📈',
+            dataset: '📊',
+            agent: '🤖',
+            tool: '🔧',
+            space: '🎮'
+        };
+
         nodeMap.set(id, {
             id,
             name,
             author: meta?.category || '',
             type: nodeType,
             fni: 0,
-            icon: meta?.icon || ''
+            icon: meta?.icon || icons[nodeType] || '⚪'
         });
     };
 
@@ -190,6 +201,8 @@ const hasRelatedNodes = relatedNodes.length > 0;
                     <div class="legend-item"><span class="dot paper"></span> Paper</div>
                     <div class="legend-item"><span class="dot dataset"></span> Dataset</div>
                     <div class="legend-item"><span class="dot concept"></span> Concept</div>
+                    <div class="legend-item"><span class="dot agent"></span> Agent</div>
+                    <div class="legend-item"><span class="dot report"></span> Report</div>
                 </div>
             </div>
         </div>
