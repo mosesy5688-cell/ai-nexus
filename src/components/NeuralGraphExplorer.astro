@@ -268,8 +268,6 @@ const hasRelatedNodes = relatedNodes.length > 0;
     const buttons = explorer.querySelectorAll('.view-btn');
     
     let graphInitialized = false;
-    const isMobile = window.innerWidth < 768;
-
     // Default to Grid on Mobile even if previously set to Graph
     if (isMobile) {
         panes.grid.classList.add('active');
@@ -279,6 +277,8 @@ const hasRelatedNodes = relatedNodes.length > 0;
             else b.classList.remove('active');
         });
     }
+
+    buttons.forEach(btn => {
         btn.addEventListener('click', () => {
             const view = btn.dataset.view;
             buttons.forEach(b => b.classList.toggle('active', b === btn));
@@ -381,11 +381,33 @@ const hasRelatedNodes = relatedNodes.length > 0;
                 );
 
             node.on("click", (e, d) => {
-                const parts = d.id.split('--');
-                const clean = parts.length > 2 ? parts.slice(1).join('/') : parts.join('/');
-                let path = `/${d.group}/${clean}`;
-                if (d.group === 'concept') path = `/knowledge/${clean}`;
-                if (d.group === 'report') path = `/reports/${clean}`;
+                // V15.5: Robust link generation
+                const id = d.id;
+                const group = d.group;
+                
+                let path = '';
+                if (group === 'concept') {
+                    // kb--what-is-mmlu -> /knowledge/what-is-mmlu
+                    const slug = id.replace(/^(kb|concept)--/, '');
+                    path = `/knowledge/${slug}`;
+                } else if (group === 'report') {
+                    // report--2026-01-04 -> /reports/2026-01-04
+                    const slug = id.replace(/^report--/, '');
+                    path = `/reports/${slug}`;
+                } else if (group === 'model' || group === 'agent' || group === 'tool' || group === 'dataset' || group === 'space') {
+                    // hf-model--author--name -> /model/author/name
+                    const cleanId = id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space)--/, '');
+                    const slug = cleanId.replace(/--/g, '/');
+                    path = `/${group}/${slug}`;
+                } else if (group === 'paper') {
+                    // arxiv--2312.12345 -> /paper/2312.12345
+                    const slug = id.replace(/^(arxiv|paper)--/, '');
+                    path = `/paper/${slug}`;
+                } else {
+                    // Final fallback
+                    path = `/${group}/${id.split('--').pop()}`;
+                }
+                
                 window.location.href = path;
             });
 

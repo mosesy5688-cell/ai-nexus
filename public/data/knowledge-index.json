@@ -1,0 +1,138 @@
+[
+  {
+    "id": "kb--what-is-mmlu",
+    "n": "What is MMLU?",
+    "s": "what-is-mmlu",
+    "d": "Massive Multitask Language Understanding benchmark explained",
+    "cat": "benchmarks",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--what-is-humaneval",
+    "n": "What is HumanEval?",
+    "s": "what-is-humaneval",
+    "d": "Code generation benchmark for evaluating programming ability",
+    "cat": "benchmarks",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--what-is-hellaswag",
+    "n": "What is HellaSwag?",
+    "s": "what-is-hellaswag",
+    "d": "Commonsense reasoning benchmark explained",
+    "cat": "benchmarks",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--what-is-arc",
+    "n": "What is ARC?",
+    "s": "what-is-arc",
+    "d": "AI2 Reasoning Challenge for grade-school science questions",
+    "cat": "benchmarks",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--what-is-context-length",
+    "n": "What is Context Length?",
+    "s": "what-is-context-length",
+    "d": "Understanding token windows and memory in LLMs",
+    "cat": "architecture",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--what-is-parameters",
+    "n": "What are Model Parameters?",
+    "s": "what-is-parameters",
+    "d": "Why 7B, 70B, and model size matters",
+    "cat": "architecture",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--what-is-transformer",
+    "n": "What is a Transformer?",
+    "s": "what-is-transformer",
+    "d": "The architecture behind modern language models",
+    "cat": "architecture",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--how-to-run-locally",
+    "n": "How to Run LLMs Locally",
+    "s": "how-to-run-locally",
+    "d": "Complete guide to running models on your machine",
+    "cat": "deployment",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--what-is-gguf",
+    "n": "What is GGUF?",
+    "s": "what-is-gguf",
+    "d": "Quantized model formats for efficient inference",
+    "cat": "deployment",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--what-is-ollama",
+    "n": "What is Ollama?",
+    "s": "what-is-ollama",
+    "d": "Easy local LLM deployment tool explained",
+    "cat": "deployment",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--what-is-fni",
+    "n": "What is FNI?",
+    "s": "what-is-fni",
+    "d": "Fair Nexus Index - our model trust score explained",
+    "cat": "metrics",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--what-is-deploy-score",
+    "n": "What is Deploy Score?",
+    "s": "what-is-deploy-score",
+    "d": "Model deployability measurement explained",
+    "cat": "metrics",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--transformer",
+    "n": "Transformer Architecture",
+    "s": "transformer",
+    "d": "The architecture behind modern language models",
+    "cat": "fundamentals",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--moe",
+    "n": "Mixture of Experts (MoE)",
+    "s": "moe",
+    "d": "Efficient scaling with conditional computation",
+    "cat": "fundamentals",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--quantization",
+    "n": "Model Quantization",
+    "s": "quantization",
+    "d": "GGUF, GPTQ, AWQ formats explained",
+    "cat": "fundamentals",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--vram",
+    "n": "VRAM Requirements",
+    "s": "vram",
+    "d": "Memory needs for running LLMs",
+    "cat": "fundamentals",
+    "t": "knowledge"
+  },
+  {
+    "id": "kb--local-inference",
+    "n": "Local Inference",
+    "s": "local-inference",
+    "d": "Running models on your own hardware",
+    "cat": "fundamentals",
+    "t": "knowledge"
+  }
+]
