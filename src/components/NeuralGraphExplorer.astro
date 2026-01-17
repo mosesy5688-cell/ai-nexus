@@ -1,9 +1,10 @@
 ---
 /**
- * Neural Graph Explorer V15.2
+ * Neural Graph Explorer V15.15
  * Art.11-G: Version-locked static graph from relations.json
- * V15.2: Updated to parse actual relations.json structure
+ * V15.15: Unified Mesh Aggregation (Frontend-Only)
  */
+import { fetchMeshRelations, fetchConceptMetadata } from '../utils/entity-cache-reader-core.js';
 
 interface Props {
     currentModelId?: string;
@@ -13,150 +14,90 @@ interface Props {
 const { currentModelId, entity } = Astro.props;
 
 // Graph data structures
-let graphNodes: { id: string; name: string; author: string; type: string; fni: number }[] = [];
+let graphNodes: { id: string; name: string; author: string; type: string; fni: number; icon?: string }[] = [];
 let graphLinks: { source: string; target: string; type: string; weight: number }[] = [];
-let graphVersion = '15.13';
+let graphVersion = '15.15-MESH';
 let relatedNodes: typeof graphNodes = [];
 let totalNodes = 0;
 let totalLinks = 0;
 
 try {
-    const runtime = Astro.locals.runtime;
+    const rootId = currentModelId || entity?.id;
+    
+    // 1. Fetch Universal Mesh
+    const [relations, conceptMeta] = await Promise.all([
+        fetchMeshRelations(Astro.locals, rootId),
+        fetchConceptMetadata(Astro.locals)
+    ]);
+
     const nodeMap = new Map<string, typeof graphNodes[0]>();
+    const conceptMap = new Map(conceptMeta.map(c => [c.id || `concept--${c.slug}`, c]));
 
-    // 1. Local Extraction (Highest Priority for Instant Value)
-    if (entity) {
-        const rootId = currentModelId || entity.id || 'current';
-        const parts = rootId.split('--');
+    // Helper to extract node info
+    const ensureNode = (id, typeHint = 'model') => {
+        if (nodeMap.has(id)) return;
         
-        // Add root node
-        if (!nodeMap.has(rootId)) {
-            nodeMap.set(rootId, {
-                id: rootId,
-                name: entity.name || parts[parts.length - 1] || 'Current',
-                author: entity.author || (parts.length > 1 ? parts[parts.length - 2] : ''),
-                type: entity.type || 'model',
-                fni: entity.fni_score || 0
-            });
-        }
+        const isConcept = id.startsWith('concept--') || id.startsWith('kb--');
+        const isReport = id.startsWith('report--');
+        const isPaper = id.startsWith('arxiv--');
+        
+        let nodeType = typeHint;
+        if (isConcept) nodeType = 'concept';
+        else if (isReport) nodeType = 'report';
+        else if (isPaper) nodeType = 'paper';
 
-        // Extract Knowledge Links (EXPLAIN)
-        const kLinks = entity.knowledge_links || entity.relations?.knowledge || entity.meta?.extended?.relations?.knowledge || [];
-        kLinks.forEach((link: any) => {
-            const lid = typeof link === 'string' ? link : link.id;
-            const lname = typeof link === 'string' ? link : (link.name || link.title || lid);
-            if (!nodeMap.has(lid)) {
-                nodeMap.set(lid, { id: lid, name: lname, author: 'Wiki', type: 'concept', fni: 0 });
-            }
-            graphLinks.push({ source: rootId, target: lid, type: 'EXPLAIN', weight: 1.0 });
+        const meta = conceptMap.get(id);
+        const name = meta?.title || id.split('--').pop().split(':').pop();
+
+        nodeMap.set(id, {
+            id,
+            name,
+            author: meta?.category || '',
+            type: nodeType,
+            fni: 0,
+            icon: meta?.icon || ''
         });
+    };
 
-        // Extract Paper Refs (IMPLEMENTS)
-        const aRefs = entity.arxiv_refs || entity.relations?.papers || entity.meta?.extended?.relations?.papers || [];
-        aRefs.forEach((ref: any) => {
-            const rid = typeof ref === 'string' ? `arxiv--${ref}` : (ref.id || `arxiv--${ref.arxiv_id}`);
-            const rname = typeof ref === 'string' ? `Paper ${ref}` : (ref.title || ref.id);
-            if (!nodeMap.has(rid)) {
-                nodeMap.set(rid, { id: rid, name: rname, author: 'ArXiv', type: 'paper', fni: 0 });
-            }
-            graphLinks.push({ source: rootId, target: rid, type: 'IMPLEMENTS', weight: 0.9 });
-        });
-
-        // Extract Similar (ALT)
-        const sModels = entity.similar_models || entity.relations?.similar || entity.meta?.extended?.relations?.similar || [];
-        sModels.forEach((sim: any) => {
-            const sid = typeof sim === 'string' ? sim : sim.id;
-            const sname = typeof sim === 'string' ? sid.split('--').pop() : (sim.name || sid);
-            if (!nodeMap.has(sid)) {
-                nodeMap.set(sid, { id: sid, name: sname, author: 'Similar', type: 'model', fni: (sim.fni_score || 0) });
-            }
-            graphLinks.push({ source: rootId, target: sid, type: 'ALT', weight: 0.8 });
+    // Add root if not in mesh
+    if (entity && rootId) {
+        nodeMap.set(rootId, {
+            id: rootId,
+            name: entity.name || entity.title || rootId.split('--').pop(),
+            author: entity.author || '',
+            type: entity.type || 'model',
+            fni: entity.fni_score || 0
         });
     }
 
-    // 2. Global Backup (Optional sync)
-    if (runtime?.env?.R2_ASSETS) {
-        const r2 = runtime.env.R2_ASSETS;
-        const graphFile = await r2.get('cache/relations.json');
-        if (graphFile) {
-            const rawData = await graphFile.json() as any;
-            const relations = rawData.relations || [];
-            
-            for (const rel of relations) {
-                // Determine node types for source and target
-                const getRelType = (rid, rtype) => {
-                    if (rid.startsWith('arxiv:') || rid.startsWith('arxiv--')) return 'paper';
-                    if (rid.startsWith('concept--')) return 'concept';
-                    if (rid.startsWith('report--')) return 'report';
-                    if (rid.startsWith('hf-space--')) return 'space';
-                    if (rid.startsWith('hf-dataset--')) return 'dataset';
-                    return rtype || 'model';
-                };
-
-                // Only add if not already in map (prefer local data)
-                if (rel.source_id && !nodeMap.has(rel.source_id)) {
-                    const parts = rel.source_id.split('--');
-                    nodeMap.set(rel.source_id, {
-                        id: rel.source_id,
-                        name: (parts.pop() || rel.source_id).split(':').pop(),
-                        author: parts.length > 1 ? parts[parts.length - 2] : '',
-                        type: getRelType(rel.source_id, rel.source_type),
-                        fni: 0
-                    });
-                }
-                if (rel.target_id && !nodeMap.has(rel.target_id)) {
-                    const parts = rel.target_id.split('--');
-                    nodeMap.set(rel.target_id, {
-                        id: rel.target_id,
-                        name: (parts.pop() || rel.target_id).split(':').pop(),
-                        author: parts.length > 1 ? parts[parts.length - 2] : '',
-                        type: getRelType(rel.target_id, rel.target_type),
-                        fni: 0
-                    });
-                }
-                
-                graphLinks.push({
-                    source: rel.source_id,
-                    target: rel.target_id,
-                    type: rel.relation_type || 'RELATED',
-                    weight: rel.confidence || 0.8
-                });
-            }
-        }
-    }
+    // Process Relations
+    relations.forEach(rel => {
+        ensureNode(rel.source_id, rel.source_type);
+        ensureNode(rel.target_id, rel.target_type);
+        
+        graphLinks.push({
+            source: rel.source_id,
+            target: rel.target_id,
+            type: rel.relation_type || 'RELATED',
+            weight: rel.confidence || 0.8
+        });
+    });
 
     graphNodes = Array.from(nodeMap.values());
     totalNodes = graphNodes.length;
     totalLinks = graphLinks.length;
     
-    // Find related nodes for the current entity (Now including the locally extracted ones)
-    if (currentModelId || (entity && entity.id)) {
-        const targetId = currentModelId || entity.id;
-        const normalizedId = targetId.toLowerCase()
-            .replace(/^(arxiv|hf-space|hf-model|hf-dataset|github|model|agent|tool|dataset)--/, '');
-        
+    // 3. Identification of Hub Nodes (for the Grid View)
+    if (rootId) {
         const relatedIds = new Set<string>();
-        
-        for (const link of graphLinks) {
-            const srcClean = link.source.toLowerCase()
-                .replace(/^(arxiv|hf-space|hf-model|hf-dataset|github|model|agent|tool|dataset)--/, '');
-            const tgtClean = link.target.toLowerCase()
-                .replace(/^(arxiv|hf-space|hf-model|hf-dataset|github|model|agent|tool|dataset)--/, '');
-            
-            const srcLastPart = srcClean.split('--').pop() || '';
-            const tgtLastPart = tgtClean.split('--').pop() || '';
-            const idLastPart = normalizedId.split('--').pop() || normalizedId;
-            
-            if (srcClean === normalizedId || srcClean.includes(normalizedId) || srcLastPart === idLastPart) {
-                if (link.target !== targetId) relatedIds.add(link.target);
-            } else if (tgtClean === normalizedId || tgtClean.includes(normalizedId) || tgtLastPart === idLastPart) {
-                if (link.source !== targetId) relatedIds.add(link.source);
-            }
-        }
+        relations.forEach(link => {
+            if (link.source_id === rootId) relatedIds.add(link.target_id);
+            else if (link.target_id === rootId) relatedIds.add(link.source_id);
+        });
         
         relatedNodes = graphNodes
             .filter(n => relatedIds.has(n.id))
-            .slice(0, 12); // Increased for better view
+            .slice(0, 12);
     }
 } catch (e) {
     console.error('[NeuralGraphExplorer] Error:', e);
@@ -202,56 +143,54 @@ const hasRelatedNodes = relatedNodes.length > 0;
                         return (
                         <a href={path} class={`related-card type-${node.type}`}>
                             <div class="card-header">
+                                <span class="node-icon">{node.icon || '📦'}</span>
                                 <span class="model-name">{node.name}</span>
                                 <span class={`type-badge color-${node.type}`}>{node.type}</span>
                             </div>
                             <div class="card-meta">
                                 <span class="author">{node.author}</span>
                             </div>
-                            {node.fni > 0 && (
-                                <div class="fni-score">
-                                    FNI: <span class={`score ${node.fni >= 70 ? 'high' : node.fni >= 50 ? 'mid' : 'low'}`}>
-                                        {node.fni.toFixed(1)}
-                                    </span>
-                                </div>
-                            )}
                         </a>
                     )})}
                 </div>
             ) : (
-                <div class="graph-stats">
-                    <div class="stats-row">
-                        <div class="stat">
-                            <span class="stat-value">{totalNodes}</span>
-                            <span class="stat-label">Entities</span>
-                        </div>
-                        <div class="stat">
-                            <span class="stat-value">{totalLinks}</span>
-                            <span class="stat-label">Connections</span>
-                        </div>
-                    </div>
-                    <a href="/ranking" class="explore-link">Explore Rankings →</a>
+                <div class="empty-state">
+                    <div class="empty-icon">⚪</div>
+                    <p>Building knowledge mesh for this entity...</p>
                 </div>
             )}
         </div>
 
         <!-- View 2: Interactive D3 Graph (On Demand) -->
         <div class="view-pane" id="pane-graph">
-            <div id="d3-container" 
+            <div class="d3-canvas" 
+                 id="d3-container" 
                  data-id={currentModelId || entity?.id} 
                  data-type={entity?.type || 'model'}
-                 class="d3-canvas">
+                 data-nodes={JSON.stringify(graphNodes)}
+                 data-links={JSON.stringify(graphLinks)}>
+                
                 <div class="graph-loading">
                     <div class="spinner"></div>
-                    <span>Initializing Neural Hub...</span>
+                    <span>Initializing Neural Interface...</span>
                 </div>
+                
                 <svg id="visual-graph"></svg>
-            </div>
-            <div class="graph-legend">
-                <span class="legend-item"><i class="dot model"></i> Model</span>
-                <span class="legend-item"><i class="dot paper"></i> Paper</span>
-                <span class="legend-item"><i class="dot concept"></i> Knowledge</span>
-                <span class="legend-item"><i class="dot report"></i> Report</span>
+                
+                <!-- Hover Preview Card -->
+                <div id="graph-hover-card" class="graph-hover-card" style="display: none;">
+                    <div class="card-type-tag">MODEL</div>
+                    <div class="card-title">Llama 3 70B</div>
+                    <div class="card-meta">by Meta • FNI 92.5</div>
+                    <div class="card-footer">Click to Explore</div>
+                </div>
+
+                <div class="graph-legend">
+                    <div class="legend-item"><span class="dot model"></span> Model</div>
+                    <div class="legend-item"><span class="dot paper"></span> Paper</div>
+                    <div class="legend-item"><span class="dot dataset"></span> Dataset</div>
+                    <div class="legend-item"><span class="dot concept"></span> Concept</div>
+                </div>
             </div>
         </div>
     </div>
@@ -263,11 +202,13 @@ const hasRelatedNodes = relatedNodes.length > 0;
 <script is:inline>
 (function() {
     const explorer = document.getElementById('neural-graph-explorer');
-    const activateBtn = document.getElementById('activate-graph');
     const panes = { grid: document.getElementById('pane-grid'), graph: document.getElementById('pane-graph') };
     const buttons = explorer.querySelectorAll('.view-btn');
+    const hoverCard = document.getElementById('graph-hover-card');
     
     let graphInitialized = false;
+    const isMobile = window.innerWidth < 768;
+
     // Default to Grid on Mobile even if previously set to Graph
     if (isMobile) {
         panes.grid.classList.add('active');
@@ -286,7 +227,7 @@ const hasRelatedNodes = relatedNodes.length > 0;
             panes.graph.classList.toggle('active', view === 'graph');
             
             if (view === 'graph' && !graphInitialized) {
-                initD3Graph();
+                setTimeout(initD3Graph, 100);
                 graphInitialized = true;
             }
         });
@@ -295,78 +236,67 @@ const hasRelatedNodes = relatedNodes.length > 0;
     function initD3Graph() {
         const container = document.getElementById('d3-container');
         const entityId = container.dataset.id;
-        const entityType = container.dataset.type;
         const svg = d3.select("#visual-graph");
         const loading = container.querySelector('.graph-loading');
         
         const width = container.clientWidth;
         const height = 400;
-        
-        // V15.5 Pure Static Data Fetch: Load global relations and filter locally
-        const CDN_BASE = 'https://cdn.free2aitools.com';
-        
-        Promise.all([
-            fetch(`${CDN_BASE}/cache/relations.json`).then(r => r.json()),
-            // Fetch entities list or specific entity cache if needed
-        ]).then(([relsData]) => {
-            const relations = relsData.relations || [];
-            
-            // Filter locally for the current entity's hub
-            const relevantNodes = new Map();
-            const relevantLinks = [];
-            
-            // Add self
-            relevantNodes.set(entityId, { id: entityId, name: entityId.split('--').pop(), group: entityType });
 
-            relations.forEach(rel => {
-                if (rel.source_id === entityId || rel.target_id === entityId) {
-                    const otherId = rel.source_id === entityId ? rel.target_id : rel.source_id;
-                    const otherType = rel.source_id === entityId ? (rel.target_type || 'model') : (rel.source_type || 'model');
-                    
-                    if (!relevantNodes.has(otherId)) {
-                        relevantNodes.set(otherId, { 
-                            id: otherId, 
-                            name: otherId.split('--').pop().split(':').pop(), 
-                            group: otherType 
-                        });
-                    }
-                    relevantLinks.push({
-                        source: rel.source_id,
-                        target: rel.target_id,
-                        type: rel.relation_type,
-                        weight: rel.confidence || 0.8
-                    });
-                }
-            });
+        // Parse SSR data
+        const nodes = JSON.parse(container.dataset.nodes || '[]');
+        const links = JSON.parse(container.dataset.links || '[]');
 
-            loading.style.display = 'none';
-            render({ nodes: Array.from(relevantNodes.values()), links: relevantLinks });
-        }).catch(err => {
-            console.error('[StaticGraph] Error:', err);
-            loading.innerHTML = '<span class="text-red-400">Hub data offline. Check CDN.</span>';
-        });
+        loading.style.display = 'none';
+        render({ nodes, links });
 
         function render(data) {
             svg.selectAll("*").remove();
             const g = svg.append("g");
             
             const simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id(d => d.id).distance(100))
-                .force("charge", d3.forceManyBody().strength(-200))
+                .force("link", d3.forceLink(data.links).id(d => d.id).distance(120))
+                .force("charge", d3.forceManyBody().strength(-300))
                 .force("center", d3.forceCenter(width / 2, height / 2));
 
+            // Arrow Marker Definition
+            svg.append("defs").selectAll("marker")
+                .data(["arrow-explain", "arrow-follows", "arrow-features"])
+                .join("marker")
+                .attr("id", d => d)
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 20)
+                .attr("refY", 0)
+                .attr("markerWidth", 5)
+                .attr("markerHeight", 5)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("fill", d => d === 'arrow-explain' ? "#a855f7" : "#94a3b8")
+                .attr("d", "M0,-5L10,0L0,5");
+
+            // Semantic Edge Styling
             const link = g.append("g")
-                .attr("stroke", "rgba(99, 102, 241, 0.2)")
                 .selectAll("line")
                 .data(data.links)
-                .join("line");
+                .join("line")
+                .attr("stroke", d => {
+                    if (d.type === 'EXPLAIN') return "rgba(168, 85, 247, 0.5)"; // Purple
+                    if (d.type === 'ALT') return "rgba(99, 102, 241, 0.4)";    // Indigo
+                    if (d.type === 'FOLLOWS') return "rgba(251, 191, 36, 0.4)"; // Yellow
+                    return "rgba(255, 255, 255, 0.15)";
+                })
+                .attr("stroke-dasharray", d => d.type === 'ALT' ? "4,4" : "none")
+                .attr("stroke-width", d => d.id === entityId ? 2 : 1.2)
+                .attr("marker-end", d => {
+                    if (d.type === 'EXPLAIN') return "url(#arrow-explain)";
+                    if (d.type === 'FOLLOWS') return "url(#arrow-follows)";
+                    if (d.type === 'FEATURES' || d.type === 'TRENDING') return "url(#arrow-features)";
+                    return "none";
+                });
 
             const node = g.append("g")
-                .selectAll("circle")
+                .selectAll("g")
                 .data(data.nodes)
-                .join("circle")
-                .attr("r", d => d.id === entityId ? 10 : 6)
-                .attr("fill", d => getNodeColor(d.group))
+                .join("g")
                 .attr("cursor", "pointer")
                 .call(d3.drag()
                     .on("start", (e, d) => {
@@ -380,45 +310,70 @@ const hasRelatedNodes = relatedNodes.length > 0;
                     })
                 );
 
+            // Node Circles
+            node.append("circle")
+                .attr("r", d => d.id === entityId ? 14 : 8)
+                .attr("fill", d => getNodeColor(d.type))
+                .attr("stroke", d => d.id === entityId ? "#fff" : "none")
+                .attr("stroke-width", 2)
+                .attr("class", "node-circle");
+
+            // Node Icons/Labels
+            node.append("text")
+                .attr("dy", d => d.id === entityId ? 22 : 18)
+                .attr("text-anchor", "middle")
+                .attr("class", "node-label")
+                .text(d => d.name.length > 15 ? d.name.substring(0, 12) + '...' : d.name);
+
+            // Interactive Hover Logic
+            node.on("mouseenter", (e, d) => {
+                hoverCard.style.display = 'block';
+                hoverCard.querySelector('.card-type-tag').textContent = d.type.toUpperCase();
+                hoverCard.querySelector('.card-title').textContent = d.name;
+                hoverCard.querySelector('.card-meta').textContent = (d.author || d.category) ? `by ${d.author || d.category}` : '';
+                
+                const rect = container.getBoundingClientRect();
+                hoverCard.style.left = `${e.clientX - rect.left + 15}px`;
+                hoverCard.style.top = `${e.clientY - rect.top + 15}px`;
+
+                // Highlight connections
+                link.attr("stroke-opacity", l => (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.1);
+            });
+
+            node.on("mousemove", (e) => {
+                const rect = container.getBoundingClientRect();
+                hoverCard.style.left = `${e.clientX - rect.left + 15}px`;
+                hoverCard.style.top = `${e.clientY - rect.top + 15}px`;
+            });
+
+            node.on("mouseleave", () => {
+                hoverCard.style.display = 'none';
+                link.attr("stroke-opacity", 1);
+            });
+
             node.on("click", (e, d) => {
-                // V15.5: Robust link generation
                 const id = d.id;
-                const group = d.group;
-                
+                const type = d.type;
                 let path = '';
-                if (group === 'concept') {
-                    // kb--what-is-mmlu -> /knowledge/what-is-mmlu
-                    const slug = id.replace(/^(kb|concept)--/, '');
-                    path = `/knowledge/${slug}`;
-                } else if (group === 'report') {
-                    // report--2026-01-04 -> /reports/2026-01-04
-                    const slug = id.replace(/^report--/, '');
-                    path = `/reports/${slug}`;
-                } else if (group === 'model' || group === 'agent' || group === 'tool' || group === 'dataset' || group === 'space') {
-                    // hf-model--author--name -> /model/author/name
-                    const cleanId = id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space)--/, '');
-                    const slug = cleanId.replace(/--/g, '/');
-                    path = `/${group}/${slug}`;
-                } else if (group === 'paper') {
-                    // arxiv--2312.12345 -> /paper/2312.12345
-                    const slug = id.replace(/^(arxiv|paper)--/, '');
-                    path = `/paper/${slug}`;
-                } else {
-                    // Final fallback
-                    path = `/${group}/${id.split('--').pop()}`;
-                }
                 
+                if (type === 'concept') path = `/knowledge/${id.replace(/^(kb|concept)--/, '')}`;
+                else if (type === 'report') path = `/reports/${id.replace(/^report--/, '')}`;
+                else if (type === 'paper') path = `/paper/${id.replace(/^(arxiv|paper)--/, '')}`;
+                else {
+                    const cleanId = id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space)--/, '');
+                    path = `/${type}/${cleanId.replace(/--/g, '/')}`;
+                }
                 window.location.href = path;
             });
 
             simulation.on("tick", () => {
                 link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
                     .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
-                node.attr("cx", d => d.x).attr("cy", d => d.y);
+                node.attr("transform", d => `translate(${d.x},${d.y})`);
             });
         }
 
-        function getNodeColor(group) {
+        function getNodeColor(type) {
             const colors = {
                 model: '#818cf8',
                 paper: '#c084fc',
@@ -428,7 +383,7 @@ const hasRelatedNodes = relatedNodes.length > 0;
                 agent: '#f87171',
                 tool: '#fb923c'
             };
-            return colors[group] || '#94a3b8';
+            return colors[type] || '#94a3b8';
         }
     }
 })();
@@ -543,11 +498,18 @@ const hasRelatedNodes = relatedNodes.length > 0;
     .color-paper { background: rgba(192, 132, 252, 0.1); color: #c084fc; }
     .color-concept { background: rgba(99, 102, 241, 0.1); color: #818cf8; }
     .color-report { background: rgba(251, 191, 36, 0.1); color: #fbbf24; }
+    .color-dataset { background: rgba(74, 222, 128, 0.1); color: #4ade80; }
+
+    .node-icon {
+        font-size: 1.25rem;
+        margin-right: 0.5rem;
+    }
 
     .d3-canvas {
         width: 100%;
         height: 400px;
-        background: rgba(15, 23, 42, 0.3);
+        background: radial-gradient(circle at center, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 12px;
         position: relative;
         overflow: hidden;
@@ -556,6 +518,76 @@ const hasRelatedNodes = relatedNodes.length > 0;
     #visual-graph {
         width: 100%;
         height: 100%;
+    }
+
+    /* Node Styling */
+    .node-circle {
+        transition: r 0.2s ease, filter 0.2s ease;
+    }
+
+    g:hover .node-circle {
+        r: 10;
+        filter: brightness(1.3) drop-shadow(0 0 5px currentColor);
+    }
+
+    .node-label {
+        font-size: 10px;
+        fill: #94a3b8;
+        font-weight: 500;
+        pointer-events: none;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    }
+
+    /* Hover Preview Card */
+    .graph-hover-card {
+        position: absolute;
+        z-index: 100;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(99, 102, 241, 0.4);
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        min-width: 180px;
+        max-width: 250px;
+        animation: cardPop 0.2s ease-out;
+    }
+
+    @keyframes cardPop {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    .card-type-tag {
+        font-size: 0.6rem;
+        font-weight: 800;
+        color: #818cf8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.25rem;
+    }
+
+    .card-title {
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .card-meta {
+        color: #94a3b8;
+        font-size: 0.7rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .card-footer {
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 0.4rem;
+        font-size: 0.6rem;
+        color: #6366f1;
+        font-weight: 700;
+        text-transform: uppercase;
     }
 
     .graph-loading {
@@ -584,33 +616,31 @@ const hasRelatedNodes = relatedNodes.length > 0;
     .graph-legend {
         display: flex;
         flex-wrap: wrap;
-        gap: 1.5rem;
+        gap: 1rem;
         margin-top: 1rem;
         padding: 0.75rem;
         background: rgba(255, 255, 255, 0.02);
         border-radius: 8px;
+        justify-content: center;
     }
 
     .legend-item {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        font-size: 0.7rem;
+        gap: 0.4rem;
+        font-size: 0.65rem;
         color: #94a3b8;
         font-weight: 600;
     }
 
     .dot {
-        width: 8px;
-        height: 8px;
+        width: 7px;
+        height: 7px;
         border-radius: 50%;
     }
 
     .dot.model { background: #818cf8; }
     .dot.paper { background: #c084fc; }
+    .dot.dataset { background: #4ade80; }
     .dot.concept { background: #6366f1; }
-    .dot.report { background: #fbbf24; }
-
-    .stat-value { color: #818cf8; font-size: 1.75rem; font-weight: 800; }
-    .stat-label { color: #64748b; font-size: 0.7rem; text-transform: uppercase; font-weight: 700; }
 </style>

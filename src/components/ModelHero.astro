@@ -61,6 +61,8 @@ const tagline = description
   ? description.split('\n')[0].substring(0, 120) 
   : `AI model by ${author}`;
 
+import RelatedConcepts from './entity/RelatedConcepts.astro';
+
 // Generate initials for fallback icon
 const initials = name
   .split(/[-_\/]/)
@@ -110,6 +112,9 @@ const initials = name
       <p class="text-lg text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
         {tagline}
       </p>
+
+      <!-- Linked Concepts (Mesh Integration) -->
+      <RelatedConcepts entityName={name} />
 
       <!-- CTAs Row -->
       <div class="flex flex-wrap gap-3 mb-6">
