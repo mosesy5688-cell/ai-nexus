@@ -13,6 +13,7 @@ import KnowledgeContent from '../../components/knowledge/KnowledgeContent.astro'
 import KnowledgeSidebar from '../../components/knowledge/KnowledgeSidebar.astro';
 import KnowledgeRelated from '../../components/knowledge/KnowledgeRelated.astro';
 import { articles } from '../../data/knowledge-articles';
+import { getArticleBySlug } from '../../data/knowledge-base-config';
 
 // Load styles
 import '../../styles/knowledge.css';
@@ -20,15 +21,32 @@ import '../../styles/knowledge.css';
 // Get article slug
 const { slug } = Astro.params;
 
-// Get current article or 404
-const article = articles[slug || ''];
+// V15.5: Unified Content & Metadata Merging
+const configResult = getArticleBySlug(slug || '');
+const contentData = articles[slug || ''];
+
+let article = null;
+if (configResult && contentData) {
+  article = {
+    ...configResult.article,
+    category: configResult.category.id,
+    content: contentData.content,
+    // Prefer metadata from config if exists
+    difficulty: configResult.article.difficulty || contentData.difficulty,
+    effort: configResult.article.effort || contentData.effort
+  };
+}
+
 const pageTitle = article ? `${article.title} - AI Knowledge Base` : 'Article Not Found';
 const pageDescription = article?.description || 'This article was not found.';
 
 // Related articles (same category)
-const relatedArticles = Object.entries(articles)
-  .filter(([key, a]) => a.category === article?.category && key !== slug)
-  .slice(0, 3);
+const relatedArticles = article ? Object.entries(articles)
+  .filter(([key, a]) => {
+     const conf = getArticleBySlug(key);
+     return conf?.category.id === article?.category && key !== slug;
+  })
+  .slice(0, 3) : [];
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
