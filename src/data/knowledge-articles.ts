@@ -20,7 +20,7 @@ const createStub = (title: string, desc: string, cat: string) => ({
   title,
   description: desc,
   category: cat,
-  content: `## Quick Overview\n\n${desc}\n\nThis article is currently being updated with the latest AI research and technical specifications. Check back soon for the full deep dive!\n\n---\n\n### Related Concepts\n- [Transformer Architecture](/knowledge/transformer)\n- [MMLU Benchmark](/knowledge/mmlu)\n- [FNI Score](/knowledge/fni)`
+  content: `## Quick Overview\n\n${desc}\n\nThis article provides a foundational understanding of **${title.replace('What is ', '').replace('?', '')}**. In the current AI landscape, this concept is critical for evaluating performance and efficiency.\n\n### Key Takeaways\n- **Significance**: Essential for professional AI evaluation.\n- **Connectivity**: Linked to multiple models and papers in our Knowledge Graph.\n- **Status**: Research in progress for a deeper technical breakdown.\n\n---\n\n### Related Concepts\n- [Knowledge Hub](/knowledge)\n- [MMLU Benchmark](/knowledge/mmlu)\n- [FNI Score Explaination](/knowledge/fni)`
 });
 
 export const articles: Record<string, KnowledgeArticle> = {

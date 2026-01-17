@@ -8,7 +8,7 @@ interface Props {
 
 const { entityName } = Astro.props;
 
-import { fetchMeshRelations, fetchConceptMetadata } from '../../utils/entity-cache-reader-core';
+import { fetchMeshRelations, fetchConceptMetadata } from '../../utils/knowledge-cache-reader';
 
 // FETCH RELATED CONCEPTS (Mesh Integration)
 const meshRelations = await fetchMeshRelations(Astro.locals, entityName);
