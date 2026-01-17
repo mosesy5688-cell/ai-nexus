@@ -133,14 +133,20 @@ export async function fetchConceptMetadata(locals) {
         const file = await R2.get('cache/knowledge/index.json');
         if (file) {
             const data = await file.json();
-            return data.articles || data || [];
+            // Strict check: data must be array OR have .articles array
+            const list = data?.articles || (Array.isArray(data) ? data : []);
+            if (Array.isArray(list) && list.length > 0) return list;
         }
-        // Fallback for MMLU/HumanEval if index.json is missing
+
+        // Fallback for MMLU/HumanEval if index.json is missing or invalid
         return [
             { id: 'concept--mmlu', title: 'MMLU Benchmark', slug: 'mmlu', icon: '🧪' },
             { id: 'concept--humaneval', title: 'HumanEval', slug: 'humaneval', icon: '💻' }
         ];
     } catch (e) {
-        return [];
+        console.warn('[KnowledgeReader] Concept fetch failed, using minimal fallback');
+        return [
+            { id: 'concept--mmlu', title: 'MMLU Benchmark', slug: 'mmlu', icon: '🧪' }
+        ];
     }
 }
