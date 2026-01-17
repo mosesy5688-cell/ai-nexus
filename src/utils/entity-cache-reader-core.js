@@ -171,3 +171,80 @@ export async function fetchEntityFromR2(type, slug, locals) {
 
     return null;
 }
+
+/**
+ * V15.15 Universal Mesh Relations Aggregator
+ * Fetches and merges relations from multiple fragmented R2 sources on-the-fly.
+ * Sources: explicit.json, knowledge-links.json, alt-base.json
+ */
+export async function fetchMeshRelations(locals, filterEntityId = null) {
+    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    const sources = [
+        'cache/explicit.json',
+        'cache/relations.json', // Legacy fallback
+        'cache/knowledge/knowledge-links.json',
+        'cache/meta/alt-by-category/alt-base.json'
+    ];
+
+    let allRelations = [];
+    const seen = new Set();
+
+    if (r2) {
+        const fetchPromises = sources.map(async (path) => {
+            try {
+                const file = await r2.get(path);
+                if (file) {
+                    const data = await file.json();
+                    return data.relations || (Array.isArray(data) ? data : []);
+                }
+            } catch (e) {
+                console.warn(`[MeshAggregator] Failed to fetch ${path}:`, e.message);
+            }
+            return [];
+        });
+
+        const results = await Promise.all(fetchPromises);
+        results.forEach(rels => {
+            rels.forEach(rel => {
+                // Normalize and de-duplicate
+                const key = `${rel.source_id}|${rel.target_id}|${rel.relation_type}`;
+                if (!seen.has(key)) {
+                    allRelations.push(rel);
+                    seen.add(key);
+                }
+            });
+        });
+    }
+
+    // Filter by entity ID if requested (bidirectional)
+    if (filterEntityId) {
+        const cleanId = filterEntityId.toLowerCase().replace(/^(hf-model|model|arxiv|paper|dataset|agent|tool|space)--/, '');
+        return allRelations.filter(rel => {
+            const src = (rel.source_id || '').toLowerCase();
+            const tgt = (rel.target_id || '').toLowerCase();
+            return src.includes(cleanId) || tgt.includes(cleanId) ||
+                src === filterEntityId || tgt === filterEntityId;
+        });
+    }
+
+    return allRelations;
+}
+
+/**
+ * Fetch Concept/Article Metadata for node enrichment (V15.15)
+ */
+export async function fetchConceptMetadata(locals) {
+    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    try {
+        if (r2) {
+            const file = await r2.get('cache/knowledge/index.json');
+            if (file) {
+                const data = await file.json();
+                return data.articles || data;
+            }
+        }
+    } catch (e) {
+        console.warn('[ConceptReader] Failed to fetch knowledge index:', e.message);
+    }
+    return [];
+}

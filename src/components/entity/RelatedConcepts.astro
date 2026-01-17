@@ -1,0 +1,49 @@
+---
+// src/components/entity/RelatedConcepts.astro
+// Priority: Integrated knowledge mesh discovery
+
+interface Props {
+  entityName: string;
+}
+
+const { entityName } = Astro.props;
+
+import { fetchMeshRelations, fetchConceptMetadata } from '../../utils/entity-cache-reader-core';
+
+// FETCH RELATED CONCEPTS (Mesh Integration)
+const meshRelations = await fetchMeshRelations(Astro.locals, entityName);
+const conceptMetadata = await fetchConceptMetadata(Astro.locals);
+
+// Filter for related concepts
+const relatedConcepts = meshRelations
+  .filter(rel => rel.type === 'EXPLAIN' || rel.type === 'TRENDING')
+  .map(rel => {
+    const conceptId = rel.source === entityName ? rel.target : rel.source;
+    if (!conceptId.startsWith('concept:')) return null;
+    const slug = conceptId.replace('concept:', '');
+    const meta = conceptMetadata.find(c => c.id === slug);
+    return {
+      id: conceptId,
+      slug: slug,
+      title: meta?.title || slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, ' '),
+      icon: meta?.icon || '🧠'
+    };
+  })
+  .filter(Boolean)
+  .slice(0, 5); // Limit to top 5
+---
+
+{relatedConcepts.length > 0 && (
+  <div class="mb-6 flex flex-wrap gap-2 items-center">
+    <span class="text-xs font-bold text-slate-500 dark:text-gray-400 uppercase tracking-wider mr-2">Core Concepts:</span>
+    {relatedConcepts.map(concept => (
+      <a 
+        href={`/knowledge/${concept.slug}`}
+        class="inline-flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 transition-colors text-sm font-semibold"
+      >
+        <span>{concept.icon}</span>
+        <span>{concept.title}</span>
+      </a>
+    ))}
+  </div>
+)}

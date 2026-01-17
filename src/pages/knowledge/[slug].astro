@@ -47,6 +47,41 @@ const relatedArticles = article ? Object.entries(articles)
      return conf?.category.id === article?.category && key !== slug;
   })
   .slice(0, 3) : [];
+
+// FETCH LINKED ENTITIES (Mesh Integration)
+import { fetchMeshRelations } from '../../utils/entity-cache-reader-core';
+const meshId = `concept:${slug}`;
+const meshRelations = await fetchMeshRelations(Astro.locals, meshId);
+
+// Group linked entities by type
+const linkedEntities = meshRelations.reduce((acc, rel) => {
+  const otherId = rel.source === meshId ? rel.target : rel.source;
+  if (!otherId || otherId === meshId) return acc;
+  
+  let type = 'Other';
+  let path = '#';
+  let name = otherId;
+
+  if (otherId.includes('/')) {
+    type = 'Model';
+    path = `/model/${otherId}`;
+    name = otherId.split('/').pop() || otherId;
+  } else if (otherId.startsWith('report:')) {
+    type = 'Report';
+    path = `/reports/${otherId.replace('report:', '')}`;
+    name = otherId.replace('report:', '').replace(/-/g, ' ');
+  } else if (otherId.startsWith('dataset:')) {
+    type = 'Dataset';
+    path = `/dataset/${otherId.replace('dataset:', '')}`;
+    name = otherId.replace('dataset:', '');
+  }
+
+  if (!acc[type]) acc[type] = [];
+  acc[type].push({ id: otherId, name, path });
+  return acc;
+}, {} as Record<string, any[]>);
+
+import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -62,6 +97,41 @@ const relatedArticles = article ? Object.entries(articles)
         />
 
         <KnowledgeContent content={article.content} />
+
+        <!-- Knowledge Mesh (Deep UX) -->
+        <div class="mt-12">
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <span class="text-indigo-600">🕸️</span> Knowledge Mesh
+          </h2>
+          <NeuralGraphExplorer rootId={meshId} />
+        </div>
+
+        <!-- Linked Entities (Tabular View) -->
+        {Object.keys(linkedEntities).length > 0 && (
+          <div class="mt-12 p-8 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-3xl border border-indigo-100 dark:border-indigo-900/30">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Grounded Entities</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {Object.entries(linkedEntities).map(([type, entities]) => (
+                <div>
+                  <h3 class="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <span>{type === 'Model' ? '🤖' : type === 'Report' ? '📊' : '📄'}</span>
+                    {type}s
+                  </h3>
+                  <ul class="space-y-3">
+                    {entities.map(ent => (
+                      <li>
+                        <a href={ent.path} class="group flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-indigo-500 transition-all shadow-sm">
+                          <span class="text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 transition-colors uppercase">{ent.name}</span>
+                          <span class="text-xs text-gray-400">View Details →</span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {relatedArticles.length > 0 && (
           <KnowledgeRelated articles={relatedArticles} />
