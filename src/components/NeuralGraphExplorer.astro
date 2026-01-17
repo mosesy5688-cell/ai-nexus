@@ -24,41 +24,27 @@ let totalLinks = 0;
 try {
     const rootId = currentModelId || entity?.id;
     
-    // 1. Fetch Universal Mesh
+    // 1. Fetch Lightweight Mesh (SSR Only)
+    // We only load relations.json (74KB) to avoid memory/CPU timeout on Vercel/Cloudflare
     const [relations, conceptMeta] = await Promise.all([
-        fetchMeshRelations(Astro.locals, rootId),
+        fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }),
         fetchConceptMetadata(Astro.locals)
     ]);
 
-    const nodeMap = new Map<string, typeof graphNodes[0]>();
+    const nodeMap = new Map<string, any>();
     const conceptMap = new Map(conceptMeta.map(c => [c.id || `concept--${c.slug}`, c]));
 
     // Helper to extract node info
     const ensureNode = (id, typeHint = 'model') => {
         if (nodeMap.has(id)) return;
         
-        const isConcept = id.startsWith('concept--') || id.startsWith('kb--');
-        const isReport = id.startsWith('report--');
-        const isPaper = id.startsWith('arxiv--');
-        
         let nodeType = typeHint;
-        if (isConcept) nodeType = 'concept';
-        else if (isReport) nodeType = 'report';
-        else if (isPaper) nodeType = 'paper';
+        if (id.includes('concept--')) nodeType = 'concept';
+        else if (id.includes('report--')) nodeType = 'report';
+        else if (id.includes('arxiv--')) nodeType = 'paper';
 
         const meta = conceptMap.get(id);
         const name = meta?.title || id.split('--').pop().split(':').pop();
-
-        const icons = {
-            model: '📦',
-            paper: '📄',
-            concept: '🧠',
-            report: '📈',
-            dataset: '📊',
-            agent: '🤖',
-            tool: '🔧',
-            space: '🎮'
-        };
 
         nodeMap.set(id, {
             id,
@@ -66,22 +52,23 @@ try {
             author: meta?.category || '',
             type: nodeType,
             fni: 0,
-            icon: meta?.icon || icons[nodeType] || '⚪'
+            icon: meta?.icon || (nodeType === 'concept' ? '🧠' : '📦')
         });
     };
 
-    // Add root if not in mesh
+    // Add root
     if (entity && rootId) {
         nodeMap.set(rootId, {
             id: rootId,
             name: entity.name || entity.title || rootId.split('--').pop(),
             author: entity.author || '',
             type: entity.type || 'model',
-            fni: entity.fni_score || 0
+            fni: entity.fni_score || 0,
+            icon: entity.icon || '🎯'
         });
     }
 
-    // Process Relations
+    // Process SSR Relations
     relations.forEach(rel => {
         ensureNode(rel.source_id, rel.source_type);
         ensureNode(rel.target_id, rel.target_type);
@@ -98,7 +85,7 @@ try {
     totalNodes = graphNodes.length;
     totalLinks = graphLinks.length;
     
-    // 3. Identification of Hub Nodes (for the Grid View)
+    // Grid View Nodes
     if (rootId) {
         const relatedIds = new Set<string>();
         relations.forEach(link => {
@@ -106,12 +93,10 @@ try {
             else if (link.target_id === rootId) relatedIds.add(link.source_id);
         });
         
-        relatedNodes = graphNodes
-            .filter(n => relatedIds.has(n.id))
-            .slice(0, 12);
+        relatedNodes = graphNodes.filter(n => relatedIds.has(n.id)).slice(0, 12);
     }
 } catch (e) {
-    console.error('[NeuralGraphExplorer] Error:', e);
+    console.error('[NeuralGraphExplorer] SSR Error:', e);
 }
 
 const hasGraph = totalNodes > 0;
@@ -246,21 +231,61 @@ const hasRelatedNodes = relatedNodes.length > 0;
         });
     });
 
-    function initD3Graph() {
+    async function initD3Graph() {
         const container = document.getElementById('d3-container');
         const entityId = container.dataset.id;
         const svg = d3.select("#visual-graph");
         const loading = container.querySelector('.graph-loading');
         
+        // 1. Initial Render from SSR data
+        let nodes = JSON.parse(container.dataset.nodes || '[]');
+        let links = JSON.parse(container.dataset.links || '[]');
+        
+        render({ nodes, links });
+
+        // 2. Heavy Hydration (Client-Side Only)
+        // Fetch explicit.json (3MB) via relative path to bypass CORS
+        try {
+            loading.style.display = 'flex';
+            loading.querySelector('span').textContent = 'Expanding Neural Mesh...';
+            
+            const [resp1, resp2] = await Promise.all([
+                fetch('/cache/relations/explicit.json').then(r => r.ok ? r.json() : null),
+                fetch('/cache/relations/knowledge-links.json').then(r => r.ok ? r.json() : null)
+            ]);
+
+            if (resp1 || resp2) {
+                // Update graph with heavy data (Merging logic simplified for client)
+                const nodeSet = new Map();
+                nodes.forEach(n => nodeSet.set(n.id, n));
+                
+                const processEdge = (src, tgt, type, conf) => {
+                    const normSrc = src.toLowerCase();
+                    const normTgt = tgt.toLowerCase();
+                    const normTargetId = (entityId || '').toLowerCase();
+                    
+                    if (normSrc.includes(normTargetId) || normTgt.includes(normTargetId)) {
+                        if (!nodeSet.has(src)) nodeSet.set(src, { id: src, name: src.split(':').pop(), type: 'model' });
+                        if (!nodeSet.has(tgt)) nodeSet.set(tgt, { id: tgt, name: tgt.split(':').pop(), type: 'model' });
+                        links.push({ source: src, target: tgt, type, weight: conf });
+                    }
+                };
+
+                if (resp1?.edges) {
+                    Object.entries(resp1.edges).forEach(([src, edges]) => {
+                        edges.forEach(e => processEdge(src, e[0], e[1], e[2]));
+                    });
+                }
+                
+                nodes = Array.from(nodeSet.values());
+                render({ nodes, links });
+            }
+        } catch (e) {
+            console.warn('[D3] Client-side hydration failed:', e);
+        }
+
         const width = container.clientWidth;
         const height = 400;
-
-        // Parse SSR data
-        const nodes = JSON.parse(container.dataset.nodes || '[]');
-        const links = JSON.parse(container.dataset.links || '[]');
-
-        loading.style.display = 'none';
-        render({ nodes, links });
 
         function render(data) {
             svg.selectAll("*").remove();
