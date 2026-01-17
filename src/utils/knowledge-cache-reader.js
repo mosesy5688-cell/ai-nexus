@@ -8,10 +8,10 @@
 export async function fetchMeshRelations(locals, filterEntityId = null) {
     const r2 = locals?.runtime?.env?.R2_ASSETS;
     const sources = [
-        'cache/explicit.json',
+        'cache/relations/explicit.json',
         'cache/relations.json', // Legacy fallback
-        'cache/knowledge/knowledge-links.json',
-        'cache/meta/alt-by-category/alt-base.json'
+        'cache/relations/knowledge-links.json',
+        'cache/relations/alt-by-category/alt-base.json'
     ];
 
     let allRelations = [];
@@ -23,7 +23,8 @@ export async function fetchMeshRelations(locals, filterEntityId = null) {
                 const file = await r2.get(path);
                 if (file) {
                     const data = await file.json();
-                    return data.relations || (Array.isArray(data) ? data : []);
+                    // V15: Support "edges" property from adjacency list, OR "relations" (legacy), OR flat array
+                    return data.edges || data.relations || (Array.isArray(data) ? data : []);
                 }
             } catch (e) {
                 console.warn(`[MeshAggregator] Failed to fetch ${path}:`, e.message);
@@ -34,7 +35,11 @@ export async function fetchMeshRelations(locals, filterEntityId = null) {
         const results = await Promise.all(fetchPromises);
         results.forEach(rels => {
             rels.forEach(rel => {
-                const key = `${rel.source_id}|${rel.target_id}|${rel.relation_type}`;
+                const sourceId = rel.source_id || rel.source || rel.from;
+                const targetId = rel.target_id || rel.target || rel.to;
+                if (!sourceId || !targetId) return;
+
+                const key = `${sourceId}|${targetId}|${rel.relation_type || rel.type || 'RELATED'}`;
                 if (!seen.has(key)) {
                     allRelations.push(rel);
                     seen.add(key);
