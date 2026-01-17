@@ -1,148 +1,146 @@
-// Knowledge Cache Reader (V15.15)
-// Art 5.1 Compliance: Extracted from entity-cache-reader-core.js
+// Knowledge Cache Reader (V15.16)
+// Corrected: Zero-Runtime Static Shard Strategy
 
 /**
- * V15.15 Universal Mesh Relations Aggregator
- * Fetches and merges relations from multiple fragmented R2 sources on-the-fly.
+ * Normalizes entity IDs to facilitate flexible matching.
+ * Handles production prefixes like replicate:, hf-model--, etc.
  */
-export async function fetchMeshRelations(locals, filterEntityId = null) {
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
-    const sources = [
-        'cache/relations/explicit.json',
-        'cache/relations.json', // Legacy fallback
-        'cache/relations/knowledge-links.json',
-        'cache/relations/alt-by-category/alt-base.json'
+function stripPrefix(id) {
+    if (!id || typeof id !== 'string') return '';
+    return id
+        .replace(/^(replicate|github|arxiv|kb|concept|paper|model|agent|tool|dataset|space)[:\-]+/, '')
+        .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space)--/, '')
+        .replace(/--/g, '/')
+        .toLowerCase();
+}
+
+/**
+ * Fetch Mesh Relations with performance gating for SSR.
+ */
+export async function fetchMeshRelations(locals, entityId = null, options = { ssrOnly: true }) {
+    const R2 = locals?.runtime?.env?.R2_ASSETS;
+    if (!R2) return [];
+
+    const target = stripPrefix(entityId);
+    let allRelations = [];
+
+    // Sources prioritized by performance (smaller files first)
+    const smallSources = [
+        'cache/relations.json', // 74KB - Primary optimized source
     ];
 
-    let allRelations = [];
-    const seen = new Set();
+    const heavySources = [
+        'cache/relations/explicit.json',      // 3.1MB
+        'cache/relations/knowledge-links.json' // 3.25MB
+    ];
 
-    if (r2) {
-        const fetchPromises = sources.map(async (path) => {
-            try {
-                const file = await r2.get(path);
-                if (file) {
-                    const data = await file.json();
-                    if (!data) return [];
-                    // V15: Support "edges", "relations", "links", or flat array
-                    return data.edges || data.relations || data.links || (Array.isArray(data) ? data : []);
-                }
-            } catch (e) {
-                console.warn(`[MeshAggregator] Failed to fetch ${path}:`, e.message);
-            }
-            return [];
-        });
+    const sourcesToFetch = (options && options.ssrOnly) ? smallSources : [...smallSources, ...heavySources];
 
-        const results = await Promise.all(fetchPromises);
-        results.forEach(data => {
+    try {
+        for (const key of sourcesToFetch) {
             try {
-                if (!data) return;
-                // If it's the V15 adjacency list format (object with source_id keys)
-                if (typeof data === 'object' && !Array.isArray(data)) {
-                    Object.entries(data).forEach(([source_id, links]) => {
-                        if (Array.isArray(links)) {
-                            links.forEach(link => {
-                                if (!link) return;
-                                // Link format: [target_id, relation_type, confidence]
-                                if (Array.isArray(link) && link.length >= 2) {
+                const obj = await R2.get(key);
+                if (!obj) continue;
+
+                const data = await obj.json();
+
+                // Handle V15 Adjacency List (explicit.json)
+                if (data.edges && typeof data.edges === 'object' && !Array.isArray(data.edges)) {
+                    Object.entries(data.edges).forEach(([srcId, targets]) => {
+                        if (Array.isArray(targets)) {
+                            targets.forEach(edge => {
+                                // edge format: [target_id, type, confidence]
+                                if (Array.isArray(edge) && edge.length >= 1) {
                                     allRelations.push({
-                                        source_id,
-                                        target_id: link[0],
-                                        relation_type: link[1],
-                                        confidence: (link[2] || 100) / 100
-                                    });
-                                } else if (typeof link === 'object') {
-                                    allRelations.push({
-                                        source_id: link.source_id || source_id,
-                                        target_id: link.target_id,
-                                        relation_type: link.relation_type || 'RELATED',
-                                        confidence: link.confidence || 1.0
+                                        source_id: srcId,
+                                        target_id: edge[0],
+                                        relation_type: edge[1] || 'RELATED',
+                                        confidence: edge[2] || 0.8
                                     });
                                 }
                             });
                         }
                     });
-                } else if (Array.isArray(data)) {
-                    data.forEach(rel => {
-                        if (!rel) return;
-                        const sourceId = rel.source_id || rel.source || rel.from;
-                        const targetId = rel.target_id || rel.target || rel.to;
-                        if (!sourceId || !targetId) return;
-
-                        const key = `${sourceId}|${targetId}|${rel.relation_type || rel.type || 'RELATED'}`;
-                        if (!seen.has(key)) {
-                            allRelations.push(rel);
-                            seen.add(key);
+                }
+                // Handle V14 Flat Array or relations.json optimized format
+                else if (Array.isArray(data.relations)) {
+                    allRelations = allRelations.concat(data.relations);
+                }
+                // Handle knowledge-links.json format
+                else if (Array.isArray(data.links)) {
+                    data.links.forEach(link => {
+                        if (link.entity_id && Array.isArray(link.knowledge)) {
+                            link.knowledge.forEach(k => {
+                                allRelations.push({
+                                    source_id: link.entity_id,
+                                    target_id: typeof k === 'string' ? `concept--${k}` : `concept--${k.slug}`,
+                                    relation_type: 'EXPLAIN',
+                                    confidence: k.confidence || 1.0
+                                });
+                            });
                         }
                     });
                 }
-            } catch (err) {
-                console.warn('[MeshAggregator] Error processing data batch:', err.message);
+            } catch (innerError) {
+                console.warn(`[KnowledgeReader] Failed to parse ${key}:`, innerError.message);
             }
-        });
-    }
-
-    const relations = [];
-    // V15.16: Normalize filter ID by stripping common prefixes for robust matching
-    const stripPrefix = (id) => (id || '').toLowerCase().replace(/^(hf-model|model|concept|kb|paper|arxiv|report|dataset|tool|space|agent)--/, '').replace(/[:/]/g, '--');
-
-    const filterNormalized = stripPrefix(filterEntityId);
-
-    for (const obj of allRelations) {
-        if (!obj) continue;
-        const source = obj.source_id || obj.source || obj.from;
-        const target = obj.target_id || obj.target || obj.to;
-        if (!source || !target) continue;
-
-        const normS = stripPrefix(source);
-        const normT = stripPrefix(target);
-
-        const sourceMatches = filterNormalized && (normS === filterNormalized);
-        const targetMatches = filterNormalized && (normT === filterNormalized);
-
-        if (filterNormalized && !sourceMatches && !targetMatches) {
-            continue;
         }
 
-        let relType = obj.type || obj.relation_type || 'RELATED';
-        let sourceType = obj.source_type || obj.from_type || 'entity';
-        let targetType = obj.target_type || obj.to_type || 'entity';
+        // Processing & Sanitizing
+        const filtered = [];
+        const seen = new Set();
 
-        const sLower = source.toLowerCase();
-        const tLower = target.toLowerCase();
-        if (sLower.includes('concept--')) sourceType = 'concept';
-        if (tLower.includes('concept--')) targetType = 'concept';
-        if (sLower.includes('report--')) sourceType = 'report';
-        if (tLower.includes('report--')) targetType = 'report';
+        for (const rel of allRelations) {
+            const sid = rel.source_id;
+            const tid = rel.target_id;
+            if (!sid || !tid) continue;
 
-        relations.push({
-            source_id: source,
-            target_id: target,
-            type: relType,
-            source_type: sourceType,
-            target_type: targetType,
-            metadata: obj.metadata || {}
-        });
+            const normS = stripPrefix(sid);
+            const normT = stripPrefix(tid);
+
+            // Filter by target if requested
+            if (target && normS !== target && normT !== target) continue;
+
+            const dupKey = `${sid}|${tid}|${rel.relation_type}`;
+            if (seen.has(dupKey)) continue;
+            seen.add(dupKey);
+
+            filtered.push({
+                source_id: sid,
+                target_id: tid,
+                relation_type: rel.relation_type || 'RELATED',
+                confidence: rel.confidence || 0.8,
+                source_type: sid.includes('concept--') ? 'concept' : (sid.includes('report--') ? 'report' : 'model'),
+                target_type: tid.includes('concept--') ? 'concept' : (tid.includes('report--') ? 'report' : 'model')
+            });
+        }
+
+        return filtered;
+    } catch (e) {
+        console.error('[KnowledgeReader] Global Error:', e);
+        return [];
     }
-
-    return relations;
 }
 
 /**
- * Fetch Concept/Article Metadata for node enrichment (V15.15)
+ * Concept metadata fetcher
  */
 export async function fetchConceptMetadata(locals) {
-    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    const R2 = locals?.runtime?.env?.R2_ASSETS;
+    if (!R2) return [];
+
     try {
-        if (r2) {
-            const file = await r2.get('cache/knowledge/index.json');
-            if (file) {
-                const data = await file.json();
-                return data.articles || data;
-            }
+        const file = await R2.get('cache/knowledge/index.json');
+        if (file) {
+            const data = await file.json();
+            return data.articles || data || [];
         }
+        // Fallback for MMLU/HumanEval if index.json is missing
+        return [
+            { id: 'concept--mmlu', title: 'MMLU Benchmark', slug: 'mmlu', icon: '🧪' },
+            { id: 'concept--humaneval', title: 'HumanEval', slug: 'humaneval', icon: '💻' }
+        ];
     } catch (e) {
-        console.warn('[ConceptReader] Failed to fetch knowledge index:', e.message);
+        return [];
     }
-    return [];
 }
