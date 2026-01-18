@@ -1,7 +1,9 @@
 /**
- * Unified Entity Hydrator (V15.8)
- * Art 5.1 Compliance: Extracted from entity-cache-reader-core.js
+ * Unified Entity Hydrator (V15.22)
+ * CES Compliance: Refactored to honor < 250 lines rule.
  */
+import { applyVramLogic } from './entity-vram-logic.js';
+import { handleModelType, handlePaperType, handleGenericType } from './entity-type-handlers.js';
 
 export function hydrateEntity(data, type, summaryData) {
     if (!data) return null;
@@ -10,23 +12,17 @@ export function hydrateEntity(data, type, summaryData) {
     const computed = data.computed || {};
     const seo = data.seo || {};
 
-    // V15.8: Proactive meta_json parsing for high-fidelity recovery
     let meta = {};
     try {
         if (entity.meta_json) {
-            meta = typeof entity.meta_json === 'string'
-                ? JSON.parse(entity.meta_json)
-                : entity.meta_json;
+            meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;
         }
     } catch (e) {
-        console.warn('[Hydrator] Failed to parse meta_json:', e.message);
+        console.warn('[Hydrator] meta_json parse error:', e.message);
     }
 
-    // V15.2: Derive name from ID if missing
-    const derivedName = entity.name || entity.title || entity.pretty_name ||
-        (entity.id ? entity.id.split('--').pop() : 'Unknown');
+    const derivedName = entity.name || entity.title || entity.pretty_name || (entity.id ? entity.id.split('--').pop() : 'Unknown');
 
-    // Standard mappings for all types
     const hydrated = {
         ...entity,
         meta: meta,
@@ -39,212 +35,110 @@ export function hydrateEntity(data, type, summaryData) {
         _hydrated: true
     };
 
-    // V15.15 Hero Name Beautification
-    if (!hydrated.name || hydrated.name === hydrated.id) {
+    beautifyName(hydrated);
+    if (summaryData) attemptWarmCacheFallback(hydrated, summaryData);
+    extractTechSpecs(hydrated, entity, meta);
+    mineRelations(hydrated, meta);
+
+    // Type-specific logic moved to handlers
+    if (type === 'model') handleModelType(hydrated, entity, computed, meta, derivedName);
+    else if (type === 'paper') handlePaperType(hydrated, entity, meta, derivedName);
+    else handleGenericType(hydrated, entity, type, meta, derivedName);
+
+    // Elastic Parameter Inference
+    if (!hydrated.params_billions || hydrated.params_billions <= 0) {
+        const idStr = (hydrated.id || '').toLowerCase();
+        const paramMatch = idStr.match(/(\d+)([bm])$/);
+        if (paramMatch) {
+            const val = parseFloat(paramMatch[1]);
+            const unit = paramMatch[2];
+            hydrated.params_billions = unit === 'b' ? val : val / 1000;
+        }
+    }
+
+    if (type === 'model') applyVramLogic(hydrated);
+    return hydrated;
+}
+
+function beautifyName(hydrated) {
+    const isSlug = hydrated.name && !hydrated.name.includes(' ') && (hydrated.name.includes('-') || hydrated.name.includes('_'));
+    if (!hydrated.name || hydrated.name === hydrated.id || isSlug) {
         const parts = (hydrated.id || '').split('--').pop()?.split('/') || [];
         const rawName = parts.pop() || hydrated.id || 'Unknown Entity';
-        hydrated.name = rawName
-            .replace(/-/g, ' ')
-            .replace(/_/g, ' ')
-            .split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
+        hydrated.name = rawName.replace(/[-_]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
-
-    // V15.17: CROSS-SOURCE HYDRATION (Warm Cache Fallback)
-    // If core metrics are missing after shard load, attempt to pull from summaryData (L4/L5 aggregate)
-    if (summaryData && Array.isArray(summaryData) && (!hydrated.params_billions || !hydrated.downloads)) {
-        // Super-normalization: lower + replace all non-alphanumeric with '-'
-        const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-        const searchId = norm(hydrated.id || '').replace(/^hf-model-/, '');
-        const fallback = summaryData.find(s => {
-            const sid = norm(s.id || s.umid || s.slug || '').replace(/^hf-model-/, '');
-            return sid === searchId || sid.endsWith('-' + searchId) || searchId.endsWith('-' + sid) || sid === norm(hydrated.slug);
-        });
-        if (fallback) {
-            hydrated.params_billions = hydrated.params_billions || fallback.params_billions;
-            hydrated.downloads = hydrated.downloads || fallback.downloads;
-            hydrated.likes = hydrated.likes || fallback.likes || fallback.stars;
-            hydrated.context_length = hydrated.context_length || fallback.context_length;
-            hydrated.fni_score = hydrated.fni_score || fallback.fni_score || fallback.fni;
-        }
-    }
-
-    // Promotion of high-fidelity technical specs from meta_json (Data Vacuum Fix)
-    if (meta.extended || meta.config || entity.config) {
-        const config = entity.config || meta.config || meta.extended?.config || {};
-
-        // V15.12: Massively expanded key mapping for Context Length
-        hydrated.context_length = hydrated.context_length || meta.extended?.context_length ||
-            config.max_position_embeddings || config.n_ctx || config.max_seq_len ||
-            config.max_sequence_length || config.model_max_length || config.seq_length ||
-            config.n_positions || config.max_seq_length;
-
-        // V15.12: Expanded Architectural mapping
-        hydrated.architecture = hydrated.architecture || meta.extended?.architecture ||
-            config.model_type || config.architectures?.[0] || config.arch || config.type;
-
-        // V15.12: Expanded Parameter mapping
-        hydrated.params_billions = hydrated.params_billions || meta.extended?.params_billions ||
-            config.num_parameters || config.n_params || config.params_count;
-
-        // V15.15 (Fix): If params is still missing but we have it in summary, it was already handled above.
-        // But we ensure it's a number.
-        if (hydrated.params_billions) hydrated.params_billions = parseFloat(hydrated.params_billions);
-
-        hydrated.example_code = hydrated.example_code || meta.extended?.example_code || meta.usage || meta.sample_code;
-        hydrated.license_spdx = hydrated.license_spdx || meta.extended?.license || meta.license || config.license;
-
-        // V15.9: Additional Architectural Detail for NeuralExplorer/TechSpecs
-        hydrated.num_layers = hydrated.num_layers || config.num_hidden_layers || config.n_layer || config.num_layers || config.n_layers;
-        hydrated.hidden_size = hydrated.hidden_size || config.hidden_size || config.n_embd || config.d_model || config.dim;
-        hydrated.num_heads = hydrated.num_heads || config.num_attention_heads || config.n_head || config.n_heads || config.num_heads;
-        hydrated.vocab_size = hydrated.vocab_size || config.vocab_size;
-
-        // V15.8 (Fix): Promote README/Model Card to body_content if top-level is empty
-        if (!hydrated.body_content) {
-            hydrated.body_content = entity.body_content || meta.readme || meta.model_card || meta.body_content || meta.description || meta.extended?.readme || null;
-        }
-
-        // Secondary fallback for description if body_content is still empty
-        if (!hydrated.description && hydrated.body_content) {
-            hydrated.description = hydrated.body_content.substring(0, 500).split('\n')[0];
-        }
-    }
-
-    // Type-specific hydration
-    if (type === 'model') {
-        const benchmarks = computed.benchmarks || [];
-        const firstBench = benchmarks[0] || {};
-
-        // Ensure benchmarks are promoted from all possible sources
-        hydrated.mmlu = hydrated.mmlu || firstBench.mmlu || entity.mmlu || meta.extended?.mmlu;
-        hydrated.hellaswag = hydrated.hellaswag || firstBench.hellaswag || entity.hellaswag || meta.extended?.hellaswag;
-        hydrated.arc_challenge = hydrated.arc_challenge || firstBench.arc_challenge || entity.arc_challenge || meta.extended?.arc_challenge;
-        hydrated.gsm8k = hydrated.gsm8k || firstBench.gsm8k || entity.gsm8k || meta.extended?.gsm8k;
-        hydrated.humaneval = hydrated.humaneval || firstBench.humaneval || entity.humaneval || meta.extended?.humaneval;
-        hydrated.avg_score = firstBench.avg_score || entity.avg_score || meta.extended?.avg_score;
-
-        if (entity.config) {
-            hydrated.architecture = hydrated.architecture || entity.config.model_type || entity.config.architectures?.[0];
-            hydrated.context_length = hydrated.context_length || entity.config.max_position_embeddings || entity.config.n_ctx;
-        }
-
-        if (entity.id && (!entity.name || entity.name.includes('--') || entity.name.includes(':') || entity.name.includes('/'))) {
-            const normalizedId = entity.id.replace(/:/g, '--').replace(/\//g, '--');
-            const parts = normalizedId.split('--').filter(p => p);
-            const namePart = parts[parts.length - 1] || entity.id;
-            hydrated.name = entity.pretty_name || namePart || derivedName;
-            hydrated.author = entity.author || (parts.length > 1 ? parts[parts.length - 2] : 'Unknown');
-        }
-
-        // V15.0: Enhanced Technical Transparency (VRAM Parity Fix)
-        applyVramLogic(hydrated);
-    } else if (type === 'paper') {
-        hydrated.title = derivedName;
-        hydrated.abstract = entity.abstract || entity.description || meta.abstract || meta.description;
-        hydrated.arxiv_id = entity.arxiv_id || meta.arxiv_id || meta.extended?.arxiv_id;
-        hydrated.citations = entity.citations || entity.citation_count || meta.citations || meta.extended?.citations;
-        hydrated.published_date = entity.published_date || meta.published_date || meta.extended?.published_date;
-        hydrated.authors = entity.authors || meta.authors || meta.extended?.authors || [];
-    } else if (type === 'tool' || type === 'dataset' || type === 'agent' || type === 'space') {
-        if (entity.id && (!entity.name || entity.name.includes('--'))) {
-            const parts = entity.id.split('--');
-            const namePart = parts.length > 2 ? parts.slice(2).join('/') : parts[parts.length - 1];
-            hydrated.name = entity.pretty_name || namePart || derivedName;
-            if (type === 'space' || type === 'dataset') hydrated.title = hydrated.name;
-        }
-        hydrated.author = entity.author || (entity.id && entity.id.split('--').length > 1 ? entity.id.split('--')[1] : 'Unknown');
-
-        // Promotion of specialized metadata for max density
-        if (type === 'dataset') {
-            hydrated.size_bytes = entity.size_bytes || meta.size_bytes || meta.extended?.size_bytes;
-            hydrated.rows = entity.rows || meta.rows || meta.extended?.rows;
-            hydrated.files_count = entity.files_count || meta.files_count || meta.extended?.files;
-            hydrated.features = entity.features || meta.features || meta.extended?.features;
-            hydrated.configs = entity.configs || meta.configs || meta.extended?.configs || [];
-        } else if (type === 'agent' || type === 'tool') {
-            hydrated.github_stars = entity.github_stars || entity.stars || meta.stars || meta.stargazers_count || meta.extended?.stars;
-            hydrated.github_forks = entity.github_forks || entity.forks || meta.forks || meta.forks_count || meta.extended?.forks;
-            hydrated.language = entity.language || meta.language || meta.extended?.language || 'Python';
-            hydrated.version = entity.version || meta.version || meta.extended?.version || '1.0.0';
-            hydrated.framework = entity.framework || meta.framework || meta.extended?.framework;
-        } else if (type === 'space') {
-            hydrated.sdk = entity.sdk || meta.sdk || meta.extended?.sdk || 'gradio';
-            hydrated.hardware = entity.hardware || meta.hardware || meta.extended?.hardware;
-            hydrated.running_status = entity.running_status || meta.running_status || meta.extended?.runtime_stage || 'RUNNING';
-        }
-    }
-
-    // V15.16: Final VRAM sync check - guarantee it runs after all fallbacks
-    if (type === 'model') applyVramLogic(hydrated);
-
-    return hydrated;
 }
 
-/**
- * Augment an already hydrated entity with data from global summary files (V15.5)
- * Standardizes technical specs like parameters, context, and benchmark scores.
- */
+function attemptWarmCacheFallback(hydrated, summaryData) {
+    if (!Array.isArray(summaryData)) return;
+    if (hydrated.params_billions && hydrated.downloads) return;
+
+    const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const searchId = norm(hydrated.id || '').replace(/^hf-model-/, '');
+    const fallback = summaryData.find(s => {
+        const sid = norm(s.id || s.umid || s.slug || '').replace(/^hf-model-/, '');
+        return sid === searchId || sid.endsWith('-' + searchId) || searchId.endsWith('-' + sid) || sid === norm(hydrated.slug);
+    });
+
+    if (fallback) {
+        hydrated.params_billions = hydrated.params_billions || fallback.params_billions;
+        hydrated.downloads = hydrated.downloads || fallback.downloads;
+        hydrated.likes = hydrated.likes || fallback.likes || fallback.stars;
+        hydrated.context_length = hydrated.context_length || fallback.context_length;
+        hydrated.fni_score = hydrated.fni_score || fallback.fni_score || fallback.fni;
+    }
+}
+
+function extractTechSpecs(hydrated, entity, meta) {
+    const config = entity.config || meta.config || meta.extended?.config || {};
+
+    hydrated.context_length = hydrated.context_length || meta.extended?.context_length || config.max_position_embeddings || config.n_ctx || config.max_seq_len || config.max_sequence_length || config.model_max_length || config.seq_length || config.n_positions;
+    hydrated.architecture = hydrated.architecture || meta.extended?.architecture || config.model_type || config.architectures?.[0] || config.arch;
+    hydrated.params_billions = parseFloat(hydrated.params_billions || meta.extended?.params_billions || config.num_parameters || config.n_params || 0) || null;
+
+    hydrated.num_layers = hydrated.num_layers || config.num_hidden_layers || config.n_layer || config.n_layers;
+    hydrated.hidden_size = hydrated.hidden_size || config.hidden_size || config.n_embd || config.d_model || config.dim;
+    hydrated.num_heads = hydrated.num_heads || config.num_attention_heads || config.n_head || config.n_heads;
+
+    if (!hydrated.body_content) {
+        hydrated.body_content = entity.body_content || meta.readme || meta.model_card || meta.description || null;
+    }
+}
+
+function mineRelations(hydrated, meta) {
+    const relSource = meta.extended || meta.relations || hydrated.relations || {};
+    const toArray = (val) => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') {
+            if (val.trim().startsWith('[') && val.trim().endsWith(']')) {
+                try { const p = JSON.parse(val); if (Array.isArray(p)) return p; } catch (e) { }
+            }
+            return val.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return [];
+    };
+
+    hydrated.arxiv_refs = toArray(hydrated.arxiv_refs || relSource.arxiv_refs || relSource.arxiv_ids || relSource.citing_papers);
+    hydrated.datasets_used = toArray(hydrated.datasets_used || relSource.datasets_used || relSource.training_data || relSource.used_datasets);
+    hydrated.similar_models = toArray(hydrated.similar_models || relSource.similar_models || relSource.related_models);
+    hydrated.base_model = hydrated.base_model || relSource.base_model || relSource.parent_model || null;
+
+    // V15.21 Tag Mining
+    const tags = toArray(hydrated.tags || []);
+    tags.forEach(tag => {
+        if (tag.startsWith('arxiv:') && !hydrated.arxiv_refs.includes(tag.substring(6))) hydrated.arxiv_refs.push(tag.substring(6));
+        if (tag.startsWith('dataset:') && !hydrated.datasets_used.includes(tag.substring(8))) hydrated.datasets_used.push(tag.substring(8));
+        if (tag.startsWith('base_model:') && !hydrated.base_model) hydrated.base_model = tag.substring(11);
+    });
+}
+
 export function augmentEntity(hydrated, summaryData) {
     if (!hydrated || !summaryData) return hydrated;
-
-    // 1. Tech Specs Augmentation (Universal)
-    if (summaryData.params_billions !== undefined && !hydrated.params_billions) {
-        hydrated.params_billions = summaryData.params_billions;
-    }
-    if (summaryData.context_length !== undefined && !hydrated.context_length) {
-        hydrated.context_length = summaryData.context_length;
-    }
-    if (summaryData.architecture_family && !hydrated.architecture) {
-        hydrated.architecture = summaryData.architecture_family;
-    }
-
-    // V15.10: Support for non-model augmentation
-    if (summaryData.citations !== undefined && !hydrated.citations) {
-        hydrated.citations = summaryData.citations;
-    }
-    if (summaryData.size_bytes !== undefined && !hydrated.size_bytes) {
-        hydrated.size_bytes = summaryData.size_bytes;
-    }
-    if (summaryData.github_stars !== undefined && !hydrated.github_stars) {
-        hydrated.github_stars = summaryData.github_stars;
-    }
-
-    // 2. Benchmarks Augmentation
-    if (summaryData.mmlu !== undefined && !hydrated.mmlu) hydrated.mmlu = summaryData.mmlu;
-    if (summaryData.humaneval !== undefined && !hydrated.humaneval) hydrated.humaneval = summaryData.humaneval;
-    if (summaryData.hellaswag !== undefined && !hydrated.hellaswag) hydrated.hellaswag = summaryData.hellaswag;
-    if (summaryData.arc_challenge !== undefined && !hydrated.arc_challenge) hydrated.arc_challenge = summaryData.arc_challenge;
-    if (summaryData.avg_score !== undefined && !hydrated.avg_score) hydrated.avg_score = summaryData.avg_score;
-
-    // 3. FNI/Percentile Augmentation (Best effort)
-    if (summaryData.fni_score !== undefined && !hydrated.fni_score) hydrated.fni_score = summaryData.fni_score;
-    if (summaryData.fni_percentile !== undefined && !hydrated.fni_percentile) hydrated.fni_percentile = summaryData.fni_percentile;
-
-    // V15.11: Recalculate VRAM if parameters were added via augmentation
-    if (hydrated.params_billions && !hydrated.vram_gb) {
-        applyVramLogic(hydrated);
-    }
-
+    ['params_billions', 'context_length', 'mmlu', 'humaneval', 'hellaswag', 'arc_challenge', 'avg_score', 'fni_score', 'fni_percentile'].forEach(key => {
+        if (summaryData[key] !== undefined && !hydrated[key]) hydrated[key] = summaryData[key];
+    });
+    if (summaryData.architecture_family && !hydrated.architecture) hydrated.architecture = summaryData.architecture_family;
+    if (hydrated.params_billions && !hydrated.vram_gb) applyVramLogic(hydrated);
     return hydrated;
-}
-
-/**
- * Apply VRAM estimation logic based on parameters
- * V15.0: (Params * Factor) + 0.5GB Overhead
- */
-function applyVramLogic(hydrated) {
-    if (hydrated.params_billions) {
-        const params = typeof hydrated.params_billions === 'string'
-            ? parseFloat(hydrated.params_billions.replace(/[^0-9.]/g, ''))
-            : hydrated.params_billions;
-
-        if (params > 0) {
-            hydrated.vram_gb = Math.round((params * 2.0 + 0.5) * 10) / 10;
-            hydrated.vram_gb_est_q4 = Math.round((params * 0.75 + 0.5) * 10) / 10;
-            hydrated.vram_formula = "VRAM = (params * factor) + 0.5GB (FP16 factor: 2.0, Q4 factor: 0.75)";
-            hydrated.vram_is_estimated = true;
-        }
-    }
 }

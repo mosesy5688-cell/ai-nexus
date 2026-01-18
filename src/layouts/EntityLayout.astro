@@ -56,21 +56,21 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
     <main class="container mx-auto px-4 py-8 max-w-7xl animate-fade-in relative">
       
       {/* Zone 1: HERO */}
-      <section id="hero-zone" class="mb-8 animate-slide-up relative z-10" style="animation-delay: 0.1s;">
+      <section id="hero-zone" class="mb-6 animate-slide-up relative z-10" style="animation-delay: 0.1s;">
         <slot name="hero" />
       </section>
 
       {/* Zone 1.5: USE CASES */}
-      <section id="use-cases-zone" class="mb-12 animate-slide-up" style="animation-delay: 0.2s;">
+      <section id="use-cases-zone" class="mb-8 animate-slide-up" style="animation-delay: 0.2s;">
         <slot name="use-cases" />
       </section>
 
       {/* V15.0: UNIFIED CONTENT GRID */}
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start mb-16">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start mb-12">
         
         {/* LEFT COLUMN: Main Content Ecosystem */}
         <div class="lg:col-span-8">
-          <div class="space-y-16">
+          <div class="space-y-12">
             
             {/* Zone 2: QUICK INSIGHTS */}
             <section id="insights-zone" class="animate-slide-up" style="animation-delay: 0.3s;">
