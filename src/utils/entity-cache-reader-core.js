@@ -4,8 +4,10 @@
 export function normalizeEntitySlug(id, source = 'huggingface') {
     if (!id) return '';
 
-    let slug = id;
+    // V15.12: Handle array inputs from Astro [...slug] routes
+    let slug = Array.isArray(id) ? id.join('/') : id;
 
+    // Standardize separators for R2 storage artifact
     slug = slug.replace(/:/g, '--').replace(/\//g, '--');
     return slug;
 }

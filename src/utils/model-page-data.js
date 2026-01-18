@@ -84,8 +84,13 @@ export async function prepareModelPageData(slug, slugStr, locals) {
                 const sid = norm(s.id || s.umid || s.slug || '').replace(/^hf-model-/, '');
                 return sid === searchId || sid.endsWith('-' + searchId) || searchId.endsWith('-' + sid) || sid === norm(slugStr);
             });
+
             if (fallbackEntry) {
                 fallbackModel = augmentEntity(fallbackModel, fallbackEntry);
+            } else {
+                // V15.12: Strict 404 - If not in R2 AND not in Warm Cache, it's truly unknown
+                console.log(`[ModelPageData] Strict 404 Triggered for ${slugStr}`);
+                return null;
             }
         }
 
