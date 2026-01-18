@@ -51,14 +51,15 @@ export function hydrateEntity(data, type) {
             .join(' ');
     }
 
-    // V15.15: CROSS-SOURCE HYDRATION (Warm Cache Fallback)
+    // V15.17: CROSS-SOURCE HYDRATION (Warm Cache Fallback)
     // If core metrics are missing after shard load, attempt to pull from summaryData (L4/L5 aggregate)
     if (summaryData && Array.isArray(summaryData) && (!hydrated.params_billions || !hydrated.downloads)) {
-        const searchId = (hydrated.id || '').toLowerCase().replace(/^hf-model--/, '').replace(/:/g, '--').replace(/\//g, '--');
+        // Super-normalization: lower + replace all non-alphanumeric with '-'
+        const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        const searchId = norm(hydrated.id || '').replace(/^hf-model-/, '');
         const fallback = summaryData.find(s => {
-            const sid = (s.id || s.umid || s.slug || '').toLowerCase().replace(/^hf-model--/, '').replace(/:/g, '--').replace(/\//g, '--');
-            // Support partial matches for repo names (e.g. meta-llama/llama-3-8b matching llama-3-8b)
-            return sid === searchId || sid.endsWith('--' + searchId) || searchId.endsWith('--' + sid) || sid === hydrated.slug;
+            const sid = norm(s.id || s.umid || s.slug || '').replace(/^hf-model-/, '');
+            return sid === searchId || sid.endsWith('-' + searchId) || searchId.endsWith('-' + sid) || sid === norm(hydrated.slug);
         });
         if (fallback) {
             hydrated.params_billions = hydrated.params_billions || fallback.params_billions;
