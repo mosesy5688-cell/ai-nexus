@@ -14,7 +14,7 @@ export async function prepareModelPageData(slug, slugStr, locals) {
     let tagsArray = [];
 
     try {
-        const specsResult = await loadSpecs();
+        const specsResult = await loadSpecs(locals);
         summaryData = specsResult.data?.data || [];
     } catch (e) {
         console.warn("[ModelPageData] Summary data load failed:", e.message);
@@ -25,7 +25,7 @@ export async function prepareModelPageData(slug, slugStr, locals) {
 
     // Benchmarks Augmentation
     try {
-        const benchResult = await loadBenchmarks();
+        const benchResult = await loadBenchmarks(locals);
         const benchEntry = benchResult.data?.data?.find(b =>
             b.umid === slugStr.replace(/\//g, '-') ||
             b.umid === slugStr.replace(/\//g, '--') ||

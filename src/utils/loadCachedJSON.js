@@ -19,11 +19,37 @@
  * @returns {Promise<{data: T | null, source: string, freshness: string}>}
  */
 export async function loadCachedJSON(path, options = {}) {
-    const { fallbackData = null } = options;
+    const { fallbackData = null, locals = null } = options;
 
-    // Strategy 1: Direct fetch from CDN/R2
+    // Strategy 1: R2 Direct (Primary for SSR)
+    const r2 = locals?.runtime?.env?.R2_ASSETS;
+    if (r2) {
+        const r2Path = path.startsWith('/') ? path.slice(1) : path;
+        try {
+            const file = await r2.get(r2Path);
+            if (file) {
+                const data = await file.json();
+                return {
+                    data,
+                    source: 'r2-internal',
+                    freshness: data.generated_at || new Date().toISOString()
+                };
+            }
+        } catch (e) {
+            console.warn(`[loadCachedJSON] R2 fetch failed for ${r2Path}:`, e.message);
+        }
+    }
+
+    // Strategy 2: Direct fetch from CDN/R2 (Browser or SSR Fallback)
     try {
-        const res = await fetch(path, {
+        let fetchUrl = path;
+        // In SSR, if not absolute and no R2, we need a base URL
+        if (typeof window === 'undefined' && !path.startsWith('http')) {
+            // Default to production domain if unknown
+            fetchUrl = `https://free2aitools.com${path.startsWith('/') ? '' : '/'}${path}`;
+        }
+
+        const res = await fetch(fetchUrl, {
             headers: { 'Accept': 'application/json' }
         });
 
@@ -49,10 +75,12 @@ export async function loadCachedJSON(path, options = {}) {
 
 /**
  * Load benchmarks data with type safety
+ * @param {Object} [locals] - R2 runtime context
  * @returns {Promise<{data: BenchmarkData | null, source: string, freshness: string}>}
  */
-export async function loadBenchmarks() {
+export async function loadBenchmarks(locals = null) {
     return loadCachedJSON('/cache/benchmarks.json', {
+        locals,
         fallbackData: {
             version: '4.3.2',
             generated_at: null,
@@ -64,10 +92,12 @@ export async function loadBenchmarks() {
 
 /**
  * Load specs data with type safety
+ * @param {Object} [locals] - R2 runtime context
  * @returns {Promise<{data: SpecsData | null, source: string, freshness: string}>}
  */
-export async function loadSpecs() {
+export async function loadSpecs(locals = null) {
     return loadCachedJSON('/cache/specs.json', {
+        locals,
         fallbackData: {
             version: '4.3.2',
             generated_at: null,
