@@ -1,0 +1,141 @@
+/* Neural Graph Base Styles V15.22 */
+.neural-graph-explorer {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 16px;
+    padding: 1.75rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 1rem;
+}
+
+.title {
+    color: #f8fafc;
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.025em;
+}
+
+.subtitle {
+    color: #64748b;
+    font-size: 0.75rem;
+    margin: 0.25rem 0 0;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.view-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.view-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.view-btn.active {
+    background: #6366f1;
+    color: white;
+    border-color: #818cf8;
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+}
+
+.view-pane {
+    display: none;
+}
+
+.view-pane.active {
+    display: block;
+    animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.related-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.related-card {
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 1rem;
+    text-decoration: none;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.related-card:hover {
+    background: rgba(30, 41, 59, 0.8);
+    border-color: rgba(99, 102, 241, 0.4);
+    transform: translateY(-4px);
+}
+
+.type-badge {
+    font-size: 0.6rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    font-weight: 800;
+}
+
+.color-model {
+    background: rgba(129, 140, 248, 0.1);
+    color: #818cf8;
+}
+
+.color-paper {
+    background: rgba(192, 132, 252, 0.1);
+    color: #c084fc;
+}
+
+.color-concept {
+    background: rgba(99, 102, 241, 0.1);
+    color: #818cf8;
+}
+
+.color-report {
+    background: rgba(251, 191, 36, 0.1);
+    color: #fbbf24;
+}
+
+.color-dataset {
+    background: rgba(74, 222, 128, 0.1);
+    color: #4ade80;
+}
+
+.node-icon {
+    font-size: 1.25rem;
+    margin-right: 0.5rem;
+}

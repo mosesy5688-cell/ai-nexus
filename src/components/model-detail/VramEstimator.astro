@@ -10,6 +10,7 @@
  * 
  * @component
  */
+import { estimateVRAM } from '../../utils/vram-calculator.js';
 
 interface Props {
   paramsB?: number | string;  // params_billions from D1
@@ -20,9 +21,9 @@ const { paramsB } = Astro.props;
 // Parse params (could be number or string)
 const params = typeof paramsB === 'string' ? parseFloat(paramsB) : paramsB;
 
-// V8.1-LOCK Formula: params * 0.6 + 2 (rounded up)
+// V15.19 Standard: Default to Q4 (0.75x) for 4-bit mainstream standard
 const estimatedVram = params && !isNaN(params) 
-  ? Math.ceil(params * 0.6 + 2) 
+  ? estimateVRAM(params, 'q4', 8192) 
   : null;
 
 // Show component only if we have valid params
@@ -54,13 +55,13 @@ const hasData = estimatedVram !== null && params && params > 0;
         <div class="absolute right-0 top-8 w-64 p-3 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 text-xs opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
           <p class="font-semibold text-gray-900 dark:text-white mb-2">Estimation Formula</p>
           <code class="block bg-black text-white p-2 rounded mb-2 font-mono border border-gray-700">
-            VRAM = params × 0.6 + 2 GB
+            VRAM ≈ (Params × 0.75) + 0.8GB (KV) + 0.5GB (OS)
           </code>
           <p class="text-gray-600 dark:text-gray-400 mb-1">
-            Based on FP16 precision.
+            Standard: 4-bit Quantized (Q4_K_M).
           </p>
           <p class="text-gray-500 dark:text-gray-500 italic">
-            ⚠️ Does not account for KV cache or parallel overhead.
+            ⚠️ KV Cache estimate based on 8B-scale @ 8k context.
           </p>
         </div>
       </div>

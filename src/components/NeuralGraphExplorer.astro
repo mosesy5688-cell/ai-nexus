@@ -1,10 +1,13 @@
 ---
 /**
- * Neural Graph Explorer V15.15
- * Art.11-G: Version-locked static graph from relations.json
- * V15.15: Unified Mesh Aggregation (Frontend-Only)
+ * Neural Graph Explorer V15.22
+ * Art.11-G: Version-locked static graph with LOCAL INJECTION
+ * CES Compliance: Refactored to < 250 lines. Styles and Scripts extracted.
  */
 import { fetchMeshRelations, fetchConceptMetadata } from '../utils/knowledge-cache-reader.js';
+import '../styles/neural-graph.css';
+import '../styles/neural-graph-d3.css';
+
 
 interface Props {
     currentModelId?: string;
@@ -12,675 +15,127 @@ interface Props {
 }
 
 const { currentModelId, entity } = Astro.props;
+const rootId = currentModelId || entity?.id;
 
 // Graph data structures
-let graphNodes: { id: string; name: string; author: string; type: string; fni: number; icon?: string }[] = [];
-let graphLinks: { source: string; target: string; type: string; weight: number }[] = [];
-let graphVersion = '15.15-MESH';
-let relatedNodes: typeof graphNodes = [];
-let totalNodes = 0;
-let totalLinks = 0;
+let graphNodes = [];
+let graphLinks = [];
+let relatedNodes = [];
 
 try {
-    const rootId = currentModelId || entity?.id;
-    
-    // 1. Fetch Lightweight Mesh (SSR Only)
-    // We only load relations.json (74KB) to avoid memory/CPU timeout on Vercel/Cloudflare
-    // Wrapped in a dedicated try-catch for total isolation
-    let rawRelations = [];
-    let rawConceptMeta = [];
-    
-    try {
-        const [relationsRes, conceptMetaRes] = await Promise.all([
-            fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }),
-            fetchConceptMetadata(Astro.locals)
-        ]);
-        rawRelations = Array.isArray(relationsRes) ? relationsRes : [];
-        rawConceptMeta = Array.isArray(conceptMetaRes) ? conceptMetaRes : [];
-    } catch (fetchErr) {
-        console.warn('[NeuralGraphExplorer] Mesh fetch failed, using internal fallbacks:', fetchErr.message);
-    }
+    let [rawRelations, rawConceptMeta] = await Promise.all([
+        fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }).catch(() => []),
+        fetchConceptMetadata(Astro.locals).catch(() => [])
+    ]);
 
-    const nodeMap = new Map<string, any>();
+    const nodeMap = new Map();
     const conceptMap = new Map();
-    rawConceptMeta.forEach(c => {
-        if (c && (c.id || c.slug)) {
-            conceptMap.set(c.id || `concept--${c.slug}`, c);
-        }
-    });
+    rawConceptMeta.forEach(c => c && (c.id || c.slug) && conceptMap.set(c.id || `concept--${c.slug}`, c));
 
-    // Helper to extract node info with extreme safety
     const ensureNode = (id, typeHint = 'model') => {
         if (!id || typeof id !== 'string' || nodeMap.has(id)) return;
-        
-        let nodeType = typeHint || 'model';
-        if (id.includes('concept--')) nodeType = 'concept';
-        else if (id.includes('report--')) nodeType = 'report';
-        else if (id.includes('arxiv--')) nodeType = 'paper';
-
+        let type = typeHint || (id.includes('concept--') ? 'concept' : id.includes('report--') ? 'report' : id.includes('arxiv--') ? 'paper' : 'model');
         const meta = conceptMap.get(id);
-        const name = meta?.title || id.split('--').pop().split(':').pop() || 'Unknown Entity';
-
-        nodeMap.set(id, {
-            id,
-            name,
-            author: meta?.category || '',
-            type: nodeType,
-            fni: 0,
-            icon: meta?.icon || (nodeType === 'concept' ? '🧠' : '📦')
-        });
+        nodeMap.set(id, { id, name: meta?.title || id.split('--').pop().split(':').pop(), author: meta?.category || '', type, icon: meta?.icon || (type === 'concept' ? '🧠' : '📦') });
     };
 
-    // Add root node if exists
     if (rootId) {
-        try {
-            const rootName = entity?.name || entity?.title || rootId.split('--').pop().split(':').pop() || rootId;
-            nodeMap.set(rootId, {
-                id: rootId,
-                name: rootName,
-                author: entity?.author || '',
-                type: entity?.type || 'model',
-                fni: entity?.fni_score || 0,
-                icon: entity?.icon || '🎯'
-            });
-        } catch (rootErr) {
-            console.error('[NeuralGraphExplorer] Root node error:', rootErr);
-        }
+        nodeMap.set(rootId, { id: rootId, name: entity?.name || rootId, author: entity?.author || '', type: entity?.type || 'model', icon: entity?.icon || '🎯' });
     }
 
-    // Process SSR Relations with validation
     rawRelations.forEach(rel => {
-        if (!rel || !rel.source_id || !rel.target_id) return;
-        
+        if (!rel?.source_id || !rel?.target_id) return;
         ensureNode(rel.source_id, rel.source_type);
         ensureNode(rel.target_id, rel.target_type);
-        
-        graphLinks.push({
-            source: rel.source_id,
-            target: rel.target_id,
-            type: rel.relation_type || 'RELATED',
-            weight: rel.confidence || 0.8
-        });
+        graphLinks.push({ source: rel.source_id, target: rel.target_id, type: rel.relation_type || 'RELATED', weight: rel.confidence || 0.8 });
     });
 
+    // V15.21: Local Relation Injection (Mined Data)
+    if (rootId && entity) {
+        const inject = (tid, type, relType) => {
+            if (!tid) return;
+            ensureNode(tid, type);
+            if (!graphLinks.some(l => (l.source === rootId && l.target === tid) || (l.source === tid && l.target === rootId))) {
+                graphLinks.push({ source: rootId, target: tid, type: relType, weight: 1.0 });
+            }
+        };
+        if (entity.base_model) inject(`model--${entity.base_model.replace(/\//g, '--')}`, 'model', 'BASED_ON');
+        if (Array.isArray(entity.arxiv_refs)) entity.arxiv_refs.forEach(id => inject(`arxiv--${id}`, 'paper', 'CITED_IN'));
+        if (Array.isArray(entity.datasets_used)) entity.datasets_used.forEach(id => inject(`dataset--${id.replace(/\//g, '--')}`, 'dataset', 'TRAINED_ON'));
+        if (Array.isArray(entity.similar_models)) entity.similar_models.forEach(id => inject(`model--${id.replace(/\//g, '--')}`, 'model', 'SIMILAR'));
+    }
+
     graphNodes = Array.from(nodeMap.values());
-    totalNodes = graphNodes.length;
-    totalLinks = graphLinks.length;
-    
-    // Grid View Nodes (Strict filtration for relevance)
-    if (rootId && totalLinks > 0) {
-        const relatedIds = new Set<string>();
-        graphLinks.forEach(link => {
-            const srcId = typeof link.source === 'string' ? link.source : (link.source as any)?.id;
-            const tgtId = typeof link.target === 'string' ? link.target : (link.target as any)?.id;
-            
-            if (srcId === rootId) relatedIds.add(tgtId);
-            else if (tgtId === rootId) relatedIds.add(srcId);
+    if (rootId && graphLinks.length > 0) {
+        const relatedIds = new Set();
+        graphLinks.forEach(l => {
+            const sid = typeof l.source === 'string' ? l.source : l.source.id;
+            const tid = typeof l.target === 'string' ? l.target : l.target.id;
+            if (sid === rootId) relatedIds.add(tid); else if (tid === rootId) relatedIds.add(sid);
         });
-        
         relatedNodes = graphNodes.filter(n => relatedIds.has(n.id) && n.id !== rootId).slice(0, 16);
     }
 
-    // HELP: If still no related nodes (Data Gap Fix), show Global Standard Knowledge
     if (relatedNodes.length === 0) {
-        relatedNodes = [
-            { id: 'concept--mmlu', name: 'MMLU Benchmark', author: 'standard', type: 'concept', fni: 0, icon: '🧪' },
-            { id: 'concept--fni', name: 'FNI Score Index', author: 'system', type: 'concept', fni: 100, icon: '🔥' },
-            { id: 'concept--humaneval', name: 'HumanEval', author: 'standard', type: 'concept', fni: 0, icon: '💻' },
-            { id: 'concept--transformer', name: 'Transformer Architecture', author: 'fundamental', type: 'concept', fni: 0, icon: '🧠' }
-        ];
-        totalNodes = relatedNodes.length;
+        relatedNodes = [{ id: 'concept--mmlu', name: 'MMLU Benchmark', author: 'standard', type: 'concept', icon: '🧪' }, { id: 'concept--fni', name: 'FNI Score Index', author: 'system', type: 'concept', icon: '🔥' }];
     }
 } catch (e) {
-    console.error('[NeuralGraphExplorer] Critical SSR Failure:', e);
+    console.error('[NeuralGraphExplorer] SSR Critical Failure:', e);
 }
-
-const hasRelatedNodes = relatedNodes.length > 0;
 ---
-
 
 <section class="neural-graph-explorer" id="neural-graph-explorer">
     <div class="header">
         <div class="title-group">
-            <h3 class="title">
-                🕸️ Neural Hub Explorer
-            </h3>
+            <h3 class="title">🕸️ Neural Hub Explorer</h3>
             <p class="subtitle">Interconnecting Models, Knowledge & Reports</p>
         </div>
         <div class="view-controls">
             <button class="view-btn active" data-view="grid">Perspective</button>
-            <button class="view-btn" data-view="graph" id="activate-graph">Interactive Map</button>
-            {graphVersion && (
-                <span class="version-badge">v{graphVersion}</span>
-            )}
+            <button class="view-btn" data-view="graph">Interactive Map</button>
         </div>
     </div>
     
     <div class="content-wrapper">
-        <!-- View 1: Static Grid (SEO & Instant Load) -->
         <div class="view-pane active" id="pane-grid">
-                <div class="related-grid" id="static-related-grid">
-                    {relatedNodes.map(node => {
-                        // Advanced path mapping for different entity types
-                        let path = '';
-                        const cleanId = node.id
-                            .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space)--/, '')
-                            .replace(/^(kb|concept)--/, '')
-                            .replace(/^report--/, '')
-                            .replace(/^(arxiv|paper)--/, '');
-                        
-                        const urlSlug = cleanId.replace(/--/g, '/').replace(/:/g, '/');
-                        
-                        if (node.type === 'concept') path = `/knowledge/${urlSlug}`;
-                        else if (node.type === 'report') path = `/reports/${urlSlug}`;
-                        else if (node.type === 'paper') path = `/paper/${urlSlug}`;
-                        else path = `/${node.type}/${urlSlug}`;
-                        
-                        return (
-                            <a href={path} class={`related-card type-${node.type}`}>
-                                <div class="card-header">
-                                    <span class="node-icon">{node.icon || '📦'}</span>
-                                    <span class="model-name">{node.name}</span>
-                                    <span class={`type-badge color-${node.type}`}>{node.type}</span>
-                                </div>
-                                <div class="card-meta">
-                                    <span class="author">{node.author}</span>
-                                </div>
-                            </a>
-                        );
-                    })}
-                </div>
+            <div class="related-grid">
+                {relatedNodes.map(node => {
+                    const cleanId = node.id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space|kb|concept|report|arxiv|paper)--/g, '');
+                    const urlSlug = cleanId.replace(/--/g, '/').replace(/:/g, '/');
+                    let path = node.type === 'concept' ? `/knowledge/${urlSlug}` : node.type === 'report' ? `/reports/${urlSlug}` : node.type === 'paper' ? `/paper/${urlSlug}` : `/${node.type}/${urlSlug}`;
+                    return (
+                        <a href={path} class={`related-card type-${node.type}`}>
+                            <div class="card-header">
+                                <span class="node-icon">{node.icon || '📦'}</span>
+                                <span class="model-name">{node.name}</span>
+                                <span class={`type-badge color-${node.type}`}>{node.type}</span>
+                            </div>
+                            <div class="card-meta"><span class="author">{node.author}</span></div>
+                        </a>
+                    );
+                })}
+            </div>
         </div>
 
-        <!-- View 2: Interactive D3 Graph (On Demand) -->
         <div class="view-pane" id="pane-graph">
-            <div class="d3-canvas" 
-                 id="d3-container" 
-                 data-id={currentModelId || entity?.id} 
-                 data-type={entity?.type || 'model'}
-                 data-nodes={JSON.stringify(graphNodes)}
-                 data-links={JSON.stringify(graphLinks)}>
-                
-                <div class="graph-loading">
-                    <div class="spinner"></div>
-                    <span>Initializing Neural Interface...</span>
-                </div>
-                
+            <div class="d3-canvas" id="d3-container" data-id={rootId} data-nodes={JSON.stringify(graphNodes)} data-links={JSON.stringify(graphLinks)}>
+                <div class="graph-loading" style="display:none;"><div class="spinner"></div><span>Initializing...</span></div>
                 <svg id="visual-graph"></svg>
-                
-                <!-- Hover Preview Card -->
-                <div id="graph-hover-card" class="graph-hover-card" style="display: none;">
-                    <div class="card-type-tag">MODEL</div>
-                    <div class="card-title">Llama 3 70B</div>
-                    <div class="card-meta">by Meta • FNI 92.5</div>
-                    <div class="card-footer">Click to Explore</div>
+                <div id="graph-hover-card" class="graph-hover-card" style="display:none;">
+                    <div class="card-type-tag">MODEL</div><div class="card-title">-</div><div class="card-meta">-</div><div class="card-footer">Click to Explore</div>
                 </div>
-
                 <div class="graph-legend">
                     <div class="legend-item"><span class="dot model"></span> Model</div>
                     <div class="legend-item"><span class="dot paper"></span> Paper</div>
                     <div class="legend-item"><span class="dot dataset"></span> Dataset</div>
                     <div class="legend-item"><span class="dot concept"></span> Concept</div>
-                    <div class="legend-item"><span class="dot agent"></span> Agent</div>
-                    <div class="legend-item"><span class="dot report"></span> Report</div>
                 </div>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Defer D3 integration to visible idle -->
-<script defer src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-
-<script is:inline>
-(function() {
-    const explorer = document.getElementById('neural-graph-explorer');
-    const panes = { grid: document.getElementById('pane-grid'), graph: document.getElementById('pane-graph') };
-    const buttons = explorer.querySelectorAll('.view-btn');
-    const hoverCard = document.getElementById('graph-hover-card');
-    
-    let graphInitialized = false;
-    const isMobile = window.innerWidth < 768;
-
-    // Default to Grid on Mobile even if previously set to Graph
-    if (isMobile) {
-        panes.grid.classList.add('active');
-        panes.graph.classList.remove('active');
-        buttons.forEach(b => {
-            if (b.dataset.view === 'grid') b.classList.add('active');
-            else b.classList.remove('active');
-        });
-    }
-
-    buttons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const view = btn.dataset.view;
-            buttons.forEach(b => b.classList.toggle('active', b === btn));
-            panes.grid.classList.toggle('active', view === 'grid');
-            panes.graph.classList.toggle('active', view === 'graph');
-            
-            if (view === 'graph' && !graphInitialized) {
-                setTimeout(initD3Graph, 100);
-                graphInitialized = true;
-            }
-        });
-    });
-
-    async function initD3Graph() {
-        const container = document.getElementById('d3-container');
-        const rootId = container.dataset.id;
-        const svg = d3.select("#visual-graph");
-        const loading = container.querySelector('.graph-loading');
-        
-        // Normalize helper for client-side
-        const normalize = (id) => (id || '').toLowerCase()
-            .replace(/^(replicate|github|arxiv|kb|concept|paper|model|agent|tool|dataset|space)[:\-]+/, '')
-            .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space)--/, '')
-            .replace(/--/g, '/')
-            .replace(/:/g, '/');
-
-        const normRootId = normalize(rootId);
-        
-        // 1. Initial Render from SSR data
-        let nodes = JSON.parse(container.dataset.nodes || '[]');
-        let links = JSON.parse(container.dataset.links || '[]');
-        
-        render({ nodes, links });
-
-        // 2. Heavy Hydration (Client-Side Only)
-        try {
-            loading.style.display = 'flex';
-            
-            const [resp1, resp2] = await Promise.all([
-                fetch('/cache/relations/explicit.json').then(r => r.ok ? r.json() : null),
-                fetch('/cache/relations/knowledge-links.json').then(r => r.ok ? r.json() : null)
-            ]);
-
-            if (resp1 || resp2) {
-                const nodeSet = new Map();
-                nodes.forEach(n => nodeSet.set(normalize(n.id), n));
-                
-                const processEdge = (src, tgt, type, conf) => {
-                    const nSrc = normalize(src);
-                    const nTgt = normalize(tgt);
-                    
-                    if (nSrc === normRootId || nTgt === normRootId) {
-                        if (!nodeSet.has(nSrc)) nodeSet.set(nSrc, { id: src, name: src.split(/[:\-]/).pop(), type: 'model' });
-                        if (!nodeSet.has(nTgt)) nodeSet.set(nTgt, { id: tgt, name: tgt.split(/[:\-]/).pop(), type: 'model' });
-                        links.push({ source: src, target: tgt, type, weight: conf });
-                    }
-                };
-
-                if (resp1?.edges) {
-                    Object.entries(resp1.edges).forEach(([src, edges]) => {
-                        edges.forEach(e => processEdge(src, e[0], e[1], e[2]));
-                    });
-                }
-                
-                nodes = Array.from(nodeSet.values());
-                render({ nodes, links });
-                loading.style.display = 'none';
-            }
-        } catch (e) {
-            console.warn('[D3] Hydration failed:', e);
-            loading.style.display = 'none';
-        }
-
-        const width = container.clientWidth;
-        const height = 400;
-
-        function render(data) {
-            svg.selectAll("*").remove();
-            if (!data.nodes.length) return;
-
-            const g = svg.append("g");
-            const simulation = d3.forceSimulation(data.nodes)
-                .force("link", d3.forceLink(data.links).id(d => d.id).distance(120))
-                .force("charge", d3.forceManyBody().strength(-300))
-                .force("center", d3.forceCenter(width / 2, height / 2));
-
-            // Arrow Marker Definition
-            svg.append("defs").selectAll("marker")
-                .data(["arrow-explain", "arrow-follows", "arrow-features"])
-                .join("marker")
-                .attr("id", d => d)
-                .attr("viewBox", "0 -5 10 10")
-                .attr("refX", 20)
-                .attr("refY", 0)
-                .attr("markerWidth", 5)
-                .attr("markerHeight", 5)
-                .attr("orient", "auto")
-                .append("path")
-                .attr("fill", "#94a3b8")
-                .attr("d", "M0,-5L10,0L0,5");
-
-            const link = g.append("g")
-                .selectAll("line")
-                .data(data.links)
-                .join("line")
-                .attr("stroke", "rgba(255, 255, 255, 0.15)")
-                .attr("stroke-width", 1.2);
-
-            const node = g.append("g")
-                .selectAll("g")
-                .data(data.nodes)
-                .join("g")
-                .attr("cursor", "pointer")
-                .call(d3.drag()
-                    .on("start", (e, d) => {
-                        if (!e.active) simulation.alphaTarget(0.3).restart();
-                        d.fx = d.x; d.fy = d.y;
-                    })
-                    .on("drag", (e, d) => { d.fx = e.x; d.fy = e.y; })
-                    .on("end", (e, d) => {
-                        if (!e.active) simulation.alphaTarget(0);
-                        d.fx = null; d.fy = null;
-                    })
-                );
-
-            node.append("circle")
-                .attr("r", d => normalize(d.id) === normRootId ? 14 : 8)
-                .attr("fill", d => getNodeColor(d.type))
-                .attr("stroke", d => normalize(d.id) === normRootId ? "#fff" : "none")
-                .attr("stroke-width", 2);
-
-            node.append("text")
-                .attr("dy", d => normalize(d.id) === normRootId ? 22 : 18)
-                .attr("text-anchor", "middle")
-                .attr("class", "node-label")
-                .text(d => d.name);
-
-            node.on("mouseenter", (e, d) => {
-                hoverCard.style.display = 'block';
-                hoverCard.querySelector('.card-type-tag').textContent = d.type.toUpperCase();
-                hoverCard.querySelector('.card-title').textContent = d.name;
-                
-                const rect = container.getBoundingClientRect();
-                hoverCard.style.left = `${e.clientX - rect.left + 15}px`;
-                hoverCard.style.top = `${e.clientY - rect.top + 15}px`;
-            });
-
-            node.on("mouseleave", () => hoverCard.style.display = 'none');
-
-            node.on("click", (e, d) => {
-                const normId = normalize(d.id);
-                let path = `/${d.type}/${normId}`;
-                if (d.type === 'concept') path = `/knowledge/${normId}`;
-                else if (d.type === 'report') path = `/reports/${normId}`;
-                else if (d.type === 'paper') path = `/paper/${normId}`;
-                window.location.href = path;
-            });
-
-            simulation.on("tick", () => {
-                link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
-                    .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
-                node.attr("transform", d => `translate(${d.x},${d.y})`);
-            });
-        }
-
-        function getNodeColor(type) {
-            const colors = { model: '#818cf8', paper: '#c084fc', dataset: '#4ade80', concept: '#6366f1', report: '#fbbf24' };
-            return colors[type] || '#94a3b8';
-        }
-    }
-})();
+<script>
+    import { initNeuralGraph } from '../scripts/neural-graph-client.js';
+    initNeuralGraph('d3-container');
 </script>
-
-<style>
-    .neural-graph-explorer {
-        background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
-        border: 1px solid rgba(99, 102, 241, 0.3);
-        border-radius: 16px;
-        padding: 1.75rem;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-    }
-    
-    .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 1.5rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        padding-bottom: 1rem;
-    }
-
-    .title {
-        color: #f8fafc;
-        font-size: 1.25rem;
-        font-weight: 800;
-        margin: 0;
-        letter-spacing: -0.025em;
-    }
-    
-    .subtitle {
-        color: #64748b;
-        font-size: 0.75rem;
-        margin: 0.25rem 0 0;
-        text-transform: uppercase;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-    }
-
-    .view-controls {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-    }
-
-    .view-btn {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #94a3b8;
-        padding: 0.4rem 0.8rem;
-        border-radius: 8px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .view-btn.active {
-        background: #6366f1;
-        color: white;
-        border-color: #818cf8;
-        box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
-    }
-
-    .view-pane {
-        display: none;
-    }
-
-    .view-pane.active {
-        display: block;
-        animation: fadeIn 0.3s ease-out;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .related-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 1rem;
-    }
-    
-    .related-card {
-        background: rgba(30, 41, 59, 0.5);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 12px;
-        padding: 1rem;
-        text-decoration: none;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .related-card:hover {
-        background: rgba(30, 41, 59, 0.8);
-        border-color: rgba(99, 102, 241, 0.4);
-        transform: translateY(-4px);
-    }
-
-    .type-badge {
-        font-size: 0.6rem;
-        padding: 0.125rem 0.5rem;
-        border-radius: 9999px;
-        text-transform: uppercase;
-        font-weight: 800;
-    }
-
-    .color-model { background: rgba(129, 140, 248, 0.1); color: #818cf8; }
-    .color-paper { background: rgba(192, 132, 252, 0.1); color: #c084fc; }
-    .color-concept { background: rgba(99, 102, 241, 0.1); color: #818cf8; }
-    .color-report { background: rgba(251, 191, 36, 0.1); color: #fbbf24; }
-    .color-dataset { background: rgba(74, 222, 128, 0.1); color: #4ade80; }
-
-    .node-icon {
-        font-size: 1.25rem;
-        margin-right: 0.5rem;
-    }
-
-    .d3-canvas {
-        width: 100%;
-        height: 400px;
-        background: radial-gradient(circle at center, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
-        position: relative;
-        overflow: hidden;
-    }
-
-    #visual-graph {
-        width: 100%;
-        height: 100%;
-    }
-
-    /* Node Styling */
-    .node-circle {
-        transition: r 0.2s ease, filter 0.2s ease;
-    }
-
-    g:hover .node-circle {
-        r: 10;
-        filter: brightness(1.3) drop-shadow(0 0 5px currentColor);
-    }
-
-    .node-label {
-        font-size: 10px;
-        fill: #94a3b8;
-        font-weight: 500;
-        pointer-events: none;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
-    }
-
-    /* Hover Preview Card */
-    .graph-hover-card {
-        position: absolute;
-        z-index: 100;
-        background: rgba(15, 23, 42, 0.95);
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(99, 102, 241, 0.4);
-        padding: 0.75rem 1rem;
-        border-radius: 10px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-        pointer-events: none;
-        min-width: 180px;
-        max-width: 250px;
-        animation: cardPop 0.2s ease-out;
-    }
-
-    @keyframes cardPop {
-        from { opacity: 0; transform: scale(0.95); }
-        to { opacity: 1; transform: scale(1); }
-    }
-
-    .card-type-tag {
-        font-size: 0.6rem;
-        font-weight: 800;
-        color: #818cf8;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 0.25rem;
-    }
-
-    .card-title {
-        color: white;
-        font-size: 0.85rem;
-        font-weight: 700;
-        margin-bottom: 0.25rem;
-    }
-
-    .card-meta {
-        color: #94a3b8;
-        font-size: 0.7rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .card-footer {
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        padding-top: 0.4rem;
-        font-size: 0.6rem;
-        color: #6366f1;
-        font-weight: 700;
-        text-transform: uppercase;
-    }
-
-    .graph-loading {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 1rem;
-        z-index: 10;
-        background: rgba(15, 23, 42, 0.8);
-    }
-
-    .spinner {
-        width: 30px;
-        height: 30px;
-        border: 3px solid rgba(99, 102, 241, 0.3);
-        border-top-color: #6366f1;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .graph-legend {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        margin-top: 1rem;
-        padding: 0.75rem;
-        background: rgba(255, 255, 255, 0.02);
-        border-radius: 8px;
-        justify-content: center;
-    }
-
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        font-size: 0.65rem;
-        color: #94a3b8;
-        font-weight: 600;
-    }
-
-    .dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-    }
-
-    .dot.model { background: #818cf8; }
-    .dot.paper { background: #c084fc; }
-    .dot.dataset { background: #4ade80; }
-    .dot.concept { background: #6366f1; }
-    .dot.agent { background: #f87171; }
-    .dot.tool { background: #fb923c; }
-    .dot.report { background: #fbbf24; }
-</style>

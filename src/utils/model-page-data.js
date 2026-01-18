@@ -88,8 +88,10 @@ export async function prepareModelPageData(slug, slugStr, locals) {
             if (fallbackEntry) {
                 fallbackModel = augmentEntity(fallbackModel, fallbackEntry);
             }
-            // V15.17 (Rollback): Support Dreaming Fallback for Short URL compatibility
         }
+
+        // V15.18: Apply unified hydration to fallback model for beautification/VRAM
+        fallbackModel = hydrateEntity(fallbackModel, 'model', summaryData);
 
         fallbackModel.entityType = 'model';
         fallbackModel.entityDefinition = ENTITY_DEFINITIONS['model'];

@@ -111,6 +111,11 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
           </a>
        </div>
     </EntityHeader>
+    
+    {/* Zone 2: Insights Extra (Decision Metric Elevation) */}
+    <div slot="insights-extra" class="mt-4">
+       {model?.vram_gb && <VramEstimator paramsB={model.params_billions} />}
+    </div>
 
     {/* Zone 1.5: Use Cases */}
     <ZoneUseCases 

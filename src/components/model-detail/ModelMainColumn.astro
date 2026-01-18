@@ -53,20 +53,10 @@ try {
     />
   )}
   
-  {/* V15.15: Consolidating redundant items - NeuralExplorer moved to Zone 3 (UniversalCore) */}
+  {/* V15.15 & V15.18 (Cleanup): Standardizing Zone 4 density */}
+  {/* Redundant TechSpecsFull removed, now handled in [...slug].astro core Zone 4 slot */}
   
-  <TechSpecsFull 
-    entity={model} 
-    type="model"
-  />
-  
-  {/* Phase B.8: Benchmark Scores with semantic explanations (V15.9 Unified Fallback) */}
-  <BenchmarkScores benchmarks={{
-    mmlu: metaJson.extended?.benchmarks?.mmlu || (model.mmlu ? { score: model.mmlu, source: 'R2 Cache', confidence: 'high' } : null),
-    gsm8k: metaJson.extended?.benchmarks?.gsm8k || (model.gsm8k ? { score: model.gsm8k, source: 'R2 Cache', confidence: 'high' } : null),
-    human_eval: metaJson.extended?.benchmarks?.human_eval || (model.humaneval ? { score: model.humaneval, source: 'R2 Cache', confidence: 'high' } : null),
-    arc: metaJson.extended?.benchmarks?.arc || (model.arc_challenge ? { score: model.arc_challenge, source: 'R2 Cache', confidence: 'high' } : null),
-  }} />
+  {/* Redundant BenchmarkScores removed - Zone 3 BenchmarkCard covers primary metrics */}
 
   {/* V15.8: GGUF File List (Zone 4) */}
   <GGUFList files={model.siblings} modelId={modelId} />
