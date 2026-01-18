@@ -52,15 +52,13 @@ try {
   Astro.response.status = 500;
 }
 
-const pageTitle = dataset?.name ? `${dataset.name} - AI Dataset` : (dataset?.title ? `${dataset.title} - AI Dataset` : `${displaySlug} - AI Dataset`);
-const pageDescription = dataset?.description?.slice(0, 160) || `Explore ${displaySlug} AI dataset on Free2AITools.`;
-const canonicalUrl = `https://free2aitools.com/dataset/${displaySlug}`;
+const canonicalUrl = `https://free2aitools.com/dataset/${slugStr}`;
 
 // JSON-LD for SEO
 const jsonLd = dataset ? {
   "@context": "https://schema.org",
   "@type": "Dataset",
-  "name": dataset.name || dataset.title || displaySlug,
+  "name": dataset.name || dataset.title || slugStr,
   "description": dataset.description,
   "url": canonicalUrl,
   "creator": {
@@ -72,10 +70,9 @@ const jsonLd = dataset ? {
 } : null;
 
 const hasDataset = !!dataset;
-const hasRecommendedModels = recommendedModels.length > 0;
+const hasRecommendedModels = similarModels.length > 0;
 
-// V15.0: Derived Use Cases and Limits
-const tagsArray = dataset?.tags ? (typeof dataset.tags === 'string' ? JSON.parse(dataset.tags) : dataset.tags) : [];
+// V15.0: Derived Use Cases and Limits (using pre-resolved tagsArray)
 const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.fni_score || 0) : { goodFor: [], limits: [] };
 ---
 
@@ -90,7 +87,7 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
     {/* Zone 1: Hero */}
     <EntityHeader 
       slot="hero"
-      name={dataset?.name || dataset?.title || displaySlug}
+      name={dataset?.name || dataset?.title || slugStr}
       entityType="dataset"
       entityIcon="📊"
       entityLabel="Dataset"
