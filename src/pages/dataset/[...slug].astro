@@ -130,7 +130,7 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
     <div slot="core-similar">
          {hasRecommendedModels ? (
             <div class="space-y-4">
-              {recommendedModels.map(model => (
+              {similarModels.map(model => (
                 <ModelCard model={model} />
               ))}
             </div>
@@ -159,6 +159,6 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
 
     {/* Zone 5: Community */}
     <div slot="community">
-        <DataFreshness timestamp={dataset?.last_updated} source={`L8 v${cacheVersion}`} />
+        <DataFreshness version="15.0" timestamp={dataset?.last_updated} source={`L8 v15.0`} />
     </div>
 </EntityLayout>
