@@ -144,7 +144,7 @@ const derivedUseCases = paper ? getUseCases(paper.tags || [], '', 'paper', paper
     <div slot="community">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2 text-sm text-gray-500">
-             <span>📄 arXiv:{paper?.arxiv_id || displaySlug}</span>
+             <span>📄 arXiv:{paper?.arxiv_id || slugStr}</span>
           </div>
         </div>
     </div>

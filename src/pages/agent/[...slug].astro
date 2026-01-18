@@ -28,6 +28,8 @@ let tagsArray = [];
 let pageTitle = "AI Agent Details - Free AI Tools";
 let pageDescription = "Explore this AI agent's capabilities and features.";
 
+let agentName = 'Unknown Agent';
+
 try {
   if (!slug) throw new Error("No slug provided");
   
@@ -43,7 +45,7 @@ try {
   similarModels = resolvedSimilar;
   tagsArray = resolvedTags;
 
-  const agentName = agent.name || 'Unknown Agent';
+  agentName = agent.name || 'Unknown Agent';
   pageTitle = `${agentName} - AI Agent`;
   pageDescription = agent.description 
     ? agent.description.substring(0, 160) 
