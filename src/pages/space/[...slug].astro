@@ -52,9 +52,7 @@ try {
   Astro.response.status = 500;
 }
 
-const pageTitle = space ? `${space.title || space.name} - AI Demo` : 'Space Not Found';
-const pageDescription = space?.description?.slice(0, 160) || 'Explore AI/ML demos on Free2AITools';
-const canonicalUrl = `https://free2aitools.com/space/${displaySlug}`;
+const canonicalUrl = `https://free2aitools.com/space/${slugStr}`;
 
 const jsonLd = space ? {
   "@context": "https://schema.org",
@@ -70,8 +68,7 @@ const jsonLd = space ? {
 const hasSpace = !!space;
 const modelsUsed = space?.meta_json?.models_used || [];
 
-// V15.0: Derived Use Cases and Limits
-const tagsArray = space?.tags ? (typeof space.tags === 'string' ? JSON.parse(space.tags) : space.tags) : [];
+// V15.0: Derived Use Cases and Limits (using pre-resolved tagsArray)
 const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_score || 0) : { goodFor: [], limits: [] };
 ---
 

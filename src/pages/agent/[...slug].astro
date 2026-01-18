@@ -59,7 +59,6 @@ try {
 const derivedUseCases = agent ? getUseCases(tagsArray, '', 'agent', agent.fni_score || 0) : { goodFor: [], limits: [] };
 
 const agentId = agent?.id || agent?.umid || '';
-let agentName = agent?.name || '';
 const displayAuthor = agent?.author || 'Open Source Community';
 
 const jsonLd = agent ? {
@@ -67,7 +66,7 @@ const jsonLd = agent ? {
   "@type": "SoftwareApplication",
   "name": agentName,
   "description": agent.description,
-  "url": `https://free2aitools.com/agent/${normalizedSlug}`,
+  "url": `https://free2aitools.com/agent/${slugStr}`,
   "applicationCategory": "AutonomousAgent",
   "operatingSystem": "Cross-platform"
 } : null;

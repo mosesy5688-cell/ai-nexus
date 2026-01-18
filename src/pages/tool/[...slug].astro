@@ -53,14 +53,12 @@ try {
 }
 
 
-const pageTitle = tool?.name ? `${tool.name} - AI Development Tool` : (tool?.canonical_name ? `${tool.canonical_name} - AI Development Tool` : `${displaySlug} - AI Development Tool`);
-const pageDescription = tool?.description?.slice(0, 160) || `Explore ${displaySlug} AI development tool on Free2AITools.`;
-const canonicalUrl = `https://free2aitools.com/tool/${displaySlug}`;
+const canonicalUrl = `https://free2aitools.com/tool/${slugStr}`;
 
 const jsonLd = tool ? {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": tool.name || tool.canonical_name || displaySlug,
+  "name": tool.name || tool.canonical_name || slugStr,
   "description": tool.description,
   "url": canonicalUrl,
   "applicationCategory": "DeveloperApplication",
@@ -69,8 +67,7 @@ const jsonLd = tool ? {
 
 const hasTool = !!tool;
 
-// V15.0: Derived Use Cases and Limits
-const tagsArray = tool?.tags ? (typeof tool.tags === 'string' ? JSON.parse(tool.tags) : tool.tags) : [];
+// V15.0: Derived Use Cases and Limits (using pre-resolved tagsArray)
 const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score || 0) : { goodFor: [], limits: [] };
 ---
 
@@ -87,7 +84,7 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
     {/* Zone 1: Hero */}
     <EntityHeader 
       slot="hero"
-      name={tool?.name || tool?.canonical_name || displaySlug}
+      name={tool?.name || tool?.canonical_name || slugStr}
       entityType="tool"
       entityIcon="🛠️"
       entityLabel={tool?.language || 'Tool'}
