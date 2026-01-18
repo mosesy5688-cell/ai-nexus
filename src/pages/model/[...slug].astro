@@ -38,7 +38,15 @@ let cleanedDesc = "";
 
 try {
   if (!slug) throw new Error("No slug provided");
-  const { model: resolvedModel, isFallback, repoName, similarModels: resolvedSimilar, tagsArray: resolvedTags } = await prepareModelPageData(slug, slugStr, Astro.locals);
+  const pageData = await prepareModelPageData(slug, slugStr, Astro.locals);
+  
+  if (!pageData) {
+    // V15.12: Explicit 404 for unknown entities
+    Astro.response.status = 404;
+    return Astro.redirect('/404?reason=entity-not-found&id=' + encodeURIComponent(slugStr));
+  }
+
+  const { model: resolvedModel, isFallback, repoName, similarModels: resolvedSimilar, tagsArray: resolvedTags } = pageData;
   model = resolvedModel;
   similarModels = resolvedSimilar;
   tagsArray = resolvedTags;
@@ -57,6 +65,7 @@ try {
 
 if (!model && !error) {
   Astro.response.status = 404;
+  return Astro.redirect('/404?source=model-not-found');
 }
 
 // Capability Gating

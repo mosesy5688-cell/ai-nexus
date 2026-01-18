@@ -15,24 +15,41 @@ import Layout from '../layouts/Layout.astro';
             </div>
 
             <div class="space-y-6">
+                <div id="not-found-context" class="hidden mb-6 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded-xl">
+                    <p class="text-sm text-orange-800 dark:text-orange-200">
+                        We couldn't find the specific entity "<span id="missing-id" class="font-mono font-bold"></span>" in our database.
+                    </p>
+                </div>
+
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
                     <a href="/" class="inline-flex items-center justify-center px-8 py-3 text-base font-bold text-white bg-indigo-600 rounded-xl shadow-lg hover:bg-indigo-700 transition-all hover:scale-105 active:scale-95">
                         Go Home
                     </a>
                     <a id="search-fallback" href="/search" class="inline-flex items-center justify-center px-8 py-3 text-base font-bold text-gray-700 bg-white border-2 border-gray-100 rounded-xl shadow-sm hover:border-indigo-100 hover:bg-indigo-50/30 transition-all dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700">
-                        Search for ...
+                        Search Database
                     </a>
                 </div>
             </div>
 
             <script>
-                // V15.0 Constitutional Fix: Art 13.5 (No Dead Ends)
+                // V15.12 Constitutional Fix: Art 13.5 (No Dead Ends)
                 // Client-side redirect logic for broken URLs
                 (function() {
+                    const url = new URL(window.location.href);
                     const path = window.location.pathname;
                     const msg = document.getElementById('redirect-message');
                     const searchBtn = document.getElementById('search-fallback');
+                    const contextDiv = document.getElementById('not-found-context');
+                    const idSpan = document.getElementById('missing-id');
                     
+                    // 0. Context Parsing (from [...slug].astro redirects)
+                    const reason = url.searchParams.get('reason');
+                    const missingId = url.searchParams.get('id');
+                    if (reason === 'entity-not-found' && missingId && contextDiv && idSpan) {
+                       contextDiv.classList.remove('hidden');
+                       idSpan.textContent = missingId;
+                    }
+
                     // 1. Plural to Singular Correction (e.g., /models/ -> /model/)
                     const pluralMappings = {
                         '/models/': '/model/',
@@ -45,38 +62,30 @@ import Layout from '../layouts/Layout.astro';
                     for (const [plural, singular] of Object.entries(pluralMappings)) {
                         if (path.startsWith(plural)) {
                             const newPath = path.replace(plural, singular);
-                            if (msg) msg.classList.remove('hidden');
-                            setTimeout(() => window.location.href = newPath, 800);
-                            return;
+                            if (newPath !== path && msg) {
+                                msg.classList.remove('hidden');
+                                setTimeout(() => window.location.href = newPath, 800);
+                                return;
+                            }
                         }
                     }
 
                     // 2. Check for old key format (owner--name -> owner/name)
                     if (path.includes('--')) {
                         const newPath = path.replace(/--/g, '/');
-                        if (msg) msg.classList.remove('hidden');
-                        setTimeout(() => window.location.href = newPath, 1000); 
-                        return;
-                    }
-
-                    // 3. Check for encoded colons (huggingface: -> /)
-                    if (path.includes('%3A') || path.includes(':')) {
-                         const clean = decodeURIComponent(path).replace(/[a-z]+:/i, '');
-                         const parts = clean.split('/');
-                         const newPath = clean.startsWith('/') ? clean : `/model/${clean}`;
-                         if (msg) msg.classList.remove('hidden');
-                         setTimeout(() => window.location.href = newPath, 1000);
-                         return;
-                    }
-
-                    // 4. Last Fail-Safe: Redirect to Search
-                    const segments = path.split('/').filter(Boolean);
-                    if (segments.length > 0) {
-                        const query = segments[segments.length - 1]; 
-                        if (searchBtn) {
-                            searchBtn.href = `/search?q=${encodeURIComponent(query)}`;
-                            searchBtn.textContent = `Search for "${query}"`;
+                        if (newPath !== path && msg) {
+                            msg.classList.remove('hidden');
+                            setTimeout(() => window.location.href = newPath, 1000); 
+                            return;
                         }
+                    }
+
+                    // 3. Last Fail-Safe: Pre-fill Search
+                    const segments = path.split('/').filter(Boolean);
+                    const query = missingId || (segments.length > 0 ? segments[segments.length - 1] : '');
+                    if (query && searchBtn) {
+                        searchBtn.href = `/search?q=${encodeURIComponent(query)}`;
+                        searchBtn.textContent = `Search for "${query}"`;
                     }
                 })();
             </script>
