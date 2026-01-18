@@ -120,6 +120,17 @@ try {
         
         relatedNodes = graphNodes.filter(n => relatedIds.has(n.id) && n.id !== rootId).slice(0, 16);
     }
+
+    // HELP: If still no related nodes (Data Gap Fix), show Global Standard Knowledge
+    if (relatedNodes.length === 0) {
+        relatedNodes = [
+            { id: 'concept--mmlu', name: 'MMLU Benchmark', author: 'standard', type: 'concept', fni: 0, icon: '🧪' },
+            { id: 'concept--fni', name: 'FNI Score Index', author: 'system', type: 'concept', fni: 100, icon: '🔥' },
+            { id: 'concept--humaneval', name: 'HumanEval', author: 'standard', type: 'concept', fni: 0, icon: '💻' },
+            { id: 'concept--transformer', name: 'Transformer Architecture', author: 'fundamental', type: 'concept', fni: 0, icon: '🧠' }
+        ];
+        totalNodes = relatedNodes.length;
+    }
 } catch (e) {
     console.error('[NeuralGraphExplorer] Critical SSR Failure:', e);
 }
@@ -148,7 +159,6 @@ const hasRelatedNodes = relatedNodes.length > 0;
     <div class="content-wrapper">
         <!-- View 1: Static Grid (SEO & Instant Load) -->
         <div class="view-pane active" id="pane-grid">
-            {hasRelatedNodes ? (
                 <div class="related-grid" id="static-related-grid">
                     {relatedNodes.map(node => {
                         // Advanced path mapping for different entity types
@@ -180,13 +190,6 @@ const hasRelatedNodes = relatedNodes.length > 0;
                         );
                     })}
                 </div>
-            ) : (
-                <div class="empty-state">
-                    <div class="empty-icon">🕸️</div>
-                    <p>Building neural mesh context...</p>
-                    <span class="hint">Attempting to locate indirect relations via client-side graph...</span>
-                </div>
-            )}
         </div>
 
         <!-- View 2: Interactive D3 Graph (On Demand) -->
