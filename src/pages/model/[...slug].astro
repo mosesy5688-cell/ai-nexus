@@ -116,8 +116,10 @@ try {
     model.entityType = 'model';
     model.entityDefinition = ENTITY_DEFINITIONS['model'];
     
-    pageTitle = `${modelName || repoName} - AI Model`;
-    pageDescription = `Technical specifications and insights for ${modelName || repoName} AI model.`;
+    // Fix: modelName variable scope issue
+    const displayModelName = model.name || repoName || 'Unknown Model';
+    pageTitle = `${displayModelName} - AI Model`;
+    pageDescription = `Technical specifications and insights for ${displayModelName} AI model.`;
   }
 } catch (e) {
   console.error("Error loading model:", e);
