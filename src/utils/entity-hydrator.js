@@ -67,16 +67,23 @@ function beautifyName(hydrated) {
         const rawName = parts.pop() || hydrated.id || 'Unknown Entity';
         hydrated.name = rawName.replace(/[-_]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
+
+    // V15.22 Author Beautification (google/gemma-7b -> Google)
+    if (hydrated.author && hydrated.author.includes('/')) {
+        hydrated.author = hydrated.author.split('/')[0].split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    } else if (hydrated.author) {
+        hydrated.author = hydrated.author.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
 }
 
 function attemptWarmCacheFallback(hydrated, summaryData) {
     if (!Array.isArray(summaryData)) return;
-    if (hydrated.params_billions && hydrated.downloads) return;
 
     const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-    const searchId = norm(hydrated.id || '').replace(/^hf-model-/, '');
+    const searchId = norm(hydrated.id || '').replace(/^(hf-model|replicate|github)-/, '');
+
     const fallback = summaryData.find(s => {
-        const sid = norm(s.id || s.umid || s.slug || '').replace(/^hf-model-/, '');
+        const sid = norm(s.id || s.umid || s.slug || '').replace(/^(hf-model|replicate|github)-/, '');
         return sid === searchId || sid.endsWith('-' + searchId) || searchId.endsWith('-' + sid) || sid === norm(hydrated.slug);
     });
 
@@ -86,6 +93,14 @@ function attemptWarmCacheFallback(hydrated, summaryData) {
         hydrated.likes = hydrated.likes || fallback.likes || fallback.stars;
         hydrated.context_length = hydrated.context_length || fallback.context_length;
         hydrated.fni_score = hydrated.fni_score || fallback.fni_score || fallback.fni;
+
+        // V15.22: Tags & Pipeline Recovery (Raw materials for relation mining)
+        if (!hydrated.tags || (Array.isArray(hydrated.tags) && hydrated.tags.length === 0)) {
+            hydrated.tags = fallback.tags || [];
+        }
+        if (!hydrated.pipeline_tag) {
+            hydrated.pipeline_tag = fallback.pipeline_tag || fallback.primary_category;
+        }
     }
 }
 
@@ -105,19 +120,20 @@ function extractTechSpecs(hydrated, entity, meta) {
     }
 }
 
+export function toArray(val) {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    if (typeof val === 'string') {
+        if (val.trim().startsWith('[') && val.trim().endsWith(']')) {
+            try { const p = JSON.parse(val); if (Array.isArray(p)) return p; } catch (e) { }
+        }
+        return val.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [val];
+}
+
 function mineRelations(hydrated, meta) {
     const relSource = meta.extended || meta.relations || hydrated.relations || {};
-    const toArray = (val) => {
-        if (!val) return [];
-        if (Array.isArray(val)) return val;
-        if (typeof val === 'string') {
-            if (val.trim().startsWith('[') && val.trim().endsWith(']')) {
-                try { const p = JSON.parse(val); if (Array.isArray(p)) return p; } catch (e) { }
-            }
-            return val.split(',').map(s => s.trim()).filter(Boolean);
-        }
-        return [];
-    };
 
     hydrated.arxiv_refs = toArray(hydrated.arxiv_refs || relSource.arxiv_refs || relSource.arxiv_ids || relSource.citing_papers);
     hydrated.datasets_used = toArray(hydrated.datasets_used || relSource.datasets_used || relSource.training_data || relSource.used_datasets);

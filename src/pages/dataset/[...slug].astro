@@ -15,72 +15,42 @@ import UniversalCore from '../../components/entity/UniversalCore.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 
 import EntityZones from '../../components/entity/EntityZones.astro';
-import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
-import { getDatasetFromCache } from '../../utils/entity-cache-reader-v6';
-import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
-// Get slug from URL
+import { prepareEntityPageData } from '../../utils/model-page-data';
+
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
 
-// Display slug for UI (preserve original format)
-const displaySlug = slugStr;
-
-// V4.9 Constitution: Fetch from L8 cache (R2), NOT D1
 let dataset: any = null;
-let recommendedModels: any[] = [];
-let cacheVersion = '';
-try {
-  // V15.1: getDatasetFromCache now uses unified core reader
-  const result = await fetchEntityFromR2('dataset', slug, Astro.locals);
-  dataset = hydrateEntity(result, 'dataset');
+let similarModels = [];
+let tagsArray = [];
+let pageTitle = "AI Dataset - Free AI Tools";
+let pageDescription = "Explore high-quality AI training datasets.";
 
-  // V15.10: Augmentation Layer for Datasets
-  try {
-    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
-    const specEntry = specsResult.data?.data?.find(s => s.umid === slugStr.replace(/\//g, '-') || s.umid === slugStr.replace(/\//g, '--'));
-    if (specEntry) {
-      dataset = augmentEntity(dataset || {}, specEntry);
-    }
-  } catch (specError) {
-    console.warn("[DatasetPage] Spec augmentation failed:", specError.message);
-  }
+try {
+  if (!slugStr) throw new Error("No slug provided");
   
-  if (dataset) {
-    cacheVersion = dataset._contract_version || 'V15';
-    
-    // Fetch recommended models using hydrated tags
-    const r2 = Astro.locals.runtime?.env?.R2_ASSETS;
-    if (r2) {
-      const modelsFile = await r2.get('cache/trending_weekly.json');
-      if (modelsFile) {
-        const modelsData = await modelsFile.json();
-        const datasetTags = Array.isArray(dataset.tags) ? dataset.tags : [];
-        recommendedModels = (modelsData.data || [])
-          .filter((m: any) => {
-            const modelTags = Array.isArray(m.tags) ? m.tags : [];
-            return datasetTags.some((dt: string) => modelTags.some((mt: string) => 
-                mt.toLowerCase().includes(dt.toLowerCase()) || dt.toLowerCase().includes(mt.toLowerCase())));
-          }).slice(0, 6);
-      }
-    }
-  } else {
-    // V15.6 Fallback Logic
-    const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-    const cleanSlug = slugStr.replace(/--/g, '/');
-    const parts = cleanSlug.split('/');
-    
-    dataset = {
-      id: `hf-dataset--${slugStr.replace(/\//g, '--')}`,
-      name: parts.pop() || 'Unknown Dataset',
-      author: parts.join('/') || 'huggingface',
-      description: `AI research dataset: ${cleanSlug}`,
-      source_url: `https://huggingface.co/datasets/${cleanSlug}`,
-      tags: [],
-      _cache_source: 'fallback-ui'
-    };
-    cacheVersion = 'Fallback';
+  const pageData = await prepareEntityPageData('dataset', slug, slugStr, Astro.locals);
+  
+  if (!pageData) {
+    Astro.response.status = 404;
+    return Astro.redirect('/404?reason=dataset-not-found&id=' + encodeURIComponent(slugStr));
   }
-} catch (e) { console.error('[Dataset Page] Cache error:', e); }
+
+  const { model: resolvedDataset, similarModels: resolvedSimilar, tagsArray: resolvedTags } = pageData;
+  dataset = resolvedDataset;
+  similarModels = resolvedSimilar;
+  tagsArray = resolvedTags;
+
+  const datasetName = dataset.name || 'Unknown Dataset';
+  pageTitle = `${datasetName} - AI Dataset Insights`;
+  pageDescription = dataset.description 
+    ? dataset.description.substring(0, 160) 
+    : `Explore ${datasetName} machine learning dataset.`;
+
+} catch (e) {
+  console.error('[DatasetPage] Error:', e);
+  Astro.response.status = 500;
+}
 
 const pageTitle = dataset?.name ? `${dataset.name} - AI Dataset` : (dataset?.title ? `${dataset.title} - AI Dataset` : `${displaySlug} - AI Dataset`);
 const pageDescription = dataset?.description?.slice(0, 160) || `Explore ${displaySlug} AI dataset on Free2AITools.`;

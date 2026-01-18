@@ -15,59 +15,41 @@ import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
-import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
-import { getSpaceFromCache } from '../../utils/entity-cache-reader-v6.js';
-import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
+import { prepareEntityPageData } from '../../utils/model-page-data';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
 
-// Display slug for UI (preserve original format)
-const displaySlug = slugStr;
-
 let space: any = null;
-let relatedModels: any[] = [];
-let cacheVersion = '';
+let similarModels = [];
+let tagsArray = [];
+let pageTitle = "AI Demo Space - Free AI Tools";
+let pageDescription = "Explore interactive AI demos and applications.";
 
 try {
-  // V15.1: getSpaceFromCache now uses unified core reader
-  const result = await fetchEntityFromR2('space', slug, Astro.locals);
-  space = hydrateEntity(result, 'space');
-
-  // V15.10: Augmentation Layer for Spaces
-  try {
-    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
-    const specEntry = specsResult.data?.data?.find(s => s.umid === slugStr.replace(/\//g, '-') || s.umid === slugStr.replace(/\//g, '--'));
-    if (specEntry) {
-      space = augmentEntity(space || {}, specEntry);
-    }
-  } catch (specError) {
-    console.warn("[SpacePage] Spec augmentation failed:", specError.message);
-  }
+  if (!slugStr) throw new Error("No slug provided");
   
-  if (space) {
-    cacheVersion = space._contract_version || 'V15';
-  } else {
-    // V15.6 Fallback Logic (Mirroring /spaces/ route)
-    const cleanSlug = slugStr.replace(/--/g, '/');
-    const parts = cleanSlug.split('/');
-    
-    space = {
-      id: `hf-space--${slugStr.replace(/\//g, '--')}`,
-      name: parts.pop() || 'Unknown Space',
-      author: parts.join('/') || 'huggingface',
-      likes: 0,
-      sdk: 'gradio',
-      running_status: 'RUNNING',
-      description: `Interactive AI demo: ${cleanSlug}`,
-      source_url: `https://huggingface.co/spaces/${cleanSlug}`,
-      embed_url: `https://huggingface.co/spaces/${cleanSlug}?embed=true`,
-      _cache_source: 'fallback-ui'
-    };
-    cacheVersion = 'Fallback';
+  const pageData = await prepareEntityPageData('space', slug, slugStr, Astro.locals);
+  
+  if (!pageData) {
+    Astro.response.status = 404;
+    return Astro.redirect('/404?reason=space-not-found&id=' + encodeURIComponent(slugStr));
   }
+
+  const { model: resolvedSpace, similarModels: resolvedSimilar, tagsArray: resolvedTags } = pageData;
+  space = resolvedSpace;
+  similarModels = resolvedSimilar;
+  tagsArray = resolvedTags;
+
+  const spaceName = space.name || space.title || 'Unknown Space';
+  pageTitle = `${spaceName} - AI Demo Space`;
+  pageDescription = space.description 
+    ? space.description.substring(0, 160) 
+    : `Explore ${spaceName} interactive AI demo.`;
+
 } catch (e) {
-  console.error('[Space Page] Cache error:', e);
+  console.error('[SpacePage] Error:', e);
+  Astro.response.status = 500;
 }
 
 const pageTitle = space ? `${space.title || space.name} - AI Demo` : 'Space Not Found';

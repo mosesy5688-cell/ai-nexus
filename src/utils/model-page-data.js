@@ -8,7 +8,7 @@ import { deriveEntityType, ENTITY_DEFINITIONS } from '../data/entity-definitions
 import { getModelFromCache } from './entity-cache-reader';
 import { fetchEntityFromR2 } from './entity-cache-reader-core.js';
 
-export async function prepareModelPageData(slug, slugStr, locals) {
+export async function prepareEntityPageData(type, slug, slugStr, locals) {
     let summaryData = null;
     let similarModels = [];
     let tagsArray = [];
@@ -17,36 +17,38 @@ export async function prepareModelPageData(slug, slugStr, locals) {
         const specsResult = await loadSpecs(locals);
         summaryData = specsResult.data?.data || [];
     } catch (e) {
-        console.warn("[ModelPageData] Summary data load failed:", e.message);
+        console.warn(`[${type}PageData] Summary data load failed:`, e.message);
     }
 
-    const result = await fetchEntityFromR2('model', slug, locals);
-    let model = hydrateEntity(result, 'model', summaryData);
+    const result = await fetchEntityFromR2(type, slug, locals);
+    let entity = hydrateEntity(result, type, summaryData);
 
-    // Benchmarks Augmentation
-    try {
-        const benchResult = await loadBenchmarks(locals);
-        const benchEntry = benchResult.data?.data?.find(b =>
-            b.umid === slugStr.replace(/\//g, '-') ||
-            b.umid === slugStr.replace(/\//g, '--') ||
-            b.name === (model?.id || slugStr)
-        );
+    // Benchmarks Augmentation (Primarily for models/papers)
+    if (type === 'model' || type === 'paper') {
+        try {
+            const benchResult = await loadBenchmarks(locals);
+            const benchEntry = benchResult.data?.data?.find(b =>
+                b.umid === slugStr.replace(/\//g, '-') ||
+                b.umid === slugStr.replace(/\//g, '--') ||
+                b.name === (entity?.id || slugStr)
+            );
 
-        if (benchEntry) {
-            model = augmentEntity(model || {}, benchEntry);
+            if (benchEntry) {
+                entity = augmentEntity(entity || {}, benchEntry);
+            }
+        } catch (benchError) {
+            console.warn(`[${type}PageData] Benchmark augmentation failed:`, benchError.message);
         }
-    } catch (benchError) {
-        console.warn("[ModelPageData] Benchmark augmentation failed:", benchError.message);
     }
 
-    if (model && model._hydrated) {
-        const resolution = deriveEntityType(model);
-        model.entityType = resolution.type;
-        model.entityDefinition = ENTITY_DEFINITIONS[model.entityType];
+    if (entity && (entity._hydrated || entity._cache_source)) {
+        const resolution = deriveEntityType(entity);
+        entity.entityType = resolution.type || type;
+        entity.entityDefinition = ENTITY_DEFINITIONS[entity.entityType];
 
-        // Similar models logical hydration
-        if (model.similar_models && Array.isArray(model.similar_models)) {
-            const rawSimilar = model.similar_models;
+        // Similar entities logical hydration
+        const rawSimilar = entity.similar_models || entity.similar_entities || [];
+        if (Array.isArray(rawSimilar)) {
             const resolvedPromises = rawSimilar.map(async (item) => {
                 if (typeof item === 'string') {
                     return await getModelFromCache(item, locals);
@@ -56,22 +58,22 @@ export async function prepareModelPageData(slug, slugStr, locals) {
             similarModels = (await Promise.all(resolvedPromises)).filter(Boolean);
         }
 
-        tagsArray = Array.isArray(model.tags) ? model.tags : [];
-        return { model, isFallback: false, similarModels, tagsArray };
+        tagsArray = Array.isArray(entity.tags) ? entity.tags : [];
+        return { model: entity, isFallback: false, similarModels, tagsArray };
     } else {
-        // V15.17: Aggressive Global Fallback
+        // Universal Global Fallback
         const cleanSlug = slugStr.replace(/--/g, '/');
         const parts = cleanSlug.split('/');
-        const repoName = parts.pop() || 'Unknown Model';
-        const authorName = parts.join('/') || 'huggingface';
+        const entityName = parts.pop() || 'Unknown Entity';
+        const authorName = parts.join('/') || 'github';
 
-        let fallbackModel = {
-            id: `hf-model--${slugStr.replace(/\//g, '--')}`,
-            name: repoName,
+        let fallback = {
+            id: `${type}--${slugStr.replace(/\//g, '--')}`,
+            name: entityName,
             author: authorName,
-            source: 'huggingface',
-            source_url: `https://huggingface.co/${cleanSlug}`,
-            description: `State-of-the-art AI model: ${repoName} by ${authorName}.`,
+            source: type === 'model' ? 'huggingface' : 'github',
+            source_url: type === 'model' ? `https://huggingface.co/${cleanSlug}` : `https://github.com/${cleanSlug}`,
+            description: `Autonomous ${type}: ${entityName} by ${authorName}.`,
             tags: [],
             fni_score: 0,
             _cache_source: 'fallback-ui'
@@ -81,22 +83,26 @@ export async function prepareModelPageData(slug, slugStr, locals) {
             const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
             const searchId = norm(slugStr);
             const fallbackEntry = summaryData.find(s => {
-                const sid = norm(s.id || s.umid || s.slug || '').replace(/^hf-model-/, '');
+                const sid = norm(s.id || s.umid || s.slug || '').replace(/^(hf-model|replicate|github)-/, '');
                 return sid === searchId || sid.endsWith('-' + searchId) || searchId.endsWith('-' + sid) || sid === norm(slugStr);
             });
 
             if (fallbackEntry) {
-                fallbackModel = augmentEntity(fallbackModel, fallbackEntry);
+                fallback = augmentEntity(fallback, fallbackEntry);
             }
         }
 
-        // V15.18: Apply unified hydration to fallback model for beautification/VRAM
-        fallbackModel = hydrateEntity(fallbackModel, 'model', summaryData);
+        // Apply unified hydration (beautification/VRAM/tags recovery)
+        fallback = hydrateEntity(fallback, type, summaryData);
+        fallback.entityType = type;
+        fallback.entityDefinition = ENTITY_DEFINITIONS[type];
+        tagsArray = Array.isArray(fallback.tags) ? fallback.tags : [];
 
-        fallbackModel.entityType = 'model';
-        fallbackModel.entityDefinition = ENTITY_DEFINITIONS['model'];
-        tagsArray = Array.isArray(fallbackModel.tags) ? fallbackModel.tags : [];
-
-        return { model: fallbackModel, isFallback: true, repoName, similarModels, tagsArray };
+        return { model: fallback, isFallback: true, repoName: entityName, similarModels, tagsArray };
     }
+}
+
+// Keep the old name for backward compatibility until refactored
+export async function prepareModelPageData(slug, slugStr, locals) {
+    return prepareEntityPageData('model', slug, slugStr, locals);
 }
