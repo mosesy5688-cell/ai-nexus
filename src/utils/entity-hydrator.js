@@ -54,17 +54,18 @@ export function hydrateEntity(data, type) {
     // V15.15: CROSS-SOURCE HYDRATION (Warm Cache Fallback)
     // If core metrics are missing after shard load, attempt to pull from summaryData (L4/L5 aggregate)
     if (summaryData && Array.isArray(summaryData) && (!hydrated.params_billions || !hydrated.downloads)) {
-        const searchId = (hydrated.id || '').replace(/^hf-model--/, '').replace(/:/g, '--').replace(/\//g, '--');
+        const searchId = (hydrated.id || '').toLowerCase().replace(/^hf-model--/, '').replace(/:/g, '--').replace(/\//g, '--');
         const fallback = summaryData.find(s => {
-            const sid = (s.id || s.umid || s.slug || '').replace(/^hf-model--/, '').replace(/:/g, '--').replace(/\//g, '--');
-            return sid === searchId || sid === hydrated.slug;
+            const sid = (s.id || s.umid || s.slug || '').toLowerCase().replace(/^hf-model--/, '').replace(/:/g, '--').replace(/\//g, '--');
+            // Support partial matches for repo names (e.g. meta-llama/llama-3-8b matching llama-3-8b)
+            return sid === searchId || sid.endsWith('--' + searchId) || searchId.endsWith('--' + sid) || sid === hydrated.slug;
         });
         if (fallback) {
             hydrated.params_billions = hydrated.params_billions || fallback.params_billions;
             hydrated.downloads = hydrated.downloads || fallback.downloads;
             hydrated.likes = hydrated.likes || fallback.likes || fallback.stars;
             hydrated.context_length = hydrated.context_length || fallback.context_length;
-            hydrated.fni_score = hydrated.fni_score || fallback.fni_score;
+            hydrated.fni_score = hydrated.fni_score || fallback.fni_score || fallback.fni;
         }
     }
 
@@ -173,6 +174,9 @@ export function hydrateEntity(data, type) {
             hydrated.running_status = entity.running_status || meta.running_status || meta.extended?.runtime_stage || 'RUNNING';
         }
     }
+
+    // V15.16: Final VRAM sync check - guarantee it runs after all fallbacks
+    if (type === 'model') applyVramLogic(hydrated);
 
     return hydrated;
 }
