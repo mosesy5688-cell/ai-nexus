@@ -39,6 +39,35 @@ export function hydrateEntity(data, type) {
         _hydrated: true
     };
 
+    // V15.15 Hero Name Beautification
+    if (!hydrated.name || hydrated.name === hydrated.id) {
+        const parts = (hydrated.id || '').split('--').pop()?.split('/') || [];
+        const rawName = parts.pop() || hydrated.id || 'Unknown Entity';
+        hydrated.name = rawName
+            .replace(/-/g, ' ')
+            .replace(/_/g, ' ')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    }
+
+    // V15.15: CROSS-SOURCE HYDRATION (Warm Cache Fallback)
+    // If core metrics are missing after shard load, attempt to pull from summaryData (L4/L5 aggregate)
+    if (summaryData && Array.isArray(summaryData) && (!hydrated.params_billions || !hydrated.downloads)) {
+        const searchId = (hydrated.id || '').replace(/^hf-model--/, '').replace(/:/g, '--').replace(/\//g, '--');
+        const fallback = summaryData.find(s => {
+            const sid = (s.id || s.umid || s.slug || '').replace(/^hf-model--/, '').replace(/:/g, '--').replace(/\//g, '--');
+            return sid === searchId || sid === hydrated.slug;
+        });
+        if (fallback) {
+            hydrated.params_billions = hydrated.params_billions || fallback.params_billions;
+            hydrated.downloads = hydrated.downloads || fallback.downloads;
+            hydrated.likes = hydrated.likes || fallback.likes || fallback.stars;
+            hydrated.context_length = hydrated.context_length || fallback.context_length;
+            hydrated.fni_score = hydrated.fni_score || fallback.fni_score;
+        }
+    }
+
     // Promotion of high-fidelity technical specs from meta_json (Data Vacuum Fix)
     if (meta.extended || meta.config || entity.config) {
         const config = entity.config || meta.config || meta.extended?.config || {};
@@ -56,6 +85,10 @@ export function hydrateEntity(data, type) {
         // V15.12: Expanded Parameter mapping
         hydrated.params_billions = hydrated.params_billions || meta.extended?.params_billions ||
             config.num_parameters || config.n_params || config.params_count;
+
+        // V15.15 (Fix): If params is still missing but we have it in summary, it was already handled above.
+        // But we ensure it's a number.
+        if (hydrated.params_billions) hydrated.params_billions = parseFloat(hydrated.params_billions);
 
         hydrated.example_code = hydrated.example_code || meta.extended?.example_code || meta.usage || meta.sample_code;
         hydrated.license_spdx = hydrated.license_spdx || meta.extended?.license || meta.license || config.license;

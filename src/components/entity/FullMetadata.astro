@@ -10,8 +10,9 @@ interface Props {
 
 const { entity, title = "Transparency Report" } = Astro.props;
 
-// Filter out internal fields (starting with _)
-const allKeys = Object.keys(entity).filter(k => !k.startsWith('_'));
+// Filter out internal fields (starting with _) and redundant raw data
+const ignoreKeys = ['meta', 'meta_json', 'config', 'entityDefinition', 'computed', 'similar_models', 'similar_entities', 'body_content', 'description'];
+const allKeys = Object.keys(entity).filter(k => !k.startsWith('_') && !ignoreKeys.includes(k));
 
 // Define curated groups
 const groups = [
@@ -43,7 +44,9 @@ function formatValue(val: any): string {
     return `<div class="flex flex-wrap gap-1">${val.map(v => `<span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-md text-[11px] font-medium text-gray-600 dark:text-gray-400 border border-gray-200/50 dark:border-gray-700/50">${v}</span>`).join('')}</div>`;
   }
   if (typeof val === 'object') {
-    return `<pre class="text-[10px] bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-800 overflow-x-auto max-h-40">${JSON.stringify(val, null, 2)}</pre>`;
+    const str = JSON.stringify(val);
+    if (str.length < 50) return `<span class="text-[11px] font-mono text-indigo-400">${str}</span>`;
+    return `<details class="cursor-pointer"><summary class="text-[10px] text-gray-400 hover:text-indigo-400 transition-colors">View Complex Data</summary><pre class="text-[10px] bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-800 mt-1 overflow-x-auto max-h-40">${JSON.stringify(val, null, 2)}</pre></details>`;
   }
   if (typeof val === 'number') {
     return `<span class="font-mono font-bold text-indigo-600 dark:text-indigo-400">${val.toLocaleString()}</span>`;
@@ -96,34 +99,6 @@ function formatValue(val: any): string {
     })}
   </div>
 
-  {extraKeys.length > 0 && (
-    <div class="mt-8">
-      <details open class="group bg-white dark:bg-gray-800/30 border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden transition-all">
-        <summary class="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 list-none transition-colors">
-          <div class="flex items-center gap-3">
-            <span class="text-lg">🧩</span>
-            <span class="text-sm font-bold text-gray-600 dark:text-gray-300">Supplemental Attributes</span>
-            <span class="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-[10px] font-black text-gray-400 rounded-md">
-              {extraKeys.length} items
-            </span>
-          </div>
-          <svg class="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-          </svg>
-        </summary>
-        <div class="px-6 pb-6 pt-2">
-           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-             {extraKeys.map(key => (
-               <div class="p-3 bg-gray-50/50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800">
-                  <span class="block text-[9px] font-black text-gray-400 uppercase mb-1">{key.replace(/_/g, ' ')}</span>
-                  <div class="text-[11px] text-gray-600 dark:text-gray-400 break-words" set:html={formatValue(entity[key])}></div>
-               </div>
-             ))}
-           </div>
-        </div>
-      </details>
-    </div>
-  )}
 
   {extraKeys.length > 0 && (
     <div class="mt-8">

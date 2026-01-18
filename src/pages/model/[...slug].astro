@@ -35,36 +35,33 @@ let pageTitle = "AI Model Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI model.";
 let cleanedDesc = "";
 
-try {
-  if (!slug) throw new Error("No slug provided");
-  
-  const result = await fetchEntityFromR2('model', slug, Astro.locals);
-  model = hydrateEntity(result, 'model');
-
-  // V15.5: Multi-layer Augmentation Strategy (Data Vacuum Fix)
-  // Even if R2 returns minimal data, we attempt to fill specs from global caches
+  // V15.15: Load global summary data early for "Warm Cache" hydration
+  let summaryData = null;
   try {
-    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
-    
-    // Search by Slug or ID
-    const specEntry = specsResult.data?.data?.find(s => 
-      s.umid === slugStr.replace(/\//g, '-') || 
-      s.umid === slugStr.replace(/\//g, '--') ||
-      s.name === model?.id ||
-      s.name?.includes(slugStr)
-    );
-    
+    const specsResult = await loadSpecs();
+    summaryData = specsResult.data?.data || [];
+  } catch (e) {
+    console.warn("[ModelPage] Summary data load failed:", e.message);
+  }
+
+  const result = await fetchEntityFromR2('model', slug, Astro.locals);
+  // Pass summaryData to enable type-specific fallbacks (Params, Context, Name Beautification)
+  model = hydrateEntity(result, 'model', summaryData);
+
+  // V15.5: Benchmarks Augmentation
+  try {
+    const benchResult = await loadBenchmarks();
     const benchEntry = benchResult.data?.data?.find(b => 
       b.umid === slugStr.replace(/\//g, '-') || 
       b.umid === slugStr.replace(/\//g, '--') ||
       b.name === model?.id
     );
 
-    if (specEntry || benchEntry) {
-      model = augmentEntity(model || {}, { ...specEntry, ...benchEntry });
+    if (benchEntry) {
+      model = augmentEntity(model || {}, benchEntry);
     }
-  } catch (specError) {
-    console.warn("[ModelPage] Spec augmentation failed:", specError.message);
+  } catch (benchError) {
+    console.warn("[ModelPage] Benchmark augmentation failed:", benchError.message);
   }
 
   if (model && model._hydrated) {
