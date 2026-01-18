@@ -182,12 +182,6 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
       limits={derivedUseCases.limits} 
     />
 
-    {/* Zone 2 Extra: VRAM Estimator (V15.2) */}
-    <div slot="insights-extra" class="mt-4">
-      <VramEstimator paramsB={model?.params_billions} />
-    </div>
-
-
     {/* Zone 3: Core (Desktop) */}
     <div slot="core-desktop">
        <UniversalCore entity={model} type="model" />

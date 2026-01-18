@@ -43,16 +43,27 @@ export function hydrateEntity(data, type) {
     if (meta.extended || meta.config || entity.config) {
         const config = entity.config || meta.config || meta.extended?.config || {};
 
-        hydrated.context_length = hydrated.context_length || meta.extended?.context_length || config.max_position_embeddings || config.n_ctx || config.max_seq_len;
-        hydrated.architecture = hydrated.architecture || meta.extended?.architecture || config.model_type || config.architectures?.[0];
-        hydrated.params_billions = hydrated.params_billions || meta.extended?.params_billions || config.num_parameters;
+        // V15.12: Massively expanded key mapping for Context Length
+        hydrated.context_length = hydrated.context_length || meta.extended?.context_length ||
+            config.max_position_embeddings || config.n_ctx || config.max_seq_len ||
+            config.max_sequence_length || config.model_max_length || config.seq_length ||
+            config.n_positions || config.max_seq_length;
+
+        // V15.12: Expanded Architectural mapping
+        hydrated.architecture = hydrated.architecture || meta.extended?.architecture ||
+            config.model_type || config.architectures?.[0] || config.arch || config.type;
+
+        // V15.12: Expanded Parameter mapping
+        hydrated.params_billions = hydrated.params_billions || meta.extended?.params_billions ||
+            config.num_parameters || config.n_params || config.params_count;
+
         hydrated.example_code = hydrated.example_code || meta.extended?.example_code || meta.usage || meta.sample_code;
         hydrated.license_spdx = hydrated.license_spdx || meta.extended?.license || meta.license || config.license;
 
         // V15.9: Additional Architectural Detail for NeuralExplorer/TechSpecs
-        hydrated.num_layers = hydrated.num_layers || config.num_hidden_layers || config.n_layer || config.num_layers;
-        hydrated.hidden_size = hydrated.hidden_size || config.hidden_size || config.n_embd || config.d_model;
-        hydrated.num_heads = hydrated.num_heads || config.num_attention_heads || config.n_head;
+        hydrated.num_layers = hydrated.num_layers || config.num_hidden_layers || config.n_layer || config.num_layers || config.n_layers;
+        hydrated.hidden_size = hydrated.hidden_size || config.hidden_size || config.n_embd || config.d_model || config.dim;
+        hydrated.num_heads = hydrated.num_heads || config.num_attention_heads || config.n_head || config.n_heads || config.num_heads;
         hydrated.vocab_size = hydrated.vocab_size || config.vocab_size;
 
         // V15.8 (Fix): Promote README/Model Card to body_content if top-level is empty

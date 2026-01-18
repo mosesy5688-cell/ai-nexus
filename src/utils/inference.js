@@ -139,52 +139,84 @@ export function getQuickInsights(entity, type) {
     const safeType = type || 'model';
 
     if (safeType === 'model') {
-        insights.push({ label: 'Params', value: entity.params_billions ? `${entity.params_billions}B` : '-' });
-        insights.push({ label: 'Context', value: entity.context_length ? `${Math.round(entity.context_length / 1024)}k` : '-' });
-        insights.push({ label: 'Downloads', value: formatNum(entity.downloads) });
-        insights.push({ label: 'Likes', value: formatNum(entity.likes) });
-        if (entity.has_gguf) insights.push({ label: 'Format', value: 'GGUF ✓', highlight: true });
+        const isTrending = (entity.downloads > 50000) || (entity.fni_percentile > 95);
+        const isEfficient = entity.params_billions < 10 && entity.context_length >= 32768;
 
-        // V15.9 Trust Signal
+        insights.push({
+            label: 'Params',
+            value: entity.params_billions ? `${entity.params_billions}B` : '-',
+            highlight: entity.params_billions > 70,
+            badge: entity.params_billions < 3 ? 'Tiny' : (entity.params_billions > 100 ? 'Massive' : null)
+        });
+        insights.push({
+            label: 'Context',
+            value: entity.context_length ? `${Math.round(entity.context_length / 1024)}k` : '-',
+            highlight: entity.context_length > 32768,
+            badge: entity.context_length >= 128000 ? 'Long' : null
+        });
+        insights.push({
+            label: 'Downloads',
+            value: formatNum(entity.downloads),
+            badge: isTrending ? 'Hot' : null
+        });
+
+        // V15.15: Unified VRAM Metric
+        if (entity.vram_gb) {
+            insights.push({
+                label: 'Est. VRAM',
+                value: `~${Math.ceil(entity.vram_gb)}GB`,
+                highlight: true,
+                badge: entity.vram_gb <= 8 ? '8G GPU' : (entity.vram_gb <= 24 ? '24G GPU' : 'H100+')
+            });
+        }
+
+        if (entity.has_gguf) insights.push({ label: 'Format', value: 'GGUF ✓', highlight: true, badge: 'Local' });
+
         if (entity.license) {
-            insights.push({ label: 'License', value: entity.license, highlight: entity.license.includes('apache') || entity.license.includes('mit') });
+            const isPermissive = entity.license.includes('apache') || entity.license.includes('mit');
+            insights.push({
+                label: 'License',
+                value: entity.license.split('-')[0].toUpperCase(),
+                highlight: isPermissive,
+                badge: isPermissive ? 'Commercial' : 'Restricted'
+            });
         }
     }
 
     else if (safeType === 'agent') {
-        insights.push({ label: 'Tools', value: entity.tools_count || '-' });
-        insights.push({ label: 'Language', value: entity.language || 'Python' });
-        insights.push({ label: 'Stars', value: formatNum(entity.stars || entity.github_stars) });
-        insights.push({ label: 'Verified', value: entity.verified ? 'Yes' : 'No', highlight: entity.verified });
+        insights.push({ label: 'Tools', value: entity.tools_count || '-', badge: entity.tools_count > 5 ? 'Power' : null });
+        insights.push({ label: 'Language', value: entity.language || 'Python', highlight: true });
+        insights.push({ label: 'Stars', value: formatNum(entity.stars || entity.github_stars), badge: (entity.stars > 1000) ? 'Popular' : null });
+        insights.push({ label: 'Capability', value: entity.verified ? 'Verified' : 'Community', highlight: entity.verified });
         if (entity.license) insights.push({ label: 'License', value: entity.license });
     }
 
     else if (safeType === 'dataset') {
-        insights.push({ label: 'Size', value: entity.size_gb ? `${entity.size_gb} GB` : '-' });
+        insights.push({ label: 'Size', value: entity.size_gb ? `${entity.size_gb} GB` : '-', badge: entity.size_gb > 100 ? 'Large' : null });
         insights.push({ label: 'Rows', value: formatNum(entity.rows) });
-        insights.push({ label: 'Format', value: entity.format || 'Parquet' });
-        insights.push({ label: 'Likes', value: formatNum(entity.likes) });
+        insights.push({ label: 'Format', value: entity.format || 'Parquet', highlight: true });
+        insights.push({ label: 'Tokens', value: entity.token_count ? formatNum(entity.token_count) : '-', badge: entity.token_count > 1e12 ? '1T+' : null });
     }
 
     else if (safeType === 'paper') {
-        insights.push({ label: 'Citations', value: formatNum(entity.citations || entity.citation_count) });
-        insights.push({ label: 'Published', value: entity.published_date ? new Date(entity.published_date).getFullYear() : (entity.year || '2024') });
-        insights.push({ label: 'Pages', value: entity.pages || 'N/A' });
+        insights.push({ label: 'Citations', value: formatNum(entity.citations || entity.citation_count), highlight: true, badge: 'High Impact' });
+        insights.push({ label: 'Year', value: entity.published_date ? new Date(entity.published_date).getFullYear() : (entity.year || '2024') });
+        insights.push({ label: 'Venue', value: entity.venue || 'ArXiv', badge: entity.venue ? 'Peer-Reviewed' : null });
         insights.push({ label: 'FNI Rank', value: (entity.fni_score || entity.fni_percentile) ? `Top ${100 - (entity.fni_percentile || 0)}%` : '-', highlight: true });
     }
 
     else if (safeType === 'space') {
-        insights.push({ label: 'SDK', value: entity.sdk || 'Gradio' });
-        insights.push({ label: 'Config', value: entity.hardware || 'CPU' });
+        insights.push({ label: 'SDK', value: entity.sdk || 'Gradio', highlight: true });
+        insights.push({ label: 'Hardware', value: entity.hardware || 'CPU', badge: entity.hardware?.includes('gpu') ? 'GPU Accel' : null });
         insights.push({ label: 'Status', value: entity.runtime?.stage || 'Running', highlight: true });
-        insights.push({ label: 'Likes', value: formatNum(entity.likes) });
+        insights.push({ label: 'Activity', value: formatNum(entity.likes), badge: entity.likes > 100 ? 'Active' : null });
     }
 
     else if (safeType === 'tool') {
-        insights.push({ label: 'Lang', value: entity.language || '-' });
-        insights.push({ label: 'Stars', value: formatNum(entity.stars || entity.github_stars) });
+        insights.push({ label: 'Lang', value: entity.language || '-', highlight: true });
+        insights.push({ label: 'Stars', value: formatNum(entity.stars || entity.github_stars), badge: 'Open Source' });
         insights.push({ label: 'Version', value: entity.version || 'v1.0.0' });
-        insights.push({ label: 'License', value: entity.license || 'MIT', highlight: true });
+        insights.push({ label: 'Reliability', value: entity.fni_score > 80 ? 'Stable' : 'Alpha', highlight: true });
     }
 
     return insights;
