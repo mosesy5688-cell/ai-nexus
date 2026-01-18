@@ -26,25 +26,40 @@ try {
     
     // 1. Fetch Lightweight Mesh (SSR Only)
     // We only load relations.json (74KB) to avoid memory/CPU timeout on Vercel/Cloudflare
-    const [relations, conceptMeta] = await Promise.all([
-        fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }),
-        fetchConceptMetadata(Astro.locals)
-    ]);
+    // Wrapped in a dedicated try-catch for total isolation
+    let rawRelations = [];
+    let rawConceptMeta = [];
+    
+    try {
+        const [relationsRes, conceptMetaRes] = await Promise.all([
+            fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }),
+            fetchConceptMetadata(Astro.locals)
+        ]);
+        rawRelations = Array.isArray(relationsRes) ? relationsRes : [];
+        rawConceptMeta = Array.isArray(conceptMetaRes) ? conceptMetaRes : [];
+    } catch (fetchErr) {
+        console.warn('[NeuralGraphExplorer] Mesh fetch failed, using internal fallbacks:', fetchErr.message);
+    }
 
     const nodeMap = new Map<string, any>();
-    const conceptMap = new Map(conceptMeta.map(c => [c.id || `concept--${c.slug}`, c]));
+    const conceptMap = new Map();
+    rawConceptMeta.forEach(c => {
+        if (c && (c.id || c.slug)) {
+            conceptMap.set(c.id || `concept--${c.slug}`, c);
+        }
+    });
 
-    // Helper to extract node info
+    // Helper to extract node info with extreme safety
     const ensureNode = (id, typeHint = 'model') => {
-        if (nodeMap.has(id)) return;
+        if (!id || typeof id !== 'string' || nodeMap.has(id)) return;
         
-        let nodeType = typeHint;
+        let nodeType = typeHint || 'model';
         if (id.includes('concept--')) nodeType = 'concept';
         else if (id.includes('report--')) nodeType = 'report';
         else if (id.includes('arxiv--')) nodeType = 'paper';
 
         const meta = conceptMap.get(id);
-        const name = meta?.title || id.split('--').pop().split(':').pop();
+        const name = meta?.title || id.split('--').pop().split(':').pop() || 'Unknown Entity';
 
         nodeMap.set(id, {
             id,
@@ -56,20 +71,27 @@ try {
         });
     };
 
-    // Add root
-    if (entity && rootId) {
-        nodeMap.set(rootId, {
-            id: rootId,
-            name: entity.name || entity.title || rootId.split('--').pop(),
-            author: entity.author || '',
-            type: entity.type || 'model',
-            fni: entity.fni_score || 0,
-            icon: entity.icon || '🎯'
-        });
+    // Add root node if exists
+    if (rootId) {
+        try {
+            const rootName = entity?.name || entity?.title || rootId.split('--').pop().split(':').pop() || rootId;
+            nodeMap.set(rootId, {
+                id: rootId,
+                name: rootName,
+                author: entity?.author || '',
+                type: entity?.type || 'model',
+                fni: entity?.fni_score || 0,
+                icon: entity?.icon || '🎯'
+            });
+        } catch (rootErr) {
+            console.error('[NeuralGraphExplorer] Root node error:', rootErr);
+        }
     }
 
-    // Process SSR Relations
-    relations.forEach(rel => {
+    // Process SSR Relations with validation
+    rawRelations.forEach(rel => {
+        if (!rel || !rel.source_id || !rel.target_id) return;
+        
         ensureNode(rel.source_id, rel.source_type);
         ensureNode(rel.target_id, rel.target_type);
         
@@ -85,21 +107,23 @@ try {
     totalNodes = graphNodes.length;
     totalLinks = graphLinks.length;
     
-    // Grid View Nodes
-    if (rootId) {
+    // Grid View Nodes (Strict filtration for relevance)
+    if (rootId && totalLinks > 0) {
         const relatedIds = new Set<string>();
-        relations.forEach(link => {
-            if (link.source_id === rootId) relatedIds.add(link.target_id);
-            else if (link.target_id === rootId) relatedIds.add(link.source_id);
+        graphLinks.forEach(link => {
+            const srcId = typeof link.source === 'string' ? link.source : (link.source as any)?.id;
+            const tgtId = typeof link.target === 'string' ? link.target : (link.target as any)?.id;
+            
+            if (srcId === rootId) relatedIds.add(tgtId);
+            else if (tgtId === rootId) relatedIds.add(srcId);
         });
         
-        relatedNodes = graphNodes.filter(n => relatedIds.has(n.id)).slice(0, 12);
+        relatedNodes = graphNodes.filter(n => relatedIds.has(n.id) && n.id !== rootId).slice(0, 16);
     }
 } catch (e) {
-    console.error('[NeuralGraphExplorer] SSR Error:', e);
+    console.error('[NeuralGraphExplorer] Critical SSR Failure:', e);
 }
 
-const hasGraph = totalNodes > 0;
 const hasRelatedNodes = relatedNodes.length > 0;
 ---
 
@@ -125,34 +149,42 @@ const hasRelatedNodes = relatedNodes.length > 0;
         <!-- View 1: Static Grid (SEO & Instant Load) -->
         <div class="view-pane active" id="pane-grid">
             {hasRelatedNodes ? (
-                <div class="related-grid">
+                <div class="related-grid" id="static-related-grid">
                     {relatedNodes.map(node => {
-                        const slugParts = node.id.split('--');
-                        const cleanParts = slugParts.length > 2 ? slugParts.slice(1) : slugParts;
-                        const urlSlug = cleanParts.join('/');
+                        // Advanced path mapping for different entity types
+                        let path = '';
+                        const cleanId = node.id
+                            .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space)--/, '')
+                            .replace(/^(kb|concept)--/, '')
+                            .replace(/^report--/, '')
+                            .replace(/^(arxiv|paper)--/, '');
                         
-                        // Path mapping based on type
-                        let path = `/${node.type}/${urlSlug}`;
+                        const urlSlug = cleanId.replace(/--/g, '/').replace(/:/g, '/');
+                        
                         if (node.type === 'concept') path = `/knowledge/${urlSlug}`;
-                        if (node.type === 'report') path = `/reports/${urlSlug}`;
+                        else if (node.type === 'report') path = `/reports/${urlSlug}`;
+                        else if (node.type === 'paper') path = `/paper/${urlSlug}`;
+                        else path = `/${node.type}/${urlSlug}`;
                         
                         return (
-                        <a href={path} class={`related-card type-${node.type}`}>
-                            <div class="card-header">
-                                <span class="node-icon">{node.icon || '📦'}</span>
-                                <span class="model-name">{node.name}</span>
-                                <span class={`type-badge color-${node.type}`}>{node.type}</span>
-                            </div>
-                            <div class="card-meta">
-                                <span class="author">{node.author}</span>
-                            </div>
-                        </a>
-                    )})}
+                            <a href={path} class={`related-card type-${node.type}`}>
+                                <div class="card-header">
+                                    <span class="node-icon">{node.icon || '📦'}</span>
+                                    <span class="model-name">{node.name}</span>
+                                    <span class={`type-badge color-${node.type}`}>{node.type}</span>
+                                </div>
+                                <div class="card-meta">
+                                    <span class="author">{node.author}</span>
+                                </div>
+                            </a>
+                        );
+                    })}
                 </div>
             ) : (
                 <div class="empty-state">
-                    <div class="empty-icon">⚪</div>
-                    <p>Building knowledge mesh for this entity...</p>
+                    <div class="empty-icon">🕸️</div>
+                    <p>Building neural mesh context...</p>
+                    <span class="hint">Attempting to locate indirect relations via client-side graph...</span>
                 </div>
             )}
         </div>
@@ -233,9 +265,18 @@ const hasRelatedNodes = relatedNodes.length > 0;
 
     async function initD3Graph() {
         const container = document.getElementById('d3-container');
-        const entityId = container.dataset.id;
+        const rootId = container.dataset.id;
         const svg = d3.select("#visual-graph");
         const loading = container.querySelector('.graph-loading');
+        
+        // Normalize helper for client-side
+        const normalize = (id) => (id || '').toLowerCase()
+            .replace(/^(replicate|github|arxiv|kb|concept|paper|model|agent|tool|dataset|space)[:\-]+/, '')
+            .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space)--/, '')
+            .replace(/--/g, '/')
+            .replace(/:/g, '/');
+
+        const normRootId = normalize(rootId);
         
         // 1. Initial Render from SSR data
         let nodes = JSON.parse(container.dataset.nodes || '[]');
@@ -244,10 +285,8 @@ const hasRelatedNodes = relatedNodes.length > 0;
         render({ nodes, links });
 
         // 2. Heavy Hydration (Client-Side Only)
-        // Fetch explicit.json (3MB) via relative path to bypass CORS
         try {
             loading.style.display = 'flex';
-            loading.querySelector('span').textContent = 'Expanding Neural Mesh...';
             
             const [resp1, resp2] = await Promise.all([
                 fetch('/cache/relations/explicit.json').then(r => r.ok ? r.json() : null),
@@ -255,18 +294,16 @@ const hasRelatedNodes = relatedNodes.length > 0;
             ]);
 
             if (resp1 || resp2) {
-                // Update graph with heavy data (Merging logic simplified for client)
                 const nodeSet = new Map();
-                nodes.forEach(n => nodeSet.set(n.id, n));
+                nodes.forEach(n => nodeSet.set(normalize(n.id), n));
                 
                 const processEdge = (src, tgt, type, conf) => {
-                    const normSrc = src.toLowerCase();
-                    const normTgt = tgt.toLowerCase();
-                    const normTargetId = (entityId || '').toLowerCase();
+                    const nSrc = normalize(src);
+                    const nTgt = normalize(tgt);
                     
-                    if (normSrc.includes(normTargetId) || normTgt.includes(normTargetId)) {
-                        if (!nodeSet.has(src)) nodeSet.set(src, { id: src, name: src.split(':').pop(), type: 'model' });
-                        if (!nodeSet.has(tgt)) nodeSet.set(tgt, { id: tgt, name: tgt.split(':').pop(), type: 'model' });
+                    if (nSrc === normRootId || nTgt === normRootId) {
+                        if (!nodeSet.has(nSrc)) nodeSet.set(nSrc, { id: src, name: src.split(/[:\-]/).pop(), type: 'model' });
+                        if (!nodeSet.has(nTgt)) nodeSet.set(nTgt, { id: tgt, name: tgt.split(/[:\-]/).pop(), type: 'model' });
                         links.push({ source: src, target: tgt, type, weight: conf });
                     }
                 };
@@ -279,9 +316,11 @@ const hasRelatedNodes = relatedNodes.length > 0;
                 
                 nodes = Array.from(nodeSet.values());
                 render({ nodes, links });
+                loading.style.display = 'none';
             }
         } catch (e) {
-            console.warn('[D3] Client-side hydration failed:', e);
+            console.warn('[D3] Hydration failed:', e);
+            loading.style.display = 'none';
         }
 
         const width = container.clientWidth;
@@ -289,8 +328,9 @@ const hasRelatedNodes = relatedNodes.length > 0;
 
         function render(data) {
             svg.selectAll("*").remove();
+            if (!data.nodes.length) return;
+
             const g = svg.append("g");
-            
             const simulation = d3.forceSimulation(data.nodes)
                 .force("link", d3.forceLink(data.links).id(d => d.id).distance(120))
                 .force("charge", d3.forceManyBody().strength(-300))
@@ -308,28 +348,15 @@ const hasRelatedNodes = relatedNodes.length > 0;
                 .attr("markerHeight", 5)
                 .attr("orient", "auto")
                 .append("path")
-                .attr("fill", d => d === 'arrow-explain' ? "#a855f7" : "#94a3b8")
+                .attr("fill", "#94a3b8")
                 .attr("d", "M0,-5L10,0L0,5");
 
-            // Semantic Edge Styling
             const link = g.append("g")
                 .selectAll("line")
                 .data(data.links)
                 .join("line")
-                .attr("stroke", d => {
-                    if (d.type === 'EXPLAIN') return "rgba(168, 85, 247, 0.5)"; // Purple
-                    if (d.type === 'ALT') return "rgba(99, 102, 241, 0.4)";    // Indigo
-                    if (d.type === 'FOLLOWS') return "rgba(251, 191, 36, 0.4)"; // Yellow
-                    return "rgba(255, 255, 255, 0.15)";
-                })
-                .attr("stroke-dasharray", d => d.type === 'ALT' ? "4,4" : "none")
-                .attr("stroke-width", d => d.id === entityId ? 2 : 1.2)
-                .attr("marker-end", d => {
-                    if (d.type === 'EXPLAIN') return "url(#arrow-explain)";
-                    if (d.type === 'FOLLOWS') return "url(#arrow-follows)";
-                    if (d.type === 'FEATURES' || d.type === 'TRENDING') return "url(#arrow-features)";
-                    return "none";
-                });
+                .attr("stroke", "rgba(255, 255, 255, 0.15)")
+                .attr("stroke-width", 1.2);
 
             const node = g.append("g")
                 .selectAll("g")
@@ -348,59 +375,36 @@ const hasRelatedNodes = relatedNodes.length > 0;
                     })
                 );
 
-            // Node Circles
             node.append("circle")
-                .attr("r", d => d.id === entityId ? 14 : 8)
+                .attr("r", d => normalize(d.id) === normRootId ? 14 : 8)
                 .attr("fill", d => getNodeColor(d.type))
-                .attr("stroke", d => d.id === entityId ? "#fff" : "none")
-                .attr("stroke-width", 2)
-                .attr("class", "node-circle");
+                .attr("stroke", d => normalize(d.id) === normRootId ? "#fff" : "none")
+                .attr("stroke-width", 2);
 
-            // Node Icons/Labels
             node.append("text")
-                .attr("dy", d => d.id === entityId ? 22 : 18)
+                .attr("dy", d => normalize(d.id) === normRootId ? 22 : 18)
                 .attr("text-anchor", "middle")
                 .attr("class", "node-label")
-                .text(d => d.name.length > 15 ? d.name.substring(0, 12) + '...' : d.name);
+                .text(d => d.name);
 
-            // Interactive Hover Logic
             node.on("mouseenter", (e, d) => {
                 hoverCard.style.display = 'block';
                 hoverCard.querySelector('.card-type-tag').textContent = d.type.toUpperCase();
                 hoverCard.querySelector('.card-title').textContent = d.name;
-                hoverCard.querySelector('.card-meta').textContent = (d.author || d.category) ? `by ${d.author || d.category}` : '';
                 
                 const rect = container.getBoundingClientRect();
                 hoverCard.style.left = `${e.clientX - rect.left + 15}px`;
                 hoverCard.style.top = `${e.clientY - rect.top + 15}px`;
-
-                // Highlight connections
-                link.attr("stroke-opacity", l => (l.source.id === d.id || l.target.id === d.id) ? 1 : 0.1);
             });
 
-            node.on("mousemove", (e) => {
-                const rect = container.getBoundingClientRect();
-                hoverCard.style.left = `${e.clientX - rect.left + 15}px`;
-                hoverCard.style.top = `${e.clientY - rect.top + 15}px`;
-            });
-
-            node.on("mouseleave", () => {
-                hoverCard.style.display = 'none';
-                link.attr("stroke-opacity", 1);
-            });
+            node.on("mouseleave", () => hoverCard.style.display = 'none');
 
             node.on("click", (e, d) => {
-                const id = d.id;
-                const type = d.type;
-                let path = '';
-                
-                if (type === 'concept') path = `/knowledge/${id.replace(/^(kb|concept)--/, '')}`;
-                else if (type === 'report') path = `/reports/${id.replace(/^report--/, '')}`;
-                else if (type === 'paper') path = `/paper/${id.replace(/^(arxiv|paper)--/, '')}`;
-                else {
-                    const cleanId = id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space)--/, '');
-                    path = `/${type}/${cleanId.replace(/--/g, '/')}`;
-                }
+                const normId = normalize(d.id);
+                let path = `/${d.type}/${normId}`;
+                if (d.type === 'concept') path = `/knowledge/${normId}`;
+                else if (d.type === 'report') path = `/reports/${normId}`;
+                else if (d.type === 'paper') path = `/paper/${normId}`;
                 window.location.href = path;
             });
 
@@ -412,15 +416,7 @@ const hasRelatedNodes = relatedNodes.length > 0;
         }
 
         function getNodeColor(type) {
-            const colors = {
-                model: '#818cf8',
-                paper: '#c084fc',
-                dataset: '#4ade80',
-                concept: '#6366f1',
-                report: '#fbbf24',
-                agent: '#f87171',
-                tool: '#fb923c'
-            };
+            const colors = { model: '#818cf8', paper: '#c084fc', dataset: '#4ade80', concept: '#6366f1', report: '#fbbf24' };
             return colors[type] || '#94a3b8';
         }
     }
