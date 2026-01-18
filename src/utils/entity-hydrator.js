@@ -3,7 +3,7 @@
  * Art 5.1 Compliance: Extracted from entity-cache-reader-core.js
  */
 
-export function hydrateEntity(data, type) {
+export function hydrateEntity(data, type, summaryData) {
     if (!data) return null;
 
     const entity = data.entity || data;

@@ -87,11 +87,8 @@ export async function prepareModelPageData(slug, slugStr, locals) {
 
             if (fallbackEntry) {
                 fallbackModel = augmentEntity(fallbackModel, fallbackEntry);
-            } else {
-                // V15.12: Strict 404 - If not in R2 AND not in Warm Cache, it's truly unknown
-                console.log(`[ModelPageData] Strict 404 Triggered for ${slugStr}`);
-                return null;
             }
+            // V15.17 (Rollback): Support Dreaming Fallback for Short URL compatibility
         }
 
         fallbackModel.entityType = 'model';
