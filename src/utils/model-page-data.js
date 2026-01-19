@@ -7,6 +7,7 @@ import { loadSpecs, loadBenchmarks } from './loadCachedJSON';
 import { deriveEntityType, ENTITY_DEFINITIONS } from '../data/entity-definitions';
 import { getModelFromCache } from './entity-cache-reader';
 import { fetchEntityFromR2 } from './entity-cache-reader-core.js';
+import { fetchMeshRelations } from './knowledge-cache-reader.js';
 
 export async function prepareModelPageData(slug, slugStr, locals) {
     let summaryData = null;
@@ -57,6 +58,39 @@ export async function prepareModelPageData(slug, slugStr, locals) {
         }
 
         tagsArray = Array.isArray(model.tags) ? model.tags : [];
+
+        // V16: Inject External Mesh Relations (Papers, Knowledge, etc.)
+        try {
+            const meshRelations = await fetchMeshRelations(locals, model.id || slugStr);
+            if (meshRelations && meshRelations.length > 0) {
+                model.arxiv_refs = model.arxiv_refs || [];
+                model.datasets_used = model.datasets_used || [];
+                model.knowledge_links = model.knowledge_links || [];
+
+                meshRelations.forEach(rel => {
+                    const tid = rel.target_id;
+                    if (tid.startsWith('arxiv--') || tid.startsWith('paper--')) {
+                        const id = tid.replace(/^(arxiv|paper)--/, '');
+                        if (!model.arxiv_refs.includes(id)) model.arxiv_refs.push(id);
+                    } else if (tid.startsWith('dataset--')) {
+                        const id = tid.replace('dataset--', '');
+                        if (!model.datasets_used.includes(id)) model.datasets_used.push(id);
+                    } else if (tid.startsWith('concept--')) {
+                        const slug = tid.replace('concept--', '');
+                        if (!model.knowledge_links.find(l => l.slug === slug)) {
+                            model.knowledge_links.push({
+                                slug,
+                                title: slug.replace(/-/g, ' ').toUpperCase(),
+                                icon: '📚'
+                            });
+                        }
+                    }
+                });
+            }
+        } catch (meshError) {
+            console.warn("[ModelPageData] Mesh injection failed:", meshError.message);
+        }
+
         return { model, isFallback: false, similarModels, tagsArray };
     } else {
         // V15.17: Aggressive Global Fallback
