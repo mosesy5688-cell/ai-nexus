@@ -15,50 +15,48 @@ import UniversalCore from '../../components/entity/UniversalCore.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
-import { prepareEntityPageData } from '../../utils/model-page-data';
+import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
+import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
+
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+const displaySlug = slugStr;
 
 let tool: any = null;
-let similarModels = [];
-let tagsArray = [];
-let pageTitle = "AI Development Tool - Free AI Tools";
-let pageDescription = "Explore high-quality AI development tools and frameworks.";
+let cacheVersion = '';
 
 try {
-  if (!slugStr) throw new Error("No slug provided");
-  
-  const pageData = await prepareEntityPageData('tool', slug, slugStr, Astro.locals);
-  
-  if (!pageData) {
-    Astro.response.status = 404;
-    return Astro.redirect('/404?reason=tool-not-found&id=' + encodeURIComponent(slugStr));
+  const result = await fetchEntityFromR2('tool', slug, Astro.locals);
+  tool = hydrateEntity(result, 'tool');
+
+  // V15.10: Augmentation Layer for Tools
+  try {
+    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
+    const specEntry = specsResult.data?.data?.find(s => s.umid === slugStr.replace(/\//g, '-') || s.umid === slugStr.replace(/\//g, '--'));
+    if (specEntry) {
+      tool = augmentEntity(tool || {}, specEntry);
+    }
+  } catch (specError) {
+    console.warn("[ToolPage] Spec augmentation failed:", specError.message);
   }
 
-  const { model: resolvedTool, similarModels: resolvedSimilar, tagsArray: resolvedTags } = pageData;
-  tool = resolvedTool;
-  similarModels = resolvedSimilar;
-  tagsArray = resolvedTags;
-
-  const toolName = tool.name || tool.canonical_name || 'Unknown Tool';
-  pageTitle = `${toolName} - AI Development Tool`;
-  pageDescription = tool.description 
-    ? tool.description.substring(0, 160) 
-    : `Explore ${toolName} AI development tool.`;
-
+  if (tool) {
+    cacheVersion = tool._contract_version || 'V15';
+  }
 } catch (e) {
-  console.error('[ToolPage] Error:', e);
-  Astro.response.status = 500;
+  console.error('[Tool Page] Cache error:', e);
 }
 
 
-const canonicalUrl = `https://free2aitools.com/tool/${slugStr}`;
+const pageTitle = tool?.name ? `${tool.name} - AI Development Tool` : (tool?.canonical_name ? `${tool.canonical_name} - AI Development Tool` : `${displaySlug} - AI Development Tool`);
+const pageDescription = tool?.description?.slice(0, 160) || `Explore ${displaySlug} AI development tool on Free2AITools.`;
+const canonicalUrl = `https://free2aitools.com/tool/${displaySlug}`;
 
 const jsonLd = tool ? {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": tool.name || tool.canonical_name || slugStr,
+  "name": tool.name || tool.canonical_name || displaySlug,
   "description": tool.description,
   "url": canonicalUrl,
   "applicationCategory": "DeveloperApplication",
@@ -67,7 +65,8 @@ const jsonLd = tool ? {
 
 const hasTool = !!tool;
 
-// V15.0: Derived Use Cases and Limits (using pre-resolved tagsArray)
+// V15.0: Derived Use Cases and Limits
+const tagsArray = tool?.tags ? (typeof tool.tags === 'string' ? JSON.parse(tool.tags) : tool.tags) : [];
 const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score || 0) : { goodFor: [], limits: [] };
 ---
 
@@ -84,7 +83,7 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
     {/* Zone 1: Hero */}
     <EntityHeader 
       slot="hero"
-      name={tool?.name || tool?.canonical_name || slugStr}
+      name={tool?.name || tool?.canonical_name || displaySlug}
       entityType="tool"
       entityIcon="🛠️"
       entityLabel={tool?.language || 'Tool'}
@@ -140,6 +139,6 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
 
     {/* Zone 5: Community */}
     <div slot="community">
-        <DataFreshness version="15.0" />
+        <DataFreshness version={cacheVersion} />
     </div>
 </EntityLayout>

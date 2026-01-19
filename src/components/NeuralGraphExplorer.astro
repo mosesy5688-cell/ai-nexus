@@ -24,11 +24,7 @@ let relatedNodes = [];
 
 try {
     let [rawRelations, rawConceptMeta] = await Promise.all([
-        fetchMeshRelations(Astro.locals, rootId, { 
-            ssrOnly: true, 
-            category: entity?.primary_category || entity?.pipeline_tag,
-            forceHeavy: true // V15.22: Enable explicit.json loading for SSR to guarantee first-hit richness
-        }).catch(() => []),
+        fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }).catch(() => []),
         fetchConceptMetadata(Astro.locals).catch(() => [])
     ]);
 

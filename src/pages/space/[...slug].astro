@@ -15,44 +15,64 @@ import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
-import { prepareEntityPageData } from '../../utils/model-page-data';
+import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
+import { getSpaceFromCache } from '../../utils/entity-cache-reader-v6.js';
+import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
 
+// Display slug for UI (preserve original format)
+const displaySlug = slugStr;
+
 let space: any = null;
-let similarModels = [];
-let tagsArray = [];
-let pageTitle = "AI Demo Space - Free AI Tools";
-let pageDescription = "Explore interactive AI demos and applications.";
+let relatedModels: any[] = [];
+let cacheVersion = '';
 
 try {
-  if (!slugStr) throw new Error("No slug provided");
-  
-  const pageData = await prepareEntityPageData('space', slug, slugStr, Astro.locals);
-  
-  if (!pageData) {
-    Astro.response.status = 404;
-    return Astro.redirect('/404?reason=space-not-found&id=' + encodeURIComponent(slugStr));
+  // V15.1: getSpaceFromCache now uses unified core reader
+  const result = await fetchEntityFromR2('space', slug, Astro.locals);
+  space = hydrateEntity(result, 'space');
+
+  // V15.10: Augmentation Layer for Spaces
+  try {
+    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
+    const specEntry = specsResult.data?.data?.find(s => s.umid === slugStr.replace(/\//g, '-') || s.umid === slugStr.replace(/\//g, '--'));
+    if (specEntry) {
+      space = augmentEntity(space || {}, specEntry);
+    }
+  } catch (specError) {
+    console.warn("[SpacePage] Spec augmentation failed:", specError.message);
   }
-
-  const { model: resolvedSpace, similarModels: resolvedSimilar, tagsArray: resolvedTags } = pageData;
-  space = resolvedSpace;
-  similarModels = resolvedSimilar;
-  tagsArray = resolvedTags;
-
-  const spaceName = space.name || space.title || 'Unknown Space';
-  pageTitle = `${spaceName} - AI Demo Space`;
-  pageDescription = space.description 
-    ? space.description.substring(0, 160) 
-    : `Explore ${spaceName} interactive AI demo.`;
-
+  
+  if (space) {
+    cacheVersion = space._contract_version || 'V15';
+  } else {
+    // V15.6 Fallback Logic (Mirroring /spaces/ route)
+    const cleanSlug = slugStr.replace(/--/g, '/');
+    const parts = cleanSlug.split('/');
+    
+    space = {
+      id: `hf-space--${slugStr.replace(/\//g, '--')}`,
+      name: parts.pop() || 'Unknown Space',
+      author: parts.join('/') || 'huggingface',
+      likes: 0,
+      sdk: 'gradio',
+      running_status: 'RUNNING',
+      description: `Interactive AI demo: ${cleanSlug}`,
+      source_url: `https://huggingface.co/spaces/${cleanSlug}`,
+      embed_url: `https://huggingface.co/spaces/${cleanSlug}?embed=true`,
+      _cache_source: 'fallback-ui'
+    };
+    cacheVersion = 'Fallback';
+  }
 } catch (e) {
-  console.error('[SpacePage] Error:', e);
-  Astro.response.status = 500;
+  console.error('[Space Page] Cache error:', e);
 }
 
-const canonicalUrl = `https://free2aitools.com/space/${slugStr}`;
+const pageTitle = space ? `${space.title || space.name} - AI Demo` : 'Space Not Found';
+const pageDescription = space?.description?.slice(0, 160) || 'Explore AI/ML demos on Free2AITools';
+const canonicalUrl = `https://free2aitools.com/space/${displaySlug}`;
 
 const jsonLd = space ? {
   "@context": "https://schema.org",
@@ -68,7 +88,8 @@ const jsonLd = space ? {
 const hasSpace = !!space;
 const modelsUsed = space?.meta_json?.models_used || [];
 
-// V15.0: Derived Use Cases and Limits (using pre-resolved tagsArray)
+// V15.0: Derived Use Cases and Limits
+const tagsArray = space?.tags ? (typeof space.tags === 'string' ? JSON.parse(space.tags) : space.tags) : [];
 const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_score || 0) : { goodFor: [], limits: [] };
 ---
 
@@ -145,6 +166,6 @@ const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_sc
 
     {/* Zone 5: Community */}
     <div slot="community" class="py-4">
-        <DataFreshness version="15.0" />
+        <DataFreshness version={cacheVersion} />
     </div>
 </EntityLayout>
