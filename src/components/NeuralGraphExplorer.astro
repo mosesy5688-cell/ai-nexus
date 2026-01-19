@@ -1,29 +1,30 @@
 ---
 /**
- * Neural Graph Explorer V15.22
- * Art.11-G: Version-locked static graph with LOCAL INJECTION
- * CES Compliance: Refactored to < 250 lines. Styles and Scripts extracted.
+ * Neural Mesh Hub V16.0
+ * Unified knowledge orchestration for all 6 entity types.
+ * Optimized for Zero-Runtime and Direct Navigation.
  */
 import { fetchMeshRelations, fetchConceptMetadata } from '../utils/knowledge-cache-reader.js';
 import '../styles/neural-graph.css';
-import '../styles/neural-graph-d3.css';
-
 
 interface Props {
     currentModelId?: string;
     entity?: any;
+    type?: 'model' | 'agent' | 'space' | 'tool' | 'dataset' | 'paper';
 }
 
-const { currentModelId, entity } = Astro.props;
+const { currentModelId, entity, type = 'model' } = Astro.props;
 const rootId = currentModelId || entity?.id;
 
-// Graph data structures
-let graphNodes = [];
-let graphLinks = [];
-let relatedNodes = [];
+// Data containers
+let categories = {
+    ancestry: { title: '🧬 Ancestry & Origins', nodes: [] },
+    knowledge: { title: '📚 Research & Evidence', nodes: [] },
+    ecosystem: { title: '🌐 Ecosystem & Discovery', nodes: [] }
+};
 
 try {
-    let [rawRelations, rawConceptMeta] = await Promise.all([
+    const [rawRelations, rawConceptMeta] = await Promise.all([
         fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }).catch(() => []),
         fetchConceptMetadata(Astro.locals).catch(() => [])
     ]);
@@ -33,109 +34,132 @@ try {
     rawConceptMeta.forEach(c => c && (c.id || c.slug) && conceptMap.set(c.id || `concept--${c.slug}`, c));
 
     const ensureNode = (id, typeHint = 'model') => {
-        if (!id || typeof id !== 'string' || nodeMap.has(id)) return;
-        let type = typeHint || (id.includes('concept--') ? 'concept' : id.includes('report--') ? 'report' : id.includes('arxiv--') ? 'paper' : 'model');
+        if (!id || typeof id !== 'string' || nodeMap.has(id)) return nodeMap.get(id);
+        const nodeType = typeHint || (id.includes('concept--') ? 'concept' : id.includes('report--') ? 'report' : id.includes('arxiv--') ? 'paper' : 'model');
         const meta = conceptMap.get(id);
-        nodeMap.set(id, { id, name: meta?.title || id.split('--').pop().split(':').pop(), author: meta?.category || '', type, icon: meta?.icon || (type === 'concept' ? '🧠' : '📦') });
+        const node = { 
+            id, 
+            name: meta?.title || id.split('--').pop().split(':').pop(), 
+            author: meta?.category || '', 
+            type: nodeType, 
+            icon: meta?.icon || (nodeType === 'concept' ? '🧠' : nodeType === 'paper' ? '📄' : '📦') 
+        };
+        nodeMap.set(id, node);
+        return node;
     };
 
+    // Inject Root
     if (rootId) {
-        nodeMap.set(rootId, { id: rootId, name: entity?.name || rootId, author: entity?.author || '', type: entity?.type || 'model', icon: entity?.icon || '🎯' });
+        nodeMap.set(rootId, { id: rootId, name: entity?.name || rootId, type, icon: '🎯' });
     }
 
+    // Process Mesh Relations
     rawRelations.forEach(rel => {
-        if (!rel?.source_id || !rel?.target_id) return;
-        ensureNode(rel.source_id, rel.source_type);
-        ensureNode(rel.target_id, rel.target_type);
-        graphLinks.push({ source: rel.source_id, target: rel.target_id, type: rel.relation_type || 'RELATED', weight: rel.confidence || 0.8 });
+        if (!rel?.target_id || rel.target_id === rootId) return;
+        const node = ensureNode(rel.target_id, rel.target_type);
+        if (!node) return;
+
+        // Simple categorization heuristic
+        if (rel.relation_type?.includes('BASED') || rel.relation_type?.includes('PARENT')) {
+            categories.ancestry.nodes.push(node);
+        } else if (node.type === 'concept' || node.type === 'paper' || node.type === 'report') {
+            categories.knowledge.nodes.push(node);
+        } else {
+            categories.ecosystem.nodes.push(node);
+        }
     });
 
-    // V15.21: Local Relation Injection (Mined Data)
-    if (rootId && entity) {
-        const inject = (tid, type, relType) => {
-            if (!tid) return;
-            ensureNode(tid, type);
-            if (!graphLinks.some(l => (l.source === rootId && l.target === tid) || (l.source === tid && l.target === rootId))) {
-                graphLinks.push({ source: rootId, target: tid, type: relType, weight: 1.0 });
-            }
-        };
-        if (entity.base_model) inject(`model--${entity.base_model.replace(/\//g, '--')}`, 'model', 'BASED_ON');
-        if (Array.isArray(entity.arxiv_refs)) entity.arxiv_refs.forEach(id => inject(`arxiv--${id}`, 'paper', 'CITED_IN'));
-        if (Array.isArray(entity.datasets_used)) entity.datasets_used.forEach(id => inject(`dataset--${id.replace(/\//g, '--')}`, 'dataset', 'TRAINED_ON'));
-        if (Array.isArray(entity.similar_models)) entity.similar_models.forEach(id => inject(`model--${id.replace(/\//g, '--')}`, 'model', 'SIMILAR'));
+    // Matrix-Specific Injection (Mined Data)
+    const injectToMesh = (tid, nodeType, categoryKey) => {
+        if (!tid) return;
+        const node = ensureNode(tid, nodeType);
+        if (node && !categories[categoryKey].nodes.find(n => n.id === node.id)) {
+            categories[categoryKey].nodes.push(node);
+        }
+    };
+
+    if (entity) {
+        // Upstream
+        if (entity.base_model) injectToMesh(`model--${entity.base_model.replace(/\//g, '--')}`, 'model', 'ancestry');
+        if (entity.parent_model) injectToMesh(`model--${entity.parent_model.replace(/\//g, '--')}`, 'model', 'ancestry');
+        
+        // Knowledge
+        if (Array.isArray(entity.arxiv_refs)) entity.arxiv_refs.forEach(id => injectToMesh(`arxiv--${id}`, 'paper', 'knowledge'));
+        if (Array.isArray(entity.knowledge_links)) entity.knowledge_links.forEach(id => injectToMesh(`concept--${id}`, 'concept', 'knowledge'));
+        
+        // Ecosystem/Discovery
+        if (Array.isArray(entity.datasets_used)) entity.datasets_used.forEach(id => injectToMesh(`dataset--${id.replace(/\//g, '--')}`, 'dataset', 'ecosystem'));
+        if (Array.isArray(entity.similar_models)) entity.similar_models.forEach(id => injectToMesh(`model--${id.replace(/\//g, '--')}`, 'model', 'ecosystem'));
+        if (Array.isArray(entity.related_spaces)) entity.related_spaces.forEach(id => injectToMesh(`space--${id.replace(/\//g, '--')}`, 'space', 'ecosystem'));
+        if (Array.isArray(entity.related_tools)) entity.related_tools.forEach(id => injectToMesh(`tool--${id}`, 'tool', 'ecosystem'));
     }
 
-    graphNodes = Array.from(nodeMap.values());
-    if (rootId && graphLinks.length > 0) {
-        const relatedIds = new Set();
-        graphLinks.forEach(l => {
-            const sid = typeof l.source === 'string' ? l.source : l.source.id;
-            const tid = typeof l.target === 'string' ? l.target : l.target.id;
-            if (sid === rootId) relatedIds.add(tid); else if (tid === rootId) relatedIds.add(sid);
-        });
-        relatedNodes = graphNodes.filter(n => relatedIds.has(n.id) && n.id !== rootId).slice(0, 16);
-    }
-
-    if (relatedNodes.length === 0) {
-        relatedNodes = [{ id: 'concept--mmlu', name: 'MMLU Benchmark', author: 'standard', type: 'concept', icon: '🧪' }, { id: 'concept--fni', name: 'FNI Score Index', author: 'system', type: 'concept', icon: '🔥' }];
+    // Fallback for empty states
+    if (Object.values(categories).every(c => c.nodes.length === 0)) {
+        categories.knowledge.nodes = [
+            { id: 'concept--mmlu', name: 'MMLU Benchmark', type: 'concept', icon: '🧪' },
+            { id: 'concept--fni', name: 'FNI Index', type: 'concept', icon: '🔥' }
+        ];
     }
 } catch (e) {
-    console.error('[NeuralGraphExplorer] SSR Critical Failure:', e);
+    console.error('[NeuralMeshHub] SSR Critical Failure:', e);
 }
 ---
 
-<section class="neural-graph-explorer" id="neural-graph-explorer">
+<section class="neural-graph-explorer" id="neural-mesh-hub">
     <div class="header">
         <div class="title-group">
-            <h3 class="title">🕸️ Neural Hub Explorer</h3>
-            <p class="subtitle">Interconnecting Models, Knowledge & Reports</p>
-        </div>
-        <div class="view-controls">
-            <button class="view-btn active" data-view="grid">Perspective</button>
-            <button class="view-btn" data-view="graph">Interactive Map</button>
+            <h3 class="title">🕸️ Neural Mesh Hub</h3>
+            <p class="subtitle">Interconnecting Research, Data & Ecosystem</p>
         </div>
     </div>
     
-    <div class="content-wrapper">
-        <div class="view-pane active" id="pane-grid">
-            <div class="related-grid">
-                {relatedNodes.map(node => {
-                    const cleanId = node.id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space|kb|concept|report|arxiv|paper)--/g, '');
-                    const urlSlug = cleanId.replace(/--/g, '/').replace(/:/g, '/');
-                    let path = node.type === 'concept' ? `/knowledge/${urlSlug}` : node.type === 'report' ? `/reports/${urlSlug}` : node.type === 'paper' ? `/paper/${urlSlug}` : `/${node.type}/${urlSlug}`;
-                    return (
-                        <a href={path} class={`related-card type-${node.type}`}>
-                            <div class="card-header">
-                                <span class="node-icon">{node.icon || '📦'}</span>
-                                <span class="model-name">{node.name}</span>
-                                <span class={`type-badge color-${node.type}`}>{node.type}</span>
-                            </div>
-                            <div class="card-meta"><span class="author">{node.author}</span></div>
-                        </a>
-                    );
-                })}
-            </div>
-        </div>
-
-        <div class="view-pane" id="pane-graph">
-            <div class="d3-canvas" id="d3-container" data-id={rootId} data-nodes={JSON.stringify(graphNodes)} data-links={JSON.stringify(graphLinks)}>
-                <div class="graph-loading" style="display:none;"><div class="spinner"></div><span>Initializing...</span></div>
-                <svg id="visual-graph"></svg>
-                <div id="graph-hover-card" class="graph-hover-card" style="display:none;">
-                    <div class="card-type-tag">MODEL</div><div class="card-title">-</div><div class="card-meta">-</div><div class="card-footer">Click to Explore</div>
+    <div class="mesh-container space-y-8 mt-6">
+        {Object.entries(categories).map(([key, cat]) => cat.nodes.length > 0 && (
+            <div class={`mesh-category-group group-${key}`}>
+                <h4 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    {cat.title}
+                    <span class="h-px flex-1 bg-gray-100 dark:bg-gray-800"></span>
+                </h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {cat.nodes.map(node => {
+                        const cleanId = node.id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space|kb|concept|report|arxiv|paper)--/g, '');
+                        const urlSlug = cleanId.replace(/--/g, '/').replace(/:/g, '/');
+                        let path = node.type === 'concept' ? `/knowledge/${urlSlug}` : node.type === 'report' ? `/reports/${urlSlug}` : node.type === 'paper' ? `/paper/${urlSlug}` : `/${node.type}/${urlSlug}`;
+                        
+                        return (
+                            <a href={path} class={`group relative p-4 bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 rounded-xl hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300`}>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-2xl group-hover:scale-110 transition-transform">{node.icon || '📦'}</span>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="text-sm font-bold text-gray-900 dark:text-white truncate">{node.name}</span>
+                                            <span class="text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-gray-50 dark:bg-gray-900 text-gray-400 border border-gray-100 dark:border-gray-800">
+                                                {node.type}
+                                            </span>
+                                        </div>
+                                        <p class="text-[10px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                            {node.author || 'Ecosystem Node'}
+                                        </p>
+                                    </div>
+                                    <span class="text-gray-300 dark:text-gray-600 group-hover:translate-x-1 group-hover:text-blue-500 transition-all">→</span>
+                                </div>
+                            </a>
+                        );
+                    })}
                 </div>
-                <div class="graph-legend">
-                    <div class="legend-item"><span class="dot model"></span> Model</div>
-                    <div class="legend-item"><span class="dot paper"></span> Paper</div>
-                    <div class="legend-item"><span class="dot dataset"></span> Dataset</div>
-                    <div class="legend-item"><span class="dot concept"></span> Concept</div>
-                </div>
             </div>
-        </div>
+        ))}
     </div>
 </section>
 
-<script>
-    import { initNeuralGraph } from '../scripts/neural-graph-client.js';
-    initNeuralGraph('d3-container');
-</script>
+<style>
+    .neural-graph-explorer {
+        padding: 1.5rem;
+    }
+    @media (max-width: 640px) {
+        .neural-graph-explorer {
+            padding: 1rem;
+        }
+    }
+</style>
