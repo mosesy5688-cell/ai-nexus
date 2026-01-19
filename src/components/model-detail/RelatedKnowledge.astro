@@ -10,12 +10,12 @@ interface Props {
   tags?: string[];
   description?: string;
   metaJson?: {
-    library_name?: string;
     pipeline_tag?: string;
   };
+  knowledgeLinks?: { slug: string; title: string; icon: string }[];
 }
 
-const { tags = [], description = '', metaJson = {} } = Astro.props;
+const { tags = [], description = '', metaJson = {}, knowledgeLinks = [] } = Astro.props;
 
 // Knowledge article mapping: keyword → article slug
 const KNOWLEDGE_ARTICLES = [
@@ -40,8 +40,16 @@ const matchedArticles = KNOWLEDGE_ARTICLES.filter(article =>
   article.keywords.some(keyword => searchText.includes(keyword.toLowerCase()))
 );
 
-// Limit to top 3 most relevant
-const displayArticles = matchedArticles.slice(0, 3);
+// Limit to top 3 most relevant from keywords
+const keywordArticles = matchedArticles.slice(0, 3);
+
+// Combine with explicit knowledge links (Jan 17 Relations Data)
+const displayArticles = [...knowledgeLinks, ...keywordArticles].reduce((acc, current) => {
+  if (!acc.find(item => item.slug === current.slug)) {
+    acc.push(current);
+  }
+  return acc;
+}, [] as any[]).slice(0, 6);
 ---
 
 {displayArticles.length > 0 && (

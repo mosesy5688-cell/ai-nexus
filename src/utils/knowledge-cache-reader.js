@@ -8,7 +8,7 @@
 function stripPrefix(id) {
     if (!id || typeof id !== 'string') return '';
     return id
-        .replace(/^(replicate|github|arxiv|kb|concept|paper|model|agent|tool|dataset|space)[:\-]+/, '')
+        .replace(/^(replicate|github|huggingface|hf|arxiv|kb|concept|paper|model|agent|tool|dataset|space)[:\-]+/, '')
         .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space)--/, '')
         .replace(/--/g, '/')
         .toLowerCase();
