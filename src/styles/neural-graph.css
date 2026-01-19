@@ -1,27 +1,30 @@
-/* Neural Graph Base Styles V15.22 */
+/* Neural Mesh Hub Styles V16.0 */
 .neural-graph-explorer {
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    border-radius: 16px;
-    padding: 1.75rem;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    background: transparent;
+    border: none;
+    padding: 0;
+    box-shadow: none;
 }
 
 .header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 2rem;
+    border-bottom: 1px solid rgba(var(--color-gray-200), 0.1);
     padding-bottom: 1rem;
 }
 
 .title {
     color: #f8fafc;
-    font-size: 1.25rem;
-    font-weight: 800;
+    font-size: 1.5rem;
+    font-weight: 900;
     margin: 0;
     letter-spacing: -0.025em;
+    background: linear-gradient(to right, #6366f1, #a855f7);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .subtitle {
@@ -29,54 +32,8 @@
     font-size: 0.75rem;
     margin: 0.25rem 0 0;
     text-transform: uppercase;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-}
-
-.view-controls {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-}
-
-.view-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #94a3b8;
-    padding: 0.4rem 0.8rem;
-    border-radius: 8px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.view-btn.active {
-    background: #6366f1;
-    color: white;
-    border-color: #818cf8;
-    box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
-}
-
-.view-pane {
-    display: none;
-}
-
-.view-pane.active {
-    display: block;
-    animation: fadeIn 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    font-weight: 800;
+    letter-spacing: 0.1em;
 }
 
 .related-grid {
@@ -135,7 +92,46 @@
     color: #4ade80;
 }
 
-.node-icon {
-    font-size: 1.25rem;
-    margin-right: 0.5rem;
+/* Category Groups */
+.mesh-category-group {
+    position: relative;
+    padding-left: 1rem;
+    border-left: 2px solid rgba(99, 102, 241, 0.1);
+}
+
+.mesh-category-group:hover {
+    border-left-color: rgba(99, 102, 241, 0.4);
+}
+
+/* Card Type Colors (Subtle backgrounds) */
+.related-card.type-model:hover {
+    border-color: rgba(129, 140, 248, 0.5);
+}
+
+.related-card.type-paper:hover {
+    border-color: rgba(192, 132, 252, 0.5);
+}
+
+.related-card.type-concept:hover {
+    border-color: rgba(99, 102, 241, 0.5);
+}
+
+.related-card.type-dataset:hover {
+    border-color: rgba(74, 222, 128, 0.5);
+}
+
+@keyframes meshFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.mesh-category-group {
+    animation: meshFadeIn 0.4s ease-out forwards;
 }

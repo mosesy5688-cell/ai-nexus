@@ -34,7 +34,7 @@ const baseModel = entity?.base_model || entity?.parent_model || null;
 <div class="space-y-12">
     {/* 0. Core Value: Knowledge Graph (Full Width) */}
     <div class="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-        <NeuralGraphExplorer currentModelId={entityId} entity={entity} />
+        <NeuralGraphExplorer currentModelId={entityId} entity={entity} type={type} />
     </div>
 
     {/* 1. Primary Relations & Knowledge */}
