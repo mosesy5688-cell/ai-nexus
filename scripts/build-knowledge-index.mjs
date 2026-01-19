@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 const CONFIG_PATH = path.join(__dirname, '../src/data/knowledge-base-config.ts');
 const OUTPUT_PATH = path.join(__dirname, '../public/data/knowledge-index.json');
 
-function buildIndex() {
+async function buildIndex() {
     console.log('🔍 Building Knowledge Search Index (Regex Mode)...');
 
     if (!fs.existsSync(CONFIG_PATH)) {
@@ -68,6 +68,36 @@ function buildIndex() {
 
     fs.writeFileSync(OUTPUT_PATH, JSON.stringify(index, null, 2));
     console.log(`✅ Index built: ${index.length} articles -> ${OUTPUT_PATH}`);
+
+    // V16: Generate R2-compatible cache format
+    const r2Format = {
+        _v: '15.6',
+        _ts: new Date().toISOString(),
+        articles: index.map(item => ({
+            id: item.id,
+            title: item.n,
+            slug: item.s,
+            description: item.d,
+            category: item.cat,
+            icon: item.id.includes('benchmark') ? '🧪' : '📚'
+        }))
+    };
+
+    const R2_OUTPUT_PATH = path.join(__dirname, '../public/data/knowledge-cache.json');
+    fs.writeFileSync(R2_OUTPUT_PATH, JSON.stringify(r2Format, null, 2));
+    console.log(`✅ R2 Cache Format built: ${R2_OUTPUT_PATH}`);
+
+    // Optional R2 Upload (Manual Trigger or CI)
+    if (process.argv.includes('--upload')) {
+        console.log('📤 Uploading to R2: cache/knowledge/index.json...');
+        try {
+            const { execSync } = await import('child_process');
+            execSync(`npx wrangler r2 object put "ai-nexus-assets/cache/knowledge/index.json" --file="${R2_OUTPUT_PATH}" --remote`, { stdio: 'inherit' });
+            console.log('✅ R2 Upload Success');
+        } catch (e) {
+            console.error('❌ R2 Upload Failed:', e.message);
+        }
+    }
 }
 
 try {

@@ -181,6 +181,21 @@ async function updateReportsFile(newReport) {
         const slicedReports = reports.slice(0, 52);
         console.log(`- Updating main reports file with ${slicedReports.length} most recent reports.`);
         writeDataToFile(CONFIG.REPORTS_OUTPUT_PATH, slicedReports);
+
+        // V16: R2 Integration
+        if (process.argv.includes('--upload')) {
+            console.log('📤 Uploading reports to R2...');
+            try {
+                const { execSync } = await import('child_process');
+                // Upload main index
+                execSync(`npx wrangler r2 object put "ai-nexus-assets/cache/reports.json" --file="${CONFIG.REPORTS_OUTPUT_PATH}" --remote`, { stdio: 'inherit' });
+                // Upload archive
+                execSync(`npx wrangler r2 object put "ai-nexus-assets/cache/reports/archives/${newReport.reportId}.json" --file="${reportArchivePath}" --remote`, { stdio: 'inherit' });
+                console.log('✅ R2 Upload Success');
+            } catch (e) {
+                console.error('❌ R2 Upload Failed:', e.message);
+            }
+        }
     } else {
         console.log('✅ No new report generated. Skipping reports file update.');
     }
