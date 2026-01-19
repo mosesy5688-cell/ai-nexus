@@ -44,14 +44,14 @@ try {
 
     const ensureNode = (id, typeHint = 'model', nameHint) => {
         if (!id || typeof id !== 'string' || nodeMap.has(id)) return nodeMap.get(id);
-        const nodeType = typeHint || (id.includes('concept--') ? 'concept' : id.includes('report--') ? 'report' : id.includes('arxiv--') ? 'paper' : 'model');
+        const nodeType = typeHint || (id.includes('concept--') ? 'concept' : id.includes('report--') ? 'report' : id.includes('arxiv--') ? 'paper' : id.includes('dataset--') ? 'dataset' : id.includes('space--') ? 'space' : 'model');
         const meta = conceptMap.get(id);
         const node = { 
             id, 
             name: nameHint || meta?.title || id.split('--').pop().split(':').pop(), 
             author: meta?.category || '', 
             type: nodeType, 
-            icon: meta?.icon || (nodeType === 'concept' ? '🧠' : nodeType === 'paper' ? '📄' : '📦') 
+            icon: meta?.icon || (nodeType === 'concept' ? '🧠' : nodeType === 'paper' ? '📄' : nodeType === 'space' ? '🚀' : nodeType === 'dataset' ? '📊' : '📦') 
         };
         nodeMap.set(id, node);
         return node;
@@ -96,6 +96,7 @@ try {
             });
         }
         if (Array.isArray(entity.datasets_used)) entity.datasets_used.forEach(id => injectToMesh(`dataset--${id.replace(/\//g, '--')}`, 'dataset', 'ecosystem'));
+        if (Array.isArray(entity.related_spaces)) entity.related_spaces.forEach(id => injectToMesh(`space--${id.replace(/\//g, '--')}`, 'space', 'ecosystem'));
     }
 
     // 5. Hub Inversion (Mesh Backlinks)

@@ -4,8 +4,7 @@ import FNITrustPanel from '../FNITrustPanel.astro';
 import BenchmarkRawTable from '../benchmark/BenchmarkRawTable.astro';
 import NeuralExplorer from '../NeuralExplorer.astro';
 import ModelNotices from './ModelNotices.astro';
-import ModelResources from './ModelResources.astro';
-import EntityLinksSection from '../EntityLinksSection.astro';
+
 import TechSpecsFull from '../entity/TechSpecsFull.astro';
 import FullReadmeSection from './FullReadmeSection.astro';
 // Phase B.8: New components for user understanding
@@ -86,12 +85,5 @@ try {
     hasSeoSummary={!!model.seo_summary}
   />
   
-  <!-- Related Papers/Datasets -->
-  <ModelResources 
-    relatedPapers={model.related_papers}
-    relatedDatasets={model.related_datasets}
-  />
-  
-  <!-- Entity Links -->
-  <EntityLinksSection modelId={modelId} modelName={modelName} />
+  {/* Legacy ModelResources & EntityLinks removed - redundant with Neural Mesh Hub (V16) */}
 </div>
