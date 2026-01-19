@@ -69,36 +69,44 @@ const getCategory = (node) => {
     return direct ? 'Direct Connection' : 'Neural Mesh (2nd Degree)';
 };
 
-const processedCategories = Object.entries(categorizedNodes)
-    .filter(([_, nodes]) => nodes.length > 0)
-    .map(([title, nodes]) => ({
-        title,
-        nodes: nodes.map(node => {
-            const prefixRegex = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space|kb|concept|report|arxiv|paper)--/;
-            const cleanId = node.id.replace(prefixRegex, '');
-            const urlSlug = cleanId.replace(/--/g, '/').replace(/:/g, '/');
-            
-            let path = `/${node.type}/${urlSlug}`;
-            if (node.type === 'concept') path = `/knowledge/${urlSlug}`;
-            else if (node.type === 'report') path = `/reports/${urlSlug}`;
-            else if (node.type === 'paper') path = `/paper/${urlSlug}`;
-            
-            return { 
-                ...node, 
-                path,
-                linkClass: "flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 shadow-sm transition-all group",
-                iconWrapperClass: "w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-gray-50 dark:bg-gray-900 group-hover:scale-110 transition-transform",
-                typeBadgeClass: `text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md color-${node.type} border border-current opacity-70`
-            };
-        })
-    }));
+const categorizedNodes = {
+    'Direct Connection': meshNodes.filter(n => getCategory(n) === 'Direct Connection'),
+    'Neural Mesh (2nd Degree)': meshNodes.filter(n => getCategory(n) === 'Neural Mesh (2nd Degree)')
+};
+
+const flatDisplayItems = [];
+Object.entries(categorizedNodes).forEach(([title, nodes]) => {
+    if (nodes.length === 0) return;
+    flatDisplayItems.push({ isHeader: true, title, id: `header-${title}` });
+    nodes.forEach(node => {
+        const prefixRegex = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space|kb|concept|report|arxiv|paper)--/;
+        const cleanId = node.id.replace(prefixRegex, '');
+        const urlSlug = cleanId.replace(/--/g, '/').replace(/:/g, '/');
+        
+        let path = `/${node.type}/${urlSlug}`;
+        if (node.type === 'concept') path = `/knowledge/${urlSlug}`;
+        else if (node.type === 'report') path = `/reports/${urlSlug}`;
+        else if (node.type === 'paper') path = `/paper/${urlSlug}`;
+        
+        flatDisplayItems.push({ 
+            ...node, 
+            path,
+            isHeader: false,
+            linkClass: "flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 shadow-sm transition-all group",
+            iconWrapperClass: "w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-gray-50 dark:bg-gray-900 group-hover:scale-110 transition-transform",
+            typeBadgeClass: `text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md color-${node.type} border border-current opacity-70`
+        });
+    });
+});
+
+const hasNoMesh = meshNodes.length === 0;
 ---
 
 <section class="neural-mesh-hub bg-gray-50/50 dark:bg-gray-900/20 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
     <div class="px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
         <div>
             <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
-                <span>🕸️</span> Knowledge Mesh
+                Knowledge Mesh
             </h3>
             <p class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Unified Research & Discovery Network</p>
         </div>
@@ -108,43 +116,41 @@ const processedCategories = Object.entries(categorizedNodes)
     </div>
 
     <div class="p-6 space-y-8">
-        {processedCategories.map((category) => (
-            <div class="space-y-4">
-                <div class="flex items-center gap-2">
+        {flatDisplayItems.map((item) => (
+            item.isHeader ? (
+                <div class="flex items-center gap-2 pt-4 first:pt-0">
                     <div class="h-px flex-1 bg-gray-100 dark:bg-gray-800"></div>
-                    <span class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{category.title}</span>
+                    <span class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{item.title}</span>
                     <div class="h-px flex-1 bg-gray-100 dark:bg-gray-800"></div>
                 </div>
-                
+            ) : (
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {category.nodes.map((node) => (
-                        <a href={node.path} class={node.linkClass}>
-                            <div class={node.iconWrapperClass}>
-                                {node.icon}
+                    <a href={item.path} class={item.linkClass}>
+                        <div class={item.iconWrapperClass}>
+                            {item.icon}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h4 class="text-xs font-bold text-gray-900 dark:text-white truncate group-hover:text-indigo-600 transition-colors">
+                                {item.name}
+                            </h4>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class={item.typeBadgeClass}>
+                                    {item.type}
+                                </span>
+                                <span class="text-[9px] text-gray-400 font-medium truncate">
+                                    {item.author}
+                                </span>
                             </div>
-                            <div class="min-w-0 flex-1">
-                                <h4 class="text-xs font-bold text-gray-900 dark:text-white truncate group-hover:text-indigo-600 transition-colors">
-                                    {node.name}
-                                </h4>
-                                <div class="flex items-center gap-2 mt-0.5">
-                                    <span class={node.typeBadgeClass}>
-                                        {node.type}
-                                    </span>
-                                    <span class="text-[9px] text-gray-400 font-medium truncate">
-                                        {node.author}
-                                    </span>
-                                </div>
-                            </div>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-300 group-hover:text-indigo-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                            </svg>
-                        </a>
-                    ))}
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-300 group-hover:text-indigo-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
                 </div>
-            </div>
+            )
         ))}
 
-        {meshNodes.length === 0 && (
+        {hasNoMesh && (
             <div class="py-12 text-center">
                 <p class="text-gray-400 text-sm font-medium italic">No extended mesh relations detected for this entity.</p>
                 <div class="mt-4 flex justify-center gap-2">
