@@ -24,17 +24,18 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     const target = stripPrefix(entityId);
     let allRelations = [];
 
-    // Sources prioritized by performance (smaller files first)
+    // Sources prioritized by performance & actual R2 structure (verified 17 Jan)
     const smallSources = [
-        'cache/relations.json', // 74KB - Primary optimized source
+        'cache/relations.json',           // 74KB - Legacy fallback (15 Jan)
+        'cache/relations/explicit.json',  // 3.1MB - Latest structural relations (17 Jan)
     ];
 
-    const heavySources = [
-        'cache/relations/explicit.json',      // 3.1MB
-        'cache/relations/knowledge-links.json' // 3.25MB
+    const sideSources = [
+        'cache/relations/knowledge-links.json' // 3.25MB - Keyword-based semantic links (17 Jan)
     ];
 
-    const sourcesToFetch = (options && options.ssrOnly) ? smallSources : [...smallSources, ...heavySources];
+    // V16: SSR must load core relations even if 'heavy' to ensure bidirectional mesh on first paint
+    const sourcesToFetch = [...smallSources, ...sideSources];
 
     try {
         for (const key of sourcesToFetch) {

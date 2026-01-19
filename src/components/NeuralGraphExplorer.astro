@@ -5,6 +5,7 @@
  * Optimized for Zero-Runtime and Direct Navigation.
  */
 import { fetchMeshRelations, fetchConceptMetadata } from '../utils/knowledge-cache-reader.js';
+import rankingsData from '../data/rankings.json';
 import '../styles/neural-graph.css';
 
 interface Props {
@@ -25,11 +26,12 @@ let categories = {
 
 try {
     // 1. Data Sources (Optimized for Zero-Runtime)
-    const [rawRelations, rawConceptMeta, rankingsRaw] = await Promise.all([
+    const [rawRelations, rawConceptMeta] = await Promise.all([
         fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }).catch(() => []),
-        fetchConceptMetadata(Astro.locals).catch(() => []),
-        fetch(new URL('../data/rankings.json', import.meta.url)).then(res => res.json()).catch(() => ({ hot: [], trending: [], new: [] }))
+        fetchConceptMetadata(Astro.locals).catch(() => [])
     ]);
+
+    const rankingsRaw = rankingsData;
 
     const nodeMap = new Map();
     const conceptMap = new Map();

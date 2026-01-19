@@ -50,7 +50,8 @@ const relatedArticles = article ? Object.entries(articles)
 
 // FETCH LINKED ENTITIES (Mesh Integration)
 import { fetchMeshRelations } from '../../utils/knowledge-cache-reader';
-const meshId = `concept--${slug}`;
+// V16: Use CANONICAL slug from config to ensure match in pre-computed relations.json
+const meshId = article ? `concept--${article.slug}` : `concept--${slug}`;
 const meshRelations = await fetchMeshRelations(Astro.locals, meshId);
 
 // Group linked entities by type
