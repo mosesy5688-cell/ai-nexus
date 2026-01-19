@@ -16,44 +16,61 @@ import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import PaperDeepDive from '../../components/paper-detail/PaperDeepDive.astro';
 
-import { prepareEntityPageData } from '../../utils/model-page-data';
-
 const { slug } = Astro.params;
-const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
 
 let paper: any = null;
-let similarModels = [];
-let tagsArray = [];
-let pageTitle = "AI Research Paper - Free AI Tools";
-let pageDescription = "Explore this AI research paper and its related models.";
+let cacheVersion = '';
+
+import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
+import { getPaperFromCache } from '../../utils/entity-cache-reader-v6';
+import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
 
 try {
-  if (!slugStr) throw new Error("No slug provided");
-  
-  const pageData = await prepareEntityPageData('paper', slug, slugStr, Astro.locals);
-  
-  if (!pageData) {
-    Astro.response.status = 404;
-    return Astro.redirect('/404?reason=paper-not-found&id=' + encodeURIComponent(slugStr));
+  const result = await fetchEntityFromR2('paper', slug, Astro.locals);
+  paper = hydrateEntity(result, 'paper');
+
+  // V15.10: Augmentation Layer for Papers
+  try {
+    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
+    const specEntry = specsResult.data?.data?.find(s => s.umid === slugStr.replace(/\//g, '-') || s.umid === slugStr.replace(/\//g, '--'));
+    if (specEntry) {
+      paper = augmentEntity(paper || {}, specEntry);
+    }
+  } catch (specError) {
+    console.warn("[PaperPage] Spec augmentation failed:", specError.message);
   }
+  
+  if (paper) {
+    cacheVersion = paper._contract_version || 'V15';
+  } else {
+    // V15.6 Fallback Logic
+    const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+    const cleanSlug = slugStr.replace(/--/g, '/');
+    
+    // Attempt to extract ArXiv ID from slug
+    const arxivMatch = cleanSlug.match(/(\d{4}\.\d{4,5})/);
+    const arxivId = arxivMatch ? arxivMatch[1] : cleanSlug;
 
-  const { model: resolvedPaper, similarModels: resolvedSimilar, tagsArray: resolvedTags } = pageData;
-  paper = resolvedPaper;
-  similarModels = resolvedSimilar;
-  tagsArray = resolvedTags;
-
-  const paperTitle = paper.title || paper.name || 'Unknown Paper';
-  pageTitle = `${paperTitle} - AI Research Paper`;
-  pageDescription = paper.abstract 
-    ? paper.abstract.substring(0, 160) 
-    : `Explore ${paperTitle} AI research paper.`;
-
+    paper = {
+      id: `arxiv--${arxivId.replace(/\//g, '--')}`,
+      title: arxivMatch ? `Research Paper: ${arxivId}` : (slugStr.split('/').pop() || 'Unknown Paper'),
+      arxiv_id: arxivId,
+      abstract: `Open-access research publication: ${cleanSlug}`,
+      source_url: `https://arxiv.org/abs/${arxivId}`,
+      authors: ['Research Community'],
+      tags: [],
+      _cache_source: 'fallback-ui'
+    };
+    cacheVersion = 'Fallback';
+  }
 } catch (e) {
-  console.error('[Paper Page] Error:', e);
-  Astro.response.status = 500;
+  console.error('[Paper Page] Cache error:', e);
 }
 
-const canonicalUrl = `https://free2aitools.com/paper/${slugStr}`;
+const pageTitle = paper?.title ? `${paper.title} - AI Research Paper` : `${displaySlug} - AI Research Paper`; // Modified for robust fallback
+const pageDescription = paper?.abstract?.slice(0, 160) || `Explore ${displaySlug} AI research paper.`; // Modified for robust fallback
+const canonicalUrl = `https://free2aitools.com/paper/${displaySlug}`;
 
 const jsonLd = paper ? {
   "@context": "https://schema.org",
@@ -83,7 +100,7 @@ const derivedUseCases = paper ? getUseCases(paper.tags || [], '', 'paper', paper
     {/* Zone 1: Hero */}
     <EntityHeader 
       slot="hero"
-      name={paper?.title || slugStr}
+      name={paper?.title || displaySlug}
       entityType="paper"
       entityIcon="📄"
       entityLabel="Research Paper"
@@ -144,7 +161,7 @@ const derivedUseCases = paper ? getUseCases(paper.tags || [], '', 'paper', paper
     <div slot="community">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-2 text-sm text-gray-500">
-             <span>📄 arXiv:{paper?.arxiv_id || slugStr}</span>
+             <span>📄 arXiv:{paper?.arxiv_id || displaySlug}</span>
           </div>
         </div>
     </div>

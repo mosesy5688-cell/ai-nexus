@@ -8,8 +8,8 @@
 function stripPrefix(id) {
     if (!id || typeof id !== 'string') return '';
     return id
-        .replace(/^(replicate|github|arxiv|kb|concept|paper|model|agent|tool|dataset|space|knowledge)[:\-]+/, '')
-        .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface)--/, '') // Added huggingface--
+        .replace(/^(replicate|github|arxiv|kb|concept|paper|model|agent|tool|dataset|space)[:\-]+/, '')
+        .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space)--/, '')
         .replace(/--/g, '/')
         .toLowerCase();
 }
@@ -27,7 +27,6 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     // Sources prioritized by performance (smaller files first)
     const smallSources = [
         'cache/relations.json', // 74KB - Primary optimized source
-        'cache/relations/alt-by-category/other.json' // Baseline miscellaneous relations
     ];
 
     const heavySources = [
@@ -35,15 +34,7 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
         'cache/relations/knowledge-links.json' // 3.25MB
     ];
 
-    // V15.22: Dynamic Shard Logic
-    const category = options.category || options.pipeline_tag;
-    if (category) {
-        const safeCat = category.replace(/[^a-z0-9-]/gi, '-').toLowerCase();
-        smallSources.push(`cache/relations/alt-by-category/${safeCat}.json`);
-    }
-
-    // SSR Strategy Update: If specific categories or patterns suggest heavy relations needed, enable them conditionally
-    const sourcesToFetch = (options && options.ssrOnly && !options.forceHeavy) ? smallSources : [...smallSources, ...heavySources];
+    const sourcesToFetch = (options && options.ssrOnly) ? smallSources : [...smallSources, ...heavySources];
 
     try {
         for (const key of sourcesToFetch) {
