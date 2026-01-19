@@ -99,9 +99,31 @@ export function getCategoryById(id: string): KnowledgeCategory | undefined {
 }
 
 export function getArticleBySlug(slug: string): { category: KnowledgeCategory; article: KnowledgeArticle } | null {
+    // 1. Direct match in categories
     for (const category of KNOWLEDGE_CATEGORIES) {
         const article = category.articles.find(a => a.slug === slug);
         if (article) return { category, article };
     }
+
+    // 2. Alias match (e.g. 'mmlu' -> 'what-is-mmlu')
+    const aliasMap: Record<string, string> = {
+        'mmlu': 'what-is-mmlu',
+        'fni': 'what-is-fni',
+        'humaneval': 'what-is-humaneval',
+        'context-length': 'what-is-context-length',
+        'deploy-score': 'what-is-deploy-score',
+        'gguf': 'what-is-gguf',
+        'vram': 'vram', // Already canonical in fundamentals
+        'ollama': 'what-is-ollama'
+    };
+
+    const canonicalSlug = aliasMap[slug];
+    if (canonicalSlug) {
+        for (const category of KNOWLEDGE_CATEGORIES) {
+            const article = category.articles.find(a => a.slug === canonicalSlug);
+            if (article) return { category, article };
+        }
+    }
+
     return null;
 }
