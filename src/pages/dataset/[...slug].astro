@@ -11,8 +11,9 @@ import ModelCard from '../../components/ModelCard.astro';
 import DataFreshness from '../../components/common/DataFreshness.astro';
 import DatasetSchema from '../../components/dataset/DatasetSchema.astro';
 import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
-import UniversalCore from '../../components/entity/UniversalCore.astro';
-import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
+import NeuralMeshHub from '../../components/NeuralMeshHub.astro';
+import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
+import ModelCarousel from '../../components/ModelCarousel.astro';
 
 import EntityZones from '../../components/entity/EntityZones.astro';
 import { prepareEntityPageData } from '../../utils/model-page-data';
@@ -116,26 +117,22 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
     </div>
  
     {/* Zone 3: Core (Mobile Tabs) */}
-    <div slot="core-knowledge">
-         <div class="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-            <h3 class="font-bold mb-2">Capabilities</h3>
-            <ul class="space-y-2">
-               {derivedUseCases.goodFor.map(useCase => (
-                 <li class="text-sm flex items-center gap-2">✅ {useCase}</li>
-               ))}
-            </ul>
-         </div>
+    <div slot="core-knowledge" class="space-y-8">
+       <NeuralMeshHub currentModelId={dataset?.id} entity={dataset} />
+       <RelationsPanel
+         datasetsUsed={dataset?.datasets_used}
+         arxivRefs={dataset?.arxiv_refs}
+         knowledgeLinks={dataset?.knowledge_links}
+       />
     </div>
     
     <div slot="core-similar">
-         {hasRecommendedModels ? (
-            <div class="space-y-4">
-              {similarModels.map(model => (
-                <ModelCard model={model} />
-              ))}
-            </div>
+         {similarModels.length > 0 ? (
+            <ModelCarousel models={similarModels} />
           ) : (
-            <p class="text-gray-500 italic p-4 text-center">Finding datasets with similar distribution...</p>
+            <div class="p-12 text-center bg-gray-50 dark:bg-gray-900/40 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+               <p class="text-gray-400 italic text-sm">No similar datasets identified in the mesh.</p>
+            </div>
           )}
     </div>
   

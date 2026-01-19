@@ -95,7 +95,7 @@ const linkedEntities = meshRelations.reduce((acc, rel) => {
   return acc;
 }, {} as Record<string, any[]>);
 
-import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
+import NeuralMeshHub from '../../components/NeuralMeshHub.astro';
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
@@ -117,9 +117,7 @@ import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
             <span class="text-indigo-600">🕸️</span> Knowledge Mesh
           </h2>
-          <div class="h-[600px] rounded-2xl overflow-hidden border border-slate-700/50 bg-slate-900/50 shadow-inner">
-        <NeuralGraphExplorer currentModelId={meshId} />
-      </div>
+          <NeuralMeshHub currentModelId={meshId} />
         </div>
 
         <!-- Linked Entities (Tabular View) -->

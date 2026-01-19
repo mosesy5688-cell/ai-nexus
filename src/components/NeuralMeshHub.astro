@@ -1,0 +1,161 @@
+/**
+ * Neural Mesh Hub V15.26
+ * Art.11-G: Concise & Useful Mesh Visualization (No D3)
+ * Displays 1st and 2nd degree relationships in a high-density categorized grid.
+ */
+import { fetchMeshRelations, fetchConceptMetadata } from '../utils/knowledge-cache-reader.js';
+import '../styles/neural-graph.css';
+
+interface Props {
+    currentModelId?: string;
+    entity?: any;
+}
+
+const { currentModelId, entity } = Astro.props;
+const rootId = currentModelId || entity?.id;
+
+// Mesh data structures
+let meshNodes = [];
+let meshLinks = [];
+
+try {
+    let [rawRelations, rawConceptMeta] = await Promise.all([
+        fetchMeshRelations(Astro.locals, rootId, { 
+            ssrOnly: true, 
+            category: entity?.primary_category || entity?.pipeline_tag,
+            forceHeavy: true 
+        }).catch(() => []),
+        fetchConceptMetadata(Astro.locals).catch(() => [])
+    ]);
+
+    const nodeMap = new Map();
+    const conceptMap = new Map();
+    rawConceptMeta.forEach(c => c && (c.id || c.slug) && conceptMap.set(c.id || `concept--${c.slug}`, c));
+
+    const ensureNode = (id, typeHint = 'model') => {
+        if (!id || typeof id !== 'string' || nodeMap.has(id)) return;
+        let type = typeHint || (id.includes('concept--') ? 'concept' : id.includes('report--') ? 'report' : id.includes('arxiv--') ? 'paper' : 'model');
+        const meta = conceptMap.get(id);
+        nodeMap.set(id, { 
+            id, 
+            name: meta?.title || id.split('--').pop().split(':').pop().replace(/--/g, '/'), 
+            author: meta?.category || '', 
+            type, 
+            icon: meta?.icon || (type === 'concept' ? '🧠' : type === 'paper' ? '📄' : type === 'dataset' ? '📊' : '📦') 
+        });
+    };
+
+    if (rootId) {
+        nodeMap.set(rootId, { id: rootId, name: entity?.name || rootId, author: entity?.author || '', type: entity?.type || 'model', icon: entity?.icon || '🎯' });
+    }
+
+    rawRelations.forEach(rel => {
+        if (!rel?.source_id || !rel?.target_id) return;
+        ensureNode(rel.source_id, rel.source_type);
+        ensureNode(rel.target_id, rel.target_type);
+        meshLinks.push({ source: rel.source_id, target: rel.target_id, type: rel.relation_type });
+    });
+
+    meshNodes = Array.from(nodeMap.values()).filter(n => n.id !== rootId);
+
+} catch (e) {
+    console.error('[NeuralMeshHub] SSR Failure:', e);
+}
+
+// Categorization helper
+const getCategory = (node) => {
+    const direct = meshLinks.some(l => l.source === rootId && (typeof l.target === 'string' ? l.target === node.id : l.target.id === node.id) || 
+                                       l.target === rootId && (typeof l.source === 'string' ? l.source === node.id : l.source.id === node.id));
+    return direct ? 'Direct Connection' : 'Neural Mesh (2nd Degree)';
+};
+
+const categorizedNodes = {
+    'Direct Connection': meshNodes.filter(n => getCategory(n) === 'Direct Connection'),
+    'Neural Mesh (2nd Degree)': meshNodes.filter(n => getCategory(n) === 'Neural Mesh (2nd Degree)')
+};
+---
+
+<section class="neural-mesh-hub bg-gray-50/50 dark:bg-gray-900/20 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+    <div class="px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+        <div>
+            <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                <span>🕸️</span> Knowledge Mesh
+            </h3>
+            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Unified Research & Discovery Network</p>
+        </div>
+        <div class="flex gap-1">
+            <span class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black rounded uppercase">Mesh Active</span>
+        </div>
+    </div>
+
+    <div class="p-6 space-y-8">
+        {Object.entries(categorizedNodes).map(([title, nodes]) => nodes.length > 0 && (
+            <div class="space-y-4">
+                <div class="flex items-center gap-2">
+                    <div class="h-px flex-1 bg-gray-100 dark:bg-gray-800"></div>
+                    <span class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{title}</span>
+                    <div class="h-px flex-1 bg-gray-100 dark:bg-gray-800"></div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {nodes.map(node => {
+                        const cleanId = node.id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space|kb|concept|report|arxiv|paper)--/g, '');
+                        const urlSlug = cleanId.replace(/--/g, '/').replace(/:/g, '/');
+                        let path = node.type === 'concept' ? `/knowledge/${urlSlug}` : 
+                                   node.type === 'report' ? `/reports/${urlSlug}` : 
+                                   node.type === 'paper' ? `/paper/${urlSlug}` : 
+                                   `/${node.type}/${urlSlug}`;
+                        
+                        return (
+                            <a href={path} class={`flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 shadow-sm transition-all group`}>
+                                <div class={`w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-gray-50 dark:bg-gray-900 group-hover:scale-110 transition-transform`}>
+                                    {node.icon}
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <h4 class="text-xs font-bold text-gray-900 dark:text-white truncate group-hover:text-indigo-600 transition-colors">
+                                        {node.name}
+                                    </h4>
+                                    <div class="flex items-center gap-2 mt-0.5">
+                                        <span class={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md color-${node.type} border border-current opacity-70`}>
+                                            {node.type}
+                                        </span>
+                                        <span class="text-[9px] text-gray-400 font-medium truncate">
+                                            {node.author}
+                                        </span>
+                                    </div>
+                                </div>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-300 group-hover:text-indigo-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                            </a>
+                        );
+                    })}
+                </div>
+            </div>
+        ))}
+
+        {meshNodes.length === 0 && (
+            <div class="py-12 text-center">
+                <p class="text-gray-400 text-sm font-medium italic">No extended mesh relations detected for this entity.</p>
+                <div class="mt-4 flex justify-center gap-2">
+                     <span class="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-[10px] text-gray-500 font-bold uppercase">Discovery Active</span>
+                </div>
+            </div>
+        )}
+    </div>
+</section>
+
+<style>
+    .neural-mesh-hub {
+        transition: all 0.3s ease;
+    }
+    
+    .color-model { color: #818cf8; background: rgba(129, 140, 248, 0.05); }
+    .color-paper { color: #c084fc; background: rgba(192, 132, 252, 0.05); }
+    .color-dataset { color: #4ade80; background: rgba(74, 222, 128, 0.05); }
+    .color-concept { color: #6366f1; background: rgba(99, 102, 241, 0.05); }
+    .color-report { color: #fbbf24; background: rgba(251, 191, 36, 0.05); }
+    .color-agent { color: #f87171; background: rgba(248, 113, 113, 0.05); }
+    .color-tool { color: #fb923c; background: rgba(251, 146, 60, 0.05); }
+    .color-space { color: #2dd4bf; background: rgba(45, 212, 191, 0.05); }
+</style>

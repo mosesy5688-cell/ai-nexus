@@ -8,7 +8,7 @@ import GGUFList from './GGUFList.astro';
 import TagsCloud from './TagsCloud.astro';
 import CompareCTA from './CompareCTA.astro';
 import ModelInfoTable from '../ModelInfoTable.astro';
-import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
+import NeuralMeshHub from '../NeuralMeshHub.astro';
 import DeploymentInfo from './DeploymentInfo.astro';
 import { parseJSONField } from '../../utils/data-service';
 
@@ -196,7 +196,7 @@ function formatBytes(bytes: number | undefined): string {
     source_url: model.source_url || null
   }} />
   
-   <NeuralGraphExplorer currentModelId={modelId} />
+   <NeuralMeshHub currentModelId={modelId} entity={model} />
 </aside>
 
 

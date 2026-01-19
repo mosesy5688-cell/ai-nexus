@@ -13,7 +13,9 @@ import { getUseCases } from '../../utils/inference';
 import DataFreshness from '../../components/common/DataFreshness.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
-import UniversalCore from '../../components/entity/UniversalCore.astro';
+import NeuralMeshHub from '../../components/NeuralMeshHub.astro';
+import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
+import ModelCarousel from '../../components/ModelCarousel.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import { prepareEntityPageData } from '../../utils/model-page-data';
 
@@ -116,14 +118,24 @@ const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_sc
        <UniversalCore entity={space} type="space" />
     </div>
  
-    <div slot="core-knowledge">
-       <UniversalCore entity={space} type="space" />
+    <div slot="core-knowledge" class="space-y-8">
+       <NeuralMeshHub currentModelId={space?.id} entity={space} />
+       <RelationsPanel
+         baseModel={space?.base_model}
+         datasetsUsed={space?.datasets_used}
+         arxivRefs={space?.arxiv_refs}
+         knowledgeLinks={space?.knowledge_links}
+       />
     </div>
     
     <div slot="core-similar">
-         <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center text-gray-500 italic">
-             Discovering demos with similar interaction patterns...
-         </div>
+         {similarModels.length > 0 ? (
+            <ModelCarousel models={similarModels} />
+         ) : (
+            <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center text-gray-500 italic border border-dashed border-gray-200 dark:border-gray-700">
+                No similar demo spaces identified in the mesh.
+            </div>
+         )}
     </div>
   
     <div slot="core-benchmarks">

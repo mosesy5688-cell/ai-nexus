@@ -11,7 +11,7 @@
  * - WCAG 2.1 AA: Alt text and aria-labels for accessibility
  */
 
-import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
+import NeuralMeshHub from '../NeuralMeshHub.astro';
 import FamilyTree from '../specs/FamilyTree.astro';
 
 interface Entity {
@@ -96,7 +96,7 @@ if (entityFamily) {
       {/* Neural Graph Explorer */}
       {showGraph && (
         <div class="section graph-section" aria-label="Neural Graph visualization">
-          <NeuralGraphExplorer currentModelId={entityId} />
+          <NeuralMeshHub currentModelId={entityId} entity={entity} />
         </div>
       )}
 

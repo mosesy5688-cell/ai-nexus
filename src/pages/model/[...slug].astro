@@ -8,14 +8,7 @@ import { getUseCases } from '../../utils/inference';
 import ModelMainColumn from '../../components/model-detail/ModelMainColumn.astro';
 import ModelSidebar from '../../components/model-detail/ModelSidebar.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
-import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
-import ModelCarousel from '../../components/ModelCarousel.astro';
-import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
-import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.astro';
-import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
-import VramEstimator from '../../components/model-detail/VramEstimator.astro';
-import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
-import EntityRelations from '../../components/entity/EntityRelations.astro';
+import NeuralMeshHub from '../../components/NeuralMeshHub.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import TagsCloud from '../../components/entity/TagsCloud.astro';
@@ -129,16 +122,24 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
        <UniversalCore entity={model} type="model" />
     </div>
 
-    {/* Zone 3: Core (Mobile Tabs) */}
-    <div slot="core-knowledge">
-       <UniversalCore entity={model} type="model" />
+    <div slot="core-knowledge" class="space-y-8">
+       <NeuralMeshHub currentModelId={modelId} entity={model} />
+       <RelationsPanel
+         baseModel={model?.base_model}
+         datasetsUsed={model?.datasets_used}
+         arxivRefs={model?.arxiv_refs}
+         relatedSpaces={model?.related_spaces}
+         knowledgeLinks={model?.knowledge_links}
+       />
     </div>
 
     <div slot="core-similar">
        {similarModels.length > 0 ? (
           <ModelCarousel models={similarModels} />
        ) : (
-          <p class="text-gray-500 italic p-4 text-center">No similar models found.</p>
+          <div class="p-12 text-center bg-gray-50 dark:bg-gray-900/40 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+             <p class="text-gray-400 italic text-sm">No similar models identified in the mesh.</p>
+          </div>
        )}
     </div>
 

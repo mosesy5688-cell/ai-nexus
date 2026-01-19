@@ -12,7 +12,9 @@ import EntityLayout from '../../layouts/EntityLayout.astro';
 import EntityHeader from '../../components/entity/EntityHeader.astro';
 import AgentDeepDive from '../../components/agent-detail/AgentDeepDive.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
-import UniversalCore from '../../components/entity/UniversalCore.astro';
+import NeuralMeshHub from '../../components/NeuralMeshHub.astro';
+import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
+import ModelCarousel from '../../components/ModelCarousel.astro';
 import { getUseCases } from '../../utils/inference';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 
@@ -117,12 +119,25 @@ const jsonLd = agent ? {
        <UniversalCore entity={agent} type="agent" />
     </div>
  
-    <div slot="core-knowledge">
-       <UniversalCore entity={agent} type="agent" />
+    <div slot="core-knowledge" class="space-y-8">
+       <NeuralMeshHub currentModelId={agentId} entity={agent} />
+       <RelationsPanel
+         baseModel={agent?.base_model}
+         datasetsUsed={agent?.datasets_used}
+         arxivRefs={agent?.arxiv_refs}
+         relatedSpaces={agent?.related_spaces}
+         knowledgeLinks={agent?.knowledge_links}
+       />
     </div>
     
     <div slot="core-similar">
-        <p class="text-gray-500 italic p-4 text-center">Identifying similar autonomous agents...</p>
+        {similarModels.length > 0 ? (
+           <ModelCarousel models={similarModels} />
+        ) : (
+           <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center text-gray-500 italic border border-dashed border-gray-200 dark:border-gray-700">
+               No similar agents identified in the mesh.
+           </div>
+        )}
     </div>
   
     <div slot="core-benchmarks">

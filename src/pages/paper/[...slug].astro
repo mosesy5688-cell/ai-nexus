@@ -11,8 +11,9 @@ import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference';
 import DataFreshness from '../../components/common/DataFreshness.astro';
-import UniversalCore from '../../components/entity/UniversalCore.astro';
-import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
+import NeuralMeshHub from '../../components/NeuralMeshHub.astro';
+import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
+import ModelCarousel from '../../components/ModelCarousel.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import PaperDeepDive from '../../components/paper-detail/PaperDeepDive.astro';
 
@@ -110,15 +111,24 @@ const derivedUseCases = paper ? getUseCases(paper.tags || [], '', 'paper', paper
        <UniversalCore entity={paper} type="paper" />
     </div>
  
-    {/* Zone 3: Core (Mobile Tabs) */}
-    <div slot="core-knowledge">
-         <UniversalCore entity={paper} type="paper" />
+    <div slot="core-knowledge" class="space-y-8">
+       <NeuralMeshHub currentModelId={paper?.id} entity={paper} />
+       <RelationsPanel
+         datasetsUsed={paper?.datasets_used}
+         arxivRefs={paper?.arxiv_refs}
+         relatedSpaces={paper?.related_spaces}
+         knowledgeLinks={paper?.knowledge_links}
+       />
     </div>
     
     <div slot="core-similar">
-         <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
-             <p class="text-gray-500 italic">Similarity graph for papers is being indexed.</p>
-         </div>
+         {similarModels.length > 0 ? (
+            <ModelCarousel models={similarModels} />
+         ) : (
+            <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center text-gray-500 italic border border-dashed border-gray-200 dark:border-gray-700">
+                No related models found in the research mesh.
+            </div>
+         )}
     </div>
   
     <div slot="core-benchmarks">

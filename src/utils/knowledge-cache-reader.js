@@ -95,20 +95,53 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
             }
         }
 
+        // V15.25: Mesh Discovery Logic (One-Go Strategy)
+        const finalMesh = [];
+        const neighborIds = new Set([target]);
+
+        // First Pass: Collect direct relations and neighbor IDs
+        allRelations.forEach(rel => {
+            const normS = stripPrefix(rel.source_id);
+            const normT = stripPrefix(rel.target_id);
+            if (normS === target || normT === target) {
+                finalMesh.push(rel);
+                neighborIds.add(normS);
+                neighborIds.add(normT);
+            }
+        });
+
+        // Second Pass: Mesh Hop (Include links between neighbors)
+        // This creates a "Mesh" rather than a "Star" graph.
+        allRelations.forEach(rel => {
+            const normS = stripPrefix(rel.source_id);
+            const normT = stripPrefix(rel.target_id);
+            if (normS === target || normT === target) return; // Already added
+
+            // Only add if both sides are part of our local neighbor network
+            if (neighborIds.has(normS) && neighborIds.has(normT)) {
+                finalMesh.push(rel);
+            }
+        });
+
         // Processing & Sanitizing
         const filtered = [];
         const seen = new Set();
 
-        for (const rel of allRelations) {
+        const detectType = (id) => {
+            if (id.includes('concept--')) return 'concept';
+            if (id.includes('report--')) return 'report';
+            if (id.includes('agent--')) return 'agent';
+            if (id.includes('tool--')) return 'tool';
+            if (id.includes('dataset--')) return 'dataset';
+            if (id.includes('space--')) return 'space';
+            if (id.includes('paper--') || id.includes('arxiv--')) return 'paper';
+            return 'model';
+        };
+
+        for (const rel of finalMesh) {
             const sid = rel.source_id;
             const tid = rel.target_id;
             if (!sid || !tid) continue;
-
-            const normS = stripPrefix(sid);
-            const normT = stripPrefix(tid);
-
-            // Filter by target if requested
-            if (target && normS !== target && normT !== target) continue;
 
             const dupKey = `${sid}|${tid}|${rel.relation_type}`;
             if (seen.has(dupKey)) continue;
@@ -119,8 +152,8 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                 target_id: tid,
                 relation_type: rel.relation_type || 'RELATED',
                 confidence: rel.confidence || 0.8,
-                source_type: sid.includes('concept--') ? 'concept' : (sid.includes('report--') ? 'report' : 'model'),
-                target_type: tid.includes('concept--') ? 'concept' : (tid.includes('report--') ? 'report' : 'model')
+                source_type: detectType(sid),
+                target_type: detectType(tid)
             });
         }
 

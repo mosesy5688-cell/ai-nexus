@@ -11,7 +11,9 @@ import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference';
 import DataFreshness from '../../components/common/DataFreshness.astro';
-import UniversalCore from '../../components/entity/UniversalCore.astro';
+import NeuralMeshHub from '../../components/NeuralMeshHub.astro';
+import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
+import ModelCarousel from '../../components/ModelCarousel.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
@@ -114,12 +116,23 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
        <UniversalCore entity={tool} type="tool" />
     </div>
  
-    <div slot="core-knowledge">
-       <UniversalCore entity={tool} type="tool" />
+    <div slot="core-knowledge" class="space-y-8">
+       <NeuralMeshHub currentModelId={tool?.id} entity={tool} />
+       <RelationsPanel
+         datasetsUsed={tool?.datasets_used}
+         arxivRefs={tool?.arxiv_refs}
+         knowledgeLinks={tool?.knowledge_links}
+       />
     </div>
     
     <div slot="core-similar">
-        <p class="text-gray-500 italic p-4 text-center">Identifying similar developer tools...</p>
+         {similarModels.length > 0 ? (
+            <ModelCarousel models={similarModels} />
+         ) : (
+            <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center text-gray-500 italic border border-dashed border-gray-200 dark:border-gray-700">
+                No similar developer tools identified in the mesh.
+            </div>
+         )}
     </div>
   
     <div slot="core-benchmarks">
