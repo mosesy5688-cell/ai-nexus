@@ -89,7 +89,12 @@ try {
     if (type === 'model' && entity) {
         if (entity.base_model) injectToMesh(`model--${entity.base_model.replace(/\//g, '--')}`, 'model', 'ancestry');
         if (Array.isArray(entity.arxiv_refs)) entity.arxiv_refs.forEach(id => injectToMesh(`arxiv--${id}`, 'paper', 'knowledge'));
-        if (Array.isArray(entity.knowledge_links)) entity.knowledge_links.forEach(id => injectToMesh(`concept--${id}`, 'concept', 'knowledge'));
+        if (Array.isArray(entity.knowledge_links)) {
+            entity.knowledge_links.forEach(item => {
+                const slug = typeof item === 'string' ? item : item.slug;
+                if (slug) injectToMesh(`concept--${slug}`, 'concept', 'knowledge');
+            });
+        }
         if (Array.isArray(entity.datasets_used)) entity.datasets_used.forEach(id => injectToMesh(`dataset--${id.replace(/\//g, '--')}`, 'dataset', 'ecosystem'));
     }
 
