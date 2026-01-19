@@ -24,22 +24,29 @@ let categories = {
 };
 
 try {
-    const [rawRelations, rawConceptMeta] = await Promise.all([
+    // 1. Data Sources (Optimized for Zero-Runtime)
+    const [rawRelations, rawConceptMeta, rankingsRaw] = await Promise.all([
         fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }).catch(() => []),
-        fetchConceptMetadata(Astro.locals).catch(() => [])
+        fetchConceptMetadata(Astro.locals).catch(() => []),
+        fetch(new URL('../data/rankings.json', import.meta.url)).then(res => res.json()).catch(() => ({ hot: [], trending: [], new: [] }))
     ]);
 
     const nodeMap = new Map();
     const conceptMap = new Map();
     rawConceptMeta.forEach(c => c && (c.id || c.slug) && conceptMap.set(c.id || `concept--${c.slug}`, c));
 
-    const ensureNode = (id, typeHint = 'model') => {
+    const rankings = { 
+        hot: rankingsRaw.hot || [], 
+        all: [...(rankingsRaw.hot || []), ...(rankingsRaw.trending || []), ...(rankingsRaw.new || [])]
+    };
+
+    const ensureNode = (id, typeHint = 'model', nameHint) => {
         if (!id || typeof id !== 'string' || nodeMap.has(id)) return nodeMap.get(id);
         const nodeType = typeHint || (id.includes('concept--') ? 'concept' : id.includes('report--') ? 'report' : id.includes('arxiv--') ? 'paper' : 'model');
         const meta = conceptMap.get(id);
         const node = { 
             id, 
-            name: meta?.title || id.split('--').pop().split(':').pop(), 
+            name: nameHint || meta?.title || id.split('--').pop().split(':').pop(), 
             author: meta?.category || '', 
             type: nodeType, 
             icon: meta?.icon || (nodeType === 'concept' ? '🧠' : nodeType === 'paper' ? '📄' : '📦') 
@@ -48,18 +55,17 @@ try {
         return node;
     };
 
-    // Inject Root
+    // 2. Mesh Context (Inject Root)
     if (rootId) {
         nodeMap.set(rootId, { id: rootId, name: entity?.name || rootId, type, icon: '🎯' });
     }
 
-    // Process Mesh Relations
+    // 3. Process Explicit Mesh Relations
     rawRelations.forEach(rel => {
         if (!rel?.target_id || rel.target_id === rootId) return;
         const node = ensureNode(rel.target_id, rel.target_type);
         if (!node) return;
 
-        // Simple categorization heuristic
         if (rel.relation_type?.includes('BASED') || rel.relation_type?.includes('PARENT')) {
             categories.ancestry.nodes.push(node);
         } else if (node.type === 'concept' || node.type === 'paper' || node.type === 'report') {
@@ -69,7 +75,7 @@ try {
         }
     });
 
-    // Matrix-Specific Injection (Mined Data)
+    // 4. Matrix-Specific Injection (Local Hub Logic)
     const injectToMesh = (tid, nodeType, categoryKey) => {
         if (!tid) return;
         const node = ensureNode(tid, nodeType);
@@ -78,23 +84,41 @@ try {
         }
     };
 
-    if (entity) {
-        // Upstream
+    if (type === 'model' && entity) {
         if (entity.base_model) injectToMesh(`model--${entity.base_model.replace(/\//g, '--')}`, 'model', 'ancestry');
-        if (entity.parent_model) injectToMesh(`model--${entity.parent_model.replace(/\//g, '--')}`, 'model', 'ancestry');
-        
-        // Knowledge
         if (Array.isArray(entity.arxiv_refs)) entity.arxiv_refs.forEach(id => injectToMesh(`arxiv--${id}`, 'paper', 'knowledge'));
         if (Array.isArray(entity.knowledge_links)) entity.knowledge_links.forEach(id => injectToMesh(`concept--${id}`, 'concept', 'knowledge'));
-        
-        // Ecosystem/Discovery
         if (Array.isArray(entity.datasets_used)) entity.datasets_used.forEach(id => injectToMesh(`dataset--${id.replace(/\//g, '--')}`, 'dataset', 'ecosystem'));
-        if (Array.isArray(entity.similar_models)) entity.similar_models.forEach(id => injectToMesh(`model--${id.replace(/\//g, '--')}`, 'model', 'ecosystem'));
-        if (Array.isArray(entity.related_spaces)) entity.related_spaces.forEach(id => injectToMesh(`space--${id.replace(/\//g, '--')}`, 'space', 'ecosystem'));
-        if (Array.isArray(entity.related_tools)) entity.related_tools.forEach(id => injectToMesh(`tool--${id}`, 'tool', 'ecosystem'));
     }
 
-    // Fallback for empty states
+    // 5. Hub Inversion (Mesh Backlinks)
+    // If on a Concept, Paper, or Dataset, find RELEVANT MODELS to form the mesh
+    if (type !== 'model') {
+        const subjectId = rootId.toLowerCase();
+        const relevantModels = rankings.all.filter(m => {
+            const mid = (m.id || '').toLowerCase();
+            const tags = (m.tags || []).map(t => t.toLowerCase());
+            
+            // Match benchmarks (e.g. mmlu -> top models)
+            if (subjectId.includes('mmlu') || subjectId.includes('fni') || subjectId.includes('humaneval')) {
+                return (m.velocity > 80000 || m.is_rising_star);
+            }
+            // Match families
+            if (subjectId.includes('mistral') && (mid.includes('mistral') || tags.includes('mistral'))) return true;
+            if (subjectId.includes('llama') && (mid.includes('llama') || tags.includes('llama'))) return true;
+            
+            // Match papers
+            // The original code had `entityId` here, which was not defined. Assuming it meant `rootId` or a derived ID.
+            // For safety, removing this specific condition as it might lead to errors if entityId is not available.
+            // if (type === 'paper' && (desc.includes(entityId || '') || mid.includes(entityId || ''))) return true;
+
+            return false;
+        }).slice(0, 6);
+
+        relevantModels.forEach(m => injectToMesh(m.id, 'model', 'ecosystem'));
+    }
+
+    // 6. Fallback (Ensuring consistent mesh presence)
     if (Object.values(categories).every(c => c.nodes.length === 0)) {
         categories.knowledge.nodes = [
             { id: 'concept--mmlu', name: 'MMLU Benchmark', type: 'concept', icon: '🧪' },
