@@ -46,6 +46,7 @@ export async function generateReportsIndex(outputDir = './output') {
     console.log('[REPORTS-INDEX V16.2] Generating reports index...');
 
     const weeklyDir = path.join(outputDir, 'weekly');
+    const backupDir = path.join(outputDir, 'meta', 'weekly-backup');
     const reportsDir = path.join(outputDir, 'cache', 'reports');
 
     await fs.mkdir(reportsDir, { recursive: true });
@@ -55,45 +56,55 @@ export async function generateReportsIndex(outputDir = './output') {
     const reports = [];
     let latestId = null;
 
-    // Scan weekly reports
-    try {
-        const files = await fs.readdir(weeklyDir);
-        const jsonFiles = files.filter(f => f.endsWith('.json'));
+    // Scan primary weekly directory
+    const dirsToScan = [weeklyDir, backupDir];
 
-        for (const file of jsonFiles) {
-            try {
-                const filePath = path.join(weeklyDir, file);
-                const content = await fs.readFile(filePath, 'utf-8');
-                const reportData = JSON.parse(content);
+    for (const dir of dirsToScan) {
+        try {
+            const files = await fs.readdir(dir);
+            const jsonFiles = files.filter(f => f.endsWith('.json'));
 
-                const weekId = parseWeekId(file, reportData);
-                const highlightsCount = reportData.highlights?.length || 0;
+            for (const file of jsonFiles) {
+                try {
+                    const filePath = path.join(dir, file);
+                    const content = await fs.readFile(filePath, 'utf-8');
+                    const reportData = JSON.parse(content);
 
-                reports.push({
-                    id: weekId,
-                    type: 'weekly',
-                    title: reportData.title || `Week ${weekId} Report`,
-                    date: reportData.date_published || reportData.date || new Date().toISOString().split('T')[0],
-                    highlights: highlightsCount
-                });
+                    const weekId = parseWeekId(file, reportData);
 
-                // Copy to new location
-                const newPath = path.join(reportsDir, 'weekly', `${weekId}.json`);
-                await fs.writeFile(newPath, JSON.stringify({
-                    _v: CONFIG.VERSION,
-                    _ts: new Date().toISOString(),
-                    ...reportData,
-                    id: weekId,
-                    type: 'weekly'
-                }, null, 2));
+                    // Skip if already processed
+                    if (reports.find(r => r.id === weekId)) continue;
 
-                console.log(`  [REPORT] ${weekId}: ${highlightsCount} highlights`);
-            } catch (e) {
-                console.warn(`  [WARN] Failed to process ${file}: ${e.message}`);
+                    const highlightsCount = reportData.highlights?.length ||
+                        reportData.entries?.length || 0;
+
+                    reports.push({
+                        id: weekId,
+                        type: 'weekly',
+                        title: reportData.title || `Week ${weekId} Report`,
+                        date: reportData.datePublished || reportData.date ||
+                            new Date().toISOString().split('T')[0],
+                        highlights: highlightsCount
+                    });
+
+                    // Copy to new location
+                    const newPath = path.join(reportsDir, 'weekly', `${weekId}.json`);
+                    await fs.writeFile(newPath, JSON.stringify({
+                        _v: CONFIG.VERSION,
+                        _ts: new Date().toISOString(),
+                        ...reportData,
+                        id: weekId,
+                        type: 'weekly'
+                    }, null, 2));
+
+                    console.log(`  [REPORT] ${weekId}: ${highlightsCount} highlights (from ${path.basename(dir)})`);
+                } catch (e) {
+                    console.warn(`  [WARN] Failed to process ${file}: ${e.message}`);
+                }
             }
+        } catch (e) {
+            // Directory doesn't exist, skip
         }
-    } catch (e) {
-        console.warn(`  [WARN] Weekly directory not found: ${e.message}`);
     }
 
     // Sort by date descending
