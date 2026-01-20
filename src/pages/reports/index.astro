@@ -3,7 +3,34 @@ import Layout from '@/layouts/Layout.astro';
 import ReportCard from '@/components/ReportCard.astro';
 import WeeklyTrendingSection from '@/components/WeeklyTrendingSection.astro';
 import TrendChart from '@/components/charts/TrendChart.astro';
-const reports = await Astro.glob('../../data/reports.json').then(res => res[0].default);
+
+// V16.2: Fetch reports from CDN (SPEC-KNOWLEDGE-MESH-V16.2 Section 8)
+const CDN_BASE = 'https://cdn.free2aitools.com';
+let reports = [];
+
+try {
+    const res = await fetch(`${CDN_BASE}/cache/reports/index.json`);
+    if (res.ok) {
+        const data = await res.json();
+        // Transform to expected format
+        reports = (data.reports || []).map(r => ({
+            reportId: r.id,
+            title: r.title,
+            date: r.date,
+            summary: `${r.highlights || 0} highlights from AI ecosystem this week`,
+            highlights: r.highlights
+        }));
+    }
+} catch (e) {
+    console.warn('[Reports] CDN fetch failed, using fallback:', e.message);
+    // Fallback to static file if exists
+    try {
+        const fallback = await Astro.glob('../../data/reports.json');
+        reports = fallback[0]?.default || [];
+    } catch {
+        reports = [];
+    }
+}
 
 const latestReport = reports.length > 0 ? reports[0] : null;
 const olderReports = reports.length > 1 ? reports.slice(1, 5) : [];

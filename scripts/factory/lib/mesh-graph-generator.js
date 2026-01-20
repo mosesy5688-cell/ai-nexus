@@ -1,0 +1,243 @@
+/**
+ * Mesh Graph Generator V16.2
+ * SPEC: SPEC-KNOWLEDGE-MESH-V16.2 Section 4, 5.4
+ * 
+ * Generates cache/mesh/graph.json - unified 8-node knowledge graph
+ * Combines: explicit.json + knowledge-links.json + reports
+ * 
+ * Runs in Factory 3.5/4 Linker Job 5
+ * 
+ * @module scripts/factory/lib/mesh-graph-generator
+ */
+
+import fs from 'fs/promises';
+import path from 'path';
+
+const CONFIG = {
+    EXPLICIT_PATH: './output/cache/relations/explicit.json',
+    KNOWLEDGE_LINKS_PATH: './output/cache/relations/knowledge-links.json',
+    REPORTS_INDEX_PATH: './output/cache/reports/index.json',
+    OUTPUT_DIR: './output/cache/mesh',
+    VERSION: '16.2'
+};
+
+// Edge type definitions per SPEC Section 4
+const EDGE_TYPES = {
+    BASED_ON: { source: 'model', target: 'model' },
+    TRAINED_ON: { source: 'model', target: 'dataset' },
+    CITES: { source: 'model', target: 'paper' },
+    STACK: { source: 'model', target: 'tool' },
+    EXPLAINS: { source: 'knowledge', target: 'any' },
+    USES: { source: ['agent', 'space'], target: 'model' },
+    DEMO_OF: { source: 'space', target: 'model' },
+    RUNS_ON: { source: 'model', target: 'tool' },
+    FEATURED_IN: { source: 'any', target: 'report' },
+    ALTERNATIVE: { source: 'any', target: 'any' }
+};
+
+/**
+ * Load JSON file safely
+ */
+async function loadJson(filePath) {
+    try {
+        const content = await fs.readFile(filePath, 'utf-8');
+        return JSON.parse(content);
+    } catch (e) {
+        console.warn(`  [WARN] Could not load ${filePath}: ${e.message}`);
+        return null;
+    }
+}
+
+/**
+ * Normalize entity ID to canonical format
+ */
+function normalizeId(id, type) {
+    if (!id) return null;
+    // Already normalized
+    if (id.includes('--')) return id;
+    // Add prefix based on type
+    const prefixes = {
+        model: 'hf-model--',
+        paper: 'arxiv--',
+        agent: 'hf-agent--',
+        space: 'hf-space--',
+        dataset: 'dataset--',
+        tool: 'tool--',
+        knowledge: 'knowledge--',
+        report: 'report--'
+    };
+    const prefix = prefixes[type] || '';
+    return `${prefix}${id.replace(/\//g, '--')}`;
+}
+
+/**
+ * Extract node type from ID
+ */
+function getNodeType(id) {
+    if (id.startsWith('hf-model--')) return 'model';
+    if (id.startsWith('arxiv--')) return 'paper';
+    if (id.startsWith('hf-agent--')) return 'agent';
+    if (id.startsWith('hf-space--')) return 'space';
+    if (id.startsWith('dataset--')) return 'dataset';
+    if (id.startsWith('tool--')) return 'tool';
+    if (id.startsWith('knowledge--')) return 'knowledge';
+    if (id.startsWith('report--')) return 'report';
+    return 'unknown';
+}
+
+/**
+ * Generate unified mesh graph
+ */
+export async function generateMeshGraph(outputDir = './output') {
+    console.log('[MESH-GRAPH V16.2] Generating 8-node mesh graph...');
+
+    const meshDir = path.join(outputDir, 'cache', 'mesh');
+    await fs.mkdir(meshDir, { recursive: true });
+
+    const nodes = {};
+    const edges = {};
+    const stats = {
+        nodes: 0,
+        edges: 0,
+        by_type: {},
+        by_edge_type: {}
+    };
+
+    // Load explicit relations
+    const explicit = await loadJson(path.join(outputDir, 'cache', 'relations', 'explicit.json'));
+    if (explicit?.nodes) {
+        console.log('  [EXPLICIT] Loading nodes and edges...');
+        for (const [id, nodeData] of Object.entries(explicit.nodes)) {
+            nodes[id] = {
+                t: nodeData.t || getNodeType(id),
+                f: nodeData.f || 0
+            };
+        }
+
+        if (explicit.edges) {
+            for (const [sourceId, edgeList] of Object.entries(explicit.edges)) {
+                if (!edges[sourceId]) edges[sourceId] = [];
+                for (const edge of edgeList) {
+                    const [target, type, weight] = Array.isArray(edge)
+                        ? edge
+                        : [edge.target, edge.type, edge.weight || 100];
+
+                    edges[sourceId].push({
+                        target,
+                        type: type || 'RELATED',
+                        weight: (weight || 100) / 100
+                    });
+
+                    stats.by_edge_type[type] = (stats.by_edge_type[type] || 0) + 1;
+                }
+            }
+        }
+    }
+
+    // Load knowledge links
+    const knowledgeLinks = await loadJson(path.join(outputDir, 'cache', 'relations', 'knowledge-links.json'));
+    if (knowledgeLinks?.links) {
+        console.log('  [KNOWLEDGE] Adding EXPLAINS edges...');
+        for (const link of knowledgeLinks.links) {
+            const sourceId = normalizeId(link.entity_id, link.entity_type);
+            const targetId = `knowledge--${link.knowledge_slug}`;
+
+            if (!nodes[sourceId]) {
+                nodes[sourceId] = { t: link.entity_type || 'model', f: 0 };
+            }
+            if (!nodes[targetId]) {
+                nodes[targetId] = { t: 'knowledge', f: 0 };
+            }
+
+            if (!edges[sourceId]) edges[sourceId] = [];
+            edges[sourceId].push({
+                target: targetId,
+                type: 'EXPLAINS',
+                weight: link.confidence || 0.8
+            });
+
+            stats.by_edge_type['EXPLAINS'] = (stats.by_edge_type['EXPLAINS'] || 0) + 1;
+        }
+    }
+
+    // Load reports and add FEATURED_IN edges
+    const reportsIndex = await loadJson(path.join(outputDir, 'cache', 'reports', 'index.json'));
+    if (reportsIndex?.reports) {
+        console.log('  [REPORTS] Adding FEATURED_IN edges...');
+        for (const report of reportsIndex.reports) {
+            const reportId = `report--${report.id}`;
+            nodes[reportId] = { t: 'report', f: report.highlights || 0 };
+
+            // Load individual report for highlights
+            try {
+                const reportPath = path.join(outputDir, 'cache', 'reports', 'weekly', `${report.id}.json`);
+                const reportData = await loadJson(reportPath);
+                if (reportData?.highlights) {
+                    for (const highlight of reportData.highlights) {
+                        const entityId = highlight.entity_id;
+                        if (entityId && !edges[entityId]?.find(e => e.target === reportId)) {
+                            if (!edges[entityId]) edges[entityId] = [];
+                            edges[entityId].push({
+                                target: reportId,
+                                type: 'FEATURED_IN',
+                                weight: 1.0
+                            });
+                            stats.by_edge_type['FEATURED_IN'] = (stats.by_edge_type['FEATURED_IN'] || 0) + 1;
+                        }
+                    }
+                }
+            } catch (e) {
+                // Skip if report file not found
+            }
+        }
+    }
+
+    // Calculate final stats
+    stats.nodes = Object.keys(nodes).length;
+    stats.edges = Object.values(edges).reduce((sum, arr) => sum + arr.length, 0);
+
+    for (const node of Object.values(nodes)) {
+        stats.by_type[node.t] = (stats.by_type[node.t] || 0) + 1;
+    }
+
+    // Generate graph.json
+    const graph = {
+        _v: CONFIG.VERSION,
+        _ts: new Date().toISOString(),
+        stats: {
+            nodes: stats.nodes,
+            edges: stats.edges
+        },
+        nodes,
+        edges
+    };
+
+    const graphPath = path.join(meshDir, 'graph.json');
+    await fs.writeFile(graphPath, JSON.stringify(graph));
+
+    // Generate stats.json
+    const statsOutput = {
+        _v: CONFIG.VERSION,
+        _ts: new Date().toISOString(),
+        ...stats
+    };
+
+    const statsPath = path.join(meshDir, 'stats.json');
+    await fs.writeFile(statsPath, JSON.stringify(statsOutput, null, 2));
+
+    console.log(`[MESH-GRAPH] Generated graph with ${stats.nodes} nodes, ${stats.edges} edges`);
+    console.log(`  By type: ${JSON.stringify(stats.by_type)}`);
+
+    return stats;
+}
+
+// CLI execution
+if (import.meta.url === `file://${process.argv[1]}`) {
+    const outputDir = process.argv[2] || './output';
+    generateMeshGraph(outputDir)
+        .then(stats => console.log(`✅ Mesh graph complete: ${stats.nodes} nodes, ${stats.edges} edges`))
+        .catch(e => {
+            console.error('❌ Mesh graph failed:', e.message);
+            process.exit(1);
+        });
+}
