@@ -120,12 +120,24 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
             if (seen.has(dupKey)) continue;
             seen.add(dupKey);
 
+            const getType = (id) => {
+                if (!id) return 'model';
+                if (id.includes('concept--')) return 'concept';
+                if (id.includes('report--')) return 'report';
+                if (id.includes('arxiv--') || id.includes('paper--')) return 'paper';
+                if (id.includes('dataset--')) return 'dataset';
+                if (id.includes('space--')) return 'space';
+                if (id.includes('agent--')) return 'agent';
+                if (id.includes('tool--')) return 'tool';
+                return 'model';
+            };
+
             filtered.push({
                 ...rel,
                 norm_source: normS,
                 norm_target: normT,
-                source_type: sid.includes('concept--') ? 'concept' : (sid.includes('report--') ? 'report' : (sid.includes('arxiv--') ? 'paper' : 'model')),
-                target_type: tid.includes('concept--') ? 'concept' : (tid.includes('report--') ? 'report' : (tid.includes('arxiv--') ? 'paper' : 'model'))
+                source_type: getType(sid),
+                target_type: getType(tid)
             });
         }
         return filtered;
