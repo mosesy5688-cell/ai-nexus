@@ -1,132 +1,132 @@
 ---
 /**
- * Neural Mesh Hub V16.0
+ * Neural Mesh Hub V16.2
  * Unified knowledge orchestration for all 6 entity types.
- * Optimized for Zero-Runtime and Direct Navigation.
+ * Optimized for Zero-Runtime and Bidirectional Discovery.
  */
-import { fetchMeshRelations, fetchConceptMetadata } from '../utils/knowledge-cache-reader.js';
+import { fetchMeshRelations, fetchGraphMetadata, stripPrefix } from '../utils/knowledge-cache-reader.js';
 import rankingsData from '../data/rankings.json';
 import '../styles/neural-graph.css';
 
 interface Props {
     currentModelId?: string;
     entity?: any;
-    type?: 'model' | 'agent' | 'space' | 'tool' | 'dataset' | 'paper';
+    type?: string;
 }
 
 const { currentModelId, entity, type = 'model' } = Astro.props;
 const rootId = currentModelId || entity?.id;
+const normRoot = stripPrefix(rootId);
 
 // Data containers
 let categories = {
     ancestry: { title: '🧬 Ancestry & Origins', nodes: [] },
     knowledge: { title: '📚 Research & Evidence', nodes: [] },
-    ecosystem: { title: '🌐 Ecosystem & Discovery', nodes: [] }
+    ecosystem: { title: '🌐 Ecosystem & Discovery', nodes: [] },
+    similar: { title: '👥 Similar Entities', nodes: [] }
 };
 
 try {
-    // 1. Data Sources (Optimized for Zero-Runtime)
-    const [rawRelations, rawConceptMeta] = await Promise.all([
+    const [rawRelations, graphMeta] = await Promise.all([
         fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }).catch(() => []),
-        fetchConceptMetadata(Astro.locals).catch(() => [])
+        fetchGraphMetadata(Astro.locals).catch(() => ({}))
     ]);
 
-    const rankingsRaw = rankingsData;
-
     const nodeMap = new Map();
-    const conceptMap = new Map();
-    rawConceptMeta.forEach(c => c && (c.id || c.slug) && conceptMap.set(c.id || `concept--${c.slug}`, c));
+    const seenIds = new Set();
+    if (normRoot) seenIds.add(normRoot);
 
-    const rankings = { 
-        hot: rankingsRaw.hot || [], 
-        all: [...(rankingsRaw.hot || []), ...(rankingsRaw.trending || []), ...(rankingsRaw.new || [])]
-    };
-
-    const ensureNode = (id, typeHint = 'model', nameHint) => {
-        if (!id || typeof id !== 'string' || nodeMap.has(id)) return nodeMap.get(id);
-        const nodeType = typeHint || (id.includes('concept--') ? 'concept' : id.includes('report--') ? 'report' : id.includes('arxiv--') ? 'paper' : id.includes('dataset--') ? 'dataset' : id.includes('space--') ? 'space' : 'model');
-        const meta = conceptMap.get(id);
+    const ensureNode = (id, typeHint = 'model') => {
+        const nid = id;
+        const norm = stripPrefix(nid);
+        if (seenIds.has(norm)) return nodeMap.get(norm);
+        
+        const meta = graphMeta[nid] || {};
+        const nodeType = meta.t || typeHint || (nid.includes('concept--') ? 'concept' : nid.includes('arxiv--') ? 'paper' : nid.includes('dataset--') ? 'dataset' : 'model');
+        const parts = nid.split('--');
+        const nodeAuthor = meta.author || (parts.length > 2 ? parts[parts.length-2].replace(/-/g, ' ') : (nid.startsWith('arxiv--') || nid.startsWith('paper--')) ? 'Research Paper' : (nid.startsWith('concept--') || nid.startsWith('kb--')) ? 'AI Knowledge Base' : 'Ecosystem Node');
+        
         const node = { 
-            id, 
-            name: nameHint || meta?.title || id.split('--').pop().split(':').pop(), 
-            author: meta?.category || '', 
+            id: nid, 
+            name: meta.n || nid.split('--').pop().replace(/-/g, ' ').toUpperCase(), 
             type: nodeType, 
-            icon: meta?.icon || (nodeType === 'concept' ? '🧠' : nodeType === 'paper' ? '📄' : nodeType === 'space' ? '🚀' : nodeType === 'dataset' ? '📊' : '📦') 
+            icon: meta.icon || (nodeType === 'concept' ? '🧠' : nodeType === 'paper' ? '📄' : nodeType === 'space' ? '🚀' : nodeType === 'dataset' ? '📊' : nodeType === 'agent' ? '🤖' : '📦'),
+            author: nodeAuthor,
+            hub: meta.hub || false
         };
-        nodeMap.set(id, node);
+        nodeMap.set(norm, node);
+        seenIds.add(norm);
         return node;
     };
 
-    // 2. Mesh Context (Inject Root)
-    if (rootId) {
-        nodeMap.set(rootId, { id: rootId, name: entity?.name || rootId, type, icon: '🎯' });
-    }
-
-    // 3. Process Explicit Mesh Relations
+    // Process Bidirectional Mesh
     rawRelations.forEach(rel => {
-        if (!rel?.target_id || rel.target_id === rootId) return;
-        const node = ensureNode(rel.target_id, rel.target_type);
+        const isOut = rel.norm_source === normRoot;
+        const isIn = rel.norm_target === normRoot;
+        if (!isOut && !isIn) return;
+
+        const neighborId = isOut ? rel.target_id : rel.source_id;
+        const node = ensureNode(neighborId, isOut ? rel.target_type : rel.source_type);
         if (!node) return;
 
-        if (rel.relation_type?.includes('BASED') || rel.relation_type?.includes('PARENT')) {
+        // Categorize based on relation type and node type
+        const rType = (rel.relation_type || '').toUpperCase();
+        
+        // Define relation-specific icons
+        const relIcons = {
+            'BASED_ON': '🧬',
+            'TRAINED_ON': '📊',
+            'CITES': '📄',
+            'STACK': '🛠️',
+            'EXPLAIN': '🧠',
+            'USES': '⚙️',
+            'DEMO_OF': '🚀',
+            'POWERED_BY': '⚡',
+            'DEP': '📦'
+        };
+        
+        if (relIcons[rType]) node.icon = relIcons[rType];
+
+        if (rType.includes('ALT') || rType.includes('SIMILAR') || rType === 'ALTERNATIVE') {
+            categories.similar.nodes.push(node);
+        } else if (rType === 'BASED_ON' || rType === 'PARENT' || rType === 'TRAINED_ON') {
             categories.ancestry.nodes.push(node);
-        } else if (node.type === 'concept' || node.type === 'paper' || node.type === 'report') {
+        } else if (rType === 'CITES' || rType === 'EXPLAIN' || rType === 'IMPLEMENTS' || rType === 'RESEARCH' || node.type === 'concept' || node.type === 'paper') {
             categories.knowledge.nodes.push(node);
         } else {
             categories.ecosystem.nodes.push(node);
         }
     });
 
-    // 4. Matrix-Specific Injection (Local Hub Logic)
-    const injectToMesh = (tid, nodeType, categoryKey) => {
-        if (!tid) return;
-        const node = ensureNode(tid, nodeType);
-        if (node && !categories[categoryKey].nodes.find(n => n.id === node.id)) {
-            categories[categoryKey].nodes.push(node);
-        }
-    };
-
+    // Matrix-Specific Injection (Local Hub Logic as Fallback/Augment)
     if (type === 'model' && entity) {
-        if (entity.base_model) injectToMesh(`model--${entity.base_model.replace(/\//g, '--')}`, 'model', 'ancestry');
-        if (Array.isArray(entity.arxiv_refs)) entity.arxiv_refs.forEach(id => injectToMesh(`arxiv--${id}`, 'paper', 'knowledge'));
+        if (entity.base_model) {
+            const node = ensureNode(`hf-model--${entity.base_model.replace(/\//g, '--')}`, 'model');
+            if (node && !categories.ancestry.nodes.find(n => n.id === node.id)) categories.ancestry.nodes.push(node);
+        }
         if (Array.isArray(entity.knowledge_links)) {
-            entity.knowledge_links.forEach(item => {
-                const slug = typeof item === 'string' ? item : item.slug;
-                if (slug) injectToMesh(`concept--${slug}`, 'concept', 'knowledge');
+            entity.knowledge_links.forEach(l => {
+                const slug = typeof l === 'string' ? l : l.slug;
+                const node = ensureNode(`concept--${slug}`, 'concept');
+                if (node && !node.name && typeof l !== 'string' && l.title) node.name = l.title;
+                if (node && !categories.knowledge.nodes.find(n => n.id === node.id)) categories.knowledge.nodes.push(node);
             });
         }
-        if (Array.isArray(entity.datasets_used)) entity.datasets_used.forEach(id => injectToMesh(`dataset--${id.replace(/\//g, '--')}`, 'dataset', 'ecosystem'));
-        if (Array.isArray(entity.related_spaces)) entity.related_spaces.forEach(id => injectToMesh(`space--${id.replace(/\//g, '--')}`, 'space', 'ecosystem'));
+        if (Array.isArray(entity.arxiv_refs)) {
+            entity.arxiv_refs.forEach(id => {
+                const node = ensureNode(`arxiv--${id}`, 'paper');
+                if (node && !categories.knowledge.nodes.find(n => n.id === node.id)) categories.knowledge.nodes.push(node);
+            });
+        }
+        if (Array.isArray(entity.datasets_used)) {
+            entity.datasets_used.forEach(id => {
+                const node = ensureNode(`dataset--${id}`, 'dataset');
+                if (node && !categories.ecosystem.nodes.find(n => n.id === node.id)) categories.ecosystem.nodes.push(node);
+            });
+        }
     }
 
-    // 5. Hub Inversion (Mesh Backlinks)
-    // If on a Concept, Paper, or Dataset, find RELEVANT MODELS to form the mesh
-    if (type !== 'model') {
-        const subjectId = rootId.toLowerCase();
-        const relevantModels = rankings.all.filter(m => {
-            const mid = (m.id || '').toLowerCase();
-            const tags = (m.tags || []).map(t => t.toLowerCase());
-            
-            // Match benchmarks (e.g. mmlu -> top models)
-            if (subjectId.includes('mmlu') || subjectId.includes('fni') || subjectId.includes('humaneval')) {
-                return (m.velocity > 80000 || m.is_rising_star);
-            }
-            // Match families
-            if (subjectId.includes('mistral') && (mid.includes('mistral') || tags.includes('mistral'))) return true;
-            if (subjectId.includes('llama') && (mid.includes('llama') || tags.includes('llama'))) return true;
-            
-            // Match papers
-            // The original code had `entityId` here, which was not defined. Assuming it meant `rootId` or a derived ID.
-            // For safety, removing this specific condition as it might lead to errors if entityId is not available.
-            // if (type === 'paper' && (desc.includes(entityId || '') || mid.includes(entityId || ''))) return true;
-
-            return false;
-        }).slice(0, 6);
-
-        relevantModels.forEach(m => injectToMesh(m.id, 'model', 'ecosystem'));
-    }
-
-    // 6. Fallback (Ensuring consistent mesh presence)
+    // Default Fallback for empty mesh
     if (Object.values(categories).every(c => c.nodes.length === 0)) {
         categories.knowledge.nodes = [
             { id: 'concept--mmlu', name: 'MMLU Benchmark', type: 'concept', icon: '🧪' },
@@ -134,7 +134,7 @@ try {
         ];
     }
 } catch (e) {
-    console.error('[NeuralMeshHub] SSR Critical Failure:', e);
+    console.error('[NeuralMeshHub] SSR Error:', e);
 }
 ---
 
@@ -155,7 +155,8 @@ try {
                 </h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {cat.nodes.map(node => {
-                        const cleanId = node.id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space|kb|concept|report|arxiv|paper)--/g, '');
+                        const cleanId = node.id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space|kb|concept|report|arxiv|paper|huggingface|huggingface_deepspec|github|replicate)[:\-]+/, '')
+                                              .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec)--/, '');
                         const urlSlug = cleanId.replace(/--/g, '/').replace(/:/g, '/');
                         let path = node.type === 'concept' ? `/knowledge/${urlSlug}` : node.type === 'report' ? `/reports/${urlSlug}` : node.type === 'paper' ? `/paper/${urlSlug}` : `/${node.type}/${urlSlug}`;
                         
