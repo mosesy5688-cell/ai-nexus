@@ -7,8 +7,8 @@
 export function stripPrefix(id) {
     if (!id || typeof id !== 'string') return '';
     return id
-        .replace(/^(replicate|github|huggingface|hf|arxiv|kb|concept|report|paper|model|agent|tool|dataset|space|huggingface_deepspec)[:\-]+/, '')
-        .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec)--/, '')
+        .replace(/^(replicate|github|huggingface|hf|arxiv|kb|concept|knowledge|report|paper|model|agent|tool|dataset|space|huggingface_deepspec)[:\-]+/, '')
+        .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb)--/, '')
         .replace(/:/g, '--')
         .replace(/\//g, '--')
         .toLowerCase();
@@ -122,7 +122,7 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
 
             const getType = (id) => {
                 if (!id) return 'model';
-                if (id.includes('concept--')) return 'concept';
+                if (id.includes('concept--') || id.includes('knowledge--') || id.includes('kb--')) return 'concept';
                 if (id.includes('report--')) return 'report';
                 if (id.includes('arxiv--') || id.includes('paper--')) return 'paper';
                 if (id.includes('dataset--')) return 'dataset';
