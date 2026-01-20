@@ -74,6 +74,10 @@ try {
         if (!isOut && !isIn) return;
 
         const neighborId = isOut ? rel.target_id : rel.source_id;
+        
+        // V16.3.1: Prevent self-linking (Circular Reference Protection)
+        if (stripPrefix(neighborId) === normRoot) return;
+
         const node = ensureNode(neighborId, isOut ? rel.target_type : rel.source_type);
         if (!node) return;
 
