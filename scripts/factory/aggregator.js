@@ -20,6 +20,7 @@ import { updateWeeklyAccumulator, isSunday, generateWeeklyReport } from './lib/w
 import { backupToR2Output } from './lib/smart-writer.js';
 import { loadFniHistory, saveFniHistory, loadWeeklyAccum, saveWeeklyAccum } from './lib/cache-manager.js';
 import { generateTrendData } from './lib/trend-data-generator.js'; // V14.5 Phase 5
+import { generateReportsIndex } from './lib/reports-index-generator.js'; // V16.2: Knowledge Mesh
 
 // Config (Art 3.1, 3.3)
 const CONFIG = {
@@ -195,6 +196,9 @@ async function main() {
     if (isSunday()) {
         await generateWeeklyReport(CONFIG.OUTPUT_DIR);
     }
+
+    // V16.2: Generate reports index (always, for reports listing)
+    await generateReportsIndex(CONFIG.OUTPUT_DIR);
 
     // 8. Health report (Art 8.3)
     await generateHealthReport(shardResults, rankedEntities);

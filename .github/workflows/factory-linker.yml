@@ -174,12 +174,134 @@ jobs:
           path: output/cache/relations/knowledge-links.json
           retention-days: 1
 
-  # Job 4: Merge and Upload to R2
+  # V16.2 Job 4: Knowledge Data Generation
+  knowledge-data:
+    name: Knowledge Data
+    runs-on: ubuntu-latest
+    needs: knowledge-links
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+        
+      - name: Restore entity data
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/entities.json
+            output/cache
+          key: entity-data-${{ github.run_id }}
+          restore-keys: |
+            entity-data-
+            
+      - name: Generate knowledge data
+        run: node scripts/factory/lib/knowledge-data-generator.js ./output
+        
+      - name: Upload knowledge data
+        uses: actions/upload-artifact@v4
+        with:
+          name: knowledge-data
+          path: output/cache/knowledge/
+          retention-days: 1
+
+  # V16.2 Job 5: Mesh Graph Generation
+  mesh-graph:
+    name: Mesh Graph
+    runs-on: ubuntu-latest
+    needs: [explicit-links, alt-links, knowledge-links]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+        
+      - name: Restore entity data
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/entities.json
+            output/cache
+          key: entity-data-${{ github.run_id }}
+          restore-keys: |
+            entity-data-
+            
+      - name: Generate mesh graph
+        run: node scripts/factory/lib/mesh-graph-generator.js ./output
+        
+      - name: Upload mesh graph
+        uses: actions/upload-artifact@v4
+        with:
+          name: mesh-graph
+          path: output/cache/mesh/
+          retention-days: 1
+
+  # V16.2 Job 6: RSS Feeds
+  rss-feeds:
+    name: RSS Feeds
+    runs-on: ubuntu-latest
+    needs: [knowledge-data]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+        
+      - name: Restore entity data
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/entities.json
+            output/cache
+          key: entity-data-${{ github.run_id }}
+          restore-keys: |
+            entity-data-
+            
+      - name: Download knowledge data
+        uses: actions/download-artifact@v4
+        with:
+          name: knowledge-data
+          path: output/cache/knowledge/
+          
+      - name: Generate RSS feeds
+        run: node scripts/factory/lib/rss-generator.js ./output
+        
+      - name: Upload RSS feeds
+        uses: actions/upload-artifact@v4
+        with:
+          name: rss-feeds
+          path: output/rss/
+          retention-days: 1
+
+  # Job 7: Merge and Upload to R2 (V16.2 Enhanced)
   upload-relations:
     name: Upload to R2
     runs-on: ubuntu-latest
-    # V15: Wait for ALL relation jobs to complete so artifacts are available
-    needs: [explicit-links, alt-links, knowledge-links]
+    needs: [explicit-links, alt-links, knowledge-links, knowledge-data, mesh-graph, rss-feeds]
     if: always() && needs.explicit-links.result == 'success'
     
     steps:
@@ -215,31 +337,48 @@ jobs:
           name: knowledge-links
           path: output/cache/relations/
           
-      - name: Upload to R2 (SPEC-BACKUP-V14.5)
+      - name: Download knowledge data (V16.2)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: knowledge-data
+          path: output/cache/knowledge/
+          
+      - name: Download mesh graph (V16.2)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: mesh-graph
+          path: output/cache/mesh/
+          
+      - name: Download RSS feeds (V16.2)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: rss-feeds
+          path: output/rss/
+          
+      - name: Upload to R2 (SPEC V16.2)
         env:
-          # V15: Use CLOUDFLARE_ACCOUNT_ID (actual secret name)
           R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: |
-          echo "☁️ Uploading relations to R2..."
+          echo "☁️ Uploading to R2..."
           node scripts/factory/r2-upload-s3.js --prefix cache/relations/
+          node scripts/factory/r2-upload-s3.js --prefix cache/knowledge/
+          node scripts/factory/r2-upload-s3.js --prefix cache/mesh/
+          node scripts/factory/r2-upload-s3.js --prefix rss/
           
       - name: Summary
         run: |
-          echo "## 🔗 Knowledge Graph Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔗 Knowledge Mesh V16.2 Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| File | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| explicit.json | ✅ Uploaded |" >> $GITHUB_STEP_SUMMARY
-          if [ -d "output/cache/relations/alt-by-category" ]; then
-            echo "| alt-by-category/ | ✅ Uploaded |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| alt-by-category/ | ⏭️ Skipped (not Monday) |" >> $GITHUB_STEP_SUMMARY
-          fi
-          if [ -f "output/cache/relations/knowledge-links.json" ]; then
-            echo "| knowledge-links.json | ✅ Uploaded |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| knowledge-links.json | ⏭️ Skipped (not Monday) |" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| explicit.json | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| knowledge-links.json | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| cache/knowledge/ | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| cache/mesh/graph.json | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| rss/*.xml | ✅ |" >> $GITHUB_STEP_SUMMARY
