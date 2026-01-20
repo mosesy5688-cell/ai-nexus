@@ -42,7 +42,15 @@ try {
         if (seenIds.has(norm)) return nodeMap.get(norm);
         
         const meta = graphMeta[nid] || {};
-        const nodeType = meta.t || typeHint || (nid.includes('concept--') ? 'concept' : nid.includes('arxiv--') ? 'paper' : nid.includes('dataset--') ? 'dataset' : 'model');
+        const nodeType = meta.t || typeHint || (
+            nid.includes('concept--') ? 'concept' : 
+            nid.includes('arxiv--') ? 'paper' : 
+            nid.includes('dataset--') ? 'dataset' : 
+            nid.includes('space--') ? 'space' : 
+            nid.includes('agent--') ? 'agent' : 
+            nid.includes('tool--') ? 'tool' : 
+            'model'
+        );
         const parts = nid.split('--');
         const nodeAuthor = meta.author || (parts.length > 2 ? parts[parts.length-2].replace(/-/g, ' ') : (nid.startsWith('arxiv--') || nid.startsWith('paper--')) ? 'Research Paper' : (nid.startsWith('concept--') || nid.startsWith('kb--')) ? 'AI Knowledge Base' : 'Ecosystem Node');
         
@@ -50,7 +58,7 @@ try {
             id: nid, 
             name: meta.n || nid.split('--').pop().replace(/-/g, ' ').toUpperCase(), 
             type: nodeType, 
-            icon: meta.icon || (nodeType === 'concept' ? '🧠' : nodeType === 'paper' ? '📄' : nodeType === 'space' ? '🚀' : nodeType === 'dataset' ? '📊' : nodeType === 'agent' ? '🤖' : '📦'),
+            icon: meta.icon || (nodeType === 'concept' ? '🧠' : nodeType === 'paper' ? '📄' : nodeType === 'space' ? '🚀' : nodeType === 'dataset' ? '📊' : nodeType === 'agent' ? '🤖' : nodeType === 'tool' ? '🛠️' : '📦'),
             author: nodeAuthor,
             hub: meta.hub || false
         };
