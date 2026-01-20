@@ -7,7 +7,7 @@ import { loadSpecs, loadBenchmarks } from './loadCachedJSON';
 import { deriveEntityType, ENTITY_DEFINITIONS } from '../data/entity-definitions';
 import { getModelFromCache } from './entity-cache-reader';
 import { fetchEntityFromR2 } from './entity-cache-reader-core.js';
-import { fetchMeshRelations } from './knowledge-cache-reader.js';
+import { fetchMeshRelations, stripPrefix } from './knowledge-cache-reader.js';
 
 export async function prepareModelPageData(slug, slugStr, locals) {
     let summaryData = null;
@@ -62,13 +62,19 @@ export async function prepareModelPageData(slug, slugStr, locals) {
         // V16: Inject External Mesh Relations (Papers, Knowledge, etc.)
         try {
             const meshRelations = await fetchMeshRelations(locals, model.id || slugStr);
+            const mId = model.id || slugStr;
+            const normRoot = stripPrefix(mId);
+
             if (meshRelations && meshRelations.length > 0) {
                 model.arxiv_refs = model.arxiv_refs || [];
                 model.datasets_used = model.datasets_used || [];
                 model.knowledge_links = model.knowledge_links || [];
 
                 meshRelations.forEach(rel => {
-                    const tid = rel.target_id;
+                    const isOut = rel.norm_source === normRoot;
+                    const tid = isOut ? rel.target_id : rel.source_id;
+                    if (!tid) return;
+
                     if (tid.startsWith('arxiv--') || tid.startsWith('paper--')) {
                         const id = tid.replace(/^(arxiv|paper)--/, '');
                         if (!model.arxiv_refs.includes(id)) model.arxiv_refs.push(id);
