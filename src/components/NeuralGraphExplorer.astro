@@ -43,7 +43,7 @@ try {
         
         const meta = graphMeta[nid] || {};
         const nodeType = meta.t || typeHint || (
-            nid.includes('concept--') ? 'concept' : 
+            nid.includes('concept--') || nid.includes('knowledge--') || nid.includes('kb--') ? 'concept' : 
             nid.includes('arxiv--') ? 'paper' : 
             nid.includes('dataset--') ? 'dataset' : 
             nid.includes('space--') ? 'space' : 
@@ -52,7 +52,7 @@ try {
             'model'
         );
         const parts = nid.split('--');
-        const nodeAuthor = meta.author || (parts.length > 2 ? parts[parts.length-2].replace(/-/g, ' ') : (nid.startsWith('arxiv--') || nid.startsWith('paper--')) ? 'Research Paper' : (nid.startsWith('concept--') || nid.startsWith('kb--')) ? 'AI Knowledge Base' : 'Ecosystem Node');
+        const nodeAuthor = meta.author || (parts.length > 2 ? parts[parts.length-2].replace(/-/g, ' ') : (nid.startsWith('arxiv--') || nid.startsWith('paper--')) ? 'Research Paper' : (nid.startsWith('concept--') || nid.startsWith('knowledge--') || nid.startsWith('kb--')) ? 'AI Knowledge Base' : 'Ecosystem Node');
         
         const node = { 
             id: nid, 
@@ -163,8 +163,8 @@ try {
                 </h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {cat.nodes.map(node => {
-                        const cleanId = node.id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space|kb|concept|report|arxiv|paper|huggingface|huggingface_deepspec|github|replicate)[:\-]+/, '')
-                                              .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec)--/, '');
+                        const cleanId = node.id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space|kb|concept|knowledge|report|arxiv|paper|huggingface|huggingface_deepspec|github|replicate)[:\-]+/, '')
+                                              .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb)--/, '');
                         const urlSlug = cleanId.replace(/--/g, '/').replace(/:/g, '/');
                         let path = node.type === 'concept' ? `/knowledge/${urlSlug}` : node.type === 'report' ? `/reports/${urlSlug}` : node.type === 'paper' ? `/paper/${urlSlug}` : `/${node.type}/${urlSlug}`;
                         
