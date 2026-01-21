@@ -49,17 +49,19 @@ function normalizeId(id, type) {
 }
 
 /**
- * Extract node type from ID
+ * Extract node type from ID with prefix fallthrough
  */
 function getNodeType(id) {
-    if (id.startsWith('hf-model--')) return 'model';
-    if (id.startsWith('arxiv--')) return 'paper';
-    if (id.startsWith('hf-agent--')) return 'agent';
-    if (id.startsWith('hf-space--')) return 'space';
-    if (id.startsWith('dataset--')) return 'dataset';
-    if (id.startsWith('tool--')) return 'tool';
-    if (id.startsWith('knowledge--')) return 'knowledge';
-    if (id.startsWith('report--')) return 'report';
+    if (!id) return 'unknown';
+    const cleanId = id.toLowerCase();
+    if (cleanId.startsWith('hf-model--') || cleanId.startsWith('huggingface--') || cleanId.startsWith('model--') || cleanId.startsWith('kb-model--')) return 'model';
+    if (cleanId.startsWith('arxiv--') || cleanId.startsWith('paper--')) return 'paper';
+    if (cleanId.startsWith('hf-agent--') || cleanId.startsWith('agent--')) return 'agent';
+    if (cleanId.startsWith('hf-space--') || cleanId.startsWith('space--')) return 'space';
+    if (cleanId.startsWith('dataset--') || cleanId.startsWith('hf-dataset--')) return 'dataset';
+    if (cleanId.startsWith('tool--') || cleanId.startsWith('hf-tool--')) return 'tool';
+    if (cleanId.startsWith('knowledge--') || cleanId.startsWith('kb--')) return 'knowledge';
+    if (cleanId.startsWith('report--')) return 'report';
     return 'unknown';
 }
 

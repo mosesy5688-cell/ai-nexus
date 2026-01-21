@@ -23,17 +23,31 @@ const KNOWN_TOOLS = {
     'agentic': 'knowledge--agentic-ai',
 };
 
-/** Normalize entity ID to standard format */
+/** Normalize entity ID to standard format with V16.2 prefixes */
 export function normalizeId(id, type) {
     if (!id) return id;
     if (id.includes('--')) return id;
+
+    // Type-specific prefixing (V16.2 Standard)
+    const prefixes = {
+        model: 'hf-model--',
+        paper: 'arxiv--',
+        agent: 'hf-agent--',
+        space: 'hf-space--',
+        dataset: 'dataset--',
+        tool: 'tool--',
+        knowledge: 'knowledge--',
+        report: 'report--'
+    };
+
+    const prefix = prefixes[type] || (id.includes('/') ? 'hf-model--' : '');
+
     if (type === 'paper' && /^\d{4}\.\d{4,5}(v\d+)?$/.test(id)) {
         return `arxiv--${id}`;
     }
-    if (id.includes('/')) {
-        return `huggingface--${id.replace(/\//g, '--')}`;
-    }
-    return id;
+
+    const cleanId = id.replace(/\//g, '--');
+    return prefix ? `${prefix}${cleanId}` : cleanId;
 }
 
 /** Create relation object helper */
