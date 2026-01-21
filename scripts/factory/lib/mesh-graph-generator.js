@@ -139,26 +139,35 @@ export async function generateMeshGraph(outputDir = './output') {
     if (knowledgeLinks?.links) {
         console.log('  [KNOWLEDGE] Adding EXPLAINS edges...');
         for (const link of knowledgeLinks.links) {
-            const sourceId = normalizeId(link.entity_id, link.entity_type);
-            const targetId = `knowledge--${link.knowledge_slug}`;
+            const sourceId = link.entity_id; // Already normalized in knowledge-links.json
 
-            if (!nodes[sourceId]) {
-                nodes[sourceId] = { t: link.entity_type || 'model', f: 0 };
+            // V16.3 FIX: knowledge is an array, not a flat field
+            const knowledgeArray = link.knowledge || [];
+            for (const kEntry of knowledgeArray) {
+                const targetId = `knowledge--${kEntry.slug || kEntry.id}`;
+
+                if (!nodes[sourceId]) {
+                    nodes[sourceId] = { t: link.entity_type || 'model', f: 0 };
+                }
+                if (!nodes[targetId]) {
+                    nodes[targetId] = { t: 'knowledge', f: 0 };
+                }
+
+                if (!edges[sourceId]) edges[sourceId] = [];
+
+                // Avoid duplicate edges
+                if (!edges[sourceId].find(e => e.target === targetId)) {
+                    edges[sourceId].push({
+                        target: targetId,
+                        type: 'EXPLAINS',
+                        weight: (kEntry.confidence || 80) / 100
+                    });
+                    stats.by_edge_type['EXPLAINS'] = (stats.by_edge_type['EXPLAINS'] || 0) + 1;
+                }
             }
-            if (!nodes[targetId]) {
-                nodes[targetId] = { t: 'knowledge', f: 0 };
-            }
-
-            if (!edges[sourceId]) edges[sourceId] = [];
-            edges[sourceId].push({
-                target: targetId,
-                type: 'EXPLAINS',
-                weight: link.confidence || 0.8
-            });
-
-            stats.by_edge_type['EXPLAINS'] = (stats.by_edge_type['EXPLAINS'] || 0) + 1;
         }
     }
+
 
     // Load reports and add FEATURED_IN edges
     const reportsIndex = await loadJson(path.join(outputDir, 'cache', 'reports', 'index.json'));
