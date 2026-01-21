@@ -203,6 +203,12 @@ jobs:
           restore-keys: |
             entity-data-
             
+      - name: Download knowledge links
+        uses: actions/download-artifact@v4
+        with:
+          name: knowledge-links
+          path: output/cache/relations/
+          
       - name: Generate knowledge data
         run: node scripts/factory/lib/knowledge-data-generator.js ./output
         
