@@ -115,7 +115,14 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
             const normT = stripPrefix(tid);
 
             // Bidirectional check: Is the current entity either source or target?
-            if (target && normS !== target && normT !== target) continue;
+            // V16.2: Add fuzzy overlap for organizations (meta vs meta-llama)
+            const isMatch = (a, b) => {
+                if (a === b) return true;
+                const clean = (s) => s.replace(/^(meta-llama|meta|nvidia|google|openai|anthropic|microsoft)--/, '');
+                return clean(a) === clean(b) && (a.includes(clean(a)) || b.includes(clean(b)));
+            };
+
+            if (target && !isMatch(normS, target) && !isMatch(normT, target)) continue;
 
             const dupKey = `${sid}|${tid}|${rel.relation_type}`;
             if (seen.has(dupKey)) continue;
