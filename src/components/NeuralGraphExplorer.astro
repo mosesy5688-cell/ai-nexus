@@ -43,7 +43,7 @@ try {
         
         const meta = graphMeta[nid] || {};
         const nodeType = meta.t || typeHint || (
-            nid.includes('concept--') || nid.includes('knowledge--') || nid.includes('kb--') ? 'concept' : 
+            nid.includes('knowledge--') || nid.includes('kb--') ? 'knowledge' : 
             nid.includes('arxiv--') ? 'paper' : 
             nid.includes('dataset--') ? 'dataset' : 
             nid.includes('space--') ? 'space' : 
@@ -52,13 +52,13 @@ try {
             'model'
         );
         const parts = nid.split('--');
-        const nodeAuthor = meta.author || (parts.length > 2 ? parts[parts.length-2].replace(/-/g, ' ') : (nid.startsWith('arxiv--') || nid.startsWith('paper--')) ? 'Research Paper' : (nid.startsWith('concept--') || nid.startsWith('knowledge--') || nid.startsWith('kb--')) ? 'AI Knowledge Base' : 'Ecosystem Node');
+        const nodeAuthor = meta.author || (parts.length > 2 ? parts[parts.length-2].replace(/-/g, ' ') : (nid.startsWith('arxiv--') || nid.startsWith('paper--')) ? 'Research Paper' : (nid.startsWith('knowledge--') || nid.startsWith('kb--')) ? 'AI Knowledge Base' : 'Ecosystem Node');
         
         const node = { 
             id: nid, 
             name: meta.n || nid.split('--').pop().replace(/-/g, ' ').toUpperCase(), 
             type: nodeType, 
-            icon: meta.icon || (nodeType === 'concept' ? '🧠' : nodeType === 'paper' ? '📄' : nodeType === 'space' ? '🚀' : nodeType === 'dataset' ? '📊' : nodeType === 'agent' ? '🤖' : nodeType === 'tool' ? '🛠️' : '📦'),
+            icon: meta.icon || (nodeType === 'knowledge' ? '🧠' : nodeType === 'paper' ? '📄' : nodeType === 'space' ? '🚀' : nodeType === 'dataset' ? '📊' : nodeType === 'agent' ? '🤖' : nodeType === 'tool' ? '🛠️' : '📦'),
             author: nodeAuthor,
             hub: meta.hub || false
         };
@@ -91,6 +91,7 @@ try {
             'CITES': '📄',
             'STACK': '🛠️',
             'EXPLAIN': '🧠',
+            'EXPLAINS': '🧠',
             'USES': '⚙️',
             'DEMO_OF': '🚀',
             'POWERED_BY': '⚡',
@@ -103,7 +104,7 @@ try {
             categories.similar.nodes.push(node);
         } else if (rType === 'BASED_ON' || rType === 'PARENT' || rType === 'TRAINED_ON') {
             categories.ancestry.nodes.push(node);
-        } else if (rType === 'CITES' || rType === 'EXPLAIN' || rType === 'IMPLEMENTS' || rType === 'RESEARCH' || node.type === 'concept' || node.type === 'paper') {
+        } else if (rType === 'CITES' || rType === 'EXPLAIN' || rType === 'EXPLAINS' || rType === 'IMPLEMENTS' || rType === 'RESEARCH' || node.type === 'knowledge' || node.type === 'paper') {
             categories.knowledge.nodes.push(node);
         } else {
             categories.ecosystem.nodes.push(node);
@@ -119,7 +120,7 @@ try {
         if (Array.isArray(entity.knowledge_links)) {
             entity.knowledge_links.forEach(l => {
                 const slug = typeof l === 'string' ? l : l.slug;
-                const node = ensureNode(`concept--${slug}`, 'concept');
+                const node = ensureNode(`knowledge--${slug}`, 'knowledge');
                 if (node && !node.name && typeof l !== 'string' && l.title) node.name = l.title;
                 if (node && !categories.knowledge.nodes.find(n => n.id === node.id)) categories.knowledge.nodes.push(node);
             });
@@ -141,8 +142,8 @@ try {
     // Default Fallback for empty mesh
     if (Object.values(categories).every(c => c.nodes.length === 0)) {
         categories.knowledge.nodes = [
-            { id: 'concept--mmlu', name: 'MMLU Benchmark', type: 'concept', icon: '🧪' },
-            { id: 'concept--fni', name: 'FNI Index', type: 'concept', icon: '🔥' }
+            { id: 'knowledge--mmlu', name: 'MMLU Benchmark', type: 'knowledge', icon: '🧪' },
+            { id: 'knowledge--fni', name: 'FNI Index', type: 'knowledge', icon: '🔥' }
         ];
     }
 } catch (e) {
@@ -170,7 +171,7 @@ try {
                         const cleanId = node.id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space|kb|concept|knowledge|report|arxiv|paper|huggingface|huggingface_deepspec|github|replicate)[:\-]+/, '')
                                               .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb)--/, '');
                         const urlSlug = cleanId.replace(/--/g, '/').replace(/:/g, '/');
-                        let path = node.type === 'concept' ? `/knowledge/${urlSlug}` : node.type === 'report' ? `/reports/${urlSlug}` : node.type === 'paper' ? `/paper/${urlSlug}` : `/${node.type}/${urlSlug}`;
+                        let path = node.type === 'knowledge' ? `/knowledge/${urlSlug}` : node.type === 'report' ? `/reports/${urlSlug}` : node.type === 'paper' ? `/paper/${urlSlug}` : `/${node.type}/${urlSlug}`;
                         
                         return (
                             <a href={path} class={`group relative p-4 bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 rounded-xl hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300`}>

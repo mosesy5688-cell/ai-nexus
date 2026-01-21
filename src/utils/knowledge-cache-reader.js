@@ -25,11 +25,12 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     const target = stripPrefix(entityId);
     let allRelations = [];
 
+    // Prioritize V16.2 Unified Graph
     const sourcesToFetch = [
+        'cache/mesh/graph.json',
         'cache/relations.json',
         'cache/relations/explicit.json',
-        'cache/relations/knowledge-links.json',
-        'data/relations.json'
+        'cache/relations/knowledge-links.json'
     ];
 
     try {
@@ -39,8 +40,26 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                 if (!obj) continue;
                 const data = await obj.json();
 
-                // Detection of Root Dictionary (explicit.json)
-                if (typeof data === 'object' && !Array.isArray(data) && !data.edges && !data.links && !data.relations) {
+                // V16.2 Unified Graph format
+                if (data.edges && typeof data.edges === 'object' && data._v === '16.2') {
+                    Object.entries(data.edges).forEach(([srcId, targets]) => {
+                        if (Array.isArray(targets)) {
+                            targets.forEach(edge => {
+                                allRelations.push({
+                                    source_id: srcId,
+                                    target_id: edge.target || edge[0],
+                                    relation_type: edge.type || edge[1] || 'RELATED',
+                                    confidence: edge.weight || edge[2] || 0.8
+                                });
+                            });
+                        }
+                    });
+                    // If we found V16.2 data, we can stop if it's the target-specific mesh
+                    if (key === 'cache/mesh/graph.json') break;
+                }
+
+                // Legacy detection of Root Dictionary
+                else if (typeof data === 'object' && !Array.isArray(data) && !data.edges && !data.links && !data.relations) {
                     Object.entries(data).forEach(([srcId, targets]) => {
                         if (srcId.startsWith('_')) return;
                         if (Array.isArray(targets)) {
@@ -58,45 +77,25 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                     });
                 }
 
-                // Nested .edges (Legacy/Alt format)
-                if (data.edges && typeof data.edges === 'object') {
-                    Object.entries(data.edges).forEach(([srcId, targets]) => {
-                        if (Array.isArray(targets)) {
-                            targets.forEach(edge => {
-                                if (Array.isArray(edge) && edge.length >= 1) {
-                                    allRelations.push({
-                                        source_id: srcId,
-                                        target_id: edge[0],
-                                        relation_type: edge[1] || 'RELATED',
-                                        confidence: edge[2] || 0.8
-                                    });
-                                }
-                            });
-                        }
-                    });
-                }
-
-                // Standard .relations array or Root Array
-                if (Array.isArray(data.relations)) {
-                    allRelations = allRelations.concat(data.relations);
-                } else if (Array.isArray(data)) {
-                    allRelations = allRelations.concat(data);
-                }
-
                 // .links array (knowledge-links.json)
-                if (Array.isArray(data.links)) {
+                else if (Array.isArray(data.links)) {
                     data.links.forEach(link => {
                         if (link.entity_id && Array.isArray(link.knowledge)) {
                             link.knowledge.forEach(k => {
                                 allRelations.push({
                                     source_id: link.entity_id,
-                                    target_id: typeof k === 'string' ? `concept--${k}` : `concept--${k.slug}`,
-                                    relation_type: 'EXPLAIN',
+                                    target_id: typeof k === 'string' ? `knowledge--${k}` : `knowledge--${k.slug}`,
+                                    relation_type: 'EXPLAINS',
                                     confidence: k?.confidence || 1.0
                                 });
                             });
                         }
                     });
+                }
+
+                // Standard Root Array
+                else if (Array.isArray(data)) {
+                    allRelations = allRelations.concat(data);
                 }
             } catch (inner) {
                 console.warn(`[KnowledgeReader] Failed ${key}:`, inner.message);
@@ -105,6 +104,7 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
 
         const filtered = [];
         const seen = new Set();
+
         for (const rel of allRelations) {
             const sid = rel.source_id;
             const tid = rel.target_id;
@@ -122,7 +122,7 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
 
             const getType = (id) => {
                 if (!id) return 'model';
-                if (id.includes('concept--') || id.includes('knowledge--') || id.includes('kb--')) return 'concept';
+                if (id.includes('knowledge--') || id.includes('kb--') || id.includes('concept--')) return 'knowledge';
                 if (id.includes('report--')) return 'report';
                 if (id.includes('arxiv--') || id.includes('paper--')) return 'paper';
                 if (id.includes('dataset--')) return 'dataset';
@@ -148,14 +148,20 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
 }
 
 /**
- * Fetch Graph Node Metadata (Icons, Types, Flags) from R2.
+ * Fetch Graph Node Metadata (Icons, Types, Flags) from V16.2 Graph.
  */
 export async function fetchGraphMetadata(locals) {
     const R2 = locals?.runtime?.env?.R2_ASSETS;
     if (!R2) return {};
     try {
-        const obj = await R2.get('cache/relations/explicit.json');
-        if (!obj) return {};
+        const obj = await R2.get('cache/mesh/graph.json');
+        if (!obj) {
+            // Fallback to explicit
+            const legacy = await R2.get('cache/relations/explicit.json');
+            if (!legacy) return {};
+            const data = await legacy.json();
+            return data.nodes || {};
+        }
         const data = await obj.json();
         return data.nodes || {};
     } catch (e) {
