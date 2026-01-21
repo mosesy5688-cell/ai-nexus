@@ -8,6 +8,7 @@ export const prerender = true;
 
 import Layout from '../layouts/Layout.astro';
 import KnowledgeCategoryCard from '../components/knowledge/KnowledgeCategoryCard.astro';
+import MeshVisualizer from '../components/mesh/MeshVisualizer.astro';
 import { KNOWLEDGE_CATEGORIES, getTotalArticleCount } from '../data/knowledge-base-config';
 
 const pageTitle = "AI Knowledge Base - Free2AITools";
@@ -56,6 +57,14 @@ const totalArticles = getTotalArticleCount();
       </div>
     </div>
 
+    <!-- Knowledge Mesh Overview -->
+    <section class="mb-12 p-6 bg-gradient-to-br from-cyan-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl border border-cyan-200 dark:border-cyan-800">
+      <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        🕸️ Knowledge Mesh
+      </h2>
+      <MeshVisualizer />
+    </section>
+
     <!-- Categories Grid -->
     <div class="categories-grid">
       {KNOWLEDGE_CATEGORIES.map(category => (
@@ -71,7 +80,7 @@ const totalArticles = getTotalArticleCount();
         <a href="/ranking" class="btn-primary">View Rankings</a>
         <a href="/models" class="btn-secondary">Browse Models</a>
       </div>
-    </section>
+    </div>
 
     <!-- Featured Articles -->
     <section class="mb-12 p-8 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700">
