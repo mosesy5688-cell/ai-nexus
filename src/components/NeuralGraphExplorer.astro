@@ -33,7 +33,23 @@ const SLUG_MAPPING = {
     'chat-models': 'agents',
     'rag-retrieval': 'rag',
     'vector-databases': 'rag',
-    'prompt-engineering': 'prompt-engineering' // Ensure MD exists
+    'prompt-engineering': 'prompt-engineering',
+    'transformer-architecture': 'transformer',
+    'direct-preference-optimization': 'fine-tuning',
+    'what-is-rag': 'rag',
+    'local-deployment': 'local-inference',
+    'what-is-quantization': 'quantization',
+    'audio-models': 'multimodal',
+    'agentic-ai': 'agents',
+    'what-is-moe': 'moe',
+    'mixture-of-experts': 'moe',
+    'lora-finetuning': 'fine-tuning',
+    'speech-models': 'multimodal',
+    'inference-optimization': 'local-inference',
+    'gguf-format': 'gguf',
+    'ai-alignment': 'fine-tuning',
+    'vision-models': 'multimodal',
+    'attention-mechanism': 'transformer'
 };
 
 try {
@@ -128,8 +144,8 @@ try {
             node._mapped = true;
             if (node.type === 'knowledge') {
                 tiers.explanation.nodes.push(node);
-            } else if (node.type === 'model' || node.type === 'tool' || node.type === 'dataset') {
-                tiers.core.nodes.push(node);
+            } else if (node.type === 'model' || node.type === 'tool' || node.type === 'dataset' || node.type === 'unknown') {
+                tiers.core.nodes.push(node); // Default unknown/unprefixed models to Core
             } else if (node.type === 'agent' || node.type === 'space' || node.type === 'paper') {
                 tiers.utility.nodes.push(node);
             } else if (node.type === 'report') {
@@ -163,7 +179,7 @@ try {
             if (!node._mapped) {
                 node._mapped = true;
                 if (node.type === 'knowledge') tiers.explanation.nodes.push(node);
-                else if (['model', 'tool', 'dataset'].includes(node.type)) tiers.core.nodes.push(node);
+                else if (['model', 'tool', 'dataset', 'unknown'].includes(node.type)) tiers.core.nodes.push(node);
                 else if (['agent', 'space', 'paper'].includes(node.type)) tiers.utility.nodes.push(node);
                 else if (node.type === 'report') tiers.digest.nodes.push(node);
             }
