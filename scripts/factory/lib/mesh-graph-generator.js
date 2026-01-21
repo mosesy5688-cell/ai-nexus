@@ -1,14 +1,4 @@
-/**
- * Mesh Graph Generator V16.2
- * SPEC: SPEC-KNOWLEDGE-MESH-V16.2 Section 4, 5.4
- * 
- * Generates cache/mesh/graph.json - unified 8-node knowledge graph
- * Combines: explicit.json + knowledge-links.json + reports
- * 
- * Runs in Factory 3.5/4 Linker Job 5
- * 
- * @module scripts/factory/lib/mesh-graph-generator
- */
+// Mesh Graph Generator V16.3 - SPEC-KNOWLEDGE-MESH-V16.2
 
 import fs from 'fs/promises';
 import path from 'path';
@@ -21,19 +11,7 @@ const CONFIG = {
     VERSION: '16.2'
 };
 
-// Edge type definitions per SPEC Section 4
-const EDGE_TYPES = {
-    BASED_ON: { source: 'model', target: 'model' },
-    TRAINED_ON: { source: 'model', target: 'dataset' },
-    CITES: { source: 'model', target: 'paper' },
-    STACK: { source: 'model', target: 'tool' },
-    EXPLAINS: { source: 'knowledge', target: 'any' },
-    USES: { source: ['agent', 'space'], target: 'model' },
-    DEMO_OF: { source: 'space', target: 'model' },
-    RUNS_ON: { source: 'model', target: 'tool' },
-    FEATURED_IN: { source: 'any', target: 'report' },
-    ALTERNATIVE: { source: 'any', target: 'any' }
-};
+
 
 /**
  * Load JSON file safely
