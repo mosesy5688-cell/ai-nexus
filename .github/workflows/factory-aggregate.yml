@@ -89,6 +89,8 @@ jobs:
 
       # Run aggregator
       - name: Run Aggregator
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           echo "🔄 Running Aggregator..."
           node scripts/factory/aggregator.js
