@@ -1,126 +1,74 @@
-/* Neural Mesh Hub Styles V16.0 */
+/* Neural Mesh Hub Styles V16.2 - Spec Aligned */
 .neural-graph-explorer {
     background: transparent;
-    border: none;
-    padding: 0;
-    box-shadow: none;
 }
 
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 2rem;
-    border-bottom: 1px solid rgba(var(--color-gray-200), 0.1);
-    padding-bottom: 1rem;
+.mesh-tier {
+    position: relative;
+    padding-bottom: 2rem;
+    animation: tierFadeIn 0.5s ease-out forwards;
 }
 
-.title {
-    color: #f8fafc;
-    font-size: 1.5rem;
-    font-weight: 900;
-    margin: 0;
-    letter-spacing: -0.025em;
+.mesh-tier:last-child {
+    padding-bottom: 0;
+}
+
+/* Tier Header Decoration */
+.tier-header {
+    position: relative;
+}
+
+.tier-header h4 {
     background: linear-gradient(to right, #6366f1, #a855f7);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
-.subtitle {
-    color: #64748b;
-    font-size: 0.75rem;
-    margin: 0.25rem 0 0;
-    text-transform: uppercase;
-    font-weight: 800;
-    letter-spacing: 0.1em;
+/* Node Styles */
+.mesh-node {
+    display: block;
+    backdrop-filter: blur(8px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.related-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
+.mesh-node:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 1);
 }
 
-.related-card {
-    background: rgba(30, 41, 59, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 1rem;
-    text-decoration: none;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
+.dark .mesh-node:hover {
+    background: rgba(31, 41, 55, 0.8);
 }
 
-.related-card:hover {
-    background: rgba(30, 41, 59, 0.8);
+.node-icon-wrapper {
+    flex-shrink: 0;
+}
+
+/* Relation Badge */
+.relation-badge {
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+}
+
+/* Tier Specific Subtle Borders */
+.mesh-tier-explanation .mesh-node:hover {
     border-color: rgba(99, 102, 241, 0.4);
-    transform: translateY(-4px);
 }
 
-.type-badge {
-    font-size: 0.6rem;
-    padding: 0.125rem 0.5rem;
-    border-radius: 9999px;
-    text-transform: uppercase;
-    font-weight: 800;
+.mesh-tier-core .mesh-node:hover {
+    border-color: rgba(16, 185, 129, 0.4);
 }
 
-.color-model {
-    background: rgba(129, 140, 248, 0.1);
-    color: #818cf8;
+.mesh-tier-utility .mesh-node:hover {
+    border-color: rgba(59, 130, 246, 0.4);
 }
 
-.color-paper {
-    background: rgba(192, 132, 252, 0.1);
-    color: #c084fc;
+.mesh-tier-digest .mesh-node:hover {
+    border-color: rgba(244, 63, 94, 0.4);
 }
 
-.color-concept {
-    background: rgba(99, 102, 241, 0.1);
-    color: #818cf8;
-}
-
-.color-report {
-    background: rgba(251, 191, 36, 0.1);
-    color: #fbbf24;
-}
-
-.color-dataset {
-    background: rgba(74, 222, 128, 0.1);
-    color: #4ade80;
-}
-
-/* Category Groups */
-.mesh-category-group {
-    position: relative;
-    padding-left: 1rem;
-    border-left: 2px solid rgba(99, 102, 241, 0.1);
-}
-
-.mesh-category-group:hover {
-    border-left-color: rgba(99, 102, 241, 0.4);
-}
-
-/* Card Type Colors (Subtle backgrounds) */
-.related-card.type-model:hover {
-    border-color: rgba(129, 140, 248, 0.5);
-}
-
-.related-card.type-paper:hover {
-    border-color: rgba(192, 132, 252, 0.5);
-}
-
-.related-card.type-concept:hover {
-    border-color: rgba(99, 102, 241, 0.5);
-}
-
-.related-card.type-dataset:hover {
-    border-color: rgba(74, 222, 128, 0.5);
-}
-
-@keyframes meshFadeIn {
+/* Animation (Subtle) */
+@keyframes tierFadeIn {
     from {
         opacity: 0;
         transform: translateY(10px);
@@ -132,6 +80,18 @@
     }
 }
 
-.mesh-category-group {
-    animation: meshFadeIn 0.4s ease-out forwards;
+/* Responsive Grid Adjustments */
+@media (max-width: 768px) {
+    .grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .mesh-node {
+        padding: 1rem;
+    }
+}
+
+/* High Density Spacing */
+.mesh-container {
+    max-width: 100%;
 }
