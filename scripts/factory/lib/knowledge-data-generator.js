@@ -103,10 +103,19 @@ function extractSections(content) {
 
 /**
  * Count entity references for a knowledge slug
+ * V16.5: Fixed to use correct data structure from knowledge-linker
  */
 function countEntityRefs(knowledgeLinks, slug) {
-    if (!knowledgeLinks.byKnowledge) return 0;
-    return knowledgeLinks.byKnowledge[slug]?.length || 0;
+    if (!knowledgeLinks?.links) return 0;
+
+    let count = 0;
+    for (const link of knowledgeLinks.links) {
+        // Each link has: entity_id, entity_type, knowledge: [{slug, confidence}]
+        if (link.knowledge?.some(k => k.slug === slug || k.slug?.includes(slug))) {
+            count++;
+        }
+    }
+    return count;
 }
 
 /**
