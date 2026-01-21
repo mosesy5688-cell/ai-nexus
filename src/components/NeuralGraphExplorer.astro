@@ -4,7 +4,7 @@
  * Unified knowledge orchestration for all 6 entity types.
  * Optimized for Zero-Runtime and Bidirectional Discovery.
  */
-import { fetchMeshRelations, fetchGraphMetadata, stripPrefix } from '../utils/knowledge-cache-reader.js';
+import { fetchMeshRelations, fetchGraphMetadata, stripPrefix, isMatch } from '../utils/knowledge-cache-reader.js';
 import rankingsData from '../data/rankings.json';
 import '../styles/neural-graph.css';
 
@@ -71,8 +71,8 @@ try {
 
     // Process Bidirectional Mesh
     rawRelations.forEach(rel => {
-        const isOut = rel.norm_source === normRoot;
-        const isIn = rel.norm_target === normRoot;
+        const isOut = isMatch(rel.norm_source, normRoot);
+        const isIn = isMatch(rel.norm_target, normRoot);
         if (!isOut && !isIn) return;
 
         const neighborId = isOut ? rel.target_id : rel.source_id;
