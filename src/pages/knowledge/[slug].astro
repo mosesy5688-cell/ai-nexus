@@ -1,8 +1,7 @@
 ---
 /**
  * Knowledge Base Article Template
- * V4.4 Phase 3 - Dynamic article rendering with SEO
- * Refactored V5.1.2 - Reduced to <250 lines
+ * V16.2 - CDN Enhanced with mesh integration
  */
 
 export const prerender = false;
@@ -26,15 +25,29 @@ const configResult = getArticleBySlug(slug || '');
 const contentData = articles[slug || ''];
 
 let article = null;
+let cdnStats = null;
+
 if (configResult && contentData) {
   article = {
     ...configResult.article,
     category: configResult.category.id,
     content: contentData.content,
-    // Prefer metadata from config if exists
     difficulty: configResult.article.difficulty || contentData.difficulty,
     effort: configResult.article.effort || contentData.effort
   };
+  
+  // V16.2: Fetch CDN stats (refs count, last updated)
+  const R2 = Astro.locals?.runtime?.env?.R2_ASSETS;
+  if (R2) {
+    try {
+      const cdnFile = await R2.get(`cache/knowledge/articles/${slug}.json`);
+      if (cdnFile) {
+        cdnStats = await cdnFile.json();
+      }
+    } catch (e) {
+      // CDN stats not available, continue with local data
+    }
+  }
 }
 
 const pageTitle = article ? `${article.title} - AI Knowledge Base` : 'Article Not Found';
@@ -109,6 +122,7 @@ import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
           category={article.category} 
           difficulty={article.difficulty}
           effort={article.effort}
+          refs={cdnStats?.refs || 0}
         />
 
         <KnowledgeContent content={article.content} />
