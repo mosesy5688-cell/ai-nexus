@@ -18,19 +18,33 @@ const { currentModelId, entity, type = 'model' } = Astro.props;
 const rootId = currentModelId || entity?.id;
 const normRoot = stripPrefix(rootId);
 
-// Data containers - V16.2 4-Tier Topology
+// 4-Tier Topology
 let tiers = {
-    explanation: { title: '🧠 Concept & Explanation', nodes: [], icon: '🧠', zone: 'Z3.1' }, // knowledge--
-    core: { title: '💎 Core Ecosystem', nodes: [], icon: '⚡', zone: 'Z3.2' },       // model--, tool--, dataset--
-    utility: { title: '🔧 Utility & Research', nodes: [], icon: '🛠️', zone: 'Z3.3' },   // agent--, space--, arxiv--
-    digest: { title: '📰 Timeline & Reports', nodes: [], icon: '📰', zone: 'Z3.4' }     // report--
+    explanation: { title: '🧠 Concept & Explanation', nodes: [], icon: '🧠', zone: 'Z3.1' },
+    core: { title: '💎 Core Ecosystem', nodes: [], icon: '⚡', zone: 'Z3.2' }, 
+    utility: { title: '🔧 Utility & Research', nodes: [], icon: '🛠️', zone: 'Z3.3' }, 
+    digest: { title: '📰 Timeline & Reports', nodes: [], icon: '📰', zone: 'Z3.4' }
 };
 
-try {
-    const [rawRelations, graphMeta] = await Promise.all([
+// V16.4: Cross-Source Slug Redirects (Fixes 404s)
+const SLUG_MAPPING = {
+    'instruction-tuning': 'fine-tuning',
+    'image-generation': 'multimodal',
+    'chat-models': 'agents',
+    'rag-retrieval': 'rag',
+    'vector-databases': 'rag',
+    'prompt-engineering': 'prompt-engineering' // Ensure MD exists
+};
+
+    const [rawRelations, graphMeta, knowledgeIndex] = await Promise.all([
         fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }).catch(() => []),
-        fetchGraphMetadata(Astro.locals).catch(() => ({}))
+        fetchGraphMetadata(Astro.locals).catch(() => ({})),
+        Astro.locals.runtime.env.R2_ASSETS.get('cache/knowledge/index.json')
+            .then(obj => obj ? obj.json() : { articles: [] })
+            .catch(() => ({ articles: [] }))
     ]);
+
+    const validSlugs = new Set(knowledgeIndex.articles.map(a => a.slug));
 
     const nodeMap = new Map();
     const seenIds = new Set();
@@ -69,6 +83,9 @@ try {
         return node;
     };
 
+    // Unified Global Node Registry (Prevents Duplication)
+    const nodeRegistry = new Map();
+
     // Process Bidirectional Mesh
     rawRelations.forEach(rel => {
         const isOut = isMatch(rel.norm_source, normRoot);
@@ -76,98 +93,101 @@ try {
         if (!isOut && !isIn) return;
 
         const neighborId = isOut ? rel.target_id : rel.source_id;
+        const normNeighbor = stripPrefix(neighborId);
         
         // Circular Reference Protection
-        if (stripPrefix(neighborId) === normRoot) return;
+        if (normNeighbor === normRoot) return;
 
-        const node = ensureNode(neighborId, isOut ? rel.target_type : rel.source_type);
-        if (!node) return;
+        // V16.4: Zero-404 & De-Duplication Policy
+        let finalNeighborId = neighborId;
+        if (neighborId.startsWith('knowledge--')) {
+            let slug = normNeighbor.split('--').pop();
+            // 1. Redirect known broken slugs
+            if (SLUG_MAPPING[slug]) slug = SLUG_MAPPING[slug];
+            // 2. Hide if still missing from index
+            if (!validSlugs.has(slug)) return; 
+            finalNeighborId = `knowledge--${slug}`;
+        }
 
-        // Relation Label from Spec Section 4
-        const rType = (rel.relation_type || '').toUpperCase();
-        node.relation = rType;
+        const finalNorm = stripPrefix(finalNeighborId);
+        let node = nodeRegistry.get(finalNorm);
+        if (!node) {
+            node = ensureNode(finalNeighborId, isOut ? rel.target_type : rel.source_type);
+            nodeRegistry.set(finalNorm, node);
+        }
+
+        // Relation Affinity Logic
+        const rType = (rel.relation_type || 'RELATED').toUpperCase();
+        if (!node.relation || node.relation === 'RELATED') {
+            node.relation = rType;
+        }
 
         // Tier Assignment
-        if (node.type === 'knowledge') {
-            tiers.explanation.nodes.push(node);
-        } else if (node.type === 'model' || node.type === 'tool' || node.type === 'dataset') {
-            tiers.core.nodes.push(node);
-        } else if (node.type === 'agent' || node.type === 'space' || node.type === 'paper') {
-            tiers.utility.nodes.push(node);
-        } else if (node.type === 'report') {
-            tiers.digest.nodes.push(node);
+        if (!node._mapped) {
+            node._mapped = true;
+            if (node.type === 'knowledge') {
+                tiers.explanation.nodes.push(node);
+            } else if (node.type === 'model' || node.type === 'tool' || node.type === 'dataset') {
+                tiers.core.nodes.push(node);
+            } else if (node.type === 'agent' || node.type === 'space' || node.type === 'paper') {
+                tiers.utility.nodes.push(node);
+            } else if (node.type === 'report') {
+                tiers.digest.nodes.push(node);
+            }
         }
     });
 
     // Matrix-Specific Injection (V16.3: Improved Local Density)
     if (entity) {
-        // A. Global Mined Relations (from hydrator)
-        if (Array.isArray(entity.arxiv_refs)) {
-            entity.arxiv_refs.forEach(ref => {
-                const node = ensureNode(`arxiv--${ref}`, 'paper');
-                if (node) {
-                    node.relation = 'CITES';
-                    if (!tiers.utility.nodes.find(n => n.id === node.id)) tiers.utility.nodes.push(node);
-                }
-            });
-        }
-        if (Array.isArray(entity.datasets_used)) {
-            entity.datasets_used.forEach(ds => {
-                const node = ensureNode(`dataset--${ds.replace(/\//g, '--')}`, 'dataset');
-                if (node) {
-                    node.relation = 'TRAINED_ON';
-                    if (!tiers.core.nodes.find(n => n.id === node.id)) tiers.core.nodes.push(node);
-                }
-            });
-        }
-        if (Array.isArray(entity.similar_models)) {
-            entity.similar_models.forEach(m => {
-                const node = ensureNode(`model--${m.replace(/\//g, '--')}`, 'model');
-                if (node) {
-                    node.relation = 'RELATED';
-                    if (!tiers.core.nodes.find(n => n.id === node.id)) tiers.core.nodes.push(node);
-                }
-            });
-        }
+        const inject = (id, typeHint, relType) => {
+            const norm = stripPrefix(id);
+            if (norm === normRoot) return;
+            
+            let finalId = id;
+            if (id.startsWith('knowledge--')) {
+                let slug = norm.split('--').pop();
+                if (SLUG_MAPPING[slug]) slug = SLUG_MAPPING[slug];
+                if (!validSlugs.has(slug)) return;
+                finalId = `knowledge--${slug}`;
+            }
 
-        // B. Type-Specific Injections
-        if (type === 'model') {
-            if (entity.base_model) {
-                const node = ensureNode(`hf-model--${entity.base_model.replace(/\//g, '--')}`, 'model');
-                if (node) {
-                    node.relation = 'BASED_ON';
-                    if (!tiers.core.nodes.find(n => n.id === node.id)) tiers.core.nodes.push(node);
-                }
+            const finalNorm = stripPrefix(finalId);
+            let node = nodeRegistry.get(finalNorm);
+            if (!node) {
+                node = ensureNode(finalId, typeHint);
+                nodeRegistry.set(finalNorm, node);
             }
-        } else if (type === 'agent') {
-            if (entity.framework) {
-                const node = ensureNode(`tool--${entity.framework.toLowerCase()}`, 'tool');
-                if (node) {
-                    node.relation = 'STACK';
-                    if (!tiers.core.nodes.find(n => n.id === node.id)) tiers.core.nodes.push(node);
-                }
+            if (!node.relation || node.relation === 'RELATED') node.relation = relType;
+            
+            if (!node._mapped) {
+                node._mapped = true;
+                if (node.type === 'knowledge') tiers.explanation.nodes.push(node);
+                else if (['model', 'tool', 'dataset'].includes(node.type)) tiers.core.nodes.push(node);
+                else if (['agent', 'space', 'paper'].includes(node.type)) tiers.utility.nodes.push(node);
+                else if (node.type === 'report') tiers.digest.nodes.push(node);
             }
+        };
+
+        if (Array.isArray(entity.arxiv_refs)) entity.arxiv_refs.forEach(ref => inject(`arxiv--${ref}`, 'paper', 'CITES'));
+        if (Array.isArray(entity.datasets_used)) entity.datasets_used.forEach(ds => inject(`dataset--${ds.replace(/\//g, '--')}`, 'dataset', 'TRAINED_ON'));
+        if (Array.isArray(entity.similar_models)) entity.similar_models.forEach(m => inject(`model--${m.replace(/\//g, '--')}`, 'model', 'RELATED'));
+
+        if (type === 'model' && entity.base_model) {
+            inject(`hf-model--${entity.base_model.replace(/\//g, '--')}`, 'model', 'BASED_ON');
+        } else if (type === 'agent' && entity.framework) {
+            inject(`tool--${entity.framework.toLowerCase()}`, 'tool', 'STACK');
         } else if (type === 'space') {
             const modelsUsed = entity.meta_json?.models_used || entity.models_used || [];
-            modelsUsed.forEach(m => {
-               const node = ensureNode(`model--${m.replace(/\//g, '--')}`, 'model');
-               if (node) {
-                   node.relation = 'USES';
-                   if (!tiers.core.nodes.find(n => n.id === node.id)) tiers.core.nodes.push(node);
-               }
-            });
+            modelsUsed.forEach(m => inject(`model--${m.replace(/\//g, '--')}`, 'model', 'USES'));
         }
 
-        // C. Knowledge Links (Global)
         if (Array.isArray(entity.knowledge_links)) {
             entity.knowledge_links.forEach(l => {
                 const slug = typeof l === 'string' ? l : l.slug;
-                const node = ensureNode(`knowledge--${slug}`, 'knowledge');
-                if (node) {
-                    node.relation = 'EXPLAINS';
-                    if (node && !node.name && typeof l !== 'string' && l.title) node.name = l.title;
-                    if (!tiers.explanation.nodes.find(n => n.id === node.id)) tiers.explanation.nodes.push(node);
-                }
+                inject(`knowledge--${slug}`, 'knowledge', 'EXPLAINS');
+                const norm = stripPrefix(`knowledge--${slug}`);
+                const node = nodeRegistry.get(norm);
+                if (node && !node.name && typeof l !== 'string' && l.title) node.name = l.title;
             });
         }
     }
