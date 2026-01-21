@@ -150,14 +150,7 @@ const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.
  
     {/* Zone 3: Core (Mobile Tabs) */}
     <div slot="core-knowledge">
-         <div class="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-            <h3 class="font-bold mb-2">Capabilities</h3>
-            <ul class="space-y-2">
-               {derivedUseCases.goodFor.map(useCase => (
-                 <li class="text-sm flex items-center gap-2">✅ {useCase}</li>
-               ))}
-            </ul>
-         </div>
+         <UniversalCore entity={dataset} type="dataset" />
     </div>
     
     <div slot="core-similar">
