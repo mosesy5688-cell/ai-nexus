@@ -1,7 +1,7 @@
 ---
 // src/components/model-detail/ModelHeader.astro - V12 Share Buttons
 import EntityNotice from '../entity/EntityNotice.astro';
-import CompareButton from './CompareButton.astro';
+// V16.2: Removed CompareButton (deprecated)
 import ShareButtons from '../common/ShareButtons.astro';
 
 interface Props {
@@ -87,7 +87,7 @@ const {
         {lastUpdated && (
           <span>🕐 Updated {new Date(lastUpdated).toLocaleDateString()}</span>
         )}
-        <CompareButton modelId={modelId} modelName={modelName} />
+
         <ShareButtons title={modelName} description={seoDescription || cleanDescription || ''} />
       </div>
     </div>
