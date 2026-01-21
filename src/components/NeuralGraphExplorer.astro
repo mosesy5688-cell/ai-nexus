@@ -123,8 +123,11 @@ try {
 } catch (e) {
     console.error('[NeuralMeshHub] V16.2 Execution Error:', e);
 }
+
+const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
 ---
 
+{hasRelations && (
 <section class="neural-graph-explorer" id="neural-mesh-hub">
     <div class="header">
         <div class="title-group">
@@ -193,6 +196,7 @@ try {
         ))}
     </div>
 </section>
+)}
 
 <style>
     .neural-graph-explorer {
