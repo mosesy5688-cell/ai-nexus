@@ -8,6 +8,7 @@
  */
 
 import { parseModelId, inferType, normalizeTags, buildMetaJson, detectGGUF, extractAssets } from './hf-utils.js';
+import { extractBaseModel, extractDatasetsUsed, extractArxivRefs } from './hf-relation-extractors.js';
 
 /**
  * Normalize raw HuggingFace model to UnifiedEntity
@@ -210,20 +211,3 @@ export function normalizeSpace(raw, adapter) {
     return entity;
 }
 
-// V12: Explicit Relationship Extraction Functions
-function extractBaseModel(raw) {
-    const tags = raw.tags || [];
-    const baseTag = tags.find(t => t.startsWith('base_model:'));
-    if (baseTag) return baseTag.replace('base_model:', '');
-    if (raw.cardData?.base_model) return raw.cardData.base_model;
-    if (raw.cardData?.['model-index']?.[0]?.['base_model']) return raw.cardData['model-index'][0]['base_model'];
-    return null;
-}
-
-function extractDatasetsUsed(raw) {
-    return (raw.tags || []).filter(t => t.startsWith('dataset:')).map(t => t.replace('dataset:', ''));
-}
-
-function extractArxivRefs(raw) {
-    return (raw.tags || []).filter(t => t.startsWith('arxiv:')).map(t => t.replace('arxiv:', ''));
-}
