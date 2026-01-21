@@ -24,6 +24,19 @@ export function stripPrefix(id) {
 }
 
 /**
+ * Bidirectional check: Is the current entity either source or target?
+ * V16.2: Add fuzzy overlap for organizations (meta vs meta-llama)
+ */
+export const isMatch = (a, b) => {
+    if (!a || !b) return false;
+    if (a === b) return true;
+    const clean = (s) => s.replace(/^(model|meta-llama|meta|hf-model|nvidia|google|openai|anthropic|microsoft|mistral|stability-ai|black-forest-labs)--/, '');
+    const ca = clean(a);
+    const cb = clean(b);
+    return ca === cb || ca.includes(cb) || cb.includes(ca);
+};
+
+/**
  * Fetch Mesh Relations with performance gating for SSR.
  * V16: Improved bidirectional matching.
  */
@@ -64,7 +77,6 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                         }
                     });
                 }
-
                 // Explicit Relations (.relations array)
                 else if (Array.isArray(data.relations)) {
                     data.relations.forEach(rel => {
@@ -78,7 +90,6 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                         }
                     });
                 }
-
                 // Legacy detection of Root Dictionary
                 else if (typeof data === 'object' && !Array.isArray(data) && !data.edges && !data.links && !data.relations) {
                     Object.entries(data).forEach(([srcId, targets]) => {
@@ -97,7 +108,6 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                         }
                     });
                 }
-
                 // .links array (knowledge-links.json)
                 else if (Array.isArray(data.links)) {
                     data.links.forEach(link => {
@@ -114,7 +124,6 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                         }
                     });
                 }
-
                 // Standard Root Array
                 else if (Array.isArray(data)) {
                     allRelations = allRelations.concat(data);
@@ -134,16 +143,6 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
 
             const normS = stripPrefix(sid);
             const normT = stripPrefix(tid);
-
-            // Bidirectional check: Is the current entity either source or target?
-            // V16.2: Add fuzzy overlap for organizations (meta vs meta-llama)
-            const isMatch = (a, b) => {
-                if (a === b) return true;
-                const clean = (s) => s.replace(/^(model|meta-llama|meta|hf-model|nvidia|google|openai|anthropic|microsoft)--/, '');
-                const ca = clean(a);
-                const cb = clean(b);
-                return ca === cb || ca.includes(cb) || cb.includes(ca);
-            };
 
             if (target && !isMatch(normS, target) && !isMatch(normT, target)) continue;
 
