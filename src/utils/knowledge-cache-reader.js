@@ -146,7 +146,7 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
 
             if (target && !isMatch(normS, target) && !isMatch(normT, target)) continue;
 
-            const dupKey = `${sid}|${tid}|${rel.relation_type}`;
+            const dupKey = `${normS}|${normT}|${rel.relation_type}`;
             if (seen.has(dupKey)) continue;
             seen.add(dupKey);
 
