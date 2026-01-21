@@ -6,9 +6,10 @@
  */
 export function stripPrefix(id) {
     if (!id || typeof id !== 'string') return '';
+    // V16.2 Article 2.2: Dual-dash separator, prefix stripping
     return id
         .replace(/^(replicate|github|huggingface|hf|arxiv|kb|concept|knowledge|report|paper|model|agent|tool|dataset|space|huggingface_deepspec)[:\-]+/, '')
-        .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb)--/, '')
+        .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb|report|arxiv|dataset|tool)--/, '')
         .replace(/:/g, '--')
         .replace(/\//g, '--')
         .toLowerCase();

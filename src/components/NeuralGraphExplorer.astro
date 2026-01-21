@@ -18,12 +18,12 @@ const { currentModelId, entity, type = 'model' } = Astro.props;
 const rootId = currentModelId || entity?.id;
 const normRoot = stripPrefix(rootId);
 
-// Data containers
-let categories = {
-    ancestry: { title: '🧬 Ancestry & Origins', nodes: [] },
-    knowledge: { title: '📚 Research & Evidence', nodes: [] },
-    ecosystem: { title: '🌐 Ecosystem & Discovery', nodes: [] },
-    similar: { title: '👥 Similar Entities', nodes: [] }
+// Data containers - V16.2 4-Tier Topology
+let tiers = {
+    explanation: { title: '🧠 Concept & Explanation', nodes: [], icon: '🧠', zone: 'Z3.1' }, // knowledge--
+    core: { title: '💎 Core Ecosystem', nodes: [], icon: '⚡', zone: 'Z3.2' },       // model--, tool--, dataset--
+    utility: { title: '🔧 Utility & Research', nodes: [], icon: '🛠️', zone: 'Z3.3' },   // agent--, space--, arxiv--
+    digest: { title: '📰 Timeline & Reports', nodes: [], icon: '📰', zone: 'Z3.4' }     // report--
 };
 
 try {
@@ -45,6 +45,7 @@ try {
         const nodeType = meta.t || typeHint || (
             nid.includes('knowledge--') || nid.includes('kb--') ? 'knowledge' : 
             nid.includes('arxiv--') ? 'paper' : 
+            nid.includes('report--') ? 'report' :
             nid.includes('dataset--') ? 'dataset' : 
             nid.includes('space--') ? 'space' : 
             nid.includes('agent--') ? 'agent' : 
@@ -58,9 +59,10 @@ try {
             id: nid, 
             name: meta.n || nid.split('--').pop().replace(/-/g, ' ').toUpperCase(), 
             type: nodeType, 
-            icon: meta.icon || (nodeType === 'knowledge' ? '🧠' : nodeType === 'paper' ? '📄' : nodeType === 'space' ? '🚀' : nodeType === 'dataset' ? '📊' : nodeType === 'agent' ? '🤖' : nodeType === 'tool' ? '🛠️' : '📦'),
+            icon: meta.icon || (nodeType === 'knowledge' ? '🧠' : nodeType === 'paper' ? '📄' : nodeType === 'space' ? '🚀' : nodeType === 'dataset' ? '📊' : nodeType === 'agent' ? '🤖' : nodeType === 'tool' ? '🛠️' : nodeType === 'report' ? '📰' : '📦'),
             author: nodeAuthor,
-            hub: meta.hub || false
+            hub: meta.hub || false,
+            relation: '' // Explicit relation label
         };
         nodeMap.set(norm, node);
         seenIds.add(norm);
@@ -75,79 +77,51 @@ try {
 
         const neighborId = isOut ? rel.target_id : rel.source_id;
         
-        // V16.3.1: Prevent self-linking (Circular Reference Protection)
+        // Circular Reference Protection
         if (stripPrefix(neighborId) === normRoot) return;
 
         const node = ensureNode(neighborId, isOut ? rel.target_type : rel.source_type);
         if (!node) return;
 
-        // Categorize based on relation type and node type
+        // Relation Label from Spec Section 4
         const rType = (rel.relation_type || '').toUpperCase();
-        
-        // Define relation-specific icons
-        const relIcons = {
-            'BASED_ON': '🧬',
-            'TRAINED_ON': '📊',
-            'CITES': '📄',
-            'STACK': '🛠️',
-            'EXPLAIN': '🧠',
-            'EXPLAINS': '🧠',
-            'USES': '⚙️',
-            'DEMO_OF': '🚀',
-            'POWERED_BY': '⚡',
-            'DEP': '📦'
-        };
-        
-        if (relIcons[rType]) node.icon = relIcons[rType];
+        node.relation = rType;
 
-        if (rType.includes('ALT') || rType.includes('SIMILAR') || rType === 'ALTERNATIVE') {
-            categories.similar.nodes.push(node);
-        } else if (rType === 'BASED_ON' || rType === 'PARENT' || rType === 'TRAINED_ON') {
-            categories.ancestry.nodes.push(node);
-        } else if (rType === 'CITES' || rType === 'EXPLAIN' || rType === 'EXPLAINS' || rType === 'IMPLEMENTS' || rType === 'RESEARCH' || node.type === 'knowledge' || node.type === 'paper') {
-            categories.knowledge.nodes.push(node);
-        } else {
-            categories.ecosystem.nodes.push(node);
+        // Tier Assignment
+        if (node.type === 'knowledge') {
+            tiers.explanation.nodes.push(node);
+        } else if (node.type === 'model' || node.type === 'tool' || node.type === 'dataset') {
+            tiers.core.nodes.push(node);
+        } else if (node.type === 'agent' || node.type === 'space' || node.type === 'paper') {
+            tiers.utility.nodes.push(node);
+        } else if (node.type === 'report') {
+            tiers.digest.nodes.push(node);
         }
     });
 
-    // Matrix-Specific Injection (Local Hub Logic as Fallback/Augment)
+    // Matrix-Specific Injection
     if (type === 'model' && entity) {
         if (entity.base_model) {
             const node = ensureNode(`hf-model--${entity.base_model.replace(/\//g, '--')}`, 'model');
-            if (node && !categories.ancestry.nodes.find(n => n.id === node.id)) categories.ancestry.nodes.push(node);
+            if (node) {
+                node.relation = 'BASED_ON';
+                if (!tiers.core.nodes.find(n => n.id === node.id)) tiers.core.nodes.push(node);
+            }
         }
         if (Array.isArray(entity.knowledge_links)) {
             entity.knowledge_links.forEach(l => {
                 const slug = typeof l === 'string' ? l : l.slug;
                 const node = ensureNode(`knowledge--${slug}`, 'knowledge');
-                if (node && !node.name && typeof l !== 'string' && l.title) node.name = l.title;
-                if (node && !categories.knowledge.nodes.find(n => n.id === node.id)) categories.knowledge.nodes.push(node);
+                if (node) {
+                    node.relation = 'EXPLAINS';
+                    if (node && !node.name && typeof l !== 'string' && l.title) node.name = l.title;
+                    if (!tiers.explanation.nodes.find(n => n.id === node.id)) tiers.explanation.nodes.push(node);
+                }
             });
         }
-        if (Array.isArray(entity.arxiv_refs)) {
-            entity.arxiv_refs.forEach(id => {
-                const node = ensureNode(`arxiv--${id}`, 'paper');
-                if (node && !categories.knowledge.nodes.find(n => n.id === node.id)) categories.knowledge.nodes.push(node);
-            });
-        }
-        if (Array.isArray(entity.datasets_used)) {
-            entity.datasets_used.forEach(id => {
-                const node = ensureNode(`dataset--${id}`, 'dataset');
-                if (node && !categories.ecosystem.nodes.find(n => n.id === node.id)) categories.ecosystem.nodes.push(node);
-            });
-        }
-    }
-
-    // Default Fallback for empty mesh
-    if (Object.values(categories).every(c => c.nodes.length === 0)) {
-        categories.knowledge.nodes = [
-            { id: 'knowledge--mmlu', name: 'MMLU Benchmark', type: 'knowledge', icon: '🧪' },
-            { id: 'knowledge--fni', name: 'FNI Index', type: 'knowledge', icon: '🔥' }
-        ];
     }
 } catch (e) {
-    console.error('[NeuralMeshHub] SSR Error:', e);
+    console.error('[NeuralMeshHub] V16.2 Execution Error:', e);
 }
 ---
 
@@ -159,36 +133,57 @@ try {
         </div>
     </div>
     
-    <div class="mesh-container space-y-8 mt-6">
-        {Object.entries(categories).map(([key, cat]) => cat.nodes.length > 0 && (
-            <div class={`mesh-category-group group-${key}`}>
-                <h4 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    {cat.title}
-                    <span class="h-px flex-1 bg-gray-100 dark:bg-gray-800"></span>
-                </h4>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {cat.nodes.map(node => {
+    <div class="mesh-container space-y-10 mt-8">
+        {Object.entries(tiers).map(([key, tier]) => tier.nodes.length > 0 && (
+            <div class={`mesh-tier mesh-tier-${key}`} data-zone={tier.zone}>
+                <div class="tier-header flex items-center gap-3 mb-6">
+                    <span class="tier-icon text-xl p-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 shadow-sm">
+                        {tier.icon}
+                    </span>
+                    <div class="flex-1">
+                        <h4 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
+                            {tier.title}
+                        </h4>
+                        <div class="h-px w-full bg-gradient-to-r from-gray-100 dark:from-gray-800 to-transparent mt-2"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {tier.nodes.map(node => {
                         const cleanId = node.id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space|kb|concept|knowledge|report|arxiv|paper|huggingface|huggingface_deepspec|github|replicate)[:\-]+/, '')
-                                              .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb)--/, '');
+                                               .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb|report|arxiv|dataset|tool)--/, '');
                         const urlSlug = cleanId.replace(/--/g, '/').replace(/:/g, '/');
                         let path = node.type === 'knowledge' ? `/knowledge/${urlSlug}` : node.type === 'report' ? `/reports/${urlSlug}` : node.type === 'paper' ? `/paper/${urlSlug}` : `/${node.type}/${urlSlug}`;
                         
                         return (
-                            <a href={path} class={`group relative p-4 bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 rounded-xl hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300`}>
-                                <div class="flex items-center gap-3">
-                                    <span class="text-2xl group-hover:scale-110 transition-transform">{node.icon || '📦'}</span>
+                            <a href={path} class={`mesh-node group relative p-4 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 rounded-2xl hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300`}>
+                                <div class="flex items-start gap-4">
+                                    <div class="node-icon-wrapper relative">
+                                        <span class="text-3xl filter grayscale group-hover:grayscale-0 transition-all duration-500 block">
+                                            {node.icon || '📦'}
+                                        </span>
+                                        {node.relation && (
+                                            <span class="relation-badge absolute -top-2 -right-2 px-1.5 py-0.5 bg-indigo-500 text-[8px] font-black text-white rounded shadow-sm uppercase tracking-tighter">
+                                                {node.relation}
+                                            </span>
+                                        )}
+                                    </div>
                                     <div class="flex-1 min-w-0">
-                                        <div class="flex items-center justify-between gap-2">
-                                            <span class="text-sm font-bold text-gray-900 dark:text-white truncate">{node.name}</span>
-                                            <span class="text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-gray-50 dark:bg-gray-900 text-gray-400 border border-gray-100 dark:border-gray-800">
+                                        <div class="flex items-center justify-between gap-2 mb-1">
+                                            <span class="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-indigo-500 transition-colors">
+                                                {node.name}
+                                            </span>
+                                            <span class="text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-gray-50 dark:bg-gray-900 text-gray-400 border border-gray-100 dark:border-gray-800">
                                                 {node.type}
                                             </span>
                                         </div>
-                                        <p class="text-[10px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                        <p class="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1">
                                             {node.author || 'Ecosystem Node'}
                                         </p>
                                     </div>
-                                    <span class="text-gray-300 dark:text-gray-600 group-hover:translate-x-1 group-hover:text-blue-500 transition-all">→</span>
+                                    <div class="flex flex-col justify-center opacity-30 group-hover:opacity-100 transition-opacity">
+                                        <span class="text-indigo-500 translate-x-0 group-hover:translate-x-1 transition-transform">→</span>
+                                    </div>
                                 </div>
                             </a>
                         );
