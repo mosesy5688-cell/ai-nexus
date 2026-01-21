@@ -6,7 +6,7 @@
 import TechSpecsFull from './TechSpecsFull.astro';
 import GGUFList from './GGUFList.astro';
 import TagsCloud from './TagsCloud.astro';
-import CompareCTA from './CompareCTA.astro';
+// V16.2: Removed CompareCTA (deprecated)
 import ModelInfoTable from '../ModelInfoTable.astro';
 
 import DeploymentInfo from './DeploymentInfo.astro';
@@ -48,8 +48,6 @@ function formatBytes(bytes: number | undefined): string {
 ---
 
 <aside class="space-y-6">
-  <!-- V14.2: Compare CTA Button -->
-  <CompareCTA modelId={modelId} modelName={model.name || modelId} />
 
   {/* V14.3: HIDDEN - Run on Cloud Affiliate CTAs (2026-01-04)
       Reason: Feature temporarily disabled per user request

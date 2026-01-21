@@ -45,9 +45,16 @@ const typeColors: Record<string, string> = {
 
 const colors = typeColors[entityType] || typeColors.model;
 
-// V15.1: Clean description for one-liners (Strip HTML)
+// V16.2: Clean description - Strip HTML, YAML frontmatter, and Markdown alerts
 const cleanDescription = description 
-  ? description.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').trim() 
+  ? description
+      .replace(/^---[\s\S]*?---\s*/m, '')           // Remove YAML frontmatter
+      .replace(/\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/gi, '') // Remove GitHub alerts
+      .replace(/>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/gi, '') // Remove blockquote alerts
+      .replace(/<[^>]*>?/gm, '')                     // Remove HTML tags
+      .replace(/&nbsp;/g, ' ')                       // Replace nbsp
+      .replace(/\n{2,}/g, ' ')                       // Collapse multiple newlines
+      .trim() 
   : '';
 
 // V15.1: Author fallback
