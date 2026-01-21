@@ -36,6 +36,7 @@ const SLUG_MAPPING = {
     'prompt-engineering': 'prompt-engineering' // Ensure MD exists
 };
 
+try {
     const [rawRelations, graphMeta, knowledgeIndex] = await Promise.all([
         fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }).catch(() => []),
         fetchGraphMetadata(Astro.locals).catch(() => ({})),
