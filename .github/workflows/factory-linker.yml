@@ -242,6 +242,18 @@ jobs:
           restore-keys: |
             entity-data-
             
+      - name: Download explicit relations
+        uses: actions/download-artifact@v4
+        with:
+          name: explicit-relations
+          path: output/cache/relations/
+          
+      - name: Download knowledge links
+        uses: actions/download-artifact@v4
+        with:
+          name: knowledge-links
+          path: output/cache/relations/
+            
       - name: Generate mesh graph
         run: node scripts/factory/lib/mesh-graph-generator.js ./output
         
