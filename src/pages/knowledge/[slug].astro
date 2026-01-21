@@ -51,7 +51,9 @@ if (configResult && contentData) {
 }
 
 const pageTitle = article ? `${article.title} - AI Knowledge Base` : 'Article Not Found';
-const pageDescription = article?.description || 'This article was not found.';
+const pageDescription = article?.description 
+  ? `${article.description}${cdnStats?.refs ? ` (Referenced by ${cdnStats.refs} models/papers)` : ''}`
+  : 'This article was not found.';
 
 // Related articles (same category)
 const relatedArticles = article ? Object.entries(articles)
