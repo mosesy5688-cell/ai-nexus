@@ -6,13 +6,21 @@
  */
 export function stripPrefix(id) {
     if (!id || typeof id !== 'string') return '';
-    // V16.2 Article 2.2: Dual-dash separator, prefix stripping
-    return id
-        .replace(/^(replicate|github|huggingface|hf|arxiv|kb|concept|knowledge|report|paper|model|agent|tool|dataset|space|huggingface_deepspec)[:\-]+/, '')
-        .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb|report|arxiv|dataset|tool)--/, '')
+
+    // Normalize to lowercase for consistent prefix matching
+    let result = id.toLowerCase();
+
+    // Comprehensive list of prefixes to strip
+    const prefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb|report|arxiv|dataset|tool|replicate|github|huggingface|concept|paper|model|agent|space|hf)[:\-\/]+/;
+
+    // Double pass to handle nested prefixes like replicate:meta/ or hf-model--
+    result = result.replace(prefixes, '');
+    result = result.replace(prefixes, '');
+
+    // Standardize separators to double-dash per SPEC V16.2
+    return result
         .replace(/:/g, '--')
-        .replace(/\//g, '--')
-        .toLowerCase();
+        .replace(/\//g, '--');
 }
 
 /**
@@ -131,8 +139,10 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
             // V16.2: Add fuzzy overlap for organizations (meta vs meta-llama)
             const isMatch = (a, b) => {
                 if (a === b) return true;
-                const clean = (s) => s.replace(/^(meta-llama|meta|nvidia|google|openai|anthropic|microsoft)--/, '');
-                return clean(a) === clean(b) && (a.includes(clean(a)) || b.includes(clean(b)));
+                const clean = (s) => s.replace(/^(model|meta-llama|meta|hf-model|nvidia|google|openai|anthropic|microsoft)--/, '');
+                const ca = clean(a);
+                const cb = clean(b);
+                return ca === cb || ca.includes(cb) || cb.includes(ca);
             };
 
             if (target && !isMatch(normS, target) && !isMatch(normT, target)) continue;
