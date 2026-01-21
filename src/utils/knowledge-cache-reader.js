@@ -55,8 +55,20 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                             });
                         }
                     });
-                    // If we found V16.2 data, we can stop if it's the target-specific mesh
-                    if (key === 'cache/mesh/graph.json') break;
+                }
+
+                // Explicit Relations (.relations array)
+                else if (Array.isArray(data.relations)) {
+                    data.relations.forEach(rel => {
+                        if (rel.source_id && rel.target_id) {
+                            allRelations.push({
+                                source_id: rel.source_id,
+                                target_id: rel.target_id,
+                                relation_type: rel.relation_type || 'RELATED',
+                                confidence: rel.confidence || 0.8
+                            });
+                        }
+                    });
                 }
 
                 // Legacy detection of Root Dictionary
@@ -81,11 +93,12 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                 // .links array (knowledge-links.json)
                 else if (Array.isArray(data.links)) {
                     data.links.forEach(link => {
-                        if (link.entity_id && Array.isArray(link.knowledge)) {
+                        const sid = link.entity_id || link.id;
+                        if (sid && Array.isArray(link.knowledge)) {
                             link.knowledge.forEach(k => {
                                 allRelations.push({
-                                    source_id: link.entity_id,
-                                    target_id: typeof k === 'string' ? `knowledge--${k}` : `knowledge--${k.slug}`,
+                                    source_id: sid,
+                                    target_id: typeof k === 'string' ? `knowledge--${k}` : `knowledge--${k.slug || k.id}`,
                                     relation_type: 'EXPLAINS',
                                     confidence: k?.confidence || 1.0
                                 });
