@@ -1,14 +1,16 @@
 ---
 // src/components/knowledge/KnowledgeHeader.astro
+// V16.2 - Added refs count from CDN stats
 interface Props {
   title: string;
   description: string;
   category: string;
   difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
   effort?: string;
+  refs?: number;
 }
 
-const { title, description, category, difficulty, effort } = Astro.props;
+const { title, description, category, difficulty, effort, refs } = Astro.props;
 
 // Difficulty color mapping
 const difficultyColors = {
@@ -35,6 +37,12 @@ const difficultyColors = {
       <span class="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold uppercase tracking-wide">
         <span>⏱️</span>
         {effort}
+      </span>
+    )}
+    {refs > 0 && (
+      <span class="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wide">
+        <span>🔗</span>
+        {refs.toLocaleString()} references
       </span>
     )}
   </div>

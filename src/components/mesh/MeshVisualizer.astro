@@ -1,0 +1,119 @@
+---
+/**
+ * MeshVisualizer V16.2
+ * Visualizes the 8-node knowledge graph from cache/mesh/graph.json
+ * Displays nodes and edges in a navigable format
+ */
+
+const CDN_BASE = 'https://cdn.free2aitools.com';
+
+// Fetch mesh stats from CDN
+let meshStats = { nodes: 0, edges: 0, by_type: {} };
+
+try {
+  const response = await fetch(`${CDN_BASE}/cache/mesh/stats.json`);
+  if (response.ok) {
+    meshStats = await response.json();
+  }
+} catch (e) {
+  // Use defaults
+}
+
+// Node type icons and colors
+const typeConfig = {
+  model: { icon: '🤖', color: 'bg-blue-500', label: 'Models' },
+  paper: { icon: '📄', color: 'bg-purple-500', label: 'Papers' },
+  agent: { icon: '🤖', color: 'bg-emerald-500', label: 'Agents' },
+  space: { icon: '🚀', color: 'bg-orange-500', label: 'Spaces' },
+  dataset: { icon: '📊', color: 'bg-cyan-500', label: 'Datasets' },
+  tool: { icon: '🔧', color: 'bg-amber-500', label: 'Tools' },
+  knowledge: { icon: '📚', color: 'bg-indigo-500', label: 'Knowledge' },
+  report: { icon: '📰', color: 'bg-rose-500', label: 'Reports' }
+};
+
+const nodesByType = meshStats.by_type || {};
+const totalNodes = meshStats.nodes || 0;
+const totalEdges = meshStats.edges || 0;
+---
+
+<section class="mesh-visualizer bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-3xl p-8 border border-gray-200 dark:border-gray-700">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+        <span class="text-3xl">🕸️</span>
+        Knowledge Mesh
+      </h2>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        8-node interconnected knowledge graph
+      </p>
+    </div>
+    <div class="flex items-center gap-4 text-sm">
+      <div class="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-full shadow-sm">
+        <span class="font-bold text-indigo-600">{totalNodes.toLocaleString()}</span>
+        <span class="text-gray-500">nodes</span>
+      </div>
+      <div class="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-full shadow-sm">
+        <span class="font-bold text-emerald-600">{totalEdges.toLocaleString()}</span>
+        <span class="text-gray-500">edges</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Node Type Distribution -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+    {Object.entries(typeConfig).map(([type, config]) => {
+      const count = nodesByType[type] || 0;
+      if (count === 0) return null;
+      
+      return (
+        <div class="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+          <div class={`w-10 h-10 ${config.color} rounded-xl flex items-center justify-center text-white text-xl`}>
+            {config.icon}
+          </div>
+          <div>
+            <div class="text-xl font-bold text-gray-900 dark:text-white">
+              {count.toLocaleString()}
+            </div>
+            <div class="text-xs text-gray-500 uppercase tracking-wide">
+              {config.label}
+            </div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  <!-- Connection Diagram -->
+  <div class="relative p-6 bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700">
+    <div class="flex items-center justify-center gap-8 flex-wrap">
+      {Object.entries(typeConfig).slice(0, 6).map(([type, config], i) => {
+        const count = nodesByType[type] || 0;
+        const isHighlighted = count > 1000;
+        
+        return (
+          <div class={`flex flex-col items-center p-4 rounded-xl transition-all ${isHighlighted ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}>
+            <div class={`w-14 h-14 ${config.color} rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg`}>
+              {config.icon}
+            </div>
+            <span class="text-xs text-gray-600 dark:text-gray-400 mt-2 font-medium">
+              {config.label}
+            </span>
+            <span class="text-xs text-gray-400">
+              {count > 0 ? count.toLocaleString() : '-'}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+    
+    <!-- Center Hub -->
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
+      <div class="w-32 h-32 rounded-full border-4 border-dashed border-indigo-500"></div>
+    </div>
+  </div>
+
+  <!-- Data Source -->
+  <div class="mt-4 text-center text-xs text-gray-400">
+    Data from <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">cache/mesh/graph.json</code> • Updated periodically
+  </div>
+</section>
