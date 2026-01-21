@@ -109,10 +109,10 @@ export async function updateWeeklyAccumulator(entities, outputDir = './output') 
 }
 
 /**
- * Check if today is Sunday
+ * V16.5: Always generate report on every Factory run (removed Sunday check)
  */
-export function isSunday() {
-    return new Date().getDay() === 0;
+export function shouldGenerateReport() {
+    return true;
 }
 
 /**
@@ -127,14 +127,13 @@ export async function generateWeeklyReport(outputDir = './output') {
         return;
     }
 
-    const weekNum = getWeekNumber();
-    const year = new Date().getFullYear();
-    const weekId = `${year}-W${weekNum.toString().padStart(2, '0')}`;
+    // V16.5: Date-based report ID
+    const reportId = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     // Archive backup
     const backupDir = path.join(outputDir, 'meta', 'weekly-backup');
     await fs.mkdir(backupDir, { recursive: true });
-    await fs.writeFile(path.join(backupDir, `${weekId}.json`), JSON.stringify(accumulator, null, 2));
+    await fs.writeFile(path.join(backupDir, `${reportId}.json`), JSON.stringify(accumulator, null, 2));
 
     // Get top entries for AI
     const topEntries = accumulator.entries.slice(0, 10);
@@ -142,12 +141,13 @@ export async function generateWeeklyReport(outputDir = './output') {
     // Try AI generation, fallback to template
     const aiContent = await generateAIContent(topEntries);
 
-    const title = aiContent?.title || `AI Weekly Digest - Week ${weekNum}`;
-    const subtitle = aiContent?.subtitle || 'Top AI Models, Papers, and Tools This Week';
-    const summary = aiContent?.summary || `This week, ${accumulator.entries.length} high-FNI entities made it to the list.`;
+    // V16.5: AI-generated title only, no hardcoded "Weekly"
+    const title = aiContent?.title || `AI Digest - ${reportId}`;
+    const subtitle = aiContent?.subtitle || 'Top AI Models, Papers, and Tools';
+    const summary = aiContent?.summary || `${accumulator.entries.length} high-FNI entities made it to the list.`;
 
     const report = {
-        id: weekId,
+        id: reportId,
         title,
         subtitle,
         summary,
@@ -179,12 +179,12 @@ export async function generateWeeklyReport(outputDir = './output') {
 
     const weeklyDir = path.join(outputDir, 'weekly');
     await fs.mkdir(weeklyDir, { recursive: true });
-    await fs.writeFile(path.join(weeklyDir, `${weekId}.json`), JSON.stringify(report, null, 2));
+    await fs.writeFile(path.join(weeklyDir, `${reportId}.json`), JSON.stringify(report, null, 2));
 
     // Clear accumulator
     await saveWeeklyAccum({ entries: [], week: null, startDate: null });
 
-    console.log(`  [REPORT] Generated ${weekId}: "${title}"`);
+    console.log(`  [REPORT] Generated ${reportId}: "${title}"`);
 }
 
 function getWeekNumber() {
