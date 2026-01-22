@@ -10,6 +10,8 @@
 
 import type { APIRoute, GetStaticPaths } from 'astro';
 
+export const prerender = true;
+
 const R2_CDN_BASE = 'https://cdn.free2aitools.com';
 
 // Static paths for build time (SSR will handle dynamic)

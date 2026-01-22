@@ -26,6 +26,7 @@ import { getModelFromCache } from '../../utils/entity-cache-reader';
 import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
 import { prepareModelPageData } from '../../utils/model-page-data';
 
+
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
 let model = null;

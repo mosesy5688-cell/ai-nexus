@@ -1,7 +1,6 @@
 import { defineConfig } from 'astro/config';
 import tailwind from "@astrojs/tailwind";
 import sitemap from "@astrojs/sitemap";
-import cloudflare from "@astrojs/cloudflare";
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -11,17 +10,19 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BUILD_TIME = Date.now().toString();
 
 
+import cloudflare from "@astrojs/cloudflare";
+
 export default defineConfig({
   site: 'https://free2aitools.com',
   output: 'server',
+  adapter: cloudflare({
+    runtime: { mode: 'local', type: 'pages' }
+  }),
   build: {
     assets: 'assets',
     inlineStylesheets: 'never',
     format: 'directory',
   },
-  adapter: cloudflare({
-    mode: 'directory',
-  }),
   image: {
     service: {
       entrypoint: 'astro/assets/services/noop'

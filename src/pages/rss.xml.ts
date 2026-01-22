@@ -5,23 +5,22 @@
 
 import type { APIRoute } from 'astro';
 
-export const prerender = false;
+export const prerender = true;
 
-export const GET: APIRoute = async ({ locals }) => {
-    // Fetch recent models from cache
+const CDN_URL = 'https://cdn.free2aitools.com/cache/search-core.json';
+
+export const GET: APIRoute = async () => {
+    // Fetch recent models from CDN (Static)
     let models: any[] = [];
 
     try {
-        const env = (locals as any)?.runtime?.env;
-        if (env?.CACHE_BUCKET) {
-            const obj = await env.CACHE_BUCKET.get('cache/rankings.json');
-            if (obj) {
-                const text = await obj.text();
-                models = JSON.parse(text).slice(0, 50); // Latest 50
-            }
+        const res = await fetch(CDN_URL);
+        if (res.ok) {
+            const data = await res.json();
+            models = (data.entities || data.models || data).slice(0, 50);
         }
     } catch (e) {
-        console.error('[RSS] Error fetching models:', e);
+        console.error('[RSS] Error fetching models from CDN:', e);
     }
 
     const siteUrl = 'https://free2aitools.com';

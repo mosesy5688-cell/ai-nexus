@@ -93,12 +93,6 @@ const tagsArray = space?.tags ? (typeof space.tags === 'string' ? JSON.parse(spa
 const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_score || 0) : { goodFor: [], limits: [] };
 ---
 
-
-
-
-
-
-
 <EntityLayout 
   entity={space} 
   type="space" 

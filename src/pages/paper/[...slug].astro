@@ -33,7 +33,7 @@ try {
   // V15.10: Augmentation Layer for Papers
   try {
     const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
-    const specEntry = specsResult.data?.data?.find(s => s.umid === slugStr.replace(/\//g, '-') || s.umid === slugStr.replace(/\//g, '--'));
+    const specEntry = specsResult.data?.data?.find(s => s.umid === displaySlug.replace(/\//g, '-') || s.umid === displaySlug.replace(/\//g, '--'));
     if (specEntry) {
       paper = augmentEntity(paper || {}, specEntry);
     }
