@@ -1,40 +1,59 @@
 ---
 layout: ../../layouts/KnowledgeLayout.astro
-title: LLM Benchmarks Explained
+title: LLM Benchmarks Guide
 slug: llm-benchmarks
+description: Understanding the most important benchmarks used to measure AI reasoning, coding, and general knowledge
+keywords: mmlu, humaneval, gsm8k, benchmarks, chatbot arena, llm evaluation
 ---
 
-# LLM Benchmarks Explained
+# LLM Benchmarks Guide
 
-Benchmarks measure LLM capabilities across different tasks. Understanding them helps choose the right model.
+Evaluating Large Language Models is notoriously difficult. Unlike traditional software, AI output is probabilistic and subjective. **Benchmarks** provide standardized sets of questions or tasks to measure a model's capabilities across different dimensions.
 
-## Key Benchmarks
+## Core Reasoning Benchmarks
 
-| Benchmark | Tests | Range |
-|-----------|-------|-------|
-| **MMLU** | Academic knowledge | 0-100% |
-| **HumanEval** | Code generation | 0-100% |
-| **HellaSwag** | Commonsense reasoning | 0-100% |
-| **ARC-Challenge** | Science questions | 0-100% |
-| **GSM8K** | Math word problems | 0-100% |
-| **TruthfulQA** | Factual accuracy | 0-100% |
+These benchmarks measure how well a model can "think" through complex problems.
 
-## Leaderboard Rankings
+### 1. MMLU (Massive Multitask Language Understanding)
+[MMLU](/knowledge/mmlu) is the "Gold Standard" for general knowledge. It cover 57 subjects across STEM, the humanities, social sciences, and more.
+-   **Measure**: World knowledge and problem-solving.
+-   **Elite Score**: >85% (GPT-4 / Claude 3 Opus level).
 
-| Tier | MMLU | HumanEval |
-|------|------|-----------|
-| Top | 85%+ | 80%+ |
-| Excellent | 75-84% | 60-79% |
-| Good | 65-74% | 40-59% |
-| Average | 50-64% | 20-39% |
+### 2. GSM8K (Grade School Math 8K)
+High-quality grade school math word problems.
+-   **Measure**: Multi-step mathematical reasoning.
+-   **Why it matters**: It's hard to solve these by simple pattern matching; the model must "think" sequentially.
 
-## Benchmark Limitations
+### 3. HumanEval & MBPP
+[HumanEval](/knowledge/humaneval) and MBPP measure coding ability.
+-   **Measure**: Python code generation.
+-   **HumanEval**: Measures zero-shot code generation from 164 hand-written tasks.
 
-1. **Overfitting** - Models may train on test data
-2. **Task-specific** - High benchmark ≠ good at everything
-3. **Dated** - New capabilities may not be measured
+## Evaluation Dimensions
 
-## Related
+| Benchmark | Dimension | Difficulty |
+| :--- | :--- | :--- |
+| **MMLU** | General Knowledge | High (University level) |
+| **GSM8K** | Math Reasoning | Medium (Grade school) |
+| **HumanEval** | Programming | High (Logic testing) |
+| **TriviaQA** | Fact Retrieval | Variable |
+| **HellaSwag** | Common Sense | Low (Basic logic) |
 
-- [What is FNI?](/knowledge/fni)
-- [Context Length](/knowledge/context-length)
+## The Data Contamination Problem
+
+A major issue in modern AI is **contamination**. Since most benchmark questions are public, they often end up in the model's massive training data.
+-   **Symptoms**: A model gets a high score on a benchmark but fails at simple variations of the same questions.
+-   **Solution**: Researchers use "Private Benchmarks" or "Live Evals" like LMSYS Chatbot Arena.
+
+## Chatbot Arena (Human Preference)
+
+The **LMSYS Chatbot Arena** uses a double-blind human voting system. Humans are given the same prompt for two anonymous models and vote on which answer is better.
+-   **ELO Rating**: Models are ranked using a chess-style ELO system.
+-   **Significance**: Most researchers consider this the most "honest" measure of how a model feels to use.
+
+## Related Concepts
+
+-   [MMLU Benchmark](/knowledge/mmlu) - Detailed deep dive.
+-   [HumanEval](/knowledge/humaneval) - Measuring code quality.
+-   [Fine-Tuning](/knowledge/fine-tuning) - Optimization through training.
+-   [Chain of Thought (CoT)](/knowledge/chain-of-thought) - Technique to improve benchmark scores.

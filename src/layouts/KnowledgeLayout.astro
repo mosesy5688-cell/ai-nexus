@@ -1,101 +1,153 @@
 ---
+/**
+ * KnowledgeLayout V16.2
+ * Premium article layout with Sidebar, Mesh, and interactive features
+ */
 import Layout from './Layout.astro';
+import KnowledgeHeader from '../components/knowledge/KnowledgeHeader.astro';
+import KnowledgeSidebar from '../components/knowledge/KnowledgeSidebar.astro';
+import NeuralGraphExplorer from '../components/NeuralGraphExplorer.astro';
+import { getArticleBySlug } from '../data/knowledge-base-config';
+
+// Load styles
+import '../styles/knowledge.css';
 
 const { frontmatter } = Astro.props;
+const slug = frontmatter.slug;
+
+// Fetch config for difficulty/effort if not in MD
+const configResult = getArticleBySlug(slug || '');
+const articleConfig = configResult?.article;
+
+const pageTitle = `${frontmatter.title} - AI Knowledge Base`;
+const meshId = `knowledge--${slug}`;
 ---
 
-<Layout title={frontmatter.title + ' | AI Knowledge'} description={`Learn about ${frontmatter.title} - AI model architecture and concepts`}>
-  <main class="knowledge-page">
-    <article class="knowledge-content">
-      <header class="knowledge-header">
-        <nav class="breadcrumb">
-          <a href="/">Home</a> / <a href="/knowledge">Knowledge</a> / <span>{frontmatter.title}</span>
-        </nav>
-        <h1>{frontmatter.title}</h1>
-      </header>
-      
-      <div class="prose">
-        <slot />
-      </div>
-      
-      <footer class="knowledge-footer">
-        <a href="/knowledge">← Back to Knowledge Base</a>
-      </footer>
-    </article>
-  </main>
+<Layout title={pageTitle} description={frontmatter.description}>
+  <div class="container mx-auto px-4 py-8 max-w-6xl">
+    <div class="flex flex-col lg:flex-row gap-12">
+      <!-- Main Content -->
+      <main class="flex-1 min-w-0">
+        <article class="prose dark:prose-invert max-w-none">
+          <KnowledgeHeader 
+            title={frontmatter.title} 
+            description={frontmatter.description} 
+            category={articleConfig?.category || 'General'} 
+            difficulty={frontmatter.difficulty || articleConfig?.difficulty}
+            effort={frontmatter.effort || articleConfig?.effort}
+            refs={0} 
+          />
+          
+          <div class="article-content mt-8">
+            <slot />
+          </div>
+        </article>
+
+        <!-- Knowledge Mesh Section -->
+        <div class="mt-16 pt-12 border-t border-gray-100 dark:border-gray-800">
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <span class="text-indigo-600">🕸️</span> Knowledge Mesh
+          </h2>
+          <div class="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/50 shadow-sm overflow-hidden p-1">
+            <NeuralGraphExplorer currentModelId={meshId} type="concept" />
+          </div>
+        </div>
+
+        <!-- CTA & Progress -->
+        <div class="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 p-8 bg-gray-50 dark:bg-gray-800/40 rounded-3xl border border-gray-100 dark:border-gray-700">
+          <div class="flex items-center gap-4">
+             <button id="mark-read-btn" class="px-6 py-3 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-bold rounded-2xl border border-gray-200 dark:border-gray-600 hover:border-emerald-500 hover:text-emerald-600 transition-all shadow-sm">
+                Mark as Read
+             </button>
+             <span id="read-status" class="hidden text-emerald-600 font-bold flex items-center gap-1">
+                <span>✓</span> Read
+             </span>
+          </div>
+          <div class="flex gap-4">
+            <a href="/ranking" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">View Rankings</a>
+            <a href="/models" class="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white font-bold rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all">Browse Models</a>
+          </div>
+        </div>
+      </main>
+
+      <!-- Sidebar -->
+      <aside class="w-full lg:w-80 shrink-0">
+        <KnowledgeSidebar slug={slug || ''} />
+      </aside>
+    </div>
+  </div>
 </Layout>
 
-<style>
-  .knowledge-page {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 2rem;
+<script is:inline define:vars={{ slug }}>
+  (function() {
+      const STORAGE_KEY = 'f2ai_kb_progress';
+      const btn = document.getElementById('mark-read-btn');
+      const status = document.getElementById('read-status');
+      
+      if (!btn || !slug) return;
+
+      // Load initial state
+      let progress = {};
+      try {
+          progress = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      } catch (e) {}
+
+      if (progress[slug]) {
+          showRead();
+      }
+
+      btn.addEventListener('click', () => {
+          progress[slug] = true;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+          showRead();
+          window.dispatchEvent(new CustomEvent('kb-progress-updated', { detail: { slug, read: true } }));
+      });
+
+      function showRead() {
+          btn.classList.add('hidden');
+          status.classList.remove('hidden');
+      }
+  })();
+</script>
+
+<style is:global>
+  /* Fix MD images and tables in layout */
+  .article-content img {
+    border-radius: 1rem;
+    margin: 2rem 0;
+    border: 1px solid rgba(0,0,0,0.1);
   }
   
-  .knowledge-header {
-    margin-bottom: 2rem;
-  }
-  
-  .breadcrumb {
-    font-size: 0.875rem;
-    color: var(--text-muted, #666);
-    margin-bottom: 1rem;
-  }
-  
-  .breadcrumb a {
-    color: var(--link-color, #0066cc);
-    text-decoration: none;
-  }
-  
-  .breadcrumb a:hover {
-    text-decoration: underline;
-  }
-  
-  .prose {
-    line-height: 1.7;
-  }
-  
-  .prose h2 {
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-  }
-  
-  .prose h3 {
-    margin-top: 1.5rem;
-    margin-bottom: 0.75rem;
-  }
-  
-  .prose pre {
-    background: var(--code-bg, #f4f4f4);
-    padding: 1rem;
-    border-radius: 0.5rem;
-    overflow-x: auto;
-  }
-  
-  .prose table {
+  .article-content table {
     width: 100%;
+    margin: 2rem 0;
     border-collapse: collapse;
-    margin: 1rem 0;
+    font-size: 0.9rem;
   }
   
-  .prose th, .prose td {
-    padding: 0.5rem;
-    border: 1px solid var(--border-color, #ddd);
+  .article-content th, .article-content td {
+    padding: 0.75rem;
+    border: 1px solid rgba(0,0,0,0.1);
     text-align: left;
   }
   
-  .prose th {
-    background: var(--table-header-bg, #f0f0f0);
+  .dark .article-content th, .dark .article-content td {
+    border-color: rgba(255,255,255,0.1);
   }
-  
-  .knowledge-footer {
+
+  .article-content h2 {
+    font-size: 1.875rem;
+    font-weight: 700;
     margin-top: 3rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-color, #ddd);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
-  
-  .knowledge-footer a {
-    color: var(--link-color, #0066cc);
-    text-decoration: none;
+
+  /* Compact prose refinement */
+  .prose {
+    font-size: 1.05rem;
+    line-height: 1.75;
   }
 </style>

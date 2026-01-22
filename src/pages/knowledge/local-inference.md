@@ -1,61 +1,62 @@
 ---
 layout: ../../layouts/KnowledgeLayout.astro
-title: Local Inference
+title: Local AI Inference Guide
 slug: local-inference
+description: A comprehensive guide to running LLMs on your own hardware for privacy, speed, and customization
+keywords: local llm, inference, ollama, lm studio, llama.cpp, gpu requirements, private ai
 ---
 
-# Local Inference
+# Local AI Inference Guide
 
-Run LLMs on your own hardware for privacy, cost savings, and offline access.
+**Local Inference** refers to running Large Language Models (LLMs) on your own hardware (laptop, desktop, or server) instead of relying on cloud APIs like OpenAI or Anthropic. This shift is driven by the need for **privacy**, **offline access**, and **zero per-token costs**.
 
-## Popular Tools
+## Benefits of Going Local
 
-| Tool | Platform | Best For |
-|------|----------|----------|
-| **Ollama** | Mac/Linux/Win | Easy setup |
-| **llama.cpp** | All | Performance |
-| **LM Studio** | Mac/Win | GUI |
-| **vLLM** | Linux | Serving |
-| **text-gen-webui** | All | Features |
+-   **Data Privacy**: Your prompts and data never leave your machine. Ideal for sensitive documents.
+-   **Zero Latency/Cost**: No waiting for rate limits or paying monthly subscriptions.
+-   **Customization**: Run uncensored models or fine-tune models to your specific needs.
+-   **Offline Access**: Use AI in the field or in secure environments without internet.
 
-## Quick Start: Ollama
+## Popular Local LLM Tools
 
-```bash
-# Install
-curl -fsSL https://ollama.com/install.sh | sh
+| Tool | Difficulty | Best For... | Platform |
+| :--- | :--- | :--- | :--- |
+| **Ollama** | Beginner | One-line terminal commands | Win / Mac / Linux |
+| **LM Studio** | Beginner | Visual GUI & discovering models | Win / Mac |
+| **llama.cpp** | Advanced | Maximum performance & efficiency | CLI / All |
+| **Jan.ai** | Intermediate | Local alternative to ChatGPT | Desktop |
+| **vLLM** | Pro | High-throughput serving / API | Linux / GPU |
 
-# Run a model
-ollama run llama3.2
+## Hardware Cheat Sheet
 
-# List models
-ollama list
-```
+### 1. Apple Silicon (MacBook M1/M2/M3)
+The "Unified Memory" architecture makes Macs a powerhouse for local AI. 
+-   **8GB RAM**: 1B - 3B models (Phi-3, Gemma-2b).
+-   **16GB+ RAM**: 7B - 8B models (Llama 3, Mistral) run excellently.
+-   **64GB+ RAM**: Can run 70B models comfortably.
 
-## Hardware Requirements
+### 2. PC with NVIDIA GPU
+Look for GPUs with at least **8GB VRAM** (RTX 3060/4060). 
+-   **RTX 3090/4090 (24GB)**: The king of local AI for consumers.
 
-### Minimum (7B models)
-- 8 GB RAM
-- 4-core CPU
-- (Optional) 8+ GB VRAM GPU
+### 3. CPU Only
+Possible with **llama.cpp**, but slow. Good for 3B-7B models if you are patient (1-3 tokens per second).
 
-### Recommended (13-34B models)
-- 16 GB RAM
-- 8-core CPU
-- 12+ GB VRAM GPU
+## How to Get Started (The 5-Minute Path)
 
-### Power User (70B+ models)
-- 32 GB RAM
-- High-end GPU (24+ GB) or
-- Apple Silicon (32+ GB unified)
+1.  **Download Ollama** from [ollama.com](https://ollama.com).
+2.  **Run a model**: Open your terminal and type `ollama run llama3`.
+3.  **Chat**: The model will download (~4.7GB) and start an interactive chat session immediately.
 
-## Performance Tips
+## Key Terminology
 
-1. **Use quantized models** (Q4_K_M balance)
-2. **GPU offloading** when possible
-3. **Limit context length** if RAM constrained
-4. **Use MoE models** for efficiency
+-   **Quantization**: Compressing models to fit in VRAM. (See [Model Quantization](/knowledge/quantization))
+-   **VRAM**: Video RAM on your GPU; the most important hardware metric. (See [VRAM Requirements](/knowledge/vram))
+-   **Context Window**: How much "memory" the model has of the current chat.
 
 ## Related Concepts
 
-- [VRAM Requirements](/knowledge/vram)
-- [Quantization](/knowledge/quantization)
+-   [Ollama Guide](/knowledge/ollama) - Mastering the easiest local tool.
+-   [GGUF Format](/knowledge/gguf) - The standard file format for local models.
+-   [VRAM Requirements](/knowledge/vram) - Planning your hardware build.
+-   [Quantization](/knowledge/quantization) - How models are compressed for local use.
