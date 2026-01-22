@@ -5,16 +5,8 @@ interface Props {
 
 const { space } = Astro.props;
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
-
-// Helper to determine install command based on SDK
-const getInstallCommand = (sdk: string) => {
-  switch (sdk?.toLowerCase()) {
-    case 'gradio': return 'pip install gradio';
-    case 'streamlit': return 'pip install streamlit';
-    case 'docker': return 'docker pull ' + (space.name || 'image');
-    default: return 'git clone ' + space.source_url;
-  }
-};
+import QuickCommands from '../common/QuickCommands.astro';
+import ModelGallery from '../model-detail/ModelGallery.astro';
 ---
 
 <div class="space-y-8">
@@ -50,42 +42,11 @@ const getInstallCommand = (sdk: string) => {
      </div>
   </section>
 
-  <!-- Section: SDK Usage -->
-  <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-      <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-         <span>💻</span> Usage
-      </h2>
-      <div class="space-y-4">
-          <div>
-            <label class="text-xs font-semibold text-gray-500 uppercase">Install SDK</label>
-             <div class="mt-1 relative group">
-                <div class="bg-black text-gray-300 p-4 rounded-xl font-mono text-xs flex justify-between items-center border border-gray-800 pr-16">
-                   <code id="space-install-cmd">{getInstallCommand(space.sdk)}</code>
-                </div>
-                <button 
-                  class="absolute top-2.5 right-2.5 px-3 py-1 bg-white hover:bg-gray-200 text-black text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 shadow-lg border border-gray-200"
-                  onclick={`navigator.clipboard.writeText(document.getElementById('space-install-cmd').innerText).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000); })`}
-                >
-                  Copy
-                </button>
-             </div>
-          </div>
-          <div>
-             <label class="text-xs font-semibold text-gray-500 uppercase">Run Locally</label>
-             <div class="mt-1 relative group">
-                <div class="bg-black text-gray-300 p-4 rounded-xl font-mono text-xs border border-gray-800 pr-16">
-                   <code id="space-clone-cmd">git clone https://huggingface.co/spaces/{space.author}/{space.name}</code>
-                </div>
-                <button 
-                  class="absolute top-2.5 right-2.5 px-3 py-1 bg-white hover:bg-gray-200 text-black text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 shadow-lg border border-gray-200"
-                  onclick={`navigator.clipboard.writeText(document.getElementById('space-clone-cmd').innerText).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000); })`}
-                >
-                  Copy
-                </button>
-             </div>
-          </div>
-      </div>
   </section>
+
+  {/* V16.2: Universal Enhancements */}
+  <ModelGallery content={space.body_content || space.description} title="Space Interface & Visuals" />
+  <QuickCommands entity={space} type="space" />
 
   <!-- Section: README -->
   <FullReadmeSection 

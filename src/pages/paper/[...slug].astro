@@ -122,14 +122,24 @@ const derivedUseCases = paper ? getUseCases(paper.tags || [], '', 'paper', paper
       limits={derivedUseCases.limits} 
     />
   
-    {/* Zone 3: Core (Desktop) */}
-    <div slot="core-desktop">
+    {/* Zone 2: Technical Profile (Promoted in V16.2) */}
+    <TechSpecsFull 
+      slot="insights-extra"
+      entity={paper} 
+      type="paper" 
+      className="bg-white/50 dark:bg-white/5 backdrop-blur-sm"
+    />
+
+    <div slot="core-desktop" class="space-y-6">
        <UniversalCore entity={paper} type="paper" />
     </div>
  
     {/* Zone 3: Core (Mobile Tabs) */}
-    <div slot="core-knowledge">
-         <UniversalCore entity={paper} type="paper" />
+    <div slot="core-knowledge" class="space-y-6">
+       <div class="px-4 py-2 bg-rose-50 dark:bg-rose-900/10 rounded-xl border border-rose-100 dark:border-rose-800/30">
+          <TechSpecsFull entity={paper} type="paper" />
+       </div>
+       <UniversalCore entity={paper} type="paper" />
     </div>
     
     <div slot="core-similar">
@@ -146,7 +156,6 @@ const derivedUseCases = paper ? getUseCases(paper.tags || [], '', 'paper', paper
   
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive" class="space-y-12">
-        <TechSpecsFull entity={paper} type="paper" />
         <PaperDeepDive paper={paper} />
     </div>
 

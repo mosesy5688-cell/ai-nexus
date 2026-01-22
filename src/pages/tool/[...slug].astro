@@ -108,12 +108,22 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
       limits={derivedUseCases.limits} 
     />
   
-    {/* Zone 3: Core (Desktop/Mobile) */}
-    <div slot="core-desktop">
+    {/* Zone 2: Technical Profile (Promoted in V16.2) */}
+    <TechSpecsFull 
+      slot="insights-extra"
+      entity={tool} 
+      type="tool" 
+      className="bg-white/50 dark:bg-white/5 backdrop-blur-sm"
+    />
+
+    <div slot="core-desktop" class="space-y-6">
        <UniversalCore entity={tool} type="tool" />
     </div>
  
-    <div slot="core-knowledge">
+    <div slot="core-knowledge" class="space-y-6">
+       <div class="px-4 py-2 bg-purple-50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-800/30">
+          <TechSpecsFull entity={tool} type="tool" />
+       </div>
        <UniversalCore entity={tool} type="tool" />
     </div>
     
@@ -126,7 +136,6 @@ const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score
     </div>
   
     <div slot="deep-dive" class="space-y-12">
-         <TechSpecsFull entity={tool} type="tool" />
          <ToolDeepDive tool={tool} />
     </div>
 

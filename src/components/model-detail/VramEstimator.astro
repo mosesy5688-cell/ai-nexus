@@ -31,45 +31,76 @@ const hasData = estimatedVram !== null && params && params > 0;
 ---
 
 {hasData && (
-  <div class="vram-estimator bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="text-2xl">💾</div>
-        <div>
-          <p class="text-sm text-purple-600 dark:text-purple-400 font-medium">Est. VRAM Required</p>
-          <p class="text-2xl font-bold text-purple-900 dark:text-purple-100">
-            ~{estimatedVram} GB
-          </p>
+  <div class="vram-estimator bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl p-5 border border-purple-200 dark:border-purple-800 shadow-sm">
+    <div class="flex flex-col gap-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="text-2xl">💾</div>
+          <div>
+            <p class="text-[10px] uppercase font-black text-purple-600/70 dark:text-purple-400/70 tracking-widest">Est. VRAM Memory</p>
+            <p class="text-3xl font-black text-purple-900 dark:text-purple-100 italic">
+              ~<span id="vram-value">{estimatedVram}</span> <span class="text-sm font-normal not-italic opacity-50">GB</span>
+            </p>
+          </div>
         </div>
+        
+        <div class="status-badge px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter bg-purple-200 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700" id="compatibility-status">
+           Ready to Deploy
+        </div>
+      </div>
+
+      <!-- GPU Interactive Selector -->
+      <div class="gpu-selector mt-2">
+        <label for="gpu-preset" class="text-[9px] font-mono text-gray-500 mb-1 block uppercase">Test Hardware Compatibility</label>
+        <select 
+          id="gpu-preset" 
+          class="w-full bg-white dark:bg-black/40 border border-purple-200 dark:border-purple-800 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 ring-purple-500/50 appearance-none cursor-pointer"
+          data-required={estimatedVram}
+        >
+          <option value="0">Select your GPU...</option>
+          <option value="8">RTX 3070 / 4060 Ti (8GB)</option>
+          <option value="12">RTX 3060 / 4070 (12GB)</option>
+          <option value="16">RTX 4080 / T4 / Mac (16GB)</option>
+          <option value="24">RTX 3090 / 4090 (24GB)</option>
+          <option value="48">RTX 6000 Ada / A6000 (48GB)</option>
+          <option value="80">A100 / H100 (80GB)</option>
+        </select>
       </div>
       
-      <!-- V8.1-LOCK: DATA_DISCLOSURE_TRISTATE - Explicit formula tooltip -->
-      <div class="relative group">
-        <button class="text-purple-500 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300" aria-label="VRAM estimation info">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
-        
-        <!-- Tooltip -->
-        <div class="absolute right-0 top-8 w-64 p-3 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 text-xs opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-          <p class="font-semibold text-gray-900 dark:text-white mb-2">Estimation Formula</p>
-          <code class="block bg-black text-white p-2 rounded mb-2 font-mono border border-gray-700">
-            VRAM ≈ (Params × 0.75) + 0.8GB (KV) + 0.5GB (OS)
-          </code>
-          <p class="text-gray-600 dark:text-gray-400 mb-1">
-            Standard: 4-bit Quantized (Q4_K_M).
-          </p>
-          <p class="text-gray-500 dark:text-gray-500 italic">
-            ⚠️ KV Cache estimate based on 8B-scale @ 8k context.
-          </p>
-        </div>
-      </div>
+      <p class="text-[9px] text-purple-600/50 dark:text-purple-400/50 font-mono leading-tight">
+        * Based on 4-bit Quantization (Q4_K_M). Actual usage may vary by context length.
+      </p>
     </div>
-    
-    <!-- V8.1-LOCK: Explicit disclaimer per Trust Protocol -->
-    <p class="text-xs text-purple-600/70 dark:text-purple-400/70 mt-2">
-      📋 Estimate only. Actual requirements may vary.
-    </p>
   </div>
 )}
+
+<script>
+  function initVramInteractivity() {
+    const select = document.getElementById('gpu-preset') as HTMLSelectElement;
+    const status = document.getElementById('compatibility-status');
+    const required = parseFloat(select?.dataset.required || '0');
+
+    if (!select || !status) return;
+
+    select.addEventListener('change', () => {
+      const selectedVram = parseFloat(select.value);
+      if (selectedVram === 0) {
+        status.textContent = 'Select Hardware';
+        status.className = 'status-badge px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-700';
+        return;
+      }
+
+      if (selectedVram >= required) {
+        status.textContent = '✓ Compatible';
+        status.className = 'status-badge px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800';
+      } else {
+        const diff = (required - selectedVram).toFixed(1);
+        status.textContent = `⚠ Missing ${diff}GB`;
+        status.className = 'status-badge px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800';
+      }
+    });
+  }
+
+  initVramInteractivity();
+  document.addEventListener('astro:after-swap', initVramInteractivity);
+</script>

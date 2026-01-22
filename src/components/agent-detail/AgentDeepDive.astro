@@ -6,6 +6,9 @@ interface Props {
 const { agent } = Astro.props;
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
 import TechSpecsFull from '../entity/TechSpecsFull.astro';
+import QuickCommands from '../common/QuickCommands.astro';
+import ModelGallery from '../model-detail/ModelGallery.astro';
+import MarkdownRenderer from '../model-detail/MarkdownRenderer.astro';
 
 // Mock Config YAML
 const agentName = agent?.name || agent?.canonical_name || 'unknown-agent';
@@ -19,9 +22,7 @@ capabilities:
 `;
 ---
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-   <!-- Left Column: Content & Config -->
-   <div class="lg:col-span-2 space-y-8">
+   <div class="lg:col-span-3 space-y-8">
       <!-- Full README / Agent Profile -->
       <FullReadmeSection 
         bodyContent={agent.body_content || agent.description}
@@ -29,44 +30,48 @@ capabilities:
         maxPreviewLength={3000}
       />
 
+      {/* V16.2: Visual & Developer Enhancements */}
+      <ModelGallery content={agent.body_content || agent.description} title="Agent Framework Visuals" />
+      <QuickCommands entity={agent} type="agent" />
 
-      <!-- Configuration (V15 Spec) -->
-      <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <span>⚙️</span> Configuration
-         </h2>
-         <div class="relative group">
-            <pre class="bg-black text-green-400 p-5 rounded-xl font-mono text-xs overflow-x-auto border border-gray-800 scrollbar-thin scrollbar-thumb-gray-800">{mockConfig}</pre>
-            <button 
-              class="absolute top-3 right-3 px-3 py-1 bg-white hover:bg-gray-200 text-black text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 shadow-lg border border-gray-200"
-              onclick={`navigator.clipboard.writeText(\`${mockConfig}\`).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000); })`}
-            >
-              Copy
-            </button>
-         </div>
-      </section>
-      
-      <!-- Installation -->
-      <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-         <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+
+      {/* V16.2: Real Data Deep Dive */}
+      {agent.installation && (
+        <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <span>💻</span> Installation
-         </h2>
-         <div class="relative group">
-            <div class="bg-black text-gray-300 p-5 rounded-xl font-mono text-sm border border-gray-800 flex justify-between items-center pr-16">
-               <code id="agent-install-cmd">pip install {(agent?.name || agent?.canonical_name || 'agent').toLowerCase().replace(/ /g, '-')}</code>
-            </div>
-            <button 
-              class="absolute top-3 right-3 px-3 py-1 bg-white hover:bg-gray-200 text-black text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 shadow-lg border border-gray-200"
-              onclick={`navigator.clipboard.writeText(document.getElementById('agent-install-cmd').innerText).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000); })`}
-            >
-              Copy
-            </button>
-         </div>
-      </section>
-   </div>
+          </h2>
+          <MarkdownRenderer content={agent.installation} />
+        </section>
+      )}
 
-   <!-- Right Column: Specs -->
-   <div class="lg:col-span-1">
-       <TechSpecsFull entity={agent} type="agent" />
+      {agent.configuration && (
+        <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <span>⚙️</span> Configuration
+          </h2>
+          <MarkdownRenderer content={agent.configuration} />
+        </section>
+      )}
+
+      {agent.usage && (
+        <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <span>🚀</span> Usage Examples
+          </h2>
+          <MarkdownRenderer content={agent.usage} />
+        </section>
+      )}
+
+      {agent.license_full && (
+        <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <span>📄</span> License Details
+          </h2>
+          <div class="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg text-xs text-gray-600 dark:text-gray-400 font-mono whitespace-pre-wrap border border-gray-100 dark:border-gray-800">
+            {agent.license_full}
+          </div>
+        </section>
+      )}
    </div>
 </div>

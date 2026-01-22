@@ -5,6 +5,8 @@ interface Props {
 
 const { dataset } = Astro.props;
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
+import QuickCommands from '../common/QuickCommands.astro';
+import ModelGallery from '../model-detail/ModelGallery.astro';
 
 // Helper for mock data generation if real data isn't available
 const columns = dataset.features 
@@ -99,6 +101,10 @@ const configs = Array.isArray(dataset.configs)
      </div>
   </section>
   
+  {/* V16.2: Universal Enhancements */}
+  <ModelGallery content={dataset.body_content || dataset.description} title="Dataset Preview & Visuals" />
+  <QuickCommands entity={dataset} type="dataset" />
+
   <!-- Section: README / Dataset Card -->
   <FullReadmeSection 
     bodyContent={dataset.body_content || dataset.description}

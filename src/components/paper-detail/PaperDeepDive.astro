@@ -20,6 +20,8 @@ const generateBibTeX = (p: any) => {
 
 const bibtex = generateBibTeX(paper);
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
+import QuickCommands from '../common/QuickCommands.astro';
+import ModelGallery from '../model-detail/ModelGallery.astro';
 ---
 
 <div class="space-y-8">
@@ -32,6 +34,10 @@ import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
       {paper?.abstract || 'Technical abstract for this publication is currently being indexed and will be available shortly.'}
     </p>
   </section>
+
+  {/* V16.2: Universal Enhancements */}
+  <ModelGallery content={paper.body_content || paper.abstract} title="Paper Figures & Visuals" />
+  <QuickCommands entity={paper} type="paper" />
 
   <!-- Section: Citation / BibTeX -->
   <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">

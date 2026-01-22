@@ -1,0 +1,145 @@
+---
+/**
+ * QuickCommands.astro
+ * 
+ * V16.2: Universal "Developer Fast-Path" component.
+ * Provides copy-pasteable snippets for local deployment.
+ */
+
+interface Props {
+  entity: any;
+  type: 'model' | 'agent' | 'dataset';
+  className?: string;
+}
+
+const { entity, type, className = '' } = Astro.props;
+
+// Logic for snippets
+const id = entity?.id || entity?.umid || '';
+const cleanId = id.split('--').pop() || '';
+const repoUrl = entity?.source_url || '';
+
+const commands = [];
+
+if (type === 'model') {
+  commands.push({
+    label: 'Ollama Run',
+    cmd: `ollama run ${cleanId}`,
+    icon: '🦙'
+  });
+  if (repoUrl.includes('github.com')) {
+    commands.push({
+      label: 'Git Clone',
+      cmd: `git clone ${repoUrl}`,
+      icon: '🐙'
+    });
+  }
+} else if (type === 'agent') {
+  commands.push({
+    label: 'Install',
+    cmd: `pip install ${cleanId.toLowerCase().replace(/ /g, '-')}`,
+    icon: '🐍'
+  });
+} else if (type === 'dataset') {
+  commands.push({
+    label: 'HF Download',
+    cmd: `huggingface-cli download ${entity?.canonical_name || cleanId}`,
+    icon: '🤗'
+  });
+} else if (type === 'space') {
+  const sdk = entity?.sdk?.toLowerCase() || 'gradio';
+  commands.push({
+    label: `Install ${sdk}`,
+    cmd: sdk === 'streamlit' ? 'pip install streamlit' : (sdk === 'docker' ? 'docker pull ...' : 'pip install gradio'),
+    icon: '🛠️'
+  });
+  if (repoUrl) {
+    commands.push({
+      label: 'Clone Space',
+      cmd: `git clone ${repoUrl}`,
+      icon: '🐙'
+    });
+  }
+} else if (type === 'tool') {
+  const lang = (entity?.language || '').toLowerCase();
+  commands.push({
+    label: 'Install Tool',
+    cmd: lang === 'javascript' ? `npm install ${cleanId}` : `pip install ${cleanId}`,
+    icon: '⚙️'
+  });
+  if (repoUrl) {
+    commands.push({
+      label: 'Clone Source',
+      cmd: `git clone ${repoUrl}`,
+      icon: '🐙'
+    });
+  }
+} else if (type === 'paper') {
+  if (repoUrl && repoUrl.includes('github.com')) {
+    commands.push({
+      label: 'Clone Code',
+      cmd: `git clone ${repoUrl}`,
+      icon: '🐙'
+    });
+  }
+  const arxivId = entity?.arxiv_id || cleanId;
+  if (arxivId.includes('.')) {
+    commands.push({
+      label: 'ArXiv Link',
+      cmd: `https://arxiv.org/abs/${arxivId}`,
+      icon: '📄'
+    });
+  }
+}
+
+if (commands.length === 0) return null;
+---
+
+<div class={`quick-commands-container space-y-4 ${className}`}>
+  <h3 class="text-sm font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest flex items-center gap-2">
+    <span>⚡</span> Quick Commands
+  </h3>
+  
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    {commands.map(item => (
+      <div class="command-box group relative bg-black border border-gray-800 rounded-xl overflow-hidden transition-all hover:border-indigo-500/50 shadow-2xl">
+        <div class="flex items-center justify-between px-3 py-1.5 bg-[#0a0a0a] border-b border-gray-800">
+           <span class="text-[10px] font-bold text-gray-500 flex items-center gap-1">
+             <span>{item.icon}</span> {item.label}
+           </span>
+        </div>
+        <div class="p-3 flex items-center justify-between gap-4">
+          <code class="text-xs text-indigo-300 font-mono truncate">{item.cmd}</code>
+          <button 
+            class="copy-btn p-1.5 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors active:scale-95"
+            data-cmd={item.cmd}
+            title="Copy to clipboard"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
+<script>
+  function initQuickCopy() {
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const b = btn as HTMLButtonElement;
+        const cmd = b.dataset.cmd || '';
+        try {
+          await navigator.clipboard.writeText(cmd);
+          const originalHtml = b.innerHTML;
+          b.innerHTML = '<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
+          setTimeout(() => b.innerHTML = originalHtml, 2000);
+        } catch (e) {}
+      });
+    });
+  }
+  initQuickCopy();
+  document.addEventListener('astro:after-swap', initQuickCopy);
+</script>

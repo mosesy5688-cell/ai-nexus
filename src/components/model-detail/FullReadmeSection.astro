@@ -66,16 +66,21 @@ const previewContent = hasLongContent ? content.substring(0, maxPreviewLength) :
           <MarkdownRenderer content={content} />
         </div>
       )}
+      
+      {/* V16.4: Content Continuity Indicator */}
+      {hasLongContent && (
+        <div id="readme-fade" class="h-24 -mt-24 pointer-events-none bg-gradient-to-t from-white dark:from-gray-800 to-transparent relative z-10 transition-opacity duration-300"></div>
+      )}
     </div>
     
     {hasLongContent && (
-      <div class="px-6 pb-4">
+      <div class="px-6 pb-4 relative z-20">
         <button
           id="toggle-readme"
           class="w-full py-3 px-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 
                  text-indigo-600 dark:text-indigo-400 rounded-lg font-medium
                  hover:from-indigo-100 hover:to-purple-100 dark:hover:from-indigo-900/40 dark:hover:to-purple-900/40
-                 transition-all duration-200 flex items-center justify-center gap-2"
+                 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm border border-indigo-100/50 dark:border-indigo-500/10"
           data-expanded="false"
           data-type-label={toggleLabel}
         >
@@ -85,8 +90,8 @@ const previewContent = hasLongContent ? content.substring(0, maxPreviewLength) :
           </svg>
         </button>
         
-        <p class="text-xs text-gray-400 dark:text-gray-500 text-center mt-2">
-          {content.length.toLocaleString()} characters total
+        <p class="text-[10px] uppercase tracking-tighter text-gray-400 dark:text-gray-500 text-center mt-3 font-mono">
+          Data Transparency: {content.length.toLocaleString()} characters total • Full Document Secured
         </p>
       </div>
     )}
@@ -109,13 +114,17 @@ const previewContent = hasLongContent ? content.substring(0, maxPreviewLength) :
           // Collapse
           preview.classList.remove('hidden');
           full.classList.add('hidden');
+          document.getElementById('readme-fade')?.classList.remove('opacity-0');
           toggleBtn.dataset.expanded = 'false';
           toggleBtn.querySelector('.toggle-text')!.textContent = `Show Full ${typeLabel}`;
           toggleBtn.querySelector('.toggle-icon')!.classList.remove('rotate-180');
+          // Scroll back to top of section gently
+          toggleBtn.closest('section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } else {
           // Expand
           preview.classList.add('hidden');
           full.classList.remove('hidden');
+          document.getElementById('readme-fade')?.classList.add('opacity-0');
           toggleBtn.dataset.expanded = 'true';
           toggleBtn.querySelector('.toggle-text')!.textContent = 'Show Less';
           toggleBtn.querySelector('.toggle-icon')!.classList.add('rotate-180');

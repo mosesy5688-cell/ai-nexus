@@ -139,7 +139,15 @@ const jsonLd = agent ? {
     />
   
     {/* Zone 3: Core (Desktop/Mobile) */}
-    <div slot="core-desktop">
+    {/* Zone 2: Technical Profile (Promoted in V16.2) */}
+    <TechSpecsFull 
+      slot="insights-extra"
+      entity={agent} 
+      type="agent" 
+      className="bg-white/50 dark:bg-white/5 backdrop-blur-sm"
+    />
+
+    <div slot="core-desktop" class="space-y-6">
        <UniversalCore entity={agent} type="agent" />
     </div>
  

@@ -1,12 +1,12 @@
----
 /**
  * MarkdownRenderer.astro
  * 
  * B.6: Full README Display Component
- * Supports Markdown + Images + Syntax Highlighting
+ * Supports GFM Markdown + Images + Syntax Highlighting via 'marked'
  * 
  * @component
  */
+import { marked } from 'marked';
 
 interface Props {
   content: string;
@@ -27,87 +27,14 @@ if (maxLength && processedContent.length > maxLength) {
   processedContent = processedContent.substring(0, maxLength) + '...';
 }
 
-// Convert basic markdown to HTML (server-side)
-// Note: For full markdown parsing, consider marked or remark
-function simpleMarkdownToHtml(md: string): string {
-  let html = md;
-  
-  // Headers
-  html = html.replace(/^### (.+)$/gm, '<h3 class="text-lg font-semibold mt-6 mb-3 text-gray-900 dark:text-white">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 class="text-xl font-bold mt-8 mb-4 text-gray-900 dark:text-white">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 class="text-2xl font-bold mt-8 mb-4 text-gray-900 dark:text-white">$1</h1>');
-  
-  // Bold and italic
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  
-  // Code blocks (triple backticks)
-  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-    const langClass = lang ? `language-${lang}` : '';
-    const cleanCode = code.trim();
-    return `
-      <div class="code-block-wrapper relative group my-6 rounded-xl overflow-hidden border border-gray-800 shadow-2xl bg-black">
-        <div class="flex items-center justify-between px-4 py-1.5 bg-[#0a0a0a] border-b border-gray-800">
-          <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest font-mono">${lang || 'code'}</span>
-          <button 
-            class="markdown-copy-btn flex items-center gap-1 px-2 py-0.5 bg-gray-800 hover:bg-white text-gray-400 hover:text-black text-[10px] font-bold rounded transition-all active:scale-95"
-            data-code="${escapeHtml(cleanCode)}"
-          >
-            <span class="btn-icon">📋</span>
-            <span class="btn-text">Copy</span>
-          </button>
-        </div>
-        <pre class="p-4 overflow-x-auto text-sm scrollbar-thin scrollbar-thumb-gray-800 m-0"><code class="${langClass} text-white selection:bg-indigo-500/30">${escapeHtml(cleanCode)}</code></pre>
-      </div>
-    `;
-  });
-  
-  // Inline code
-  html = html.replace(/`([^`]+)`/g, '<code class="bg-black text-indigo-300 px-1.5 py-0.5 rounded text-sm border border-gray-800 font-mono shadow-sm">$1</code>');
-  
-  // Links
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">$1</a>');
-  
-  // Images
-  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto rounded-xl my-6 shadow-lg border border-gray-100 dark:border-gray-800" loading="lazy" />');
-  
-  // Lists
-  html = html.replace(/^- (.+)$/gm, '<li class="ml-4">$1</li>');
-  html = html.replace(/(<li[^>]*>.*<\/li>\n?)+/g, '<ul class="list-disc list-inside space-y-2 my-6 text-gray-700 dark:text-gray-300">$&</ul>');
-  
-  // Numbered lists
-  html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-4">$1</li>');
-  
-  // Blockquotes
-  html = html.replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-indigo-500 pl-4 py-1 italic text-gray-600 dark:text-gray-400 my-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-r">$1</blockquote>');
-  
-  // Horizontal rules
-  html = html.replace(/^---$/gm, '<hr class="border-gray-200 dark:border-gray-800 my-10" />');
-  
-  // Paragraphs (double newlines)
-  html = html.replace(/\n\n/g, '</p><p class="mb-5 leading-relaxed text-gray-800 dark:text-gray-200">');
-  
-  // Wrap in paragraph
-  if (!html.startsWith('<')) {
-    html = '<p class="mb-5 leading-relaxed text-gray-800 dark:text-gray-200">' + html + '</p>';
-  }
-  
-  return html;
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-const renderedHtml = simpleMarkdownToHtml(processedContent);
+// Convert markdown to HTML (server-side)
+const renderedHtml = await marked.parse(processedContent);
 ---
 
-<div class={`markdown-content prose dark:prose-invert max-w-none ${className}`}>
+<div class={`markdown-content prose prose-slate dark:prose-invert max-w-none 
+            prose-headings:font-bold prose-a:text-indigo-600 dark:prose-a:text-indigo-400
+            prose-pre:bg-[#0a0a0a] prose-pre:border prose-pre:border-gray-800
+            prose-img:rounded-xl prose-img:shadow-lg ${className}`}>
   <Fragment set:html={renderedHtml} />
 </div>
 
@@ -141,11 +68,71 @@ const renderedHtml = simpleMarkdownToHtml(processedContent);
     });
   }
 
+  // V16.2: Smart Tooltips Logic
+  const KNOWLEDGE_TERMS: Record<string, string> = {
+    'MMLU': 'Massive Multitask Language Understanding - a benchmark for general intelligence.',
+    'HumanEval': 'Coding benchmark by OpenAI to test Python generation capabilities.',
+    'RAG': 'Retrieval-Augmented Generation - connecting LLMs to external data sources.',
+    'Quantization': 'Compression technique (GGUF/AWQ) to run large models on consumer GPUs.',
+    'VRAM': 'Video RAM - the memory required on your GPU to load model weights.',
+    'Context Length': 'The maximum number of tokens a model can process in one go.',
+    'FNI': 'Fair Nexus Index - our proprietary trust and transparency score.',
+    'Transformer': 'The core neural network architecture behind all modern LLMs.'
+  };
+
+  function initSmartTooltips() {
+    const containers = document.querySelectorAll('.markdown-content');
+    containers.forEach(container => {
+      if (container.getAttribute('data-tooltips') === 'true') return;
+      
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+      let nodesToReplace = [];
+      let currentNode;
+
+      while (currentNode = walker.nextNode()) {
+        const text = currentNode.textContent || '';
+        let hasMatch = false;
+        
+        Object.keys(KNOWLEDGE_TERMS).forEach(term => {
+          if (new RegExp(`\\b${term}\\b`, 'i').test(text)) {
+            hasMatch = true;
+          }
+        });
+
+        if (hasMatch && currentNode.parentElement?.tagName !== 'A' && currentNode.parentElement?.tagName !== 'CODE') {
+          nodesToReplace.push(currentNode);
+        }
+      }
+
+      nodesToReplace.forEach(node => {
+        let text = node.textContent || '';
+        let html = text;
+        
+        Object.entries(KNOWLEDGE_TERMS).forEach(([term, desc]) => {
+          const regex = new RegExp(`\\b(${term})\\b`, 'gi');
+          html = html.replace(regex, `<span class="knowledge-tooltip cursor-help border-b border-dotted border-indigo-400/50 text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors" title="${desc}">$1</span>`);
+        });
+
+        if (html !== text) {
+          const span = document.createElement('span');
+          span.innerHTML = html;
+          node.parentNode?.replaceChild(span, node);
+        }
+      });
+      
+      container.setAttribute('data-tooltips', 'true');
+    });
+  }
+
   // Initial load
   initMarkdownCopy();
+  initSmartTooltips();
   
   // Run on page transition if needed (Astro View Transitions)
-  document.addEventListener('astro:after-swap', initMarkdownCopy);
+  document.addEventListener('astro:after-swap', () => {
+    initMarkdownCopy();
+    initSmartTooltips();
+  });
 </script>
 
 <style>
@@ -197,5 +184,11 @@ const renderedHtml = simpleMarkdownToHtml(processedContent);
   :global(.dark) .markdown-content :global(th),
   :global(.dark) .markdown-content :global(td) {
     border-color: #4b5563;
+  }
+
+  /* Tooltip Styles */
+  .markdown-content :global(.knowledge-tooltip) {
+    position: relative;
+    text-decoration: none;
   }
 </style>
