@@ -37,11 +37,8 @@ const baseModel = entity?.base_model || entity?.parent_model || null;
     </div>
 
     {/* 1. Primary Relations & Knowledge */}
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div class="space-y-6">
-           {/* Legacy Relation Panels removed in favor of Neural Mesh Hub (V16 Consolidation) */}
-        </div>
-        
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        {/* Left: Benchmarks & Performance */}
         <div class="space-y-6">
            {hasBench && (
              <BenchmarkCard 
@@ -53,14 +50,13 @@ const baseModel = entity?.base_model || entity?.parent_model || null;
                avg_score={entity?.avg_score}
              />
            )}
-           
+
            <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
               <h3 class="text-sm font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                  <span>📈</span> Interest Trend
               </h3>
-              <div class="relative min-h-[120px] flex items-center justify-center">
-                <MiniTrendChart entityId={entityId} width={400} height={120} />
-                {/* Overlay for restricted data or empty states */}
+              <div class="relative min-h-[140px] flex items-center justify-center">
+                <MiniTrendChart entityId={entityId} width={400} height={140} />
                 {!entityId && (
                   <div class="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm flex items-center justify-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
                     No Trend Data Available
@@ -72,15 +68,32 @@ const baseModel = entity?.base_model || entity?.parent_model || null;
               </p>
            </div>
         </div>
-    </div>
+        
+        {/* Right: Semantic Relations & Use Cases */}
+        <div class="space-y-6">
+           <div class="p-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/20">
+              <h3 class="text-sm font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-widest mb-4">
+                 🧠 Neural Connections
+              </h3>
+              <div class="flex flex-wrap gap-2">
+                 {tagsArray.slice(0, 15).map((tag: string) => (
+                    <span class="px-3 py-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg text-xs font-bold border border-gray-100 dark:border-gray-700 hover:border-indigo-300 transition-colors">
+                       #{tag}
+                    </span>
+                 ))}
+                 {tagsArray.length === 0 && <span class="text-xs text-gray-400 italic">No semantic tags indexed.</span>}
+              </div>
+           </div>
 
-    {/* 2. Horizontal Entity Carousel (Similar Items) */}
-    {similarEntities.length > 0 && (
-      <div>
-         <h3 class="text-xl font-bold mb-6 flex items-center gap-2 text-gray-900 dark:text-white">
-            <span>🔄 Similar {type.charAt(0).toUpperCase() + type.slice(1)}s</span>
-         </h3>
-         <SimilarModels models={similarEntities} currentModelId={entityId} />
-      </div>
-    )}
+           {/* Similar Entities Carousel inside the Column for better balance */}
+           {similarEntities.length > 0 && (
+             <div class="space-y-4">
+                <h3 class="text-sm font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-2">
+                   <span>🔄</span> Related Node Sync
+                </h3>
+                <SimilarModels models={similarEntities.slice(0, 4)} currentModelId={entityId} />
+             </div>
+           )}
+        </div>
+    </div>
 </div>

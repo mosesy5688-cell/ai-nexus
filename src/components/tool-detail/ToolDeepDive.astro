@@ -15,80 +15,93 @@ import QuickCommands from '../common/QuickCommands.astro';
 import ModelGallery from '../model-detail/ModelGallery.astro';
 ---
 
-<div class="space-y-8">
-  <!-- Section: Tool Info & Tags -->
-  <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
-       <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-         <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-            <span>📋</span> Tool Info
+<div class="space-y-12">
+  {/* V16.2: Universal Enhancements (Promoted Top) */}
+  <section class="space-y-6">
+     <QuickCommands entity={tool} type="tool" />
+     <ModelGallery content={tool.body_content || tool.description} title="Tool Documentation & Demos" />
+  </section>
+
+  <!-- Section: Tool Info & Classification (Grid) -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+       <section class="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
+         <h2 class="text-xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
+            <span class="p-2 bg-indigo-500/10 rounded-lg text-indigo-500">📋</span> Specs
          </h2>
-         <dl class="space-y-3 text-sm">
-           <div class="flex justify-between">
-             <dt class="text-gray-500 dark:text-gray-400">Language</dt>
-             <dd class="font-medium text-gray-900 dark:text-white">{tool.language || 'Unknown'}</dd>
+         <dl class="space-y-4 text-sm font-medium">
+           <div class="flex justify-between items-center pb-4 border-b border-gray-50 dark:border-gray-700">
+             <dt class="text-gray-400 uppercase tracking-widest text-[10px]">Language</dt>
+             <dd class="text-gray-900 dark:text-white">{tool.language || 'Python'}</dd>
            </div>
-           <div class="flex justify-between">
-             <dt class="text-gray-500 dark:text-gray-400">License</dt>
-             <dd class="font-medium text-gray-900 dark:text-white">{tool.license || 'Unknown'}</dd>
+           <div class="flex justify-between items-center pb-4 border-b border-gray-50 dark:border-gray-700">
+             <dt class="text-gray-400 uppercase tracking-widest text-[10px]">License</dt>
+             <dd class="text-gray-900 dark:text-white">{tool.license || 'Open Source'}</dd>
+           </div>
+           <div class="flex justify-between items-center">
+             <dt class="text-gray-400 uppercase tracking-widest text-[10px]">Version</dt>
+             <dd class="text-gray-900 dark:text-white">{tool.version || 'v1.0.0'}</dd>
            </div>
            {tool.source_url && (
-             <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+             <div class="mt-6">
                <a href={tool.source_url} target="_blank" rel="noopener noreferrer"
-                  class="flex items-center justify-center w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium">
-                 View Source Code
+                  class="flex items-center justify-center w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all font-bold text-xs uppercase tracking-tight shadow-sm">
+                 Explore Source Node
                </a>
              </div>
            )}
          </dl>
-       </div>
+       </section>
 
-       <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-         <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-            <span>🏷️</span> Classification
+       <section class="bg-indigo-50/20 dark:bg-indigo-900/10 rounded-2xl p-8 border border-indigo-100 dark:border-indigo-800/20">
+         <h2 class="text-xs font-black mb-8 text-indigo-900 dark:text-indigo-200 uppercase tracking-widest flex items-center gap-2">
+            <span>🏷️</span> Classification Labels
          </h2>
-         {tool.tags && tool.tags.length > 0 ? (
+         {tool.tags && (Array.isArray(tool.tags) ? tool.tags : JSON.parse(tool.tags || '[]')).length > 0 ? (
            <div class="flex flex-wrap gap-2">
              {(Array.isArray(tool.tags) ? tool.tags : JSON.parse(tool.tags || '[]')).slice(0, 15).map((tag: string) => (
-               <a href={`/search?q=${encodeURIComponent(tag)}`}
-                  class="px-3 py-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full hover:bg-blue-100 transition-colors">
-                 {tag}
-               </a>
+               <span class="px-3 py-1 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold border border-indigo-100 dark:border-indigo-900/30">
+                 #{tag}
+               </span>
              ))}
            </div>
          ) : (
-            <p class="text-gray-500 italic text-sm">No tags available.</p>
+            <p class="text-gray-500 italic text-sm">No classification labels found.</p>
          )}
-       </div>
-  </section>
+       </section>
+  </div>
 
-  {/* V16.2: Universal Enhancements */}
-  <ModelGallery content={tool.body_content || tool.description} title="Tool Documentation & Demos" />
-  <QuickCommands entity={tool} type="tool" />
-
-  <!-- Section: API Reference (Placeholder) -->
-   <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-      <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-         <span>🔌</span> API Reference
+  <!-- Section: API Implementation -->
+   <section class="bg-[#0a0a0a] rounded-2xl p-8 border border-gray-800 shadow-2xl relative overflow-hidden group">
+      <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+         <span class="text-8xl text-indigo-500 select-none">CODE</span>
+      </div>
+      <h2 class="text-xl font-bold mb-6 text-white flex items-center gap-2">
+         <span class="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">🔌</span> API Integration
       </h2>
-      <div class="relative group">
-         <div class="bg-black text-blue-300 p-5 rounded-xl font-mono text-xs overflow-x-auto border border-gray-800 scrollbar-thin scrollbar-thumb-gray-800">
-            <pre id="tool-api-example">{apiExample}</pre>
+      <div class="relative">
+         <div class="bg-black/50 backdrop-blur-sm text-indigo-300 p-6 rounded-xl font-mono text-[11px] overflow-x-auto border border-gray-800/50">
+            <pre id="tool-api-example"><code>{apiExample}</code></pre>
          </div>
          <button 
-           class="absolute top-3 right-3 px-3 py-1 bg-white hover:bg-gray-200 text-black text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 shadow-lg border border-gray-200"
-           onclick={`navigator.clipboard.writeText(document.getElementById('tool-api-example').innerText).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000); })`}
+           class="absolute top-4 right-4 p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all active:scale-95 shadow-lg"
+           onclick={`navigator.clipboard.writeText(document.getElementById('tool-api-example').innerText).then(() => { this.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>'; setTimeout(() => this.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>', 2000); })`}
          >
-           Copy
+           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+           </svg>
          </button>
       </div>
-      <p class="mt-4 text-center text-sm text-gray-500">
-         <a href={tool.source_url} target="_blank" class="text-indigo-500 hover:underline">Read full documentation</a>
-      </p>
   </section>
+
   <!-- Section: README / Tool Card -->
-  <FullReadmeSection 
-    bodyContent={tool.body_content || tool.description}
-    type="tool"
-    maxPreviewLength={2000}
-  />
+  <div class="relative">
+     <div class="absolute -left-6 top-10 w-1 bg-indigo-500/20 h-24 rounded-full blur-sm"></div>
+     <FullReadmeSection 
+       bodyContent={tool.body_content || tool.description}
+       type="tool"
+       initialCollapsed={false}
+       maxPreviewLength={5000}
+     />
+  </div>
+</div>
 </div>

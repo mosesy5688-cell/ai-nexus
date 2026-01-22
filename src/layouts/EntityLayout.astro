@@ -30,6 +30,7 @@ const hasEntity = !!entity;
 
 // Safe derivation of values
 const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '';
+const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|paper|space|tool)--/, '').replace(/--/g, '/') : '';
 ---
 
 { !hasEntity ? (
@@ -61,7 +62,7 @@ const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '
       <slot name="actions-mobile" slot="actions-mobile" />
     </EntityStickyHeader>
 
-    <main class="container mx-auto px-4 py-8 max-w-7xl animate-fade-in relative">
+    <main class="container mx-auto px-4 py-8 max-w-7xl animate-fade-in relative" data-repo-path={repoPath}>
       
       {/* Zone 1: HERO */}
       <section id="hero-zone" class="mb-6 animate-slide-up relative z-10" style="animation-delay: 0.1s;">
