@@ -10,6 +10,7 @@ export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 import { fetchCatalogData, truncateListingItem } from '../../utils/catalog-fetcher.js';
+import { generateEntityUrl } from '../../utils/url-utils.js';
 
 // SSR Data Fetching (Unified)
 const { items: allModels, error, source } = await fetchCatalogData('model', Astro.locals.runtime?.env);
@@ -107,7 +108,7 @@ const canonicalUrl = 'https://free2aitools.com/models';
        */}
        {models.length > 0 ? (
            models.slice(0, 24).map((model: any) => (
-            <a href={`/model/${model.slug || model.id}`} 
+            <a href={generateEntityUrl(model)} 
                class="model-card p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 block">
               <div class="flex items-center justify-between mb-2">
                  <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">Model</span>

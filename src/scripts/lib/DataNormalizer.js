@@ -16,9 +16,11 @@ export const DataNormalizer = {
             name = id.split('--').pop().split(':').pop().split('/').pop();
         }
 
-        // Derive missing slug from ID
         if (!slug && id) {
-            slug = id.replace(/^(github--|hf-dataset--|arxiv--|replicate:)/, '')
+            slug = id.replace(/^[a-z]+:/i, '')
+                .replace(/^(model|agent|dataset|tool|paper|space|benchmark)s?\//i, '')
+                .replace(/^(hf-dataset--|hf-space--|arxiv--|agent--|github-agent--)/i, '')
+                .replace(/^replicate\//i, '')
                 .replace('--', '/')
                 .replace(':', '/');
         }

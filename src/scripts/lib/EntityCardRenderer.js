@@ -9,7 +9,9 @@ export class EntityCardRenderer {
         let slug = item.slug || item.id;
         // Standardized slug stripping
         slug = slug.replace(/^[a-z]+:/i, '')
-            .replace(/^(model|agent|dataset|tool|paper|space)s?\//i, '')
+            .replace(/^(model|agent|dataset|tool|paper|space|benchmark)s?\//i, '')
+            .replace(/^(hf-dataset--|hf-space--|arxiv--|agent--|github-agent--)/i, '')
+            .replace(/^replicate\//i, '')
             .toLowerCase()
             .trim();
 

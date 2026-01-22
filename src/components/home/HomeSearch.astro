@@ -128,7 +128,14 @@ const { initialQuery = '' } = Astro.props;
 
     dropdown.innerHTML = results.map(r => {
       const isKnowledge = r.type === 'knowledge';
-      const path = isKnowledge ? `/knowledge/${r.slug}` : `/model/${r.slug}`;
+      let path = `/model/${r.slug}`;
+      if (isKnowledge) path = `/knowledge/${r.slug}`;
+      else if (r.type === 'agent') path = `/agent/${r.slug}`;
+      else if (r.type === 'dataset') path = `/dataset/${r.slug}`;
+      else if (r.type === 'paper') path = `/paper/${r.slug}`;
+      else if (r.type === 'tool') path = `/tool/${r.slug}`;
+      else if (r.type === 'space') path = `/space/${r.slug}`;
+      
       const badge = isKnowledge ? 
         `<span class="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-[10px] font-bold uppercase tracking-wider">GUIDE</span>` : 
         `<span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold uppercase tracking-wider">MODEL</span>`;
