@@ -58,19 +58,16 @@ export { hydrateEntity, augmentEntity };
 export async function fetchEntityFromR2(type, slug, locals) {
     const normalized = normalizeEntitySlug(slug, type);
 
-    // 1. Try R2 Cache (Production/Preview)
+    // 1. Try R2 Cache (Production/Preview SSR)
     const r2 = locals?.runtime?.env?.R2_ASSETS;
     if (r2) {
         const paths = getR2PathCandidates(type, normalized);
-        // V15.11: Debug logging for path resolution
-        console.log(`[R2Reader] Checking ${paths.length} paths for ${type}/${normalized}, first 5:`, paths.slice(0, 5));
+        console.log(`[R2Reader] Checking ${paths.length} paths for ${type}/${normalized}`);
         for (const path of paths) {
-
             try {
                 const file = await r2.get(path);
                 if (file) {
                     const data = await file.json();
-                    console.log(`[R2Reader] HIT: ${path}`);
                     return {
                         entity: data.entity || data,
                         computed: data.computed || {},
@@ -83,44 +80,54 @@ export async function fetchEntityFromR2(type, slug, locals) {
                 console.warn(`[R2Reader] Error reading ${path}:`, e.message);
             }
         }
+    }
 
-        // 1.5. V15.2: CDN Fallback - Search in entities.json
-        console.log(`[R2Reader] MISS for ${normalized}, trying CDN fallback...`);
-        try {
-
-            const cdnUrl = 'https://cdn.free2aitools.com/entities.json';
-            const response = await fetch(cdnUrl);
-            if (response.ok) {
-                const allEntities = await response.json();
-                const searchSlug = normalized.toLowerCase();
-
-                // Search with multiple matching strategies
-                const found = allEntities.find(e => {
-                    const eid = (e.id || '').toLowerCase().replace(/:/g, '--').replace(/\//g, '--');
-                    const ename = ((e.author || '') + '--' + (e.name || '')).toLowerCase();
-
-                    // Match by ID suffix (ignores source prefix)
-                    if (eid.endsWith(searchSlug)) return true;
-                    // Match by author--name
-                    if (ename === searchSlug) return true;
-                    // Match by partial ID
-                    if (eid.includes(searchSlug)) return true;
-
-                    return false;
-                });
-
-                if (found) {
-                    console.log(`[CDN Fallback] HIT: ${found.id}`);
+    // 2. Browser/Static CDN Fetch (No R2 runtime)
+    if (!r2 || typeof window !== 'undefined') {
+        const paths = getR2PathCandidates(type, normalized);
+        for (const path of paths) {
+            try {
+                const cdnUrl = `https://cdn.free2aitools.com/${path}`;
+                const res = await fetch(cdnUrl);
+                if (res.ok) {
+                    const data = await res.json();
                     return {
-                        entity: found,
-                        computed: { fni: found.fni_score || 0 },
-                        _cache_source: 'cdn-fallback'
+                        entity: data.entity || data,
+                        computed: data.computed || {},
+                        seo: data.seo || {},
+                        _cache_path: path,
+                        _cache_source: 'cdn-static'
                     };
                 }
+            } catch (e) {
+                // Ignore and try next path
             }
-        } catch (e) {
-            console.warn(`[CDN Fallback] Error:`, e.message);
         }
+    }
+
+    // 1.5. V15.2: Global CDN Fallback (entities.json)
+    try {
+        const cdnUrl = 'https://cdn.free2aitools.com/entities.json';
+        const response = await fetch(cdnUrl);
+        if (response.ok) {
+            const allEntities = await response.json();
+            const searchSlug = normalized.toLowerCase();
+            const found = allEntities.find(e => {
+                const eid = (e.id || '').toLowerCase().replace(/:/g, '--').replace(/\//g, '--');
+                const ename = ((e.author || '') + '--' + (e.name || '')).toLowerCase();
+                return eid.endsWith(searchSlug) || ename === searchSlug || eid.includes(searchSlug);
+            });
+
+            if (found) {
+                return {
+                    entity: found,
+                    computed: { fni: found.fni_score || 0 },
+                    _cache_source: 'cdn-global'
+                };
+            }
+        }
+    } catch (e) {
+        console.warn(`[Reader] Global Fallback failed:`, e.message);
     }
 
     // 2. Dev Shim: Local Filesystem (Art 2.4 / B14 Compatibility)
