@@ -28,11 +28,39 @@ export async function initSearch() {
 
         const data = await res.json();
         // Support both { entities: [] } and raw array formats
-        searchData = data.entities || data.models || data;
+        const rawData = data.entities || data.models || data;
+        searchData = rawData.map(item => {
+            const id = item.id;
+            const type = item.type || 'model';
+            let name = item.name || '';
+            let slug = item.slug || '';
+            let author = item.author || '';
+
+            if (!name && id) {
+                name = id.split('--').pop().split(':').pop().split('/').pop();
+            }
+            if (!slug && id) {
+                slug = id.replace(/^(github--|hf-dataset--|arxiv--|replicate:)/, '').replace('--', '/').replace(':', '/');
+            }
+            if (!author && id) {
+                if (id.includes('--')) author = id.split('--')[1];
+                else if (id.includes(':')) author = id.split(':')[1].split('/')[0];
+            }
+
+            return {
+                ...item,
+                id,
+                name,
+                type,
+                slug,
+                author,
+                fni_score: item.fni || item.fni_score || 0
+            };
+        });
 
         searchIndex = new MiniSearch({
             fields: ['name', 'author', 'description', 'tags'],
-            storeFields: ['id', 'name', 'type', 'fni_score', 'slug'],
+            storeFields: ['id', 'name', 'type', 'fni_score', 'slug', 'author', 'description'],
             idField: 'id',
             searchOptions: {
                 boost: { name: 3, author: 1.5 },
@@ -61,8 +89,35 @@ export async function loadFullSearchIndex() {
         const res = await fetch(FULL_INDEX_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        const data = await res.json();
-        const fullEntities = data.entities || data.models || data;
+        const rawFull = data.entities || data.models || data;
+        const fullEntities = rawFull.map(item => {
+            const id = item.id;
+            const type = item.type || 'model';
+            let name = item.name || '';
+            let slug = item.slug || '';
+            let author = item.author || '';
+
+            if (!name && id) {
+                name = id.split('--').pop().split(':').pop().split('/').pop();
+            }
+            if (!slug && id) {
+                slug = id.replace(/^(github--|hf-dataset--|arxiv--|replicate:)/, '').replace('--', '/').replace(':', '/');
+            }
+            if (!author && id) {
+                if (id.includes('--')) author = id.split('--')[1];
+                else if (id.includes(':')) author = id.split(':')[1].split('/')[0];
+            }
+
+            return {
+                ...item,
+                id,
+                name,
+                type,
+                slug,
+                author,
+                fni_score: item.fni || item.fni_score || 0
+            };
+        });
 
         // Clear and reload MiniSearch with full data
         searchIndex.removeAll();
