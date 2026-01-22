@@ -18,7 +18,9 @@ export function createModelCardHTML(model) {
     // V15.8: Standardized slug generation (Strip source and type prefixes)
     let slug = model.slug || model.id || '';
     slug = slug.replace(/^[a-z]+:/i, '')
-        .replace(/^(model|agent|dataset|tool|paper|space)s?\//i, '')
+        .replace(/^(model|agent|dataset|tool|paper|space|benchmark)s?\//i, '')
+        .replace(/^(hf-dataset--|hf-space--|arxiv--|agent--|github-agent--)/i, '')
+        .replace(/^replicate\//i, '')
         .toLowerCase()
         .trim();
 

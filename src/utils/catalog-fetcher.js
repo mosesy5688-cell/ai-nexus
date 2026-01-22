@@ -1,3 +1,5 @@
+import { generateUrlSlug } from './url-utils.js';
+
 /**
  * catalog-fetcher.js
  * Centralized logic for fetching catalog data in Astro SSR (Zero-Runtime)
@@ -141,7 +143,6 @@ function parseData(data, type) {
     }).map(normalizeItem);
 }
 
-import { generateUrlSlug } from './url-utils.js';
 
 // Ensure consistent fields
 export function normalizeItem(item) {

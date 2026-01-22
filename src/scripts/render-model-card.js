@@ -20,12 +20,16 @@ export function renderModelCard(model) {
 
     const name = model.name || model.id?.split(/[:/]/).pop() || 'unknown';
 
+    const entityType = deriveEntityType(model.id || model.umid || model.slug);
+
     // V15.8: Standardized URL generation (Clean prefixes + Strip source/type)
     const prefix = entityType === 'agent' ? '/agent/' : entityType === 'dataset' ? '/dataset/' : entityType === 'tool' ? '/tool/' : entityType === 'paper' ? '/paper/' : entityType === 'space' ? '/space/' : '/model/';
 
     let cleanSlug = model.slug || model.id || '';
     cleanSlug = cleanSlug.replace(/^[a-z]+:/i, '')
-        .replace(/^(model|agent|dataset|tool|paper|space)s?\//i, '')
+        .replace(/^(model|agent|dataset|tool|paper|space|benchmark)s?\//i, '')
+        .replace(/^(hf-dataset--|hf-space--|arxiv--|agent--|github-agent--)/i, '')
+        .replace(/^replicate\//i, '')
         .toLowerCase()
         .trim();
 
@@ -114,7 +118,6 @@ export function renderModelCard(model) {
     };
 
     const firstTag = getFirstTag(model.tags);
-    const entityType = deriveEntityType(model.id || model.umid || model.slug);
 
     return `
     <a href="${modelUrl}" class="group relative block bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full border border-gray-100 dark:border-gray-700">
