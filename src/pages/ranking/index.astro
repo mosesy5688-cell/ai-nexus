@@ -1,0 +1,78 @@
+---
+layout: ../../layouts/Layout.astro
+title: AI Model & Tool Rankings
+description: Explore top-rated AI models, agents, datasets, and tools ranked by the Free2AI Nexus Index (FNI).
+---
+
+<div class="container mx-auto px-4 py-16">
+    <div class="text-center mb-12">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 mb-4">
+            AI Ecosystem Rankings
+        </h1>
+        <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+            Discover the highest-performing open-source AI entities, ranked by our objective FNI methodology.
+        </p>
+    </div>
+
+    <!-- Main Categories -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+        <!-- AI Models -->
+        <a href="/models" class="group relative p-8 rounded-3xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:shadow-2xl transition-all duration-300 overflow-hidden">
+            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                 <span class="text-6xl">🤖</span>
+            </div>
+            <h2 class="text-2xl font-bold mb-3">AI Models</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">Top LLMs, Vision, and Audio models sorted by impact and performance.</p>
+            <span class="inline-flex items-center text-blue-600 font-semibold group-hover:gap-2 transition-all">
+                View Ranking <span class="ml-1">→</span>
+            </span>
+        </a>
+
+        <!-- AI Agents -->
+        <a href="/agents" class="group relative p-8 rounded-3xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:shadow-2xl transition-all duration-300 overflow-hidden">
+            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                 <span class="text-6xl">⚡</span>
+            </div>
+            <h2 class="text-2xl font-bold mb-3">AI Agents</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">The most effective autonomous agents and workflow automation tools.</p>
+            <span class="inline-flex items-center text-blue-600 font-semibold group-hover:gap-2 transition-all">
+                View Ranking <span class="ml-1">→</span>
+            </span>
+        </a>
+
+        <!-- Datasets -->
+        <a href="/datasets" class="group relative p-8 rounded-3xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:shadow-2xl transition-all duration-300 overflow-hidden">
+            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                 <span class="text-6xl">📊</span>
+            </div>
+            <h2 class="text-2xl font-bold mb-3">Datasets</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">High-quality training data and evaluation benchmarks for AI research.</p>
+            <span class="inline-flex items-center text-blue-600 font-semibold group-hover:gap-2 transition-all">
+                View Ranking <span class="ml-1">→</span>
+            </span>
+        </a>
+    </div>
+
+    <!-- Specialized Lists -->
+    <div class="bg-gradient-to-br from-gray-900 to-blue-900 rounded-[3rem] p-8 md:p-12 text-white">
+        <h2 class="text-3xl font-bold mb-8 text-center">Specialized Rankings</h2>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <a href="/text-generation" class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-sm transition-colors text-center">
+                <span class="block text-2xl mb-2">💬</span>
+                <span class="font-medium">Text Gen</span>
+            </a>
+            <a href="/vision-multimedia" class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-sm transition-colors text-center">
+                <span class="block text-2xl mb-2">🎨</span>
+                <span class="font-medium">Vision</span>
+            </a>
+            <a href="/knowledge-retrieval" class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-sm transition-colors text-center">
+                <span class="block text-2xl mb-2">🔍</span>
+                <span class="font-medium">RAG</span>
+            </a>
+            <a href="/infrastructure-ops" class="p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-sm transition-colors text-center">
+                <span class="block text-2xl mb-2">🔧</span>
+                <span class="font-medium">Infra</span>
+            </a>
+        </div>
+    </div>
+</div>
