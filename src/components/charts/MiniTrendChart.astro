@@ -91,7 +91,7 @@ async function loadTrendData(): Promise<Record<string, any>> {
     if (_trendCache) return _trendCache;
     if (_loadPromise) return _loadPromise;
     
-    _loadPromise = fetch('/api/cache/trend-data.json')
+    _loadPromise = fetch('/cache/trend-data.json')
         .then(res => res.ok ? res.json() : {})
         .then(data => { _trendCache = data; return data; })
         .catch(() => ({}));
@@ -145,10 +145,23 @@ async function initMiniTrends() {
         let id = (el as HTMLElement).dataset.entityId;
         if (!id) return;
         
-        // Normalize: some IDs use slashes, some use double dashes
+        // Normalize: handle various ID formats
         if (!data[id]) {
-            const altId = id.replace(/\//g, '--');
-            if (data[altId]) id = altId;
+            const cleanId = id.replace(/^(model|agent|dataset|paper|space|tool)--/, '');
+            const altIds = [
+                id.replace(/\//g, '--'),
+                id.replace(/--/g, '/'),
+                cleanId,
+                cleanId.replace(/\//g, '--'),
+                `hf-model--${cleanId.replace(/\//g, '--')}`
+            ];
+            
+            for (const alt of altIds) {
+                if (data[alt]) {
+                    id = alt;
+                    break;
+                }
+            }
         }
 
         if (!data[id]) return;

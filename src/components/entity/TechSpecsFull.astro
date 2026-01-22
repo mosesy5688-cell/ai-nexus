@@ -86,29 +86,35 @@ const cloudSpecs = [
 
 ---
 
-<section class="space-y-8">
-  <div class="flex items-center gap-4">
-    <h2 class="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-3">
-      <span>🛠️</span> Technical Profile
-    </h2>
-    <div class="h-1 flex-grow bg-gradient-to-r from-gray-100 to-transparent dark:from-gray-800"></div>
+<section class="space-y-10 group">
+  <div class="flex items-center gap-5">
+    <div class="flex items-center gap-3">
+       <div class="p-2.5 bg-indigo-600/10 dark:bg-indigo-400/10 rounded-xl">
+          <span class="text-xl">📊</span>
+       </div>
+       <h2 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+         Engineering Specs
+       </h2>
+    </div>
+    <div class="h-[1px] flex-grow bg-gradient-to-r from-indigo-100 via-indigo-50 to-transparent dark:from-indigo-900/50 dark:via-indigo-900/10 dark:to-transparent"></div>
+    <span class="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 hidden sm:block">V16.2 Platform Optimized</span>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-1">
     {hardwareSpecs.length > 0 && (
-      <SpecCard title="Hardware & Scale" icon="⚡" specs={hardwareSpecs} accentColor="indigo" />
+      <SpecCard title="Hardware" icon="⚡" specs={hardwareSpecs} accentColor="indigo" />
     )}
     
     {trainingSpecs.length > 0 && (
-      <SpecCard title="Training & Env" icon="🧠" specs={trainingSpecs} accentColor="emerald" />
+      <SpecCard title="Lifecycle" icon="🧠" specs={trainingSpecs} accentColor="emerald" />
     )}
 
     {configSpecs.length > 0 && (
-      <SpecCard title="Model Config" icon="⚙️" specs={configSpecs} accentColor="amber" />
+      <SpecCard title="Structure" icon="⚙️" specs={configSpecs} accentColor="amber" />
     )}
 
     {cloudSpecs.length > 0 && (
-      <SpecCard title="Cloud & Rights" icon="🌐" specs={cloudSpecs} accentColor="rose" />
+      <SpecCard title="Identity" icon="🌐" specs={cloudSpecs} accentColor="rose" />
     )}
   </div>
 </section>

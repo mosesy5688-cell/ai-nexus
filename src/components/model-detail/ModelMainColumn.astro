@@ -68,49 +68,58 @@ try {
   {/* V15.8: GGUF File List (Zone 4) */}
   <GGUFList files={model.siblings} modelId={modelId} />
   
-  {/* V16.2: Real Data Deep Dive - Installation & Config */}
-  {model.installation && (
-    <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-        <span>💻</span> Installation
-      </h2>
-      <FullReadmeSection bodyContent={model.installation} type="model" maxPreviewLength={500} toggleLabel="Instructions" />
+  {/* V16.2: Technical Setup & Implementation (Consolidated) */}
+  {(model.installation || model.configuration || model.usage) && (
+    <section class="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-8 border border-gray-100 dark:border-gray-800 shadow-inner">
+       <h2 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-8 flex items-center gap-2">
+          <span>⚙️</span> Technical Implementation
+       </h2>
+       
+       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {model.installation && (
+            <div class="space-y-4">
+               <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Installation
+               </h3>
+               <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+                  <MarkdownRenderer content={model.installation} maxLength={500} />
+               </div>
+            </div>
+          )}
+
+          {model.usage && (
+            <div class="space-y-4">
+               <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <span class="w-2 h-2 bg-green-500 rounded-full"></span> Usage Example
+               </h3>
+               <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+                  <MarkdownRenderer content={model.usage} maxLength={500} />
+               </div>
+            </div>
+          )}
+       </div>
+
+       {model.configuration && (
+         <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-800 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+            <dt class="text-sm font-bold leading-6 text-gray-900 dark:text-white uppercase tracking-tighter">Config Logic</dt>
+            <dd class="mt-1 text-sm leading-6 text-gray-700 dark:text-gray-300 sm:col-span-2 sm:mt-0">
+               <MarkdownRenderer content={model.configuration} maxLength={1000} />
+            </dd>
+         </div>
+       )}
     </section>
   )}
 
-  {model.configuration && (
-    <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-        <span>⚙️</span> Configuration
-      </h2>
-      <FullReadmeSection bodyContent={model.configuration} type="model" maxPreviewLength={500} toggleLabel="Usage Guide" />
-    </section>
-  )}
-
-  {model.usage && (
-    <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-        <span>🚀</span> Usage Examples
-      </h2>
-      <FullReadmeSection bodyContent={model.usage} type="model" maxPreviewLength={500} toggleLabel="Examples" />
-    </section>
-  )}
-
-  {/* Phase B.8: Code Example (Legacy Fallback) */}
-  {!model.usage && (
-    <CodeExample 
-      code={metaJson.extended?.example_code || metaJson.example_code || metaJson.code_snippet || metaJson.usage || metaJson.sample_code} 
-      language={metaJson.extended?.example_lang || metaJson.example_lang || metaJson.language || 'python'} 
-    />
-  )}
-  
-  <!-- B.6: Full README/Model Card Section -->
-  <FullReadmeSection 
-    bodyContent={model.body_content}
-    type="model"
-    initialCollapsed={true}
-    maxPreviewLength={3000}
-  />
+  {/* B.6: Primary Model Documentation */}
+  <div class="relative">
+     <div class="absolute -left-6 top-10 w-1 bg-indigo-500/20 h-24 rounded-full blur-sm"></div>
+     <FullReadmeSection 
+       bodyContent={model.body_content}
+       type="model"
+       initialCollapsed={false}
+       maxPreviewLength={5000}
+     />
+  </div>
 
   
   <!-- Missing Data & Limitations -->

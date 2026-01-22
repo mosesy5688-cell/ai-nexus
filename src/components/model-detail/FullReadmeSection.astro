@@ -99,7 +99,7 @@ const previewContent = hasLongContent ? content.substring(0, maxPreviewLength) :
 )}
 
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
+  function initReadmeToggle() {
     const toggleBtn = document.getElementById('toggle-readme');
     const preview = document.getElementById('readme-preview');
     const full = document.getElementById('readme-full');
@@ -111,17 +111,14 @@ const previewContent = hasLongContent ? content.substring(0, maxPreviewLength) :
         const isExpanded = toggleBtn.dataset.expanded === 'true';
         
         if (isExpanded) {
-          // Collapse
           preview.classList.remove('hidden');
           full.classList.add('hidden');
           document.getElementById('readme-fade')?.classList.remove('opacity-0');
           toggleBtn.dataset.expanded = 'false';
           toggleBtn.querySelector('.toggle-text')!.textContent = `Show Full ${typeLabel}`;
           toggleBtn.querySelector('.toggle-icon')!.classList.remove('rotate-180');
-          // Scroll back to top of section gently
           toggleBtn.closest('section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } else {
-          // Expand
           preview.classList.add('hidden');
           full.classList.remove('hidden');
           document.getElementById('readme-fade')?.classList.add('opacity-0');
@@ -131,7 +128,12 @@ const previewContent = hasLongContent ? content.substring(0, maxPreviewLength) :
         }
       });
     }
-  });
+  }
+
+  // Support both initial load and View Transitions
+  initReadmeToggle();
+  document.addEventListener('astro:page-load', initReadmeToggle);
+  document.addEventListener('astro:after-swap', initReadmeToggle);
 </script>
 
 
