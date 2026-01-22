@@ -15,8 +15,37 @@ export class UniversalCatalog {
         itemsPerPage = 24,
         dataUrl = 'https://cdn.free2aitools.com/entities.json'
     }) {
-        this.items = initialData;
-        this.filtered = initialData;
+        const normalize = (item) => {
+            const id = item.id;
+            const type = item.type || this.type;
+            let name = item.name || '';
+            let slug = item.slug || '';
+            let author = item.author || '';
+
+            if (!name && id) {
+                name = id.split('--').pop().split(':').pop().split('/').pop();
+            }
+            if (!slug && id) {
+                slug = id.replace(/^(github--|hf-dataset--|arxiv--|replicate:)/, '').replace('--', '/').replace(':', '/');
+            }
+            if (!author && id) {
+                if (id.includes('--')) author = id.split('--')[1];
+                else if (id.includes(':')) author = id.split(':')[1].split('/')[0];
+            }
+
+            return {
+                ...item,
+                id,
+                name,
+                type,
+                slug,
+                author,
+                fni_score: item.fni || item.fni_score || 0
+            };
+        };
+
+        this.items = initialData.map(normalize);
+        this.filtered = [...this.items];
         this.type = type;
         this.currentPage = 1;
         this.itemsPerPage = itemsPerPage;
@@ -75,19 +104,51 @@ export class UniversalCatalog {
         this.isLoadingMore = true;
         this.updateStats();
 
+        const normalize = (item) => {
+            const id = item.id;
+            const type = item.type || this.type;
+            let name = item.name || '';
+            let slug = item.slug || '';
+            let author = item.author || '';
+
+            if (!name && id) {
+                name = id.split('--').pop().split(':').pop().split('/').pop();
+            }
+            if (!slug && id) {
+                slug = id.replace(/^(github--|hf-dataset--|arxiv--|replicate:)/, '').replace('--', '/').replace(':', '/');
+            }
+            if (!author && id) {
+                if (id.includes('--')) author = id.split('--')[1];
+                else if (id.includes(':')) author = id.split(':')[1].split('/')[0];
+            }
+
+            return {
+                ...item,
+                id,
+                name,
+                type,
+                slug,
+                author,
+                fni_score: item.fni || item.fni_score || 0
+            };
+        };
+
         try {
             const res = await fetch(this.dataUrl);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
 
-            let all = Array.isArray(data) ? data : (data.entities || data.models || []);
+            let allRaw = Array.isArray(data) ? data : (data.entities || data.models || []);
+
+            // Normalize & Filter
+            const validItems = allRaw
+                .filter(i => i.type === this.type || (this.type === 'model' && !i.type))
+                .map(normalize);
 
             // Normalize & Merge
             const map = new Map();
             this.items.forEach(i => map.set(i.id, i));
-
-            all.filter(i => i.type === this.type || (this.type === 'model' && !i.type))
-                .forEach(i => map.set(i.id, i));
+            validItems.forEach(i => map.set(i.id, i));
 
             this.items = Array.from(map.values());
 

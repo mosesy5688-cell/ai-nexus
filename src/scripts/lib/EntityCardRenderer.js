@@ -61,7 +61,7 @@ export class EntityCardRenderer {
                  <div class="flex items-center gap-3 mt-3 text-xs text-gray-400">
                     ${item.downloads ? `<span>📥 ${this.formatNumber(item.downloads)}</span>` : ''}
                     ${item.likes ? `<span>❤️ ${this.formatNumber(item.likes)}</span>` : ''}
-                    ${item.authors ? `<span>👤 ${item.authors}</span>` : ''}
+                    ${(item.authors || item.author) ? `<span>👤 ${item.authors || item.author}</span>` : ''}
                 </div>
             </a>
         `;
