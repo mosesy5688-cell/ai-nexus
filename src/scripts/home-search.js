@@ -1,6 +1,7 @@
 // src/scripts/home-search.js
 // V16.2: Refactored for Zero-Runtime compliance and MiniSearch integration
 import MiniSearch from 'minisearch';
+import { DataNormalizer } from './lib/DataNormalizer.js';
 
 // Config & Constants
 const CORE_INDEX_URL = '/cache/search-core.json';
@@ -29,34 +30,7 @@ export async function initSearch() {
         const data = await res.json();
         // Support both { entities: [] } and raw array formats
         const rawData = data.entities || data.models || data;
-        searchData = rawData.map(item => {
-            const id = item.id;
-            const type = item.type || 'model';
-            let name = item.name || '';
-            let slug = item.slug || '';
-            let author = item.author || '';
-
-            if (!name && id) {
-                name = id.split('--').pop().split(':').pop().split('/').pop();
-            }
-            if (!slug && id) {
-                slug = id.replace(/^(github--|hf-dataset--|arxiv--|replicate:)/, '').replace('--', '/').replace(':', '/');
-            }
-            if (!author && id) {
-                if (id.includes('--')) author = id.split('--')[1];
-                else if (id.includes(':')) author = id.split(':')[1].split('/')[0];
-            }
-
-            return {
-                ...item,
-                id,
-                name,
-                type,
-                slug,
-                author,
-                fni_score: item.fni || item.fni_score || 0
-            };
-        });
+        searchData = DataNormalizer.normalizeCollection(rawData, 'model');
 
         searchIndex = new MiniSearch({
             fields: ['name', 'author', 'description', 'tags'],
@@ -90,34 +64,7 @@ export async function loadFullSearchIndex() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const rawFull = data.entities || data.models || data;
-        const fullEntities = rawFull.map(item => {
-            const id = item.id;
-            const type = item.type || 'model';
-            let name = item.name || '';
-            let slug = item.slug || '';
-            let author = item.author || '';
-
-            if (!name && id) {
-                name = id.split('--').pop().split(':').pop().split('/').pop();
-            }
-            if (!slug && id) {
-                slug = id.replace(/^(github--|hf-dataset--|arxiv--|replicate:)/, '').replace('--', '/').replace(':', '/');
-            }
-            if (!author && id) {
-                if (id.includes('--')) author = id.split('--')[1];
-                else if (id.includes(':')) author = id.split(':')[1].split('/')[0];
-            }
-
-            return {
-                ...item,
-                id,
-                name,
-                type,
-                slug,
-                author,
-                fni_score: item.fni || item.fni_score || 0
-            };
-        });
+        const fullEntities = DataNormalizer.normalizeCollection(rawFull, 'model');
 
         // Clear and reload MiniSearch with full data
         searchIndex.removeAll();

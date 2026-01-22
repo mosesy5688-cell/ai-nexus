@@ -2,6 +2,7 @@
 // V16.2: Universal Catalog Logic with MiniSearch integration
 import MiniSearch from 'minisearch';
 import { EntityCardRenderer } from './EntityCardRenderer.js';
+import { DataNormalizer } from './DataNormalizer.js';
 
 export class UniversalCatalog {
     constructor({
@@ -15,36 +16,7 @@ export class UniversalCatalog {
         itemsPerPage = 24,
         dataUrl = 'https://cdn.free2aitools.com/entities.json'
     }) {
-        const normalize = (item) => {
-            const id = item.id;
-            const type = item.type || this.type;
-            let name = item.name || '';
-            let slug = item.slug || '';
-            let author = item.author || '';
-
-            if (!name && id) {
-                name = id.split('--').pop().split(':').pop().split('/').pop();
-            }
-            if (!slug && id) {
-                slug = id.replace(/^(github--|hf-dataset--|arxiv--|replicate:)/, '').replace('--', '/').replace(':', '/');
-            }
-            if (!author && id) {
-                if (id.includes('--')) author = id.split('--')[1];
-                else if (id.includes(':')) author = id.split(':')[1].split('/')[0];
-            }
-
-            return {
-                ...item,
-                id,
-                name,
-                type,
-                slug,
-                author,
-                fni_score: item.fni || item.fni_score || 0
-            };
-        };
-
-        this.items = initialData.map(normalize);
+        this.items = DataNormalizer.normalizeCollection(initialData, type);
         this.filtered = [...this.items];
         this.type = type;
         this.currentPage = 1;
@@ -104,35 +76,6 @@ export class UniversalCatalog {
         this.isLoadingMore = true;
         this.updateStats();
 
-        const normalize = (item) => {
-            const id = item.id;
-            const type = item.type || this.type;
-            let name = item.name || '';
-            let slug = item.slug || '';
-            let author = item.author || '';
-
-            if (!name && id) {
-                name = id.split('--').pop().split(':').pop().split('/').pop();
-            }
-            if (!slug && id) {
-                slug = id.replace(/^(github--|hf-dataset--|arxiv--|replicate:)/, '').replace('--', '/').replace(':', '/');
-            }
-            if (!author && id) {
-                if (id.includes('--')) author = id.split('--')[1];
-                else if (id.includes(':')) author = id.split(':')[1].split('/')[0];
-            }
-
-            return {
-                ...item,
-                id,
-                name,
-                type,
-                slug,
-                author,
-                fni_score: item.fni || item.fni_score || 0
-            };
-        };
-
         try {
             const res = await fetch(this.dataUrl);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -141,9 +84,8 @@ export class UniversalCatalog {
             let allRaw = Array.isArray(data) ? data : (data.entities || data.models || []);
 
             // Normalize & Filter
-            const validItems = allRaw
-                .filter(i => i.type === this.type || (this.type === 'model' && !i.type))
-                .map(normalize);
+            const validItems = DataNormalizer.normalizeCollection(allRaw, this.type)
+                .filter(i => i.type === this.type || (this.type === 'model' && !i.type));
 
             // Normalize & Merge
             const map = new Map();
