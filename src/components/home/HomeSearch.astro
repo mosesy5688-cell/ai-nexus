@@ -73,7 +73,8 @@ const { initialQuery = '' } = Astro.props;
     saveSearchHistory, 
     clearSearchHistory,
     performSearch,
-    setFullSearchEnabled 
+    setFullSearchActive,
+    getSearchStatus
   } from '../../scripts/home-search.js';
 
   function renderHistory() {
@@ -165,7 +166,7 @@ const { initialQuery = '' } = Astro.props;
 
     // V14.5 Phase 5: Full Search Toggle
     document.getElementById('fullSearchToggle')?.addEventListener('change', async (e) => {
-      setFullSearchEnabled(e.target.checked);
+      setFullSearchActive(e.target.checked);
       if (e.target.checked) await loadFullSearchIndex();
       const query = searchBox?.value?.trim();
       if (query?.length > 0) renderResults(performSearch(query));
