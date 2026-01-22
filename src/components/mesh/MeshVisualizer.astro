@@ -29,16 +29,16 @@ try {
   // Use defaults from above
 }
 
-// Node type icons and colors
+// Node type icons, colors and navigation links
 const typeConfig = {
-  model: { icon: '🤖', color: 'bg-blue-500', label: 'Models' },
-  paper: { icon: '📄', color: 'bg-purple-500', label: 'Papers' },
-  agent: { icon: '🤖', color: 'bg-emerald-500', label: 'Agents' },
-  space: { icon: '🚀', color: 'bg-orange-500', label: 'Spaces' },
-  dataset: { icon: '📊', color: 'bg-cyan-500', label: 'Datasets' },
-  tool: { icon: '🔧', color: 'bg-amber-500', label: 'Tools' },
-  knowledge: { icon: '📚', color: 'bg-indigo-500', label: 'Knowledge' },
-  report: { icon: '📰', color: 'bg-rose-500', label: 'Reports' }
+  model: { icon: '🤖', color: 'bg-blue-500', label: 'Models', href: '/models' },
+  paper: { icon: '📄', color: 'bg-purple-500', label: 'Papers', href: '/papers' },
+  agent: { icon: '🤖', color: 'bg-emerald-500', label: 'Agents', href: '/agents' },
+  space: { icon: '🚀', color: 'bg-orange-500', label: 'Spaces', href: '/spaces' },
+  dataset: { icon: '📊', color: 'bg-cyan-500', label: 'Datasets', href: '/datasets' },
+  tool: { icon: '🔧', color: 'bg-amber-500', label: 'Tools', href: '/tools' },
+  knowledge: { icon: '📚', color: 'bg-indigo-500', label: 'Knowledge', href: '/knowledge' },
+  report: { icon: '📰', color: 'bg-rose-500', label: 'Reports', href: '/reports' }
 };
 
 const nodesByType = meshStats.by_type || {};
@@ -46,84 +46,49 @@ const totalNodes = meshStats.nodes || 0;
 const totalEdges = meshStats.edges || 0;
 ---
 
-<section class="mesh-visualizer bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-3xl p-8 border border-gray-200 dark:border-gray-700">
-  <div class="flex items-center justify-between mb-6">
+<section class="mesh-visualizer bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
+  <div class="flex items-center justify-between mb-5">
     <div>
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-        <span class="text-3xl">🕸️</span>
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+        <span class="text-2xl">🕸️</span>
         Knowledge Mesh
       </h2>
-      <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+      <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
         8-node interconnected knowledge graph
       </p>
     </div>
-    <div class="flex items-center gap-4 text-sm">
-      <div class="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-full shadow-sm">
+    <div class="flex items-center gap-3 text-[11px]">
+      <div class="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-gray-800 rounded-full shadow-sm border border-gray-100 dark:border-gray-700">
         <span class="font-bold text-indigo-600">{totalNodes.toLocaleString()}</span>
         <span class="text-gray-500">nodes</span>
       </div>
-      <div class="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-full shadow-sm">
+      <div class="flex items-center gap-1.5 px-2 py-1 bg-white dark:bg-gray-800 rounded-full shadow-sm border border-gray-100 dark:border-gray-700">
         <span class="font-bold text-emerald-600">{totalEdges.toLocaleString()}</span>
         <span class="text-gray-500">edges</span>
       </div>
     </div>
   </div>
 
-  <!-- Node Type Distribution -->
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+  <!-- Interactive Navigation Mesh -->
+  <div class="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
     {Object.entries(typeConfig).map(([type, config]) => {
       const count = nodesByType[type] || 0;
-      if (count === 0) return null;
       
       return (
-        <div class="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
-          <div class={`w-10 h-10 ${config.color} rounded-xl flex items-center justify-center text-white text-xl`}>
+        <a href={config.href} class="group flex flex-col items-center p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all">
+          <div class={`w-10 h-10 ${config.color} rounded-xl flex items-center justify-center text-white text-xl shadow-sm group-hover:scale-110 transition-transform`}>
             {config.icon}
           </div>
-          <div>
-            <div class="text-xl font-bold text-gray-900 dark:text-white">
-              {count.toLocaleString()}
-            </div>
-            <div class="text-xs text-gray-500 uppercase tracking-wide">
+          <div class="text-center mt-2">
+            <div class="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-tighter">
               {config.label}
             </div>
+            <div class="text-[11px] font-medium text-gray-400">
+              {count > 0 ? count.toLocaleString() : '-'}
+            </div>
           </div>
-        </div>
+        </a>
       );
     })}
-  </div>
-
-  <!-- Connection Diagram -->
-  <div class="relative p-6 bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700">
-    <div class="flex items-center justify-center gap-8 flex-wrap">
-      {Object.entries(typeConfig).slice(0, 8).map(([type, config], i) => {
-        const count = nodesByType[type] || 0;
-        const isHighlighted = count > 1000;
-        
-        return (
-          <div class={`flex flex-col items-center p-4 rounded-xl transition-all ${isHighlighted ? 'ring-2 ring-indigo-500 ring-offset-2' : ''}`}>
-            <div class={`w-14 h-14 ${config.color} rounded-2xl flex items-center justify-center text-white text-2xl shadow-lg`}>
-              {config.icon}
-            </div>
-            <span class="text-xs text-gray-600 dark:text-gray-400 mt-2 font-medium">
-              {config.label}
-            </span>
-            <span class="text-xs text-gray-400">
-              {count > 0 ? count.toLocaleString() : '-'}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-    
-    <!-- Center Hub -->
-    <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
-      <div class="w-32 h-32 rounded-full border-4 border-dashed border-indigo-500"></div>
-    </div>
-  </div>
-
-  <!-- Data Source -->
-  <div class="mt-4 text-center text-xs text-gray-400">
-    Data from <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">cache/mesh/graph.json</code> • Updated periodically
   </div>
 </section>
