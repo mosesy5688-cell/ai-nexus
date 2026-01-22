@@ -1,24 +1,21 @@
-/**
- * UniversalCatalog.js
- * Shared client-side logic for all entity catalog pages.
- * Handles: Search, Filtering, Sorting, Pagination, and Rendering.
- */
-
+// src/scripts/lib/UniversalCatalog.js
+// V16.2: Universal Catalog Logic with MiniSearch integration
+import MiniSearch from 'minisearch';
 import { EntityCardRenderer } from './EntityCardRenderer.js';
 
 export class UniversalCatalog {
     constructor({
         initialData = [],
         type = 'model',
-        gridId = 'entity-grid',
+        gridId = 'models-grid', // Default updated for consistency
         countId = 'results-count',
         paginationId = 'pagination',
-        searchId = 'entity-search',
+        searchId = 'models-search', // Default updated for consistency
         sortId = 'sort-by',
         itemsPerPage = 24,
-        dataUrl = 'https://cdn.free2aitools.com/entities.json' // Default Master JSON
+        dataUrl = 'https://cdn.free2aitools.com/entities.json'
     }) {
-        this.items = initialData; // Start with SSR data
+        this.items = initialData;
         this.filtered = initialData;
         this.type = type;
         this.currentPage = 1;
@@ -27,6 +24,18 @@ export class UniversalCatalog {
         this.fullDataLoaded = false;
         this.isLoadingMore = false;
 
+        // Engine
+        this.engine = new MiniSearch({
+            fields: ['name', 'author', 'description', 'tags'],
+            storeFields: ['id', 'name', 'type', 'fni_score', 'slug', 'description', 'author'],
+            idField: 'id',
+            searchOptions: {
+                boost: { name: 3, author: 1.5 },
+                fuzzy: 0.2,
+                prefix: true
+            }
+        });
+
         // DOM Elements
         this.grid = document.getElementById(gridId);
         this.countLabel = document.getElementById(countId);
@@ -34,16 +43,14 @@ export class UniversalCatalog {
         this.searchInput = document.getElementById(searchId);
         this.sortSelect = document.getElementById(sortId);
 
-        if (!this.grid) {
-            console.error(`[UniversalCatalog] Grid element #${gridId} not found`);
-            return;
-        }
-
         this.init();
     }
 
     init() {
-        // Event Listeners
+        if (this.items.length > 0) {
+            this.engine.addAll(this.items);
+        }
+
         if (this.searchInput) {
             this.searchInput.addEventListener('input', (e) => {
                 this.handleSearch(e.target.value);
@@ -59,71 +66,39 @@ export class UniversalCatalog {
         this.updateStats();
         this.renderPagination();
 
-
-        // Lazy Load Full Data (Always fetch to ensure complete dataset)
         if (this.dataUrl && !this.fullDataLoaded) {
             this.loadFullData();
         }
-
-        console.log(`[UniversalCatalog] Initialized ${this.type} catalog with ${this.items.length} SSR items.`);
     }
 
     async loadFullData() {
-        console.log(`[UniversalCatalog] Lazy loading full dataset from ${this.dataUrl}...`);
         this.isLoadingMore = true;
-        this.updateStats(); // Show loading state
+        this.updateStats();
 
         try {
             const res = await fetch(this.dataUrl);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
             const data = await res.json();
 
-            // Parse & Normalize (Simple logic matching server)
-            let all = [];
-            if (Array.isArray(data)) {
-                all = data;
-            } else if (data.models || data.agents) {
-                all = [
-                    ...(data.models || []),
-                    ...(data.agents || []),
-                    ...(data.spaces || []),
-                    ...(data.tools || []),
-                    ...(data.datasets || []),
-                    ...(data.papers || [])
-                ];
-            }
+            let all = Array.isArray(data) ? data : (data.entities || data.models || []);
 
-            // Filter by Type
-            const validItems = all.filter(item => {
-                if (this.type === 'model') return item.type === 'model' || (item.id && !item.type && !item.id.startsWith('space/'));
-                if (this.type === 'agent') return item.type === 'agent' || (item.id && item.id.includes('agent'));
-                if (this.type === 'space') return item.type === 'space';
-                if (this.type === 'tool') return item.type === 'tool';
-                if (this.type === 'dataset') return item.type === 'dataset';
-                if (this.type === 'paper') return item.type === 'paper';
-                return false;
-            }).map(item => ({
-                ...item,
-                name: item.name || item.id?.split('/').pop() || 'Untitled',
-                description: item.description || '',
-                slug: item.slug || (item.id ? item.id.replace(/^[a-z]+:/i, '').replace(':', '/') : '')
-            }));
-
-            // Merge with SSR items (De-duplicate by ID)
+            // Normalize & Merge
             const map = new Map();
-            this.items.forEach(i => map.set(i.id, i)); // SSR items first
-            validItems.forEach(i => map.set(i.id, i)); // Overwrite/Add full data
+            this.items.forEach(i => map.set(i.id, i));
+
+            all.filter(i => i.type === this.type || (this.type === 'model' && !i.type))
+                .forEach(i => map.set(i.id, i));
 
             this.items = Array.from(map.values());
-            console.log(`[UniversalCatalog] Full data loaded. Total: ${this.items.length}`);
 
-            // Update UI
+            // Re-index engine
+            this.engine.removeAll();
+            this.engine.addAll(this.items);
+
             this.fullDataLoaded = true;
-            this.handleSearch(this.searchInput?.value || ''); // Re-filter/Sort
-
+            this.handleSearch(this.searchInput?.value || '');
         } catch (e) {
-            console.error('[UniversalCatalog] Lazy Load Failed:', e);
+            console.error('[UniversalCatalog] Load Failed:', e);
         } finally {
             this.isLoadingMore = false;
             this.updateStats();
@@ -131,20 +106,23 @@ export class UniversalCatalog {
     }
 
     handleSearch(query) {
-        const q = query.toLowerCase().trim();
+        const q = query.trim();
 
-        if (!q) {
+        if (!q || q.length < 2) {
             this.filtered = [...this.items];
         } else {
-            this.filtered = this.items.filter(item => {
-                const name = (item.name || item.id || '').toLowerCase();
-                const desc = (item.description || '').toLowerCase();
-                return name.includes(q) || desc.includes(q);
-            });
+            const results = this.engine.search(q);
+            // Map results back to full item objects if needed, 
+            // but MiniSearch already stores display fields.
+            this.filtered = results.map(r => ({
+                ...r,
+                // Ensure consistency in field names
+                fni_score: r.fni_score || 0
+            }));
         }
 
         this.currentPage = 1;
-        this.handleSort(this.sortSelect ? this.sortSelect.value : 'fni'); // Re-sort
+        this.handleSort(this.sortSelect?.value || 'fni');
     }
 
     handleSort(sortBy) {

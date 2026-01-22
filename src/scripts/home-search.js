@@ -1,72 +1,82 @@
 // src/scripts/home-search.js
-// V14.5: Search functionality extracted from HomeSearch.astro for CES compliance
+// V16.2: Refactored for Zero-Runtime compliance and MiniSearch integration
+import MiniSearch from 'minisearch';
 
-const INDEX_URL = '/data/search-index-top.json';
-const FULL_INDEX_URL = '/api/cache/search-full.json'; // V14.5 Phase 5
-
-let searchData = [];
-let knowledgeData = []; // V15.5: Added for Unified Search
-let fullSearchData = null;
-let isLoaded = false;
-let isLoading = false;
-let isFullSearchEnabled = false;
-let isFullSearchLoading = false;
-
+// Config & Constants
+const CORE_INDEX_URL = '/cache/search-core.json';
+const FULL_INDEX_URL = '/cache/search-full.json';
 const HISTORY_KEY = 'f2ai_search_history';
 const MAX_HISTORY = 5;
-const KNOWLEDGE_INDEX_URL = '/data/knowledge-index.json'; // Pre-computed or generated at build
 
+// Engine Instance
+let searchIndex = null;
+let searchData = [];
+let isLoaded = false;
+let isLoading = false;
+let isFullSearchActive = false;
+let isFullSearchLoading = false;
+
+// Initialize Search Engine
 export async function initSearch() {
     if (isLoaded || isLoading) return;
     isLoading = true;
-    console.log('📥 [V14.2] Loading static search index...');
 
     try {
-        const [searchRes, knowledgeRes] = await Promise.all([
-            fetch(INDEX_URL),
-            fetch(KNOWLEDGE_INDEX_URL).catch(() => null) // Fallback if not yet generated
-        ]);
+        console.log('📥 [V16.2] Loading Core Search Index...');
+        const res = await fetch(CORE_INDEX_URL);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-        if (searchRes.ok) searchData = await searchRes.json();
+        const data = await res.json();
+        // Support both { entities: [] } and raw array formats
+        searchData = data.entities || data.models || data;
 
-        if (knowledgeRes && knowledgeRes.ok) {
-            knowledgeData = await knowledgeRes.json();
-        } else {
-            // V15.5 Static Fallback: If index.json missing, we can stub from basic patterns
-            console.warn('⚠️ Knowledge index missing. Search will be model-only.');
-        }
+        searchIndex = new MiniSearch({
+            fields: ['name', 'author', 'description', 'tags'],
+            storeFields: ['id', 'name', 'type', 'fni_score', 'slug'],
+            idField: 'id',
+            searchOptions: {
+                boost: { name: 3, author: 1.5 },
+                fuzzy: 0.2,
+                prefix: true
+            }
+        });
 
+        searchIndex.addAll(searchData);
         isLoaded = true;
-        console.log(`🚀 [V14.5] Search Ready: ${searchData.length} models, ${knowledgeData.length} guides`);
+        console.log(`🚀 [V16.2] Search Ready: ${searchData.length} items`);
     } catch (e) {
-        console.error('❌ Search index failed:', e);
+        console.error('❌ [V16.2] Search Init Failed:', e);
     } finally {
         isLoading = false;
     }
 }
 
+// Lazy Load Full Index
 export async function loadFullSearchIndex() {
-    if (fullSearchData || isFullSearchLoading) return fullSearchData;
-
-    const statusEl = document.getElementById('fullSearchStatus');
-    if (statusEl) statusEl.textContent = '(loading...)';
+    if (isFullSearchActive || isFullSearchLoading || !isLoaded) return;
     isFullSearchLoading = true;
 
     try {
-        console.log('📥 [V14.5] Loading full search index (100K+)...');
-        const response = await fetch(FULL_INDEX_URL);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        fullSearchData = data.entities || data;
-        console.log(`🚀 [V14.5] Full Search Ready: ${fullSearchData.length} items`);
-        if (statusEl) statusEl.textContent = `(✓ ${fullSearchData.length.toLocaleString()})`;
+        console.log('📥 [V16.2] Loading Full Index (30MB+)...');
+        const res = await fetch(FULL_INDEX_URL);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
+        const fullEntities = data.entities || data.models || data;
+
+        // Clear and reload MiniSearch with full data
+        searchIndex.removeAll();
+        searchIndex.addAll(fullEntities);
+
+        isFullSearchActive = true;
+        console.log(`🔥 [V16.2] Full Search Activated: ${fullEntities.length} entities`);
+        return true;
     } catch (e) {
-        console.error('❌ Full search index failed:', e);
-        if (statusEl) statusEl.textContent = '(failed)';
+        console.error('❌ [V16.2] Full Index Load Failed:', e);
+        return false;
     } finally {
         isFullSearchLoading = false;
     }
-    return fullSearchData;
 }
 
 export function getSearchHistory() {
@@ -96,52 +106,30 @@ export function getTopModels(limit = 10) {
 }
 
 export function performSearch(query, limit = 8) {
-    const dataSource = (isFullSearchEnabled && fullSearchData) ? fullSearchData : searchData;
-    if (!dataSource.length && !knowledgeData.length || !query) return [];
+    if (!searchIndex || !query || query.length < 2) return [];
 
-    const q = query.toLowerCase();
+    const results = searchIndex.search(query);
 
-    // 1. Search Knowledge Articles (Higher priority for exact concept matches)
-    const knowledgeResults = knowledgeData
-        .filter(k => k.n?.toLowerCase().includes(q) || k.d?.toLowerCase().includes(q))
-        .map(k => ({
-            id: k.id,
-            name: k.n,
-            slug: k.s,
-            type: 'knowledge',
-            score: (k.n?.toLowerCase().startsWith(q) ? 100 : 50) + (k.n?.toLowerCase() === q ? 200 : 0)
-        }));
-
-    // 2. Search Models
-    const fuzzy = (t, s) => t && (t.toLowerCase().includes(s) ||
-        t.toLowerCase().split(/[\s\-_]/).some(w => w.startsWith(s.slice(0, 3))));
-
-    const score = (i) => (fuzzy(i.n, q) ? 50 : 0) + (i.n?.toLowerCase().startsWith(q) ? 30 : 0) +
-        (fuzzy(i.t, q) ? 20 : 0) + (fuzzy(i.a, q) ? 10 : 0) + (i.n?.toLowerCase() === q ? 100 : 0) + (i.sc || 0) / 10;
-
-    const modelResults = dataSource
-        .map(item => ({ item, s: score(item) }))
-        .filter(({ s }) => s > 0)
-        .map(({ item, s }) => ({
-            id: item.i,
-            name: item.n,
-            slug: item.s,
-            author: item.a,
-            fni_score: item.sc,
-            type: 'model',
-            score: s
-        }));
-
-    // Merge and sort
-    return [...knowledgeResults, ...modelResults]
-        .sort((a, b) => b.score - a.score)
-        .slice(0, limit);
+    return results.slice(0, limit).map(r => ({
+        id: r.id,
+        name: r.name,
+        slug: r.slug,
+        type: r.type || 'model',
+        author: r.author,
+        fni_score: r.fni_score,
+        score: r.score
+    }));
 }
 
-export function setFullSearchEnabled(enabled) {
-    isFullSearchEnabled = enabled;
+export function setFullSearchActive(active) {
+    isFullSearchActive = active;
 }
 
-export function isFullSearchActive() {
-    return isFullSearchEnabled && fullSearchData;
+export function getSearchStatus() {
+    return {
+        isLoaded,
+        isFullSearchActive,
+        isFullSearchLoading,
+        itemCount: searchData.length
+    };
 }

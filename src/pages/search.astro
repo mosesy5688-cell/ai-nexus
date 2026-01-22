@@ -1,22 +1,16 @@
 ---
 /**
- * V3.1 Phase 1: Search Page (SSR)
+ * V16.2: Search Page (Static Client-Side)
  * 
- * Search Contract (Engineering Rules):
- * - Input: q (string, >=2 chars)
- * - Output: models[], knowledge[]
- * - Empty result: EmptyState (never 404)
- * - SEO: noindex (avoid low-quality pages)
+ * Refactored to align with Zero-Runtime Constitution.
+ * - Removed SSR fetch logic.
+ * - Removed /api/search dependency.
+ * - Implemented client-side hydration with MiniSearch.
  */
 import Layout from '@/layouts/Layout.astro';
 
-export const prerender = false;
+export const prerender = true;
 
-const query = Astro.url.searchParams.get('q') || '';
-const typeFilter = Astro.url.searchParams.get('type') || 'all';
-const searchPerformed = query.length >= 2;
-
-// V12: Entity type configuration
 const entityTypes = [
   { id: 'all', label: 'All', icon: '🔍' },
   { id: 'model', label: 'Models', icon: '🤖' },
@@ -25,63 +19,28 @@ const entityTypes = [
   { id: 'dataset', label: 'Datasets', icon: '📊' },
   { id: 'paper', label: 'Papers', icon: '📄' },
 ];
-
-let results: any[] = [];
-let error: string | null = null;
-
-if (searchPerformed) {
-    try {
-        // Call internal API
-        const apiUrl = new URL('/api/search', Astro.url.origin);
-        apiUrl.searchParams.set('q', query);
-        apiUrl.searchParams.set('limit', '20');
-        if (typeFilter !== 'all') {
-            apiUrl.searchParams.set('type', typeFilter);
-        }
-        
-        const response = await fetch(apiUrl.toString());
-        if (response.ok) {
-            const data = await response.json();
-            results = data.results || [];
-        } else {
-            error = 'Search service temporarily unavailable';
-        }
-    } catch (e) {
-        error = 'Search failed. Please try again.';
-    }
-}
-
-// Knowledge articles (static for now - could be expanded)
-const knowledgeItems = [
-    { slug: 'what-is-mmlu', title: 'What is MMLU?', description: 'Understanding the Massive Multitask Language Understanding benchmark' },
-    { slug: 'what-is-fni', title: 'What is FNI?', description: 'The Fair Nexus Index methodology explained' },
-    { slug: 'what-is-humaneval', title: 'What is HumanEval?', description: 'Code generation benchmark for AI models' },
-    { slug: 'what-is-context-length', title: 'Context Length', description: 'Understanding model context windows' },
-    { slug: 'what-is-gsm8k', title: 'What is GSM8K?', description: 'Grade school math benchmark for reasoning' },
-].filter(k => k.title.toLowerCase().includes(query.toLowerCase()) || k.description.toLowerCase().includes(query.toLowerCase()));
 ---
 
-<Layout title={`Search: ${query || 'Find AI Models'} - Free2AITools`}>
+<Layout title="Search AI Models & Knowledge - Free2AITools">
     <meta slot="head" name="robots" content="noindex, follow" />
     
-    <main class="container mx-auto px-4 py-8 max-w-4xl">
+    <main class="container mx-auto px-4 py-8 max-w-4xl min-h-screen">
         <!-- Search Header -->
         <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-4">
-                {query ? `Search Results for "${query}"` : 'Search AI Models'}
+            <h1 id="search-title" class="text-3xl font-bold text-gray-800 dark:text-white mb-4">
+                Search AI Models
             </h1>
             
             <!-- Search Form -->
-            <form method="get" action="/search" class="space-y-4">
+            <form id="results-search-form" class="space-y-4">
                 <div class="flex gap-2">
                     <input 
                         type="text" 
+                        id="results-search-box"
                         name="q" 
-                        value={query}
                         placeholder="Search models, spaces, agents..."
                         class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                         minlength="2"
-                        required
                     />
                     <button 
                         type="submit"
@@ -90,11 +49,12 @@ const knowledgeItems = [
                         Search
                     </button>
                 </div>
-                <!-- V12: Type Filter -->
+                
+                <!-- Type Filter -->
                 <div class="flex flex-wrap gap-2">
                     {entityTypes.map(type => (
-                        <label class={`flex items-center gap-1 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${typeFilter === type.id ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
-                            <input type="radio" name="type" value={type.id} checked={typeFilter === type.id} class="sr-only" />
+                        <label class="type-filter-label flex items-center gap-1 px-3 py-1.5 rounded-full cursor-pointer transition-colors bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">
+                            <input type="radio" name="type" value={type.id} class="sr-only" checked={type.id === 'all'} />
                             <span>{type.icon}</span>
                             <span class="text-sm font-medium">{type.label}</span>
                         </label>
@@ -103,125 +63,150 @@ const knowledgeItems = [
             </form>
         </div>
 
-        <!-- Error State -->
-        {error && (
-            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
-                <p class="text-red-700 dark:text-red-300">{error}</p>
+        <!-- Smart Trigger for Full Search -->
+        <div id="full-search-prompt" class="mb-8 p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl hidden">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <h3 class="font-semibold text-indigo-900 dark:text-indigo-300">Limited results found in top models.</h3>
+                    <p class="text-sm text-indigo-700 dark:text-indigo-400">Would you like to search the full index of 150K+ models?</p>
+                </div>
+                <button id="load-full-index-btn" class="whitespace-nowrap px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm font-bold">
+                    Load Full Index (~30MB)
+                </button>
             </div>
-        )}
+        </div>
 
-        <!-- Results or Empty State -->
-        {searchPerformed ? (
-            results.length > 0 || knowledgeItems.length > 0 ? (
-                <div class="space-y-8">
-                <!-- Results -->
-                    {results.length > 0 && (
-                        <section>
-                            <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                                Results ({results.length})
-                            </h2>
-                            <div class="grid gap-4">
-                                {results.map((item) => {
-                                    const itemType = item.type || 'model';
-                                    const href = `/${itemType}/${item.id || item.slug}`;
-                                    const typeConfig = entityTypes.find(t => t.id === itemType) || entityTypes[1];
-                                    return (
-                                        <a href={href}
-                                           class="block p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition">
-                                            <div class="flex justify-between items-start">
-                                                <div class="flex items-center gap-2">
-                                                    <span class="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
-                                                        {typeConfig.icon} {typeConfig.label}
-                                                    </span>
-                                                    <h3 class="font-semibold text-gray-800 dark:text-white">{item.name || item.title}</h3>
-                                                </div>
-                                                {item.fni_score && <span class="text-sm font-bold text-blue-600">FNI {item.fni_score}</span>}
-                                            </div>
-                                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">by {item.author}</p>
-                                            {item.description && <p class="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{item.description}</p>}
-                                        </a>
-                                    );
-                                })}
-                            </div>
-                        </section>
-                    )}
+        <!-- Loading State -->
+        <div id="search-loading" class="hidden py-12 text-center text-gray-500">
+            <div class="animate-spin inline-block w-8 h-8 border-4 border-current border-t-transparent text-blue-600 rounded-full mb-4" role="status"></div>
+            <p>Initializing search engine...</p>
+        </div>
 
-                    <!-- Knowledge Results -->
-                    {knowledgeItems.length > 0 && (
-                        <section>
-                            <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                                Knowledge Base ({knowledgeItems.length})
-                            </h2>
-                            <div class="grid gap-3">
-                                {knowledgeItems.map((item) => (
-                                    <a 
-                                        href={`/knowledge/${item.slug}`}
-                                        class="block p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition"
-                                    >
-                                        <h3 class="font-semibold text-blue-800 dark:text-blue-300">{item.title}</h3>
-                                        <p class="text-sm text-blue-600 dark:text-blue-400">{item.description}</p>
-                                    </a>
-                                ))}
-                            </div>
-                        </section>
-                    )}
-                </div>
-            ) : (
-                <!-- Empty State (V3.1: Never 404) -->
-                <div class="text-center py-16">
-                    <div class="text-6xl mb-4">🔍</div>
-                    <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        No results found for "{query}"
-                    </h2>
-                    <p class="text-gray-500 dark:text-gray-400 mb-4">
-                        Try different keywords or explore popular models below
-                    </p>
-                    <!-- V12 Phase 12: Search Tips -->
-                    <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6 text-left max-w-md mx-auto">
-                        <p class="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">💡 Search Tips:</p>
-                        <ul class="text-sm text-blue-700 dark:text-blue-400 space-y-1">
-                            <li>• Try model names: <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">llama 70b</code></li>
-                            <li>• Search by task: <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">code generation</code></li>
-                            <li>• Use format: <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">gguf quantized</code></li>
-                        </ul>
-                    </div>
-                    <!-- V12: Hot Models Fallback -->
-                    <div id="hot-models-fallback" class="mt-6">
-                        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">🔥 Popular Models</h3>
-                        <div class="flex flex-wrap justify-center gap-3">
-                            <a href="/model/meta-llama/Llama-3.3-70B-Instruct" class="px-4 py-2 bg-gradient-to-r from-purple-100 to-indigo-100 dark:from-purple-900/30 dark:to-indigo-900/30 text-purple-700 dark:text-purple-300 rounded-lg hover:shadow-md transition">Llama 3.3 70B</a>
-                            <a href="/model/Qwen/Qwen2.5-72B-Instruct" class="px-4 py-2 bg-gradient-to-r from-blue-100 to-cyan-100 dark:from-blue-900/30 dark:to-cyan-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:shadow-md transition">Qwen 2.5 72B</a>
-                            <a href="/model/deepseek-ai/DeepSeek-V3" class="px-4 py-2 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 text-green-700 dark:text-green-300 rounded-lg hover:shadow-md transition">DeepSeek V3</a>
-                        </div>
-                    </div>
-                    <div class="flex flex-wrap justify-center gap-3 mt-6">
-                        <a href="/ranking" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition">
-                            📊 View Rankings
-                        </a>
-                        <a href="/knowledge" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition">
-                            📚 Knowledge Base
-                        </a>
-                    </div>
-                </div>
-            )
-        ) : (
-            <!-- Initial State (no search yet) -->
-            <div class="text-center py-16">
-                <div class="text-6xl mb-4">🤖</div>
-                <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    Find the best AI model for your needs
-                </h2>
-                <p class="text-gray-500 dark:text-gray-400 mb-6">
-                    Search 150K+ models, agents, spaces, and papers
-                </p>
-                <div class="flex flex-wrap justify-center gap-3 text-sm mb-6">
-                    <a href="/search?q=llama" class="px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full hover:bg-purple-200 transition">llama</a>
-                    <a href="/search?q=qwen" class="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full hover:bg-blue-200 transition">qwen</a>
-                    <a href="/search?q=code+generation" class="px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full hover:bg-green-200 transition">code generation</a>
-                    <a href="/search?q=embedding" class="px-3 py-1.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full hover:bg-orange-200 transition">embedding</a>
-                </div>
-                <p class="text-xs text-gray-400 dark:text-gray-500">💡 Tip: Try model names, tasks, or formats like "gguf"</p>
-            </div>
-        )}
+        <!-- Results Area -->
+        <div id="search-results-container" class="space-y-8">
+            <!-- Will be populated by JS -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="search-empty-state" class="hidden text-center py-16">
+            <div class="text-6xl mb-4">🔍</div>
+            <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No results found</h2>
+            <p class="text-gray-500 dark:text-gray-400 mb-6">Try different keywords or load the full index.</p>
+        </div>
     </main>
 </Layout>
+
+<script>
+    import { initSearch, performSearch, loadFullSearchIndex, getSearchStatus } from '../scripts/home-search.js';
+
+    const dom = {
+        form: document.getElementById('results-search-form'),
+        box: document.getElementById('results-search-box'),
+        title: document.getElementById('search-title'),
+        results: document.getElementById('search-results-container'),
+        loading: document.getElementById('search-loading'),
+        empty: document.getElementById('search-empty-state'),
+        prompt: document.getElementById('full-search-prompt'),
+        fullBtn: document.getElementById('load-full-index-btn')
+    };
+
+    async function handleSearch() {
+        const query = dom.box.value.trim();
+        const type = dom.form.querySelector('input[name="type"]:checked')?.value || 'all';
+
+        if (query.length < 2) return;
+
+        dom.loading.classList.remove('hidden');
+        dom.results.innerHTML = '';
+        dom.empty.classList.add('hidden');
+        dom.prompt.classList.add('hidden');
+
+        await initSearch();
+        const results = performSearch(query, 40);
+        const filtered = type === 'all' ? results : results.filter(r => r.type === type);
+
+        dom.loading.classList.add('hidden');
+
+        if (filtered.length === 0) {
+            dom.empty.classList.remove('hidden');
+            const status = getSearchStatus();
+            if (!status.isFullSearchActive) dom.prompt.classList.remove('hidden');
+        } else {
+            renderResults(filtered);
+        }
+
+        // Update URL
+        const url = new URL(window.location);
+        url.searchParams.set('q', query);
+        url.searchParams.set('type', type);
+        window.history.replaceState({}, '', url);
+        dom.title.textContent = `Search Results for "${query}"`;
+    }
+
+    function renderResults(items) {
+        dom.results.innerHTML = `
+            <section>
+                <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">
+                    Results (${items.length})
+                </h2>
+                <div class="grid gap-4">
+                    ${items.map(item => `
+                        <a href="/${item.type}/${item.slug || item.id}" class="block p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition">
+                            <div class="flex justify-between items-start">
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded uppercase">
+                                        ${item.type}
+                                    </span>
+                                    <h3 class="font-semibold text-gray-800 dark:text-white">${item.name}</h3>
+                                </div>
+                                ${item.fni_score ? `<span class="text-sm font-bold text-blue-600">FNI ${Math.round(item.fni_score)}</span>` : ''}
+                            </div>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">by ${item.author || 'Unknown'}</p>
+                        </a>
+                    `).join('')}
+                </div>
+            </section>
+        `;
+    }
+
+    // Init Logic
+    document.addEventListener('DOMContentLoaded', async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const q = urlParams.get('q');
+        const t = urlParams.get('type') || 'all';
+
+        if (q) {
+            dom.box.value = q;
+            const radio = dom.form.querySelector(`input[value="${t}"]`);
+            if (radio) radio.checked = true;
+            await handleSearch();
+        }
+
+        dom.form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            handleSearch();
+        });
+
+        dom.form.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                // Update UI state
+                document.querySelectorAll('.type-filter-label').forEach(lbl => {
+                    lbl.classList.remove('bg-blue-600', 'text-white');
+                    lbl.classList.add('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                });
+                const label = radio.closest('.type-filter-label');
+                label.classList.add('bg-blue-600', 'text-white');
+                label.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                handleSearch();
+            });
+        });
+
+        dom.fullBtn.addEventListener('click', async () => {
+            dom.fullBtn.textContent = 'Loading...';
+            dom.fullBtn.disabled = true;
+            await loadFullSearchIndex();
+            dom.fullBtn.classList.add('hidden');
+            handleSearch();
+        });
+    });
+</script>
