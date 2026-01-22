@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is Structured Output?
+slug: structured-output
 description: Techniques for generating reliable JSON, code, and formatted data from LLMs
 keywords: structured output, json mode, function calling, grammar, constrained decoding
 ---

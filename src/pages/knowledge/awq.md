@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is AWQ?
+slug: awq
 description: Activation-aware Weight Quantization - an efficient 4-bit quantization method
 keywords: awq, quantization, 4-bit, activation aware, weight quantization, inference
 ---

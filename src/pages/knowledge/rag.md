@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is Retrieval Augmented Generation?
+slug: rag
 description: Enhancing LLM responses by retrieving relevant context from external knowledge sources
 keywords: rag, retrieval augmented generation, vector database, embeddings, knowledge base
 ---

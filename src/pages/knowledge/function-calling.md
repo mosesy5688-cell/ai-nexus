@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is Function Calling?
+slug: function-calling
 description: Enabling LLMs to interact with external tools and APIs through structured function definitions
 keywords: function calling, tool use, api integration, agents, structured output
 ---

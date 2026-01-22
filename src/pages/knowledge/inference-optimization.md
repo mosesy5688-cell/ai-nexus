@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is Inference Optimization?
+slug: inference-optimization
 description: Techniques for making language model inference faster and more efficient
 keywords: inference, optimization, batching, quantization, kv cache, speculative decoding
 ---

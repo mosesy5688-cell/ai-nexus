@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is KV Cache?
+slug: kv-cache
 description: Key-Value caching mechanism that accelerates autoregressive generation in transformers
 keywords: kv cache, key value cache, inference, memory, paged attention, autoregressive
 ---

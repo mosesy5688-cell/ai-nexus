@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is LoRA?
+slug: lora
 description: Low-Rank Adaptation - efficient fine-tuning technique for large language models
 keywords: lora, qlora, fine-tuning, peft, adapters, llm training
 ---

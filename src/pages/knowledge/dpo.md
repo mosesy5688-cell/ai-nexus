@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is DPO?
+slug: dpo
 description: Direct Preference Optimization - a simpler alternative to RLHF for AI alignment
 keywords: dpo, alignment, preference learning, rlhf alternative, training
 ---

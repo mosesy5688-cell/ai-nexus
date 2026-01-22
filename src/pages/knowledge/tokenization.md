@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is Tokenization?
+slug: tokenization
 description: How language models convert text into numbers they can process
 keywords: tokenization, bpe, wordpiece, sentencepiece, vocabulary, subword
 ---
