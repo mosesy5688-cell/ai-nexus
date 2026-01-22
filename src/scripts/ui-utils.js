@@ -8,12 +8,21 @@ export function formatNumber(num) {
 }
 
 export function createModelCardHTML(model) {
-    if (!model.id) {
+    if (!model || !model.id) {
         console.warn('Model missing id:', model);
-        return ''; // Skip models without ID
+        return '';
     }
-    const slug = model.slug || model.id;
-    const modelUrl = `/model/${encodeURIComponent(slug)}`;
+    const type = model.type || 'model';
+    const prefix = type === 'agent' ? '/agent/' : type === 'dataset' ? '/dataset/' : type === 'tool' ? '/tool/' : type === 'paper' ? '/paper/' : type === 'space' ? '/space/' : '/model/';
+
+    // V15.8: Standardized slug generation (Strip source and type prefixes)
+    let slug = model.slug || model.id || '';
+    slug = slug.replace(/^[a-z]+:/i, '')
+        .replace(/^(model|agent|dataset|tool|paper|space)s?\//i, '')
+        .toLowerCase()
+        .trim();
+
+    const modelUrl = `${prefix}${slug}`;
     const rawDesc = model.description || 'No description available.';
     const cleanDesc = rawDesc.replace(/<[^>]*>?/gm, '');
     const description = cleanDesc.substring(0, 120);

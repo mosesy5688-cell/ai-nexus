@@ -6,11 +6,18 @@
 
 export class EntityCardRenderer {
     static getLink(type, item) {
-        const slug = item.slug || item.id;
+        let slug = item.slug || item.id;
+        // Standardized slug stripping
+        slug = slug.replace(/^[a-z]+:/i, '')
+            .replace(/^(model|agent|dataset|tool|paper|space)s?\//i, '')
+            .toLowerCase()
+            .trim();
+
         if (type === 'space') return `/space/${slug}`;
         if (type === 'tool') return `/tool/${slug}`;
         if (type === 'dataset') return `/dataset/${slug}`;
         if (type === 'paper') return `/paper/${slug}`;
+        if (type === 'agent') return `/agent/${slug}`;
         return `/${type}/${slug}`;
     }
 

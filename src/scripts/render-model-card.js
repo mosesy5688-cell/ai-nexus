@@ -20,16 +20,16 @@ export function renderModelCard(model) {
 
     const name = model.name || model.id?.split(/[:/]/).pop() || 'unknown';
 
-    // V14.5: Use slug from trending.json if available (includes source prefix)
-    // Fallback to author/name format for backward compatibility
-    let modelUrl;
-    if (model.slug && model.slug.includes('/')) {
-        // New format: slug already has source/author/name (e.g., "replicate/openai/gpt-5-nano")
-        modelUrl = `/model/${model.slug.toLowerCase()}`;
-    } else {
-        // Fallback: V5.0 clean URL format
-        modelUrl = `/model/${author.toLowerCase()}/${name.toLowerCase()}`;
-    }
+    // V15.8: Standardized URL generation (Clean prefixes + Strip source/type)
+    const prefix = entityType === 'agent' ? '/agent/' : entityType === 'dataset' ? '/dataset/' : entityType === 'tool' ? '/tool/' : entityType === 'paper' ? '/paper/' : entityType === 'space' ? '/space/' : '/model/';
+
+    let cleanSlug = model.slug || model.id || '';
+    cleanSlug = cleanSlug.replace(/^[a-z]+:/i, '')
+        .replace(/^(model|agent|dataset|tool|paper|space)s?\//i, '')
+        .toLowerCase()
+        .trim();
+
+    const modelUrl = `${prefix}${cleanSlug}`;
 
     const description = (model.description || 'No description available.')
         .replace(/\<[^>]*>?/gm, '')
