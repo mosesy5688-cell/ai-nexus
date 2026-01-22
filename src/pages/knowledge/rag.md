@@ -1,46 +1,95 @@
 ---
-layout: ../../layouts/KnowledgeLayout.astro
-title: RAG (Retrieval Augmented Generation)
-slug: rag
+title: What is Retrieval Augmented Generation?
+description: Enhancing LLM responses by retrieving relevant context from external knowledge sources
+keywords: rag, retrieval augmented generation, vector database, embeddings, knowledge base
 ---
 
-# RAG - Retrieval Augmented Generation
+# What is Retrieval Augmented Generation?
 
-RAG combines LLMs with external knowledge retrieval for accurate, up-to-date responses.
+**RAG (Retrieval Augmented Generation)** is a technique that enhances language model responses by first retrieving relevant information from external knowledge sources, then using that context to generate more accurate and up-to-date answers.
 
-## How RAG Works
+## Why RAG?
 
-1. **Query** → User asks a question
-2. **Retrieve** → Search vector database for relevant documents
-3. **Augment** → Add documents to LLM prompt
-4. **Generate** → LLM produces grounded response
+| Problem | How RAG Helps |
+|---------|---------------|
+| Knowledge cutoff | Retrieves current information |
+| Hallucinations | Grounds responses in real data |
+| Domain expertise | Access specialized knowledge |
+| Source attribution | Can cite retrieved documents |
 
-## RAG vs Fine-Tuning
+## RAG Architecture
 
-| Aspect | RAG | Fine-Tuning |
-|--------|-----|-------------|
-| Knowledge updates | Instant | Requires retraining |
-| Cost | Lower | Higher |
-| Accuracy | Very high | High |
-| Setup complexity | Medium | High |
+```
+User Query
+    ↓
+[Embedding Model] → Query Vector
+    ↓
+[Vector Database] ← Search → Top-K Documents
+    ↓
+[LLM] ← Context + Query → Response
+```
 
-## RAG Stack Components
+## Core Components
 
-| Component | Options |
-|-----------|---------|
-| Embeddings | OpenAI, BGE, E5 |
-| Vector DB | Pinecone, Chroma, Weaviate |
-| LLM | GPT-4, Claude, Llama |
-| Framework | LangChain, LlamaIndex |
+### 1. Document Processing
+- Split documents into chunks
+- Generate embeddings for each chunk
+- Store in vector database
 
-## Best Practices
+### 2. Retrieval
+- Convert query to embedding
+- Find similar chunks via vector search
+- Return top-K relevant documents
 
-1. **Chunk wisely** - 512-1024 tokens per chunk
-2. **Use hybrid search** - Combine semantic + keyword
-3. **Add metadata** - Source, date, relevance
-4. **Evaluate** - Test retrieval accuracy
+### 3. Generation
+- Combine retrieved context with user query
+- Generate response grounded in context
 
-## Related
+## Vector Databases
 
-- [Embeddings](/knowledge/embeddings)
-- [Context Length](/knowledge/context-length)
+| Database | Type | Best For |
+|----------|------|----------|
+| **Pinecone** | Managed | Production scale |
+| **Chroma** | Open source | Quick prototypes |
+| **Weaviate** | Open source | Hybrid search |
+| **Qdrant** | Open source | Performance |
+| **Milvus** | Open source | Enterprise |
+
+## Embedding Models
+
+| Model | Dimensions | Quality |
+|-------|------------|---------|
+| text-embedding-3-large | 3072 | Excellent |
+| text-embedding-3-small | 1536 | Good |
+| BGE-large | 1024 | Very Good |
+| E5-large | 1024 | Very Good |
+
+## Advanced RAG Techniques
+
+### Hybrid Search
+Combine vector search with keyword search (BM25).
+
+### Reranking
+Score retrieved documents with a cross-encoder for better relevance.
+
+### Query Transformation
+- **HyDE**: Generate hypothetical answer, search for similar docs
+- **Multi-query**: Generate multiple query variations
+
+### Chunking Strategies
+- Fixed size chunks
+- Semantic chunking
+- Hierarchical (parent-child)
+
+## Challenges
+
+- ❌ Retrieved context may be irrelevant
+- ❌ Long context can confuse the model
+- ❌ Chunking can break important context
+- ❌ Embedding quality varies by domain
+
+## Related Concepts
+
+- [Embeddings](/knowledge/embeddings) - Vector representations
+- [Context Length](/knowledge/context-length) - How much context fits
+- [Agents](/knowledge/agents) - Dynamic RAG systems
