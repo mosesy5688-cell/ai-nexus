@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is Flash Attention?
+slug: flash-attention
 description: Memory-efficient attention algorithm that enables longer context and faster inference
 keywords: flash attention, attention mechanism, memory optimization, long context, inference speed
 ---

@@ -21,7 +21,7 @@ try {
       edges: 150000, 
       by_type: { 
         model: 60000, paper: 50000, agent: 1200, space: 1500, 
-        dataset: 800, tool: 400, knowledge: 16, report: 4 
+        dataset: 1200, tool: 800, knowledge: 30, report: 6 
       } 
     };
   }
@@ -96,7 +96,7 @@ const totalEdges = meshStats.edges || 0;
   <!-- Connection Diagram -->
   <div class="relative p-6 bg-white dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700">
     <div class="flex items-center justify-center gap-8 flex-wrap">
-      {Object.entries(typeConfig).slice(0, 6).map(([type, config], i) => {
+      {Object.entries(typeConfig).slice(0, 8).map(([type, config], i) => {
         const count = nodesByType[type] || 0;
         const isHighlighted = count > 1000;
         

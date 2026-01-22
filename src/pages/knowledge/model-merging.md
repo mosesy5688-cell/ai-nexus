@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is Model Merging?
+slug: model-merging
 description: Combining multiple fine-tuned models into a single model without additional training
 keywords: model merging, mergekit, frankenmerge, slerp, ties, dare
 ---

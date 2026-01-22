@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is Chain of Thought?
+slug: chain-of-thought
 description: Prompting technique that improves reasoning by encouraging step-by-step thinking
 keywords: chain of thought, cot, reasoning, prompting, zero-shot cot, few-shot
 ---

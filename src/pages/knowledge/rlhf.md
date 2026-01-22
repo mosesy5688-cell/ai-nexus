@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is RLHF?
+slug: rlhf
 description: Reinforcement Learning from Human Feedback - the key technique for aligning AI with human preferences
 keywords: rlhf, alignment, reward model, ppo, human feedback, safety
 ---

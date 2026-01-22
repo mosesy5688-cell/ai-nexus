@@ -1,5 +1,7 @@
 ---
+layout: ../../layouts/KnowledgeLayout.astro
 title: What is Speculative Decoding?
+slug: speculative-decoding
 description: Accelerating LLM inference by using a smaller draft model to propose tokens
 keywords: speculative decoding, draft model, inference speed, token generation, lookahead
 ---
