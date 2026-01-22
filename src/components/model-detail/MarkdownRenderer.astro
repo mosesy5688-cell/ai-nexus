@@ -1,3 +1,4 @@
+---
 /**
  * MarkdownRenderer.astro
  * 
@@ -34,9 +35,9 @@ const renderedHtml = await marked.parse(processedContent);
 <div class={`markdown-content prose prose-slate dark:prose-invert max-w-none 
             prose-headings:font-bold prose-a:text-indigo-600 dark:prose-a:text-indigo-400
             prose-pre:bg-[#0a0a0a] prose-pre:border prose-pre:border-gray-800
-            prose-img:rounded-xl prose-img:shadow-lg ${className}`}>
-  <Fragment set:html={renderedHtml} />
-</div>
+            prose-img:rounded-xl prose-img:shadow-lg ${className}`}
+     set:html={renderedHtml}
+/>
 
 <script>
   // Simplified copy for markdown blocks
