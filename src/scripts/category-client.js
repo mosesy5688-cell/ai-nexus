@@ -53,7 +53,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderCard(m) {
-    const url = `/model/${(m.author || 'u').toLowerCase()}/${(m.name || 'n').toLowerCase()}`;
+    const type = m.type || window.__CATEGORY_DATA__.type || 'model';
+    const prefix = type === 'agent' ? '/agent/' : type === 'dataset' ? '/dataset/' : type === 'tool' ? '/tool/' : type === 'paper' ? '/paper/' : '/model/';
+
+    // V15.8: Use pre-computed slug or generate consistently
+    let slug = m.slug || m.id || '';
+    slug = slug.replace(/^[a-z]+:/i, '').replace(/^agent\//, '').replace(/^dataset\//, '').replace(/^model\//, '').toLowerCase();
+
+    const url = `${prefix}${slug}`;
     return `<a href="${url}" class="model-card group block bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 p-5">
       <div class="flex items-start gap-3 mb-3">
         <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold">${(m.name || 'M')[0].toUpperCase()}</div>

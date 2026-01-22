@@ -15,18 +15,35 @@ export async function fetchCatalogData(type, runtimeEnv) {
         // 1. Try env.R2_ASSETS (Cloudflare Internal)
         if (runtimeEnv?.R2_ASSETS) {
             const r2 = runtimeEnv.R2_ASSETS;
-            // A. Try Fast Path: entities.json (Root)
+
+            // A. Try RANKING PATH (Most accurate for sorted lists)
             try {
-                const file = await r2.get('entities.json');
-                if (file) {
-                    const data = await file.json();
-                    items = parseData(data, type);
-                    source = 'r2-entities';
+                const rankingFile = await r2.get(`cache/rankings/${type}/p1.json`);
+                if (rankingFile) {
+                    const data = await rankingFile.json();
+                    items = (data.items || data.entities || data.models || []).map(normalizeItem);
+                    source = `r2-rankings-${type}`;
                 }
             } catch (e) {
-                console.warn(`[CatalogFetcher] R2 entities.json Load Error:`, e);
+                console.log(`[CatalogFetcher] R2 Rankings miss for ${type}, falling back to entities.json`);
+            }
 
-                // Fallback to legacy trending.json if entities.json fails
+            // B. Try Fast Path: entities.json (Root)
+            if (items.length === 0) {
+                try {
+                    const file = await r2.get('entities.json');
+                    if (file) {
+                        const data = await file.json();
+                        items = parseData(data, type);
+                        source = 'r2-entities';
+                    }
+                } catch (e) {
+                    console.warn(`[CatalogFetcher] R2 entities.json Load Error:`, e);
+                }
+            }
+
+            // Fallback to legacy trending.json if entities.json fails
+            if (items.length === 0) {
                 try {
                     const trendFile = await r2.get('cache/trending.json');
                     if (trendFile) {
@@ -37,34 +54,25 @@ export async function fetchCatalogData(type, runtimeEnv) {
                 } catch (ex) { /* ignore */ }
             }
 
-            // B. Fallback: Scan Bucket (Self-Healing)
+            // C. Fallback: Scan Bucket (Self-Healing)
             if (items.length === 0) {
                 console.log(`[CatalogFetcher] Trending empty for ${type}. Scanning R2 bucket path: cache/entities/${type}/`);
                 try {
-                    // 1. List valid items (Maximize initial SSR payload)
-                    // limit: 1000 is standard R2 list max.
                     const list = await r2.list({ prefix: `cache/entities/${type}/`, limit: 1000 });
-
-                    // Filter for main JSONs
                     const keys = list.objects
                         .filter(o => !o.key.endsWith('.meta.json'))
                         .map(o => o.key)
-                        .slice(0, 1000); // Allow up to 1000 items
+                        .slice(0, 1000);
 
                     if (keys.length > 0) {
-                        console.log(`[CatalogFetcher] Found ${keys.length} raw files. Fetching in batches...`);
-
-                        // 2. Batched Fetching
-                        const batchSize = 25; // Balanced batch size
+                        const batchSize = 25;
                         const results = [];
-
                         for (let i = 0; i < keys.length; i += batchSize) {
                             const chunk = keys.slice(i, i + batchSize);
                             const chunkPromises = chunk.map(key => r2.get(key).then(r => r.json()).catch(e => null));
                             const chunkResults = await Promise.all(chunkPromises);
                             results.push(...chunkResults);
                         }
-
                         items = results.filter(r => r && r.id).map(normalizeItem);
                         source = `r2-direct-scan (${items.length})`;
                     }
@@ -80,14 +88,12 @@ export async function fetchCatalogData(type, runtimeEnv) {
                 console.log(`[CatalogFetcher] Fetching from CDN...`);
                 const res = await fetch('https://cdn.free2aitools.com/cache/trending.json', {
                     headers: { 'User-Agent': 'Free2AI-SSR/1.0' },
-                    signal: AbortSignal.timeout(8000) // 8s timeout
+                    signal: AbortSignal.timeout(8000)
                 });
                 if (res.ok) {
                     const data = await res.json();
                     items = parseData(data, type);
                     source = 'cdn';
-                } else {
-                    console.error(`[CatalogFetcher] CDN Error: ${res.status}`);
                 }
             } catch (e) {
                 console.error(`[CatalogFetcher] CDN Fetch Error:`, e);

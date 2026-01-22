@@ -45,6 +45,9 @@ export function initRankingInfiniteScroll() {
 
                     models.forEach(model => {
                         const div = document.createElement('div');
+                        // Ensure model has type for ui-utils if it's missing
+                        const detectedType = category.replace(/s$/, '');
+                        if (!model.type) model.type = detectedType;
                         div.innerHTML = createModelCardHTML(model);
                         fragment.appendChild(div.firstElementChild);
                     });

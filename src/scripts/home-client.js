@@ -75,14 +75,18 @@ export async function loadWeeklyReport() {
 
         if (data.this_week_changed?.fni_leader) {
             const leader = data.this_week_changed.fni_leader;
+            const leaderType = leader.type || 'model';
+            const leaderPrefix = leaderType === 'agent' ? '/agent/' : leaderType === 'dataset' ? '/dataset/' : leaderType === 'tool' ? '/tool/' : leaderType === 'paper' ? '/paper/' : '/model/';
             summaryEl.textContent = `${data.this_week_changed.new_models_count || 0} new models this week!`;
             topModelEl.textContent = leader.name;
-            topModelLink.href = `/model/${leader.slug}`;
+            topModelLink.href = `${leaderPrefix}${leader.slug.replace(/^[a-z]+:/i, '').replace(/^(model|agent|dataset|tool|paper|space)s?\//i, '')}`;
         } else if (data.who_to_watch?.[0]) {
             const top = data.who_to_watch[0];
+            const topType = top.type || 'model';
+            const topPrefix = topType === 'agent' ? '/agent/' : topType === 'dataset' ? '/dataset/' : topType === 'tool' ? '/tool/' : topType === 'paper' ? '/paper/' : '/model/';
             summaryEl.textContent = data.why_it_matters?.summary?.slice(0, 100) + '...' || 'Check out this week\'s top models';
             topModelEl.textContent = top.name;
-            topModelLink.href = `/model/${top.slug}`;
+            topModelLink.href = `${topPrefix}${top.slug.replace(/^[a-z]+:/i, '').replace(/^(model|agent|dataset|tool|paper|space)s?\//i, '')}`;
         }
 
         // Show banner
@@ -104,7 +108,10 @@ export async function loadWeeklyReport() {
                     titleEl.textContent = `Week ${weekNum} AI Trends`;
                     summaryEl.textContent = `${trendingData.count || 100} trending models this week!`;
                     topModelEl.textContent = topModel.name;
-                    topModelLink.href = `/model/${topModel.slug}`;
+
+                    const topModelType = topModel.type || 'model';
+                    const topModelPrefix = topModelType === 'agent' ? '/agent/' : topModelType === 'dataset' ? '/dataset/' : topModelType === 'tool' ? '/tool/' : topModelType === 'paper' ? '/paper/' : '/model/';
+                    topModelLink.href = `${topModelPrefix}${topModel.slug.replace(/^[a-z]+:/i, '').replace(/^(model|agent|dataset|tool|paper|space)s?\//i, '')}`;
 
                     banner.classList.remove('hidden');
                 }
