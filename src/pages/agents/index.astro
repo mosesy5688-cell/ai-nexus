@@ -9,6 +9,7 @@ export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 import { fetchCatalogData, truncateListingItem } from '../../utils/catalog-fetcher.js';
+import { generateEntityUrl } from '../../utils/url-utils.js';
 
 // SSR Data Fetching (Unified with Self-Healing)
 const { items: allEntities, error, source } = await fetchCatalogData('agent', Astro.locals.runtime?.env);
@@ -102,7 +103,7 @@ const categories = [
     <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow min-h-[500px]">
        {entities.length > 0 ? (
            entities.slice(0, 24).map((item: any) => (
-            <a href={`/agent/${item.slug || item.id}`} 
+            <a href={generateEntityUrl(item, 'agent')} 
                class="entity-card p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 block">
               <div class="flex items-center justify-between mb-2">
                  <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300">Agent</span>

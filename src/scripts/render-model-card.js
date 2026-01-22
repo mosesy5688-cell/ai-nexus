@@ -39,31 +39,31 @@ export function renderModelCard(model) {
         .replace(/\<[^>]*>?/gm, '')
         .substring(0, 120) + '...';
 
-    const formatNumber = (n) => {
+    function formatNumber(n) {
         if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
         if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
         return n || 0;
-    };
+    }
 
-    const getSourceIcon = (source) => {
+    function getSourceIcon(source) {
         switch (source?.toLowerCase()) {
             case 'huggingface': return '🤗';
             case 'github': return '🐙';
             case 'pytorch': return '🔥';
             default: return '📦';
         }
-    };
+    }
 
-    const getSourceLabel = (source) => {
+    function getSourceLabel(source) {
         switch (source?.toLowerCase()) {
             case 'huggingface': return 'HF';
             case 'github': return 'GH';
             case 'pytorch': return 'PT';
             default: return 'UNK';
         }
-    };
+    }
 
-    const getSourceGradient = (source) => {
+    function getSourceGradient(source) {
         switch (source?.toLowerCase()) {
             case 'huggingface': return 'from-orange-400 via-yellow-500 to-amber-400';
             case 'github': return 'from-gray-700 via-gray-800 to-gray-900';
@@ -71,9 +71,9 @@ export function renderModelCard(model) {
             case 'replicate': return 'from-indigo-500 via-purple-500 to-pink-500';
             default: return 'from-blue-500 via-indigo-500 to-purple-600';
         }
-    };
+    }
 
-    const getFirstTag = (tagsData) => {
+    function getFirstTag(tagsData) {
         try {
             if (!tagsData) return null;
             // Handle both array and JSON string
@@ -82,10 +82,10 @@ export function renderModelCard(model) {
         } catch (e) {
             return null;
         }
-    };
+    }
 
     // V4.9: Entity type detection (Art.X-Entity)
-    const deriveEntityType = (id) => {
+    function deriveEntityType(id) {
         if (!id) return 'model';
         if (id.startsWith('hf-dataset--')) return 'dataset';
         if (id.startsWith('hf-space--')) return 'space';
@@ -93,9 +93,9 @@ export function renderModelCard(model) {
         if (id.startsWith('arxiv--')) return 'paper';
         if (id.startsWith('agent--') || id.startsWith('github-agent--')) return 'agent';
         return 'model';
-    };
+    }
 
-    const getEntityIcon = (type) => {
+    function getEntityIcon(type) {
         switch (type) {
             case 'model': return '🧠';
             case 'dataset': return '📊';
@@ -104,9 +104,9 @@ export function renderModelCard(model) {
             case 'agent': return '🤖';
             default: return '📦';
         }
-    };
+    }
 
-    const getEntityLabel = (type) => {
+    function getEntityLabel(type) {
         switch (type) {
             case 'model': return 'Model';
             case 'dataset': return 'Dataset';
@@ -115,7 +115,7 @@ export function renderModelCard(model) {
             case 'agent': return 'Agent';
             default: return 'Item';
         }
-    };
+    }
 
     const firstTag = getFirstTag(model.tags);
 

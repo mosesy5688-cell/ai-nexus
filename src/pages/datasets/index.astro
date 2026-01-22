@@ -9,6 +9,7 @@ export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
 import { fetchCatalogData, truncateListingItem } from '../../utils/catalog-fetcher.js';
+import { generateEntityUrl } from '../../utils/url-utils.js';
 
 // SSR Data Fetching (Unified)
 const { items: allDatasets, error, source } = await fetchCatalogData('dataset', Astro.locals.runtime?.env);
@@ -94,7 +95,7 @@ const categories = [
     <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow min-h-[500px]">
        {datasets.length > 0 ? (
            datasets.slice(0, 24).map((item: any) => (
-            <a href={`/dataset/${item.slug || item.id}`} 
+            <a href={generateEntityUrl(item, 'dataset')} 
                class="entity-card p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 block">
               <div class="flex items-center justify-between mb-2">
                  <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">Dataset</span>
