@@ -11,6 +11,8 @@ import FullReadmeSection from './FullReadmeSection.astro';
 import BenchmarkScores from './BenchmarkScores.astro';
 import CodeExample from './CodeExample.astro';
 import GGUFList from './GGUFList.astro';
+import QuickCommands from '../common/QuickCommands.astro';
+import ModelGallery from './ModelGallery.astro';
 
 
 interface Props {
@@ -37,6 +39,12 @@ try {
 ---
 
 <div class="lg:col-span-2 space-y-8">
+  {/* V16.2: Visual First - Auto Gallery */}
+  <ModelGallery content={model.body_content} />
+
+  {/* V16.2: Developer First - Quick Commands */}
+  <QuickCommands entity={model} type="model" />
+
   <!-- FNI Trust Panel -->
   {hasFNI && (
     <FNITrustPanel 
@@ -60,11 +68,41 @@ try {
   {/* V15.8: GGUF File List (Zone 4) */}
   <GGUFList files={model.siblings} modelId={modelId} />
   
-  {/* Phase B.8: Code Example from README (Robust Hydration) */}
-  <CodeExample 
-    code={metaJson.extended?.example_code || metaJson.example_code || metaJson.code_snippet || metaJson.usage || metaJson.sample_code} 
-    language={metaJson.extended?.example_lang || metaJson.example_lang || metaJson.language || 'python'} 
-  />
+  {/* V16.2: Real Data Deep Dive - Installation & Config */}
+  {model.installation && (
+    <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <span>💻</span> Installation
+      </h2>
+      <FullReadmeSection bodyContent={model.installation} type="model" maxPreviewLength={500} toggleLabel="Instructions" />
+    </section>
+  )}
+
+  {model.configuration && (
+    <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <span>⚙️</span> Configuration
+      </h2>
+      <FullReadmeSection bodyContent={model.configuration} type="model" maxPreviewLength={500} toggleLabel="Usage Guide" />
+    </section>
+  )}
+
+  {model.usage && (
+    <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <span>🚀</span> Usage Examples
+      </h2>
+      <FullReadmeSection bodyContent={model.usage} type="model" maxPreviewLength={500} toggleLabel="Examples" />
+    </section>
+  )}
+
+  {/* Phase B.8: Code Example (Legacy Fallback) */}
+  {!model.usage && (
+    <CodeExample 
+      code={metaJson.extended?.example_code || metaJson.example_code || metaJson.code_snippet || metaJson.usage || metaJson.sample_code} 
+      language={metaJson.extended?.example_lang || metaJson.example_lang || metaJson.language || 'python'} 
+    />
+  )}
   
   <!-- B.6: Full README/Model Card Section -->
   <FullReadmeSection 

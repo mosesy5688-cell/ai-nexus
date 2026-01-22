@@ -9,12 +9,10 @@ const toolName = tool?.name || tool?.canonical_name || 'unknown-tool';
 const safeToolName = toolName.replace(/ /g,'');
 const safeToolLower = toolName.toLowerCase();
 
-const installCmd = tool.language === 'Python' 
-  ? `pip install ${safeToolLower}` 
-  : (tool.language === 'JavaScript' ? `npm install ${safeToolLower}` : `git clone ${tool.source_url || '#'}`);
-
 const apiExample = `import { ${safeToolName} } from '${safeToolLower}';\n\nconst client = new ${safeToolName}();\nawait client.connect();`;
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
+import QuickCommands from '../common/QuickCommands.astro';
+import ModelGallery from '../model-detail/ModelGallery.astro';
 ---
 
 <div class="space-y-8">
@@ -63,24 +61,10 @@ import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
        </div>
   </section>
 
-  <!-- Section: Installation -->
-  <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-      <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-         <span>💻</span> Installation
-      </h2>
-      <div class="relative group">
-         <div class="bg-black text-gray-300 p-5 rounded-xl font-mono text-sm border border-gray-800 flex justify-between items-center pr-16">
-            <code id="tool-install-cmd">{installCmd}</code>
-         </div>
-         <button 
-           class="absolute top-3.5 right-3.5 px-3 py-1 bg-white hover:bg-gray-200 text-black text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 transition-all active:scale-95 shadow-lg border border-gray-200"
-           onclick={`navigator.clipboard.writeText(document.getElementById('tool-install-cmd').innerText).then(() => { this.textContent = 'Copied!'; setTimeout(() => this.textContent = 'Copy', 2000); })`}
-         >
-           Copy
-         </button>
-      </div>
-  </section>
-  
+  {/* V16.2: Universal Enhancements */}
+  <ModelGallery content={tool.body_content || tool.description} title="Tool Documentation & Demos" />
+  <QuickCommands entity={tool} type="tool" />
+
   <!-- Section: API Reference (Placeholder) -->
    <section class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
       <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">

@@ -114,8 +114,11 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
     </EntityHeader>
     
     {/* Zone 2: Insights Extra (Decision Metric Elevation) */}
-    <div slot="insights-extra" class="mt-4">
-       {model?.vram_gb && <VramEstimator paramsB={model.params_billions} />}
+    <div slot="insights-extra" class="mt-4 space-y-6">
+       <div class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
+          <TechSpecsFull entity={model} type="model" />
+       </div>
+       {model?.params_billions && <VramEstimator paramsB={model.params_billions} />}
     </div>
 
     {/* Zone 1.5: Use Cases */}
@@ -157,10 +160,8 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
          )}
      </div>
   
-    {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">
        <div class="space-y-12">
-          <TechSpecsFull entity={model} type="model" />
           <TagsCloud tags={tagsArray} type="model" />
           <ModelMainColumn 
              model={model} 

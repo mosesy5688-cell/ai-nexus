@@ -126,12 +126,22 @@ const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_sc
       limits={derivedUseCases.limits} 
     />
   
-    {/* Zone 3: Core (Desktop/Mobile) */}
-    <div slot="core-desktop">
+    {/* Zone 2: Technical Profile (Promoted in V16.2) */}
+    <TechSpecsFull 
+      slot="insights-extra"
+      entity={space} 
+      type="space" 
+      className="bg-white/50 dark:bg-white/5 backdrop-blur-sm"
+    />
+
+    <div slot="core-desktop" class="space-y-6">
        <UniversalCore entity={space} type="space" />
     </div>
  
-    <div slot="core-knowledge">
+    <div slot="core-knowledge" class="space-y-6">
+       <div class="px-4 py-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-800/30">
+          <TechSpecsFull entity={space} type="space" />
+       </div>
        <UniversalCore entity={space} type="space" />
     </div>
     
@@ -147,7 +157,6 @@ const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_sc
   
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive" class="space-y-12">
-         <TechSpecsFull entity={space} type="space" />
          <SpaceDeepDive space={space} />
     </div>
 
