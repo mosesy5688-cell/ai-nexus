@@ -13,6 +13,7 @@ export class UniversalCatalog {
         paginationId = 'pagination',
         searchId = 'models-search', // Default updated for consistency
         sortId = 'sort-by',
+        categoryFilterId = 'category-filter',
         itemsPerPage = 24,
         dataUrl = 'https://cdn.free2aitools.com/entities.json'
     }) {
@@ -43,6 +44,7 @@ export class UniversalCatalog {
         this.paginationContainer = document.getElementById(paginationId);
         this.searchInput = document.getElementById(searchId);
         this.sortSelect = document.getElementById(sortId);
+        this.categoryFilter = document.getElementById(categoryFilterId);
 
         this.init();
     }
@@ -58,6 +60,28 @@ export class UniversalCatalog {
             });
         }
 
+        // V16.2.1: Handle URL Parameters for initial cross-page filtering
+        const params = new URLSearchParams(window.location.search);
+        const urlCat = params.get('category');
+        const urlQuery = params.get('q');
+
+        if (urlCat) {
+            console.log(`[UniversalCatalog] Applying initial category: ${urlCat}`);
+            if (this.categoryFilter) {
+                // Check if the value exists in the dropdown
+                const options = Array.from(this.categoryFilter.options).map(o => o.value);
+                if (options.includes(urlCat)) {
+                    this.categoryFilter.value = urlCat;
+                }
+            }
+            // Search will look through tags and descriptions
+            this.handleSearch(urlCat);
+        } else if (urlQuery) {
+            console.log(`[UniversalCatalog] Applying initial query: ${urlQuery}`);
+            if (this.searchInput) this.searchInput.value = urlQuery;
+            this.handleSearch(urlQuery);
+        }
+
         if (this.sortSelect) {
             this.sortSelect.addEventListener('change', (e) => {
                 this.handleSort(e.target.value);
@@ -66,6 +90,12 @@ export class UniversalCatalog {
 
         this.updateStats();
         this.renderPagination();
+
+        if (this.categoryFilter) {
+            this.categoryFilter.addEventListener('change', (e) => {
+                this.handleSearch(e.target.value);
+            });
+        }
 
         if (this.dataUrl && !this.fullDataLoaded) {
             this.loadFullData();
