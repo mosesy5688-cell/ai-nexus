@@ -39,10 +39,23 @@ const { initialQuery = '' } = Astro.props;
             <button type="button" class="search-hint px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-indigo-100" data-query="embedding">embedding</button>
         </div>
         <!-- V14.5 Phase 5: Full Search Toggle -->
+        <div id="full-search-container" class="mt-4 flex flex-col items-center gap-2 hidden">
+            <div class="text-sm text-gray-500 dark:text-gray-400">Zero top results. Explore more?</div>
+            <button 
+                id="smartFullSearchBtn" 
+                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-full shadow-lg transition-transform hover:scale-105 flex items-center gap-2"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                <span>Search all 150K+ models (~30MB)</span>
+            </button>
+        </div>
+
         <div class="mt-2 flex justify-center">
             <label class="inline-flex items-center gap-2 cursor-pointer text-xs text-gray-500 dark:text-gray-400 hover:text-indigo-600">
                 <input type="checkbox" id="fullSearchToggle" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" />
-                <span>Search all 100K+ models</span>
+                <span>Persistence: Always search full index</span>
                 <span id="fullSearchStatus" class="text-gray-400"></span>
             </label>
         </div>
@@ -160,12 +173,40 @@ const { initialQuery = '' } = Astro.props;
 
     searchBox?.addEventListener('input', async (e) => {
       const query = e.target.value.trim();
+      const fullSearchContainer = document.getElementById('full-search-container');
+      
       if (query.length < 1) {
         if (!renderHistory()) dropdown?.classList.add('hidden');
+        fullSearchContainer?.classList.add('hidden');
         return;
       }
+
       await initSearch();
-      renderResults(performSearch(query));
+      const results = performSearch(query);
+      renderResults(results);
+
+      // Smart Trigger Logic: If zero results and full search not active, show prompt
+      const status = getSearchStatus();
+      if (results.length === 0 && !status.isFullSearchActive && !status.isFullSearchLoading) {
+        fullSearchContainer?.classList.remove('hidden');
+      } else {
+        fullSearchContainer?.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('smartFullSearchBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('smartFullSearchBtn');
+      const span = btn?.querySelector('span');
+      if (span) span.textContent = 'Downloading Index...';
+      
+      const success = await loadFullSearchIndex();
+      if (success) {
+        document.getElementById('full-search-container')?.classList.add('hidden');
+        const query = searchBox?.value?.trim();
+        if (query) renderResults(performSearch(query));
+      } else {
+        if (span) span.textContent = 'Retry Download';
+      }
     });
 
     document.addEventListener('click', (e) => {
