@@ -51,7 +51,9 @@ export function generateUrlSlug(entity) {
             .replace(/^models\//i, '')
             .replace(/^agent\//i, '')
             .replace(/^tool\//i, '')
-            .replace(/^paper\//i, '');
+            .replace(/^paper\//i, '')
+            .replace(/^(hf-dataset--|hf-space--|arxiv--|agent--|github-agent--)/i, '')
+            .replace(/^replicate\//i, '');
 
         // V14.4 Fix: Handle multiple colons (author:name format from trending.json)
         // Example: "hexgrad:kokoro-82m" -> "hexgrad/kokoro-82m"
