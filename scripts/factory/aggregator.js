@@ -16,7 +16,7 @@ import { generateTrending } from './lib/trending-generator.js';
 import { generateSitemap } from './lib/sitemap-generator.js';
 import { generateCategoryStats } from './lib/category-stats-generator.js';
 import { generateRelations } from './lib/relations-generator.js';
-import { updateWeeklyAccumulator, isSunday, generateWeeklyReport } from './lib/weekly-report.js';
+import { updateWeeklyAccumulator, shouldGenerateReport, generateWeeklyReport } from './lib/weekly-report.js';
 import { backupToR2Output } from './lib/smart-writer.js';
 import { loadFniHistory, saveFniHistory, loadWeeklyAccum, saveWeeklyAccum } from './lib/cache-manager.js';
 import { generateTrendData } from './lib/trend-data-generator.js'; // V14.5 Phase 5
@@ -192,8 +192,8 @@ async function main() {
         console.warn(`[BACKUP] Weekly Accumulator backup skipped: ${accumErr.message}`);
     }
 
-    // 7. Sunday: Generate weekly report (Art 5.2)
-    if (isSunday()) {
+    // 7. Generate weekly report based on schedule
+    if (shouldGenerateReport()) {
         await generateWeeklyReport(CONFIG.OUTPUT_DIR);
     }
 

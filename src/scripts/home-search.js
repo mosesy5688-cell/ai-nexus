@@ -63,6 +63,7 @@ export async function loadFullSearchIndex() {
         const res = await fetch(FULL_INDEX_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
+        const data = await res.json();
         const rawFull = data.entities || data.models || data;
         const fullEntities = DataNormalizer.normalizeCollection(rawFull, 'model');
 
