@@ -82,7 +82,7 @@ try {
                   <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Installation
                </h3>
                <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
-                  <MarkdownRenderer content={model.installation} maxLength={500} />
+                  <MarkdownRenderer content={model.installation} />
                </div>
             </div>
           )}
@@ -93,7 +93,7 @@ try {
                   <span class="w-2 h-2 bg-green-500 rounded-full"></span> Usage Example
                </h3>
                <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
-                  <MarkdownRenderer content={model.usage} maxLength={500} />
+                  <MarkdownRenderer content={model.usage} />
                </div>
             </div>
           )}
@@ -103,7 +103,7 @@ try {
          <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-800 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
             <dt class="text-sm font-bold leading-6 text-gray-900 dark:text-white uppercase tracking-tighter">Config Logic</dt>
             <dd class="mt-1 text-sm leading-6 text-gray-700 dark:text-gray-300 sm:col-span-2 sm:mt-0">
-               <MarkdownRenderer content={model.configuration} maxLength={1000} />
+               <MarkdownRenderer content={model.configuration} />
             </dd>
          </div>
        )}
@@ -117,7 +117,7 @@ try {
        bodyContent={model.body_content}
        type="model"
        initialCollapsed={false}
-       maxPreviewLength={5000}
+       maxPreviewLength={3000}
      />
   </div>
 

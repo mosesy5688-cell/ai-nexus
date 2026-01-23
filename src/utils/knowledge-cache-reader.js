@@ -10,8 +10,8 @@ export function stripPrefix(id) {
     // Normalize to lowercase for consistent prefix matching
     let result = id.toLowerCase();
 
-    // Comprehensive list of prefixes to strip
-    const prefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb|report|arxiv|dataset|tool|replicate|github|huggingface|concept|paper|model|agent|space|hf)[:\-\/]+/;
+    // Comprehensive list of prefixes to strip (v16.4 Enhanced)
+    const prefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb|report|arxiv|dataset|tool|replicate|github|huggingface|concept|paper|model|agent|space|hf|deepseek-ai|meta-llama|mistralai|stability-ai|stabilityai|black-forest-labs|nvidia|google|openai|anthropic|microsoft)[:\-\/]+/;
 
     // Double pass to handle nested prefixes like replicate:meta/ or hf-model--
     result = result.replace(prefixes, '');
@@ -25,15 +25,26 @@ export function stripPrefix(id) {
 
 /**
  * Bidirectional check: Is the current entity either source or target?
- * V16.2: Add fuzzy overlap for organizations (meta vs meta-llama)
+ * V16.4: Improved fuzzy overlap for organizations and platform variants
  */
 export const isMatch = (a, b) => {
     if (!a || !b) return false;
     if (a === b) return true;
-    const clean = (s) => s.replace(/^(model|meta-llama|meta|hf-model|nvidia|google|openai|anthropic|microsoft|mistral|stability-ai|black-forest-labs)--/, '');
+
+    const clean = (s) => s.replace(/^(model|meta-llama|meta|hf-model|nvidia|google|openai|anthropic|microsoft|mistral|stability-ai|stabilityai|black-forest-labs|deepseek-ai|deepseek)--/, '');
     const ca = clean(a);
     const cb = clean(b);
-    return ca === cb || ca.includes(cb) || cb.includes(ca);
+
+    // Exact match after cleaning
+    if (ca === cb) return true;
+
+    // Handle cross-platform slug mismatches (e.g. meta/llama-3 vs meta-llama/llama-3)
+    const partsA = ca.split('--');
+    const partsB = cb.split('--');
+    const slugA = partsA[partsA.length - 1];
+    const slugB = partsB[partsB.length - 1];
+
+    return slugA === slugB && (ca.includes(cb) || cb.includes(ca));
 };
 
 /**

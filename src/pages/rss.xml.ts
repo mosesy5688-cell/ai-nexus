@@ -33,7 +33,7 @@ export const GET: APIRoute = async () => {
             ? new Date(model.lastModified).toUTCString()
             : now;
         const name = model.name || model.canonical_name || 'Unknown Model';
-        const desc = (model.description || model.seo_summary || 'AI model').substring(0, 300);
+        const desc = (model.description || model.seo_summary || 'AI model').substring(0, 1000);
 
         return `
     <item>

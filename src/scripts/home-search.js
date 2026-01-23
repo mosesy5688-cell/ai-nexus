@@ -108,7 +108,7 @@ export function getTopModels(limit = 10) {
         }));
 }
 
-export function performSearch(query, limit = 8) {
+export function performSearch(query, limit = 20) {
     if (!searchIndex || !query || query.length < 2) return [];
 
     const results = searchIndex.search(query);

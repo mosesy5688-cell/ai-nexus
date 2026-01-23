@@ -1,0 +1,105 @@
+/* src/styles/markdown-premium.css */
+/* V16.5 Zero-Limit UI Styles */
+
+.markdown-content :global(pre) {
+    max-height: 600px;
+    overflow-y: auto;
+    border-radius: 12px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.markdown-content :global(code) {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.9em;
+}
+
+/* Zero-Limit UI Strategy */
+.zero-limit-masked {
+    max-height: var(--max-h, 500px);
+    overflow: hidden;
+    position: relative;
+    mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+}
+
+/* Premium Table Typography - Zero Truncation */
+.markdown-content :global(table) {
+    width: 100%;
+    margin: 1.5rem 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.925rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Enable Horizontal Scroll for Long Tables */
+.markdown-content :global(.table-wrapper) {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 1.5rem;
+    border-radius: 8px;
+}
+
+.markdown-content :global(th),
+.markdown-content :global(td) {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    border-right: 1px solid #e5e7eb;
+    line-height: 1.5;
+}
+
+.markdown-content :global(th:last-child),
+.markdown-content :global(td:last-child) {
+    border-right: none;
+}
+
+.markdown-content :global(tr:last-child td) {
+    border-bottom: none;
+}
+
+.markdown-content :global(th) {
+    background: #f8fafc;
+    font-weight: 600;
+    color: #1e293b;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+:global(.dark) .markdown-content :global(table) {
+    border-color: #334155;
+}
+
+:global(.dark) .markdown-content :global(th) {
+    background: #1e293b;
+    color: #f1f5f9;
+}
+
+:global(.dark) .markdown-content :global(th),
+:global(.dark) .markdown-content :global(td) {
+    border-color: #334155;
+}
+
+:global(.dark) .markdown-content :global(tr:hover td) {
+    background: rgba(30, 41, 59, 0.5);
+}
+
+.markdown-content :global(img) {
+    max-height: 600px;
+    object-fit: contain;
+    transition: transform 0.2s ease;
+}
+
+.markdown-content :global(img:hover) {
+    transform: scale(1.01);
+}
+
+/* Tooltip Styles */
+.markdown-content :global(.knowledge-tooltip) {
+    position: relative;
+    text-decoration: none;
+}
