@@ -60,11 +60,10 @@ export async function fetchCatalogData(type, runtimeEnv) {
             if (items.length === 0) {
                 console.log(`[CatalogFetcher] Trending empty for ${type}. Scanning R2 bucket path: cache/entities/${type}/`);
                 try {
-                    const list = await r2.list({ prefix: `cache/entities/${type}/`, limit: 1000 });
+                    const list = await r2.list({ prefix: `cache/entities/${type}/` });
                     const keys = list.objects
                         .filter(o => !o.key.endsWith('.meta.json'))
-                        .map(o => o.key)
-                        .slice(0, 1000);
+                        .map(o => o.key);
 
                     if (keys.length > 0) {
                         const batchSize = 25;
@@ -164,7 +163,7 @@ export function truncateListingItem(item) {
         id: item.id || '',
         slug: item.slug || '',
         name: item.name || '',
-        description: item.description ? item.description.substring(0, 160) : '',
+        description: item.description || '',
         type: item.type || '',
         fni_score: item.fni_score || 0,
         downloads: item.downloads || 0,
