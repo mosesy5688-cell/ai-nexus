@@ -13,11 +13,10 @@ import '../../styles/markdown-premium.css';
 
 interface Props {
   content: string;
-  maxLength?: number;
   className?: string;
 }
 
-const { content, maxLength, className = '' } = Astro.props;
+const { content, className = '' } = Astro.props;
 
 // Clean and prepare content
 let processedContent = content || '';
@@ -27,17 +26,12 @@ processedContent = processedContent.replace(/^---\s*[\s\S]*?---\s*\n?/g, '');
 
 // Convert markdown to HTML (server-side)
 const renderedHtml = await marked.parse(processedContent);
-
-// V16.5: Zero-Limit Display Mode
-const isTruncated = maxLength && processedContent.length > maxLength;
-const containerClass = isTruncated ? 'zero-limit-masked' : '';
 ---
 
 <div class={`markdown-content prose prose-slate dark:prose-invert max-w-none 
             prose-headings:font-bold prose-a:text-indigo-600 dark:prose-a:text-indigo-400
             prose-pre:bg-[#0a0a0a] prose-pre:border prose-pre:border-gray-800
-            prose-img:rounded-xl prose-img:shadow-lg ${containerClass} ${className}`}
-     style={isTruncated ? `--max-h: ${maxLength / 10}px` : ''}
+            prose-img:rounded-xl prose-img:shadow-lg ${className}`}
      set:html={renderedHtml}
 />
 

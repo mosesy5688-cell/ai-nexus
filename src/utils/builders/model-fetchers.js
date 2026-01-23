@@ -8,13 +8,13 @@
 // However, the original code signature `fetchSimilarModels(model, locals, limit)` implies using `locals`.
 // We will replicate the logic but keep it minimal.
 
-export async function fetchSimilarModels(model, locals, limit = 6) {
+export async function fetchSimilarModels(model, locals, limit = 12) {
     // Stub implementation - R2 should be source of truth.
     // In V5.1.2, similar models are likely pre-calculated or via search index.
     // If not, we return empty structure to avoid blocking render.
     return [];
 }
 
-export async function fetchRelatedModels(model, locals, limit = 6) {
+export async function fetchRelatedModels(model, locals, limit = 12) {
     return [];
 }
