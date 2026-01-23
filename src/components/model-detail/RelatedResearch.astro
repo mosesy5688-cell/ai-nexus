@@ -81,7 +81,7 @@ const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length
           📄 Research Papers
         </h3>
         <div class="flex flex-wrap gap-2">
-          {papers.slice(0, 5).map(paperId => (
+          {papers.map(paperId => (
             <a 
               href={`/paper/${paperId}`}
               class="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
@@ -89,9 +89,6 @@ const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length
               📄 arXiv:{paperId}
             </a>
           ))}
-          {papers.length > 5 && (
-            <span class="text-gray-500 text-sm">+{papers.length - 5} more</span>
-          )}
         </div>
       </div>
     )}
@@ -117,7 +114,7 @@ const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length
           🔀 Variants
         </h3>
         <div class="flex flex-wrap gap-2">
-          {variants.slice(0, 5).map(variantId => {
+          {variants.map(variantId => {
             const name = variantId.split(':').pop() || '';
             // V12: Extract size from name pattern (7b, 70b, etc.)
             const sizeMatch = name.match(/(\d+\.?\d*)b/i);
@@ -137,9 +134,6 @@ const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length
               </a>
             );
           })}
-          {variants.length > 5 && (
-            <span class="text-gray-500 text-sm">+{variants.length - 5} more</span>
-          )}
         </div>
         <!-- V12: Explore Same Family button -->
         {baseModels.length > 0 && (
@@ -159,7 +153,7 @@ const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length
           📊 Training Data
         </h3>
         <div class="flex flex-wrap gap-2">
-          {datasets.slice(0, 5).map(datasetId => (
+          {datasets.map(datasetId => (
             <a 
               href={datasetId.includes('/') 
                 ? `https://huggingface.co/datasets/${datasetId}`
@@ -176,9 +170,6 @@ const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length
               )}
             </a>
           ))}
-          {datasets.length > 5 && (
-            <span class="text-gray-500 text-sm">+{datasets.length - 5} more</span>
-          )}
         </div>
       </div>
     )}

@@ -74,10 +74,9 @@ const { overview, quickStart, useCases = '', resources = '' } = Astro.props;
                                         <div class="mt-1 text-sm text-gray-500">
                                             <span class="font-semibold">Files:</span>
                                             <ul class="list-circle pl-5 mt-1">
-                                                {res.files.slice(0, 5).map((f: any) => (
+                                                {res.files.map((f: any) => (
                                                     <li>{f.name} ({Math.round(f.size / 1024 / 1024)} MB)</li>
                                                 ))}
-                                                {res.files.length > 5 && <li>...and {res.files.length - 5} more</li>}
                                             </ul>
                                         </div>
                                     )}

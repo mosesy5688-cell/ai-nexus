@@ -59,7 +59,7 @@ const sdkColor = sdkColors[sdk] || 'bg-gray-100 text-gray-800';
 
 // Extract tagline
 const tagline = description 
-  ? description.split('\n')[0].substring(0, 120) 
+  ? description.split('\n')[0] 
   : `Space by ${author}`;
 
 // Verified authors
@@ -109,8 +109,7 @@ const displayEmoji = emoji || '🚀';
         )}
       </div>
 
-      <!-- Tagline -->
-      <p class="text-lg text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
+      <p class="text-lg text-gray-600 dark:text-gray-300 mb-4 leading-relaxed line-clamp-2">
         {tagline}
       </p>
 

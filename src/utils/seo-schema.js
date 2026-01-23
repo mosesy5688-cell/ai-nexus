@@ -91,7 +91,7 @@ export function buildModelSEO(model) {
                 '@type': 'SoftwareApplication',
                 '@id': `${modelUrl}/#software`,
                 'name': modelName,
-                'description': modelDesc.substring(0, 5000),
+                'description': modelDesc,
                 'url': modelUrl,
                 'applicationCategory': 'Artificial Intelligence',
                 'operatingSystem': 'Any',

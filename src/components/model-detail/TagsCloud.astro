@@ -9,13 +9,11 @@ interface Props {
   maxTags?: number;
 }
 
-const { tags: rawTags = [], pipelineTag, maxTags = 20 } = Astro.props;
+const { tags: rawTags = [], pipelineTag } = Astro.props;
 
 // V15.12: Defensive array check - tags may be string or undefined in malformed data
 const tags = Array.isArray(rawTags) ? rawTags : (typeof rawTags === 'string' ? [rawTags] : []);
-const allTags = pipelineTag ? [pipelineTag, ...tags.filter(t => t !== pipelineTag)] : tags;
-const displayTags = allTags.slice(0, maxTags);
-const hiddenCount = allTags.length - displayTags.length;
+const displayTags = pipelineTag ? [pipelineTag, ...tags.filter(t => t !== pipelineTag)] : tags;
 
 
 function getTagColor(tag: string, index: number): string {
@@ -40,11 +38,6 @@ function getTagColor(tag: string, index: number): string {
           {tag}
         </a>
       ))}
-      {hiddenCount > 0 && (
-        <span class="px-3 py-1 text-sm text-gray-500 dark:text-gray-400">
-          +{hiddenCount} more
-        </span>
-      )}
     </div>
   </section>
 )}

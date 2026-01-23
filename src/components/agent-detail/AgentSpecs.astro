@@ -120,14 +120,11 @@ const hasSpecs = framework || language || license || stars || forks || lastCommi
           </span>
         </h3>
         <div class="flex flex-wrap gap-2">
-          {tools.slice(0, 10).map((tool) => (
+          {tools.map((tool) => (
             <span class="px-2 py-1 text-xs bg-pink-50 dark:bg-pink-900/20 text-pink-700 dark:text-pink-300 rounded-lg border border-pink-200 dark:border-pink-800">
               {tool}
             </span>
           ))}
-          {tools.length > 10 && (
-            <span class="px-2 py-1 text-xs text-gray-500">+{tools.length - 10} more</span>
-          )}
         </div>
       </div>
     )}
@@ -151,7 +148,7 @@ const hasSpecs = framework || language || license || stars || forks || lastCommi
       <div class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">💬 Prompts</h3>
         <div class="flex flex-wrap gap-2">
-          {prompts.slice(0, 8).map((prompt) => (
+          {prompts.map((prompt) => (
             <span class="px-2 py-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-lg border border-purple-200 dark:border-purple-800">
               {prompt}
             </span>
@@ -165,7 +162,7 @@ const hasSpecs = framework || language || license || stars || forks || lastCommi
       <div class="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-100 dark:border-gray-700">
         <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">📦 Resources</h3>
         <div class="flex flex-wrap gap-2">
-          {resources.slice(0, 8).map((resource) => (
+          {resources.map((resource) => (
             <span class="px-2 py-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg border border-blue-200 dark:border-blue-800">
               {resource}
             </span>

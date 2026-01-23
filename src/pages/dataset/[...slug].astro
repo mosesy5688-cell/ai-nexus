@@ -83,7 +83,7 @@ try {
 } catch (e) { console.error('[Dataset Page] Cache error:', e); }
 
 const pageTitle = dataset?.name ? `${dataset.name} - AI Dataset` : (dataset?.title ? `${dataset.title} - AI Dataset` : `${displaySlug} - AI Dataset`);
-const pageDescription = dataset?.description?.slice(0, 160) || `Explore ${displaySlug} AI dataset on Free2AITools.`;
+const pageDescription = dataset?.description || `Explore ${displaySlug} AI dataset on Free2AITools.`;
 const canonicalUrl = `https://free2aitools.com/dataset/${displaySlug}`;
 
 // JSON-LD for SEO

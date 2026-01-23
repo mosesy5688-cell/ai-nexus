@@ -71,7 +71,7 @@ try {
 }
 
 const pageTitle = space ? `${space.title || space.name} - AI Demo` : 'Space Not Found';
-const pageDescription = space?.description?.slice(0, 160) || 'Explore AI/ML demos on Free2AITools';
+const pageDescription = space?.description || 'Explore AI/ML demos on Free2AITools';
 const canonicalUrl = `https://free2aitools.com/space/${displaySlug}`;
 
 const jsonLd = space ? {

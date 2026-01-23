@@ -99,34 +99,6 @@ function formatValue(val: any): string {
     })}
   </div>
 
-  {extraKeys.length > 0 && (
-    <div class="mt-8">
-      <details class="group bg-white dark:bg-gray-800/30 border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden transition-all shadow-sm">
-        <summary class="flex items-center justify-between px-6 py-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 list-none transition-colors">
-          <div class="flex items-center gap-3">
-            <span class="text-lg">🧩</span>
-            <span class="text-sm font-bold text-gray-600 dark:text-gray-300">Supplemental Attributes & Extended Config</span>
-            <span class="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 text-[10px] font-black text-indigo-400 rounded-md border border-indigo-100 dark:border-indigo-800">
-              {extraKeys.length} items
-            </span>
-          </div>
-          <svg class="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-          </svg>
-        </summary>
-        <div class="px-6 pb-6 pt-2">
-           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-             {extraKeys.map(key => (
-               <div class="p-3 bg-gray-50/50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800 hover:border-indigo-100 dark:hover:border-indigo-900 transition-colors">
-                  <span class="block text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase mb-1 tracking-widest">{key.replace(/_/g, ' ')}</span>
-                  <div class="text-[11px] text-gray-600 dark:text-gray-300 break-words" set:html={formatValue(entity[key])}></div>
-               </div>
-             ))}
-           </div>
-        </div>
-      </details>
-    </div>
-  )}
 
 
   <p class="mt-10 text-[11px] text-gray-400 font-medium flex items-center gap-2 justify-center opacity-60">

@@ -67,9 +67,7 @@ try {
   if (agent) {
     const agentName = agent.name || agent.canonical_name || 'Unknown Agent';
     pageTitle = `${agentName} - AI Agent`;
-    pageDescription = agent.description 
-      ? agent.description.substring(0, 160) 
-      : `Explore ${agentName} AI agent.`;
+    pageDescription = agent.description || `Explore ${agentName} AI agent.`;
   }
 } catch (e) {
   error = e instanceof Error ? e.message : 'Unknown error';

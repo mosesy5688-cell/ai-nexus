@@ -56,10 +56,7 @@ const verifiedAuthors = ['meta-llama', 'google', 'microsoft', 'mistralai', 'open
 const safeAuthor = author || '';
 const isVerified = verifiedAuthors.some(v => safeAuthor.toLowerCase().includes(v));
 
-// Extract first line of description as tagline
-const tagline = description 
-  ? description.split('\n')[0].substring(0, 120) 
-  : `AI model by ${author}`;
+const tagline = description || `AI model by ${author}`;
 
 import RelatedConcepts from './entity/RelatedConcepts.astro';
 
@@ -108,9 +105,8 @@ const initials = name
         )}
       </div>
 
-      <!-- Tagline -->
-      <p class="text-lg text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
-        {tagline}
+      <p class="text-lg text-gray-600 dark:text-gray-300 mb-4 leading-relaxed line-clamp-2">
+        {description}
       </p>
 
       <!-- Linked Concepts (Mesh Integration) -->

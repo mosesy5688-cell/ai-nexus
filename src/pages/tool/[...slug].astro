@@ -50,7 +50,7 @@ try {
 
 
 const pageTitle = tool?.name ? `${tool.name} - AI Development Tool` : (tool?.canonical_name ? `${tool.canonical_name} - AI Development Tool` : `${displaySlug} - AI Development Tool`);
-const pageDescription = tool?.description?.slice(0, 160) || `Explore ${displaySlug} AI development tool on Free2AITools.`;
+const pageDescription = tool?.description || `Explore ${displaySlug} AI development tool on Free2AITools.`;
 const canonicalUrl = `https://free2aitools.com/tool/${displaySlug}`;
 
 const jsonLd = tool ? {
