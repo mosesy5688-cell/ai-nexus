@@ -9,7 +9,7 @@ export function initMarkdownCopy() {
         btn.setAttribute('data-init', 'true');
 
         btn.addEventListener('click', async () => {
-            const b = btn as HTMLButtonElement;
+            const b = btn;
             const code = b.dataset.code || '';
             const text = b.querySelector('.btn-text');
             const icon = b.querySelector('.btn-icon');
