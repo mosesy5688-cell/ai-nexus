@@ -2,9 +2,10 @@
 export const prerender = false;
 
 /**
- * Agent Detail Page V1.0
- * Phase B P2: B.2 Agent Entity Expansion
- * CES Compliant: < 200 lines
+ * Agent Detail Page V16.5
+ * Core Feature: 8 Core Value Pillars Integration
+ * Architecture: Zero-Limit Content Disclosure
+ * Unified: Synchronized with Model page standards
  */
 
 import Layout from '../../layouts/Layout.astro';
@@ -15,166 +16,195 @@ import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import { getUseCases } from '../../utils/inference';
 import ShareButtons from '../../components/common/ShareButtons.astro';
+import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
+import VramEstimator from '../../components/model-detail/VramEstimator.astro';
+import AiDisclaimer from '../../components/entity/AiDisclaimer.astro';
+import TagsCloud from '../../components/entity/TagsCloud.astro';
+import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
+import ModelCarousel from '../../components/ModelCarousel.astro';
+import ModelInfoTable from '../../components/ModelInfoTable.astro';
+import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 
-import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
-import { ENTITY_DEFINITIONS } from '../../data/entity-definitions';
-import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
+import { prepareAgentPageData } from '../../utils/agent-page-data.js';
+import { cleanDescription } from '../../utils/model-page-helpers';
+import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-
-// V15.1: Use unified normalization and fetcher
-const normalizedSlug = normalizeEntitySlug(slug, 'agent');
+const normalizedSlug = normalizeEntitySlug(slugStr);
 
 let agent = null;
 let error = null;
+let similarEntities = [];
+let tagsArray = [];
 let pageTitle = "AI Agent Details - Free AI Tools";
-let pageDescription = "Explore this AI agent's capabilities and features.";
+let pageDescription = "Explore comprehensive information about this AI agent.";
+let cleanedDesc = "";
 
 try {
-  if (!normalizedSlug) throw new Error("No slug provided");
+  if (!slug) throw new Error("No slug/ID provided");
+  const pageData = await prepareAgentPageData(slug, slugStr, Astro.locals);
   
-  const result = await fetchEntityFromR2('agent', normalizedSlug, Astro.locals);
-  agent = hydrateEntity(result, 'agent');
-
-  // V15.10: Augmentation Layer for Agents
-  try {
-    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
-    const specEntry = specsResult.data?.data?.find(s => s.umid === slugStr.replace(/\//g, '-') || s.umid === slugStr.replace(/\//g, '--'));
-    if (specEntry) {
-      agent = augmentEntity(agent || {}, specEntry);
-    }
-  } catch (specError) {
-    console.warn("[AgentPage] Spec augmentation failed:", specError.message);
+  if (!pageData) {
+    Astro.response.status = 404;
+    return Astro.redirect('/404?reason=agent-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  if (!agent) {
-    // V15.6 Fallback Logic
-    const cleanSlug = slugStr.replace(/--/g, '/');
-    const parts = cleanSlug.split('/');
-    
-    agent = {
-      id: `agent--${slugStr.replace(/\//g, '--')}`,
-      name: parts.pop() || 'Unknown Agent',
-      author: parts.join('/') || 'github',
-      description: `Autonomous AI agent: ${cleanSlug}`,
-      source_url: `https://github.com/${cleanSlug}`,
-      tags: [],
-      _cache_source: 'fallback-ui'
-    };
-  }
+  const { agent: resolvedAgent, isFallback, repoName, similarEntities: resolvedSimilar, tagsArray: resolvedTags } = pageData;
+  agent = resolvedAgent;
+  similarEntities = resolvedSimilar;
+  tagsArray = resolvedTags;
 
-  if (agent) {
-    const agentName = agent.name || agent.canonical_name || 'Unknown Agent';
-    pageTitle = `${agentName} - AI Agent`;
-    pageDescription = agent.description || `Explore ${agentName} AI agent.`;
-  }
+  const displayAgentName = agent.name || (isFallback ? repoName : agent.canonical_name) || 'Unknown Agent';
+  pageTitle = `${displayAgentName} - AI Agent Insights & Frameworks`;
+  cleanedDesc = cleanDescription(agent.description || '');
+  pageDescription = agent.seo_summary?.description || cleanedDesc || `Deep dive into ${displayAgentName}.`;
+
 } catch (e) {
-  error = e instanceof Error ? e.message : 'Unknown error';
-  console.error('[AgentPage] Error:', error);
+  console.error("Error loading agent:", e);
+  error = e;
+  Astro.response.status = 500;
 }
+
+if (!agent && !error) {
+  Astro.response.status = 404;
+  return Astro.redirect('/404?source=agent-not-found');
+}
+
+const agentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
+const agentId = agent?.id || normalizedSlug || '';
+const displayAuthor = agent?.author || 'Community';
 
 // V15.0: Derived Use Cases and Limits
-const derivedUseCases = agent ? getUseCases(agent.tags || [], '', 'agent', agent.fni_score || 0) : { goodFor: [], limits: [] };
+const derivedUseCases = agent ? getUseCases(tagsArray, agent.pipeline_tag, 'agent', agent.fni_score) : { goodFor: [], limits: [] };
 
-const agentId = agent?.id || agent?.umid || normalizedSlug || '';
-let agentName = agent?.name || agent?.canonical_name || '';
-
-// V15.1: Robust name fallback if "Unknown"
-if (!agentName || agentName === 'Unknown Agent') {
-  const slugParts = normalizedSlug.split('--');
-  agentName = slugParts[slugParts.length - 1].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-const displayAuthor = (agent?.author && agent.author !== 'Unknown') ? agent.author : 'Open Source Community';
-
-const jsonLd = agent ? {
+// Generate JSON-LD
+const jsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": agentName,
-  "description": agent.description,
-  "url": `https://free2aitools.com/agent/${normalizedSlug}`,
-  "applicationCategory": "AutonomousAgent",
-  "operatingSystem": "Cross-platform"
-} : null;
+  "description": pageDescription,
+  "applicationCategory": "AI Agent",
+  "operatingSystem": "Cross-platform",
+  "author": {
+    "@type": "Organization",
+    "name": displayAuthor
+  }
+};
 ---
 
-
-
-
-
-
-<EntityLayout 
-  entity={agent} 
-  type="agent" 
-  title={pageTitle} 
-  description={pageDescription}
-  jsonld={jsonLd}
->
+<Layout title={pageTitle} description={pageDescription}>
+  <EntityLayout
+    entity={agent}
+    type="agent"
+    title={pageTitle}
+    description={pageDescription}
+    jsonld={jsonLd}
+  >
     {/* Zone 1: Hero */}
-    <EntityHeader 
+    <EntityHeader
       slot="hero"
       name={agentName}
       entityType="agent"
-      entityIcon="🤖"
-      entityLabel={agent?.agent_type || 'Agent'}
+      entityIcon={agent?.entityDefinition?.display?.icon || '🤖'}
+      entityLabel={agent?.entityDefinition?.display?.labelSingular || 'Agent'}
       verified={agent?.verified}
       author={displayAuthor}
-      description={agent?.description}
+      description={agent?.seo_summary?.description || cleanedDesc}
       fniScore={agent?.fni_score}
       fniPercentile={agent?.fni_percentile}
       sourceUrl={agent?.source_url}
     >
       <div slot="actions" class="flex gap-2">
-         <a href={agent?.source_url} target="_blank" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-sm">Visit Agent</a>
+         {agent?.source_url && (
+           <a href={agent.source_url} target="_blank" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-sm">
+             Visit Agent
+           </a>
+         )}
       </div>
     </EntityHeader>
- 
+
     {/* Zone 1.5: Use Cases */}
-    <ZoneUseCases 
-      slot="use-cases" 
-      goodFor={derivedUseCases.goodFor} 
-      limits={derivedUseCases.limits} 
-    />
-  
-    {/* Zone 3: Core (Desktop/Mobile) */}
-    {/* Zone 2: Technical Profile (Promoted in V16.2) */}
-    <TechSpecsFull 
-      slot="insights-extra"
-      entity={agent} 
-      type="agent" 
-      className="bg-white/50 dark:bg-white/5 backdrop-blur-sm"
+    <ZoneUseCases
+      slot="use-cases"
+      goodFor={derivedUseCases.goodFor}
+      limits={derivedUseCases.limits}
     />
 
-    <div slot="core-desktop" class="space-y-6">
+    {/* Zone 2: Insights Extra (Decision Metric Elevation) */}
+    <div slot="insights-extra" class="mt-4 space-y-6">
+       <div class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
+          <TechSpecsFull entity={agent} type="agent" />
+       </div>
+       {agent?.params_billions && <VramEstimator paramsB={agent.params_billions} />}
+    </div>
+
+    {/* Zone 3: Core (Desktop/Mobile) */}
+    <div slot="core-desktop">
        <UniversalCore entity={agent} type="agent" />
     </div>
- 
+
     <div slot="core-knowledge">
        <UniversalCore entity={agent} type="agent" />
     </div>
     
     <div slot="core-similar">
-        <p class="text-gray-500 italic p-4 text-center">Identifying similar autonomous agents...</p>
+        {similarEntities.length > 0 ? (
+           <ModelCarousel models={similarEntities} />
+        ) : (
+           <p class="text-gray-500 italic p-4 text-center">Finding related autonomous agents and frameworks...</p>
+        )}
     </div>
   
     <div slot="core-benchmarks">
-        <p class="text-gray-500 italic p-4 text-center">Benchmarks for agents are indexed under theoretical meta-analysis.</p>
+        {(agent?.mmlu || agent?.humaneval || agent?.avg_score || agent?.benchmark_avg) && (
+            <BenchmarkCard 
+              umid={agentId}
+              name={agentName}
+              mmlu={agent?.mmlu || agent?.benchmark_mmlu}
+              humaneval={agent?.humaneval || agent?.benchmark_humaneval}
+              hellaswag={agent?.hellaswag || agent?.benchmark_hellaswag}
+              avg_score={agent?.avg_score || agent?.benchmark_avg || 0}
+            />
+        ) || (
+            <p class="text-gray-500 italic p-4 text-center">Benchmark metrics for this agent are currently being analyzed.</p>
+        )}
     </div>
   
     {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive">
-        <AgentDeepDive agent={agent} />
+    <div slot="deep-dive" class="space-y-12">
+       <TagsCloud tags={tagsArray} type="agent" />
+       <AgentDeepDive agent={agent} />
+       <ModelNavigation />
     </div>
 
+    {/* Zone 5: Sidebar */}
     <div slot="sidebar" class="space-y-8">
        <div class="p-6 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/50">
-          <h3 class="font-bold text-purple-900 dark:text-indigo-100 mb-2">Autonomous Agent</h3>
-          <p class="text-xs text-purple-700 dark:text-indigo-300 leading-relaxed">This agent is indexed as a specialized autonomous entity. Features and benchmarks are derived from technical meta-analysis.</p>
+          <h3 class="font-bold text-purple-900 dark:text-indigo-100 mb-2 flex items-center gap-2">
+            <span>🤖</span> Autonomous Agent
+          </h3>
+          <p class="text-xs text-purple-700 dark:text-indigo-300 leading-relaxed">
+            This entity is indexed as a specialized autonomous system. 
+            All technical insights and benchmarks are derived from our <strong>Factory Stage 3 Aggregator</strong> under the Zero-Limit Protocol.
+          </p>
        </div>
+       
+       <ModelInfoTable model={{
+         ...agent,
+         displayName: agentName,
+         pipeline_tag: agent.framework || 'Agent Framework'
+       }} />
+
+       <ShareButtons 
+          url={`https://free2aitools.com/agent/${slugStr}`} 
+          title={`${agentName} - AI Agent Details`} 
+       />
     </div>
 
     {/* Zone 5: Community */}
-    <div slot="community" class="py-4">
-        <p class="text-sm text-gray-500">Agent data version: {agent?._contract_version || 'V15'}</p>
+    <div slot="community">
+        <AiDisclaimer source={agent?.source} lastUpdated={agent?.last_updated} />
     </div>
-</EntityLayout>
+  </EntityLayout>
+</Layout>

@@ -1,177 +1,188 @@
 ---
-/**
- * Paper Detail Page - V15.0
- * ArXiv Papers: Research publications
- */
 export const prerender = false;
+
+/**
+ * Paper Detail Page V16.5
+ * Core Feature: Knowledge Mesh Centrality
+ * Architecture: Unified 5-Zone Layout
+ */
 
 import Layout from '../../layouts/Layout.astro';
 import EntityLayout from '../../layouts/EntityLayout.astro';
 import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
-import { getUseCases } from '../../utils/inference';
-import DataFreshness from '../../components/common/DataFreshness.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
-import ShareButtons from '../../components/common/ShareButtons.astro';
 import PaperDeepDive from '../../components/paper-detail/PaperDeepDive.astro';
+import ModelCarousel from '../../components/ModelCarousel.astro';
+import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
+import ShareButtons from '../../components/common/ShareButtons.astro';
+import AiDisclaimer from '../../components/entity/AiDisclaimer.astro';
+import TagsCloud from '../../components/entity/TagsCloud.astro';
+import ModelInfoTable from '../../components/ModelInfoTable.astro';
+import { getUseCases } from '../../utils/inference';
+import { preparePaperPageData } from '../../utils/paper-page-data.js';
+import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
 
 const { slug } = Astro.params;
-const displaySlug = Array.isArray(slug) ? slug.join('/') : (slug || '');
+const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+const normalizedSlug = normalizeEntitySlug(slugStr);
 
-let paper: any = null;
-let cacheVersion = '';
-
-import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
-import { getPaperFromCache } from '../../utils/entity-cache-reader-v6';
-import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
+let paper = null;
+let error = null;
+let similarEntities = [];
+let tagsArray = [];
+let pageTitle = "AI Research Paper - Free AI Tools";
+let pageDescription = "Explore the latest breakthroughs in AI research and architectures.";
 
 try {
-  const result = await fetchEntityFromR2('paper', slug, Astro.locals);
-  paper = hydrateEntity(result, 'paper');
-
-  // V15.10: Augmentation Layer for Papers
-  try {
-    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
-    const specEntry = specsResult.data?.data?.find(s => s.umid === displaySlug.replace(/\//g, '-') || s.umid === displaySlug.replace(/\//g, '--'));
-    if (specEntry) {
-      paper = augmentEntity(paper || {}, specEntry);
-    }
-  } catch (specError) {
-    console.warn("[PaperPage] Spec augmentation failed:", specError.message);
-  }
+  if (!slug) throw new Error("No slug/ID provided");
+  const pageData = await preparePaperPageData(slug, slugStr, Astro.locals);
   
-  if (paper) {
-    cacheVersion = paper._contract_version || 'V15';
-  } else {
-    // V15.6 Fallback Logic
-    const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-    const cleanSlug = slugStr.replace(/--/g, '/');
-    
-    // Attempt to extract ArXiv ID from slug
-    const arxivMatch = cleanSlug.match(/(\d{4}\.\d{4,5})/);
-    const arxivId = arxivMatch ? arxivMatch[1] : cleanSlug;
-
-    paper = {
-      id: `arxiv--${arxivId.replace(/\//g, '--')}`,
-      title: arxivMatch ? `Research Paper: ${arxivId}` : (slugStr.split('/').pop() || 'Unknown Paper'),
-      arxiv_id: arxivId,
-      abstract: `Open-access research publication: ${cleanSlug}`,
-      source_url: `https://arxiv.org/abs/${arxivId}`,
-      authors: ['Research Community'],
-      tags: [],
-      _cache_source: 'fallback-ui'
-    };
-    cacheVersion = 'Fallback';
+  if (!pageData) {
+    Astro.response.status = 404;
+    return Astro.redirect('/404?reason=paper-not-found&id=' + encodeURIComponent(slugStr));
   }
+
+  const { paper: resolvedPaper, isFallback, similarEntities: rSimilar, tagsArray: rTags } = pageData;
+  paper = resolvedPaper;
+  similarEntities = rSimilar;
+  tagsArray = rTags;
+
+  const displayPaperTitle = paper.title || (isFallback ? (slugStr.split('/').pop() || 'Unknown Paper') : paper.canonical_name);
+  pageTitle = `${displayPaperTitle} - AI Research Insight`;
+  pageDescription = paper.seo_summary?.description || paper.abstract || `Deep dive into ${displayPaperTitle} research paper.`;
+
 } catch (e) {
-  console.error('[Paper Page] Cache error:', e);
+  console.error("[PaperPage] Error loading paper:", e);
+  error = e;
+  Astro.response.status = 500;
 }
 
-const pageTitle = paper?.title ? `${paper.title} - AI Research Paper` : `${displaySlug} - AI Research Paper`; // Modified for robust fallback
-const pageDescription = paper?.abstract || `Explore ${displaySlug} AI research paper.`; 
-const canonicalUrl = `https://free2aitools.com/paper/${displaySlug}`;
+if (!paper && !error) {
+  Astro.response.status = 404;
+  return Astro.redirect('/404?source=paper-not-found');
+}
 
+const paperTitle = paper?.title || 'Unknown Research Paper';
+const paperId = paper?.id || normalizedSlug || '';
+const displayAuthor = (Array.isArray(paper?.authors) && paper.authors[0]) || paper?.author || 'Research Community';
+
+// V15.0: Derived Use Cases and Limits
+const derivedUseCases = paper ? getUseCases(tagsArray, '', 'paper', paper.fni_score || 0) : { goodFor: [], limits: [] };
+
+// Generate JSON-LD
 const jsonLd = paper ? {
   "@context": "https://schema.org",
   "@type": "ScholarlyArticle",
-  "name": paper.title,
-  "headline": paper.title,
-  "abstract": paper.abstract,
-  "url": canonicalUrl,
-  "datePublished": paper.published_date,
-  "author": paper.authors?.map((a: string) => ({ "@type": "Person", "name": a })) || []
+  "name": paperTitle,
+  "headline": paperTitle,
+  "description": pageDescription,
+  "url": `https://free2aitools.com/paper/${slugStr}`,
+  "author": Array.isArray(paper.authors) ? paper.authors.map(a => ({ "@type": "Person", "name": a })) : [{ "@type": "Person", "name": displayAuthor }]
 } : null;
-
-const hasPaper = !!paper;
-const authors = paper?.authors || [];
-
-// V15.0: Derived Use Cases and Limits
-const derivedUseCases = paper ? getUseCases(paper.tags || [], '', 'paper', paper.fni_score || 0) : { goodFor: [], limits: [] };
 ---
 
-<EntityLayout
-  entity={paper}
-  type="paper"
-  title={pageTitle}
-  description={pageDescription}
-  jsonld={jsonLd}
->
+<Layout title={pageTitle} description={pageDescription}>
+  <EntityLayout
+    entity={paper}
+    type="paper"
+    title={pageTitle}
+    description={pageDescription}
+    jsonld={jsonLd}
+  >
     {/* Zone 1: Hero */}
-    <EntityHeader 
+    <EntityHeader
       slot="hero"
-      name={paper?.title || displaySlug}
+      name={paperTitle}
       entityType="paper"
       entityIcon="📄"
       entityLabel="Research Paper"
-      author={authors[0] || 'Unknown'}
-      description={paper?.abstract}
+      verified={paper?.verified}
+      author={displayAuthor}
+      description={paper?.seo_summary?.description || paper?.abstract}
       fniScore={paper?.fni_score}
       fniPercentile={paper?.fni_percentile}
       sourceUrl={paper?.source_url}
     >
-       <div slot="actions" class="flex gap-2">
-          <a href={paper?.source_url} target="_blank" class="px-4 py-2 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700 transition-colors shadow-sm">View on arXiv</a>
-       </div>
+      <div slot="actions" class="flex gap-2">
+         {paper?.source_url && (
+           <a href={paper.source_url} target="_blank" class="px-4 py-2 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700 transition-colors shadow-sm">
+             View on arXiv
+           </a>
+         )}
+      </div>
     </EntityHeader>
- 
+
     {/* Zone 1.5: Use Cases */}
-    <ZoneUseCases 
-      slot="use-cases" 
-      goodFor={derivedUseCases.goodFor} 
-      limits={derivedUseCases.limits} 
-    />
-  
-    {/* Zone 2: Technical Profile (Promoted in V16.2) */}
-    <TechSpecsFull 
-      slot="insights-extra"
-      entity={paper} 
-      type="paper" 
-      className="bg-white/50 dark:bg-white/5 backdrop-blur-sm"
+    <ZoneUseCases
+      slot="use-cases"
+      goodFor={derivedUseCases.goodFor}
+      limits={derivedUseCases.limits}
     />
 
-    <div slot="core-desktop" class="space-y-6">
-       <UniversalCore entity={paper} type="paper" />
-    </div>
- 
-    {/* Zone 3: Core (Mobile Tabs) */}
-    <div slot="core-knowledge" class="space-y-6">
+    {/* Zone 2: Insights Extra */}
+    <div slot="insights-extra" class="mt-4">
        <div class="px-4 py-2 bg-rose-50 dark:bg-rose-900/10 rounded-xl border border-rose-100 dark:border-rose-800/30">
           <TechSpecsFull entity={paper} type="paper" />
        </div>
+    </div>
+
+    {/* Zone 3: Core */}
+    <div slot="core-desktop">
+       <UniversalCore entity={paper} type="paper" />
+    </div>
+
+    <div slot="core-knowledge">
        <UniversalCore entity={paper} type="paper" />
     </div>
     
     <div slot="core-similar">
-         <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
-             <p class="text-gray-500 italic">Similarity graph for papers is being indexed.</p>
-         </div>
+        {similarEntities.length > 0 ? (
+           <ModelCarousel models={similarEntities} />
+        ) : (
+           <p class="text-gray-500 italic p-4 text-center">Identifying citing models and related research...</p>
+        )}
     </div>
   
     <div slot="core-benchmarks">
-        <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
-            <p class="text-gray-500 italic">No benchmark metadata attached to this paper.</p>
-        </div>
+        <p class="text-gray-500 italic p-4 text-center">Academic benchmark results for this paper are indexed in the neural mesh.</p>
     </div>
   
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive" class="space-y-12">
-        <PaperDeepDive paper={paper} />
+       <TagsCloud tags={tagsArray} type="paper" />
+       <PaperDeepDive paper={paper} />
+       <ModelNavigation />
     </div>
 
+    {/* Zone 5: Sidebar */}
     <div slot="sidebar" class="space-y-8">
        <div class="p-6 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-800/50">
-          <h3 class="font-bold text-rose-900 dark:text-rose-100 mb-2">Research Publication</h3>
-          <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">This research paper is indexed via the ArXiv API. Citations and related models are derived through our Knowledge Graph.</p>
+          <h3 class="font-bold text-rose-900 dark:text-rose-100 mb-2 flex items-center gap-2">
+            <span>📄</span> Academic Node
+          </h3>
+          <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
+            This entity represents a theoretical baseline in the AI Knowledge Mesh. 
+            Citations and implementations are mapped via <strong>Factory Stage 3 Aggregator</strong>.
+          </p>
        </div>
+
+       <ModelInfoTable model={{
+         ...paper,
+         displayName: paperTitle,
+         pipeline_tag: paper.arxiv_category || 'Research Paper'
+       }} />
+       
+       <ShareButtons 
+          url={`https://free2aitools.com/paper/${slugStr}`} 
+          title={`${paperTitle} - AI Research Analysis`} 
+       />
     </div>
 
     {/* Zone 5: Community */}
     <div slot="community">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-2 text-sm text-gray-500">
-             <span>📄 arXiv:{paper?.arxiv_id || displaySlug}</span>
-          </div>
-        </div>
+        <AiDisclaimer source={paper?.source} lastUpdated={paper?.last_updated} />
     </div>
-</EntityLayout>
+  </EntityLayout>
+</Layout>
