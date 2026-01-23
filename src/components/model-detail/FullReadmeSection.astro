@@ -8,6 +8,7 @@
  * @component
  */
 import MarkdownRenderer from './MarkdownRenderer.astro';
+import ZenModeModal from './ZenModeModal.astro';
 
 interface Props {
   bodyContent: string | null | undefined;
@@ -42,8 +43,51 @@ const displayTitle = getTitle(type, title);
 const toggleLabel = type === 'dataset' ? 'Dataset Card' : (type === 'tool' ? 'Documentation' : 'Profile');
 
 // Clean content (V15.8: Resilient Regex)
-// Clean content (V15.8: Resilient Regex)
-const content = (bodyContent || '').replace(/^---\s*[\s\S]*?---\s*\n?/g, '');
+let content = (bodyContent || '').replace(/^---\s*[\s\S]*?---\s*\n?/g, '');
+
+// V16.2.1: SD 3.5 Large Fallback (Zero-Limit Content Recovery)
+// Since this model is gated on HF, we provide extracted docs from Replicate as a frontend fallback
+if (!content && Astro.params.slug?.includes('stable-diffusion-3.5-large')) {
+  content = `
+# Stable Diffusion 3.5 Large
+
+## Model Description
+- **Developed by:** Stability AI
+- **Model type:** Multimodal Diffusion Transformer (MMDiT) text-to-image generative model
+- **Description:** This model generates high-quality images based on text prompts. It utilizes three fixed, pretrained text encoders and QK-normalization to improve training stability.
+
+## Technical Details
+- **Architecture:** MMDiT (Multimodal Diffusion Transformer)
+- **Text Encoders:** 
+  - OpenCLIP-ViT/G
+  - CLIP-ViT/L
+  - T5-xxl
+- **Context Length:** 77 tokens (CLIP), up to 256 tokens (T5)
+- **Training Data:** Trained on a diverse mix of synthetic and filtered public data.
+
+## Implementation & Usage
+For optimal performance, this model is typically used via:
+- **ComfyUI:** Recommended for node-based inference.
+- **Diffusers:** Integrated into the Hugging Face diffusers library.
+- **Stability AI API:** Available through official cloud endpoints.
+
+> [!NOTE]
+> This model is gated on Hugging Face. The information above is a curated technical summary to ensure full disclosure under the Zero-Limit protocol.
+`;
+}
+
+// Global Gated Model Fallback
+if (!content && !bodyContent) {
+  content = `
+# Model Documentation Unavailable
+
+> [!WARNING]
+> This model metadata is restricted or gated at the primary source (Hugging Face). 
+> 
+> To view the full model card and technical documentation, please visit the source directly using the **"View Source"** button above.
+`;
+}
+
 const hasLongContent = content.length > maxPreviewLength;
 ---
 
@@ -108,22 +152,7 @@ const hasLongContent = content.length > maxPreviewLength;
   </section>
 )}
 
-<div id="zen-modal" class="zen-mode-overlay">
-  <div class="fixed top-0 left-0 right-0 p-4 flex justify-between items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 z-50">
-    <div class="flex items-center gap-2">
-      <span class="text-indigo-600 dark:text-indigo-400 font-bold">ZEN MODE</span>
-      <span class="text-xs text-gray-400 dark:text-gray-500">• {displayTitle}</span>
-    </div>
-    <button id="close-zen" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-      <svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-      </svg>
-    </button>
-  </div>
-  <div class="zen-mode-content">
-    <MarkdownRenderer content={content} />
-  </div>
-</div>
+<ZenModeModal content={content} displayTitle={displayTitle} />
 
 <script>
   function initReadmeToggle() {
@@ -131,15 +160,12 @@ const hasLongContent = content.length > maxPreviewLength;
     const container = document.getElementById('readme-container');
     const fade = document.getElementById('readme-fade');
     const zenBtn = document.getElementById('zen-mode-btn');
-    const zenModal = document.getElementById('zen-modal');
     const closeZen = document.getElementById('close-zen');
     
     if (toggleBtn && container) {
       const typeLabel = toggleBtn.getAttribute('data-type-label') || 'Card';
-      
       toggleBtn.addEventListener('click', () => {
         const isExpanded = toggleBtn.dataset.expanded === 'true';
-        
         if (isExpanded) {
           container.classList.add('collapsed');
           if (fade) fade.classList.remove('opacity-0');
@@ -157,14 +183,9 @@ const hasLongContent = content.length > maxPreviewLength;
       });
     }
 
-    if (zenBtn && zenModal && closeZen) {
-      zenBtn.addEventListener('click', () => {
-        document.body.classList.add('zen-active');
-      });
-      closeZen.addEventListener('click', () => {
-        document.body.classList.remove('zen-active');
-      });
-      // ESC key to close
+    if (zenBtn && closeZen) {
+      zenBtn.addEventListener('click', () => document.body.classList.add('zen-active'));
+      closeZen.addEventListener('click', () => document.body.classList.remove('zen-active'));
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && document.body.classList.contains('zen-active')) {
           document.body.classList.remove('zen-active');
@@ -173,53 +194,14 @@ const hasLongContent = content.length > maxPreviewLength;
     }
   }
 
-  // Support both initial load and View Transitions
   initReadmeToggle();
   document.addEventListener('astro:after-swap', initReadmeToggle);
 </script>
 
 <style>
-  .readme-wrapper {
-    overflow: hidden;
-  }
-  
-  .readme-wrapper.collapsed {
-    max-height: 800px;
-  }
-
-  .rotate-180 {
-    transform: rotate(180deg);
-  }
-  
-  .opacity-0 {
-    opacity: 0;
-  }
-
-  /* Zen Mode Styles */
-  .zen-mode-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: rgba(255, 255, 255, 0.98);
-    display: none;
-    overflow-y: auto;
-  }
-
-  .dark .zen-mode-overlay {
-    background: rgba(17, 24, 39, 0.98);
-  }
-
-  .zen-mode-content {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 2rem 1rem 8rem;
-  }
-
-  .zen-active {
-    overflow: hidden !important;
-  }
-
-  .zen-active .zen-mode-overlay {
-    display: block;
-  }
+  .readme-wrapper { overflow: hidden; }
+  .readme-wrapper.collapsed { max-height: 800px; }
+  .rotate-180 { transform: rotate(180deg); }
+  .opacity-0 { opacity: 0; }
+  .zen-active { overflow: hidden !important; }
 </style>

@@ -36,8 +36,8 @@ export async function saveOutput(entities, outputDir, outputFile) {
         content_hash: e.content_hash,
         velocity: e.velocity || null,
         raw_image_url: e.raw_image_url,
-        // Legacy V3.1 fields
-        source_trail: JSON.stringify([{
+        // V15.8: Preserve existing trail if present (from Augmentative Merging)
+        source_trail: e.source_trail ? (typeof e.source_trail === 'string' ? e.source_trail : JSON.stringify(e.source_trail)) : JSON.stringify([{
             source_platform: e.source,
             source_url: e.source_url,
             fetched_at: new Date().toISOString(),

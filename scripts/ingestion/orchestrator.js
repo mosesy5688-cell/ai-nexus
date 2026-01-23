@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { adapters, getAdapterNames } from './adapters/index.js';
+import { deduplicateEntities } from './deduplicator.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -176,39 +177,9 @@ export class Orchestrator {
 
     /** Deduplicate entities by ID */
     deduplicate(entities) {
-        if (!this.config.deduplication.enabled) {
-            this.stats.deduplicated = entities.length;
-            return entities;
-        }
-
-        const seen = new Map();
-
-        for (const entity of entities) {
-            if (!entity.id) continue;
-
-            if (seen.has(entity.id)) {
-                if (this.config.deduplication.mergeStats) {
-                    const existing = seen.get(entity.id);
-                    // Merge popularity
-                    existing.popularity = Math.max(existing.popularity || 0, entity.popularity || 0);
-                    // Merge tags
-                    const tagSet = new Set([...(existing.tags || []), ...(entity.tags || [])]);
-                    existing.tags = Array.from(tagSet);
-                    // Keep longer content
-                    if ((entity.body_content?.length || 0) > (existing.body_content?.length || 0)) {
-                        existing.body_content = entity.body_content;
-                        existing.description = entity.description;
-                    }
-                }
-            } else {
-                seen.set(entity.id, entity);
-            }
-        }
-
-        const unique = Array.from(seen.values());
+        const unique = deduplicateEntities(entities, this.config.deduplication);
         this.stats.deduplicated = unique.length;
         console.log(`   ✓ Deduplicated: ${entities.length} → ${unique.length}`);
-
         return unique;
     }
 
