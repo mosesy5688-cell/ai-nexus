@@ -1,196 +1,184 @@
 ---
-/** Dataset Detail Page - V5.0 Entity-First (Art.X-Entity, D1=0) */
 export const prerender = false;
+
+/**
+ * Dataset Detail Page V16.5
+ * Core Feature: Zero-Limit Data Transparency
+ * Architecture: Unified 5-Zone Layout
+ */
 
 import Layout from '../../layouts/Layout.astro';
 import EntityLayout from '../../layouts/EntityLayout.astro';
 import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
-import { getUseCases } from '../../utils/inference';
-import ModelCard from '../../components/ModelCard.astro';
-import DataFreshness from '../../components/common/DataFreshness.astro';
-import DatasetSchema from '../../components/dataset/DatasetSchema.astro';
-import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
+import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
+import ModelCarousel from '../../components/ModelCarousel.astro';
+import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
+import ShareButtons from '../../components/common/ShareButtons.astro';
+import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
+import TagsCloud from '../../components/entity/TagsCloud.astro';
+import { getUseCases } from '../../utils/inference';
+import { prepareDatasetPageData } from '../../utils/dataset-page-data.js';
+import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
 
-import EntityZones from '../../components/entity/EntityZones.astro';
-import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
-import { getDatasetFromCache } from '../../utils/entity-cache-reader-v6';
-import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
-// Get slug from URL
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+const normalizedSlug = normalizeEntitySlug(slugStr);
 
-// Display slug for UI (preserve original format)
-const displaySlug = slugStr;
+let dataset = null;
+let error = null;
+let similarEntities = [];
+let tagsArray = [];
+let pageTitle = "AI Dataset Details - Free AI Tools";
+let pageDescription = "Explore high-quality datasets for AI training and evaluation.";
 
-// V4.9 Constitution: Fetch from L8 cache (R2), NOT D1
-let dataset: any = null;
-let recommendedModels: any[] = [];
-let cacheVersion = '';
 try {
-  // V15.1: getDatasetFromCache now uses unified core reader
-  const result = await fetchEntityFromR2('dataset', slug, Astro.locals);
-  dataset = hydrateEntity(result, 'dataset');
-
-  // V15.10: Augmentation Layer for Datasets
-  try {
-    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
-    const specEntry = specsResult.data?.data?.find(s => s.umid === slugStr.replace(/\//g, '-') || s.umid === slugStr.replace(/\//g, '--'));
-    if (specEntry) {
-      dataset = augmentEntity(dataset || {}, specEntry);
-    }
-  } catch (specError) {
-    console.warn("[DatasetPage] Spec augmentation failed:", specError.message);
-  }
+  if (!slug) throw new Error("No slug/ID provided");
+  const pageData = await prepareDatasetPageData(slug, slugStr, Astro.locals);
   
-  if (dataset) {
-    cacheVersion = dataset._contract_version || 'V15';
-    
-    // Fetch recommended models using hydrated tags
-    const r2 = Astro.locals.runtime?.env?.R2_ASSETS;
-    if (r2) {
-      const modelsFile = await r2.get('cache/trending_weekly.json');
-      if (modelsFile) {
-        const modelsData = await modelsFile.json();
-        const datasetTags = Array.isArray(dataset.tags) ? dataset.tags : [];
-        recommendedModels = (modelsData.data || [])
-          .filter((m: any) => {
-            const modelTags = Array.isArray(m.tags) ? m.tags : [];
-            return datasetTags.some((dt: string) => modelTags.some((mt: string) => 
-                mt.toLowerCase().includes(dt.toLowerCase()) || dt.toLowerCase().includes(mt.toLowerCase())));
-          }).slice(0, 6);
-      }
-    }
-  } else {
-    // V15.6 Fallback Logic
-    const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-    const cleanSlug = slugStr.replace(/--/g, '/');
-    const parts = cleanSlug.split('/');
-    
-    dataset = {
-      id: `hf-dataset--${slugStr.replace(/\//g, '--')}`,
-      name: parts.pop() || 'Unknown Dataset',
-      author: parts.join('/') || 'huggingface',
-      description: `AI research dataset: ${cleanSlug}`,
-      source_url: `https://huggingface.co/datasets/${cleanSlug}`,
-      tags: [],
-      _cache_source: 'fallback-ui'
-    };
-    cacheVersion = 'Fallback';
+  if (!pageData) {
+    Astro.response.status = 404;
+    return Astro.redirect('/404?reason=dataset-not-found&id=' + encodeURIComponent(slugStr));
   }
-} catch (e) { console.error('[Dataset Page] Cache error:', e); }
 
-const pageTitle = dataset?.name ? `${dataset.name} - AI Dataset` : (dataset?.title ? `${dataset.title} - AI Dataset` : `${displaySlug} - AI Dataset`);
-const pageDescription = dataset?.description || `Explore ${displaySlug} AI dataset on Free2AITools.`;
-const canonicalUrl = `https://free2aitools.com/dataset/${displaySlug}`;
+  const { dataset: resolvedDataset, isFallback, repoName, similarEntities: rSimilar, tagsArray: rTags } = pageData;
+  dataset = resolvedDataset;
+  similarEntities = rSimilar;
+  tagsArray = rTags;
 
-// JSON-LD for SEO
+  const displayDatasetName = dataset.name || dataset.title || (isFallback ? repoName : dataset.canonical_name) || 'Unknown Dataset';
+  pageTitle = `${displayDatasetName} - AI Dataset Analysis`;
+  pageDescription = dataset.seo_summary?.description || dataset.description || `Deep dive into ${displayDatasetName} dataset.`;
+
+} catch (e) {
+  console.error("[DatasetPage] Error loading dataset:", e);
+  error = e;
+  Astro.response.status = 500;
+}
+
+if (!dataset && !error) {
+  Astro.response.status = 404;
+  return Astro.redirect('/404?source=dataset-not-found');
+}
+
+const datasetName = dataset?.name || dataset?.title || 'Unknown Dataset';
+const datasetId = dataset?.id || normalizedSlug || '';
+const displayAuthor = dataset?.author || 'Community';
+
+// V15.0: Derived Use Cases and Limits
+const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.fni_score || 0) : { goodFor: [], limits: [] };
+
+// Generate JSON-LD
 const jsonLd = dataset ? {
   "@context": "https://schema.org",
   "@type": "Dataset",
-  "name": dataset.name || dataset.title || displaySlug,
-  "description": dataset.description,
-  "url": canonicalUrl,
+  "name": datasetName,
+  "description": pageDescription,
+  "url": `https://free2aitools.com/dataset/${slugStr}`,
   "creator": {
     "@type": "Organization",
-    "name": dataset.author || "Unknown"
+    "name": displayAuthor
   },
-  "dateModified": dataset.last_updated,
-  "license": dataset.license_spdx || undefined
+  "license": dataset.license_spdx || dataset.license
 } : null;
-
-const hasDataset = !!dataset;
-const hasRecommendedModels = recommendedModels.length > 0;
-
-// V15.0: Derived Use Cases and Limits
-const tagsArray = dataset?.tags ? (typeof dataset.tags === 'string' ? JSON.parse(dataset.tags) : dataset.tags) : [];
-const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.fni_score || 0) : { goodFor: [], limits: [] };
 ---
 
-
-<EntityLayout 
-  entity={dataset} 
-  type="dataset" 
-  title={pageTitle} 
-  description={pageDescription}
-  jsonld={jsonLd}
->
+<Layout title={pageTitle} description={pageDescription}>
+  <EntityLayout
+    entity={dataset}
+    type="dataset"
+    title={pageTitle}
+    description={pageDescription}
+    jsonld={jsonLd}
+  >
     {/* Zone 1: Hero */}
-    <EntityHeader 
+    <EntityHeader
       slot="hero"
-      name={dataset?.name || dataset?.title || displaySlug}
+      name={datasetName}
       entityType="dataset"
       entityIcon="📊"
       entityLabel="Dataset"
-      verified={false}
-      author={dataset?.author || 'Unknown'}
-      description={dataset?.description}
+      verified={dataset?.verified}
+      author={displayAuthor}
+      description={dataset?.seo_summary?.description || dataset?.description}
       fniScore={dataset?.fni_score}
       fniPercentile={dataset?.fni_percentile}
       sourceUrl={dataset?.source_url}
     >
       <div slot="actions" class="flex gap-2">
-         <a href={dataset?.source_url} target="_blank" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm">Download Dataset</a>
+         {dataset?.source_url && (
+           <a href={dataset.source_url} target="_blank" class="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-sm">
+             Download Dataset
+           </a>
+         )}
       </div>
     </EntityHeader>
- 
+
     {/* Zone 1.5: Use Cases */}
-    <ZoneUseCases 
-      slot="use-cases" 
-      goodFor={derivedUseCases.goodFor} 
-      limits={derivedUseCases.limits} 
-    />
-  
-    {/* Zone 2: Technical Profile (Promoted in V16.2) */}
-    <TechSpecsFull 
-      slot="insights-extra"
-      entity={dataset} 
-      type="dataset" 
-      className="bg-white/50 dark:bg-white/5 backdrop-blur-sm"
+    <ZoneUseCases
+      slot="use-cases"
+      goodFor={derivedUseCases.goodFor}
+      limits={derivedUseCases.limits}
     />
 
-    <div slot="core-desktop" class="space-y-6">
+    {/* Zone 2: Insights Extra */}
+    <div slot="insights-extra" class="mt-4">
+       <div class="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
+          <TechSpecsFull entity={dataset} type="dataset" />
+       </div>
+    </div>
+
+    {/* Zone 3: Core */}
+    <div slot="core-desktop">
        <UniversalCore entity={dataset} type="dataset" />
     </div>
- 
-    {/* Zone 3: Core (Mobile Tabs) */}
+
     <div slot="core-knowledge">
-         <UniversalCore entity={dataset} type="dataset" />
+       <UniversalCore entity={dataset} type="dataset" />
     </div>
     
     <div slot="core-similar">
-         {hasRecommendedModels ? (
-            <div class="space-y-4">
-              {recommendedModels.map(model => (
-                <ModelCard model={model} />
-              ))}
-            </div>
-          ) : (
-            <p class="text-gray-500 italic p-4 text-center">Finding datasets with similar distribution...</p>
-          )}
+        {similarEntities.length > 0 ? (
+           <ModelCarousel models={similarEntities} />
+        ) : (
+           <p class="text-gray-500 italic p-4 text-center">Identifying related models and datasets...</p>
+        )}
     </div>
   
     <div slot="core-benchmarks">
-         <div class="p-8 bg-gray-50 dark:bg-gray-800 rounded-xl text-center">
-             <p class="text-gray-500 italic">No benchmark correlations for this dataset.</p>
-         </div>
+        <p class="text-gray-500 italic p-4 text-center">Benchmarks correlations for this dataset are indexed in the Knowledge Mesh.</p>
     </div>
   
+    {/* Zone 4: Deep Dive */}
     <div slot="deep-dive" class="space-y-12">
-         <DatasetDeepDive dataset={dataset} />
+       <TagsCloud tags={tagsArray} type="dataset" />
+       <DatasetDeepDive dataset={dataset} />
+       <ModelNavigation />
     </div>
 
+    {/* Zone 5: Sidebar */}
     <div slot="sidebar" class="space-y-8">
-       <div class="p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/50">
-          <h3 class="font-bold text-indigo-900 dark:text-indigo-100 mb-2">Dataset Information</h3>
-          <p class="text-xs text-indigo-700 dark:text-indigo-300 leading-relaxed">This dataset is part of the open-source AI ecosystem. License and usage terms are governed by the original author.</p>
+       <div class="p-6 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800/50">
+          <h3 class="font-bold text-emerald-900 dark:text-emerald-100 mb-2 flex items-center gap-2">
+            <span>📊</span> Dataset Node
+          </h3>
+          <p class="text-xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
+            This entity represents a critical data node in the AI ecosystem. 
+            Metadata is processed via <strong>Factory Stage 3 Aggregator</strong> under Zero-Limit transparency rules.
+          </p>
        </div>
+       
+       <ShareButtons 
+          url={`https://free2aitools.com/dataset/${slugStr}`} 
+          title={`${datasetName} - AI Dataset Details`} 
+       />
     </div>
 
     {/* Zone 5: Community */}
     <div slot="community">
-        <DataFreshness timestamp={dataset?.last_updated} source={`L8 v${cacheVersion}`} />
+        <AiDisclaimer source={dataset?.source} lastUpdated={dataset?.last_updated} />
     </div>
-</EntityLayout>
+  </EntityLayout>
+</Layout>

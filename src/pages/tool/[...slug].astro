@@ -1,153 +1,192 @@
 ---
-/**
- * Tool Detail Page - V15.0
- * Dev Tools: LangChain, vLLM, Ollama, etc.
- */
 export const prerender = false;
+
+/**
+ * Tool Detail Page V16.5
+ * Core Feature: Developer Ecosystem Integration
+ * Architecture: Unified 5-Zone Layout
+ */
 
 import Layout from '../../layouts/Layout.astro';
 import EntityLayout from '../../layouts/EntityLayout.astro';
 import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
-import { getUseCases } from '../../utils/inference';
-import DataFreshness from '../../components/common/DataFreshness.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
-import ShareButtons from '../../components/common/ShareButtons.astro';
 import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
-import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
-import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON';
-
+import ModelCarousel from '../../components/ModelCarousel.astro';
+import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
+import ShareButtons from '../../components/common/ShareButtons.astro';
+import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
+import TagsCloud from '../../components/entity/TagsCloud.astro';
+import ModelInfoTable from '../../components/ModelInfoTable.astro';
+import { getUseCases } from '../../utils/inference';
+import { prepareToolPageData } from '../../utils/tool-page-data.js';
+import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-const displaySlug = slugStr;
+const normalizedSlug = normalizeEntitySlug(slugStr);
 
-let tool: any = null;
-let cacheVersion = '';
+let tool = null;
+let error = null;
+let similarEntities = [];
+let tagsArray = [];
+let pageTitle = "AI Development Tool - Free AI Tools";
+let pageDescription = "Explore high-performance AI frameworks, CLI tools, and libraries.";
 
 try {
-  const result = await fetchEntityFromR2('tool', slug, Astro.locals);
-  tool = hydrateEntity(result, 'tool');
-
-  // V15.10: Augmentation Layer for Tools
-  try {
-    const [specsResult, benchResult] = await Promise.all([loadSpecs(), loadBenchmarks()]);
-    const specEntry = specsResult.data?.data?.find(s => s.umid === slugStr.replace(/\//g, '-') || s.umid === slugStr.replace(/\//g, '--'));
-    if (specEntry) {
-      tool = augmentEntity(tool || {}, specEntry);
-    }
-  } catch (specError) {
-    console.warn("[ToolPage] Spec augmentation failed:", specError.message);
+  if (!slug) throw new Error("No slug/ID provided");
+  const pageData = await prepareToolPageData(slug, slugStr, Astro.locals);
+  
+  if (!pageData) {
+    Astro.response.status = 404;
+    return Astro.redirect('/404?reason=tool-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  if (tool) {
-    cacheVersion = tool._contract_version || 'V15';
-  }
+  const { tool: resolvedTool, isFallback, repoName, similarEntities: rSimilar, tagsArray: rTags } = pageData;
+  tool = resolvedTool;
+  similarEntities = rSimilar;
+  tagsArray = rTags;
+
+  const displayToolName = tool.name || (isFallback ? repoName : tool.canonical_name);
+  pageTitle = `${displayToolName} - AI Tool Architecture`;
+  pageDescription = tool.seo_summary?.description || tool.description || `Deep dive into ${displayToolName} development tool.`;
+
 } catch (e) {
-  console.error('[Tool Page] Cache error:', e);
+  console.error("[ToolPage] Error loading tool:", e);
+  error = e;
+  Astro.response.status = 500;
 }
 
+if (!tool && !error) {
+  Astro.response.status = 404;
+  return Astro.redirect('/404?source=tool-not-found');
+}
 
-const pageTitle = tool?.name ? `${tool.name} - AI Development Tool` : (tool?.canonical_name ? `${tool.canonical_name} - AI Development Tool` : `${displaySlug} - AI Development Tool`);
-const pageDescription = tool?.description || `Explore ${displaySlug} AI development tool on Free2AITools.`;
-const canonicalUrl = `https://free2aitools.com/tool/${displaySlug}`;
+const toolName = tool?.name || 'Unknown Tool';
+const toolId = tool?.id || normalizedSlug || '';
+const displayAuthor = tool?.author || 'Community';
 
+// V15.0: Derived Use Cases and Limits
+const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score || 0) : { goodFor: [], limits: [] };
+
+// Generate JSON-LD
 const jsonLd = tool ? {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": tool.name || tool.canonical_name || displaySlug,
-  "description": tool.description,
-  "url": canonicalUrl,
+  "name": toolName,
+  "description": pageDescription,
+  "url": `https://free2aitools.com/tool/${slugStr}`,
   "applicationCategory": "DeveloperApplication",
-  "operatingSystem": "Cross-platform"
+  "operatingSystem": "Cross-platform",
+  "creator": {
+    "@type": "Organization",
+    "name": displayAuthor
+  }
 } : null;
-
-const hasTool = !!tool;
-
-// V15.0: Derived Use Cases and Limits
-const tagsArray = tool?.tags ? (typeof tool.tags === 'string' ? JSON.parse(tool.tags) : tool.tags) : [];
-const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score || 0) : { goodFor: [], limits: [] };
 ---
 
-
-
-
-<EntityLayout 
-  entity={tool} 
-  type="tool" 
-  title={pageTitle} 
-  description={pageDescription}
-  jsonld={jsonLd}
->
+<Layout title={pageTitle} description={pageDescription}>
+  <EntityLayout
+    entity={tool}
+    type="tool"
+    title={pageTitle}
+    description={pageDescription}
+    jsonld={jsonLd}
+  >
     {/* Zone 1: Hero */}
-    <EntityHeader 
+    <EntityHeader
       slot="hero"
-      name={tool?.name || tool?.canonical_name || displaySlug}
+      name={toolName}
       entityType="tool"
       entityIcon="🛠️"
-      entityLabel={tool?.language || 'Tool'}
-      verified={false}
-      author={tool?.author || 'Unknown'}
-      description={tool?.description}
+      entityLabel={tool?.language || 'Dev Tool'}
+      verified={tool?.verified}
+      author={displayAuthor}
+      description={tool?.seo_summary?.description || tool?.description}
       fniScore={tool?.fni_score}
       fniPercentile={tool?.fni_percentile}
       sourceUrl={tool?.source_url}
     >
       <div slot="actions" class="flex gap-2">
          {tool?.source_url && (
-           <a href={tool?.source_url} target="_blank" class="px-4 py-2 bg-gray-800 text-white rounded-lg font-bold hover:bg-gray-900 transition-colors shadow-sm">View on GitHub</a>
+           <a href={tool.source_url} target="_blank" class="px-4 py-2 bg-gray-800 text-white rounded-lg font-bold hover:bg-gray-900 transition-colors shadow-sm">
+             View Source
+           </a>
          )}
       </div>
     </EntityHeader>
- 
+
     {/* Zone 1.5: Use Cases */}
-    <ZoneUseCases 
-      slot="use-cases" 
-      goodFor={derivedUseCases.goodFor} 
-      limits={derivedUseCases.limits} 
-    />
-  
-    {/* Zone 2: Technical Profile (Promoted in V16.2) */}
-    <TechSpecsFull 
-      slot="insights-extra"
-      entity={tool} 
-      type="tool" 
-      className="bg-white/50 dark:bg-white/5 backdrop-blur-sm"
+    <ZoneUseCases
+      slot="use-cases"
+      goodFor={derivedUseCases.goodFor}
+      limits={derivedUseCases.limits}
     />
 
-    <div slot="core-desktop" class="space-y-6">
-       <UniversalCore entity={tool} type="tool" />
-    </div>
- 
-    <div slot="core-knowledge" class="space-y-6">
+    {/* Zone 2: Insights Extra */}
+    <div slot="insights-extra" class="mt-4">
        <div class="px-4 py-2 bg-purple-50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-800/30">
           <TechSpecsFull entity={tool} type="tool" />
        </div>
+    </div>
+
+    {/* Zone 3: Core */}
+    <div slot="core-desktop">
+       <UniversalCore entity={tool} type="tool" />
+    </div>
+
+    <div slot="core-knowledge">
        <UniversalCore entity={tool} type="tool" />
     </div>
     
     <div slot="core-similar">
-        <p class="text-gray-500 italic p-4 text-center">Identifying similar developer tools...</p>
+        {similarEntities.length > 0 ? (
+           <ModelCarousel models={similarEntities} />
+        ) : (
+           <p class="text-gray-500 italic p-4 text-center">Identifying related frameworks and libraries...</p>
+        )}
     </div>
   
     <div slot="core-benchmarks">
-        <p class="text-gray-500 italic p-4 text-center">Performance benchmarks for CLI tools are being aggregated.</p>
+        <p class="text-gray-500 italic p-4 text-center">Software performance and throughput benchmarks are being analyzed.</p>
     </div>
   
+    {/* Zone 4: Deep Dive */}
     <div slot="deep-dive" class="space-y-12">
-         <ToolDeepDive tool={tool} />
+       <TagsCloud tags={tagsArray} type="tool" />
+       <ToolDeepDive tool={tool} />
+       <ModelNavigation />
     </div>
 
+    {/* Zone 5: Sidebar */}
     <div slot="sidebar" class="space-y-8">
        <div class="p-6 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/50">
-          <h3 class="font-bold text-purple-900 dark:text-purple-100 mb-2">Development Tool</h3>
-          <p class="text-xs text-purple-700 dark:text-purple-300 leading-relaxed">Integrated via the Free2AITools Open Source Harvester. This information is harvested directly from the root repository metadata.</p>
+          <h3 class="font-bold text-purple-900 dark:text-purple-100 mb-2 flex items-center gap-2">
+            <span>🛠️</span> Technical Node
+          </h3>
+          <p class="text-xs text-purple-700 dark:text-purple-300 leading-relaxed">
+            This entity is an infrastructure component in the AI ecosystem. 
+            All technical insights are aggregated via <strong>Factory Stage 3</strong>.
+          </p>
        </div>
+
+       <ModelInfoTable model={{
+         ...tool,
+         displayName: toolName,
+         pipeline_tag: tool.language || 'Software'
+       }} />
+       
+       <ShareButtons 
+          url={`https://free2aitools.com/tool/${slugStr}`} 
+          title={`${toolName} - AI Tool Architecture`} 
+       />
     </div>
 
     {/* Zone 5: Community */}
     <div slot="community">
-        <DataFreshness version={cacheVersion} />
+        <AiDisclaimer source={tool?.source} lastUpdated={tool?.last_updated} />
     </div>
-</EntityLayout>
+  </EntityLayout>
+</Layout>

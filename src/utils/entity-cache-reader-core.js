@@ -21,7 +21,7 @@ export function getR2PathCandidates(type, normalizedSlug) {
     const hasArxivPrefix = normalizedSlug.toLowerCase().startsWith('arxiv--');
     const sourcePrefixes = singular === 'paper'
         ? (hasArxivPrefix ? [''] : ['arxiv--', ''])  // Skip adding prefix if already present
-        : ['replicate--', 'huggingface--', 'github--', 'civitai--', 'ollama--', ''];
+        : ['replicate--', 'huggingface--', 'github--', 'civitai--', 'ollama--', 'hf-agent--', ''];
     const lowerSlug = normalizedSlug.toLowerCase();
     const dotFreeSlug = lowerSlug.replace(/\./g, '-');
 

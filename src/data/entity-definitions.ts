@@ -34,6 +34,7 @@ const PREFIX_MAP: Record<string, EntityType> = {
     'compare--': 'comparison',
     'deploy--': 'deployment',
     'tool--': 'tool',
+    'hf-agent--': 'agent',
 };
 
 /** Get entity definition by type */

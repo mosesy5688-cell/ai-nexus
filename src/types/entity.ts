@@ -20,6 +20,7 @@ export type EntityType =
     | 'organization' // Tier 4: Ecosystem - Companies, labs
     | 'collection'   // Curated lists
     | 'comparison'   // Model comparisons
+    | 'tool'         // Tier 4: Ecosystem - Specialized AI tools
     | 'deployment';  // Hosted instances
 
 /**
@@ -39,6 +40,8 @@ export const ENTITY_ID_PREFIXES: Record<string, EntityType> = {
     'collection--': 'collection',
     'compare--': 'comparison',
     'deploy--': 'deployment',
+    'hf-agent--': 'agent',
+    'tool--': 'tool',
 };
 
 /**
