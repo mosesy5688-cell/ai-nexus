@@ -69,7 +69,7 @@ const hasData = pipelineTag || libraryName || params || storageBytes ||
                 filesCount || gated || architecture || contextLength || quantization;
 
 // Prepare config display (limit depth for UI)
-const configEntries = config ? Object.entries(config).slice(0, 10) : [];
+const configEntries = config ? Object.entries(config) : [];
 ---
 
 {hasData && (

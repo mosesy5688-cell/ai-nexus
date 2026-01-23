@@ -51,7 +51,7 @@ const primaryFormat = format[0] || 'unknown';
 
 // Extract tagline
 const tagline = description 
-  ? description.split('\n')[0].substring(0, 120) 
+  ? description.split('\n')[0] 
   : `Dataset by ${author}`;
 
 // Verified authors
@@ -107,8 +107,7 @@ const isLarge = downloads > 100000 || (numRows && numRows > 1000000);
         )}
       </div>
 
-      <!-- Tagline -->
-      <p class="text-lg text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
+      <p class="text-lg text-gray-600 dark:text-gray-300 mb-4 leading-relaxed line-clamp-2">
         {tagline}
       </p>
 

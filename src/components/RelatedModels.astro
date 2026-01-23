@@ -13,7 +13,7 @@ interface Props {
   limit?: number;
 }
 
-const { modelId, limit = 6 } = Astro.props;
+const { modelId, limit = 12 } = Astro.props;
 const kv = Astro.locals.runtime?.env?.KV_CACHE;
 const relatedModels = await getRelatedModels(modelId, kv, limit);
 ---
@@ -40,7 +40,7 @@ const relatedModels = await getRelatedModels(modelId, kv, limit);
               
               {model.tags && model.tags.length > 0 && (
                 <div class="tags">
-                  {model.tags.slice(0, 3).map((tag: string) => (
+                  {model.tags.map((tag: string) => (
                     <span class="tag">{tag}</span>
                   ))}
                 </div>

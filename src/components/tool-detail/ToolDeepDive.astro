@@ -58,7 +58,7 @@ import ModelGallery from '../model-detail/ModelGallery.astro';
          </h2>
          {tool.tags && (Array.isArray(tool.tags) ? tool.tags : JSON.parse(tool.tags || '[]')).length > 0 ? (
            <div class="flex flex-wrap gap-2">
-             {(Array.isArray(tool.tags) ? tool.tags : JSON.parse(tool.tags || '[]')).slice(0, 15).map((tag: string) => (
+             {(Array.isArray(tool.tags) ? tool.tags : JSON.parse(tool.tags || '[]')).map((tag: string) => (
                <span class="px-3 py-1 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold border border-indigo-100 dark:border-indigo-900/30">
                  #{tag}
                </span>

@@ -18,8 +18,8 @@ const { code, language = 'python' } = Astro.props;
 // Don't render if no code
 if (!code) return null;
 
-// Limit display length
-const displayCode = code.length > 1500 ? code.substring(0, 1500) + '\n// ... (truncated)' : code;
+// Full code display (Zero-Limit)
+const displayCode = code;
 const lines = displayCode.split('\n').length;
 ---
 
@@ -42,9 +42,9 @@ const lines = displayCode.split('\n').length;
     
     <pre class="p-5 overflow-x-auto text-sm leading-relaxed scrollbar-thin scrollbar-thumb-gray-800"><code class={`language-${language} text-white selection:bg-indigo-500/30`}>{displayCode}</code></pre>
     
-    {lines > 20 && (
+    {lines > 50 && (
       <div class="px-4 py-2 bg-[#0a0a0a] border-t border-gray-800 text-[10px] text-gray-600 font-bold uppercase tracking-tighter">
-        Showing first 20 lines • Full code available in Readme
+        Scroll to view full implementation
       </div>
     )}
   </section>

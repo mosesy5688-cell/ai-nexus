@@ -33,8 +33,8 @@ export function safeNumber(value, fallback = 0) {
     return isNaN(num) ? fallback : num;
 }
 
-// Truncate text to max length
-export function truncate(text, maxLength = 250) {
+// Truncate text to max length (Zero-Limit: high ceiling for previews)
+export function truncate(text, maxLength = 1000) {
     if (!text) return '';
     const str = safeString(text);
     if (str.length <= maxLength) return str;

@@ -211,17 +211,12 @@ const source = model.source || (model.slug?.startsWith('huggingface') || model.i
           </td>
           <td class="px-4 py-3 text-gray-700 dark:text-gray-300 text-xs">
             <div class="flex flex-wrap gap-2">
-              {model.pwc_benchmarks.slice(0, 3).map((bench: any) => (
+              {model.pwc_benchmarks.map((bench: any) => (
                 <div class="flex flex-col bg-gray-100 dark:bg-gray-700 rounded p-1.5 border border-gray-200 dark:border-gray-600">
                    <span class="font-semibold text-gray-900 dark:text-white truncate max-w-[150px]">{bench.dataset}</span>
                    <span class="text-gray-500 dark:text-gray-400">{bench.metric}: {bench.value}</span>
                 </div>
               ))}
-              {model.pwc_benchmarks.length > 3 && (
-                <span class="self-center text-gray-500 dark:text-gray-400 italic">
-                  +{model.pwc_benchmarks.length - 3} more
-                </span>
-              )}
             </div>
           </td>
         </tr>

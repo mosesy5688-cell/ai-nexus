@@ -55,8 +55,7 @@ try {
   const displayModelName = model.name || (isFallback ? repoName : model.canonical_name) || 'Unknown Model';
   pageTitle = `${displayModelName} - AI Model Insights & Benchmarks`;
   cleanedDesc = cleanDescription(model.description || '');
-  pageDescription = model.seo_summary?.description || 
-                    (cleanedDesc ? cleanedDesc.substring(0, 160) : `Deep dive into ${displayModelName}.`);
+  pageDescription = model.seo_summary?.description || cleanedDesc || `Deep dive into ${displayModelName}.`;
 
 } catch (e) {
   console.error("Error loading model:", e);

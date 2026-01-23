@@ -17,7 +17,7 @@ export const GET: APIRoute = async () => {
         const res = await fetch(CDN_URL);
         if (res.ok) {
             const data = await res.json();
-            models = (data.entities || data.models || data).slice(0, 50);
+            models = (data.entities || data.models || data);
         }
     } catch (e) {
         console.error('[RSS] Error fetching models from CDN:', e);
@@ -33,7 +33,7 @@ export const GET: APIRoute = async () => {
             ? new Date(model.lastModified).toUTCString()
             : now;
         const name = model.name || model.canonical_name || 'Unknown Model';
-        const desc = (model.description || model.seo_summary || 'AI model').substring(0, 5000);
+        const desc = (model.description || model.seo_summary || 'AI model');
 
         return `
     <item>

@@ -60,8 +60,21 @@ export async function fetchCatalogData(type, runtimeEnv) {
             if (items.length === 0) {
                 console.log(`[CatalogFetcher] Trending empty for ${type}. Scanning R2 bucket path: cache/entities/${type}/`);
                 try {
-                    const list = await r2.list({ prefix: `cache/entities/${type}/` });
-                    const keys = list.objects
+                    let objects = [];
+                    let cursor = undefined;
+
+                    // V16.5: Zero-Limit Recursive Scan (Bypasses 1000 item cap)
+                    while (true) {
+                        const list = await r2.list({
+                            prefix: `cache/entities/${type}/`,
+                            cursor: cursor
+                        });
+                        objects.push(...list.objects);
+                        if (!list.truncated) break;
+                        cursor = list.cursor;
+                    }
+
+                    const keys = objects
                         .filter(o => !o.key.endsWith('.meta.json'))
                         .map(o => o.key);
 

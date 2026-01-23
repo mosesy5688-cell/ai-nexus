@@ -137,8 +137,8 @@ const isActive = daysSinceUpdate <= 30 && lastUpdate.getTime() > 0;
             <!-- Tags (up to 2) -->
             {tagsArray.length > 0 && (
                 <div class="flex flex-wrap gap-1 mb-2">
-                    {tagsArray.slice(0, 2).map((tag) => (
-                        <span class="text-xs px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full truncate max-w-[100px]">
+                    {tagsArray.map((tag) => (
+                        <span class="text-xs px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full">
                             {tag}
                         </span>
                     ))}
