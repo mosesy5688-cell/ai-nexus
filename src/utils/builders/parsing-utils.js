@@ -34,7 +34,7 @@ export function safeNumber(value, fallback = 0) {
 }
 
 // Truncate text to max length
-export function truncate(text, maxLength = 160) {
+export function truncate(text, maxLength = 250) {
     if (!text) return '';
     const str = safeString(text);
     if (str.length <= maxLength) return str;

@@ -127,9 +127,9 @@ const isActive = daysSinceUpdate <= 30 && lastUpdate.getTime() > 0;
             )}
         </div>
 
-        <!-- Description (Extended to 180 chars) -->
+        <!-- Description (Zero-Limit: Managed via CSS line-clamp) -->
         <p class="text-gray-600 dark:text-gray-300 text-sm leading-relaxed line-clamp-4 flex-grow">
-            {description.substring(0, 180)}{description.length > 180 ? '...' : ''}
+            {description}
         </p>
 
         <!-- Footer: Tags + Stats -->
