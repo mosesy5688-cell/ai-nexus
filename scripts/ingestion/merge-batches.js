@@ -47,7 +47,7 @@ async function mergeBatches() {
 
     const allEntities = [];
     const sourceStats = [];
-    const seenIds = new Set();
+    const seenIds = new Map(); // Changed from Set to Map for Augmentative Merging
     const batchManifests = [];
 
     // Process each batch
@@ -79,11 +79,46 @@ async function mergeBatches() {
                 hash: `sha256:${fileHash}`
             });
 
-            // Deduplicate by ID (Layer 1 Dedup)
+            // Deduplicate by ID (Layer 1 Dedup) - Augmentative Merging V15.8
             let added = 0;
+            let merged = 0;
+
             for (const entity of entities) {
-                if (entity.id && !seenIds.has(entity.id)) {
-                    seenIds.add(entity.id);
+                if (!entity.id) continue;
+
+                if (seenIds.has(entity.id)) {
+                    const existing = seenIds.get(entity.id);
+
+                    // 1. Content Priority (Readme)
+                    if ((entity.body_content?.length || 0) > (existing.body_content?.length || 0)) {
+                        existing.body_content = entity.body_content;
+                        existing.description = entity.description || existing.description;
+                    }
+
+                    // 2. Metadata Augmentation (Tags)
+                    const tagSet = new Set([...(existing.tags || []), ...(entity.tags || [])]);
+                    existing.tags = Array.from(tagSet);
+
+                    // 3. Metric Max (Fairness)
+                    existing.likes = Math.max(existing.likes || 0, entity.likes || 0);
+                    existing.downloads = Math.max(existing.downloads || 0, entity.downloads || 0);
+
+                    // 4. Source Trail Merging
+                    try {
+                        const existingTrail = typeof existing.source_trail === 'string' ? JSON.parse(existing.source_trail) : (existing.source_trail || []);
+                        const newTrail = typeof entity.source_trail === 'string' ? JSON.parse(entity.source_trail) : (entity.source_trail || []);
+                        existing.source_trail = JSON.stringify([...existingTrail, ...newTrail]);
+                    } catch (e) {
+                        // Fallback if parsing fails
+                    }
+
+                    merged++;
+                } else {
+                    // Normalize trail to string for consistent storage if it's an object
+                    if (entity.source_trail && typeof entity.source_trail !== 'string') {
+                        entity.source_trail = JSON.stringify(entity.source_trail);
+                    }
+                    seenIds.set(entity.id, entity);
                     allEntities.push(entity);
                     added++;
                 }
@@ -91,7 +126,7 @@ async function mergeBatches() {
 
             const sourceName = file.replace('raw_batch_', '').replace('.json', '');
             sourceStats.push({ source: sourceName, count: added, file });
-            console.log(`   ✓ ${sourceName}: ${added} entities (${entities.length - added} duplicates skipped)`);
+            console.log(`   ✓ ${sourceName}: ${added} new | ${merged} augmented (${entities.length - added - merged} identical skipped)`);
 
         } catch (error) {
             console.error(`   ❌ Error reading ${file}: ${error.message}`);
