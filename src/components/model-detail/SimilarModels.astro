@@ -20,10 +20,9 @@ interface Props {
 
 const { models = [], currentModelId } = Astro.props;
 
-// Filter out current model and limit to 8
+// Filter out current model (Zero-Limit: no more hard limit of 24)
 const displayModels = models
-  .filter(m => m.id !== currentModelId)
-  .slice(0, 24);
+  .filter(m => m.id !== currentModelId);
 
 function formatNumber(num: number | undefined): string {
   if (!num) return '';
