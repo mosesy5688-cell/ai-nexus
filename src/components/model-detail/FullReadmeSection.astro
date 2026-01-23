@@ -42,8 +42,51 @@ const displayTitle = getTitle(type, title);
 const toggleLabel = type === 'dataset' ? 'Dataset Card' : (type === 'tool' ? 'Documentation' : 'Profile');
 
 // Clean content (V15.8: Resilient Regex)
-// Clean content (V15.8: Resilient Regex)
-const content = (bodyContent || '').replace(/^---\s*[\s\S]*?---\s*\n?/g, '');
+let content = (bodyContent || '').replace(/^---\s*[\s\S]*?---\s*\n?/g, '');
+
+// V16.2.1: SD 3.5 Large Fallback (Zero-Limit Content Recovery)
+// Since this model is gated on HF, we provide extracted docs from Replicate as a frontend fallback
+if (!content && Astro.params.slug?.includes('stable-diffusion-3.5-large')) {
+  content = `
+# Stable Diffusion 3.5 Large
+
+## Model Description
+- **Developed by:** Stability AI
+- **Model type:** Multimodal Diffusion Transformer (MMDiT) text-to-image generative model
+- **Description:** This model generates high-quality images based on text prompts. It utilizes three fixed, pretrained text encoders and QK-normalization to improve training stability.
+
+## Technical Details
+- **Architecture:** MMDiT (Multimodal Diffusion Transformer)
+- **Text Encoders:** 
+  - OpenCLIP-ViT/G
+  - CLIP-ViT/L
+  - T5-xxl
+- **Context Length:** 77 tokens (CLIP), up to 256 tokens (T5)
+- **Training Data:** Trained on a diverse mix of synthetic and filtered public data.
+
+## Implementation & Usage
+For optimal performance, this model is typically used via:
+- **ComfyUI:** Recommended for node-based inference.
+- **Diffusers:** Integrated into the Hugging Face diffusers library.
+- **Stability AI API:** Available through official cloud endpoints.
+
+> [!NOTE]
+> This model is gated on Hugging Face. The information above is a curated technical summary to ensure full disclosure under the Zero-Limit protocol.
+`;
+}
+
+// Global Gated Model Fallback
+if (!content && !bodyContent) {
+  content = `
+# Model Documentation Unavailable
+
+> [!WARNING]
+> This model metadata is restricted or gated at the primary source (Hugging Face). 
+> 
+> To view the full model card and technical documentation, please visit the source directly using the **"View Source"** button above.
+`;
+}
+
 const hasLongContent = content.length > maxPreviewLength;
 ---
 
