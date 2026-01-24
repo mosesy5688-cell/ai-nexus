@@ -3,9 +3,9 @@
  * Constitutional: Split from [...slug].astro to honor < 250 lines rule.
  */
 import { hydrateEntity, augmentEntity } from './entity-cache-reader-core.js';
-import { loadSpecs, loadBenchmarks } from './loadCachedJSON.js';
-import { deriveEntityType, ENTITY_DEFINITIONS } from '../data/entity-definitions.js';
-import { getModelFromCache } from './entity-cache-reader.js';
+import { loadSpecs, loadBenchmarks } from './loadCachedJSON';
+import { deriveEntityType, ENTITY_DEFINITIONS } from '../data/entity-definitions';
+import { getModelFromCache } from './entity-cache-reader';
 import { fetchEntityFromR2 } from './entity-cache-reader-core.js';
 import { fetchMeshRelations, stripPrefix } from './knowledge-cache-reader.js';
 
@@ -97,7 +97,7 @@ export async function prepareModelPageData(slug, slugStr, locals) {
             console.warn("[ModelPageData] Mesh injection failed:", meshError.message);
         }
 
-        return { model, isFallback: false, similarModels, tagsArray, meshRelations: meshRelations || [] };
+        return { model, isFallback: false, similarModels, tagsArray };
     } else {
         // V15.17: Aggressive Global Fallback
         const cleanSlug = slugStr.replace(/--/g, '/');
@@ -137,6 +137,6 @@ export async function prepareModelPageData(slug, slugStr, locals) {
         fallbackModel.entityDefinition = ENTITY_DEFINITIONS['model'];
         tagsArray = Array.isArray(fallbackModel.tags) ? fallbackModel.tags : [];
 
-        return { model: fallbackModel, isFallback: true, repoName, similarModels, tagsArray, meshRelations: [] };
+        return { model: fallbackModel, isFallback: true, repoName, similarModels, tagsArray };
     }
 }
