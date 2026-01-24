@@ -20,7 +20,7 @@ const rootId = currentModelId || entity?.id;
 const normRoot = stripPrefix(rootId);
 
 // V16.7 Global Orchestration
-import { getMeshProfile } from '../utils/knowledge-cache-reader.js';
+import { getMeshProfile } from '../utils/mesh-orchestrator.js';
 
 // 4-Tier Topology
 let tiers = meshTiers || {

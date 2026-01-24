@@ -10,7 +10,8 @@ import MiniTrendChart from '../charts/MiniTrendChart.astro';
 import SimilarModels from '../model-detail/SimilarModels.astro';
 import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
 import MeshRelationMatrix from './MeshRelationMatrix.astro';
-import { getMeshProfile, getRouteFromId } from '../../utils/knowledge-cache-reader.js';
+import { getRouteFromId } from '../../utils/knowledge-cache-reader.js';
+import { getMeshProfile } from '../../utils/mesh-orchestrator.js';
 
 interface Props {
   entity: any;
