@@ -4,7 +4,7 @@
  * Unified knowledge orchestration for all 6 entity types.
  * Optimized for Zero-Runtime and Bidirectional Discovery.
  */
-import { fetchMeshRelations, fetchGraphMetadata, stripPrefix, isMatch } from '../utils/knowledge-cache-reader.js';
+import { fetchMeshRelations, fetchGraphMetadata, stripPrefix, isMatch, getRouteFromId } from '../utils/knowledge-cache-reader.js';
 import rankingsData from '../data/rankings.json';
 import '../styles/neural-graph.css';
 
@@ -20,37 +20,12 @@ const normRoot = stripPrefix(rootId);
 
 // 4-Tier Topology
 let tiers = {
-    explanation: { title: '🧠 Concept & Explanation', nodes: [], icon: '🧠', zone: 'Z3.1' },
+    explanation: { title: '🧠 Theoretical Foundation', nodes: [], icon: '🧠', zone: 'Z3.1' },
     core: { title: '💎 Core Ecosystem', nodes: [], icon: '⚡', zone: 'Z3.2' }, 
-    utility: { title: '🔧 Utility & Research', nodes: [], icon: '🛠️', zone: 'Z3.3' }, 
+    utility: { title: '🔬 Applied Research', nodes: [], icon: '🔬', zone: 'Z3.3' }, 
     digest: { title: '📰 Timeline & Reports', nodes: [], icon: '📰', zone: 'Z3.4' }
 };
 
-// V16.4: Cross-Source Slug Redirects (Fixes 404s)
-const SLUG_MAPPING = {
-    'instruction-tuning': 'fine-tuning',
-    'image-generation': 'multimodal',
-    'chat-models': 'agents',
-    'rag-retrieval': 'rag',
-    'vector-databases': 'rag',
-    'prompt-engineering': 'prompt-engineering',
-    'transformer-architecture': 'transformer',
-    'direct-preference-optimization': 'fine-tuning',
-    'what-is-rag': 'rag',
-    'local-deployment': 'local-inference',
-    'what-is-quantization': 'quantization',
-    'audio-models': 'multimodal',
-    'agentic-ai': 'agents',
-    'what-is-moe': 'moe',
-    'mixture-of-experts': 'moe',
-    'lora-finetuning': 'fine-tuning',
-    'speech-models': 'multimodal',
-    'inference-optimization': 'local-inference',
-    'gguf-format': 'gguf',
-    'ai-alignment': 'fine-tuning',
-    'vision-models': 'multimodal',
-    'attention-mechanism': 'transformer'
-};
 
 try {
     const [rawRelations, graphMeta, knowledgeIndex] = await Promise.all([
@@ -126,12 +101,8 @@ try {
         // V16.4: Zero-404 & De-Duplication Policy
         let finalNeighborId = neighborId;
         if (neighborId.startsWith('knowledge--')) {
-            let slug = normNeighbor.split('--').pop();
-            // 1. Redirect known broken slugs
-            if (SLUG_MAPPING[slug]) slug = SLUG_MAPPING[slug];
-            // 2. Hide if still missing from index
-            if (!validSlugs.has(slug)) return; 
-            finalNeighborId = `knowledge--${slug}`;
+            // Mapping is now handled inside getRouteFromId
+            finalNeighborId = neighborId;
         }
 
         const finalNorm = stripPrefix(finalNeighborId);
@@ -171,10 +142,8 @@ try {
             
             let finalId = id;
             if (id.startsWith('knowledge--')) {
-                let slug = norm.split('--').pop();
-                if (SLUG_MAPPING[slug]) slug = SLUG_MAPPING[slug];
-                if (!validSlugs.has(slug)) return;
-                finalId = `knowledge--${slug}`;
+                // Mapping is now handled inside getRouteFromId
+                finalId = id;
             }
 
             const finalNorm = stripPrefix(finalId);
@@ -264,10 +233,7 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
 
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         {tier.nodes.map(node => {
-                            const cleanId = node.id.replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|model|agent|tool|dataset|space|kb|concept|knowledge|report|arxiv|paper|huggingface|huggingface_deepspec|github|replicate)[:\-]+/, '')
-                                                   .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb|report|arxiv|dataset|tool)--/, '');
-                            const urlSlug = cleanId.replace(/--/g, '/').replace(/:/g, '/');
-                            let path = node.type === 'knowledge' ? `/knowledge/${urlSlug}` : node.type === 'report' ? `/reports/${urlSlug}` : node.type === 'paper' ? `/paper/${urlSlug}` : `/${node.type}/${urlSlug}`;
+                            const path = getRouteFromId(node.id, node.type);
                             
                             return (
                                 <a href={path} class={`mesh-node group relative p-4 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 rounded-2xl hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300`}>

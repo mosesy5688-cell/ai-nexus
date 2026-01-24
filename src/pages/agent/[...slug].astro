@@ -19,7 +19,6 @@ import ShareButtons from '../../components/common/ShareButtons.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
-import TagsCloud from '../../components/entity/TagsCloud.astro';
 import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
@@ -174,7 +173,6 @@ const jsonLd = {
   
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive" class="space-y-12">
-       <TagsCloud tags={tagsArray} type="agent" />
        <AgentDeepDive agent={agent} />
        <ModelNavigation />
     </div>
