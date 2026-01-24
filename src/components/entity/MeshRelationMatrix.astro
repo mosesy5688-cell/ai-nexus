@@ -38,10 +38,17 @@ const categories: Record<string, { label: string, icon: string, relations: Relat
 // Populate categories with target-level de-duplication (V16.4 Stability)
 const seenTargetsGlobal = new Set();
 
+// V16.4: Cross-Component Deduplication
+const renderedNodes = Astro.locals.meshRenderedNodes || new Set();
+
 relations.forEach(rel => {
     const type = rel.relation_type || 'RELATED';
     const targetId = stripPrefix(rel.target_id);
+    const normTarget = targetId; // stripPrefix already returns the norm
     
+    // Check if node was already captured by NeuralGraphExplorer
+    if (renderedNodes.has(normTarget)) return;
+
     const cat = categories[type] || categories['RELATED'];
     
     // De-dupe within the specific category to prevent visual clutter

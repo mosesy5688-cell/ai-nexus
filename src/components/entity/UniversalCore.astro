@@ -47,17 +47,23 @@ const similarEntities = entity?.similar_models || entity?.similar_entities || en
 
 // Knowledge Mesh Metadata Integration
 const concepts = await fetchConceptMetadata(Astro.locals);
+// V16.4: Cross-Component Deduplication
+const renderedNodes = Astro.locals.meshRenderedNodes || new Set();
+
 const enrichedTags = tagsArray.map((tagObj: any) => {
    const tag = typeof tagObj === 'string' ? tagObj : (tagObj?.id || tagObj?.name || tagObj?.label || 'unknown');
    const normalizedTag = tag.toLowerCase().replace(/[^a-z0-9]/g, '-');
    const concept = concepts.find((c: any) => c.slug === normalizedTag || c.id === `concept--${normalizedTag}`);
+   const slug = concept?.slug || normalizedTag;
+   
    return {
       name: tag,
-      slug: concept?.slug || normalizedTag,
+      slug: slug,
+      norm: normalizedTag,
       refs: concept?.refs || concept?.count || 0,
       icon: concept?.icon || '🧠'
    };
-});
+}).filter(tag => !renderedNodes.has(tag.slug));
 ---
 
 <div class="space-y-12">

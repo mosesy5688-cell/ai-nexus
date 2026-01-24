@@ -198,7 +198,14 @@ try {
                 if (node && !node.name && typeof l !== 'string' && l.title) node.name = l.title;
             });
         }
-    }
+    // V16.4: Cross-Component Deduplication (Global State)
+    if (!Astro.locals.meshRenderedNodes) Astro.locals.meshRenderedNodes = new Set();
+    nodeRegistry.forEach((node, norm) => {
+        if (node._mapped) {
+            Astro.locals.meshRenderedNodes.add(norm);
+        }
+    });
+
 } catch (e) {
     console.error('[NeuralMeshHub] V16.2 Execution Error:', e);
 }
