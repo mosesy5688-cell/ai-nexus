@@ -12,12 +12,11 @@ export function stripPrefix(id) {
     // Normalize to lowercase for consistent prefix matching
     let result = id.toLowerCase();
 
-    // Comprehensive list of prefixes to strip
-    const prefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb|report|arxiv|dataset|tool|replicate|github|huggingface|concept|paper|model|agent|space|hf)[:\-\/]+/;
+    // V16.4: Surgical Prefix Stripping (Fixes 404s)
+    // ONLY strip the entity type markers, PRESERVE platform/author segments (github, hf, etc.)
+    const schemaPrefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb|report|arxiv|dataset|tool|paper|model|agent|space|hf)[:\-\/]+/;
 
-    // Double pass to handle nested prefixes like replicate:meta/ or hf-model--
-    result = result.replace(prefixes, '');
-    result = result.replace(prefixes, '');
+    result = result.replace(schemaPrefixes, '');
 
     // Standardize separators to double-dash per SPEC V16.2
     return result
