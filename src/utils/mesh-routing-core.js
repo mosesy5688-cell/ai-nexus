@@ -42,17 +42,58 @@ export function getTypeFromId(id) {
 }
 
 /**
+ * V16.4: Cross-Source Slug Redirects (Fixes 404s)
+ * Standardized mapping to ensure knowledge links resolve to canonical slugs.
+ */
+export const SLUG_MAPPING = {
+    'instruction-tuning': 'fine-tuning',
+    'image-generation': 'multimodal',
+    'chat-models': 'agents',
+    'rag-retrieval': 'rag',
+    'vector-databases': 'rag',
+    'prompt-engineering': 'prompt-engineering',
+    'transformer-architecture': 'transformer',
+    'direct-preference-optimization': 'fine-tuning',
+    'what-is-rag': 'rag',
+    'local-deployment': 'local-inference',
+    'what-is-quantization': 'quantization',
+    'audio-models': 'multimodal',
+    'agentic-ai': 'agents',
+    'what-is-moe': 'moe',
+    'mixture-of-experts': 'moe',
+    'lora-finetuning': 'fine-tuning',
+    'speech-models': 'multimodal',
+    'inference-optimization': 'local-inference',
+    'gguf-format': 'gguf',
+    'ai-alignment': 'fine-tuning',
+    'vision-models': 'multimodal',
+    'attention-mechanism': 'transformer'
+};
+
+/**
  * V16.4 Unified Routing logic to prevent 404s on Agent/Tool Mesh links.
  */
 export function getRouteFromId(id, type = null) {
-    const resolvedType = type || getTypeFromId(id);
-    const cleanId = stripPrefix(id).replace(/--/g, '/');
+    if (!id) return '#';
+
+    let resolvedType = type || getTypeFromId(id);
+    let rawId = stripPrefix(id);
+
+    // Apply Global Redirect Mapping for Knowledge Nodes
+    if (resolvedType === 'knowledge') {
+        const slug = rawId.split('--').pop();
+        if (SLUG_MAPPING[slug]) {
+            rawId = rawId.replace(slug, SLUG_MAPPING[slug]);
+        }
+    }
+
+    const cleanId = rawId.replace(/--/g, '/');
 
     // Custom routing table
     const routeMap = {
         'knowledge': `/knowledge/${cleanId}`,
         'report': `/reports/${cleanId}`,
-        'paper': `/paper/${cleanId}`,
+        'paper': cleanId.startsWith('arxiv/') ? `/paper/${cleanId}` : `/paper/${cleanId}`,
         'dataset': `/dataset/${cleanId}`,
         'space': `/space/${cleanId}`,
         'agent': `/agent/${cleanId}`,

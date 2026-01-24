@@ -1,7 +1,8 @@
 ---
 /**
- * UniversalCore - V15.0 Standardized Zone 3
+ * UniversalCore - V15.1 (Standardized Zone 3)
  * Adapts to all 6 entity types to provide maximum content density.
+ * V16.4: Unified Routing and 404 Stability.
  */
 
 import BenchmarkCard from '../benchmark/BenchmarkCard.astro';
@@ -9,7 +10,7 @@ import MiniTrendChart from '../charts/MiniTrendChart.astro';
 import SimilarModels from '../model-detail/SimilarModels.astro';
 import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
 import MeshRelationMatrix from './MeshRelationMatrix.astro';
-import { fetchConceptMetadata } from '../../utils/knowledge-cache-reader.js';
+import { fetchConceptMetadata, getRouteFromId } from '../../utils/knowledge-cache-reader.js';
 
 interface Props {
   entity: any;
@@ -43,8 +44,7 @@ try {
 // Feature availability
 const hasBench = !!(entity?.mmlu || entity?.humaneval || entity?.avg_score || entity?.benchmark_avg);
 const similarEntities = entity?.similar_models || entity?.similar_entities || entity?.relations?.links || [];
-const arxivRefs = Array.isArray(entity?.arxiv_refs) ? entity.arxiv_refs : (Array.isArray(entity?.arxiv_ids) ? entity.arxiv_ids : []);
-const datasetsUsed = entity?.datasets_used || entity?.training_data || [];
+
 // Knowledge Mesh Metadata Integration
 const concepts = await fetchConceptMetadata(Astro.locals);
 const enrichedTags = tagsArray.map((tagObj: any) => {
@@ -63,10 +63,9 @@ const enrichedTags = tagsArray.map((tagObj: any) => {
 <div class="space-y-12">
     <NeuralGraphExplorer currentModelId={entityId} entity={entity} type={type} />
 
-    {/* 1. Primary Relations & Knowledge */}
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-        {/* Left: Benchmarks & Performance */}
-        <div class="space-y-6">
+        {/* Left: Benchmarks & Trends */}
+        <div class="space-y-8">
            {hasBench && (
              <BenchmarkCard 
                umid={entityId}
@@ -79,7 +78,7 @@ const enrichedTags = tagsArray.map((tagObj: any) => {
            )}
 
            <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-              <h3 class="text-sm font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <h3 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                  <span>📈</span> Interest Trend
               </h3>
               <div class="relative min-h-[140px] flex items-center justify-center">
@@ -96,19 +95,19 @@ const enrichedTags = tagsArray.map((tagObj: any) => {
            </div>
         </div>
         
-        {/* Right: Semantic Relations & Use Cases */}
-        <div class="space-y-6">
+        {/* Right: Relations & Knowledge Tags */}
+        <div class="space-y-10">
             <MeshRelationMatrix relations={meshRelations} entityId={entityId} />
 
-            <div class="p-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/20">
-              <h3 class="text-sm font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-widest mb-4">
-                 🧠 Neural Connections
+            <div class="p-8 bg-indigo-50/20 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/20">
+              <h3 class="text-xs font-black text-indigo-900/60 dark:text-indigo-200/60 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                 <span class="text-lg">🧠</span> Semantic Knowledge
               </h3>
-              <div class="flex flex-wrap gap-3">
+              <div class="flex flex-wrap gap-2">
                  {enrichedTags.map((tag: any) => (
                     <a 
-                      href={`/knowledge/${tag.slug}`} 
-                      class="group relative px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-black border border-gray-100 dark:border-gray-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm hover:shadow-md"
+                      href={getRouteFromId(`knowledge--${tag.slug}`, 'knowledge')} 
+                      class="group relative px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-[11px] font-bold border border-gray-100 dark:border-gray-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm hover:shadow-md"
                     >
                        <span class="mr-1.5 opacity-60 group-hover:opacity-100">{tag.icon}</span>
                        #{tag.name}
@@ -119,14 +118,13 @@ const enrichedTags = tagsArray.map((tagObj: any) => {
                        )}
                     </a>
                  ))}
-                 {enrichedTags.length === 0 && <span class="text-xs text-gray-400 italic">No semantic tags indexed.</span>}
+                 {enrichedTags.length === 0 && <span class="text-sm text-gray-400 italic">No semantic tags indexed.</span>}
               </div>
            </div>
 
-           {/* Similar Entities Carousel inside the Column for better balance */}
            {similarEntities.length > 0 && (
              <div class="space-y-4">
-                <h3 class="text-sm font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-2">
+                <h3 class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] px-2">
                    <span>🔄</span> Related Node Sync
                 </h3>
                 <SimilarModels models={similarEntities} currentModelId={entityId} />

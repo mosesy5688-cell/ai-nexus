@@ -52,23 +52,7 @@ import ModelGallery from '../model-detail/ModelGallery.astro';
          </dl>
        </section>
 
-       <section class="bg-indigo-50/20 dark:bg-indigo-900/10 rounded-2xl p-8 border border-indigo-100 dark:border-indigo-800/20">
-         <h2 class="text-xs font-black mb-8 text-indigo-900 dark:text-indigo-200 uppercase tracking-widest flex items-center gap-2">
-            <span>🏷️</span> Classification Labels
-         </h2>
-         {tool.tags && (Array.isArray(tool.tags) ? tool.tags : JSON.parse(tool.tags || '[]')).length > 0 ? (
-           <div class="flex flex-wrap gap-2">
-             {(Array.isArray(tool.tags) ? tool.tags : JSON.parse(tool.tags || '[]')).map((tag: string) => (
-               <span class="px-3 py-1 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 rounded-lg text-xs font-bold border border-indigo-100 dark:border-indigo-900/30">
-                 #{tag}
-               </span>
-             ))}
-           </div>
-         ) : (
-            <p class="text-gray-500 italic text-sm">No classification labels found.</p>
-         )}
-       </section>
-  </div>
+   </div>
 
   <!-- Section: API Implementation -->
    <section class="bg-[#0a0a0a] rounded-2xl p-8 border border-gray-800 shadow-2xl relative overflow-hidden group">
