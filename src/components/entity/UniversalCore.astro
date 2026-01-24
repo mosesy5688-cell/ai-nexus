@@ -42,7 +42,23 @@ try {
 }
 
 // 1. Centralized Mesh Orchestration (V16.7)
-const { tiers, nodeRegistry } = await getMeshProfile(Astro.locals, entityId, entity, type);
+let tiers = {
+    explanation: { title: '🧠 Theoretical Foundation', nodes: [], icon: '🧠' },
+    core: { title: '💎 Core Ecosystem', nodes: [], icon: '⚡' }, 
+    utility: { title: '🔬 Knowledge Mesh', nodes: [], icon: '🔬' }, 
+    digest: { title: '📰 Timeline & Reports', nodes: [], icon: '📰' }
+};
+let nodeRegistry = new Map();
+
+try {
+    const profile = await getMeshProfile(Astro.locals, entityId, entity, type);
+    if (profile) {
+        tiers = profile.tiers;
+        nodeRegistry = profile.nodeRegistry;
+    }
+} catch (e) {
+    console.error('[UniversalCore] Mesh Orchestration Failed:', e);
+}
 
 // Feature availability
 const hasBench = !!(entity?.mmlu || entity?.humaneval || entity?.avg_score || entity?.benchmark_avg);
@@ -51,10 +67,14 @@ const similarEntities = entity?.similar_models || entity?.similar_entities || en
 // 2. Cross-Component Deduplication
 // Track all nodes already "spent" by the Hub (Tiers)
 const renderedNodes = new Set();
-Object.values(tiers).forEach(t => t.nodes.forEach(n => renderedNodes.add(n.norm)));
+if (tiers) {
+    Object.values(tiers).forEach((t: any) => {
+        if (t?.nodes) t.nodes.forEach((n: any) => renderedNodes.add(n.norm));
+    });
+}
 Astro.locals.meshRenderedNodes = renderedNodes;
 
-const enrichedTags = tagsArray.map((tagObj: any) => {
+const enrichedTags = (tagsArray || []).map((tagObj: any) => {
    const tag = typeof tagObj === 'string' ? tagObj : (tagObj?.id || tagObj?.name || tagObj?.label || 'unknown');
    const normalizedTag = tag.toLowerCase().replace(/[^a-z0-9]/g, '-');
    return {
@@ -103,7 +123,7 @@ const enrichedTags = tagsArray.map((tagObj: any) => {
         
         {/* Right: Relations & Knowledge Tags */}
         <div class="space-y-10">
-            <MeshRelationMatrix relations={meshRelations} entityId={entityId} />
+            <MeshRelationMatrix relations={propRelations} entityId={entityId} />
 
             <div class="p-8 bg-indigo-50/20 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/20">
               <h3 class="text-xs font-black text-indigo-900/60 dark:text-indigo-200/60 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
