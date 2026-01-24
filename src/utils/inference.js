@@ -113,8 +113,8 @@ export function getUseCases(tags = [], pipelineTag = '', entityType = 'model', f
     if (limits.size === 0) limits.add('Generic Use');
 
     return {
-        goodFor: Array.from(goodFor),
-        limits: Array.from(limits)
+        goodFor: Array.from(goodFor).slice(0, 3),
+        limits: Array.from(limits).slice(0, 2)
     };
 }
 

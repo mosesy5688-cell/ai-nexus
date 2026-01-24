@@ -31,7 +31,7 @@ export function generateModelJsonLd(model: any, slug: string, coverImage: string
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": modelName,
-        "description": cleanDesc,
+        "description": cleanDesc.substring(0, 300),
         "applicationCategory": "AI Model",
         "operatingSystem": "Any",
         "author": model.author ? { "@type": "Organization", "name": model.author } : undefined,

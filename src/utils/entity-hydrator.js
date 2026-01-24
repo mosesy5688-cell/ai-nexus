@@ -103,12 +103,6 @@ function extractTechSpecs(hydrated, entity, meta) {
     if (!hydrated.body_content) {
         hydrated.body_content = entity.body_content || meta.readme || meta.model_card || meta.description || null;
     }
-
-    // V16.1 Deep Dive Content Extraction
-    hydrated.installation = meta.extended?.installation || meta.installation || null;
-    hydrated.usage = meta.extended?.usage || meta.usage || meta.usage_example || null;
-    hydrated.configuration = meta.extended?.config_guide || meta.configuration || meta.setup || null;
-    hydrated.license_full = meta.extended?.license_text || meta.license || null;
 }
 
 function mineRelations(hydrated, meta) {

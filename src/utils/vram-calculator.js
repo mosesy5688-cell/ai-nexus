@@ -32,10 +32,16 @@ export function estimateVRAM(params, quant = 'q4', contextLen = 8192) {
     const weightUsage = params * factor;
 
     // 3. Compute KV Cache (Context Overhead)
-    // Refined heuristic accounting for GQA (Grouped Query Attention) and scaling.
-    const baseKV = params > 30 ? 1.5 : 0.5; // Base for 8192 tokens
-    const kvMultiplier = Math.max(1, contextLen / 8192);
-    const kvCache = baseKV * kvMultiplier;
+    // Heuristic based on industry standards for Llama-style architectures
+    let kvCache = 0;
+    if (contextLen <= 8192) {
+        kvCache = params > 30 ? 2.0 : 0.8;
+    } else if (contextLen <= 32768) {
+        kvCache = params > 30 ? 5.0 : 2.0;
+    } else {
+        // Ultra-long context (128k+)
+        kvCache = params > 30 ? 12.0 : 4.0;
+    }
 
     // 4. System Overhead (CUDA kernels, display, overhead)
     const systemOverhead = 0.5;
