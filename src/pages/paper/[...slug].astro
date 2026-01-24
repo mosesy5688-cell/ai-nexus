@@ -170,7 +170,7 @@ const jsonLd = paper ? {
        </div>
 
        <ModelInfoTable model={{
-         ...paper,
+         ...(paper || {}),
          displayName: paperTitle,
          pipeline_tag: paper?.arxiv_category || 'Research Paper'
        }} />

@@ -78,7 +78,7 @@ const agentId = agent?.id || normalizedSlug || '';
 const displayAuthor = agent?.author || 'Community';
 
 // V15.0: Derived Use Cases and Limits
-const derivedUseCases = agent ? getUseCases(tagsArray, agent.pipeline_tag, 'agent', agent.fni_score) : { goodFor: [], limits: [] };
+const derivedUseCases = agent ? getUseCases(tagsArray, agent?.pipeline_tag, 'agent', agent?.fni_score) : { goodFor: [], limits: [] };
 
 // Generate JSON-LD
 const jsonLd = {
@@ -137,7 +137,7 @@ const jsonLd = {
        <div class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
           <TechSpecsFull entity={agent} type="agent" />
        </div>
-       {agent?.params_billions && <VramEstimator paramsB={agent.params_billions} contextLen={agent.context_length} />}
+       {agent?.params_billions && <VramEstimator paramsB={agent?.params_billions} contextLen={agent?.context_length} />}
     </div>
 
     {/* Zone 3: Core (Desktop/Mobile) */}
@@ -192,9 +192,9 @@ const jsonLd = {
        </div>
        
        <ModelInfoTable model={{
-         ...agent,
+         ...(agent || {}),
          displayName: agentName,
-         pipeline_tag: agent.framework || 'Agent Framework'
+         pipeline_tag: agent?.framework || agent?.pipeline_tag || 'Agent Framework'
        }} />
 
        <ShareButtons 

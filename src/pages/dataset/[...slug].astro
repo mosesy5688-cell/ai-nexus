@@ -83,7 +83,7 @@ const jsonLd = dataset ? {
     "@type": "Organization",
     "name": displayAuthor
   },
-  "license": dataset.license_spdx || dataset.license
+  "license": dataset?.license_spdx || dataset?.license
 } : null;
 ---
 
