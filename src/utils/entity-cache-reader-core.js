@@ -47,7 +47,14 @@ export function getR2PathCandidates(type, normalizedSlug) {
         candidates.push(`${prefix}/${mandatoryPrefix}${lowerSlug}.json`);
     }
 
-    return [...new Set(candidates)];
+    // 3. V16.4: R2 Replica Support (.v-1, .v-2) for resilience
+    const replicas = [];
+    candidates.forEach(path => {
+        replicas.push(path.replace('.json', '.v-1.json'));
+        replicas.push(path.replace('.json', '.v-2.json'));
+    });
+
+    return [...new Set([...candidates, ...replicas])];
 }
 
 
