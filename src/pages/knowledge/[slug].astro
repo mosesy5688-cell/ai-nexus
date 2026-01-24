@@ -64,49 +64,25 @@ const relatedArticles = article ? Object.entries(articles)
   .slice(0, 3) : [];
 
 // FETCH LINKED ENTITIES (Mesh Integration)
-import { fetchMeshRelations } from '../../utils/knowledge-cache-reader';
+import { fetchMeshRelations, getRouteFromId, getTypeFromId } from '../../utils/knowledge-cache-reader';
 // V16: Use CANONICAL slug from config to ensure match in pre-computed relations.json
 const meshId = article ? `knowledge--${article.slug}` : `knowledge--${slug}`;
 const meshRelations = await fetchMeshRelations(Astro.locals, meshId);
 
 // Group linked entities by type
 const linkedEntities = meshRelations.reduce((acc, rel) => {
-  const src = rel.source_id.toLowerCase().replace(/[:/]/g, '--');
-  const tgt = rel.target_id.toLowerCase().replace(/[:/]/g, '--');
-  const otherId = src === meshId ? tgt : src;
-  
+  const otherId = rel.source_id === meshId ? rel.target_id : rel.source_id;
   if (!otherId || otherId === meshId) return acc;
   
-  let type = 'Other';
-  let path = '#';
-  let name = otherId;
+  const type = getTypeFromId(otherId);
+  const path = getRouteFromId(otherId, type);
+  const name = otherId.split('--').pop()?.replace(/-/g, ' ') || otherId;
 
-  if (otherId.startsWith('hf-model--') || otherId.includes('--')) {
-    type = 'Model';
-    const cleanId = otherId.replace('hf-model--', '');
-    path = `/model/${cleanId.replace(/--/g, '/')}`;
-    name = cleanId.split('--').pop() || cleanId;
-  } else if (otherId.startsWith('report--')) {
-    type = 'Report';
-    const cleanId = otherId.replace('report--', '');
-    path = `/reports/${cleanId}`;
-    name = cleanId.replace(/-/g, ' ');
-  } else if (otherId.startsWith('dataset--')) {
-    type = 'Dataset';
-    const cleanId = otherId.replace('dataset--', '');
-    path = `/dataset/${cleanId}`;
-    name = cleanId;
-  } else if (otherId.startsWith('arxiv--') || otherId.startsWith('paper--')) {
-    type = 'Paper';
-    const cleanId = otherId.replace(/^(arxiv|paper)--/, '');
-    path = `/paper/${cleanId}`;
-    name = cleanId;
-  }
+  const displayType = type.charAt(0).toUpperCase() + type.slice(1);
 
-  if (!acc[type]) acc[type] = [];
-  // De-duplicate in tabular view
-  if (!acc[type].find(e => e.id === otherId)) {
-    acc[type].push({ id: otherId, name, path });
+  if (!acc[displayType]) acc[displayType] = [];
+  if (!acc[displayType].find(e => e.id === otherId)) {
+    acc[displayType].push({ id: otherId, name, path });
   }
   return acc;
 }, {} as Record<string, any[]>);

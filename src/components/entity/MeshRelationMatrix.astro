@@ -4,7 +4,7 @@
  * V16.2 Knowledge Mesh Visualization
  * Groups and displays bidirectional relations between AI nodes.
  */
-import { stripPrefix } from '../../utils/knowledge-cache-reader.js';
+import { stripPrefix, getRouteFromId } from '../../utils/knowledge-cache-reader.js';
 
 interface Relation {
     target_id: string;
@@ -35,22 +35,27 @@ const categories: Record<string, { label: string, icon: string, relations: Relat
     RELATED: { label: 'Associations', icon: '🔗', relations: [] }
 };
 
-// Populate categories
+// Populate categories with target-level de-duplication (V16.4 Stability)
+const seenTargetsGlobal = new Set();
+
 relations.forEach(rel => {
     const type = rel.relation_type || 'RELATED';
-    if (categories[type]) {
-        categories[type].relations.push(rel);
-    } else {
-        categories['RELATED'].relations.push(rel);
-    }
+    const targetId = stripPrefix(rel.target_id);
+    
+    // Safety: Skip self-links if they somehow leaked through
+    if (targetId === stripPrefix(entityId)) return;
+
+    const cat = categories[type] || categories['RELATED'];
+    
+    // De-dupe within the specific category to prevent visual clutter
+    const catCheckKey = `${type}|${targetId}`;
+    if (seenTargetsGlobal.has(catCheckKey)) return;
+    seenTargetsGlobal.add(catCheckKey);
+
+    cat.relations.push(rel);
 });
 
 const activeCategories = Object.entries(categories).filter(([_, cat]) => cat.relations.length > 0);
-
-function getRoute(id: string, type: string) {
-    const cleanId = stripPrefix(id).replace(/--/g, '/');
-    return `/${type}/${cleanId}`;
-}
 
 const typeIcons: Record<string, string> = {
     model: '🧠',
@@ -76,7 +81,7 @@ const typeIcons: Record<string, string> = {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {group.relations.map(rel => (
                         <a 
-                            href={getRoute(rel.target_id, rel.target_type)}
+                            href={getRouteFromId(rel.target_id, rel.target_type)}
                             class="group flex items-center justify-between p-4 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50 hover:border-indigo-400 dark:hover:border-indigo-500/50 hover:shadow-md transition-all duration-300"
                         >
                             <div class="flex items-center gap-3 min-w-0">
