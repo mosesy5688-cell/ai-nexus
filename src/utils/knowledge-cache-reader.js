@@ -146,28 +146,20 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
 
             if (target && !isMatch(normS, target) && !isMatch(normT, target)) continue;
 
-            const dupKey = `${normS}|${normT}|${rel.relation_type}`;
+            // V16.4 Semantic De-duplication: Order-agnostic + Type awareness
+            const relType = rel.relation_type || 'RELATED';
+            const idPair = [normS, normT].sort();
+            const dupKey = `${idPair[0]}|${idPair[1]}|${relType}`;
+
             if (seen.has(dupKey)) continue;
             seen.add(dupKey);
-
-            const getType = (id) => {
-                if (!id) return 'model';
-                if (id.includes('knowledge--') || id.includes('kb--') || id.includes('concept--')) return 'knowledge';
-                if (id.includes('report--')) return 'report';
-                if (id.includes('arxiv--') || id.includes('paper--')) return 'paper';
-                if (id.includes('dataset--')) return 'dataset';
-                if (id.includes('space--')) return 'space';
-                if (id.includes('agent--')) return 'agent';
-                if (id.includes('tool--')) return 'tool';
-                return 'model';
-            };
 
             filtered.push({
                 ...rel,
                 norm_source: normS,
                 norm_target: normT,
-                source_type: getType(sid),
-                target_type: getType(tid)
+                source_type: getTypeFromId(sid),
+                target_type: getTypeFromId(tid)
             });
         }
         return filtered;
@@ -175,6 +167,43 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
         console.error('[KnowledgeReader] Mesh Error:', e);
         return [];
     }
+}
+
+/**
+ * V16.4 Unified Type Discovery logic for the entire Knowledge Mesh.
+ */
+export function getTypeFromId(id) {
+    if (!id || typeof id !== 'string') return 'model';
+    const low = id.toLowerCase();
+    if (low.includes('knowledge--') || low.includes('kb--') || low.includes('concept--')) return 'knowledge';
+    if (low.includes('report--')) return 'report';
+    if (low.includes('arxiv--') || low.includes('paper--')) return 'paper';
+    if (low.includes('dataset--')) return 'dataset';
+    if (low.includes('space--')) return 'space';
+    if (low.includes('agent--')) return 'agent';
+    if (low.includes('tool--')) return 'tool';
+    return 'model';
+}
+
+/**
+ * V16.4 Unified Routing logic to prevent 404s on Agent/Tool Mesh links.
+ */
+export function getRouteFromId(id, type = null) {
+    const resolvedType = type || getTypeFromId(id);
+    const cleanId = stripPrefix(id).replace(/--/g, '/');
+
+    // Custom routing table
+    const routeMap = {
+        'knowledge': `/knowledge/${cleanId}`,
+        'report': `/reports/${cleanId}`,
+        'paper': `/paper/${cleanId}`,
+        'dataset': `/dataset/${cleanId}`,
+        'space': `/space/${cleanId}`,
+        'agent': `/agent/${cleanId}`,
+        'tool': `/tool/${cleanId}`
+    };
+
+    return routeMap[resolvedType] || `/model/${cleanId}`;
 }
 
 /**
