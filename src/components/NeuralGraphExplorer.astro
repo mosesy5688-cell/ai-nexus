@@ -12,203 +12,31 @@ interface Props {
     currentModelId?: string;
     entity?: any;
     type?: string;
+    meshTiers?: any;
 }
 
-const { currentModelId, entity, type = 'model' } = Astro.props;
+const { currentModelId, entity, type = 'model', meshTiers } = Astro.props;
 const rootId = currentModelId || entity?.id;
 const normRoot = stripPrefix(rootId);
 
+// V16.7 Global Orchestration
+import { getMeshProfile } from '../utils/mesh-orchestrator.js';
+
 // 4-Tier Topology
-let tiers = {
+let tiers = meshTiers || {
     explanation: { title: '🧠 Theoretical Foundation', nodes: [], icon: '🧠', zone: 'Z3.1' },
     core: { title: '💎 Core Ecosystem', nodes: [], icon: '⚡', zone: 'Z3.2' }, 
-    utility: { title: '🔬 Applied Research', nodes: [], icon: '🔬', zone: 'Z3.3' }, 
+    utility: { title: '🔬 Knowledge Mesh', nodes: [], icon: '🔬', zone: 'Z3.3' }, 
     digest: { title: '📰 Timeline & Reports', nodes: [], icon: '📰', zone: 'Z3.4' }
 };
 
-
 try {
-    const [rawRelations, graphMeta, knowledgeIndex] = await Promise.all([
-        fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }).catch(() => []),
-        fetchGraphMetadata(Astro.locals).catch(() => ({})),
-        Promise.resolve().then(async () => {
-            const r2 = Astro.locals?.runtime?.env?.R2_ASSETS;
-            if (!r2) return { articles: [] };
-            try {
-                const obj = await r2.get('cache/knowledge/index.json');
-                return obj ? await obj.json() : { articles: [] };
-            } catch (e) {
-                return { articles: [] };
-            }
-        })
-    ]);
-
-    const articles = knowledgeIndex?.articles || [];
-    const validSlugs = new Set(articles.map((a: any) => a.slug));
-
-    const nodeMap = new Map();
-    const seenIds = new Set();
-    if (normRoot) seenIds.add(normRoot);
-
-    const ensureNode = (id, typeHint = 'model') => {
-        const nid = id;
-        const norm = stripPrefix(nid);
-        if (seenIds.has(norm)) return nodeMap.get(norm);
-        
-        const meta = graphMeta[nid] || {};
-        const nodeType = meta.t || typeHint || (
-            nid.includes('knowledge--') || nid.includes('kb--') ? 'knowledge' : 
-            nid.includes('arxiv--') ? 'paper' : 
-            nid.includes('report--') ? 'report' :
-            nid.includes('dataset--') ? 'dataset' : 
-            nid.includes('space--') ? 'space' : 
-            nid.includes('agent--') ? 'agent' : 
-            nid.includes('tool--') ? 'tool' : 
-            'model'
-        );
-        const parts = nid.split('--');
-        const nodeAuthor = meta.author || (parts.length > 2 ? parts[parts.length-2].replace(/-/g, ' ') : (nid.startsWith('arxiv--') || nid.startsWith('paper--')) ? 'Research Paper' : (nid.startsWith('knowledge--') || nid.startsWith('kb--')) ? 'AI Knowledge Base' : 'Ecosystem Node');
-        
-        const node = { 
-            id: nid, 
-            name: meta.n || nid.split('--').pop().replace(/-/g, ' ').toUpperCase(), 
-            type: nodeType, 
-            icon: meta.icon || (nodeType === 'knowledge' ? '🧠' : nodeType === 'paper' ? '📄' : nodeType === 'space' ? '🚀' : nodeType === 'dataset' ? '📊' : nodeType === 'agent' ? '🤖' : nodeType === 'tool' ? '🛠️' : nodeType === 'report' ? '📰' : '📦'),
-            author: nodeAuthor,
-            hub: meta.hub || false,
-            relation: '' // Explicit relation label
-        };
-        nodeMap.set(norm, node);
-        seenIds.add(norm);
-        return node;
-    };
-
-    // Unified Global Node Registry (Prevents Duplication)
-    const nodeRegistry = new Map();
-
-    // Process Bidirectional Mesh
-    rawRelations.forEach(rel => {
-        const isOut = isMatch(rel.norm_source, normRoot);
-        const isIn = isMatch(rel.norm_target, normRoot);
-        if (!isOut && !isIn) return;
-
-        const neighborId = isOut ? rel.target_id : rel.source_id;
-        const normNeighbor = stripPrefix(neighborId);
-        
-        // Circular Reference Protection
-        if (normNeighbor === normRoot) return;
-
-        // V16.4: Zero-404 & De-Duplication Policy
-        let finalNeighborId = neighborId;
-        if (neighborId.startsWith('knowledge--')) {
-            // Mapping is now handled inside getRouteFromId
-            finalNeighborId = neighborId;
-        }
-
-        const finalNorm = stripPrefix(finalNeighborId);
-        let node = nodeRegistry.get(finalNorm);
-        if (!node) {
-            node = ensureNode(finalNeighborId, isOut ? rel.target_type : rel.source_type);
-            nodeRegistry.set(finalNorm, node);
-        }
-
-        // Relation Affinity Logic
-        const rType = (rel.relation_type || 'RELATED').toUpperCase();
-        if (!node.relation || node.relation === 'RELATED') {
-            node.relation = rType;
-        }
-
-        // Tier Assignment
-        if (!node._mapped) {
-            node._mapped = true;
-            if (node.type === 'knowledge') {
-                tiers.explanation.nodes.push(node);
-            } else if (node.type === 'model' || node.type === 'tool' || node.type === 'dataset' || node.type === 'unknown') {
-                tiers.core.nodes.push(node); // Default unknown/unprefixed models to Core
-            } else if (node.type === 'agent' || node.type === 'space' || node.type === 'paper') {
-                tiers.utility.nodes.push(node);
-            } else if (node.type === 'report') {
-                tiers.digest.nodes.push(node);
-            }
-        }
-    });
-
-    // Matrix-Specific Injection (V16.4: Enhanced Global Injections)
-    if (entity) {
-        const inject = (id, typeHint, relType) => {
-            if (!id) return;
-            const norm = stripPrefix(id);
-            if (norm === normRoot) return;
-            
-            let finalId = id;
-            if (id.startsWith('knowledge--')) {
-                // Mapping is now handled inside getRouteFromId
-                finalId = id;
-            }
-
-            const finalNorm = stripPrefix(finalId);
-            let node = nodeRegistry.get(finalNorm);
-            if (!node) {
-                node = ensureNode(finalId, typeHint);
-                nodeRegistry.set(finalNorm, node);
-            }
-            if (!node.relation || node.relation === 'RELATED') node.relation = relType;
-            
-            if (!node._mapped) {
-                node._mapped = true;
-                if (node.type === 'knowledge') tiers.explanation.nodes.push(node);
-                else if (['model', 'tool', 'dataset', 'unknown'].includes(node.type)) tiers.core.nodes.push(node);
-                else if (['agent', 'space', 'paper'].includes(node.type)) tiers.utility.nodes.push(node);
-                else if (node.type === 'report') tiers.digest.nodes.push(node);
-            }
-        };
-
-        // ArXiv & Datasets
-        if (Array.isArray(entity.arxiv_refs)) entity.arxiv_refs.forEach(ref => inject(`arxiv--${ref}`, 'paper', 'CITES'));
-        if (Array.isArray(entity.datasets_used)) entity.datasets_used.forEach(ds => inject(`dataset--${ds.replace(/\//g, '--')}`, 'dataset', 'TRAINED_ON'));
-        if (Array.isArray(entity.similar_models)) entity.similar_models.forEach(m => inject(`model--${m.replace(/\//g, '--')}`, 'model', 'RELATED'));
-
-        // Type-Specific Injections
-        if (type === 'model') {
-            if (entity.base_model) inject(`hf-model--${entity.base_model.replace(/\//g, '--')}`, 'model', 'BASED_ON');
-            if (entity.license) inject(`knowledge--${entity.license.toLowerCase().split(' ')[0]}`, 'knowledge', 'LICENSED');
-            if (entity.library_name) inject(`tool--${entity.library_name.toLowerCase()}`, 'tool', 'STACK');
-        } else if (type === 'agent' && entity.framework) {
-            inject(`tool--${entity.framework.toLowerCase()}`, 'tool', 'STACK');
-        } else if (type === 'space') {
-            const modelsUsed = entity.meta_json?.models_used || entity.models_used || [];
-            modelsUsed.forEach(m => inject(`model--${m.replace(/\//g, '--')}`, 'model', 'USES'));
-        }
-
-        // Tags Injection (Fills sparse graphs)
-        if (Array.isArray(entity.tags)) {
-            entity.tags.slice(0, 5).forEach(tag => {
-                const cleanTag = tag.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
-                inject(`knowledge--${cleanTag}`, 'knowledge', 'TAGGED');
-            });
-        }
-
-        // Knowledge Links
-        if (Array.isArray(entity.knowledge_links)) {
-            entity.knowledge_links.forEach(l => {
-                const slug = typeof l === 'string' ? l : l.slug;
-                inject(`knowledge--${slug}`, 'knowledge', 'EXPLAINS');
-                const norm = stripPrefix(`knowledge--${slug}`);
-                if (node && !node.name && typeof l !== 'string' && l.title) node.name = l.title;
-            });
-        }
+    if (!meshTiers && rootId) {
+        const profile = await getMeshProfile(Astro.locals, rootId, entity, type);
+        tiers = profile.tiers;
     }
-    
-    // V16.4: Cross-Component Deduplication (Global State)
-    if (!Astro.locals.meshRenderedNodes) Astro.locals.meshRenderedNodes = new Set();
-    nodeRegistry.forEach((node, norm) => {
-        if (node._mapped) {
-            Astro.locals.meshRenderedNodes.add(norm);
-        }
-    });
-
 } catch (e) {
-    console.error('[NeuralMeshHub] V16.2 Execution Error:', e);
+    console.error('[NeuralMeshHub] V16.7 Orchestration Error:', e);
 }
 
 const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);

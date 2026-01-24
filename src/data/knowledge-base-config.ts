@@ -123,7 +123,10 @@ export const KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
             { slug: 'moe', title: 'Mixture of Experts (MoE)', description: 'Efficient scaling with conditional computation', difficulty: 'Advanced', effort: '7 min' },
             { slug: 'quantization', title: 'Model Quantization', description: 'GGUF, GPTQ, AWQ formats explained', difficulty: 'Intermediate', effort: '6 min' },
             { slug: 'vram', title: 'VRAM Requirements', description: 'Memory needs for running LLMs', difficulty: 'Intermediate', effort: '4 min' },
-            { slug: 'local-inference', title: 'Local Inference Cache', description: 'Running models on your own hardware', difficulty: 'Intermediate', effort: '8 min' }
+            { slug: 'local-inference', title: 'Local Inference Cache', description: 'Running models on your own hardware', difficulty: 'Intermediate', effort: '8 min' },
+            { slug: 'multimodal', title: 'Multimodal AI', description: 'Processing text, images, and audio seamlessly', difficulty: 'Intermediate', effort: '6 min' },
+            { slug: 'rag', title: 'RAG Systems', description: 'Retrieval Augmented Generation architecture', difficulty: 'Intermediate', effort: '7 min' },
+            { slug: 'llm-benchmarks', title: 'LLM Evaluation', description: 'How model performance is measured', difficulty: 'Intermediate', effort: '5 min' }
         ]
     }
 ];
