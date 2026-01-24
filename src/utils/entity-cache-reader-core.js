@@ -14,26 +14,37 @@ export function normalizeEntitySlug(id, source = 'huggingface') {
 
 // V16.2 Knowledge Mesh Alignment (SPEC-KNOWLEDGE-MESH-V16.2 Section 2.1)
 export function getR2PathCandidates(type, normalizedSlug) {
-    const singular = type.endsWith('s') ? type.slice(0, -1) : type;
+    // Standardize to singular: dataset, model, agent, space, tool, paper
+    const typeMap = {
+        'datasets': 'dataset',
+        'models': 'model',
+        'agents': 'agent',
+        'spaces': 'space',
+        'tools': 'tool',
+        'papers': 'paper'
+    };
+    const singular = typeMap[type] || (type.endsWith('s') ? type.slice(0, -1) : type);
+
+    // SPEC-KNOWLEDGE-MESH-V16.2 Section 5.1: Path is cache/entities/{type}/{slug}.json
     const prefix = `cache/entities/${singular}`;
     const lowerSlug = normalizedSlug.toLowerCase();
 
-    // 1. Direct match (e.g. hf-model--owner--name.json)
+    // 1. Direct match
     const candidates = [`${prefix}/${normalizedSlug}.json`];
 
-    // 2. SPEC-KNOWLEDGE-MESH-V16.2 Mandatory Prefixes (Automatic mapping for 'pretty' URLs)
-    if (singular === 'model' && !lowerSlug.startsWith('hf-model--')) {
-        candidates.push(`${prefix}/hf-model--${lowerSlug}.json`);
-    } else if (singular === 'dataset' && !lowerSlug.startsWith('dataset--')) {
-        candidates.push(`${prefix}/dataset--${lowerSlug}.json`);
-    } else if (singular === 'paper' && !lowerSlug.startsWith('arxiv--')) {
-        candidates.push(`${prefix}/arxiv--${lowerSlug}.json`);
-    } else if (singular === 'space' && !lowerSlug.startsWith('hf-space--')) {
-        candidates.push(`${prefix}/hf-space--${lowerSlug}.json`);
-    } else if (singular === 'agent' && !lowerSlug.startsWith('hf-agent--')) {
-        candidates.push(`${prefix}/hf-agent--${lowerSlug}.json`);
-    } else if (singular === 'tool' && !lowerSlug.startsWith('tool--')) {
-        candidates.push(`${prefix}/tool--${lowerSlug}.json`);
+    // 2. Canonical Prefix Injection (Handling mapping from 'pretty' IDs to R2 Storage keys)
+    const prefixMap = {
+        'model': 'hf-model--',
+        'dataset': 'dataset--',
+        'paper': 'arxiv--',
+        'space': 'hf-space--',
+        'agent': 'hf-agent--',
+        'tool': 'tool--'
+    };
+
+    const mandatoryPrefix = prefixMap[singular];
+    if (mandatoryPrefix && !lowerSlug.startsWith(mandatoryPrefix)) {
+        candidates.push(`${prefix}/${mandatoryPrefix}${lowerSlug}.json`);
     }
 
     return [...new Set(candidates)];

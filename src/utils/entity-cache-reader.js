@@ -18,7 +18,13 @@ export async function resolveEntityFromCache(slug, locals) {
     if (!slug) return { entity: null, source: 'invalid-slug' };
 
     const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-    const type = slugStr.includes('hf-dataset') || slugStr.startsWith('dataset') ? 'dataset' : 'model';
+    const lower = slugStr.toLowerCase();
+    let type = 'model';
+    if (lower.includes('hf-dataset--') || lower.startsWith('dataset/')) type = 'dataset';
+    else if (lower.includes('arxiv--') || lower.startsWith('paper/')) type = 'paper';
+    else if (lower.includes('hf-agent--') || lower.startsWith('agent/')) type = 'agent';
+    else if (lower.includes('hf-space--') || lower.startsWith('space/')) type = 'space';
+    else if (lower.includes('tool--') || lower.startsWith('tool/')) type = 'tool';
 
     const result = await fetchEntityFromR2(type, slug, locals);
     if (!result) return { entity: null, source: 'cache-miss' };
