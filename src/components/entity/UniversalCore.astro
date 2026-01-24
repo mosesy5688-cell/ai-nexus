@@ -10,7 +10,7 @@ import MiniTrendChart from '../charts/MiniTrendChart.astro';
 import SimilarModels from '../model-detail/SimilarModels.astro';
 import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
 import MeshRelationMatrix from './MeshRelationMatrix.astro';
-import { getRouteFromId } from '../../utils/knowledge-cache-reader.js';
+import { getRouteFromId, normalizeSlug } from '../../utils/knowledge-cache-reader.js';
 import { getMeshProfile } from '../../utils/mesh-orchestrator.js';
 
 interface Props {
@@ -76,7 +76,7 @@ Astro.locals.meshRenderedNodes = renderedNodes;
 
 const enrichedTags = (tagsArray || []).map((tagObj: any) => {
    const tag = typeof tagObj === 'string' ? tagObj : (tagObj?.id || tagObj?.name || tagObj?.label || 'unknown');
-   const normalizedTag = tag.toLowerCase().replace(/[^a-z0-9]/g, '-');
+   const normalizedTag = normalizeSlug(tag);
    return {
       name: tag,
       slug: normalizedTag,

@@ -64,5 +64,6 @@ export const articles: Record<string, KnowledgeArticle> = {
   'parameters': createStub('What are Parameters?', 'Understanding model size', 'architecture'),
   'ollama': createStub('What is Ollama?', 'Local deployment tool', 'deployment'),
   'inference-optimization': createStub('Inference Optimization', 'How to speed up LLMs', 'inference_tech'),
+  'fundamentals': createStub('AI Fundamentals', 'Core concepts and architectures', 'fundamentals'),
   'rlhf': createStub('RLHF', 'Reinforcement Learning from Human Feedback', 'training'),
 };

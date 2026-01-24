@@ -1,7 +1,7 @@
 // Knowledge Cache Reader (V16.4)
 // Standardized: Unified 6-Way Mesh discovery logic
-export { stripPrefix, getTypeFromId, getRouteFromId } from './mesh-routing-core.js';
-import { stripPrefix, getTypeFromId } from './mesh-routing-core.js';
+export { stripPrefix, getTypeFromId, getRouteFromId, normalizeSlug } from './mesh-routing-core.js';
+import { stripPrefix, getTypeFromId, normalizeSlug } from './mesh-routing-core.js';
 
 /**
  * Bidirectional check: Is the current entity either source or target?

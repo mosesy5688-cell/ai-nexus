@@ -73,7 +73,26 @@ export const SLUG_MAPPING = {
     'what-is-transformer': 'transformer',
     'what-is-ollama': 'ollama',
     'multimodal-learning': 'multimodal',
-    'llm-evaluation': 'llm-benchmarks'
+    'llm-evaluation': 'llm-benchmarks',
+    'inference': 'inference-optimization',
+    'high-preformance': 'inference-optimization',
+    'deep-learning': 'fundamentals',
+    'neural-network': 'fundamentals',
+    'vulkan': 'inference-optimization',
+    'simd': 'inference-optimization',
+    'mlir': 'inference-optimization',
+    'riscv': 'local-inference',
+    'onnx': 'inference-optimization',
+    'pytorch': 'fundamentals',
+    'tensorflow': 'fundamentals',
+    'keras': 'fundamentals',
+    'mxnet': 'fundamentals',
+    'ncnn': 'inference-optimization',
+    'ios': 'local-inference',
+    'cpp': 'fundamentals',
+    'c': 'fundamentals',
+    'machine-learning': 'fundamentals',
+    'algorithms': 'fundamentals'
 };
 
 /**
@@ -87,10 +106,13 @@ export function getRouteFromId(id, type = null) {
 
     // Apply Global Redirect Mapping for Knowledge Nodes
     if (resolvedType === 'knowledge') {
-        const parts = rawId.split('--');
-        const slug = parts[parts.length - 1];
+        const parts = rawId.split('--').filter(Boolean);
+        let slug = parts[parts.length - 1] || '';
+
         if (SLUG_MAPPING[slug]) {
             rawId = SLUG_MAPPING[slug];
+        } else if (!slug) {
+            return '/knowledge'; // Fallback for malformed ID
         } else {
             rawId = slug;
         }
@@ -109,5 +131,23 @@ export function getRouteFromId(id, type = null) {
         'tool': `/tool/${cleanId}`
     };
 
-    return routeMap[resolvedType] || `/model/${cleanId}`;
+    const finalPath = routeMap[resolvedType] || `/model/${cleanId}`;
+
+    // Safety: Ensure we never return a trailing slash knowledge link (404 risk)
+    if (resolvedType === 'knowledge' && finalPath.endsWith('/')) {
+        return '/knowledge';
+    }
+
+    return finalPath;
+}
+
+/**
+ * V16.4: Consistent slug normalization for tags and relations.
+ */
+export function normalizeSlug(tag) {
+    if (!tag || typeof tag !== 'string') return '';
+    return tag.toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
 }
