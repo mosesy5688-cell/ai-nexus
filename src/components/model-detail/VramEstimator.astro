@@ -14,16 +14,20 @@ import { estimateVRAM } from '../../utils/vram-calculator.js';
 
 interface Props {
   paramsB?: number | string;  // params_billions from D1
+  contextLen?: number | string;
 }
 
-const { paramsB } = Astro.props;
+const { paramsB, contextLen } = Astro.props;
 
 // Parse params (could be number or string)
 const params = typeof paramsB === 'string' ? parseFloat(paramsB) : paramsB;
 
+// Parse context (could be number or string)
+const context = typeof contextLen === 'string' ? parseInt(contextLen) : (contextLen || 8192);
+
 // V15.19 Standard: Default to Q4 (0.75x) for 4-bit mainstream standard
 const estimatedVram = params && !isNaN(params) 
-  ? estimateVRAM(params, 'q4', 8192) 
+  ? estimateVRAM(params, 'q4', context) 
   : null;
 
 // Show component only if we have valid params

@@ -36,6 +36,7 @@ let tagsArray = [];
 let pageTitle = "AI Model Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI model.";
 let cleanedDesc = "";
+let meshRelations = [];
 
 try {
   if (!slug) throw new Error("No slug provided");
@@ -47,15 +48,16 @@ try {
     return Astro.redirect('/404?reason=entity-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { model: resolvedModel, isFallback, repoName, similarModels: resolvedSimilar, tagsArray: resolvedTags } = pageData;
+  const { model: resolvedModel, isFallback, repoName, similarModels: resolvedSimilar, tagsArray: resolvedTags, meshRelations: resolvedMesh } = pageData;
   model = resolvedModel;
   similarModels = resolvedSimilar;
   tagsArray = resolvedTags;
+  meshRelations = resolvedMesh || [];
 
-  const displayModelName = model.name || (isFallback ? repoName : model.canonical_name) || 'Unknown Model';
+  const displayModelName = model?.name || (isFallback ? repoName : model?.canonical_name) || 'Unknown Model';
   pageTitle = `${displayModelName} - AI Model Insights & Benchmarks`;
-  cleanedDesc = cleanDescription(model.description || '');
-  pageDescription = model.seo_summary?.description || cleanedDesc || `Deep dive into ${displayModelName}.`;
+  cleanedDesc = cleanDescription(model?.description || '');
+  pageDescription = model?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayModelName}.`;
 
 } catch (e) {
   console.error("Error loading model:", e);
@@ -117,7 +119,7 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
        <div class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
           <TechSpecsFull entity={model} type="model" />
        </div>
-       {model?.params_billions && <VramEstimator paramsB={model.params_billions} />}
+       {model?.params_billions && <VramEstimator paramsB={model.params_billions} contextLen={model.context_length} />}
     </div>
 
     {/* Zone 1.5: Use Cases */}
@@ -129,12 +131,12 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
 
     {/* Zone 3: Core (Desktop) */}
     <div slot="core-desktop">
-       <UniversalCore entity={model} type="model" />
+       <UniversalCore entity={model} type="model" meshRelations={meshRelations} />
     </div>
 
     {/* Zone 3: Core (Mobile Tabs) */}
     <div slot="core-knowledge">
-       <UniversalCore entity={model} type="model" />
+       <UniversalCore entity={model} type="model" meshRelations={meshRelations} />
     </div>
 
     <div slot="core-similar">

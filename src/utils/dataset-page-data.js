@@ -93,7 +93,7 @@ export async function prepareDatasetPageData(slug, slugStr, locals) {
             console.warn("[DatasetPageData] Mesh injection failed:", meshError.message);
         }
 
-        return { dataset, isFallback: false, similarEntities, tagsArray };
+        return { dataset, isFallback: false, similarEntities, tagsArray, meshRelations: meshRelations || [] };
     } else {
         // Fallback Dataset
         const cleanSlug = slugStr.replace(/--/g, '/');
@@ -118,6 +118,6 @@ export async function prepareDatasetPageData(slug, slugStr, locals) {
         fallbackDataset.entityDefinition = ENTITY_DEFINITIONS['dataset'];
         tagsArray = Array.isArray(fallbackDataset.tags) ? fallbackDataset.tags : [];
 
-        return { dataset: fallbackDataset, isFallback: true, repoName, similarEntities, tagsArray };
+        return { dataset: fallbackDataset, isFallback: true, repoName, similarEntities, tagsArray, meshRelations: [] };
     }
 }

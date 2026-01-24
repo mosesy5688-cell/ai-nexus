@@ -55,7 +55,7 @@ const typeConfig = {
                         {config.label} ({items.length})
                     </h3>
                     <ul class="space-y-2">
-                        {items.slice(0, 5).map((item: RelatedEntity) => (
+                        {items.map((item: RelatedEntity) => (
                             <li>
                                 <a 
                                     href={`/${type}/${item.id.replace(/--/g, '/').replace(/^hf-[a-z]+--/, '')}`}
@@ -78,14 +78,7 @@ const typeConfig = {
                             </li>
                         ))}
                     </ul>
-                    {items.length > 5 && (
-                        <a 
-                            href={`/explore?type=${type}&related=${entityId}`}
-                            class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
-                        >
-                            View all {items.length} →
-                        </a>
-                    )}
+
                 </div>
             );
         })}

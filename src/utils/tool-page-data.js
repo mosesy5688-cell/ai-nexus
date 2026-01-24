@@ -85,7 +85,7 @@ export async function prepareToolPageData(slug, slugStr, locals) {
             console.warn("[ToolPageData] Mesh injection failed:", meshError.message);
         }
 
-        return { tool, isFallback: false, similarEntities, tagsArray };
+        return { tool, isFallback: false, similarEntities, tagsArray, meshRelations: meshRelations || [] };
     } else {
         // Fallback Tool
         const cleanSlug = slugStr.replace(/--/g, '/');
@@ -110,6 +110,6 @@ export async function prepareToolPageData(slug, slugStr, locals) {
         fallbackTool.entityDefinition = ENTITY_DEFINITIONS['tool'];
         tagsArray = Array.isArray(fallbackTool.tags) ? fallbackTool.tags : [];
 
-        return { tool: fallbackTool, isFallback: true, repoName, similarEntities, tagsArray };
+        return { tool: fallbackTool, isFallback: true, repoName, similarEntities, tagsArray, meshRelations: [] };
     }
 }
