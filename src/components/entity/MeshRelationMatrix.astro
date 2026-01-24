@@ -42,9 +42,6 @@ relations.forEach(rel => {
     const type = rel.relation_type || 'RELATED';
     const targetId = stripPrefix(rel.target_id);
     
-    // Safety: Skip self-links if they somehow leaked through
-    if (targetId === stripPrefix(entityId)) return;
-
     const cat = categories[type] || categories['RELATED'];
     
     // De-dupe within the specific category to prevent visual clutter

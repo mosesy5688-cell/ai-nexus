@@ -143,23 +143,42 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
 
             const normS = stripPrefix(sid);
             const normT = stripPrefix(tid);
+            const normTarget = target ? stripPrefix(target) : null;
 
-            if (target && !isMatch(normS, target) && !isMatch(normT, target)) continue;
+            // V16.4 Directional Alignment: Identify 'Other' ID relative to the current landing page
+            let otherId = null;
+            let otherNorm = null;
 
-            // V16.4 Semantic De-duplication: Order-agnostic + Type awareness
+            if (normTarget) {
+                if (isMatch(normS, normTarget)) {
+                    otherId = tid;
+                    otherNorm = normT;
+                } else if (isMatch(normT, normTarget)) {
+                    otherId = sid;
+                    otherNorm = normS;
+                }
+            } else {
+                // If no specific target requested (e.g. global graph view), keep original
+                otherId = tid;
+                otherNorm = normT;
+            }
+
+            if (!otherId || (normTarget && isMatch(otherNorm, normTarget))) continue;
+
+            // V16.4 Triple-Source De-duplication: One node per type per context
             const relType = rel.relation_type || 'RELATED';
-            const idPair = [normS, normT].sort();
-            const dupKey = `${idPair[0]}|${idPair[1]}|${relType}`;
+            const dupKey = `${otherNorm}|${relType}`;
 
             if (seen.has(dupKey)) continue;
             seen.add(dupKey);
 
             filtered.push({
                 ...rel,
+                target_id: otherId, // Override to always be the 'Other' node
                 norm_source: normS,
                 norm_target: normT,
                 source_type: getTypeFromId(sid),
-                target_type: getTypeFromId(tid)
+                target_type: getTypeFromId(otherId)
             });
         }
         return filtered;
