@@ -56,8 +56,9 @@ export async function prepareToolPageData(slug, slugStr, locals) {
         tagsArray = Array.isArray(tool.tags) ? tool.tags : [];
 
         // Mesh Relations Integration
+        let meshRelations = [];
         try {
-            const meshRelations = await fetchMeshRelations(locals, tool.id || slugStr);
+            meshRelations = await fetchMeshRelations(locals, tool.id || slugStr);
             const tId = tool.id || slugStr;
             const normRoot = stripPrefix(tId);
 

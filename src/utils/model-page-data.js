@@ -60,8 +60,9 @@ export async function prepareModelPageData(slug, slugStr, locals) {
         tagsArray = Array.isArray(model.tags) ? model.tags : [];
 
         // V16: Inject External Mesh Relations (Papers, Knowledge, etc.)
+        let meshRelations = [];
         try {
-            const meshRelations = await fetchMeshRelations(locals, model.id || slugStr);
+            meshRelations = await fetchMeshRelations(locals, model.id || slugStr);
             const mId = model.id || slugStr;
             const normRoot = stripPrefix(mId);
 
@@ -97,7 +98,7 @@ export async function prepareModelPageData(slug, slugStr, locals) {
             console.warn("[ModelPageData] Mesh injection failed:", meshError.message);
         }
 
-        return { model, isFallback: false, similarModels, tagsArray };
+        return { model, isFallback: false, similarModels, tagsArray, meshRelations: meshRelations || [] };
     } else {
         // V15.17: Aggressive Global Fallback
         const cleanSlug = slugStr.replace(/--/g, '/');

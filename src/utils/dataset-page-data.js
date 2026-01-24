@@ -56,8 +56,9 @@ export async function prepareDatasetPageData(slug, slugStr, locals) {
         tagsArray = Array.isArray(dataset.tags) ? dataset.tags : [];
 
         // Mesh Relations Integration
+        let meshRelations = [];
         try {
-            const meshRelations = await fetchMeshRelations(locals, dataset.id || slugStr);
+            meshRelations = await fetchMeshRelations(locals, dataset.id || slugStr);
             const dId = dataset.id || slugStr;
             const normRoot = stripPrefix(dId);
 

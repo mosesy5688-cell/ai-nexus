@@ -56,8 +56,9 @@ export async function prepareSpacePageData(slug, slugStr, locals) {
         tagsArray = Array.isArray(space.tags) ? space.tags : [];
 
         // Mesh Relations Integration
+        let meshRelations = [];
         try {
-            const meshRelations = await fetchMeshRelations(locals, space.id || slugStr);
+            meshRelations = await fetchMeshRelations(locals, space.id || slugStr);
             const sId = space.id || slugStr;
             const normRoot = stripPrefix(sId);
 

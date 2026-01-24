@@ -34,20 +34,29 @@ export function getR2PathCandidates(type, normalizedSlug) {
 
     // 2. Canonical Prefix Injection (Handling mapping from 'pretty' IDs to R2 Storage keys)
     const prefixMap = {
-        'model': 'hf-model--',
-        'dataset': 'dataset--',
-        'paper': 'arxiv--',
-        'space': 'hf-space--',
-        'agent': 'hf-agent--',
-        'tool': 'tool--'
+        'model': ['hf-model--'],
+        'dataset': ['dataset--'],
+        'paper': ['arxiv--'],
+        'space': ['hf-space--'],
+        'agent': ['hf-agent--', 'github-agent--'],
+        'tool': ['tool--', 'github-tool--']
     };
 
-    const mandatoryPrefix = prefixMap[singular];
-    if (mandatoryPrefix && !lowerSlug.startsWith(mandatoryPrefix)) {
-        candidates.push(`${prefix}/${mandatoryPrefix}${lowerSlug}.json`);
-    }
+    const prefixesCheck = prefixMap[singular] || [];
+    prefixesCheck.forEach(mandatoryPrefix => {
+        if (!lowerSlug.startsWith(mandatoryPrefix)) {
+            candidates.push(`${prefix}/${mandatoryPrefix}${lowerSlug}.json`);
+        }
+    });
 
-    return [...new Set(candidates)];
+    // 3. V16.4: R2 Replica Support (.v-1, .v-2) for resilience
+    const replicas = [];
+    candidates.forEach(path => {
+        replicas.push(path.replace('.json', '.v-1.json'));
+        replicas.push(path.replace('.json', '.v-2.json'));
+    });
+
+    return [...new Set([...candidates, ...replicas])];
 }
 
 
