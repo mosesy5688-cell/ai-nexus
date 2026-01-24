@@ -56,12 +56,20 @@ try {
     const [rawRelations, graphMeta, knowledgeIndex] = await Promise.all([
         fetchMeshRelations(Astro.locals, rootId, { ssrOnly: true }).catch(() => []),
         fetchGraphMetadata(Astro.locals).catch(() => ({})),
-        Astro.locals.runtime.env.R2_ASSETS.get('cache/knowledge/index.json')
-            .then(obj => obj ? obj.json() : { articles: [] })
-            .catch(() => ({ articles: [] }))
+        Promise.resolve().then(async () => {
+            const r2 = Astro.locals?.runtime?.env?.R2_ASSETS;
+            if (!r2) return { articles: [] };
+            try {
+                const obj = await r2.get('cache/knowledge/index.json');
+                return obj ? await obj.json() : { articles: [] };
+            } catch (e) {
+                return { articles: [] };
+            }
+        })
     ]);
 
-    const validSlugs = new Set(knowledgeIndex.articles.map(a => a.slug));
+    const articles = knowledgeIndex?.articles || [];
+    const validSlugs = new Set(articles.map((a: any) => a.slug));
 
     const nodeMap = new Map();
     const seenIds = new Set();
