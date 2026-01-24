@@ -45,8 +45,9 @@ const typeColors: Record<string, string> = {
 const colors = typeColors[entityType] || typeColors.model;
 
 // V16.2: Clean description - Strip HTML, YAML frontmatter, and Markdown alerts
-const cleanDescription = description 
-  ? description
+const descriptionStr = typeof description === 'string' ? description : (description ? JSON.stringify(description) : '');
+const cleanDescription = descriptionStr
+  ? descriptionStr
       .replace(/^---[\s\S]*?---\s*/m, '')           // Remove YAML frontmatter
       .replace(/\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/gi, '') // Remove GitHub alerts
       .replace(/>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/gi, '') // Remove blockquote alerts

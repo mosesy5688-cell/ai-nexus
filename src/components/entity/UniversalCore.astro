@@ -22,7 +22,23 @@ const { entity, type, meshRelations = [] } = Astro.props;
 // Identification
 const entityId = entity?.id || entity?.name || '';
 const entityName = entity?.name || entity?.title || 'Unknown';
-const tagsArray = entity?.tags ? (typeof entity.tags === 'string' ? JSON.parse(entity.tags) : entity.tags) : [];
+let tagsArray = [];
+try {
+  if (entity?.tags) {
+    if (typeof entity.tags === 'string') {
+      if (entity.tags.trim().startsWith('[')) {
+        tagsArray = JSON.parse(entity.tags);
+      } else {
+        tagsArray = entity.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+      }
+    } else if (Array.isArray(entity.tags)) {
+      tagsArray = entity.tags;
+    }
+  }
+} catch (e) {
+  console.warn(`[UniversalCore] Tag parse failed for ${entityId}:`, e.message);
+  tagsArray = [];
+}
 
 // Feature availability
 const hasBench = !!(entity?.mmlu || entity?.humaneval || entity?.avg_score || entity?.benchmark_avg);
@@ -31,7 +47,8 @@ const arxivRefs = Array.isArray(entity?.arxiv_refs) ? entity.arxiv_refs : (Array
 const datasetsUsed = entity?.datasets_used || entity?.training_data || [];
 // Knowledge Mesh Metadata Integration
 const concepts = await fetchConceptMetadata(Astro.locals);
-const enrichedTags = tagsArray.map((tag: string) => {
+const enrichedTags = tagsArray.map((tagObj: any) => {
+   const tag = typeof tagObj === 'string' ? tagObj : (tagObj?.id || tagObj?.name || tagObj?.label || 'unknown');
    const normalizedTag = tag.toLowerCase().replace(/[^a-z0-9]/g, '-');
    const concept = concepts.find((c: any) => c.slug === normalizedTag || c.id === `concept--${normalizedTag}`);
    return {
