@@ -194,10 +194,11 @@ try {
                 const slug = typeof l === 'string' ? l : l.slug;
                 inject(`knowledge--${slug}`, 'knowledge', 'EXPLAINS');
                 const norm = stripPrefix(`knowledge--${slug}`);
-                const node = nodeRegistry.get(norm);
                 if (node && !node.name && typeof l !== 'string' && l.title) node.name = l.title;
             });
         }
+    }
+    
     // V16.4: Cross-Component Deduplication (Global State)
     if (!Astro.locals.meshRenderedNodes) Astro.locals.meshRenderedNodes = new Set();
     nodeRegistry.forEach((node, norm) => {

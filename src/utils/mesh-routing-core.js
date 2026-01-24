@@ -92,7 +92,7 @@ export function getRouteFromId(id, type = null) {
     const routeMap = {
         'knowledge': `/knowledge/${cleanId}`,
         'report': `/reports/${cleanId}`,
-        'paper': cleanId.startsWith('arxiv/') ? `/paper/${cleanId}` : `/paper/${cleanId}`,
+        'paper': id.toLowerCase().includes('arxiv') ? `/paper/arxiv/${cleanId}` : `/paper/${cleanId}`,
         'dataset': `/dataset/${cleanId}`,
         'space': `/space/${cleanId}`,
         'agent': `/agent/${cleanId}`,
