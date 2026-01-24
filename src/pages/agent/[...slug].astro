@@ -14,7 +14,7 @@ import EntityHeader from '../../components/entity/EntityHeader.astro';
 import AgentDeepDive from '../../components/agent-detail/AgentDeepDive.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
-import { getUseCases } from '../../utils/inference';
+import { getUseCases } from '../../utils/inference.js';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import VramEstimator from '../../components/model-detail/VramEstimator.astro';
@@ -26,7 +26,7 @@ import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 
 import { prepareAgentPageData } from '../../utils/agent-page-data.js';
-import { cleanDescription } from '../../utils/model-page-helpers';
+import { cleanDescription } from '../../utils/model-page-helpers.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
 
 const { slug } = Astro.params;

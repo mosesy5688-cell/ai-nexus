@@ -3,9 +3,9 @@
  * Constitutional: Split from [...slug].astro to honor < 250 lines rule.
  */
 import { hydrateEntity, augmentEntity } from './entity-cache-reader-core.js';
-import { loadSpecs, loadBenchmarks } from './loadCachedJSON';
-import { deriveEntityType, ENTITY_DEFINITIONS } from '../data/entity-definitions';
-import { getModelFromCache } from './entity-cache-reader';
+import { loadSpecs, loadBenchmarks } from './loadCachedJSON.js';
+import { deriveEntityType, ENTITY_DEFINITIONS } from '../data/entity-definitions.js';
+import { getModelFromCache } from './entity-cache-reader.js';
 import { fetchEntityFromR2 } from './entity-cache-reader-core.js';
 import { fetchMeshRelations, stripPrefix } from './knowledge-cache-reader.js';
 
