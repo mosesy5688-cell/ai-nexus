@@ -14,7 +14,8 @@ const { title, url = Astro.url.href, description = '' } = Astro.props;
 
 const encodedUrl = encodeURIComponent(url);
 const encodedTitle = encodeURIComponent(title);
-const encodedDesc = encodeURIComponent(description.slice(0, 100));
+const descText = typeof description === 'string' ? description : (description ? String(description) : '');
+const encodedDesc = encodeURIComponent(descText.slice(0, 100));
 
 const shareLinks = [
   { name: 'X', icon: '𝕏', url: `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}`, color: 'hover:bg-gray-900' },
