@@ -10,13 +10,13 @@ interface Props {
   type: string;
 }
 
-const { entity, type } = Astro.props;
+const { entity = {}, type } = Astro.props;
 
 // 1. Hardware & Scale Mapping
 const hardwareSpecs = [];
 if (type === 'model') {
   // Enhanced mapping for Parameter Count (Hydrator Promoted)
-  const pCount = entity.params_billions || entity.parameters_billions || entity.parameters || entity.num_parameters;
+  const pCount = entity?.params_billions || entity?.parameters_billions || entity?.parameters || entity?.num_parameters;
   hardwareSpecs.push({ 
     label: 'Parameters', 
     value: pCount ? (typeof pCount === 'number' && pCount > 1000 ? `${(pCount/1e9).toFixed(1)}B` : `${pCount}${typeof pCount === 'number' ? 'B' : ''}`) : '-', 
@@ -24,64 +24,64 @@ if (type === 'model') {
   });
   
   // Robust Architecture lookup (Hydrator Promoted + Fallback)
-  const arch = entity.architecture || entity.model_type || entity.config?.model_type;
+  const arch = entity?.architecture || entity?.model_type || entity?.config?.model_type;
   hardwareSpecs.push({ label: 'Architecture', value: arch || '-' });
   
   // Context Length (Hydrator Promoted + Config Fallback)
-  const ctx = entity.context_length || 
-              entity.config?.max_position_embeddings || 
-              entity.config?.n_ctx;
+  const ctx = entity?.context_length || 
+              entity?.config?.max_position_embeddings || 
+              entity?.config?.n_ctx;
 
   hardwareSpecs.push({ 
     label: 'Context Length', 
     value: ctx ? (ctx >= 1024 ? `${(ctx / 1024).toFixed(0)}K` : ctx) : '-' 
   });
 } else if (type === 'dataset') {
-  hardwareSpecs.push({ label: 'Size', value: entity.size_bytes ? `${(entity.size_bytes / 1e9).toFixed(2)} GB` : (entity.size_gb ? `${entity.size_gb} GB` : (entity.meta?.extended?.size || '-')), highlight: true });
-  hardwareSpecs.push({ label: 'Total Rows', value: entity.rows ? (Number(entity.rows) >= 1e6 ? (Number(entity.rows) / 1e6).toFixed(1) + 'M' : Number(entity.rows).toLocaleString()) : (entity.meta?.extended?.rows || '-') });
-  hardwareSpecs.push({ label: 'Files', value: entity.files_count || entity.meta?.extended?.files || '-' });
+  hardwareSpecs.push({ label: 'Size', value: entity?.size_bytes ? `${(entity.size_bytes / 1e9).toFixed(2)} GB` : (entity?.size_gb ? `${entity.size_gb} GB` : (entity?.meta?.extended?.size || '-')), highlight: true });
+  hardwareSpecs.push({ label: 'Total Rows', value: entity?.rows ? (Number(entity.rows) >= 1e6 ? (Number(entity.rows) / 1e6).toFixed(1) + 'M' : Number(entity.rows).toLocaleString()) : (entity?.meta?.extended?.rows || '-') });
+  hardwareSpecs.push({ label: 'Files', value: entity?.files_count || entity?.meta?.extended?.files || '-' });
 } else if (type === 'paper') {
-  hardwareSpecs.push({ label: 'Citations', value: entity.citations || entity.citation_count || entity.meta?.extended?.citations || '-', highlight: true });
-  hardwareSpecs.push({ label: 'Year', value: entity.published_date ? new Date(entity.published_date).getFullYear() : (entity.year || entity.meta?.extended?.year || '-') });
-  hardwareSpecs.push({ label: 'Page Count', value: entity.pages || entity.meta?.extended?.pages || '-' });
+  hardwareSpecs.push({ label: 'Citations', value: entity?.citations || entity?.citation_count || entity?.meta?.extended?.citations || '-', highlight: true });
+  hardwareSpecs.push({ label: 'Year', value: entity?.published_date ? new Date(entity.published_date).getFullYear() : (entity?.year || entity?.meta?.extended?.year || '-') });
+  hardwareSpecs.push({ label: 'Page Count', value: entity?.pages || entity?.meta?.extended?.pages || '-' });
 } else if (type === 'agent' || type === 'tool') {
-  hardwareSpecs.push({ label: 'GitHub Stars', value: (entity.github_stars || entity.stars || entity.meta?.extended?.stars)?.toLocaleString() || '-', highlight: true });
-  hardwareSpecs.push({ label: 'Language', value: entity.language || entity.meta?.extended?.language || 'Python' });
-  hardwareSpecs.push({ label: 'Version', value: entity.version || entity.meta?.extended?.version || 'v1.0.0' });
+  hardwareSpecs.push({ label: 'GitHub Stars', value: (entity?.github_stars || entity?.stars || entity?.meta?.extended?.stars)?.toLocaleString() || '-', highlight: true });
+  hardwareSpecs.push({ label: 'Language', value: entity?.language || entity?.meta?.extended?.language || 'Python' });
+  hardwareSpecs.push({ label: 'Version', value: entity?.version || entity?.meta?.extended?.version || 'v1.0.0' });
 } else if (type === 'space') {
-  hardwareSpecs.push({ label: 'SDK', value: entity.sdk || entity.meta?.extended?.sdk || '-', highlight: true });
-  hardwareSpecs.push({ label: 'Hardware', value: entity.hardware || entity.meta?.extended?.hardware || 'V100' });
-  hardwareSpecs.push({ label: 'Status', value: entity.runtime?.stage || 'Running' });
+  hardwareSpecs.push({ label: 'SDK', value: entity?.sdk || entity?.meta?.extended?.sdk || '-', highlight: true });
+  hardwareSpecs.push({ label: 'Hardware', value: entity?.hardware || entity?.meta?.extended?.hardware || 'V100' });
+  hardwareSpecs.push({ label: 'Status', value: entity?.runtime?.stage || 'Running' });
 }
 
 // 2. Training & Environment
 const trainingSpecs = [];
 if (type === 'model') {
-  trainingSpecs.push({ label: 'Library', value: entity.library_name || entity.config?.library_name || '-' });
-  trainingSpecs.push({ label: 'Precision', value: entity.precision || entity.config?.torch_dtype || 'float16' });
-  trainingSpecs.push({ label: 'Tokenizer', value: entity.config?.tokenizer_class || entity.config?.model_type || '-' });
+  trainingSpecs.push({ label: 'Library', value: entity?.library_name || entity?.config?.library_name || '-' });
+  trainingSpecs.push({ label: 'Precision', value: entity?.precision || entity?.config?.torch_dtype || 'float16' });
+  trainingSpecs.push({ label: 'Tokenizer', value: entity?.config?.tokenizer_class || entity?.config?.model_type || '-' });
 }
  else if (type === 'dataset') {
-  trainingSpecs.push({ label: 'Format', value: entity.format || 'Parquet' });
-  trainingSpecs.push({ label: 'Cleaning', value: entity.cleaned ? 'Pre-cleaned' : 'Raw' });
+  trainingSpecs.push({ label: 'Format', value: entity?.format || 'Parquet' });
+  trainingSpecs.push({ label: 'Cleaning', value: entity?.cleaned ? 'Pre-cleaned' : 'Raw' });
 } else if (type === 'agent' || type === 'tool') {
-  trainingSpecs.push({ label: 'License', value: entity.license });
-  trainingSpecs.push({ label: 'Forks', value: entity.github_forks || entity.forks });
+  trainingSpecs.push({ label: 'License', value: entity?.license });
+  trainingSpecs.push({ label: 'Forks', value: entity?.github_forks || entity?.forks });
 }
 
 // 3. Model Configuration (V15.9 Enhanced)
 const configSpecs = [];
 if (type === 'model') {
-  if (entity.num_layers) configSpecs.push({ label: 'Layers', value: entity.num_layers });
-  if (entity.hidden_size) configSpecs.push({ label: 'Hidden Size', value: entity.hidden_size });
-  if (entity.num_heads) configSpecs.push({ label: 'Heads', value: entity.num_heads });
-  if (entity.vocab_size) configSpecs.push({ label: 'Vocab Size', value: entity.vocab_size.toLocaleString() });
+  if (entity?.num_layers) configSpecs.push({ label: 'Layers', value: entity.num_layers });
+  if (entity?.hidden_size) configSpecs.push({ label: 'Hidden Size', value: entity.hidden_size });
+  if (entity?.num_heads) configSpecs.push({ label: 'Heads', value: entity.num_heads });
+  if (entity?.vocab_size) configSpecs.push({ label: 'Vocab Size', value: entity.vocab_size.toLocaleString() });
 }
 
 // 4. Cloud & Access Rights
 const cloudSpecs = [
-  { label: 'Source', value: entity.source || 'HuggingFace' },
-  { label: 'License', value: entity.license_spdx || entity.license || 'Open Access' },
+  { label: 'Source', value: entity?.source || 'HuggingFace' },
+  { label: 'License', value: entity?.license_spdx || entity?.license || 'Open Access' },
 ].filter(s => s.value);
 
 ---

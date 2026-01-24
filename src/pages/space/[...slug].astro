@@ -71,7 +71,7 @@ const spaceId = space?.id || normalizedSlug || '';
 const displayAuthor = space?.author || 'Community';
 
 // V15.0: Derived Use Cases and Limits
-const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space.fni_score || 0) : { goodFor: [], limits: [] };
+const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space?.fni_score || 0) : { goodFor: [], limits: [] };
 
 // Generate JSON-LD
 const jsonLd = space ? {
@@ -85,7 +85,8 @@ const jsonLd = space ? {
   "creator": {
     "@type": "Organization",
     "name": displayAuthor
-  }
+  },
+  "license": space?.license_spdx || space?.license
 } : null;
 ---
 
@@ -174,9 +175,9 @@ const jsonLd = space ? {
        </div>
 
        <ModelInfoTable model={{
-         ...space,
+         ...(space || {}),
          displayName: spaceName,
-         pipeline_tag: space.sdk || 'AI SDK'
+         pipeline_tag: space?.sdk || 'AI SDK'
        }} />
        
        <ShareButtons 

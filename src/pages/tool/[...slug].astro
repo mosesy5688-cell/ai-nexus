@@ -174,9 +174,9 @@ const jsonLd = tool ? {
        </div>
 
        <ModelInfoTable model={{
-         ...tool,
+         ...(tool || {}),
          displayName: toolName,
-         pipeline_tag: tool.language || 'Software'
+         pipeline_tag: tool?.language || tool?.category || 'AI Tool'
        }} />
        
        <ShareButtons 
