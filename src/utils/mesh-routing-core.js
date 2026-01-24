@@ -92,7 +92,21 @@ export const SLUG_MAPPING = {
     'cpp': 'fundamentals',
     'c': 'fundamentals',
     'machine-learning': 'fundamentals',
-    'algorithms': 'fundamentals'
+    'algorithms': 'fundamentals',
+    'ai': 'fundamentals',
+    'llm': 'fundamentals',
+    'oss': 'fundamentals',
+    'open-source': 'fundamentals',
+    'browser': 'fundamentals',
+    'large-action-model': 'fundamentals',
+    'agentic': 'fundamentals',
+    'autonomous': 'agents',
+    'discovered': 'fundamentals',
+    'framework': 'fundamentals',
+    'javascript': 'fundamentals',
+    'nodejs': 'fundamentals',
+    'typescript': 'fundamentals',
+    'python': 'fundamentals'
 };
 
 /**
@@ -114,7 +128,22 @@ export function getRouteFromId(id, type = null) {
         } else if (!slug) {
             return '/knowledge'; // Fallback for malformed ID
         } else {
-            rawId = slug;
+            // V16.11: Knowledge Safety Guard - Only allow specifically configured articles
+            const VALID_CONCEPTS = [
+                'mmlu', 'humaneval', 'context-length', 'fni', 'deploy-score', 'gguf',
+                'hellaswag', 'arc', 'parameters', 'transformer', 'moe', 'quantization',
+                'vram', 'local-inference', 'multimodal', 'rag', 'llm-benchmarks',
+                'fine-tuning', 'lora', 'rlhf', 'dpo', 'tokenization', 'flash-attention',
+                'kv-cache', 'speculative-decoding', 'inference-optimization', 'awq',
+                'chain-of-thought', 'structured-output', 'function-calling', 'model-merging',
+                'fundamentals', 'agents'
+            ];
+
+            if (!VALID_CONCEPTS.includes(slug)) {
+                rawId = 'fundamentals'; // Safety fallback for tags without articles
+            } else {
+                rawId = slug;
+            }
         }
     }
 
