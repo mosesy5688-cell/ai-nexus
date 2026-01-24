@@ -96,18 +96,18 @@ export async function preparePaperPageData(slug, slugStr, locals) {
         return { paper, isFallback: false, similarEntities, tagsArray, meshRelations: meshRelations || [] };
     } else {
         // Fallback Paper
-        const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-        const arxivMatch = slugStr.match(/(\d{4}\.\d{4,5})/);
-        const arxivId = arxivMatch ? arxivMatch[1] : slugStr;
+        const paperSlugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+        const arxivMatch = paperSlugStr.match(/(\d{4}\.\d{4,5})/);
+        const arxivId = arxivMatch ? arxivMatch[1] : paperSlugStr;
 
         let fallbackPaper = {
             id: `arxiv--${arxivId.replace(/\//g, '--')}`,
-            title: arxivMatch ? `Research Paper: ${arxivId}` : (slugStr.split('/').pop() || 'Unknown Paper'),
+            title: arxivMatch ? `Research Paper: ${arxivId}` : (paperSlugStr.split('/').pop() || 'Unknown Paper'),
             arxiv_id: arxivId,
             author: 'Research Community',
             source: 'arxiv',
             source_url: `https://arxiv.org/abs/${arxivId}`,
-            abstract: `Open-access research publication: ${slugStr}`,
+            abstract: `Open-access research publication: ${paperSlugStr}`,
             tags: [],
             fni_score: 0,
             _cache_source: 'fallback-ui'

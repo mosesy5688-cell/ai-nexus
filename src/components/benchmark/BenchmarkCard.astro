@@ -58,7 +58,7 @@ function getBarWidth(score: number | undefined): string {
   
   <div class="avg-score">
     <span class="label">Average</span>
-    <span class={`score ${getScoreColor(avg_score)}`}>{avg_score.toFixed(1)}</span>
+    <span class={`score ${getScoreColor(avg_score)}`}>{(avg_score !== undefined && avg_score !== null) ? (typeof avg_score === 'number' ? avg_score.toFixed(1) : parseFloat(avg_score as any || '0').toFixed(1)) : '0.0'}</span>
   </div>
   
   {!compact && (
