@@ -2,7 +2,7 @@
  * Mesh Orchestrator (V16.7) - Compliance Optimized
  * Centralizes node extraction, tiering, and deduplication.
  */
-import { fetchMeshRelations, fetchGraphMetadata, fetchConceptMetadata, stripPrefix, isMatch, getTypeFromId } from './knowledge-cache-reader.js';
+import { fetchMeshRelations, fetchGraphMetadata, fetchConceptMetadata, stripPrefix, isMatch, getTypeFromId, normalizeSlug } from './knowledge-cache-reader.js';
 
 export async function getMeshProfile(locals, rootId, entity, type = 'model') {
     const normRoot = stripPrefix(rootId);
@@ -80,8 +80,8 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
             }
         };
 
-        if (Array.isArray(entity.tags)) entity.tags.slice(0, 5).forEach(t => inject(`knowledge--${t.toLowerCase().replace(/[^a-z0-9]/g, '-')}`, 'knowledge', 'TAGGED'));
-        if (Array.isArray(entity.knowledge_links)) entity.knowledge_links.forEach(l => inject(`knowledge--${l.slug || l}`, 'knowledge', 'EXPLAINS'));
+        if (Array.isArray(entity.tags)) entity.tags.slice(0, 5).forEach(t => inject(`knowledge--${normalizeSlug(t)}`, 'knowledge', 'TAGGED'));
+        if (Array.isArray(entity.knowledge_links)) entity.knowledge_links.forEach(l => inject(`knowledge--${normalizeSlug(l.slug || l)}`, 'knowledge', 'EXPLAINS'));
         if (Array.isArray(entity.arxiv_refs)) entity.arxiv_refs.forEach(r => inject(`arxiv--${r}`, 'paper', 'CITES'));
     }
 

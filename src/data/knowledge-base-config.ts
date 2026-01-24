@@ -126,6 +126,8 @@ export const KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
             { slug: 'local-inference', title: 'Local Inference Cache', description: 'Running models on your own hardware', difficulty: 'Intermediate', effort: '8 min' },
             { slug: 'multimodal', title: 'Multimodal AI', description: 'Processing text, images, and audio seamlessly', difficulty: 'Intermediate', effort: '6 min' },
             { slug: 'rag', title: 'RAG Systems', description: 'Retrieval Augmented Generation architecture', difficulty: 'Intermediate', effort: '7 min' },
+            { slug: 'inference-optimization', title: 'Inference Optimization', description: 'Accelerating AI performance and deployment', difficulty: 'Intermediate', effort: '7 min' },
+            { slug: 'fundamentals', title: 'AI Fundamentals', description: 'Core concepts and architectures', difficulty: 'Beginner', effort: '5 min' },
             { slug: 'llm-benchmarks', title: 'LLM Evaluation', description: 'How model performance is measured', difficulty: 'Intermediate', effort: '5 min' }
         ]
     }
