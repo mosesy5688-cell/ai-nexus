@@ -34,6 +34,7 @@ let similarEntities = [];
 let tagsArray = [];
 let pageTitle = "AI Research Paper - Free AI Tools";
 let pageDescription = "Explore the latest breakthroughs in AI research and architectures.";
+let meshRelations = [];
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
@@ -44,14 +45,15 @@ try {
     return Astro.redirect('/404?reason=paper-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { paper: resolvedPaper, isFallback, similarEntities: rSimilar, tagsArray: rTags } = pageData;
+  const { paper: resolvedPaper, isFallback, similarEntities: rSimilar, tagsArray: rTags, meshRelations: resolvedMesh } = pageData;
   paper = resolvedPaper;
   similarEntities = rSimilar;
   tagsArray = rTags;
+  meshRelations = resolvedMesh || [];
 
-  const displayPaperTitle = paper.title || (isFallback ? (slugStr.split('/').pop() || 'Unknown Paper') : paper.canonical_name);
+  const displayPaperTitle = paper?.title || (isFallback ? (slugStr.split('/').pop() || 'Unknown Paper') : paper?.canonical_name);
   pageTitle = `${displayPaperTitle} - AI Research Insight`;
-  pageDescription = paper.seo_summary?.description || paper.abstract || `Deep dive into ${displayPaperTitle} research paper.`;
+  pageDescription = paper?.seo_summary?.description || paper?.abstract || `Deep dive into ${displayPaperTitle} research paper.`;
 
 } catch (e) {
   console.error("[PaperPage] Error loading paper:", e);
@@ -83,7 +85,6 @@ const jsonLd = paper ? {
 } : null;
 ---
 
-<Layout title={pageTitle} description={pageDescription}>
   <EntityLayout
     entity={paper}
     type="paper"
@@ -130,11 +131,11 @@ const jsonLd = paper ? {
 
     {/* Zone 3: Core */}
     <div slot="core-desktop">
-       <UniversalCore entity={paper} type="paper" />
+       <UniversalCore entity={paper} type="paper" meshRelations={meshRelations} />
     </div>
 
     <div slot="core-knowledge">
-       <UniversalCore entity={paper} type="paper" />
+       <UniversalCore entity={paper} type="paper" meshRelations={meshRelations} />
     </div>
     
     <div slot="core-similar">
@@ -171,7 +172,7 @@ const jsonLd = paper ? {
        <ModelInfoTable model={{
          ...paper,
          displayName: paperTitle,
-         pipeline_tag: paper.arxiv_category || 'Research Paper'
+         pipeline_tag: paper?.arxiv_category || 'Research Paper'
        }} />
        
        <ShareButtons 
@@ -185,4 +186,3 @@ const jsonLd = paper ? {
         <AiDisclaimer source={paper?.source} lastUpdated={paper?.last_updated} />
     </div>
   </EntityLayout>
-</Layout>

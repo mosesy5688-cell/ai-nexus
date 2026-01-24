@@ -1,0 +1,112 @@
+---
+/**
+ * MeshRelationMatrix.astro
+ * V16.2 Knowledge Mesh Visualization
+ * Groups and displays bidirectional relations between AI nodes.
+ */
+import { stripPrefix } from '../../utils/knowledge-cache-reader.js';
+
+interface Relation {
+    target_id: string;
+    target_name?: string;
+    relation_type: string;
+    confidence: number;
+    target_type: string;
+}
+
+interface Props {
+    relations: Relation[];
+    entityId: string;
+}
+
+const { relations = [], entityId } = Astro.props;
+
+// Categorize relations by their semantic meaning
+const categories: Record<string, { label: string, icon: string, relations: Relation[] }> = {
+    STACK: { label: 'Technical Stack', icon: '🛠️', relations: [] },
+    BASED_ON: { label: 'Lineage', icon: '🧬', relations: [] },
+    USES: { label: 'Dependencies', icon: '🔌', relations: [] },
+    TRAINED_ON: { label: 'Knowledge Base', icon: '📚', relations: [] },
+    CITES: { label: 'Academic Impact', icon: '📄', relations: [] },
+    DEMO_OF: { label: 'Live Demos', icon: '🚀', relations: [] },
+    EXPLAINS: { label: 'Theory & Concepts', icon: '💡', relations: [] },
+    FEATURED_IN: { label: 'Highlights', icon: '🌟', relations: [] },
+    ALTERNATIVE: { label: 'Alternatives', icon: '🔄', relations: [] },
+    RELATED: { label: 'Associations', icon: '🔗', relations: [] }
+};
+
+// Populate categories
+relations.forEach(rel => {
+    const type = rel.relation_type || 'RELATED';
+    if (categories[type]) {
+        categories[type].relations.push(rel);
+    } else {
+        categories['RELATED'].relations.push(rel);
+    }
+});
+
+const activeCategories = Object.entries(categories).filter(([_, cat]) => cat.relations.length > 0);
+
+function getRoute(id: string, type: string) {
+    const cleanId = stripPrefix(id).replace(/--/g, '/');
+    return `/${type}/${cleanId}`;
+}
+
+const typeIcons: Record<string, string> = {
+    model: '🧠',
+    agent: '🤖',
+    dataset: '📊',
+    paper: '📄',
+    space: '🎮',
+    tool: '🔧',
+    knowledge: '💡',
+    report: '📅'
+};
+---
+
+{activeCategories.length > 0 && (
+    <div class="mesh-relation-matrix space-y-10">
+        {activeCategories.map(([_, group]) => (
+            <div class="relation-category animate-fade-in">
+                <h4 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                    <span class="text-lg">{group.icon}</span>
+                    {group.label}
+                </h4>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {group.relations.map(rel => (
+                        <a 
+                            href={getRoute(rel.target_id, rel.target_type)}
+                            class="group flex items-center justify-between p-4 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50 hover:border-indigo-400 dark:hover:border-indigo-500/50 hover:shadow-md transition-all duration-300"
+                        >
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="text-xl group-hover:scale-125 transition-transform duration-300">
+                                    {typeIcons[rel.target_type] || '📎'}
+                                </span>
+                                <div class="flex flex-col truncate">
+                                    <span class="font-bold text-gray-900 dark:text-gray-100 truncate text-sm">
+                                        {rel.target_name || stripPrefix(rel.target_id).split('--').pop()?.replace(/-/g, ' ')}
+                                    </span>
+                                    <span class="text-[10px] text-gray-500 uppercase font-bold tracking-wider opacity-60">
+                                        {rel.target_type}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center gap-3">
+                                {rel.confidence > 0.9 && (
+                                    <span class="flex h-2 w-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]"></span>
+                                )}
+                                <span class="text-indigo-600 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                    </svg>
+                                </span>
+                            </div>
+                        </a>
+                    ))}
+                </div>
+            </div>
+        ))}
+    </div>
+)}

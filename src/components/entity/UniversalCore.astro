@@ -8,13 +8,16 @@ import BenchmarkCard from '../benchmark/BenchmarkCard.astro';
 import MiniTrendChart from '../charts/MiniTrendChart.astro';
 import SimilarModels from '../model-detail/SimilarModels.astro';
 import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
+import MeshRelationMatrix from './MeshRelationMatrix.astro';
+import { fetchConceptMetadata } from '../../utils/knowledge-cache-reader.js';
 
 interface Props {
   entity: any;
   type: 'model' | 'agent' | 'space' | 'tool' | 'dataset' | 'paper';
+  meshRelations?: any[];
 }
 
-const { entity, type } = Astro.props;
+const { entity, type, meshRelations = [] } = Astro.props;
 
 // Identification
 const entityId = entity?.id || entity?.name || '';
@@ -26,8 +29,18 @@ const hasBench = !!(entity?.mmlu || entity?.humaneval || entity?.avg_score || en
 const similarEntities = entity?.similar_models || entity?.similar_entities || entity?.relations?.links || [];
 const arxivRefs = Array.isArray(entity?.arxiv_refs) ? entity.arxiv_refs : (Array.isArray(entity?.arxiv_ids) ? entity.arxiv_ids : []);
 const datasetsUsed = entity?.datasets_used || entity?.training_data || [];
-const baseModel = entity?.base_model || entity?.parent_model || null;
-
+// Knowledge Mesh Metadata Integration
+const concepts = await fetchConceptMetadata(Astro.locals);
+const enrichedTags = tagsArray.map((tag: string) => {
+   const normalizedTag = tag.toLowerCase().replace(/[^a-z0-9]/g, '-');
+   const concept = concepts.find((c: any) => c.slug === normalizedTag || c.id === `concept--${normalizedTag}`);
+   return {
+      name: tag,
+      slug: concept?.slug || normalizedTag,
+      refs: concept?.refs || concept?.count || 0,
+      icon: concept?.icon || '🧠'
+   };
+});
 ---
 
 <div class="space-y-12">
@@ -68,17 +81,28 @@ const baseModel = entity?.base_model || entity?.parent_model || null;
         
         {/* Right: Semantic Relations & Use Cases */}
         <div class="space-y-6">
+            <MeshRelationMatrix relations={meshRelations} entityId={entityId} />
+
             <div class="p-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/20">
               <h3 class="text-sm font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-widest mb-4">
                  🧠 Neural Connections
               </h3>
-              <div class="flex flex-wrap gap-2">
-                 {tagsArray.map((tag: string) => (
-                    <span class="px-3 py-1 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-lg text-xs font-bold border border-gray-100 dark:border-gray-700 hover:border-indigo-300 transition-colors">
-                       #{tag}
-                    </span>
+              <div class="flex flex-wrap gap-3">
+                 {enrichedTags.map((tag: any) => (
+                    <a 
+                      href={`/knowledge/${tag.slug}`} 
+                      class="group relative px-4 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-black border border-gray-100 dark:border-gray-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm hover:shadow-md"
+                    >
+                       <span class="mr-1.5 opacity-60 group-hover:opacity-100">{tag.icon}</span>
+                       #{tag.name}
+                       {tag.refs > 0 && (
+                          <span class="ml-2 px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 text-[9px] text-indigo-500 rounded-md border border-indigo-100 dark:border-indigo-800/50">
+                             {tag.refs}
+                          </span>
+                       )}
+                    </a>
                  ))}
-                 {tagsArray.length === 0 && <span class="text-xs text-gray-400 italic">No semantic tags indexed.</span>}
+                 {enrichedTags.length === 0 && <span class="text-xs text-gray-400 italic">No semantic tags indexed.</span>}
               </div>
            </div>
 
@@ -88,7 +112,7 @@ const baseModel = entity?.base_model || entity?.parent_model || null;
                 <h3 class="text-sm font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-2">
                    <span>🔄</span> Related Node Sync
                 </h3>
-                <SimilarModels models={similarEntities.slice(0, 12)} currentModelId={entityId} />
+                <SimilarModels models={similarEntities} currentModelId={entityId} />
              </div>
            )}
         </div>

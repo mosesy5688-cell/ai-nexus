@@ -97,7 +97,7 @@ export async function prepareModelPageData(slug, slugStr, locals) {
             console.warn("[ModelPageData] Mesh injection failed:", meshError.message);
         }
 
-        return { model, isFallback: false, similarModels, tagsArray };
+        return { model, isFallback: false, similarModels, tagsArray, meshRelations: meshRelations || [] };
     } else {
         // V15.17: Aggressive Global Fallback
         const cleanSlug = slugStr.replace(/--/g, '/');
@@ -137,6 +137,6 @@ export async function prepareModelPageData(slug, slugStr, locals) {
         fallbackModel.entityDefinition = ENTITY_DEFINITIONS['model'];
         tagsArray = Array.isArray(fallbackModel.tags) ? fallbackModel.tags : [];
 
-        return { model: fallbackModel, isFallback: true, repoName, similarModels, tagsArray };
+        return { model: fallbackModel, isFallback: true, repoName, similarModels, tagsArray, meshRelations: [] };
     }
 }

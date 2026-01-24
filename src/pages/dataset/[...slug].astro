@@ -33,6 +33,7 @@ let similarEntities = [];
 let tagsArray = [];
 let pageTitle = "AI Dataset Details - Free AI Tools";
 let pageDescription = "Explore high-quality datasets for AI training and evaluation.";
+let meshRelations = [];
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
@@ -43,14 +44,15 @@ try {
     return Astro.redirect('/404?reason=dataset-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { dataset: resolvedDataset, isFallback, repoName, similarEntities: rSimilar, tagsArray: rTags } = pageData;
+  const { dataset: resolvedDataset, isFallback, repoName, similarEntities: rSimilar, tagsArray: rTags, meshRelations: resolvedMesh } = pageData;
   dataset = resolvedDataset;
   similarEntities = rSimilar;
   tagsArray = rTags;
+  meshRelations = resolvedMesh || [];
 
-  const displayDatasetName = dataset.name || dataset.title || (isFallback ? repoName : dataset.canonical_name) || 'Unknown Dataset';
+  const displayDatasetName = dataset?.name || dataset?.title || (isFallback ? repoName : dataset?.canonical_name) || 'Unknown Dataset';
   pageTitle = `${displayDatasetName} - AI Dataset Analysis`;
-  pageDescription = dataset.seo_summary?.description || dataset.description || `Deep dive into ${displayDatasetName} dataset.`;
+  pageDescription = dataset?.seo_summary?.description || dataset?.description || `Deep dive into ${displayDatasetName} dataset.`;
 
 } catch (e) {
   console.error("[DatasetPage] Error loading dataset:", e);
@@ -85,7 +87,6 @@ const jsonLd = dataset ? {
 } : null;
 ---
 
-<Layout title={pageTitle} description={pageDescription}>
   <EntityLayout
     entity={dataset}
     type="dataset"
@@ -132,11 +133,11 @@ const jsonLd = dataset ? {
 
     {/* Zone 3: Core */}
     <div slot="core-desktop">
-       <UniversalCore entity={dataset} type="dataset" />
+       <UniversalCore entity={dataset} type="dataset" meshRelations={meshRelations} />
     </div>
 
     <div slot="core-knowledge">
-       <UniversalCore entity={dataset} type="dataset" />
+       <UniversalCore entity={dataset} type="dataset" meshRelations={meshRelations} />
     </div>
     
     <div slot="core-similar">
@@ -181,4 +182,3 @@ const jsonLd = dataset ? {
         <AiDisclaimer source={dataset?.source} lastUpdated={dataset?.last_updated} />
     </div>
   </EntityLayout>
-</Layout>

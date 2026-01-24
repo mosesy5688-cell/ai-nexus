@@ -1,6 +1,5 @@
 ---
 // src/components/model-detail/ModelHeader.astro - V12 Share Buttons
-import EntityNotice from '../entity/EntityNotice.astro';
 // V16.2: Removed CompareButton (deprecated)
 import ShareButtons from '../common/ShareButtons.astro';
 
@@ -45,9 +44,6 @@ const {
           {entityLabel}
         </span>
       </div>
-      
-      <!-- V4.9: Entity Notice for non-Model entities (Content Activation P0) -->
-      <EntityNotice entityType={entityType} entityLabel={entityLabel} />
       
       <div class="flex flex-wrap items-center gap-3 mb-2">
         <h1 class="text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight">

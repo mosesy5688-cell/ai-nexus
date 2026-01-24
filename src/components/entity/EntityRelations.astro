@@ -66,7 +66,7 @@ const typeIcons: Record<string, string> = {
           </h4>
           
           <div class="relation-items">
-            {group.items.slice(0, 5).map((item) => (
+            {group.items.map((item) => (
               <a 
                 href={getEntityRoute(item.type, item.slug)} 
                 class="relation-item"
@@ -77,9 +77,7 @@ const typeIcons: Record<string, string> = {
               </a>
             ))}
             
-            {group.items.length > 5 && (
-              <span class="more-items">+{group.items.length - 5} more</span>
-            )}
+
           </div>
         </div>
       ))}

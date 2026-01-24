@@ -98,7 +98,7 @@ export async function prepareAgentPageData(slug, slugStr, locals) {
             console.warn("[AgentPageData] Mesh injection failed:", meshError.message);
         }
 
-        return { agent, isFallback: false, similarEntities, tagsArray };
+        return { agent, isFallback: false, similarEntities, tagsArray, meshRelations: meshRelations || [] };
     } else {
         // Fallback Agent (Consistent with Model fallback)
         const cleanSlug = slugStr.replace(/--/g, '/');
@@ -123,6 +123,6 @@ export async function prepareAgentPageData(slug, slugStr, locals) {
         fallbackAgent.entityDefinition = ENTITY_DEFINITIONS['agent'];
         tagsArray = Array.isArray(fallbackAgent.tags) ? fallbackAgent.tags : [];
 
-        return { agent: fallbackAgent, isFallback: true, repoName, similarEntities, tagsArray };
+        return { agent: fallbackAgent, isFallback: true, repoName, similarEntities, tagsArray, meshRelations: [] };
     }
 }

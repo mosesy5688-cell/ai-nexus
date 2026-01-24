@@ -89,7 +89,7 @@ export async function prepareSpacePageData(slug, slugStr, locals) {
             console.warn("[SpacePageData] Mesh injection failed:", meshError.message);
         }
 
-        return { space, isFallback: false, similarEntities, tagsArray };
+        return { space, isFallback: false, similarEntities, tagsArray, meshRelations: meshRelations || [] };
     } else {
         // Fallback Space
         const cleanSlug = slugStr.replace(/--/g, '/');
@@ -114,6 +114,6 @@ export async function prepareSpacePageData(slug, slugStr, locals) {
         fallbackSpace.entityDefinition = ENTITY_DEFINITIONS['space'];
         tagsArray = Array.isArray(fallbackSpace.tags) ? fallbackSpace.tags : [];
 
-        return { space: fallbackSpace, isFallback: true, repoName, similarEntities, tagsArray };
+        return { space: fallbackSpace, isFallback: true, repoName, similarEntities, tagsArray, meshRelations: [] };
     }
 }

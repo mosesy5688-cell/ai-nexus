@@ -34,6 +34,7 @@ let similarEntities = [];
 let tagsArray = [];
 let pageTitle = "AI Demo Space - Free AI Tools";
 let pageDescription = "Explore interactive AI demos and prototype applications.";
+let meshRelations = [];
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
@@ -44,14 +45,15 @@ try {
     return Astro.redirect('/404?reason=space-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { space: resolvedSpace, isFallback, repoName, similarEntities: rSimilar, tagsArray: rTags } = pageData;
+  const { space: resolvedSpace, isFallback, repoName, similarEntities: rSimilar, tagsArray: rTags, meshRelations: resolvedMesh } = pageData;
   space = resolvedSpace;
   similarEntities = rSimilar;
   tagsArray = rTags;
+  meshRelations = resolvedMesh || [];
 
-  const displaySpaceName = space.title || space.name || (isFallback ? repoName : space.canonical_name);
+  const displaySpaceName = space?.title || space?.name || (isFallback ? repoName : space?.canonical_name);
   pageTitle = `${displaySpaceName} - AI Demo Insight`;
-  pageDescription = space.seo_summary?.description || space.description || `Deep dive into ${displaySpaceName} interactive space.`;
+  pageDescription = space?.seo_summary?.description || space?.description || `Deep dive into ${displaySpaceName} interactive space.`;
 
 } catch (e) {
   console.error("[SpacePage] Error loading space:", e);
@@ -87,7 +89,6 @@ const jsonLd = space ? {
 } : null;
 ---
 
-<Layout title={pageTitle} description={pageDescription}>
   <EntityLayout
     entity={space}
     type="space"
@@ -134,11 +135,11 @@ const jsonLd = space ? {
 
     {/* Zone 3: Core */}
     <div slot="core-desktop">
-       <UniversalCore entity={space} type="space" />
+       <UniversalCore entity={space} type="space" meshRelations={meshRelations} />
     </div>
 
     <div slot="core-knowledge">
-       <UniversalCore entity={space} type="space" />
+       <UniversalCore entity={space} type="space" meshRelations={meshRelations} />
     </div>
     
     <div slot="core-similar">
@@ -189,4 +190,3 @@ const jsonLd = space ? {
         <AiDisclaimer source={space?.source} lastUpdated={space?.last_updated} />
     </div>
   </EntityLayout>
-</Layout>

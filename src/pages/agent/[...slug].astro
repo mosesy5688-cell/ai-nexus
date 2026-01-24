@@ -40,6 +40,7 @@ let tagsArray = [];
 let pageTitle = "AI Agent Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI agent.";
 let cleanedDesc = "";
+let meshRelations = [];
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
@@ -50,15 +51,16 @@ try {
     return Astro.redirect('/404?reason=agent-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { agent: resolvedAgent, isFallback, repoName, similarEntities: resolvedSimilar, tagsArray: resolvedTags } = pageData;
+  const { agent: resolvedAgent, isFallback, repoName, similarEntities: resolvedSimilar, tagsArray: resolvedTags, meshRelations: resolvedMesh } = pageData;
   agent = resolvedAgent;
   similarEntities = resolvedSimilar;
   tagsArray = resolvedTags;
+  meshRelations = resolvedMesh || [];
 
-  const displayAgentName = agent.name || (isFallback ? repoName : agent.canonical_name) || 'Unknown Agent';
+  const displayAgentName = agent?.name || (isFallback ? repoName : agent?.canonical_name) || 'Unknown Agent';
   pageTitle = `${displayAgentName} - AI Agent Insights & Frameworks`;
-  cleanedDesc = cleanDescription(agent.description || '');
-  pageDescription = agent.seo_summary?.description || cleanedDesc || `Deep dive into ${displayAgentName}.`;
+  cleanedDesc = cleanDescription(agent?.description || '');
+  pageDescription = agent?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayAgentName}.`;
 
 } catch (e) {
   console.error("Error loading agent:", e);
@@ -93,7 +95,6 @@ const jsonLd = {
 };
 ---
 
-<Layout title={pageTitle} description={pageDescription}>
   <EntityLayout
     entity={agent}
     type="agent"
@@ -136,16 +137,16 @@ const jsonLd = {
        <div class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
           <TechSpecsFull entity={agent} type="agent" />
        </div>
-       {agent?.params_billions && <VramEstimator paramsB={agent.params_billions} />}
+       {agent?.params_billions && <VramEstimator paramsB={agent.params_billions} contextLen={agent.context_length} />}
     </div>
 
     {/* Zone 3: Core (Desktop/Mobile) */}
     <div slot="core-desktop">
-       <UniversalCore entity={agent} type="agent" />
+       <UniversalCore entity={agent} type="agent" meshRelations={meshRelations} />
     </div>
 
     <div slot="core-knowledge">
-       <UniversalCore entity={agent} type="agent" />
+       <UniversalCore entity={agent} type="agent" meshRelations={meshRelations} />
     </div>
     
     <div slot="core-similar">
@@ -207,4 +208,3 @@ const jsonLd = {
         <AiDisclaimer source={agent?.source} lastUpdated={agent?.last_updated} />
     </div>
   </EntityLayout>
-</Layout>

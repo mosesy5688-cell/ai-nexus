@@ -93,7 +93,7 @@ export async function preparePaperPageData(slug, slugStr, locals) {
             console.warn("[PaperPageData] Mesh injection failed:", meshError.message);
         }
 
-        return { paper, isFallback: false, similarEntities, tagsArray };
+        return { paper, isFallback: false, similarEntities, tagsArray, meshRelations: meshRelations || [] };
     } else {
         // Fallback Paper
         const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -118,6 +118,6 @@ export async function preparePaperPageData(slug, slugStr, locals) {
         fallbackPaper.entityDefinition = ENTITY_DEFINITIONS['paper'];
         tagsArray = Array.isArray(fallbackPaper.tags) ? fallbackPaper.tags : [];
 
-        return { paper: fallbackPaper, isFallback: true, similarEntities, tagsArray };
+        return { paper: fallbackPaper, isFallback: true, similarEntities, tagsArray, meshRelations: [] };
     }
 }
