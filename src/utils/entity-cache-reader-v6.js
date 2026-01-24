@@ -20,26 +20,36 @@ export function normalizeEntitySlug(id) {
 }
 
 /**
- * Generates prioritized R2 path candidates for an entity
+ * V4.9 Universal R2 Path Mapping
+ * Decouples public URLs from physical storage keys by probing common prefixes
  */
 export function getR2PathCandidates(type, normalizedSlug) {
     const singular = type.endsWith('s') ? type.slice(0, -1) : type;
     const prefix = `cache/entities/${singular}`;
 
     const candidates = [
-        `${prefix}/${normalizedSlug}.json`, // 1. Direct ID match
+        `${prefix}/${normalizedSlug}.json`, // 1. Direct match (e.g. hf-agent--)
     ];
 
-    if (singular === 'model' && !normalizedSlug.startsWith('replicate--')) {
-        candidates.push(`${prefix}/replicate--${normalizedSlug}.json`);
-    }
-
-    if (singular === 'dataset' && !normalizedSlug.startsWith('hf-dataset--')) {
-        candidates.push(`${prefix}/hf-dataset--${normalizedSlug}.json`);
-    }
-
-    if (singular === 'paper' && !normalizedSlug.startsWith('arxiv--')) {
-        candidates.push(`${prefix}/arxiv--${normalizedSlug}.json`);
+    // Intelligent Prefix Probing
+    if (singular === 'model') {
+        if (!normalizedSlug.startsWith('hf-model--')) candidates.push(`${prefix}/hf-model--${normalizedSlug}.json`);
+        if (!normalizedSlug.startsWith('replicate--')) candidates.push(`${prefix}/replicate--${normalizedSlug}.json`);
+        if (!normalizedSlug.startsWith('github--')) candidates.push(`${prefix}/github--${normalizedSlug}.json`);
+    } else if (singular === 'dataset') {
+        if (!normalizedSlug.startsWith('hf-dataset--')) candidates.push(`${prefix}/hf-dataset--${normalizedSlug}.json`);
+    } else if (singular === 'space') {
+        if (!normalizedSlug.startsWith('hf-space--')) candidates.push(`${prefix}/hf-space--${normalizedSlug}.json`);
+    } else if (singular === 'agent') {
+        if (!normalizedSlug.startsWith('hf-agent--')) candidates.push(`${prefix}/hf-agent--${normalizedSlug}.json`);
+        if (!normalizedSlug.startsWith('agent--')) candidates.push(`${prefix}/agent--${normalizedSlug}.json`);
+        if (!normalizedSlug.startsWith('github-agent--')) candidates.push(`${prefix}/github-agent--${normalizedSlug}.json`);
+    } else if (singular === 'paper') {
+        if (!normalizedSlug.startsWith('arxiv--')) candidates.push(`${prefix}/arxiv--${normalizedSlug}.json`);
+    } else if (singular === 'tool') {
+        if (!normalizedSlug.startsWith('tool--')) candidates.push(`${prefix}/tool--${normalizedSlug}.json`);
+        if (!normalizedSlug.startsWith('hf-tool--')) candidates.push(`${prefix}/hf-tool--${normalizedSlug}.json`);
+        if (!normalizedSlug.startsWith('github--')) candidates.push(`${prefix}/github--${normalizedSlug}.json`);
     }
 
     return [...new Set(candidates)];
