@@ -33,13 +33,14 @@ export function getR2PathCandidates(type, normalizedSlug) {
     const candidates = [`${prefix}/${normalizedSlug}.json`];
 
     // 2. Canonical Prefix Injection (Handling mapping from 'pretty' IDs to R2 Storage keys)
+    // V16.4 Forensics: Resolved prefixes from live production R2 bucket
     const prefixMap = {
-        'model': ['hf-model--'],
-        'dataset': ['dataset--'],
+        'model': ['hf-model--', 'civitai--', 'ollama--'],
+        'dataset': ['hf-dataset--', 'dataset--'],
         'paper': ['arxiv--'],
         'space': ['hf-space--'],
-        'agent': ['hf-agent--', 'github-agent--'],
-        'tool': ['tool--', 'github-tool--']
+        'agent': ['github-agent--', 'hf-agent--'],
+        'tool': ['github--', 'tool--', 'github-tool--']
     };
 
     const prefixesCheck = prefixMap[singular] || [];
