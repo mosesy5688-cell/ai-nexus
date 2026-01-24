@@ -47,6 +47,10 @@ export const articles: Record<string, KnowledgeArticle> = {
   'vram': createStub('VRAM Requirements', 'Memory needs for running AI models', 'fundamentals'),
   'local-inference': createStub('Local Inference', 'Hardware and software considerations', 'fundamentals'),
   'transformer': createStub('Transformer Architecture', 'Deep dive into attention mechanisms', 'fundamentals'),
+  'multimodal': createStub('Multimodal AI', 'Cross-modal processing for text and vision', 'fundamentals'),
+  'rag': createStub('Retrieval Augmented Generation', 'Connecting LLMs to live data sources', 'fundamentals'),
+  'llm-benchmarks': createStub('LLM Evaluation', 'Understanding MMLU, GSM8K and more', 'fundamentals'),
+  'fine-tuning': createStub('Model Fine-Tuning', 'Optimizing pre-trained models for tasks', 'training'),
 
   // Short aliases
   'mmlu': mmlu,
@@ -59,4 +63,6 @@ export const articles: Record<string, KnowledgeArticle> = {
   'arc': createStub('What is ARC?', 'AI2 Reasoning Challenge', 'benchmarks'),
   'parameters': createStub('What are Parameters?', 'Understanding model size', 'architecture'),
   'ollama': createStub('What is Ollama?', 'Local deployment tool', 'deployment'),
+  'inference-optimization': createStub('Inference Optimization', 'How to speed up LLMs', 'inference_tech'),
+  'rlhf': createStub('RLHF', 'Reinforcement Learning from Human Feedback', 'training'),
 };

@@ -52,7 +52,7 @@ export const SLUG_MAPPING = {
     'vector-databases': 'rag',
     'prompt-engineering': 'prompt-engineering',
     'transformer-architecture': 'transformer',
-    'direct-preference-optimization': 'fine-tuning',
+    'direct-preference-optimization': 'dpo',
     'what-is-rag': 'rag',
     'local-deployment': 'local-inference',
     'what-is-quantization': 'quantization',
@@ -60,13 +60,20 @@ export const SLUG_MAPPING = {
     'agentic-ai': 'agents',
     'what-is-moe': 'moe',
     'mixture-of-experts': 'moe',
-    'lora-finetuning': 'fine-tuning',
+    'lora-finetuning': 'lora',
     'speech-models': 'multimodal',
-    'inference-optimization': 'local-inference',
+    'inference-optimization': 'inference-optimization',
     'gguf-format': 'gguf',
-    'ai-alignment': 'fine-tuning',
+    'ai-alignment': 'rlhf',
     'vision-models': 'multimodal',
-    'attention-mechanism': 'transformer'
+    'attention-mechanism': 'transformer',
+    'what-is-mmlu': 'mmlu',
+    'what-is-humaneval': 'humaneval',
+    'what-is-fni': 'fni',
+    'what-is-transformer': 'transformer',
+    'what-is-ollama': 'ollama',
+    'multimodal-learning': 'multimodal',
+    'llm-evaluation': 'llm-benchmarks'
 };
 
 /**
@@ -80,9 +87,12 @@ export function getRouteFromId(id, type = null) {
 
     // Apply Global Redirect Mapping for Knowledge Nodes
     if (resolvedType === 'knowledge') {
-        const slug = rawId.split('--').pop();
+        const parts = rawId.split('--');
+        const slug = parts[parts.length - 1];
         if (SLUG_MAPPING[slug]) {
-            rawId = rawId.replace(slug, SLUG_MAPPING[slug]);
+            rawId = SLUG_MAPPING[slug];
+        } else {
+            rawId = slug;
         }
     }
 

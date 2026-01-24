@@ -10,7 +10,7 @@ import MiniTrendChart from '../charts/MiniTrendChart.astro';
 import SimilarModels from '../model-detail/SimilarModels.astro';
 import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
 import MeshRelationMatrix from './MeshRelationMatrix.astro';
-import { fetchConceptMetadata, getRouteFromId } from '../../utils/knowledge-cache-reader.js';
+import { getMeshProfile, getRouteFromId } from '../../utils/knowledge-cache-reader.js';
 
 interface Props {
   entity: any;
@@ -18,7 +18,7 @@ interface Props {
   meshRelations?: any[];
 }
 
-const { entity, type, meshRelations = [] } = Astro.props;
+const { entity, type, meshRelations: propRelations = [] } = Astro.props;
 
 // Identification
 const entityId = entity?.id || entity?.name || '';
@@ -37,37 +37,36 @@ try {
     }
   }
 } catch (e) {
-  console.warn(`[UniversalCore] Tag parse failed for ${entityId}:`, e.message);
   tagsArray = [];
 }
+
+// 1. Centralized Mesh Orchestration (V16.7)
+const { tiers, nodeRegistry } = await getMeshProfile(Astro.locals, entityId, entity, type);
 
 // Feature availability
 const hasBench = !!(entity?.mmlu || entity?.humaneval || entity?.avg_score || entity?.benchmark_avg);
 const similarEntities = entity?.similar_models || entity?.similar_entities || entity?.relations?.links || [];
 
-// Knowledge Mesh Metadata Integration
-const concepts = await fetchConceptMetadata(Astro.locals);
-// V16.4: Cross-Component Deduplication
-const renderedNodes = Astro.locals.meshRenderedNodes || new Set();
+// 2. Cross-Component Deduplication
+// Track all nodes already "spent" by the Hub (Tiers)
+const renderedNodes = new Set();
+Object.values(tiers).forEach(t => t.nodes.forEach(n => renderedNodes.add(n.norm)));
+Astro.locals.meshRenderedNodes = renderedNodes;
 
 const enrichedTags = tagsArray.map((tagObj: any) => {
    const tag = typeof tagObj === 'string' ? tagObj : (tagObj?.id || tagObj?.name || tagObj?.label || 'unknown');
    const normalizedTag = tag.toLowerCase().replace(/[^a-z0-9]/g, '-');
-   const concept = concepts.find((c: any) => c.slug === normalizedTag || c.id === `concept--${normalizedTag}`);
-   const slug = concept?.slug || normalizedTag;
-   
    return {
       name: tag,
-      slug: slug,
-      norm: normalizedTag,
-      refs: concept?.refs || concept?.count || 0,
-      icon: concept?.icon || '🧠'
+      slug: normalizedTag,
+      refs: 0, // Simplified for performance
+      icon: '🧠'
    };
 }).filter(tag => !renderedNodes.has(tag.slug));
 ---
 
 <div class="space-y-12">
-    <NeuralGraphExplorer currentModelId={entityId} entity={entity} type={type} />
+    <NeuralGraphExplorer currentModelId={entityId} entity={entity} type={type} meshTiers={tiers} />
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         {/* Left: Benchmarks & Trends */}
