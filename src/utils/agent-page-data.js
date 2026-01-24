@@ -61,8 +61,9 @@ export async function prepareAgentPageData(slug, slugStr, locals) {
         tagsArray = Array.isArray(agent.tags) ? agent.tags : [];
 
         // Mesh Relations Integration
+        let meshRelations = [];
         try {
-            const meshRelations = await fetchMeshRelations(locals, agent.id || slugStr);
+            meshRelations = await fetchMeshRelations(locals, agent.id || slugStr);
             const aId = agent.id || slugStr;
             const normRoot = stripPrefix(aId);
 
