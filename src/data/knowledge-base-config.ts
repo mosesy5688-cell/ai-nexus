@@ -21,6 +21,18 @@ export interface KnowledgeCategory {
 
 export const KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
     {
+        id: 'organizations',
+        title: 'Organizations',
+        icon: '🏢',
+        description: 'Leading entities in the AI ecosystem',
+        articles: [
+            { slug: 'meta', title: 'Meta AI', description: 'Creators of Llama and pioneers of open-weights research', difficulty: 'Beginner', effort: '3 min' },
+            { slug: 'google', title: 'Google DeepMind', description: 'Pioneers of Transformers and Gemini', difficulty: 'Beginner', effort: '4 min' },
+            { slug: 'openai', title: 'OpenAI', description: 'Creators of GPT-4 and ChatGPT ecosystem', difficulty: 'Beginner', effort: '5 min' },
+            { slug: 'mistral-ai', title: 'Mistral AI', description: 'European leader in efficient MoE models', difficulty: 'Beginner', effort: '3 min' }
+        ]
+    },
+    {
         id: 'benchmarks',
         title: 'Benchmarks',
         icon: '📊',
@@ -128,7 +140,8 @@ export const KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
             { slug: 'rag', title: 'RAG Systems', description: 'Retrieval Augmented Generation architecture', difficulty: 'Intermediate', effort: '7 min' },
             { slug: 'inference-optimization', title: 'Inference Optimization', description: 'Accelerating AI performance and deployment', difficulty: 'Intermediate', effort: '7 min' },
             { slug: 'fundamentals', title: 'AI Fundamentals', description: 'Core concepts and architectures', difficulty: 'Beginner', effort: '5 min' },
-            { slug: 'llm-benchmarks', title: 'LLM Evaluation', description: 'How model performance is measured', difficulty: 'Intermediate', effort: '5 min' }
+            { slug: 'llm-benchmarks', title: 'LLM Evaluation', description: 'How model performance is measured', difficulty: 'Intermediate', effort: '5 min' },
+            { slug: 'large-language-model', title: 'Large Language Model (LLM)', description: 'Foundational concept of modern AI systems', difficulty: 'Beginner', effort: '5 min' }
         ]
     }
 ];

@@ -14,7 +14,7 @@ export function stripPrefix(id) {
     let result = id.toLowerCase();
 
     // V16.2 Canonical Prefixes ONLY
-    const canonicalPrefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|knowledge|report|arxiv|dataset|tool|paper|model|agent|space)[:\-\/]+/;
+    const canonicalPrefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|knowledge|report|arxiv|dataset|tool|paper|model|agent|space|author)[:\-\/]+/;
 
     result = result.replace(canonicalPrefixes, '');
 

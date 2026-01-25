@@ -27,26 +27,44 @@ const contentData = articles[slug || ''];
 let article = null;
 let cdnStats = null;
 
-if (configResult && contentData) {
+// V16.28: Advanced Hybrid Content Orchestration (Local -> R2 Fallback)
+if (contentData) {
   article = {
-    ...configResult.article,
-    category: configResult.category.id,
+    ...(configResult?.article || {}),
+    title: contentData.title || configResult?.article.title,
+    description: contentData.description || configResult?.article.description,
+    category: configResult?.category.id || contentData.category || 'fundamentals',
     content: contentData.content,
-    difficulty: configResult.article.difficulty || contentData.difficulty,
-    effort: configResult.article.effort || contentData.effort
+    difficulty: configResult?.article.difficulty || contentData.difficulty || 'Intermediate',
+    effort: configResult?.article.effort || contentData.effort || '5 min',
+    slug: slug
   };
-  
-  // V16.2: Fetch CDN stats (refs count, last updated)
-  const R2 = Astro.locals?.runtime?.env?.R2_ASSETS;
-  if (R2) {
-    try {
-      const cdnFile = await R2.get(`cache/knowledge/articles/${slug}.json`);
-      if (cdnFile) {
-        cdnStats = await cdnFile.json();
+}
+
+// R2 Live Fetch (Either for stats OR for the entire article if local is missing)
+const R2 = Astro.locals?.runtime?.env?.R2_ASSETS;
+if (R2 && slug) {
+  try {
+    const cdnFile = await R2.get(`cache/knowledge/articles/${slug}.json`);
+    if (cdnFile) {
+      const r2Data = await cdnFile.json();
+      cdnStats = r2Data;
+      
+      // If we don't have local data, "Perfect Implementation" means using R2 data
+      if (!article && r2Data.title) {
+          article = {
+              title: r2Data.title,
+              description: r2Data.description || r2Data.summary,
+              category: r2Data.category || 'fundamentals',
+              content: r2Data.content || r2Data.body || 'Content currently being indexed...',
+              difficulty: r2Data.difficulty || 'Intermediate',
+              effort: r2Data.effort || '5 min',
+              slug: slug
+          };
       }
-    } catch (e) {
-      // CDN stats not available, continue with local data
     }
+  } catch (e) {
+    console.warn(`[KnowledgeR2] Fetch failed for ${slug}:`, e.message);
   }
 }
 
