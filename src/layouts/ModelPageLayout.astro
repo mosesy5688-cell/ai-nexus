@@ -3,6 +3,7 @@ import type { Model } from '@/types';
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import ModelRatings from '@/components/ModelRatings.astro'; // Import the ratings component
 import ModelCard from '@/components/ModelCard.astro';
+import NeuralGraphExplorer from '@/components/NeuralGraphExplorer.astro';
 
 export interface Props {
   model: Model;
@@ -79,6 +80,11 @@ const breadcrumbs = [
               </p>
             </section>
           )}
+
+        <!-- Knowledge Mesh / Neural Hub Integration (V16.16) -->
+        <div class="mt-4 mb-12">
+            <NeuralGraphExplorer entity={model} type="model" />
+        </div>
 
                     {model.readme ? (
             <section id="details-usage" class="mt-8 mb-12">
