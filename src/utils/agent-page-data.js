@@ -41,7 +41,7 @@ export async function prepareAgentPageData(slug, slugStr, locals) {
     }
 
     if (agent && agent._hydrated) {
-        const resolution = deriveEntityType(agent);
+        const resolution = deriveEntityType(agent, 'agent');
         agent.entityType = resolution.type;
         agent.entityDefinition = ENTITY_DEFINITIONS[agent.entityType];
 

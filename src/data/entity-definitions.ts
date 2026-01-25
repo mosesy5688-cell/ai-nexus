@@ -58,11 +58,38 @@ export function entityHasCapability(type: EntityType, capability: string): boole
     return definition?.capabilities.includes(capability as any) ?? false;
 }
 
-/** Derive entity type from model object */
-export function deriveEntityType(model: any): { type: EntityType, definition: EntityDefinition } {
-    const id = model.id || model.umid || '';
-    const def = getEntityDefinitionById(id) || ENTITY_DEFINITIONS['model'];
-    return { type: def.type as EntityType, definition: def };
+/** Derive entity type from model object (with optional hint) */
+export function deriveEntityType(model: any, typeHint?: EntityType): { type: EntityType, definition: EntityDefinition } {
+    const id = (model.id || model.umid || '').toLowerCase();
+
+    // 0. Trust the hint if provided (V16.11)
+    if (typeHint && ENTITY_DEFINITIONS[typeHint]) {
+        return { type: typeHint, definition: ENTITY_DEFINITIONS[typeHint] };
+    }
+
+    // 1. Try prefix matching
+    const prefixDef = getEntityDefinitionById(id);
+    if (prefixDef) return { type: prefixDef.type as EntityType, definition: prefixDef };
+
+    // 2. Try semantic keyword matching (V16.11)
+    if (id.includes('agent--') || id.includes('/agents/') || id.includes('-agent-') || id.endsWith('-agent')) {
+        return { type: 'agent', definition: ENTITY_DEFINITIONS['agent'] };
+    }
+    if (id.includes('dataset--') || id.includes('datasets/')) {
+        return { type: 'dataset', definition: ENTITY_DEFINITIONS['dataset'] };
+    }
+    if (id.includes('space--') || id.includes('spaces/')) {
+        return { type: 'space', definition: ENTITY_DEFINITIONS['space'] };
+    }
+    if (id.includes('tool--') || id.includes('/tools/') || id.includes('framework') || id.includes('library')) {
+        return { type: 'tool', definition: ENTITY_DEFINITIONS['tool'] };
+    }
+    if (id.includes('arxiv--') || id.includes('paper--') || id.includes('arxiv:')) {
+        return { type: 'paper', definition: ENTITY_DEFINITIONS['paper'] };
+    }
+
+    // 3. Last resort fallback
+    return { type: 'model', definition: ENTITY_DEFINITIONS['model'] };
 }
 
 // Re-export tier modules for direct access

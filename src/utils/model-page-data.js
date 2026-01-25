@@ -41,7 +41,7 @@ export async function prepareModelPageData(slug, slugStr, locals) {
     }
 
     if (model && model._hydrated) {
-        const resolution = deriveEntityType(model);
+        const resolution = deriveEntityType(model, 'model');
         model.entityType = resolution.type;
         model.entityDefinition = ENTITY_DEFINITIONS[model.entityType];
 
