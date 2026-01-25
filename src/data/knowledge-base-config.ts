@@ -169,8 +169,11 @@ export function getArticleBySlug(slug: string): { category: KnowledgeCategory; a
         'context-length': 'what-is-context-length',
         'deploy-score': 'what-is-deploy-score',
         'gguf': 'what-is-gguf',
-        'vram': 'vram', // Already canonical in fundamentals
-        'ollama': 'what-is-ollama'
+        'vram': 'vram',
+        'ollama': 'what-is-ollama',
+        'llm': 'large-language-model',
+        'transformer': 'what-is-transformer',
+        'moe': 'moe'
     };
 
     const canonicalSlug = aliasMap[slug];

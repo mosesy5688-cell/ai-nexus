@@ -13,6 +13,7 @@ import KnowledgeSidebar from '../../components/knowledge/KnowledgeSidebar.astro'
 import KnowledgeRelated from '../../components/knowledge/KnowledgeRelated.astro';
 import { articles } from '../../data/knowledge-articles';
 import { getArticleBySlug } from '../../data/knowledge-base-config';
+import { getRouteFromId, getTypeFromId } from '../../utils/mesh-routing-core.js';
 
 // Load styles
 import '../../styles/knowledge.css';
@@ -22,49 +23,54 @@ const { slug } = Astro.params;
 
 // V15.5: Unified Content & Metadata Merging
 const configResult = getArticleBySlug(slug || '');
-const contentData = articles[slug || ''];
+const canonicalSlug = configResult?.article.slug || slug || '';
+const contentData = articles[canonicalSlug];
 
 let article = null;
 let cdnStats = null;
 
-// V16.28: Advanced Hybrid Content Orchestration (Local -> R2 Fallback)
-if (contentData) {
+// V16.29: Resilient Content Orchestration (Local -> Config Fallback -> R2)
+if (contentData || configResult) {
   article = {
     ...(configResult?.article || {}),
-    title: contentData.title || configResult?.article.title,
-    description: contentData.description || configResult?.article.description,
-    category: configResult?.category.id || contentData.category || 'fundamentals',
-    content: contentData.content,
-    difficulty: configResult?.article.difficulty || contentData.difficulty || 'Intermediate',
-    effort: configResult?.article.effort || contentData.effort || '5 min',
+    title: contentData?.title || configResult?.article.title || slug,
+    description: contentData?.description || configResult?.article.description || 'Article details in progress...',
+    category: configResult?.category.id || contentData?.category || 'fundamentals',
+    content: contentData?.content || `## ${contentData?.title || configResult?.article.title || slug}\n\nInformation about this topic is currently being aggregated in the Knowledge Mesh. Check back soon for deep-dive insights.\n\n### Related Concepts\n- [Knowledge Hub](/knowledge)\n- [AI Fundamentals](/knowledge/fundamentals)`,
+    difficulty: configResult?.article.difficulty || contentData?.difficulty || 'Intermediate',
+    effort: configResult?.article.effort || contentData?.effort || '5 min',
     slug: slug
   };
 }
 
-// R2 Live Fetch (Either for stats OR for the entire article if local is missing)
+// R2 Live Fetch (Constitutional SSOT - R2 is the master source)
 const R2 = Astro.locals?.runtime?.env?.R2_ASSETS;
+let r2Data = null;
+
 if (R2 && slug) {
   try {
     const cdnFile = await R2.get(`cache/knowledge/articles/${slug}.json`);
     if (cdnFile) {
-      const r2Data = await cdnFile.json();
+      r2Data = await cdnFile.json();
       cdnStats = r2Data;
       
-      // If we don't have local data, "Perfect Implementation" means using R2 data
-      if (!article && r2Data.title) {
+      // V16.31: R2 Elevation - Overwrite local data if R2 has actual content
+      if (r2Data.title || r2Data.content) {
           article = {
-              title: r2Data.title,
-              description: r2Data.description || r2Data.summary,
-              category: r2Data.category || 'fundamentals',
-              content: r2Data.content || r2Data.body || 'Content currently being indexed...',
-              difficulty: r2Data.difficulty || 'Intermediate',
-              effort: r2Data.effort || '5 min',
-              slug: slug
+              ...(article || {}),
+              title: r2Data.title || article?.title,
+              description: r2Data.description || r2Data.summary || article?.description,
+              category: r2Data.category || article?.category,
+              content: r2Data.content || r2Data.body || article?.content,
+              difficulty: r2Data.difficulty || article?.difficulty,
+              effort: r2Data.effort || article?.effort,
+              slug: slug,
+              _source: 'r2' // Tracking for audit
           };
       }
     }
   } catch (e) {
-    console.warn(`[KnowledgeR2] Fetch failed for ${slug}:`, e.message);
+    console.warn(`[KnowledgeR2] SSOT Fetch failed for ${slug}:`, e.message);
   }
 }
 
@@ -92,8 +98,6 @@ try {
 } catch (e) {
   console.error('[KnowledgeMesh] Orchestration failed:', e);
 }
-
-import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
 
 import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
 ---
