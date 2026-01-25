@@ -49,12 +49,16 @@ let tiers = {
     digest: { title: '📰 Timeline & Reports', nodes: [], icon: '📰' }
 };
 let nodeRegistry = new Map();
+let finalRelations = propRelations;
 
 try {
     const profile = await getMeshProfile(Astro.locals, entityId, entity, type);
     if (profile) {
         tiers = profile.tiers;
         nodeRegistry = profile.nodeRegistry;
+        if (profile.filteredRelations) {
+            finalRelations = profile.filteredRelations;
+        }
     }
 } catch (e) {
     console.error('[UniversalCore] Mesh Orchestration Failed:', e);
@@ -123,7 +127,7 @@ const enrichedTags = (tagsArray || []).map((tagObj: any) => {
         
         {/* Right: Relations & Knowledge Tags */}
         <div class="space-y-10">
-            <MeshRelationMatrix relations={propRelations} entityId={entityId} />
+            <MeshRelationMatrix relations={finalRelations} entityId={entityId} />
 
             <div class="p-8 bg-gray-50/50 dark:bg-gray-800/20 rounded-2xl border border-gray-100 dark:border-gray-700/50">
               <h3 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">

@@ -109,27 +109,33 @@ import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
           <div class="mt-12 p-8 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-3xl border border-indigo-100 dark:border-indigo-900/30">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Grounded Entities</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {Object.entries(meshTiers).map(([key, tier]: [string, any]) => tier.nodes.length > 0 && key !== 'explanation' && (
-                <div>
-                  <h3 class="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span>{tier.icon}</span>
-                    {tier.title}
-                  </h3>
-                  <ul class="space-y-3">
-                    {tier.nodes.map((node: any) => (
-                      <li>
-                        <a href={getRouteFromId(node.id, node.type)} class="group flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-indigo-500 transition-all shadow-sm">
-                          <div class="flex items-center gap-3">
-                             <span class="text-xl">{node.icon}</span>
-                             <span class="text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 transition-colors uppercase">{node.name}</span>
-                          </div>
-                          <span class="text-xs text-gray-400">{node.type.toUpperCase()} →</span>
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+              {Object.entries(meshTiers).map(([key, tier]: [string, any]) => {
+                // Grounded entities should only show models, agents, tools, etc, not other knowledge base articles
+                if (key === 'explanation') return null;
+                if (tier.nodes.length === 0) return null;
+                
+                return (
+                  <div>
+                    <h3 class="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <span>{tier.icon}</span>
+                      {tier.title}
+                    </h3>
+                    <ul class="space-y-3">
+                      {tier.nodes.map((node: any) => (
+                        <li>
+                          <a href={getRouteFromId(node.id, node.type)} class="group flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-indigo-500 transition-all shadow-sm">
+                            <div class="flex items-center gap-3">
+                               <span class="text-xl">{node.icon}</span>
+                               <span class="text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 transition-colors uppercase">{node.name}</span>
+                            </div>
+                            <span class="text-xs text-gray-400">{node.type.toUpperCase()} →</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
