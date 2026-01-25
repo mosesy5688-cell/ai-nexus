@@ -98,6 +98,27 @@ function extractTechSpecs(hydrated, entity, meta) {
     hydrated.architecture = hydrated.architecture || meta.extended?.architecture || config.model_type || config.architectures?.[0] || config.arch;
     hydrated.params_billions = parseFloat(hydrated.params_billions || meta.extended?.params_billions || config.num_parameters || config.n_params || 0) || null;
 
+    // V16.20: Heuristic Parameter Extraction from Name
+    if (!hydrated.params_billions && hydrated.name) {
+        // Match 7b, 7B, 7.5b, 70B etc.
+        const pMatch = hydrated.name.match(/(\d+(\.\d+)?)\s?[Bb]([iI][lL])?/);
+        if (pMatch) hydrated.params_billions = parseFloat(pMatch[1]);
+    }
+
+    // V16.20: Heuristic Context Extraction from Name (e.g. 128k, 32K)
+    if (!hydrated.context_length && hydrated.name) {
+        const cMatch = hydrated.name.match(/(\d+)\s?[Kk]([wW]|[tT])?/);
+        if (cMatch) {
+            const kVal = parseInt(cMatch[1]);
+            if (!isNaN(kVal)) hydrated.context_length = kVal * 1024;
+        }
+    }
+
+    // V16.21: Parameter-Scale Defaults for Sparse LLMs
+    if (!hydrated.context_length && hydrated.params_billions) {
+        hydrated.context_length = 4096; // Conservative default for modern LLMs
+    }
+
     hydrated.num_layers = hydrated.num_layers || config.num_hidden_layers || config.n_layer || config.n_layers;
     hydrated.hidden_size = hydrated.hidden_size || config.hidden_size || config.n_embd || config.d_model || config.dim;
     hydrated.num_heads = hydrated.num_heads || config.num_attention_heads || config.n_head || config.n_heads;
