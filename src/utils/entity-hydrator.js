@@ -132,56 +132,7 @@ function mineRelations(hydrated, meta) {
         if (tag.startsWith('base_model:') && !hydrated.base_model) hydrated.base_model = tag.substring(11);
     });
 
-    // V16.3 Semantic Tag-to-Knowledge Mapping
-    const TAG_TO_KNOWLEDGE = {
-        'text-generation': 'llm-benchmarks',
-        'text2text-generation': 'llm-benchmarks',
-        'text-classification': 'transformer',
-        'conversational': 'agents',
-        'question-answering': 'rag',
-        'summarization': 'context-length',
-        'translation': 'transformer',
-        'fill-mask': 'transformer',
-        'token-classification': 'transformer',
-        'sentence-similarity': 'embeddings',
-        'feature-extraction': 'embeddings',
-        'text-embedding': 'embeddings',
-        'image-text-to-text': 'multimodal',
-        'image-to-text': 'multimodal',
-        'visual-question-answering': 'multimodal',
-        'text-to-image': 'multimodal',
-        'image-classification': 'multimodal',
-        'object-detection': 'multimodal',
-        'moe': 'moe',
-        'mixture-of-experts': 'moe',
-        'gguf': 'gguf',
-        'quantized': 'quantization',
-        '4bit': 'quantization',
-        '8bit': 'quantization',
-        'awq': 'quantization',
-        'gptq': 'quantization',
-        'lora': 'fine-tuning',
-        'peft': 'fine-tuning',
-        'rlhf': 'fine-tuning',
-        'dpo': 'fine-tuning',
-        'vram': 'vram',
-        'ollama': 'ollama',
-        'huggingface': 'huggingface',
-        'rag': 'rag',
-        'retrieval': 'rag',
-        'local-inference': 'local-inference',
-        'local': 'local-inference',
-        'prompt': 'prompt-engineering'
-    };
-
     hydrated.knowledge_links = hydrated.knowledge_links || [];
-    tags.forEach(tag => {
-        const normalizedTag = tag.toLowerCase().trim();
-        const knowledgeSlug = TAG_TO_KNOWLEDGE[normalizedTag];
-        if (knowledgeSlug && !hydrated.knowledge_links.find(k => k.slug === knowledgeSlug)) {
-            hydrated.knowledge_links.push({ slug: knowledgeSlug, title: knowledgeSlug.replace(/-/g, ' ').toUpperCase(), icon: '🧠' });
-        }
-    });
 }
 
 
