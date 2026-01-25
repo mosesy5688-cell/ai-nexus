@@ -32,8 +32,8 @@ let benchmarkData = null;
 let error = null;
 
 try {
-  // SSR Fetch from Worker Cache API (R2 backed, V6.2.1 with slugs)
-  const response = await fetch(new URL('/api/cache/benchmarks.json', Astro.url.origin));
+  // SSR Fetch from Static CDN Cache (R2 backed, V6.2.1 with slugs)
+  const response = await fetch(new URL('/cache/benchmarks.json', Astro.url.origin));
   if (response.ok) {
     benchmarkData = await response.json();
   } else {
