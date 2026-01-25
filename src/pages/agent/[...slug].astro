@@ -22,6 +22,8 @@ import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
+import ModelGallery from '../../components/model-detail/ModelGallery.astro';
+import QuickCommands from '../../components/common/QuickCommands.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 
 import { prepareAgentPageData } from '../../utils/agent-page-data.js';
@@ -113,6 +115,7 @@ const jsonLd = {
       description={agent?.seo_summary?.description || cleanedDesc}
       fniScore={agent?.fni_score}
       fniPercentile={agent?.fni_percentile}
+      fniCommentary={agent?.fni_commentary}
       sourceUrl={agent?.source_url}
     >
       <div slot="actions" class="flex gap-2">
@@ -124,6 +127,13 @@ const jsonLd = {
       </div>
     </EntityHeader>
 
+    {/* Zone 1.6: Gallery (V16.17) */}
+    {agent?.gallery_images?.length > 0 && (
+      <div slot="gallery">
+        <ModelGallery images={agent.gallery_images} />
+      </div>
+    )}
+
     {/* Zone 1.5: Use Cases */}
     <ZoneUseCases
       slot="use-cases"
@@ -133,6 +143,7 @@ const jsonLd = {
 
     {/* Zone 2: Insights Extra (Decision Metric Elevation) */}
     <div slot="insights-extra" class="mt-4 space-y-6">
+       <QuickCommands entity={agent} type="agent" className="mb-6" />
        <div class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
           <TechSpecsFull entity={agent} type="agent" />
        </div>

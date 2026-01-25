@@ -140,7 +140,16 @@ export function getQuickInsights(entity, type) {
 
     if (safeType === 'model') {
         const isTrending = (entity.downloads > 50000) || (entity.fni_percentile > 95);
-        const isEfficient = entity.params_billions < 10 && entity.context_length >= 32768;
+
+        // FNI Decision Score (Promoted to Position 1)
+        if (entity.fni_score > 0) {
+            insights.push({
+                label: 'FNI Score',
+                value: entity.fni_score,
+                highlight: entity.fni_score > 85,
+                badge: entity.fni_score > 90 ? 'Elite' : (entity.fni_score > 70 ? 'Trusted' : 'Audited')
+            });
+        }
 
         insights.push({
             label: 'Params',
@@ -184,6 +193,9 @@ export function getQuickInsights(entity, type) {
     }
 
     else if (safeType === 'agent') {
+        if (entity.fni_score > 0) {
+            insights.push({ label: 'FNI Score', value: entity.fni_score, highlight: true, badge: 'Logic Audit' });
+        }
         insights.push({ label: 'Tools', value: entity.tools_count || '-', badge: entity.tools_count > 5 ? 'Power' : null });
         insights.push({ label: 'Language', value: entity.language || 'Python', highlight: true });
         insights.push({ label: 'Stars', value: formatNum(entity.stars || entity.github_stars), badge: (entity.stars > 1000) ? 'Popular' : null });
@@ -192,6 +204,9 @@ export function getQuickInsights(entity, type) {
     }
 
     else if (safeType === 'dataset') {
+        if (entity.fni_score > 0) {
+            insights.push({ label: 'FNI Score', value: entity.fni_score, highlight: true, badge: 'Data Integrity' });
+        }
         insights.push({ label: 'Size', value: entity.size_gb ? `${entity.size_gb} GB` : '-', badge: entity.size_gb > 100 ? 'Large' : null });
         insights.push({ label: 'Rows', value: formatNum(entity.rows) });
         insights.push({ label: 'Format', value: entity.format || 'Parquet', highlight: true });

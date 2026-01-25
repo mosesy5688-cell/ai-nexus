@@ -74,6 +74,11 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
         <slot name="use-cases" />
       </section>
 
+      {/* V16.17: GALLERY ZONE (Restored for WOW Impact) */}
+      <section id="gallery-zone" class="mb-4 animate-slide-up" style="animation-delay: 0.25s;">
+        <slot name="gallery" />
+      </section>
+
       {/* V15.0: UNIFIED CONTENT GRID */}
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start mb-12">
         

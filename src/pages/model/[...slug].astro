@@ -10,6 +10,7 @@ import ModelSidebar from '../../components/model-detail/ModelSidebar.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
+import ModelGallery from '../../components/model-detail/ModelGallery.astro';
 import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
 import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.astro';
 import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
@@ -105,6 +106,7 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
       description={model?.seo_summary?.description || cleanedDesc}
       fniScore={model?.fni_score}
       fniPercentile={model?.fni_percentile}
+      fniCommentary={model?.fni_commentary}
     >
        <div slot="actions" class="flex gap-2">
           <a href={model?.source_url} target="_blank" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-sm hover:shadow-md transition-all">
@@ -112,6 +114,13 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
           </a>
        </div>
     </EntityHeader>
+
+    {/* Zone 1.6: Gallery (V16.17) */}
+    {model?.gallery_images?.length > 0 && (
+      <div slot="gallery">
+        <ModelGallery images={model.gallery_images} />
+      </div>
+    )}
     
     {/* Zone 2: Insights Extra (Decision Metric Elevation) */}
     <div slot="insights-extra" class="mt-4 space-y-6">
@@ -139,11 +148,11 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
     </div>
 
     <div slot="core-similar">
-       {similarModels.length > 0 ? (
-          <ModelCarousel models={similarModels} />
-       ) : (
-          <p class="text-gray-500 italic p-4 text-center">No similar models found.</p>
-       )}
+        {similarModels.length > 0 ? (
+           <ModelCarousel models={similarModels} />
+        ) : (
+           <p class="text-gray-500 italic p-4 text-center">No similar models found.</p>
+        )}
     </div>
 
      <div slot="core-benchmarks">
