@@ -39,13 +39,11 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
         'report': '📰'
     };
 
-    // V16.13: Multi-Source Knowledge SSOT
-    // 1. Articles hardcoded in registry
-    // 2. Articles indexed in R2 (produced by Factory from .md files)
+    // V16.14: Multi-Source Knowledge SSOT (Normalized)
     const validKnowledgeSlugs = new Set([
         ...Object.keys(KNOWLEDGE_REGISTRY),
         ...(knowledgeIndex.articles || knowledgeIndex || []).map(a => a.slug || a.id?.split('--')?.pop())
-    ].filter(Boolean));
+    ].filter(Boolean).map(s => stripPrefix(s)));
 
     // Model validation index (normalized for easy matching)
     const validSpecIds = new Set();
@@ -85,10 +83,11 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
         const normNeighbor = stripPrefix(neighborId);
         if (normNeighbor === normRoot || seenIds.has(normNeighbor)) return;
 
-        // V16.12: Strict SSOT Filter before processing
+        // V16.14: Strict SSOT Filter before processing
         const nType = getTypeFromId(neighborId);
         if (nType === 'knowledge') {
-            const slug = normNeighbor.split('--').pop();
+            const rawSlug = normNeighbor.split('--').pop();
+            const slug = stripPrefix(rawSlug); // Canonical normalization check
             if (!validKnowledgeSlugs.has(slug)) return;
         }
 
