@@ -43,9 +43,9 @@ try {
 
 // 1. Centralized Mesh Orchestration (V16.7)
 let tiers = {
-    explanation: { title: '🧠 Theoretical Foundation', nodes: [], icon: '🧠' },
-    core: { title: '💎 Core Ecosystem', nodes: [], icon: '⚡' }, 
-    utility: { title: '🔬 Knowledge Mesh', nodes: [], icon: '🔬' }, 
+    explanation: { title: '🎓 Knowledge Base', nodes: [], icon: '🎓' },
+    core: { title: '🔗 Core Ecosystem', nodes: [], icon: '⚡' }, 
+    utility: { title: '🔬 Research & Data', nodes: [], icon: '🔬' }, 
     digest: { title: '📰 Timeline & Reports', nodes: [], icon: '📰' }
 };
 let nodeRegistry = new Map();
@@ -81,7 +81,7 @@ const enrichedTags = (tagsArray || []).map((tagObj: any) => {
       name: tag,
       slug: normalizedTag,
       refs: 0, // Simplified for performance
-      icon: '🧠'
+      icon: '🏷️'
    };
 }).filter(tag => !renderedNodes.has(tag.slug));
 ---

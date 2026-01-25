@@ -64,28 +64,18 @@ const relatedArticles = article ? Object.entries(articles)
   .slice(0, 3) : [];
 
 // FETCH LINKED ENTITIES (Mesh Integration)
-import { fetchMeshRelations, getRouteFromId, getTypeFromId } from '../../utils/knowledge-cache-reader';
-// V16: Use CANONICAL slug from config to ensure match in pre-computed relations.json
+import { getMeshProfile } from '../../utils/mesh-orchestrator';
 const meshId = article ? `knowledge--${article.slug}` : `knowledge--${slug}`;
-const meshRelations = await fetchMeshRelations(Astro.locals, meshId);
 
-// Group linked entities by type
-const linkedEntities = meshRelations.reduce((acc, rel) => {
-  const otherId = rel.source_id === meshId ? rel.target_id : rel.source_id;
-  if (!otherId || otherId === meshId) return acc;
-  
-  const type = getTypeFromId(otherId);
-  const path = getRouteFromId(otherId, type);
-  const name = otherId.split('--').pop()?.replace(/-/g, ' ') || otherId;
+let meshTiers = null;
+try {
+  const profile = await getMeshProfile(Astro.locals, meshId, null, 'knowledge');
+  meshTiers = profile.tiers;
+} catch (e) {
+  console.error('[KnowledgeMesh] Orchestration failed:', e);
+}
 
-  const displayType = type.charAt(0).toUpperCase() + type.slice(1);
-
-  if (!acc[displayType]) acc[displayType] = [];
-  if (!acc[displayType].find(e => e.id === otherId)) {
-    acc[displayType].push({ id: otherId, name, path });
-  }
-  return acc;
-}, {} as Record<string, any[]>);
+import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
 
 import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
 ---
@@ -115,22 +105,25 @@ import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
         </div>
 
         <!-- Linked Entities (Tabular View) -->
-        {Object.keys(linkedEntities).length > 0 && (
+        {meshTiers && (
           <div class="mt-12 p-8 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-3xl border border-indigo-100 dark:border-indigo-900/30">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Grounded Entities</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {Object.entries(linkedEntities).map(([type, entities]) => (
+              {Object.entries(meshTiers).map(([key, tier]: [string, any]) => tier.nodes.length > 0 && key !== 'explanation' && (
                 <div>
                   <h3 class="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span>{type === 'Model' ? '🤖' : type === 'Report' ? '📊' : '📄'}</span>
-                    {type}s
+                    <span>{tier.icon}</span>
+                    {tier.title}
                   </h3>
                   <ul class="space-y-3">
-                    {entities.map(ent => (
+                    {tier.nodes.map((node: any) => (
                       <li>
-                        <a href={ent.path} class="group flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-indigo-500 transition-all shadow-sm">
-                          <span class="text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 transition-colors uppercase">{ent.name}</span>
-                          <span class="text-xs text-gray-400">View Details →</span>
+                        <a href={getRouteFromId(node.id, node.type)} class="group flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-indigo-500 transition-all shadow-sm">
+                          <div class="flex items-center gap-3">
+                             <span class="text-xl">{node.icon}</span>
+                             <span class="text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 transition-colors uppercase">{node.name}</span>
+                          </div>
+                          <span class="text-xs text-gray-400">{node.type.toUpperCase()} →</span>
                         </a>
                       </li>
                     ))}
