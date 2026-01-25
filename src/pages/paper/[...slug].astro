@@ -19,6 +19,7 @@ import ModelNavigation from '../../components/model-detail/ModelNavigation.astro
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
+import QuickCommands from '../../components/common/QuickCommands.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import { getUseCases } from '../../utils/inference.js';
 import { preparePaperPageData } from '../../utils/paper-page-data.js';
@@ -106,15 +107,7 @@ const jsonLd = paper ? {
       fniPercentile={paper?.fni_percentile}
       fniCommentary={paper?.fni_commentary}
       sourceUrl={paper?.source_url}
-    >
-      <div slot="actions" class="flex gap-2">
-         {paper?.source_url && (
-           <a href={paper.source_url} target="_blank" class="px-4 py-2 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700 transition-colors shadow-sm">
-             View on arXiv
-           </a>
-         )}
-      </div>
-    </EntityHeader>
+    />
 
     {/* Zone 1.5: Use Cases */}
 
@@ -126,7 +119,8 @@ const jsonLd = paper ? {
     />
 
     {/* Zone 2: Insights Extra */}
-    <div slot="insights-extra" class="mt-4">
+    <div slot="insights-extra" class="mt-4 space-y-4">
+       <QuickCommands entity={paper} type="paper" />
        <div class="px-4 py-2 bg-rose-50 dark:bg-rose-900/10 rounded-xl border border-rose-100 dark:border-rose-800/30">
           <TechSpecsFull entity={paper} type="paper" />
        </div>

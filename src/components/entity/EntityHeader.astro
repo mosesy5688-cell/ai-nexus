@@ -148,7 +148,18 @@ const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author
       </div>
 
       <div class="flex flex-shrink-0 flex-wrap items-center gap-4 lg:pt-4">
-        <slot name="actions" />
+        <slot name="actions">
+          {sourceUrl && (
+            <a 
+              href={sourceUrl} 
+              target="_blank" 
+              class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-sm shadow-xl hover:scale-105 transition-all duration-300 flex items-center gap-2 group/btn"
+            >
+              <span class="group-hover/btn:rotate-12 transition-transform">🔗</span> 
+              View Source
+            </a>
+          )}
+        </slot>
         <ShareButtons title={name || 'AI Research'} description={cleanDescription || ''} />
       </div>
     </div>

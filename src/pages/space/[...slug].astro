@@ -112,15 +112,7 @@ const jsonLd = space ? {
       fniPercentile={space?.fni_percentile}
       fniCommentary={space?.fni_commentary}
       sourceUrl={space?.source_url}
-    >
-      <div slot="actions" class="flex gap-2">
-         {space?.source_url && (
-           <a href={space.source_url} target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm">
-             Visit Demo
-           </a>
-         )}
-      </div>
-    </EntityHeader>
+    />
 
     {/* Zone 1.5: Use Cases */}
 

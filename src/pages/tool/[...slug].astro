@@ -111,15 +111,7 @@ const jsonLd = tool ? {
       fniPercentile={tool?.fni_percentile}
       fniCommentary={tool?.fni_commentary}
       sourceUrl={tool?.source_url}
-    >
-      <div slot="actions" class="flex gap-2">
-         {tool?.source_url && (
-           <a href={tool.source_url} target="_blank" class="px-4 py-2 bg-gray-800 text-white rounded-lg font-bold hover:bg-gray-900 transition-colors shadow-sm">
-             View Source
-           </a>
-         )}
-      </div>
-    </EntityHeader>
+    />
 
     {/* Zone 1.5: Use Cases */}
 
