@@ -9,11 +9,12 @@ import { stripPrefix, getTypeFromId, normalizeSlug } from './mesh-routing-core.j
  */
 export const isMatch = (a, b) => {
     if (!a || !b) return false;
-    if (a === b) return true;
-    const clean = (s) => s.replace(/^(model|meta-llama|meta|hf-model|nvidia|google|openai|anthropic|microsoft|mistral|stability-ai|black-forest-labs)--/, '');
-    const ca = clean(a);
-    const cb = clean(b);
-    return ca === cb || ca.includes(cb) || cb.includes(ca);
+    const aNorm = stripPrefix(a);
+    const bNorm = stripPrefix(b);
+    if (aNorm === bNorm) return true;
+
+    // Fuzzy substring match for complex IDs
+    return aNorm.includes(bNorm) || bNorm.includes(aNorm);
 };
 
 /**
