@@ -35,12 +35,10 @@ let variants: string[] = [];
 let datasets: string[] = [];
 
 try {
-  // Fetch relations from API
-  const apiUrl = import.meta.env.DEV 
-    ? `http://localhost:8787/api/relations/${encodeURIComponent(modelId)}`
-    : `https://free2aitools.com/api/relations/${encodeURIComponent(modelId)}`;
+  // Fetch relations from Static R2 Cache
+  const apiUrl = `/cache/relations/${modelId.replace(/:/g, '--')}.json`;
   
-  const response = await fetch(apiUrl);
+  const response = await fetch(new URL(apiUrl, Astro.url.origin));
   if (response.ok) {
     const data: RelationsResponse = await response.json();
     relations = data.relations || [];

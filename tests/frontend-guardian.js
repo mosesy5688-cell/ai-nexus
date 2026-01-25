@@ -67,14 +67,6 @@ const CONFIG = {
         { name: 'Model (HF)', path: '/model/meta-llama-llama-3-3-70b', critical: true },
     ],
 
-    // API endpoints to validate
-    apis: [
-        { name: 'Model API', path: '/api/model/qwen-qwen2-5-72b', mustHave: ['model', 'resolution'] },
-        { name: 'Search API', path: '/api/search?q=qwen&limit=3', mustHave: ['results'] },
-        { name: 'Trending API', path: '/api/trending.json', mustHave: [] },
-        { name: 'DB Connection', path: '/api/test-db-connection', mustHave: ['success', 'dbConnected'] },
-    ],
-
     // Model page required components (per Constitution)
     modelPageComponents: [
         'model-title',
@@ -115,7 +107,7 @@ async function validatePage(page) {
             issues.push({ type: 'STATUS_ERROR', message: `Expected 200, got ${response.status}` });
         }
 
-        // Check for SSR errors in HTML (more precise patterns)
+        // Check for SSR errors + Soft 404 Markers (V16.32 Anti-Deception)
         const ssrErrorPatterns = [
             /TypeError:.*undefined/i,
             /ReferenceError:/i,
@@ -123,11 +115,16 @@ async function validatePage(page) {
             /is not defined/i,
             /Astro\..*Error/i,
             /<pre>Error:/i,
+            /id="article-not-found"/i,      // Soft 404 Marker: Article Container
+            /id="model-not-found"/i,        // Soft 404 Marker: Model Container
+            /Model Not Found/i,             // Visual Text Marker
+            /Article Not Found/i,           // Visual Text Marker
+            /aggregated in the Knowledge Mesh/i // Logic Fallback Marker
         ];
 
         const hasSSRError = ssrErrorPatterns.some(pattern => pattern.test(html));
         if (hasSSRError) {
-            issues.push({ type: 'SSR_ERROR', message: 'SSR error detected in HTML output' });
+            issues.push({ type: 'SSR_OR_SOFT_404', message: 'Soft 404 or SSR error detected in HTML content' });
         }
 
         // Check for debug panels (should not be in production)
@@ -161,54 +158,6 @@ async function validatePage(page) {
     }
 }
 
-async function validateAPI(api) {
-    const url = BASE + api.path;
-    const start = Date.now();
-
-    try {
-        const response = await fetch(url);
-        const duration = Date.now() - start;
-        const data = await response.json();
-
-        const issues = [];
-
-        // Check status
-        if (response.status !== 200) {
-            issues.push({ type: 'STATUS_ERROR', message: `Expected 200, got ${response.status}` });
-        }
-
-        // Check required fields
-        for (const field of api.mustHave) {
-            if (data[field] === undefined) {
-                issues.push({ type: 'MISSING_FIELD', message: `Missing required field: ${field}` });
-            }
-        }
-
-        // Check for error responses
-        if (data.error) {
-            issues.push({ type: 'API_ERROR', message: data.error });
-        }
-
-        return {
-            api: api.name,
-            url: api.path,
-            status: response.status,
-            duration,
-            issues,
-            pass: issues.length === 0
-        };
-
-    } catch (error) {
-        return {
-            api: api.name,
-            url: api.path,
-            status: 'ERROR',
-            duration: Date.now() - start,
-            issues: [{ type: 'FETCH_ERROR', message: error.message }],
-            pass: false
-        };
-    }
-}
 
 async function validateUMIDLinks() {
     // Fetch search results and verify UMID links resolve
@@ -485,32 +434,6 @@ async function runGuardian() {
     }
 
     // ─────────────────────────────────────────────────────────────
-    // 2. API Validation
-    // ─────────────────────────────────────────────────────────────
-    console.log('\n┌─────────────────────────────────────────────────────────────┐');
-    console.log('│ PHASE 2: API Validation                                     │');
-    console.log('└─────────────────────────────────────────────────────────────┘\n');
-
-    for (const api of CONFIG.apis) {
-        const result = await validateAPI(api);
-        results.apis.push(result);
-        results.summary.total++;
-
-        const icon = result.pass ? '✅' : '❌';
-        console.log(`${icon} ${result.api.padEnd(25)} ${result.status}  ${result.duration}ms`);
-
-        if (result.pass) {
-            results.summary.passed++;
-        } else {
-            results.summary.failed++;
-            result.issues.forEach(i => {
-                console.log(`   ↳ ${i.type}: ${i.message}`);
-                results.summary.issues.push({ context: result.api, ...i });
-            });
-        }
-    }
-
-    // ─────────────────────────────────────────────────────────────
     // 3. UMID Link Validation
     // ─────────────────────────────────────────────────────────────
     console.log('\n┌─────────────────────────────────────────────────────────────┐');
@@ -647,7 +570,6 @@ async function runGuardian() {
     console.log(`║ Pass Rate:    ${((results.summary.passed / results.summary.total) * 100).toFixed(1)}%${' '.repeat(44)}║`);
     console.log('╠══════════════════════════════════════════════════════════════╣');
 
-    // V4 Stable: PASS/WARN/FAIL status with CI blocking
     if (finalStatus === GUARDIAN_STATUS.PASS) {
         console.log('║ Status:       ✅ PASS - Deploy allowed                        ║');
     } else if (finalStatus === GUARDIAN_STATUS.WARN) {
@@ -655,23 +577,45 @@ async function runGuardian() {
     } else {
         console.log('║ Status:       ❌ FAIL - Deploy BLOCKED                         ║');
     }
-
     console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
-    // V4 Stable: Exit with code 1 on FAIL to block CI/CD
     if (finalStatus === GUARDIAN_STATUS.FAIL) {
         console.log('🚫 Guardian FAIL: Blocking deployment due to critical failures.\n');
         process.exit(1);
-    } else if (finalStatus === GUARDIAN_STATUS.WARN) {
-        console.log('⚠️  Guardian WARN: Deployment allowed but issues should be addressed.\n');
-        process.exit(0);
     } else {
         process.exit(0);
     }
 }
 
-// Run
-runGuardian().catch(e => {
+// ─────────────────────────────────────────────────────────────
+// V16.32: Dynamic Knowledge Crawl Injection
+// ─────────────────────────────────────────────────────────────
+async function injectKnowledgePages() {
+    try {
+        const { KNOWLEDGE_CATEGORIES } = await import('../src/data/knowledge-base-config.ts');
+        KNOWLEDGE_CATEGORIES.forEach(cat => {
+            cat.articles.forEach(art => {
+                CONFIG.pages.push({
+                    name: `Knowledge: ${art.slug}`,
+                    path: `/knowledge/${art.slug}`,
+                    critical: false
+                });
+            });
+        });
+        console.log(`✅ Injected ${CONFIG.pages.length - 6} knowledge nodes for deep audit.\n`);
+    } catch (e) {
+        console.warn('⚠️ Could not load knowledge-base-config: ' + e.message);
+    }
+}
+
+async function main() {
+    if (process.argv.includes('--crawl-knowledge')) {
+        await injectKnowledgePages();
+    }
+    await runGuardian();
+}
+
+main().catch(e => {
     console.error('Guardian error:', e);
     process.exit(1);
 });

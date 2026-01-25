@@ -7,7 +7,7 @@
 export const R2_CACHE_URL = 'https://r2.free2aitools.com';
 
 // Alternative: Use relative path if served from same domain
-export const CACHE_PREFIX = '/api/cache';
+export const CACHE_PREFIX = '/cache';
 
 // Category slugs (must match Annex A.2.1)
 export const CATEGORY_SLUGS = [

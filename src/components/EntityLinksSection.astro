@@ -20,7 +20,7 @@ let linkedModels: { id: string; name: string; slug: string; link_type: string }[
 let cacheVersion = '';
 
 try {
-    const res = await fetch(new URL('/api/cache/entity_links.json', Astro.url.origin));
+    const res = await fetch(new URL('/cache/entity_links.json', Astro.url.origin));
     if (res.ok) {
         const cache = await res.json();
         cacheVersion = cache.version || 'unknown';
