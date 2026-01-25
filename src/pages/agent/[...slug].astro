@@ -22,7 +22,7 @@ import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
-import ModelGallery from '../../components/model-detail/ModelGallery.astro';
+import QuickCommands from '../../components/common/QuickCommands.astro';
 import QuickCommands from '../../components/common/QuickCommands.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 
@@ -127,12 +127,7 @@ const jsonLd = {
       </div>
     </EntityHeader>
 
-    {/* Zone 1.6: Gallery (V16.17) */}
-    {agent?.gallery_images?.length > 0 && (
-      <div slot="gallery">
-        <ModelGallery images={agent.gallery_images} />
-      </div>
-    )}
+    {/* Zone 1.5: Use Cases */}
 
     {/* Zone 1.5: Use Cases */}
     <ZoneUseCases

@@ -116,13 +116,6 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
        </div>
     </EntityHeader>
 
-    {/* Zone 1.6: Gallery (V16.17) */}
-    {model?.gallery_images?.length > 0 && (
-      <div slot="gallery">
-        <ModelGallery images={model.gallery_images} />
-      </div>
-    )}
-    
     {/* Zone 2: Insights Extra (Decision Metric Elevation) */}
     <div slot="insights-extra" class="mt-4 space-y-6">
        <div class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
