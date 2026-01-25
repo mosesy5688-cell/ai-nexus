@@ -18,8 +18,16 @@ export function stripPrefix(id) {
 
     result = result.replace(canonicalPrefixes, '');
 
-    // V16.14: Strip common knowledge 'phrase noise' to align Graph vs Index
+    // V16.14: Strip common knowledge 'phrase noise'
     result = result.replace(/^what-is-/, '');
+
+    // V16.14: Final Semantic Alias Mapper (Bridges Graph vs Index gaps)
+    const aliases = {
+        'mixture-of-experts': 'moe',
+        'retrieval-augmented-generation': 'rag',
+        'low-rank-adaptation': 'lora'
+    };
+    if (aliases[result]) result = aliases[result];
 
     // Standardize separators to double-dash per SPEC V16.2
     return result
