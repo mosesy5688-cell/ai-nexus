@@ -125,23 +125,18 @@ const enrichedTags = (tagsArray || []).map((tagObj: any) => {
         <div class="space-y-10">
             <MeshRelationMatrix relations={propRelations} entityId={entityId} />
 
-            <div class="p-8 bg-indigo-50/20 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800/20">
-              <h3 class="text-xs font-black text-indigo-900/60 dark:text-indigo-200/60 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                 <span class="text-lg">🧠</span> Semantic Knowledge
+            <div class="p-8 bg-gray-50/50 dark:bg-gray-800/20 rounded-2xl border border-gray-100 dark:border-gray-700/50">
+              <h3 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                 <span class="text-lg">🔍</span> Semantic Keywords
               </h3>
               <div class="flex flex-wrap gap-2">
                  {enrichedTags.map((tag: any) => (
                     <a 
-                      href={getRouteFromId(`knowledge--${tag.slug}`, 'knowledge')} 
-                      class="group relative px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-[11px] font-bold border border-gray-100 dark:border-gray-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm hover:shadow-md"
+                      href={`/search?q=${encodeURIComponent(tag.name)}`} 
+                      class="group relative px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl text-[11px] font-bold border border-gray-100 dark:border-gray-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm hover:shadow-md"
                     >
-                       <span class="mr-1.5 opacity-60 group-hover:opacity-100">{tag.icon}</span>
-                       #{tag.name}
-                       {tag.refs > 0 && (
-                          <span class="ml-2 px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 text-[9px] text-indigo-500 rounded-md border border-indigo-100 dark:border-indigo-800/50">
-                             {tag.refs}
-                          </span>
-                       )}
+                       <span class="mr-1.5 opacity-60 group-hover:opacity-100">🏷️</span>
+                       {tag.name}
                     </a>
                  ))}
                  {enrichedTags.length === 0 && <span class="text-sm text-gray-400 italic">No semantic tags indexed.</span>}

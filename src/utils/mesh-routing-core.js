@@ -1,22 +1,22 @@
 /**
- * Mesh Routing Core (V16.4)
+ * Mesh Routing Core (V16.11)
  * Decoupled routing and type discovery to ensure CES compliance.
+ * V16.2: Strictly aligned with R2 SSOT prefixes.
  */
 
 /**
  * Normalizes entity IDs to facilitate flexible matching across platforms.
+ * V16.2: Precise prefix stripping to prevent ID mangling (Fixes c-- ghost nodes).
  */
 export function stripPrefix(id) {
     if (!id || typeof id !== 'string') return '';
 
-    // Normalize to lowercase for consistent prefix matching
     let result = id.toLowerCase();
 
-    // V16.4: Surgical Prefix Stripping (Fixes 404s)
-    // ONLY strip the entity type markers, PRESERVE platform/author segments (github, hf, etc.)
-    const schemaPrefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface_deepspec|knowledge|kb|report|arxiv|dataset|tool|paper|model|agent|space|hf)[:\-\/]+/;
+    // V16.2 Canonical Prefixes ONLY
+    const canonicalPrefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|knowledge|report|arxiv|dataset|tool|paper|model|agent|space)[:\-\/]+/;
 
-    result = result.replace(schemaPrefixes, '');
+    result = result.replace(canonicalPrefixes, '');
 
     // Standardize separators to double-dash per SPEC V16.2
     return result
@@ -41,76 +41,8 @@ export function getTypeFromId(id) {
 }
 
 /**
- * V16.4: Cross-Source Slug Redirects (Fixes 404s)
- * Standardized mapping to ensure knowledge links resolve to canonical slugs.
- */
-export const SLUG_MAPPING = {
-    'instruction-tuning': 'fine-tuning',
-    'image-generation': 'multimodal',
-    'chat-models': 'agents',
-    'rag-retrieval': 'rag',
-    'vector-databases': 'rag',
-    'prompt-engineering': 'prompt-engineering',
-    'transformer-architecture': 'transformer',
-    'direct-preference-optimization': 'dpo',
-    'what-is-rag': 'rag',
-    'local-deployment': 'local-inference',
-    'what-is-quantization': 'quantization',
-    'audio-models': 'multimodal',
-    'agentic-ai': 'agents',
-    'what-is-moe': 'moe',
-    'mixture-of-experts': 'moe',
-    'lora-finetuning': 'lora',
-    'speech-models': 'multimodal',
-    'inference-optimization': 'inference-optimization',
-    'gguf-format': 'gguf',
-    'ai-alignment': 'rlhf',
-    'vision-models': 'multimodal',
-    'attention-mechanism': 'transformer',
-    'what-is-mmlu': 'mmlu',
-    'what-is-humaneval': 'humaneval',
-    'what-is-fni': 'fni',
-    'what-is-transformer': 'transformer',
-    'what-is-ollama': 'ollama',
-    'multimodal-learning': 'multimodal',
-    'llm-evaluation': 'llm-benchmarks',
-    'inference': 'inference-optimization',
-    'high-preformance': 'inference-optimization',
-    'deep-learning': 'fundamentals',
-    'neural-network': 'fundamentals',
-    'vulkan': 'inference-optimization',
-    'simd': 'inference-optimization',
-    'mlir': 'inference-optimization',
-    'riscv': 'local-inference',
-    'onnx': 'inference-optimization',
-    'pytorch': 'fundamentals',
-    'tensorflow': 'fundamentals',
-    'keras': 'fundamentals',
-    'mxnet': 'fundamentals',
-    'ncnn': 'inference-optimization',
-    'ios': 'local-inference',
-    'cpp': 'fundamentals',
-    'c': 'fundamentals',
-    'machine-learning': 'fundamentals',
-    'algorithms': 'fundamentals',
-    'ai': 'fundamentals',
-    'llm': 'fundamentals',
-    'oss': 'fundamentals',
-    'open-source': 'fundamentals',
-    'browser': 'fundamentals',
-    'large-action-model': 'fundamentals',
-    'agentic': 'fundamentals',
-    'autonomous': 'agents',
-    'discovered': 'fundamentals',
-    'framework': 'fundamentals',
-    'javascript': 'fundamentals',
-    'nodejs': 'fundamentals',
-    'typescript': 'fundamentals',
-    'python': 'fundamentals'
-};
-
-/**
- * V16.4 Unified Routing logic to prevent 404s on Agent/Tool Mesh links.
+ * V16.11: Routing logic refined for R2 SSOT.
+ * Removed local SLUG_MAPPING to ensure data integrity.
  */
 export function getRouteFromId(id, type = null) {
     if (!id) return '#';
@@ -118,34 +50,9 @@ export function getRouteFromId(id, type = null) {
     let resolvedType = type || getTypeFromId(id);
     let rawId = stripPrefix(id);
 
-    // Apply Global Redirect Mapping for Knowledge Nodes
-    if (resolvedType === 'knowledge') {
-        const parts = rawId.split('--').filter(Boolean);
-        let slug = parts[parts.length - 1] || '';
-
-        if (SLUG_MAPPING[slug]) {
-            rawId = SLUG_MAPPING[slug];
-        } else if (!slug) {
-            return '/knowledge'; // Fallback for malformed ID
-        } else {
-            // V16.11: Knowledge Safety Guard - Only allow specifically configured articles
-            const VALID_CONCEPTS = [
-                'mmlu', 'humaneval', 'context-length', 'fni', 'deploy-score', 'gguf',
-                'hellaswag', 'arc', 'parameters', 'transformer', 'moe', 'quantization',
-                'vram', 'local-inference', 'multimodal', 'rag', 'llm-benchmarks',
-                'fine-tuning', 'lora', 'rlhf', 'dpo', 'tokenization', 'flash-attention',
-                'kv-cache', 'speculative-decoding', 'inference-optimization', 'awq',
-                'chain-of-thought', 'structured-output', 'function-calling', 'model-merging',
-                'fundamentals', 'agents'
-            ];
-
-            if (!VALID_CONCEPTS.includes(slug)) {
-                rawId = 'fundamentals'; // Safety fallback for tags without articles
-            } else {
-                rawId = slug;
-            }
-        }
-    }
+    // V16.11: No more dynamic "Fundamentals" redirect in the core.
+    // Routing is a direct map of the cleaned ID. 
+    // Validation happens in the UI layer where the index is available.
 
     const cleanId = rawId.replace(/--/g, '/');
 
@@ -162,12 +69,8 @@ export function getRouteFromId(id, type = null) {
 
     const finalPath = routeMap[resolvedType] || `/model/${cleanId}`;
 
-    // Safety: Ensure we never return a trailing slash knowledge link (404 risk)
-    if (resolvedType === 'knowledge' && finalPath.endsWith('/')) {
-        return '/knowledge';
-    }
-
-    return finalPath;
+    // Safety: Ensure we never return a trailing slash (404 risk)
+    return finalPath.endsWith('/') ? finalPath.slice(0, -1) : finalPath;
 }
 
 /**
