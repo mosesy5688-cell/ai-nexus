@@ -52,7 +52,6 @@ export const KNOWLEDGE_CATEGORIES: KnowledgeCategory[] = [
         articles: [
             { slug: 'what-is-context-length', title: 'What is Context Length?', description: 'Understanding token windows and memory in LLMs', difficulty: 'Beginner', effort: '3 min' },
             { slug: 'what-is-parameters', title: 'What are Model Parameters?', description: 'Why 7B, 70B, and model size matters', difficulty: 'Beginner', effort: '4 min' },
-            { slug: 'what-is-transformer', title: 'What is a Transformer?', description: 'The architecture behind modern language models', difficulty: 'Advanced', effort: '10 min' },
             { slug: 'rag', title: 'What is RAG?', description: 'Retrieval Augmented Generation for knowledge-grounded AI', difficulty: 'Intermediate', effort: '6 min' }
         ]
     },
@@ -172,8 +171,11 @@ export function getArticleBySlug(slug: string): { category: KnowledgeCategory; a
         'vram': 'vram',
         'ollama': 'what-is-ollama',
         'llm': 'large-language-model',
-        'transformer': 'what-is-transformer',
-        'moe': 'moe'
+        'transformer': 'transformer',
+        'what-is-transformer': 'transformer',
+        'moe': 'moe',
+        'what-is-moe': 'moe',
+        'meta-ai': 'meta'
     };
 
     const canonicalSlug = aliasMap[slug];
