@@ -18,6 +18,9 @@ export function stripPrefix(id) {
 
     result = result.replace(canonicalPrefixes, '');
 
+    // V16.14: Strip common knowledge 'phrase noise' to align Graph vs Index
+    result = result.replace(/^what-is-/, '');
+
     // Standardize separators to double-dash per SPEC V16.2
     return result
         .replace(/:/g, '--')
@@ -79,7 +82,7 @@ export function getRouteFromId(id, type = null) {
 
     const cleanId = rawId.replace(/--/g, '/');
 
-    // Custom routing table
+    // V16.14: Double-tap routing logic (checks both variations)
     const routeMap = {
         'knowledge': `/knowledge/${cleanId}`,
         'report': `/reports/${cleanId}`,
