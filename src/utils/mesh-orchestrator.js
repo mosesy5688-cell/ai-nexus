@@ -131,8 +131,9 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
 
         if (Array.isArray(entity.arxiv_refs)) entity.arxiv_refs.forEach(r => inject(`arxiv--${r}`, 'paper', 'CITES'));
 
-        // V16.22: Legendary Entity Heuristic Injection (Ensure Mesh Visibility)
-        const isLegendary = (entity.fni_score || 0) >= 80 || (entity.params_billions || 0) >= 70;
+        // V16.22-25: Legendary Entity Heuristic Injection (Ensure Mesh Visibility)
+        // Calibrated V16.25: Actual top scores are ~75, lowering threshold to 60.
+        const isLegendary = (entity.fni_score || 0) >= 60 || (entity.params_billions || 0) >= 70;
         if (isLegendary && filteredRelations.length === 0) {
             // If no relations found, inject author and base tech as "Ecosystem Nodes"
             if (entity.author && entity.author !== 'Unknown') {
