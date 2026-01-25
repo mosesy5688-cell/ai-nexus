@@ -1,56 +1,44 @@
 ---
 // src/components/knowledge/KnowledgeSidebar.astro
+import { getMeshProfile } from '../../utils/mesh-orchestrator';
+import { getRouteFromId } from '../../utils/mesh-routing-core';
+
 interface Props {
   slug: string;
+  meshTiers?: any;
 }
 
-const { slug } = Astro.props;
+const { slug, meshTiers: propTiers } = Astro.props;
+let tiers = propTiers;
+
+// Fallback dynamic fetch if not passed by parent
+if (!tiers && slug) {
+    try {
+        const profile = await getMeshProfile(Astro.locals, `knowledge--${slug}`, null, 'knowledge');
+        tiers = profile.tiers;
+    } catch (e) {
+        console.error('[KnowledgeSidebar] Failed to fetch dynamic mesh:', e);
+    }
+}
+
+const relatedModels = tiers?.core?.nodes || [];
 ---
 
 <aside class="used-in-section">
   <h3>🔗 Used In (Models referencing this concept)</h3>
   <p class="used-in-description">
-    This knowledge base article is referenced by the following model pages:
+    {relatedModels.length > 0 
+      ? `This article is grounded by ${relatedModels.length} models in the ecosystem:` 
+      : 'This knowledge base article is referenced by the following model pages:'}
   </p>
   <div class="used-in-grid">
-    {/* Static examples - CES-001 Clean URL format */}
-    {slug === 'what-is-mmlu' && (
-      <>
-        <a href="/model/meta-llama/llama-3-2-1b" class="used-in-card">📊 Llama 3.2 1B</a>
-        <a href="/model/qwen/qwen2.5-72b" class="used-in-card">📊 Qwen 2.5 72B</a>
-        <a href="/model/mistralai/mistral-7b-v0.1" class="used-in-card">📊 Mistral 7B</a>
-      </>
-    )}
-    {slug === 'what-is-humaneval' && (
-      <>
-        <a href="/model/deepseek-ai/deepseek-coder-33b-instruct" class="used-in-card">💻 DeepSeek Coder 33B</a>
-        <a href="/model/codellama/codellama-70b-hf" class="used-in-card">💻 CodeLlama 70B</a>
-        <a href="/model/meta-llama/llama-3-2-3b" class="used-in-card">💻 Llama 3.2 3B</a>
-      </>
-    )}
-    {slug === 'what-is-fni' && (
-      <>
-        <a href="/ranking" class="used-in-card">🏠 All Models (FNI Score)</a>
-        <a href="/ranking" class="used-in-card">🏆 Rankings</a>
-        <a href="/methodology" class="used-in-card">📋 Methodology</a>
-      </>
-    )}
-    {slug === 'what-is-context-length' && (
-      <>
-        <a href="/model/mistralai/mistral-7b-v0.1" class="used-in-card">📐 Mistral 7B (32K)</a>
-        <a href="/model/deepseek-ai/deepseek-v2.5" class="used-in-card">📐 DeepSeek V2.5 (128K)</a>
-        <a href="/model/qwen/qwen2.5-72b" class="used-in-card">📐 Qwen 2.5 72B (128K)</a>
-      </>
-    )}
-    {slug === 'what-is-deploy-score' && (
-      <>
-        <a href="/model/meta-llama/llama-3-2-1b" class="used-in-card">⚡ Llama 3.2 1B (easy deploy)</a>
-        <a href="/model/qwen/qwen2.5-7b" class="used-in-card">⚡ Qwen 2.5 7B</a>
-        <a href="/ranking?sort=deploy" class="used-in-card">⚡ Deploy Score Sort</a>
-      </>
-    )}
-    {/* Fallback */}
-    {!['what-is-mmlu', 'what-is-humaneval', 'what-is-fni', 'what-is-context-length', 'what-is-deploy-score'].includes(slug || '') && (
+    {relatedModels.length > 0 ? (
+      relatedModels.slice(0, 10).map((node: any) => (
+        <a href={getRouteFromId(node.id, node.type)} class="used-in-card">
+          {node.icon} {node.name}
+        </a>
+      ))
+    ) : (
       <>
         <a href="/ranking" class="used-in-card">🔍 Explore Models</a>
         <a href="/ranking" class="used-in-card">🏆 Rankings</a>
@@ -58,6 +46,11 @@ const { slug } = Astro.props;
       </>
     )}
   </div>
+  
+  {relatedModels.length > 0 && (
+    <p class="mt-4 text-[10px] text-gray-500 italic">Showing top grounded models from the Knowledge Mesh.</p>
+  )}
+
   <p class="used-in-note">
     📖 CEO Iron Rule: Each knowledge article must be cited by 3+ entity pages
   </p>
