@@ -29,17 +29,20 @@ export function handleModelType(hydrated, entity, computed, meta, derivedName) {
         hydrated.author = entity.author || (parts.length > 1 ? parts[parts.length - 2] : 'Unknown');
     }
 
-    // V16.22: Robust Source URL Construction
+    // V16.22-26: Robust Source URL Construction
     if (!hydrated.source_url && hydrated.id) {
-        if (hydrated.id.startsWith('replicate--')) {
-            const slug = hydrated.id.replace('replicate--', '');
+        const id = hydrated.id;
+        if (id.startsWith('replicate--') || id.startsWith('replicate:')) {
+            const slug = id.replace('replicate--', '').replace('replicate:', '');
             hydrated.source_url = `https://replicate.com/${slug}`;
-        } else if (hydrated.id.startsWith('hf-model--')) {
-            const slug = hydrated.id.replace('hf-model--', '').replace(/--/g, '/');
+        } else if (id.startsWith('hf-model--') || id.startsWith('huggingface:') || (entity.source === 'huggingface' && id.includes('/'))) {
+            const slug = id.replace('hf-model--', '').replace('huggingface:', '').replace(/--/g, '/');
             hydrated.source_url = `https://huggingface.co/${slug}`;
-        } else if (hydrated.id.startsWith('github--')) {
-            const slug = hydrated.id.replace('github--', '').replace(/--/g, '/');
+        } else if (id.startsWith('github--') || id.startsWith('github:')) {
+            const slug = id.replace('github--', '').replace('github:', '').replace(/--/g, '/');
             hydrated.source_url = `https://github.com/${slug}`;
+        } else if (entity.author && entity.name && entity.source === 'huggingface') {
+            hydrated.source_url = `https://huggingface.co/${entity.author}/${entity.name}`;
         }
     }
 
@@ -55,9 +58,9 @@ export function handlePaperType(hydrated, entity, meta, derivedName) {
     hydrated.published_date = entity.published_date || meta.published_date || meta.extended?.published_date;
     hydrated.authors = entity.authors || meta.authors || meta.extended?.authors || [];
 
-    // V16.24: Robust Paper Source URL
+    // V16.24-26: Robust Paper Source URL
     if (!hydrated.source_url && (hydrated.arxiv_id || hydrated.id)) {
-        const id = hydrated.arxiv_id || (hydrated.id?.startsWith('arxiv--') ? hydrated.id.replace('arxiv--', '') : null);
+        const id = hydrated.arxiv_id || (hydrated.id?.startsWith('arxiv--') ? hydrated.id.replace('arxiv--', '') : null) || (hydrated.id?.startsWith('arxiv:') ? hydrated.id.replace('arxiv:', '') : null);
         if (id) hydrated.source_url = `https://arxiv.org/abs/${id}`;
     }
 }
@@ -71,17 +74,21 @@ export function handleGenericType(hydrated, entity, type, meta, derivedName) {
     }
     hydrated.author = entity.author || (entity.id && entity.id.split('--').length > 1 ? entity.id.split('--')[1] : 'Unknown');
 
-    // V16.24: Robust Generic Source URL Construction (Datasets, Spaces, Tools, Agents)
+    // V16.24-26: Robust Generic Source URL Construction (Datasets, Spaces, Tools, Agents)
     if (!hydrated.source_url && hydrated.id) {
-        if (hydrated.id.startsWith('hf-dataset--')) {
-            const slug = hydrated.id.replace('hf-dataset--', '').replace(/--/g, '/');
+        const id = hydrated.id;
+        if (id.startsWith('hf-dataset--') || id.startsWith('hf-dataset:')) {
+            const slug = id.replace('hf-dataset--', '').replace('hf-dataset:', '').replace(/--/g, '/');
             hydrated.source_url = `https://huggingface.co/datasets/${slug}`;
-        } else if (hydrated.id.startsWith('hf-space--')) {
-            const slug = hydrated.id.replace('hf-space--', '').replace(/--/g, '/');
+        } else if (id.startsWith('hf-space--') || id.startsWith('hf-space:')) {
+            const slug = id.replace('hf-space--', '').replace('hf-space:', '').replace(/--/g, '/');
             hydrated.source_url = `https://huggingface.co/spaces/${slug}`;
-        } else if (hydrated.id.startsWith('github--')) {
-            const slug = hydrated.id.replace('github--', '').replace(/--/g, '/');
+        } else if (id.startsWith('github--') || id.startsWith('github:')) {
+            const slug = id.replace('github--', '').replace('github:', '').replace(/--/g, '/');
             hydrated.source_url = `https://github.com/${slug}`;
+        } else if (id.startsWith('replicate--') || id.startsWith('replicate:')) {
+            const slug = id.replace('replicate--', '').replace('replicate:', '');
+            hydrated.source_url = `https://replicate.com/${slug}`;
         }
     }
 

@@ -18,7 +18,7 @@ import ModelCarousel from '../../components/ModelCarousel.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
-import ModelGallery from '../../components/model-detail/ModelGallery.astro';
+import QuickCommands from '../../components/common/QuickCommands.astro';
 import QuickCommands from '../../components/common/QuickCommands.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import { getUseCases } from '../../utils/inference.js';
@@ -122,12 +122,7 @@ const jsonLd = space ? {
       </div>
     </EntityHeader>
 
-    {/* Zone 1.6: Gallery (V16.17) */}
-    {space?.gallery_images?.length > 0 && (
-      <div slot="gallery">
-        <ModelGallery images={space.gallery_images} />
-      </div>
-    )}
+    {/* Zone 1.5: Use Cases */}
 
     {/* Zone 1.5: Use Cases */}
     <ZoneUseCases
