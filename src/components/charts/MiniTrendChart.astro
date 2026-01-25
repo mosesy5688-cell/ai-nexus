@@ -145,15 +145,21 @@ async function initMiniTrends() {
         let id = (el as HTMLElement).dataset.entityId;
         if (!id) return;
         
-        // Normalize: handle various ID formats
+        // Normalize: handle various ID formats (V16.23: Production Alignment)
         if (!data[id]) {
-            const cleanId = id.replace(/^(model|agent|dataset|paper|space|tool)--/, '');
+            const cleanId = id.replace(/^(model|agent|dataset|paper|space|tool)--/, '')
+                              .replace(/^(model|agent|dataset|paper|space|tool)-/, '');
             const altIds = [
                 id.replace(/\//g, '--'),
                 id.replace(/--/g, '/'),
+                id.replace('--', ':'),
                 cleanId,
                 cleanId.replace(/\//g, '--'),
-                `hf-model--${cleanId.replace(/\//g, '--')}`
+                cleanId.replace(/--/g, '/'),
+                cleanId.replace(/--/g, ':'),
+                `hf-model--${cleanId.replace(/\//g, '--')}`,
+                `replicate:${cleanId}`,
+                `replicate:${cleanId.replace(/--/g, '/')}`
             ];
             
             for (const alt of altIds) {
