@@ -113,11 +113,12 @@ const enrichedTags = (tagsArray || []).map((tagObj: any) => {
               </h3>
               <div class="relative min-h-[140px] flex items-center justify-center">
                 <MiniTrendChart entityId={entityId} width={400} height={140} />
-                {!entityId && (
-                  <div class="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm flex items-center justify-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    No Trend Data Available
+                <div id="trend-fallback" class="hidden absolute inset-0 bg-gray-50/50 dark:bg-gray-800/50 backdrop-blur-[2px] flex items-center justify-center text-[10px] font-black text-gray-400 uppercase tracking-widest text-center px-8">
+                  <div class="space-y-2">
+                    <span class="text-xl block animate-pulse">📡</span>
+                    <span>Knowledge Mesh Synchronizing...<br/>Real-time Trend Indexing In-Progress</span>
                   </div>
-                )}
+                </div>
               </div>
               <p class="text-[10px] text-gray-400 mt-4 leading-tight uppercase font-bold tracking-tighter">
                 * Real-time activity index across HuggingFace, GitHub and Research citations.
@@ -158,3 +159,24 @@ const enrichedTags = (tagsArray || []).map((tagObj: any) => {
         </div>
     </div>
 </div>
+
+<script is:inline>
+  // V16.22: Trend Data Visibility Guard
+  function checkTrendLoad() {
+    const charts = document.querySelectorAll('.mini-trend');
+    charts.forEach(chart => {
+      const canvas = chart.querySelector('canvas');
+      const fallback = chart.parentElement?.querySelector('#trend-fallback');
+      
+      // Wait for the MiniTrendChart script to finish (checks if .loaded is added)
+      setTimeout(() => {
+        if (canvas && !canvas.classList.contains('loaded') && fallback) {
+          fallback.classList.remove('hidden');
+        }
+      }, 1500);
+    });
+  }
+
+  checkTrendLoad();
+  document.addEventListener('astro:after-swap', checkTrendLoad);
+</script>
