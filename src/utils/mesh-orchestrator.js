@@ -141,6 +141,15 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
             if (type === 'model') {
                 inject(`knowledge--large-language-model`, 'knowledge', 'FIELD');
                 inject(`knowledge--transformer`, 'knowledge', 'ARCHITECTURE');
+            } else if (type === 'paper') {
+                inject(`knowledge--artificial-intelligence`, 'knowledge', 'FIELD');
+                inject(`knowledge--research`, 'knowledge', 'TYPE');
+            } else if (type === 'dataset') {
+                inject(`knowledge--machine-learning-dataset`, 'knowledge', 'TYPE');
+                inject(`knowledge--training-data`, 'knowledge', 'USAGE');
+            } else if (type === 'agent' || type === 'tool' || type === 'space') {
+                inject(`knowledge--ai-infrastructure`, 'knowledge', 'DOMAIN');
+                inject(`knowledge--open-source`, 'knowledge', 'DELIVERY');
             }
         }
     }

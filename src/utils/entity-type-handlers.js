@@ -54,6 +54,12 @@ export function handlePaperType(hydrated, entity, meta, derivedName) {
     hydrated.citations = entity.citations || entity.citation_count || meta.citations || meta.extended?.citations;
     hydrated.published_date = entity.published_date || meta.published_date || meta.extended?.published_date;
     hydrated.authors = entity.authors || meta.authors || meta.extended?.authors || [];
+
+    // V16.24: Robust Paper Source URL
+    if (!hydrated.source_url && (hydrated.arxiv_id || hydrated.id)) {
+        const id = hydrated.arxiv_id || (hydrated.id?.startsWith('arxiv--') ? hydrated.id.replace('arxiv--', '') : null);
+        if (id) hydrated.source_url = `https://arxiv.org/abs/${id}`;
+    }
 }
 
 export function handleGenericType(hydrated, entity, type, meta, derivedName) {
@@ -64,6 +70,20 @@ export function handleGenericType(hydrated, entity, type, meta, derivedName) {
         if (type === 'space' || type === 'dataset') hydrated.title = hydrated.name;
     }
     hydrated.author = entity.author || (entity.id && entity.id.split('--').length > 1 ? entity.id.split('--')[1] : 'Unknown');
+
+    // V16.24: Robust Generic Source URL Construction (Datasets, Spaces, Tools, Agents)
+    if (!hydrated.source_url && hydrated.id) {
+        if (hydrated.id.startsWith('hf-dataset--')) {
+            const slug = hydrated.id.replace('hf-dataset--', '').replace(/--/g, '/');
+            hydrated.source_url = `https://huggingface.co/datasets/${slug}`;
+        } else if (hydrated.id.startsWith('hf-space--')) {
+            const slug = hydrated.id.replace('hf-space--', '').replace(/--/g, '/');
+            hydrated.source_url = `https://huggingface.co/spaces/${slug}`;
+        } else if (hydrated.id.startsWith('github--')) {
+            const slug = hydrated.id.replace('github--', '').replace(/--/g, '/');
+            hydrated.source_url = `https://github.com/${slug}`;
+        }
+    }
 
     // Promotion of specialized metadata
     if (type === 'dataset') {

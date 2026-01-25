@@ -1,6 +1,6 @@
 /**
- * V16.23 Trend Mapping Audit
- * Verifies that frontend IDs correctly resolve to R2 trend-data.json keys.
+ * V16.24 Universal Trend Mapping Audit
+ * Verifies that all 6 entity type IDs correctly resolve to R2 keys.
  */
 
 // Mock production data slice
@@ -21,7 +21,7 @@ const testIds = [
     'tool--github--microsoft/typechat'
 ];
 
-console.log("=== V16.23 Trend Alignment Audit ===");
+console.log("=== V16.24 Universal Trend Alignment Audit ===");
 
 testIds.forEach(id => {
     let resolvedId = id;
@@ -29,6 +29,7 @@ testIds.forEach(id => {
     if (!mockR2Data[resolvedId]) {
         const cleanId = id.replace(/^(model|agent|dataset|paper|space|tool)--/, '')
             .replace(/^(model|agent|dataset|paper|space|tool)-/, '');
+
         const altIds = [
             id.replace(/\//g, '--'),
             id.replace(/--/g, '/'),
@@ -36,10 +37,14 @@ testIds.forEach(id => {
             cleanId,
             cleanId.replace(/\//g, '--'),
             cleanId.replace(/--/g, '/'),
+            cleanId.replace('--', ':'),
             cleanId.replace(/--/g, ':'),
+            cleanId.replace('--', ':').replace(/--/g, '/'),
             `hf-model--${cleanId.replace(/\//g, '--')}`,
-            `replicate:${cleanId}`,
-            `replicate:${cleanId.replace(/--/g, '/')}`
+            `hf-dataset--${cleanId.replace(/\//g, '--')}`,
+            `hf-space--${cleanId.replace(/\//g, '--')}`,
+            `replicate:${cleanId.replace(/--/g, '/')}`,
+            `github:${cleanId.replace(/--/g, '/')}`
         ];
 
         for (const alt of altIds) {
