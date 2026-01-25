@@ -81,7 +81,7 @@ const buildTime = import.meta.env.PUBLIC_BUILD_TIME || Date.now().toString();
         function loadGraphData() {
             console.log('[Graph] Loading for ' + modelId);
             // Include build time for cache-busting to prevent stale data
-            fetch('/api/graph/neighbors.json?id=' + encodeURIComponent(modelId) + '&v=' + buildTime)
+            fetch('/cache/graph/neighbors/' + encodeURIComponent(modelId) + '.json?v=' + buildTime)
                 .then(function(response) {
                     if (!response.ok) {
                         return response.text().then(function(errText) {
