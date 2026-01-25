@@ -29,6 +29,20 @@ export function handleModelType(hydrated, entity, computed, meta, derivedName) {
         hydrated.author = entity.author || (parts.length > 1 ? parts[parts.length - 2] : 'Unknown');
     }
 
+    // V16.22: Robust Source URL Construction
+    if (!hydrated.source_url && hydrated.id) {
+        if (hydrated.id.startsWith('replicate--')) {
+            const slug = hydrated.id.replace('replicate--', '');
+            hydrated.source_url = `https://replicate.com/${slug}`;
+        } else if (hydrated.id.startsWith('hf-model--')) {
+            const slug = hydrated.id.replace('hf-model--', '').replace(/--/g, '/');
+            hydrated.source_url = `https://huggingface.co/${slug}`;
+        } else if (hydrated.id.startsWith('github--')) {
+            const slug = hydrated.id.replace('github--', '').replace(/--/g, '/');
+            hydrated.source_url = `https://github.com/${slug}`;
+        }
+    }
+
     // Apply VRAM Logic
     applyVramLogic(hydrated);
 }

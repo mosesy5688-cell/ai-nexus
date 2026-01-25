@@ -130,6 +130,19 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
         };
 
         if (Array.isArray(entity.arxiv_refs)) entity.arxiv_refs.forEach(r => inject(`arxiv--${r}`, 'paper', 'CITES'));
+
+        // V16.22: Legendary Entity Heuristic Injection (Ensure Mesh Visibility)
+        const isLegendary = (entity.fni_score || 0) >= 80 || (entity.params_billions || 0) >= 70;
+        if (isLegendary && filteredRelations.length === 0) {
+            // If no relations found, inject author and base tech as "Ecosystem Nodes"
+            if (entity.author && entity.author !== 'Unknown') {
+                inject(`author--${normalizeSlug(entity.author)}`, 'knowledge', 'DEVELOPED BY');
+            }
+            if (type === 'model') {
+                inject(`knowledge--large-language-model`, 'knowledge', 'FIELD');
+                inject(`knowledge--transformer`, 'knowledge', 'ARCHITECTURE');
+            }
+        }
     }
 
     return { tiers, nodeRegistry, filteredRelations };
