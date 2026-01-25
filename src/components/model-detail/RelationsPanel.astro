@@ -129,7 +129,7 @@ const hasRelations = baseModel || datasetsUsed.length > 0 || arxivRefs.length > 
       // Paper title hydration
       async function loadPaperTitles() {
         try {
-          const res = await fetch('/api/cache/paper-titles.json');
+          const res = await fetch('/cache/paper-titles.json');
           if (!res.ok) return;
           const data = await res.json();
           

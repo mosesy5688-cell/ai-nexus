@@ -30,8 +30,8 @@ const { type = 'line', height = '300px' } = Astro.props;
     if (!canvas) return;
     
     try {
-      // Fetch pre-computed trend data from L5 cache
-      const res = await fetch('/api/cache/trends.json');
+      // Fetch pre-computed trend data from static CDN cache
+      const res = await fetch('/cache/trends.json');
       if (!res.ok) throw new Error('Trend data not available');
       
       const data = await res.json();
