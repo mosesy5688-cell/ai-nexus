@@ -66,4 +66,9 @@ export const articles: Record<string, KnowledgeArticle> = {
   'inference-optimization': createStub('Inference Optimization', 'How to speed up LLMs', 'inference_tech'),
   'fundamentals': createStub('AI Fundamentals', 'Core concepts and architectures', 'fundamentals'),
   'rlhf': createStub('RLHF', 'Reinforcement Learning from Human Feedback', 'training'),
+  'large-language-model': createStub('Large Language Model (LLM)', 'Deep learning models trained on vast amounts of text data.', 'fundamentals'),
+  'meta': createStub('Meta AI', 'Creators of the Llama series and leading open-weights research.', 'organizations'),
+  'google': createStub('Google DeepMind', 'Pioneers of the Transformer architecture and Gemini models.', 'organizations'),
+  'openai': createStub('OpenAI', 'Creators of GPT-4, DALL-E and the ChatGPT ecosystem.', 'organizations'),
+  'mistral-ai': createStub('Mistral AI', 'European AI leader focused on efficient Mixture-of-Experts models.', 'organizations'),
 };
