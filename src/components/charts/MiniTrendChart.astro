@@ -149,6 +149,8 @@ async function initMiniTrends() {
         if (!data[id]) {
             const cleanId = id.replace(/^(model|agent|dataset|paper|space|tool)--/, '')
                               .replace(/^(model|agent|dataset|paper|space|tool)-/, '');
+            
+            // Generate permutations for robust matching
             const altIds = [
                 id.replace(/\//g, '--'),
                 id.replace(/--/g, '/'),
@@ -156,10 +158,14 @@ async function initMiniTrends() {
                 cleanId,
                 cleanId.replace(/\//g, '--'),
                 cleanId.replace(/--/g, '/'),
+                cleanId.replace('--', ':'),
                 cleanId.replace(/--/g, ':'),
+                cleanId.replace('--', ':').replace(/--/g, '/'),
                 `hf-model--${cleanId.replace(/\//g, '--')}`,
-                `replicate:${cleanId}`,
-                `replicate:${cleanId.replace(/--/g, '/')}`
+                `hf-dataset--${cleanId.replace(/\//g, '--')}`,
+                `hf-space--${cleanId.replace(/\//g, '--')}`,
+                `replicate:${cleanId.replace(/--/g, '/')}`,
+                `github:${cleanId.replace(/--/g, '/')}`
             ];
             
             for (const alt of altIds) {
