@@ -25,18 +25,41 @@ export function stripPrefix(id) {
 }
 
 /**
- * V16.4 Unified Type Discovery logic for the entire Knowledge Mesh.
+ * V16.11 Unified Type Discovery logic for the entire Knowledge Mesh.
  */
 export function getTypeFromId(id) {
     if (!id || typeof id !== 'string') return 'model';
     const low = id.toLowerCase();
+
+    // Knowledge
     if (low.includes('knowledge--') || low.includes('kb--') || low.includes('concept--')) return 'knowledge';
+
+    // Reports
     if (low.includes('report--')) return 'report';
-    if (low.includes('arxiv--') || low.includes('paper--')) return 'paper';
-    if (low.includes('dataset--')) return 'dataset';
-    if (low.includes('space--')) return 'space';
-    if (low.includes('agent--')) return 'agent';
-    if (low.includes('tool--')) return 'tool';
+
+    // Papers/ArXiv
+    if (low.includes('arxiv--') || low.includes('paper--') || low.match(/^arxiv:\d+/)) return 'paper';
+
+    // Datasets
+    if (low.includes('dataset--') || low.includes('datasets/')) return 'dataset';
+
+    // Spaces
+    if (low.includes('space--') || low.includes('spaces/')) return 'space';
+
+    // Agents (Must be before tool/model)
+    if (low.includes('agent--') || low.includes('/agents/') || low.includes('-agent-') || low.includes('-agent--') || low.endsWith('-agent')) return 'agent';
+
+    // Tools
+    if (low.includes('tool--') || low.includes('/tools/') || low.includes('framework') || low.includes('library') || low.includes('engine')) return 'tool';
+
+    // Fallback: If it's a known non-model format but we are unsure, check common model markers
+    if (low.includes('/') && !low.includes('model')) {
+        // Many GitHub repos without prefixes are Agents or Tools. 
+        // We favor 'tool' as a safe default for unknown codebases.
+        if (low.includes('agent')) return 'agent';
+        if (low.includes('bench')) return 'dataset';
+    }
+
     return 'model';
 }
 

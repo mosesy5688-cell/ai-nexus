@@ -70,8 +70,8 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
         if (!node._mapped) {
             node._mapped = true;
             if (node.type === 'knowledge') tiers.explanation.nodes.push(node);
-            else if (['model', 'tool', 'dataset'].includes(node.type)) tiers.core.nodes.push(node);
-            else if (['agent', 'space', 'paper', 'report'].includes(node.type)) tiers.utility.nodes.push(node);
+            else if (['model', 'agent', 'tool', 'space'].includes(node.type)) tiers.core.nodes.push(node);
+            else if (['dataset', 'paper', 'report'].includes(node.type)) tiers.utility.nodes.push(node);
         }
     });
 
@@ -87,8 +87,8 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
             if (!node._mapped) {
                 node._mapped = true;
                 if (node.type === 'knowledge') tiers.explanation.nodes.push(node);
-                else if (['model', 'tool', 'dataset'].includes(node.type)) tiers.core.nodes.push(node);
-                else if (['agent', 'space', 'paper'].includes(node.type)) tiers.utility.nodes.push(node);
+                else if (['model', 'agent', 'tool', 'space'].includes(node.type)) tiers.core.nodes.push(node);
+                else if (['dataset', 'paper'].includes(node.type)) tiers.utility.nodes.push(node);
             }
         };
 
