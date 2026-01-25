@@ -19,6 +19,7 @@ import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import EntityRelations from '../../components/entity/EntityRelations.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
+import QuickCommands from '../../components/common/QuickCommands.astro';
 import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
 import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definitions';
 import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers.js';
@@ -108,19 +109,15 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
       fniPercentile={model?.fni_percentile}
       fniCommentary={model?.fni_commentary}
       paramsB={model?.params_billions}
-    >
-       <div slot="actions" class="flex gap-2">
-          <a href={model?.source_url} target="_blank" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-sm hover:shadow-md transition-all">
-             View Source
-          </a>
-       </div>
-    </EntityHeader>
+      sourceUrl={model?.source_url}
+    />
 
     {/* Zone 2: Insights Extra (Decision Metric Elevation) */}
     <div slot="insights-extra" class="mt-4 space-y-6">
        <div class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
           <TechSpecsFull entity={model} type="model" />
        </div>
+       <QuickCommands entity={model} type="model" className="mt-4" />
        {model?.params_billions && <VramEstimator paramsB={model?.params_billions} contextLen={model?.context_length} />}
     </div>
 

@@ -117,15 +117,7 @@ const jsonLd = {
       fniPercentile={agent?.fni_percentile}
       fniCommentary={agent?.fni_commentary}
       sourceUrl={agent?.source_url}
-    >
-      <div slot="actions" class="flex gap-2">
-         {agent?.source_url && (
-           <a href={agent.source_url} target="_blank" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-sm">
-             Visit Agent
-           </a>
-         )}
-      </div>
-    </EntityHeader>
+    />
 
     {/* Zone 1.5: Use Cases */}
 

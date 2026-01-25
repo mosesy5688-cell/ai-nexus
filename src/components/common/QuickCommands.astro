@@ -8,7 +8,7 @@
 
 interface Props {
   entity: any;
-  type: 'model' | 'agent' | 'dataset';
+  type: 'model' | 'agent' | 'dataset' | 'paper' | 'space' | 'tool';
   className?: string;
 }
 
@@ -16,80 +16,72 @@ const { entity, type, className = '' } = Astro.props;
 
 // Logic for snippets
 const id = entity?.id || entity?.umid || '';
-const cleanId = id.split('--').pop() || '';
+const cleanId = id.split('--').pop()?.replace(/--/g, '/') || '';
 const repoUrl = entity?.source_url || '';
 
 const commands = [];
 
 if (type === 'model') {
+  // 1. Ollama (if likely compatible)
+  if (entity.params_billions && entity.params_billions < 100) {
+    commands.push({
+      label: 'Ollama Run',
+      cmd: `ollama run ${cleanId.includes('/') ? cleanId.split('/').pop() : cleanId}`,
+      icon: '🦙'
+    });
+  }
+  // 2. HF-CLI (Standard for Models)
+  if (entity.source === 'huggingface' || repoUrl.includes('huggingface.co')) {
+    commands.push({
+      label: 'HF Download',
+      cmd: `huggingface-cli download ${cleanId}`,
+      icon: '🤗'
+    });
+  }
+} else if (type === 'agent') {
   commands.push({
-    label: 'Ollama Run',
-    cmd: `ollama run ${cleanId}`,
-    icon: '🦙'
+    label: 'GitHub Clone',
+    cmd: `git clone ${repoUrl || '...' }`,
+    icon: '🐙'
   });
-  if (repoUrl.includes('github.com')) {
+} else if (type === 'dataset') {
+  commands.push({
+    label: 'HF Download',
+    cmd: `huggingface-cli download --repo-type dataset ${cleanId}`,
+    icon: '📊'
+  });
+} else if (type === 'space') {
+  const sdk = entity?.sdk?.toLowerCase() || 'gradio';
+  commands.push({
+    label: `Run with ${sdk.toUpperCase()}`,
+    cmd: sdk === 'streamlit' ? 'streamlit run app.py' : 'python app.py',
+    icon: '🚀'
+  });
+} else if (type === 'tool') {
+  const lang = (entity?.language || '').toLowerCase();
+  commands.push({
+    label: 'Install',
+    cmd: lang === 'javascript' || lang === 'typescript' ? `npm install ${cleanId.split('/').pop()}` : `pip install ${cleanId.split('/').pop()}`,
+    icon: '📦'
+  });
+} else if (type === 'paper') {
+    const arxivId = entity?.arxiv_id || (id.includes('arxiv--') ? id.replace('arxiv--', '') : '');
+    if (arxivId) {
+        commands.push({
+            label: 'BibTeX Citation',
+            cmd: `gh arxiv cite ${arxivId}`,
+            icon: '📜'
+        });
+    }
+}
+
+// Global Source Check
+if (repoUrl && repoUrl.includes('github.com') && commands.length < 2) {
     commands.push({
       label: 'Git Clone',
       cmd: `git clone ${repoUrl}`,
       icon: '🐙'
     });
-  }
-} else if (type === 'agent') {
-  commands.push({
-    label: 'Install',
-    cmd: `pip install ${cleanId.toLowerCase().replace(/ /g, '-')}`,
-    icon: '🐍'
-  });
-} else if (type === 'dataset') {
-  commands.push({
-    label: 'HF Download',
-    cmd: `huggingface-cli download ${entity?.canonical_name || cleanId}`,
-    icon: '🤗'
-  });
-} else if (type === 'space') {
-  const sdk = entity?.sdk?.toLowerCase() || 'gradio';
-  commands.push({
-    label: `Install ${sdk}`,
-    cmd: sdk === 'streamlit' ? 'pip install streamlit' : (sdk === 'docker' ? 'docker pull ...' : 'pip install gradio'),
-    icon: '🛠️'
-  });
-  if (repoUrl) {
-    commands.push({
-      label: 'Clone Space',
-      cmd: `git clone ${repoUrl}`,
-      icon: '🐙'
-    });
-  }
-} else if (type === 'tool') {
-  const lang = (entity?.language || '').toLowerCase();
-  commands.push({
-    label: 'Install Tool',
-    cmd: lang === 'javascript' ? `npm install ${cleanId}` : `pip install ${cleanId}`,
-    icon: '⚙️'
-  });
-  if (repoUrl) {
-    commands.push({
-      label: 'Clone Source',
-      cmd: `git clone ${repoUrl}`,
-      icon: '🐙'
-    });
-  }
-} else if (type === 'paper') {
-  if (repoUrl && repoUrl.includes('github.com')) {
-    commands.push({
-      label: 'Clone Code',
-      cmd: `git clone ${repoUrl}`,
-      icon: '🐙'
-    });
-  }
-  const arxivId = entity?.arxiv_id || cleanId;
-  if (arxivId.includes('.')) {
-    commands.push({
-      label: 'ArXiv Link',
-      cmd: `https://arxiv.org/abs/${arxivId}`,
-      icon: '📄'
-    });
-  }
 }
 
 if (commands.length === 0) return null;
