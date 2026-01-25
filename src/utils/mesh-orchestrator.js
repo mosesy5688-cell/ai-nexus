@@ -10,9 +10,10 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
     const normRoot = stripPrefix(rootId);
 
     // V16.12: Fetch all relevant indices for cross-validation
-    const [rawRelations, graphMeta, specsResult] = await Promise.all([
+    const [rawRelations, graphMeta, knowledgeIndex, specsResult] = await Promise.all([
         fetchMeshRelations(locals, rootId, { ssrOnly: true }).catch(() => []),
         fetchGraphMetadata(locals).catch(() => ({})),
+        fetchConceptMetadata(locals).catch(() => ([])),
         locals?.runtime?.env?.R2_ASSETS?.get('cache/specs.json').then(async (f) => f ? await f.json() : null).catch(() => null)
     ]);
 
@@ -38,8 +39,13 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
         'report': '📰'
     };
 
-    // V16.12: Hardcoded Knowledge SSOT (Code is Truth)
-    const validKnowledgeSlugs = new Set(Object.keys(KNOWLEDGE_REGISTRY));
+    // V16.13: Multi-Source Knowledge SSOT
+    // 1. Articles hardcoded in registry
+    // 2. Articles indexed in R2 (produced by Factory from .md files)
+    const validKnowledgeSlugs = new Set([
+        ...Object.keys(KNOWLEDGE_REGISTRY),
+        ...(knowledgeIndex.articles || knowledgeIndex || []).map(a => a.slug || a.id?.split('--')?.pop())
+    ].filter(Boolean));
 
     // Model validation index (normalized for easy matching)
     const validSpecIds = new Set();
