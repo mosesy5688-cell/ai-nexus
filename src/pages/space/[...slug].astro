@@ -18,6 +18,8 @@ import ModelCarousel from '../../components/ModelCarousel.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
+import ModelGallery from '../../components/model-detail/ModelGallery.astro';
+import QuickCommands from '../../components/common/QuickCommands.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import { getUseCases } from '../../utils/inference.js';
 import { prepareSpacePageData } from '../../utils/space-page-data.js';
@@ -108,6 +110,7 @@ const jsonLd = space ? {
       description={space?.seo_summary?.description || space?.description}
       fniScore={space?.fni_score}
       fniPercentile={space?.fni_percentile}
+      fniCommentary={space?.fni_commentary}
       sourceUrl={space?.source_url}
     >
       <div slot="actions" class="flex gap-2">
@@ -119,6 +122,13 @@ const jsonLd = space ? {
       </div>
     </EntityHeader>
 
+    {/* Zone 1.6: Gallery (V16.17) */}
+    {space?.gallery_images?.length > 0 && (
+      <div slot="gallery">
+        <ModelGallery images={space.gallery_images} />
+      </div>
+    )}
+
     {/* Zone 1.5: Use Cases */}
     <ZoneUseCases
       slot="use-cases"
@@ -127,7 +137,8 @@ const jsonLd = space ? {
     />
 
     {/* Zone 2: Insights Extra */}
-    <div slot="insights-extra" class="mt-4">
+    <div slot="insights-extra" class="mt-4 space-y-6">
+       <QuickCommands entity={space} type="space" className="mb-4" />
        <div class="px-4 py-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-800/30">
           <TechSpecsFull entity={space} type="space" />
        </div>

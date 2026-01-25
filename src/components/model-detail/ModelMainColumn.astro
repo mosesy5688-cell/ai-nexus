@@ -40,7 +40,7 @@ try {
 
 <div class="lg:col-span-2 space-y-8">
   {/* V16.2: Visual First - Auto Gallery */}
-  <ModelGallery content={model.body_content} />
+  {model.gallery_images?.length > 0 && <ModelGallery images={model.gallery_images} />}
 
   {/* V16.2: Developer First - Quick Commands */}
   <QuickCommands entity={model} type="model" />

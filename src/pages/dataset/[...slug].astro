@@ -15,6 +15,7 @@ import UniversalCore from '../../components/entity/UniversalCore.astro';
 import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
+import ModelGallery from '../../components/model-detail/ModelGallery.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
@@ -105,6 +106,7 @@ const jsonLd = dataset ? {
       description={dataset?.seo_summary?.description || dataset?.description}
       fniScore={dataset?.fni_score}
       fniPercentile={dataset?.fni_percentile}
+      fniCommentary={dataset?.fni_commentary}
       sourceUrl={dataset?.source_url}
     >
       <div slot="actions" class="flex gap-2">
@@ -115,6 +117,13 @@ const jsonLd = dataset ? {
          )}
       </div>
     </EntityHeader>
+
+    {/* Zone 1.6: Gallery (V16.17) */}
+    {dataset?.gallery_images?.length > 0 && (
+      <div slot="gallery">
+        <ModelGallery images={dataset.gallery_images} />
+      </div>
+    )}
 
     {/* Zone 1.5: Use Cases */}
     <ZoneUseCases

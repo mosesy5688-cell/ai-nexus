@@ -28,6 +28,8 @@ export function hydrateEntity(data, type, summaryData) {
         meta: meta,
         fni_score: computed.fni ?? entity.fni_score ?? entity.fni ?? 0,
         fni_percentile: computed.fni_percentile ?? entity.fni_percentile ?? entity.percentile,
+        fni_commentary: computed.fni_commentary || entity.fni_commentary || meta.fni?.commentary || null,
+        fni_metrics: computed.fni_metrics || entity.fni_metrics || meta.fni?.metrics || {},
         name: derivedName,
         relations: computed.relations || entity.relations || meta.extended?.relations || {},
         _computed: computed,
@@ -101,7 +103,18 @@ function extractTechSpecs(hydrated, entity, meta) {
     hydrated.num_heads = hydrated.num_heads || config.num_attention_heads || config.n_head || config.n_heads;
 
     if (!hydrated.body_content) {
-        hydrated.body_content = entity.body_content || meta.readme || meta.model_card || meta.description || null;
+        hydrated.body_content = entity.body_content || entity.readme || meta.readme || meta.model_card || meta.description || meta.abstract || null;
+    }
+
+    // Auto-extract gallery images from body content if not explicitly provided
+    if (hydrated.body_content && (!hydrated.gallery_images || hydrated.gallery_images.length === 0)) {
+        const imgRegex = /!\[.*?\]\((.*?)\)/g;
+        const images = [];
+        let m;
+        while ((m = imgRegex.exec(hydrated.body_content)) !== null) {
+            if (m[1] && !images.includes(m[1])) images.push(m[1]);
+        }
+        hydrated.gallery_images = images.slice(0, 6);
     }
 }
 

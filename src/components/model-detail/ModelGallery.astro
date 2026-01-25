@@ -7,22 +7,25 @@
  */
 
 interface Props {
-  content: string;
+  images?: string[];
+  content?: string;
   title?: string;
   className?: string;
 }
 
-const { content, title = "Visual Gallery", className = '' } = Astro.props;
+const { images: propImages, content = '', title = "Visual Gallery", className = '' } = Astro.props;
 
-// Enhanced Regex to find markdown images ! [alt] (url)
-const imgRegex = /!\[.*?\]\((.*?)\)/g;
-const imageUrls = [];
-let match;
+let imageUrls = propImages || [];
 
-while ((match = imgRegex.exec(content)) !== null) {
-  if (match[1] && !imageUrls.includes(match[1])) {
-    imageUrls.push(match[1]);
-  }
+if (imageUrls.length === 0 && content) {
+    // Enhanced Regex to find markdown images ! [alt] (url)
+    const imgRegex = /!\[.*?\]\((.*?)\)/g;
+    let match;
+    while ((match = imgRegex.exec(content)) !== null) {
+      if (match[1] && !imageUrls.includes(match[1])) {
+        imageUrls.push(match[1]);
+      }
+    }
 }
 
 // Limit to first 6 images for performance
