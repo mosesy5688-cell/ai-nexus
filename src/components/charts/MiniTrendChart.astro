@@ -145,40 +145,42 @@ async function initMiniTrends() {
         let id = (el as HTMLElement).dataset.entityId;
         if (!id) return;
         
-        // Normalize: handle various ID formats (V16.23: Production Alignment)
-        if (!data[id]) {
-            const cleanId = id.replace(/^(model|agent|dataset|paper|space|tool)--/, '')
-                              .replace(/^(model|agent|dataset|paper|space|tool)-/, '');
+        let targetId = id;
+        
+        // Normalize: handle various ID formats (V16.31: Robust Matching)
+        if (!data[targetId]) {
+            // 1. Strip common prefixes
+            const cleanId = id.replace(/^(huggingface|hf|replicate|github|arxiv|civitai|ollama)[:|-]+/, '')
+                              .replace(/^(model|agent|dataset|paper|space|tool)[:|-]+/, '');
             
-            // Generate permutations for robust matching
-            const altIds = [
-                id.replace(/\//g, '--'),
-                id.replace(/--/g, '/'),
-                id.replace('--', ':'),
-                cleanId,
-                cleanId.replace(/\//g, '--'),
-                cleanId.replace(/--/g, '/'),
-                cleanId.replace('--', ':'),
-                cleanId.replace(/--/g, ':'),
-                cleanId.replace('--', ':').replace(/--/g, '/'),
-                `hf-model--${cleanId.replace(/\//g, '--')}`,
+            // 2. Generate candidates
+            const candidates = [
+                id.replace(/\//g, '--').replace(/:/g, '--'), // Standard R2 swap
+                `hf-model--${cleanId.replace(/\//g, '--')}`, // Common HuggingFace prefix
                 `hf-dataset--${cleanId.replace(/\//g, '--')}`,
                 `hf-space--${cleanId.replace(/\//g, '--')}`,
+                `arxiv--${cleanId}`,
+                `github--${cleanId.replace(/\//g, '--')}`,
                 `replicate:${cleanId.replace(/--/g, '/')}`,
-                `github:${cleanId.replace(/--/g, '/')}`
+                cleanId, // Bare name
+                cleanId.replace(/\//g, '--'),
+                cleanId.replace(/--/g, '/')
             ];
             
-            for (const alt of altIds) {
-                if (data[alt]) {
-                    id = alt;
+            for (const cand of candidates) {
+                if (data[cand]) {
+                    targetId = cand;
                     break;
                 }
             }
         }
 
-        if (!data[id]) return;
+        if (!data[targetId]) {
+            console.warn('[MiniTrend] No data for:', id);
+            return;
+        }
         
-        const d = data[id];
+        const d = data[targetId];
         const canvas = el.querySelector('canvas');
         const badge = el.querySelector('.mini-trend-badge') as HTMLElement;
         

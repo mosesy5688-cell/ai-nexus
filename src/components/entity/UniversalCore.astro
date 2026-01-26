@@ -169,11 +169,12 @@ const enrichedTags = (tagsArray || []).map((tagObj: any) => {
       const fallback = chart.parentElement?.querySelector('#trend-fallback');
       
       // Wait for the MiniTrendChart script to finish (checks if .loaded is added)
+      // V16.31: Increased to 5s for large trend-data.json production download
       setTimeout(() => {
         if (canvas && !canvas.classList.contains('loaded') && fallback) {
           fallback.classList.remove('hidden');
         }
-      }, 1500);
+      }, 5000);
     });
   }
 
