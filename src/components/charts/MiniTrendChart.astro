@@ -154,6 +154,8 @@ async function initMiniTrends() {
     if (!charts.length) return;
     
     const data = await loadTrendData();
+    const dataKeys = Object.keys(data);
+    const dataKeysLower = dataKeys.map(k => k.toLowerCase());
     
     charts.forEach(el => {
         let id = (el as HTMLElement).dataset.entityId;
@@ -161,36 +163,28 @@ async function initMiniTrends() {
         
         let targetId = id;
         
-        // Normalize: handle various ID formats (V16.31: Robust Matching)
+        // V16.32: Robust Identity Matching (Case-Insensitive + Poly-Separator)
+        const normalize = (s: string) => s.toLowerCase().replace(/[:\/]+/g, '--');
+        const nid = normalize(id);
+        
+        // 1. Try exact match
         if (!data[targetId]) {
-            // 1. Strip common prefixes
-            const cleanId = id.replace(/^(huggingface|hf|replicate|github|arxiv|civitai|ollama)[:|-]+/, '')
-                              .replace(/^(model|agent|dataset|paper|space|tool)[:|-]+/, '');
-            
-            // 2. Generate candidates
-            const candidates = [
-                id.replace(/\//g, '--').replace(/:/g, '--'), // Standard R2 swap
-                `hf-model--${cleanId.replace(/\//g, '--')}`, // Common HuggingFace prefix
-                `hf-dataset--${cleanId.replace(/\//g, '--')}`,
-                `hf-space--${cleanId.replace(/\//g, '--')}`,
-                `arxiv--${cleanId}`,
-                `github--${cleanId.replace(/\//g, '--')}`,
-                `replicate:${cleanId.replace(/--/g, '/')}`,
-                cleanId, // Bare name
-                cleanId.replace(/\//g, '--'),
-                cleanId.replace(/--/g, '/')
-            ];
-            
-            for (const cand of candidates) {
-                if (data[cand]) {
-                    targetId = cand;
-                    break;
+            // 2. Try normalized match
+            const idx = dataKeysLower.indexOf(nid);
+            if (idx !== -1) {
+                targetId = dataKeys[idx];
+            } else {
+                // 3. Try "bare" name matching (last part of slug)
+                const bareName = nid.split('--').pop();
+                if (bareName) {
+                    const bareIdx = dataKeysLower.findIndex(k => k.endsWith(`--${bareName}`) || k === bareName);
+                    if (bareIdx !== -1) targetId = dataKeys[bareIdx];
                 }
             }
         }
 
         if (!data[targetId]) {
-            console.warn('[MiniTrend] No data for:', id);
+            console.warn('[MiniTrend] No data for:', id, '(nid:', nid, ')');
             return;
         }
         
@@ -198,8 +192,12 @@ async function initMiniTrends() {
         const canvas = el.querySelector('canvas');
         const badge = el.querySelector('.mini-trend-badge') as HTMLElement;
         
-        if (canvas && d.scores?.length >= 2) {
-            drawSparkline(canvas as HTMLCanvasElement, d.scores, d.direction);
+        // Defensive: Check for scores array
+        if (canvas) {
+            const scores = d.scores || (d.latest ? [d.latest, d.latest] : []);
+            if (scores.length >= 2) {
+                drawSparkline(canvas as HTMLCanvasElement, scores, d.direction || 'stable');
+            }
         }
         if (badge) {
             updateBadge(badge, d.change7d || 0, d.direction || 'stable');
