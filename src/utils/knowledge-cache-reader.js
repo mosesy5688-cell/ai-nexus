@@ -11,12 +11,15 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     const target = stripPrefix(entityId);
     let allRelations = [];
 
-    // Prioritize V16.2 Unified Graph
+    // V16.95: Full 7-Source Aggregation (Perfect SSOT Recovery)
     const sourcesToFetch = [
         'cache/mesh/graph.json',
         'cache/relations.json',
         'cache/relations/explicit.json',
-        'cache/relations/knowledge-links.json'
+        'cache/relations/knowledge-links.json',
+        'cache/knowledge/index.json',
+        'cache/reports/index.json',
+        'cache/mesh/stats.json'
     ];
 
     try {
@@ -26,27 +29,23 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                 if (!obj) continue;
                 const data = await obj.json();
 
-                // 1. Unified Graph Format (V16.x / V15.x / V14.x)
-                // Checks for 'edges' property regardless of version gating
-                if (data.edges && typeof data.edges === 'object') {
+                // 1. Unified Graph Format (edges: { src: [[target, type, weight], ...] })
+                if (data.edges) {
                     Object.entries(data.edges).forEach(([srcId, targets]) => {
-                        if (Array.isArray(targets)) {
-                            targets.forEach(edge => {
-                                // Handle both [target, type, weight] and {target, type, weight}
-                                const targetId = edge.target || (Array.isArray(edge) ? edge[0] : null);
-                                if (!targetId) return;
-                                allRelations.push({
-                                    source_id: srcId,
-                                    target_id: targetId,
-                                    relation_type: edge.type || (Array.isArray(edge) ? edge[1] : null) || 'RELATED',
-                                    confidence: edge.weight || (Array.isArray(edge) ? edge[2] : null) || 0.8
-                                });
+                        (Array.isArray(targets) ? targets : []).forEach(edge => {
+                            const tid = edge.target || (Array.isArray(edge) ? edge[0] : null);
+                            if (!tid) return;
+                            allRelations.push({
+                                source_id: srcId,
+                                target_id: tid,
+                                relation_type: edge.type || (Array.isArray(edge) ? edge[1] : null) || 'RELATED',
+                                confidence: edge.weight || (Array.isArray(edge) ? edge[2] : null) || 0.8
                             });
-                        }
+                        });
                     });
                 }
 
-                // 2. Explicit Relations Array (.relations) - Common in V14.5 / V15.x
+                // 2. Explicit Relations Array
                 if (Array.isArray(data.relations)) {
                     data.relations.forEach(rel => {
                         if (rel.source_id && rel.target_id) {
@@ -60,45 +59,42 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                     });
                 }
 
-                // 3. Knowledge Links (Array or .links object)
-                // R2 knowledge-links.json is often a direct array
-                const linksArray = Array.isArray(data) ? data : (data.links || []);
-                if (Array.isArray(linksArray)) {
-                    linksArray.forEach(link => {
+                // 3. Knowledge Links (link.knowledge is an array)
+                const links = data.links || (Array.isArray(data) ? data : []);
+                if (Array.isArray(links)) {
+                    links.forEach(link => {
                         const sid = link.entity_id || link.id;
                         if (sid && Array.isArray(link.knowledge)) {
                             link.knowledge.forEach(k => {
                                 allRelations.push({
                                     source_id: sid,
-                                    target_id: typeof k === 'string' ? `knowledge--${k}` : `knowledge--${k.slug || k.id}`,
+                                    target_id: `knowledge--${k.slug || k.id || k}`,
                                     relation_type: 'EXPLAINS',
-                                    confidence: k?.confidence || 1.0
+                                    confidence: k.confidence || 1.0
                                 });
                             });
                         }
                     });
                 }
 
-                // 4. Fallback for Key-Value Dictionary formats
-                if (typeof data === 'object' && !Array.isArray(data) && !data.edges && !data.relations && !data.links) {
-                    Object.entries(data).forEach(([srcId, targets]) => {
-                        if (srcId.startsWith('_')) return; // Metadata ignore
-                        if (Array.isArray(targets)) {
-                            targets.forEach(edge => {
-                                if (Array.isArray(edge) && edge.length >= 1) {
-                                    allRelations.push({
-                                        source_id: srcId,
-                                        target_id: edge[0],
-                                        relation_type: edge[1] || 'RELATED',
-                                        confidence: edge[2] || 0.8
-                                    });
-                                }
+                // 4. Reports Integration (FEATURED_IN)
+                if (Array.isArray(data.reports)) {
+                    data.reports.forEach(report => {
+                        const rid = `report--${report.id}`;
+                        if (Array.isArray(report.entities)) {
+                            report.entities.forEach(eid => {
+                                allRelations.push({
+                                    source_id: eid,
+                                    target_id: rid,
+                                    relation_type: 'FEATURED_IN',
+                                    confidence: 1.0
+                                });
                             });
                         }
                     });
                 }
             } catch (inner) {
-                console.warn(`[KnowledgeReader] Failed to ingest ${key}:`, inner.message);
+                console.warn(`[KnowledgeReader] Skip source ${key}:`, inner.message);
             }
         }
 

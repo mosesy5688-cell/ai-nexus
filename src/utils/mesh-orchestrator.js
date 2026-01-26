@@ -4,7 +4,7 @@
  * V16.11: Restricted to R2 Source only. No dynamic tag promotion.
  */
 import { fetchMeshRelations, fetchGraphMetadata, fetchConceptMetadata, stripPrefix, isMatch, getTypeFromId, normalizeSlug } from './knowledge-cache-reader.js';
-import { articles as KNOWLEDGE_REGISTRY } from '../data/knowledge-articles';
+import { articles as knowledgeArticles } from '../data/knowledge-articles';
 
 export async function getMeshProfile(locals, rootId, entity, type = 'model') {
     const normRoot = stripPrefix(rootId);
@@ -95,81 +95,51 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
         return node;
     };
 
-    // 1. Process Relations
+    // 1. Process Relations (Strict Aggregate from R2)
     const filteredRelations = [];
     rawRelations.forEach(rel => {
         const neighborId = isMatch(rel.norm_source, normRoot) ? rel.target_id : rel.source_id;
         const normNeighbor = stripPrefix(neighborId);
         if (normNeighbor === normRoot || seenIds.has(normNeighbor)) return;
 
-        // V16.55: Validation Relaxed.
-        // We trust the Mesh files (graph/explicit/links) to be the SSOT.
-        // If it's in the data, it's valid to show, regardless of the index.
-
         seenIds.add(normNeighbor);
 
         let node = ensureNode(neighborId, rel.target_type || rel.source_type);
-        if (!node.relation || node.relation === 'RELATED') node.relation = (rel.relation_type || 'RELATED').toUpperCase();
+        const relType = (rel.relation_type || 'RELATED').toUpperCase();
+        node.relation = relType;
 
         if (!node._mapped) {
             node._mapped = true;
+            // 4-Tier Magnetic Alignment
             if (node.type === 'knowledge') tiers.explanation.nodes.push(node);
             else if (['model', 'agent', 'tool', 'space'].includes(node.type)) tiers.core.nodes.push(node);
             else if (['dataset', 'paper'].includes(node.type)) tiers.utility.nodes.push(node);
             else if (node.type === 'report') tiers.digest.nodes.push(node);
 
-            // Track as a valid relation for the Matrix
             filteredRelations.push({
                 ...rel,
                 target_id: neighborId,
-                target_type: nType,
+                target_type: node.type,
                 target_name: node.name
             });
         }
     });
 
-    // 2. Process High-Confidence Injections (ArXiv ONLY)
-    if (entity) {
-        const inject = (id, type, rel) => {
+    // 2. High-Confidence Structural Injections (ArXiv ONLY)
+    if (entity && Array.isArray(entity.arxiv_refs)) {
+        entity.arxiv_refs.forEach(r => {
+            const id = `arxiv--${r}`;
             const norm = stripPrefix(id);
             if (norm === normRoot || seenIds.has(norm)) return;
             seenIds.add(norm);
 
-            let node = ensureNode(id, type);
-            if (!node.relation || node.relation === 'RELATED') node.relation = rel;
+            let node = ensureNode(id, 'paper');
+            node.relation = 'CITES';
             if (!node._mapped) {
                 node._mapped = true;
-                if (node.type === 'knowledge') tiers.explanation.nodes.push(node);
-                else if (['model', 'agent', 'tool', 'space'].includes(node.type)) tiers.core.nodes.push(node);
-                else if (['dataset', 'paper'].includes(node.type)) tiers.utility.nodes.push(node);
-                else if (node.type === 'report') tiers.digest.nodes.push(node);
+                tiers.utility.nodes.push(node);
             }
-        };
-
-        if (Array.isArray(entity.arxiv_refs)) entity.arxiv_refs.forEach(r => inject(`arxiv--${r}`, 'paper', 'CITES'));
-
-        // V16.22-25: Legendary Entity Heuristic Injection (Ensure Mesh Visibility)
-        // Calibrated V16.25: Actual top scores are ~75, lowering threshold to 60.
-        const isLegendary = (entity.fni_score || 0) >= 60 || (entity.params_billions || 0) >= 70;
-        if (isLegendary && filteredRelations.length === 0) {
-            // If no relations found, inject author and base tech as "Ecosystem Nodes"
-            if (entity.author && entity.author !== 'Unknown') {
-                inject(`author--${normalizeSlug(entity.author)}`, 'knowledge', 'DEVELOPED BY');
-            }
-            if (type === 'model') {
-                inject(`knowledge--large-language-model`, 'knowledge', 'FIELD');
-                inject(`knowledge--transformer`, 'knowledge', 'ARCHITECTURE');
-            } else if (type === 'paper') {
-                inject(`knowledge--artificial-intelligence`, 'knowledge', 'FIELD');
-                inject(`knowledge--research`, 'knowledge', 'TYPE');
-            } else if (type === 'dataset') {
-                inject(`knowledge--machine-learning-dataset`, 'knowledge', 'TYPE');
-                inject(`knowledge--training-data`, 'knowledge', 'USAGE');
-            } else if (type === 'agent' || type === 'tool' || type === 'space') {
-                inject(`knowledge--ai-infrastructure`, 'knowledge', 'DOMAIN');
-                inject(`knowledge--open-source`, 'knowledge', 'DELIVERY');
-            }
-        }
+        });
     }
 
     return { tiers, nodeRegistry, filteredRelations };
