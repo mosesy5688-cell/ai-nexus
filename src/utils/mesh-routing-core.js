@@ -14,7 +14,8 @@ export function stripPrefix(id) {
     let result = id.toLowerCase();
 
     // V16.38: Reinforced Prefix Stripping (Absolute Start)
-    const canonicalPrefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|knowledge|report|arxiv|dataset|datasets|tool|tools|paper|model|agent|agents|space|spaces|author|kaggle|concept)[:\-\/ ]+/i;
+    // V16.60: Expanded to include all platform providers for global matching
+    const canonicalPrefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|huggingface|huggingface_deepspec|replicate|github|knowledge|report|arxiv|dataset|datasets|tool|tools|paper|model|agent|agents|space|spaces|author|kaggle|concept)[:\-\/ ]+/i;
 
     result = result.replace(canonicalPrefixes, '');
 

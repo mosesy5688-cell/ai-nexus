@@ -13,8 +13,24 @@ export const isMatch = (a, b) => {
     const bNorm = stripPrefix(b);
     if (aNorm === bNorm) return true;
 
-    // Fuzzy substring match for complex IDs
-    return aNorm.includes(bNorm) || bNorm.includes(aNorm);
+    // V16.2: Fuzzy substring match
+    if (aNorm.includes(bNorm) || bNorm.includes(aNorm)) return true;
+
+    // V16.60: Deep Semantic Match (handle inconsistent separators and naming)
+    const aClean = aNorm.replace(/[^a-z0-9]/g, '');
+    const bClean = bNorm.replace(/[^a-z0-9]/g, '');
+    if (aClean === bClean) return true;
+    if (aClean.includes(bClean) || bClean.includes(aClean)) return true;
+
+    // V16.61: Fragment-Based Strategic Matching (High Entropy Collision)
+    // Solves meta--meta-llama vs meta-llama--llama-3-8b
+    const aCore = aNorm.split('--').pop();
+    const bCore = bNorm.split('--').pop();
+    if (aCore && bCore && aCore.length > 5) {
+        if (aCore.includes(bCore) || bCore.includes(aCore)) return true;
+    }
+
+    return false;
 };
 
 /**
@@ -43,23 +59,28 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                 if (!obj) continue;
                 const data = await obj.json();
 
-                // V16.2 Unified Graph format
-                if (data.edges && typeof data.edges === 'object' && data._v === '16.2') {
+                // 1. Unified Graph Format (V16.x / V15.x / V14.x)
+                // Checks for 'edges' property regardless of version gating
+                if (data.edges && typeof data.edges === 'object') {
                     Object.entries(data.edges).forEach(([srcId, targets]) => {
                         if (Array.isArray(targets)) {
                             targets.forEach(edge => {
+                                // Handle both [target, type, weight] and {target, type, weight}
+                                const targetId = edge.target || (Array.isArray(edge) ? edge[0] : null);
+                                if (!targetId) return;
                                 allRelations.push({
                                     source_id: srcId,
-                                    target_id: edge.target || edge[0],
-                                    relation_type: edge.type || edge[1] || 'RELATED',
-                                    confidence: edge.weight || edge[2] || 0.8
+                                    target_id: targetId,
+                                    relation_type: edge.type || (Array.isArray(edge) ? edge[1] : null) || 'RELATED',
+                                    confidence: edge.weight || (Array.isArray(edge) ? edge[2] : null) || 0.8
                                 });
                             });
                         }
                     });
                 }
-                // Explicit Relations (.relations array)
-                else if (Array.isArray(data.relations)) {
+
+                // 2. Explicit Relations Array (.relations) - Common in V14.5 / V15.x
+                if (Array.isArray(data.relations)) {
                     data.relations.forEach(rel => {
                         if (rel.source_id && rel.target_id) {
                             allRelations.push({
@@ -71,10 +92,30 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                         }
                     });
                 }
-                // Legacy detection of Root Dictionary
-                else if (typeof data === 'object' && !Array.isArray(data) && !data.edges && !data.links && !data.relations) {
+
+                // 3. Knowledge Links (Array or .links object)
+                // R2 knowledge-links.json is often a direct array
+                const linksArray = Array.isArray(data) ? data : (data.links || []);
+                if (Array.isArray(linksArray)) {
+                    linksArray.forEach(link => {
+                        const sid = link.entity_id || link.id;
+                        if (sid && Array.isArray(link.knowledge)) {
+                            link.knowledge.forEach(k => {
+                                allRelations.push({
+                                    source_id: sid,
+                                    target_id: typeof k === 'string' ? `knowledge--${k}` : `knowledge--${k.slug || k.id}`,
+                                    relation_type: 'EXPLAINS',
+                                    confidence: k?.confidence || 1.0
+                                });
+                            });
+                        }
+                    });
+                }
+
+                // 4. Fallback for Key-Value Dictionary formats
+                if (typeof data === 'object' && !Array.isArray(data) && !data.edges && !data.relations && !data.links) {
                     Object.entries(data).forEach(([srcId, targets]) => {
-                        if (srcId.startsWith('_')) return;
+                        if (srcId.startsWith('_')) return; // Metadata ignore
                         if (Array.isArray(targets)) {
                             targets.forEach(edge => {
                                 if (Array.isArray(edge) && edge.length >= 1) {
@@ -89,28 +130,8 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
                         }
                     });
                 }
-                // .links array (knowledge-links.json)
-                else if (Array.isArray(data.links)) {
-                    data.links.forEach(link => {
-                        const sid = link.entity_id || link.id;
-                        if (sid && Array.isArray(link.knowledge)) {
-                            link.knowledge.forEach(k => {
-                                allRelations.push({
-                                    source_id: sid,
-                                    target_id: typeof k === 'string' ? `knowledge--${k}` : `knowledge--${k.slug || k.id}`,
-                                    relation_type: 'EXPLAINS',
-                                    confidence: k?.confidence || 1.0
-                                });
-                            });
-                        }
-                    });
-                }
-                // Standard Root Array
-                else if (Array.isArray(data)) {
-                    allRelations = allRelations.concat(data);
-                }
             } catch (inner) {
-                console.warn(`[KnowledgeReader] Failed ${key}:`, inner.message);
+                console.warn(`[KnowledgeReader] Failed to ingest ${key}:`, inner.message);
             }
         }
 

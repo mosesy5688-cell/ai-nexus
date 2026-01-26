@@ -86,13 +86,9 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
         const normNeighbor = stripPrefix(neighborId);
         if (normNeighbor === normRoot || seenIds.has(normNeighbor)) return;
 
-        // V16.14: Strict SSOT Filter before processing
-        const nType = getTypeFromId(neighborId);
-        if (nType === 'knowledge') {
-            const rawSlug = normNeighbor.split('--').pop();
-            const slug = stripPrefix(rawSlug); // Canonical normalization check
-            if (!validKnowledgeSlugs.has(slug)) return;
-        }
+        // V16.55: Validation Relaxed.
+        // We trust the Mesh files (graph/explicit/links) to be the SSOT.
+        // If it's in the data, it's valid to show, regardless of the index.
 
         seenIds.add(normNeighbor);
 
