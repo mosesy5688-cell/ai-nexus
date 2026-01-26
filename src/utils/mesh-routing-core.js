@@ -13,8 +13,8 @@ export function stripPrefix(id) {
 
     let result = id.toLowerCase();
 
-    // V16.2 Canonical Prefixes ONLY
-    const canonicalPrefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|knowledge|report|arxiv|dataset|tool|paper|model|agent|space|author)[:\-\/]+/;
+    // V16.36 Canonical Prefixes (Added kaggle & concept)
+    const canonicalPrefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|knowledge|report|arxiv|dataset|tool|paper|model|agent|space|author|kaggle|concept)[:\-\/]+/;
 
     result = result.replace(canonicalPrefixes, '');
 
@@ -52,7 +52,7 @@ export function getTypeFromId(id) {
     if (low.includes('arxiv--') || low.includes('paper--') || low.match(/^arxiv:\d+/)) return 'paper';
 
     // Datasets
-    if (low.includes('dataset--') || low.includes('datasets/')) return 'dataset';
+    if (low.includes('dataset--') || low.includes('datasets/') || low.includes('kaggle--')) return 'dataset';
 
     // Spaces
     if (low.includes('space--') || low.includes('spaces/')) return 'space';
