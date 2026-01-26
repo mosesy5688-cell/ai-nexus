@@ -10,11 +10,12 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
     const normRoot = stripPrefix(rootId);
 
     // V16.12: Fetch all relevant indices for cross-validation
-    const [rawRelations, graphMeta, knowledgeIndex, specsResult] = await Promise.all([
+    const [rawRelations, graphMeta, knowledgeIndex, specsResult, meshStats] = await Promise.all([
         fetchMeshRelations(locals, rootId, { ssrOnly: true }).catch(() => []),
         fetchGraphMetadata(locals).catch(() => ({})),
         fetchConceptMetadata(locals).catch(() => ([])),
-        locals?.runtime?.env?.R2_ASSETS?.get('cache/specs.json').then(async (f) => f ? await f.json() : null).catch(() => null)
+        locals?.runtime?.env?.R2_ASSETS?.get('cache/specs.json').then(async (f) => f ? await f.json() : null).catch(() => null),
+        locals?.runtime?.env?.R2_ASSETS?.get('cache/mesh/stats.json').then(async (f) => f ? await f.json() : null).catch(() => null)
     ]);
 
     const nodeRegistry = new Map();
@@ -59,7 +60,9 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
         if (nodeRegistry.has(norm)) return nodeRegistry.get(norm);
 
         const meta = graphMeta[id] || {};
+        // V16.50: Strict metadata trust. If R2 specifies a type 't', use it.
         const nodeType = meta.t || typeHint || getTypeFromId(id);
+
         const parts = id.split('--');
         const nodeAuthor = meta.author || (parts.length > 2 ? parts[parts.length - 2].replace(/-/g, ' ') : (id.startsWith('arxiv--') ? 'Research Paper' : 'Ecosystem Node'));
 
@@ -100,7 +103,8 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
             node._mapped = true;
             if (node.type === 'knowledge') tiers.explanation.nodes.push(node);
             else if (['model', 'agent', 'tool', 'space'].includes(node.type)) tiers.core.nodes.push(node);
-            else if (['dataset', 'paper', 'report'].includes(node.type)) tiers.utility.nodes.push(node);
+            else if (['dataset', 'paper'].includes(node.type)) tiers.utility.nodes.push(node);
+            else if (node.type === 'report') tiers.digest.nodes.push(node);
 
             // Track as a valid relation for the Matrix
             filteredRelations.push({
@@ -126,6 +130,7 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
                 if (node.type === 'knowledge') tiers.explanation.nodes.push(node);
                 else if (['model', 'agent', 'tool', 'space'].includes(node.type)) tiers.core.nodes.push(node);
                 else if (['dataset', 'paper'].includes(node.type)) tiers.utility.nodes.push(node);
+                else if (node.type === 'report') tiers.digest.nodes.push(node);
             }
         };
 

@@ -50,62 +50,29 @@ export function getTypeFromId(id) {
     if (!id || typeof id !== 'string') return 'model';
     const low = id.toLowerCase();
 
-    // Knowledge (Enhanced V16.41 with semantic keywords)
-    if (
-        low.includes('knowledge--') ||
-        low.includes('kb--') ||
-        low.includes('concept--') ||
-        low === 'rag' ||
-        low === 'moe' ||
-        low === 'lora' ||
-        low === 'llm' ||
-        low.startsWith('quant-')
-    ) return 'knowledge';
-
-    // Reports
+    // 1. Explicit Prefix Mapping (V16.2 Standard)
+    if (low.includes('knowledge--') || low.includes('concept--')) return 'knowledge';
     if (low.includes('report--')) return 'report';
-
-    // Papers/ArXiv
     if (low.includes('arxiv--') || low.includes('paper--') || low.match(/^arxiv:\d+/)) return 'paper';
+    if (low.includes('dataset--') || low.includes('kaggle--')) return 'dataset';
+    if (low.includes('space--')) return 'space';
+    if (low.includes('agent--')) return 'agent';
+    if (low.includes('tool--')) return 'tool';
 
-    // Datasets (Enhanced V16.42 with broad semantic keywords)
-    if (
-        low.includes('dataset--') ||
-        low.includes('dataset/') ||
-        low.includes('datasets/') ||
-        low.includes('kaggle--') ||
-        low.includes('-dataset') ||
-        low.includes('data-set') ||
-        low.includes('-bench') ||
-        low.includes('-eval') ||
-        low.includes('-classification') ||
-        low.includes('-collection') ||
-        low.includes('-corpus') ||
-        low.includes('-detection') ||
-        low.includes('-repository')
-    ) return 'dataset';
+    // 2. Platform Path Mapping (HF/GitHub fallback)
+    if (low.includes('dataset/') || low.includes('datasets/')) return 'dataset';
+    if (low.includes('space/') || low.includes('spaces/')) return 'space';
+    if (low.includes('agent/') || low.includes('agents/')) return 'agent';
+    if (low.includes('tool/') || low.includes('tools/')) return 'tool';
 
-    // Spaces
-    if (low.includes('space--') || low.includes('space/') || low.includes('spaces/')) return 'space';
-
-    // Agents
-    if (
-        low.includes('agent--') ||
-        low.includes('agent/') ||
-        low.includes('agents/') ||
-        low.endsWith('-agent') ||
-        low.includes('gpt-') ||
-        low.includes('assistant')
-    ) return 'agent';
-
-    // Tools
-    if (low.includes('tool--') || low.includes('tool/') || low.includes('tools/')) return 'tool';
-
-    // Fallback: If it's a known non-model format but we are unsure, check common model markers
-    if (low.includes('/') && !low.includes('model')) {
-        // Many GitHub repos without prefixes are Agents or Tools. 
-        // We favor 'tool' as a safe default for unknown codebases.
-        if (low.includes('agent')) return 'agent';
+    // 3. Semantic Keyword Fallback (Only for naked IDs)
+    if (!low.includes('/')) {
+        const kWords = ['rag', 'moe', 'lora', 'llm', 'quant-'];
+        if (kWords.some(k => low === k || low.startsWith(k))) return 'knowledge';
+    } else {
+        // Broad semantic indicators for non-canonical platform repos
+        if (low.includes('-dataset') || low.includes('-classification') || low.includes('data-set')) return 'dataset';
+        if (low.includes('-agent')) return 'agent';
         if (low.includes('bench')) return 'dataset';
     }
 
