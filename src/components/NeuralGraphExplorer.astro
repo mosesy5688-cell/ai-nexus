@@ -112,6 +112,30 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
 </div>
 )}
 
+<script is:inline>
+  // V16.34: Neural Mesh Hub Stability Guard
+  function validateMeshHub() {
+    const hub = document.getElementById('neural-mesh-hub');
+    if (!hub) return;
+    
+    const nodes = hub.querySelectorAll('.mesh-node');
+    // If orchestration failed and zero nodes were rendered, hide the entire section
+    // to prevent showing an empty "Knowledge Base" header.
+    if (nodes.length === 0) {
+      const wrapper = hub.closest('.neural-graph-wrapper');
+      if (wrapper) {
+        wrapper.style.display = 'none';
+        console.warn('[NeuralMesh] Hub stability guard triggered: Zero nodes.');
+      }
+    }
+  }
+
+  // Run on load and view transitions
+  validateMeshHub();
+  document.addEventListener('astro:after-swap', validateMeshHub);
+  document.addEventListener('astro:page-load', validateMeshHub);
+</script>
+
 <style>
     .neural-graph-explorer {
         padding: 1.5rem;
@@ -120,5 +144,9 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
         .neural-graph-explorer {
             padding: 1rem;
         }
+    }
+    /* V16.34: Stability Visuals */
+    .neural-graph-wrapper {
+        min-height: 50px;
     }
 </style>

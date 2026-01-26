@@ -161,23 +161,31 @@ const enrichedTags = (tagsArray || []).map((tagObj: any) => {
 </div>
 
 <script is:inline>
-  // V16.22: Trend Data Visibility Guard
+  // V16.34: Trend Data Visibility Guard (Synchronized with MiniTrendChart)
   function checkTrendLoad() {
     const charts = document.querySelectorAll('.mini-trend');
     charts.forEach(chart => {
       const canvas = chart.querySelector('canvas');
       const fallback = chart.parentElement?.querySelector('#trend-fallback');
       
-      // Wait for the MiniTrendChart script to finish (checks if .loaded is added)
-      // V16.31: Increased to 5s for large trend-data.json production download
+      // V16.34: Increased to 6s for production reliability.
+      // If .hidden-permanent is set by the child, the mask stays hidden.
       setTimeout(() => {
-        if (canvas && !canvas.classList.contains('loaded') && fallback) {
-          fallback.classList.remove('hidden');
+        if (fallback && !fallback.classList.contains('hidden-permanent')) {
+            if (canvas && !canvas.classList.contains('loaded')) {
+                fallback.classList.remove('hidden');
+            }
         }
-      }, 5000);
+      }, 6000);
     });
   }
 
   checkTrendLoad();
   document.addEventListener('astro:after-swap', checkTrendLoad);
 </script>
+
+<style>
+  #trend-fallback.hidden-permanent {
+    display: none !important;
+  }
+</style>
