@@ -59,8 +59,17 @@ export function getTypeFromId(id) {
     // Papers/ArXiv
     if (low.includes('arxiv--') || low.includes('paper--') || low.match(/^arxiv:\d+/)) return 'paper';
 
-    // Datasets
-    if (low.includes('dataset--') || low.includes('dataset/') || low.includes('datasets/') || low.includes('kaggle--')) return 'dataset';
+    // Datasets (Enhanced V16.40 with semantic keywords)
+    if (
+        low.includes('dataset--') ||
+        low.includes('dataset/') ||
+        low.includes('datasets/') ||
+        low.includes('kaggle--') ||
+        low.includes('-dataset') ||
+        low.includes('data-set') ||
+        low.includes('-bench') ||
+        low.includes('-eval')
+    ) return 'dataset';
 
     // Spaces
     if (low.includes('space--') || low.includes('space/') || low.includes('spaces/')) return 'space';
@@ -101,9 +110,9 @@ export function getRouteFromId(id, type = null) {
     // V16.38: Double-Deep Guard (Heuristic Correction)
     // If the path still contains entity markers but classified as model, pivot the type.
     if (resolvedType === 'model') {
-        if (cleanId.includes('dataset/') || cleanId.includes('kaggle/')) resolvedType = 'dataset';
-        else if (cleanId.includes('agent/')) resolvedType = 'agent';
-        else if (cleanId.includes('tool/')) resolvedType = 'tool';
+        if (cleanId.includes('dataset/') || cleanId.includes('kaggle/') || cleanId.includes('-dataset')) resolvedType = 'dataset';
+        else if (cleanId.includes('agent/') || cleanId.includes('-agent')) resolvedType = 'agent';
+        else if (cleanId.includes('tool/') || cleanId.includes('-tool-')) resolvedType = 'tool';
         else if (cleanId.includes('paper/') || cleanId.includes('arxiv/')) resolvedType = 'paper';
         else if (cleanId.includes('space/')) resolvedType = 'space';
         else if (cleanId.includes('knowledge/') || cleanId.includes('concept/')) resolvedType = 'knowledge';
