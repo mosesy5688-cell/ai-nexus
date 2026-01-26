@@ -50,8 +50,17 @@ export function getTypeFromId(id) {
     if (!id || typeof id !== 'string') return 'model';
     const low = id.toLowerCase();
 
-    // Knowledge
-    if (low.includes('knowledge--') || low.includes('kb--') || low.includes('concept--')) return 'knowledge';
+    // Knowledge (Enhanced V16.41 with semantic keywords)
+    if (
+        low.includes('knowledge--') ||
+        low.includes('kb--') ||
+        low.includes('concept--') ||
+        low === 'rag' ||
+        low === 'moe' ||
+        low === 'lora' ||
+        low === 'llm' ||
+        low.startsWith('quant-')
+    ) return 'knowledge';
 
     // Reports
     if (low.includes('report--')) return 'report';
@@ -75,7 +84,14 @@ export function getTypeFromId(id) {
     if (low.includes('space--') || low.includes('space/') || low.includes('spaces/')) return 'space';
 
     // Agents
-    if (low.includes('agent--') || low.includes('agent/') || low.includes('agents/') || low.endsWith('-agent')) return 'agent';
+    if (
+        low.includes('agent--') ||
+        low.includes('agent/') ||
+        low.includes('agents/') ||
+        low.endsWith('-agent') ||
+        low.includes('gpt-') ||
+        low.includes('assistant')
+    ) return 'agent';
 
     // Tools
     if (low.includes('tool--') || low.includes('tool/') || low.includes('tools/')) return 'tool';
