@@ -9,7 +9,7 @@ Crawl-delay: 1
 # Sitemaps - V6.2 SEO Optimization
 Sitemap: https://free2aitools.com/sitemap-index.xml
 
-# Block sensitive paths
+# Block legacy/sensitive paths
 Disallow: /api/
 Disallow: /_astro/
 `.trim();

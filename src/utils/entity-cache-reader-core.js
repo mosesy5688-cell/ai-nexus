@@ -1,4 +1,5 @@
 // V15.1 Unified Entity Cache Reader Core (Art.I-Extended: Frontend D1 = 0)
+import { R2_CACHE_URL } from '../config/constants.ts';
 
 // Normalize entity slug for R2 storage path
 export function normalizeEntitySlug(id, source = 'huggingface') {
@@ -102,7 +103,7 @@ export async function fetchEntityFromR2(type, slug, locals) {
         const paths = getR2PathCandidates(type, normalized);
         for (const path of paths) {
             try {
-                const cdnUrl = `https://cdn.free2aitools.com/${path}`;
+                const cdnUrl = `${R2_CACHE_URL}/${path}`;
                 const res = await fetch(cdnUrl);
                 if (res.ok) {
                     const data = await res.json();
@@ -122,7 +123,7 @@ export async function fetchEntityFromR2(type, slug, locals) {
 
     // 1.5. V15.2: Global CDN Fallback (entities.json)
     try {
-        const cdnUrl = 'https://cdn.free2aitools.com/entities.json';
+        const cdnUrl = `${R2_CACHE_URL}/entities.json`;
         const response = await fetch(cdnUrl);
         if (response.ok) {
             const allEntities = await response.json();

@@ -14,6 +14,7 @@ interface Props {
 }
 
 const { modelId } = Astro.props;
+import { R2_CACHE_URL } from '../../config/constants.ts';
 
 interface Relation {
   source_id: string;
@@ -35,10 +36,18 @@ let variants: string[] = [];
 let datasets: string[] = [];
 
 try {
-  // Fetch relations from Static R2 Cache
-  const apiUrl = `/cache/relations/${modelId.replace(/:/g, '--')}.json`;
+  // V16.33: CDN-First Resilient Fetch
+  const normalizedId = modelId.replace(/:/g, '--');
+  const cdnUrl = `${R2_CACHE_URL}/cache/relations/${normalizedId}.json`;
+  const localUrl = `/cache/relations/${normalizedId}.json`;
   
-  const response = await fetch(new URL(apiUrl, Astro.url.origin));
+  let response = await fetch(cdnUrl);
+  
+  if (!response.ok) {
+    console.warn('[RelatedResearch] CDN fetch failed, trying local fallback...');
+    response = await fetch(new URL(localUrl, Astro.url.origin));
+  }
+
   if (response.ok) {
     const data: RelationsResponse = await response.json();
     relations = data.relations || [];

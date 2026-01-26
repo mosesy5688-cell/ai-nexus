@@ -6,7 +6,7 @@
  * - Pre-computes trend data for client-side Chart.js rendering
  * - Outputs to R2 for CDN delivery
  * 
- * Output: public/api/cache/trends.json
+ * Output: public/cache/trends.json
  */
 
 import fs from 'fs';
@@ -17,7 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configuration
-const OUTPUT_DIR = path.join(__dirname, '../../public/api/cache');
+const OUTPUT_DIR = path.join(__dirname, '../../public/cache');
 const WEEKS_TO_TRACK = 4;
 
 /**

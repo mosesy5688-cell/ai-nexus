@@ -1,7 +1,8 @@
 ---
 // src/components/GraphExplorer.astro
 const { modelId } = Astro.props;
-// Build timestamp for cache-busting API requests
+// Build timestamp for cache-busting requests
+import { R2_CACHE_URL } from '../config/constants.ts';
 const buildTime = import.meta.env.PUBLIC_BUILD_TIME || Date.now().toString();
 ---
 
@@ -81,11 +82,12 @@ const buildTime = import.meta.env.PUBLIC_BUILD_TIME || Date.now().toString();
         function loadGraphData() {
             console.log('[Graph] Loading for ' + modelId);
             // Include build time for cache-busting to prevent stale data
-            fetch('/cache/graph/neighbors/' + encodeURIComponent(modelId) + '.json?v=' + buildTime)
+            const cdnUrl = `${R2_CACHE_URL}/cache/graph/neighbors/${encodeURIComponent(modelId)}.json?v=${buildTime}`;
+            fetch(cdnUrl)
                 .then(function(response) {
                     if (!response.ok) {
                         return response.text().then(function(errText) {
-                            throw new Error('API Error ' + response.status + ': ' + errText.substring(0, 100));
+                            throw new Error('Data Fetch Error ' + response.status + ': ' + errText.substring(0, 100));
                         });
                     }
                     return response.json();

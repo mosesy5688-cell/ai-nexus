@@ -24,14 +24,31 @@ const { type = 'line', height = '300px' } = Astro.props;
 
 <script>
   import Chart from 'chart.js/auto';
+  import { R2_CACHE_URL } from '../../config/constants.ts';
   
   async function initChart() {
     const canvas = document.getElementById('trend-chart') as HTMLCanvasElement;
     if (!canvas) return;
     
     try {
-      // Fetch pre-computed trend data from static CDN cache
-      const res = await fetch('/cache/trends.json');
+      // V16.33: Zero-Runtime CDN Fetch strategy
+      const cdnUrl = `${R2_CACHE_URL}/cache/trends.json`;
+      const legacyUrl = `${R2_CACHE_URL}/api/cache/trends.json`;
+      
+      let res = await fetch(cdnUrl);
+      
+      // Fallback 1: Legacy CDN path (if build hasn't propagated)
+      if (!res.ok) {
+          console.warn('[TrendChart] Primary CDN path 404, trying legacy CDN path...');
+          res = await fetch(legacyUrl);
+      }
+      
+      // Fallback 2: Local relative path
+      if (!res.ok) {
+          console.warn('[TrendChart] CDN paths failed, trying local fallback...');
+          res = await fetch('/cache/trends.json');
+      }
+
       if (!res.ok) throw new Error('Trend data not available');
       
       const data = await res.json();

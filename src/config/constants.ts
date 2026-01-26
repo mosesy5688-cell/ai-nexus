@@ -4,7 +4,7 @@
  */
 
 // R2 Cache Base URL - used to fetch precomputed JSON files
-export const R2_CACHE_URL = 'https://r2.free2aitools.com';
+export const R2_CACHE_URL = 'https://cdn.free2aitools.com';
 
 // Alternative: Use relative path if served from same domain
 export const CACHE_PREFIX = '/cache';
