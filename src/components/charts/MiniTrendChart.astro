@@ -163,9 +163,10 @@ async function initMiniTrends() {
         
         let targetId = id;
         
-        // V16.32: Robust Identity Matching (Case-Insensitive + Poly-Separator)
+        // V16.34: Aggressive Identity Matching (Prefix-Stripping + Includes)
         const normalize = (s: string) => s.toLowerCase().replace(/[:\/]+/g, '--');
         const nid = normalize(id);
+        const bareId = nid.replace(/^(hf-model|hf-dataset|hf-space|hf-tool|model|agent|dataset|paper|space|tool)--/, '');
         
         // 1. Try exact match
         if (!data[targetId]) {
@@ -174,11 +175,17 @@ async function initMiniTrends() {
             if (idx !== -1) {
                 targetId = dataKeys[idx];
             } else {
-                // 3. Try "bare" name matching (last part of slug)
-                const bareName = nid.split('--').pop();
-                if (bareName) {
-                    const bareIdx = dataKeysLower.findIndex(k => k.endsWith(`--${bareName}`) || k === bareName);
-                    if (bareIdx !== -1) targetId = dataKeys[bareIdx];
+                // 3. Try "includes" match (e.g. if JSON has prefix but page doesn't or vice versa)
+                const includesIdx = dataKeysLower.findIndex(k => k.includes(bareId) || bareId.includes(k.replace(/^(hf-model|model)--/, '')));
+                if (includesIdx !== -1) {
+                    targetId = dataKeys[includesIdx];
+                } else {
+                    // 4. Try "bare" name matching (last part of slug)
+                    const bareName = nid.split('--').pop();
+                    if (bareName) {
+                        const bareIdx = dataKeysLower.findIndex(k => k.endsWith(`--${bareName}`) || k === bareName);
+                        if (bareIdx !== -1) targetId = dataKeys[bareIdx];
+                    }
                 }
             }
         }
@@ -197,6 +204,10 @@ async function initMiniTrends() {
             const scores = d.scores || (d.latest ? [d.latest, d.latest] : []);
             if (scores.length >= 2) {
                 drawSparkline(canvas as HTMLCanvasElement, scores, d.direction || 'stable');
+                
+                // V16.34: UniversalCore Signal - Hide "Synchronizing" mask
+                const fallback = el.parentElement?.querySelector('#trend-fallback');
+                if (fallback) fallback.classList.add('hidden-permanent');
             }
         }
         if (badge) {

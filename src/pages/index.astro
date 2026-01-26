@@ -14,6 +14,7 @@ import HomeWebsiteBanner from '../components/home/HomeWeeklyBanner.astro';
 import HomeSkeleton from '../components/home/HomeSkeleton.astro';
 import HomeEntitySection from '../components/home/HomeEntitySection.astro';
 import OnboardingTour from '../components/common/OnboardingTour.astro';
+import TrendChart from '../components/charts/TrendChart.astro';
 
 // V4.3.2 Constitution Core Requirements
 import { buildIndexSEO } from '../utils/seo-schema.js';
@@ -142,8 +143,21 @@ const seoSchema = buildIndexSEO();
                 </div>
                 
                 <!-- Top Picks Grid (FNI-sorted models) -->
-                <div id="hot-models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
-                    <!-- Populated by client-side JS with FNI-sorted models -->
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                    <div id="hot-models-grid" class="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 hidden">
+                        <!-- Populated by client-side JS -->
+                    </div>
+                    
+                    <!-- V16.34: Ecosystem Pulse (Professional Sidebar) -->
+                    <div class="lg:col-span-1 border-l border-gray-100 dark:border-gray-800 pl-8 hidden lg:block" id="home-ecosystem-pulse">
+                        <TrendChart minimalist={true} title="Ecosystem Pulse" height="220px" />
+                        <div class="mt-4 p-4 bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-100 dark:border-gray-800">
+                           <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Status</p>
+                           <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-tight">
+                             Index synchronized with Factory Stage 3. Real-time interest aggregation active.
+                           </p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- V16.2: Link to Ranking Hub -->
@@ -204,7 +218,10 @@ const seoSchema = buildIndexSEO();
 
             // Load hot models if no search query or tag
             if (!initialQuery && !initialTag) {
-                loadHotModels();
+                loadHotModels().then(() => {
+                    // Show pulse after models load to maintain layout flow
+                    document.getElementById('home-ecosystem-pulse')?.classList.remove('hidden');
+                });
             }
 
             // V4.9.1 Step 2.3: Load Weekly Report Banner
