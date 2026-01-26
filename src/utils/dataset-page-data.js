@@ -75,10 +75,15 @@ export async function prepareDatasetPageData(slug, slugStr, locals) {
                     if (tid.startsWith('arxiv--')) {
                         const id = tid.replace('arxiv--', '');
                         if (!dataset.arxiv_refs.includes(id)) dataset.arxiv_refs.push(id);
-                    } else if (tid.startsWith('hf-model--')) {
-                        const id = tid.replace('hf-model--', '');
+                    } else if (tid.startsWith('hf-model--') || tid.startsWith('model--')) {
+                        const id = tid.replace(/^(hf-model|model)--/, '');
                         if (!dataset.models_citing.includes(id)) dataset.models_citing.push(id);
-                    } else if (tid.startsWith('concept--')) {
+                    } else if (tid.startsWith('dataset--') || tid.startsWith('kaggle--')) {
+                        // V16.36: Recognition of non-HF datasets in Mesh
+                        const id = tid.replace(/^(dataset|kaggle)--/, '');
+                        // ... handle if we had a specific list
+                    }
+                    else if (tid.startsWith('concept--')) {
                         const slug = tid.replace('concept--', '');
                         if (!dataset.knowledge_links.find(l => l.slug === slug)) {
                             dataset.knowledge_links.push({
@@ -96,19 +101,24 @@ export async function prepareDatasetPageData(slug, slugStr, locals) {
 
         return { dataset, isFallback: false, similarEntities, tagsArray, meshRelations: meshRelations || [] };
     } else {
-        // Fallback Dataset
+        // Fallback Dataset Logic (V16.36: Multi-Platform Support)
         const cleanSlug = slugStr.replace(/--/g, '/');
-        const parts = cleanSlug.split('/');
+        const isKaggle = slugStr.toLowerCase().includes('kaggle--');
+        const parts = isKaggle ? cleanSlug.replace(/^kaggle\//i, '').split('/') : cleanSlug.split('/');
+
         const repoName = parts.pop() || 'Unknown Dataset';
-        const authorName = parts.join('/') || 'Community';
+        const authorName = parts.join('/') || (isKaggle ? 'Kaggle User' : 'Community');
+        const sourceUrl = isKaggle
+            ? `https://www.kaggle.com/datasets/${authorName}/${repoName}`
+            : `https://huggingface.co/datasets/${cleanSlug}`;
 
         let fallbackDataset = {
-            id: `hf-dataset--${slugStr.replace(/\//g, '--')}`,
+            id: isKaggle ? `kaggle--${authorName}--${repoName}` : `hf-dataset--${slugStr.replace(/\//g, '--')}`,
             name: repoName,
             author: authorName,
-            source: 'huggingface',
-            source_url: `https://huggingface.co/datasets/${cleanSlug}`,
-            description: `AI research dataset: ${repoName} by ${authorName}.`,
+            source: isKaggle ? 'kaggle' : 'huggingface',
+            source_url: sourceUrl,
+            description: `AI research dataset: ${repoName} by ${authorName} on ${isKaggle ? 'Kaggle' : 'HuggingFace'}.`,
             tags: [],
             fni_score: 0,
             _cache_source: 'fallback-ui'

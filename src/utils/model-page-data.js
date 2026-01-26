@@ -79,8 +79,8 @@ export async function prepareModelPageData(slug, slugStr, locals) {
                     if (tid.startsWith('arxiv--') || tid.startsWith('paper--')) {
                         const id = tid.replace(/^(arxiv|paper)--/, '');
                         if (!model.arxiv_refs.includes(id)) model.arxiv_refs.push(id);
-                    } else if (tid.startsWith('dataset--')) {
-                        const id = tid.replace('dataset--', '');
+                    } else if (tid.startsWith('dataset--') || tid.startsWith('kaggle--')) {
+                        const id = tid.replace(/^(dataset|kaggle)--/, '');
                         if (!model.datasets_used.includes(id)) model.datasets_used.push(id);
                     } else if (tid.startsWith('concept--')) {
                         const slug = tid.replace('concept--', '');
