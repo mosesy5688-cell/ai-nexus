@@ -31,69 +31,54 @@ const { type = 'line', height = '300px' } = Astro.props;
     if (!canvas) return;
     
     try {
-      // V16.33: Zero-Runtime CDN Fetch strategy
-      const cdnUrl = `${R2_CACHE_URL}/cache/trends.json`;
-      const legacyUrl = `${R2_CACHE_URL}/api/cache/trends.json`;
+      // V16.32: Adaptive Fetching (V14.4 Zero-Runtime compliant)
+      const TREND_URL = `${R2_CACHE_URL}/cache/trend-data.json`;
+      const TRENDING_URL = `${R2_CACHE_URL}/cache/trending.json`;
       
-      let res = await fetch(cdnUrl);
-      
-      // Fallback 1: Legacy CDN path (if build hasn't propagated)
+      let res = await fetch(TRENDING_URL);
       if (!res.ok) {
-          console.warn('[TrendChart] Primary CDN path 404, trying legacy CDN path...');
-          res = await fetch(legacyUrl);
-      }
-      
-      // Fallback 2: Local relative path
-      if (!res.ok) {
-          console.warn('[TrendChart] CDN paths failed, trying local fallback...');
-          res = await fetch('/cache/trends.json');
+          console.warn('[TrendChart] trending.json failed, trying local fallback...');
+          res = await fetch('/cache/trending.json');
       }
 
-      if (!res.ok) throw new Error('Trend data not available');
+      if (!res.ok) throw new Error('Trend assets not available');
       
-      const data = await res.json();
+      const trending = await res.json();
       
-      // Create chart
+      // Calculate Ecosystem Distribution (Models vs Agents vs Papers vs etc)
+      const stats = {
+          models: trending.models?.length || 0,
+          agents: trending.agents?.length || 0,
+          papers: trending.papers?.length || 0,
+          spaces: trending.spaces?.length || 0,
+          datasets: trending.datasets?.length || 0
+      };
+
+      const labels = ['Models', 'Agents', 'Research Papers', 'Spaces', 'Datasets'];
+      const counts = [stats.models, stats.agents, stats.papers, stats.spaces, stats.datasets];
+      const colors = ['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#64748b'];
+
+      // Create distribution chart
       new Chart(canvas, {
-        type: 'line',
+        type: 'bar',
         data: {
-          labels: data.weeks,
+          labels: labels,
           datasets: [
             {
-              label: data.model_count.label,
-              data: data.model_count.data,
-              borderColor: data.model_count.color,
-              backgroundColor: `${data.model_count.color}20`,
-              fill: true,
-              tension: 0.4,
-              yAxisID: 'y'
-            },
-            {
-              label: data.new_models.label,
-              data: data.new_models.data,
-              borderColor: data.new_models.color,
-              backgroundColor: `${data.new_models.color}20`,
-              fill: false,
-              tension: 0.4,
-              yAxisID: 'y1'
+              label: 'Trending Resources Count',
+              data: counts,
+              backgroundColor: colors,
+              borderRadius: 8,
+              barThickness: 40
             }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          interaction: {
-            mode: 'index',
-            intersect: false,
-          },
+          indexAxis: 'y', // Horizontal bars look better for labels
           plugins: {
-            legend: {
-              position: 'top',
-              labels: {
-                usePointStyle: true,
-                padding: 20
-              }
-            },
+            legend: { display: false },
             tooltip: {
               backgroundColor: 'rgba(0, 0, 0, 0.8)',
               padding: 12,
@@ -101,34 +86,15 @@ const { type = 'line', height = '300px' } = Astro.props;
             }
           },
           scales: {
-            y: {
-              type: 'linear',
-              display: true,
-              position: 'left',
-              title: {
-                display: true,
-                text: 'Total Models'
-              },
-              grid: {
-                color: 'rgba(0, 0, 0, 0.05)'
-              }
-            },
-            y1: {
-              type: 'linear',
-              display: true,
-              position: 'right',
-              title: {
-                display: true,
-                text: 'New Models'
-              },
-              grid: {
-                drawOnChartArea: false,
-              }
-            },
             x: {
-              grid: {
-                display: false
+              grid: { display: false },
+              title: {
+                 display: true,
+                 text: 'Resource Count (Top 1000)'
               }
+            },
+            y: {
+              grid: { display: false }
             }
           }
         }
