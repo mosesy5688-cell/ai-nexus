@@ -16,14 +16,36 @@ export const isMatch = (a, b) => {
     // V16.2: Fuzzy substring match
     if (aNorm.includes(bNorm) || bNorm.includes(aNorm)) return true;
 
-    // V16.60: Deep Semantic Match (handle inconsistent separators and naming)
+    // V16.60: Deep Semantic Match (handle inconsistent separators)
     const aClean = aNorm.replace(/[^a-z0-9]/g, '');
     const bClean = bNorm.replace(/[^a-z0-9]/g, '');
     if (aClean === bClean) return true;
     if (aClean.includes(bClean) || bClean.includes(aClean)) return true;
 
-    // V16.61: Fragment-Based Strategic Matching (High Entropy Collision)
-    // Solves meta--meta-llama vs meta-llama--llama-3-8b
+    // V16.71: Organization-Agnostic Model Matching
+    // Handles meta--meta-llama vs meta-llama
+    const orgMarkers = ['meta', 'google', 'openai', 'mistral', 'anthropic', 'alibaba', 'nvidia', 'microsoft'];
+    const normalizeOrg = (norm) => {
+        let parts = norm.split('--');
+        return parts.filter(p => !orgMarkers.includes(p)).join('--');
+    };
+
+    const aOrgFree = normalizeOrg(aNorm);
+    const bOrgFree = normalizeOrg(bNorm);
+    if (aOrgFree && bOrgFree && (aOrgFree === bOrgFree || aOrgFree.includes(bOrgFree) || bOrgFree.includes(aOrgFree))) return true;
+
+    // V16.72: Segment-Overlap Match (Ecosystem Unification)
+    // Solves llama-3-70b-instruct vs llama-3-70b-gguf
+    const aParts = aNorm.split(/[--\s/]+/).filter(p => !orgMarkers.includes(p) && p.length > 2);
+    const bParts = bNorm.split(/[--\s/]+/).filter(p => !orgMarkers.includes(p) && p.length > 2);
+
+    // Find intersection of significant parts
+    const intersect = aParts.filter(p => bParts.includes(p));
+    // High-entropy segments: llama, 3, 70b, mixtral, etc.
+    const threshold = Math.min(aParts.length, bParts.length, 3);
+    if (intersect.length >= threshold && intersect.some(p => p.match(/\d/))) return true;
+
+    // V16.61: Fragment-Based Strategic Matching (Fallback)
     const aCore = aNorm.split('--').pop();
     const bCore = bNorm.split('--').pop();
     if (aCore && bCore && aCore.length > 5) {
