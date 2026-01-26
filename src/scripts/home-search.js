@@ -2,10 +2,11 @@
 // V16.2: Refactored for Zero-Runtime compliance and MiniSearch integration
 import MiniSearch from 'minisearch';
 import { DataNormalizer } from './lib/DataNormalizer.js';
+import { R2_CACHE_URL } from '../config/constants.ts';
 
 // Config & Constants
-const CORE_INDEX_URL = '/cache/search-core.json';
-const FULL_INDEX_URL = '/cache/search-full.json';
+const CORE_INDEX_URL = `${R2_CACHE_URL}/cache/search-core.json`;
+const FULL_INDEX_URL = `${R2_CACHE_URL}/cache/search-full.json`;
 const HISTORY_KEY = 'f2ai_search_history';
 const MAX_HISTORY = 5;
 

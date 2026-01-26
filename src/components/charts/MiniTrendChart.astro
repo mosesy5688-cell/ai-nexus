@@ -83,6 +83,8 @@ const {
 </style>
 
 <script>
+import { R2_CACHE_URL } from '../../config/constants.ts';
+
 // Singleton cache for trend data
 let _trendCache: Record<string, any> | null = null;
 let _loadPromise: Promise<Record<string, any>> | null = null;
@@ -91,10 +93,22 @@ async function loadTrendData(): Promise<Record<string, any>> {
     if (_trendCache) return _trendCache;
     if (_loadPromise) return _loadPromise;
     
-    _loadPromise = fetch('/cache/trend-data.json')
-        .then(res => res.ok ? res.json() : {})
+    // V16.33: Primary CDN Fetch (Zero-Runtime)
+    _loadPromise = fetch(`${R2_CACHE_URL}/cache/trend-data.json`)
+        .then(async (res) => {
+            if (!res.ok) {
+                console.warn('[MiniTrend] CDN primary fetch failed, trying fallback...');
+                // Fallback to local path (handles dev/legacy)
+                const fallback = await fetch('/cache/trend-data.json');
+                return fallback.ok ? fallback.json() : {};
+            }
+            return res.json();
+        })
         .then(data => { _trendCache = data; return data; })
-        .catch(() => ({}));
+        .catch((err) => {
+            console.error('[MiniTrend] Trend data load failed:', err);
+            return {};
+        });
     
     return _loadPromise;
 }

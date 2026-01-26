@@ -6,8 +6,9 @@
  * CONSTITUTIONAL COMPLIANCE:
  * - Art.1-E: All R2 data must be user-accessible
  * - Frontend D1 = 0: Uses L8 precomputed cache only
- * - V4.8.2: Reads from /api/cache/entity_links.json
+ * - V4.8.2: Reads from /cache/entity_links.json
  */
+import { R2_CACHE_URL } from '../config/constants.ts';
 interface Props {
     modelId: string;
     modelName: string;
@@ -20,7 +21,17 @@ let linkedModels: { id: string; name: string; slug: string; link_type: string }[
 let cacheVersion = '';
 
 try {
-    const res = await fetch(new URL('/cache/entity_links.json', Astro.url.origin));
+    // V16.33: CDN-First Resilient Fetch
+    const cdnUrl = `${R2_CACHE_URL}/cache/entity_links.json`;
+    const localUrl = `/cache/entity_links.json`;
+    
+    let res = await fetch(cdnUrl);
+    
+    if (!res.ok) {
+        console.warn('[EntityLinks] CDN fetch failed, trying local fallback...');
+        res = await fetch(new URL(localUrl, Astro.url.origin));
+    }
+
     if (res.ok) {
         const cache = await res.json();
         cacheVersion = cache.version || 'unknown';
