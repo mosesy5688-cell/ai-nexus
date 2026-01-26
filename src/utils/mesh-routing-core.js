@@ -52,16 +52,16 @@ export function getTypeFromId(id) {
     if (low.includes('arxiv--') || low.includes('paper--') || low.match(/^arxiv:\d+/)) return 'paper';
 
     // Datasets
-    if (low.includes('dataset--') || low.includes('datasets/') || low.includes('kaggle--')) return 'dataset';
+    if (low.includes('dataset--') || low.includes('dataset/') || low.includes('datasets/') || low.includes('kaggle--')) return 'dataset';
 
     // Spaces
-    if (low.includes('space--') || low.includes('spaces/')) return 'space';
+    if (low.includes('space--') || low.includes('space/') || low.includes('spaces/')) return 'space';
 
-    // Agents (Must be before tool/model)
-    if (low.includes('agent--') || low.includes('/agents/') || low.includes('-agent-') || low.includes('-agent--') || low.endsWith('-agent')) return 'agent';
+    // Agents
+    if (low.includes('agent--') || low.includes('agent/') || low.includes('agents/') || low.endsWith('-agent')) return 'agent';
 
     // Tools
-    if (low.includes('tool--') || low.includes('/tools/') || low.includes('framework') || low.includes('library') || low.includes('engine')) return 'tool';
+    if (low.includes('tool--') || low.includes('tool/') || low.includes('tools/')) return 'tool';
 
     // Fallback: If it's a known non-model format but we are unsure, check common model markers
     if (low.includes('/') && !low.includes('model')) {
