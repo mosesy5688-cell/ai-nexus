@@ -91,10 +91,12 @@ const {
     background: #f9fafb;
     color: #4b5563;
 }
+.hidden { display: none !important; }
 </style>
 
 <script>
 import { R2_CACHE_URL } from '../../config/constants.ts';
+import { normalizeTrendId, findTrendMatch, drawSparkline, updateBadge } from '../../utils/trend-helpers.js';
 
 // Singleton cache for trend data
 let _trendCache: Record<string, any> | null = null;
@@ -118,53 +120,6 @@ async function loadTrendData(): Promise<Record<string, any>> {
     return _loadPromise;
 }
 
-function drawSparkline(
-    canvas: HTMLCanvasElement, 
-    scores: number[],
-    direction: 'up' | 'down' | 'stable'
-) {
-    const ctx = canvas.getContext('2d');
-    if (!ctx || scores.length < 2) return;
-    
-    // V16.35: Responsive sizing logic
-    const dpr = window.devicePixelRatio || 1;
-    const parent = canvas.parentElement;
-    if (!parent) return;
-    
-    const rect = parent.getBoundingClientRect();
-    const w = (rect.width || 80) * dpr;
-    const h = (rect.height || 28) * dpr;
-    
-    canvas.width = w;
-    canvas.height = h;
-    
-    const pad = 4 * dpr;
-    const max = Math.max(...scores), min = Math.min(...scores);
-    const range = max - min || 1;
-    
-    ctx.clearRect(0, 0, w, h);
-    ctx.beginPath();
-    ctx.strokeStyle = direction === 'up' ? '#22c55e' : 
-                      direction === 'down' ? '#ef4444' : '#94a3b8';
-    ctx.lineWidth = 2 * dpr;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    
-    scores.forEach((s, i) => {
-        const x = pad + (i / (scores.length - 1)) * (w - pad * 2);
-        const y = h - pad - ((s - min) / range) * (h - pad * 2);
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-    canvas.classList.add('loaded');
-}
-
-function updateBadge(el: HTMLElement, change: number, dir: string) {
-    const arrow = dir === 'up' ? '↗' : dir === 'down' ? '↘' : '→';
-    el.textContent = `${arrow} ${Math.abs(change).toFixed(1)}%`;
-    el.className = `mini-trend-badge ${dir}`;
-}
-
 async function initMiniTrends() {
     const containers = document.querySelectorAll('.mini-trend-container:not(.inited)');
     if (!containers.length) return;
@@ -174,36 +129,15 @@ async function initMiniTrends() {
     const dataKeysLower = dataKeys.map(k => k.toLowerCase());
     
     containers.forEach(container => {
-        let id = (container as HTMLElement).dataset.entityId;
+        const id = (container as HTMLElement).dataset.entityId;
         if (!id) return;
         
-        let targetId = id;
-        const normalize = (s: string) => s.toLowerCase().replace(/[:\/]+/g, '--');
-        const nid = normalize(id);
-        const bareId = nid.replace(/^(hf-model|hf-dataset|hf-space|hf-tool|model|agent|dataset|paper|space|tool)--/, '');
-        
-        // Match discovery
-        if (!data[targetId]) {
-            const idx = dataKeysLower.indexOf(nid);
-            if (idx !== -1) {
-                targetId = dataKeys[idx];
-            } else {
-                const includesIdx = dataKeysLower.findIndex(k => k.includes(bareId) || bareId.includes(k.replace(/^(hf-model|model)--/, '')));
-                if (includesIdx !== -1) targetId = dataKeys[includesIdx];
-                else {
-                    const bareName = nid.split('--').pop();
-                    if (bareName) {
-                        const bareIdx = dataKeysLower.findIndex(k => k.endsWith(`--${bareName}`) || k === bareName);
-                        if (bareIdx !== -1) targetId = dataKeys[bareIdx];
-                    }
-                }
-            }
-        }
-
+        const targetId = findTrendMatch(id, data, dataKeys, dataKeysLower);
         const fallback = container.parentElement?.querySelector('#trend-fallback');
+        const entityTrend = targetId ? data[targetId] : null;
         
-        if (!data[targetId]) {
-            // V16.35: Explicit "Data Pending" signal
+        if (!entityTrend || !Array.isArray(entityTrend.scores) || entityTrend.scores.length === 0) {
+            console.log(`[MiniTrend] No trend record for ${id} (final target: ${targetId})`);
             if (fallback) {
                 fallback.innerHTML = `<span class="opacity-60 italic">Trend data indexing pending for this node...</span>`;
                 fallback.classList.remove('hidden');
@@ -211,7 +145,7 @@ async function initMiniTrends() {
             return;
         }
         
-        const d = data[targetId];
+        const d = entityTrend;
         const canvas = container.querySelector('canvas');
         const badge = container.querySelector('.mini-trend-badge') as HTMLElement;
         
@@ -219,7 +153,7 @@ async function initMiniTrends() {
             const scores = d.scores || (d.latest ? [d.latest, d.latest] : []);
             if (scores.length >= 2) {
                 drawSparkline(canvas as HTMLCanvasElement, scores, d.direction || 'stable');
-                if (fallback) fallback.classList.add('hidden-permanent');
+                if (fallback) fallback.classList.add('hidden');
             }
         }
         if (badge) {
