@@ -27,29 +27,39 @@ const {
 } = Astro.props;
 ---
 
-<div class="mini-trend" data-entity-id={entityId} data-w={width} data-h={height}>
-    <canvas 
-        class="mini-trend-canvas" 
-        width={width} 
-        height={height}
-        aria-label="7-day FNI trend"
-    ></canvas>
-    {showBadge && (
-        <span class="mini-trend-badge" aria-live="polite">--</span>
-    )}
+<div class="mini-trend-container" data-entity-id={entityId}>
+    <div class="mini-trend" data-w={width} data-h={height}>
+        <canvas 
+            class="mini-trend-canvas" 
+            aria-label="7-day FNI trend"
+        ></canvas>
+        {showBadge && (
+            <span class="mini-trend-badge" aria-live="polite">--</span>
+        )}
+    </div>
 </div>
 
 <style>
+.mini-trend-container {
+    width: 100%;
+    overflow: hidden; /* V16.35: Prevent "out of box" overflow */
+    display: flex;
+    justify-content: center;
+}
+
 .mini-trend {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    min-width: fit-content;
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
 }
 
 .mini-trend-canvas {
-    opacity: 0.3;
-    transition: opacity 0.3s ease;
+    opacity: 0.1;
+    transition: opacity 0.5s ease;
+    width: 100%; /* V16.35: Responsive width */
+    height: auto;
 }
 
 .mini-trend-canvas.loaded {
@@ -58,27 +68,28 @@ const {
 
 .mini-trend-badge {
     font-size: 11px;
-    font-weight: 600;
-    padding: 2px 6px;
-    border-radius: 4px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
     white-space: nowrap;
-    background: var(--color-surface-2, #f0f0f0);
-    color: var(--color-text-muted, #666);
+    background: var(--color-surface-2, #f3f4f6);
+    color: var(--color-text-muted, #6b7280);
+    border: 1px solid rgba(0,0,0,0.05);
 }
 
 .mini-trend-badge.up {
-    background: #dcfce7;
-    color: #16a34a;
+    background: #f0fdf4;
+    color: #15803d;
 }
 
 .mini-trend-badge.down {
-    background: #fee2e2;
-    color: #dc2626;
+    background: #fef2f2;
+    color: #b91c1c;
 }
 
 .mini-trend-badge.stable {
-    background: #e5e7eb;
-    color: #6b7280;
+    background: #f9fafb;
+    color: #4b5563;
 }
 </style>
 
@@ -93,22 +104,16 @@ async function loadTrendData(): Promise<Record<string, any>> {
     if (_trendCache) return _trendCache;
     if (_loadPromise) return _loadPromise;
     
-    // V16.33: Primary CDN Fetch (Zero-Runtime)
     _loadPromise = fetch(`${R2_CACHE_URL}/cache/trend-data.json`)
         .then(async (res) => {
             if (!res.ok) {
-                console.warn('[MiniTrend] CDN primary fetch failed, trying fallback...');
-                // Fallback to local path (handles dev/legacy)
                 const fallback = await fetch('/cache/trend-data.json');
                 return fallback.ok ? fallback.json() : {};
             }
             return res.json();
         })
         .then(data => { _trendCache = data; return data; })
-        .catch((err) => {
-            console.error('[MiniTrend] Trend data load failed:', err);
-            return {};
-        });
+        .catch(() => ({}));
     
     return _loadPromise;
 }
@@ -121,16 +126,27 @@ function drawSparkline(
     const ctx = canvas.getContext('2d');
     if (!ctx || scores.length < 2) return;
     
-    const w = canvas.width, h = canvas.height;
-    const pad = 3;
+    // V16.35: Responsive sizing logic
+    const dpr = window.devicePixelRatio || 1;
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    
+    const rect = parent.getBoundingClientRect();
+    const w = (rect.width || 80) * dpr;
+    const h = (rect.height || 28) * dpr;
+    
+    canvas.width = w;
+    canvas.height = h;
+    
+    const pad = 4 * dpr;
     const max = Math.max(...scores), min = Math.min(...scores);
     const range = max - min || 1;
     
     ctx.clearRect(0, 0, w, h);
     ctx.beginPath();
     ctx.strokeStyle = direction === 'up' ? '#22c55e' : 
-                      direction === 'down' ? '#ef4444' : '#9ca3af';
-    ctx.lineWidth = 1.5;
+                      direction === 'down' ? '#ef4444' : '#94a3b8';
+    ctx.lineWidth = 2 * dpr;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     
@@ -144,43 +160,37 @@ function drawSparkline(
 }
 
 function updateBadge(el: HTMLElement, change: number, dir: string) {
-    const arrow = dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→';
-    el.textContent = `${arrow}${Math.abs(change).toFixed(1)}%`;
+    const arrow = dir === 'up' ? '↗' : dir === 'down' ? '↘' : '→';
+    el.textContent = `${arrow} ${Math.abs(change).toFixed(1)}%`;
     el.className = `mini-trend-badge ${dir}`;
 }
 
 async function initMiniTrends() {
-    const charts = document.querySelectorAll('.mini-trend:not(.inited)');
-    if (!charts.length) return;
+    const containers = document.querySelectorAll('.mini-trend-container:not(.inited)');
+    if (!containers.length) return;
     
     const data = await loadTrendData();
     const dataKeys = Object.keys(data);
     const dataKeysLower = dataKeys.map(k => k.toLowerCase());
     
-    charts.forEach(el => {
-        let id = (el as HTMLElement).dataset.entityId;
+    containers.forEach(container => {
+        let id = (container as HTMLElement).dataset.entityId;
         if (!id) return;
         
         let targetId = id;
-        
-        // V16.34: Aggressive Identity Matching (Prefix-Stripping + Includes)
         const normalize = (s: string) => s.toLowerCase().replace(/[:\/]+/g, '--');
         const nid = normalize(id);
         const bareId = nid.replace(/^(hf-model|hf-dataset|hf-space|hf-tool|model|agent|dataset|paper|space|tool)--/, '');
         
-        // 1. Try exact match
+        // Match discovery
         if (!data[targetId]) {
-            // 2. Try normalized match
             const idx = dataKeysLower.indexOf(nid);
             if (idx !== -1) {
                 targetId = dataKeys[idx];
             } else {
-                // 3. Try "includes" match (e.g. if JSON has prefix but page doesn't or vice versa)
                 const includesIdx = dataKeysLower.findIndex(k => k.includes(bareId) || bareId.includes(k.replace(/^(hf-model|model)--/, '')));
-                if (includesIdx !== -1) {
-                    targetId = dataKeys[includesIdx];
-                } else {
-                    // 4. Try "bare" name matching (last part of slug)
+                if (includesIdx !== -1) targetId = dataKeys[includesIdx];
+                else {
                     const bareName = nid.split('--').pop();
                     if (bareName) {
                         const bareIdx = dataKeysLower.findIndex(k => k.endsWith(`--${bareName}`) || k === bareName);
@@ -190,34 +200,36 @@ async function initMiniTrends() {
             }
         }
 
+        const fallback = container.parentElement?.querySelector('#trend-fallback');
+        
         if (!data[targetId]) {
-            console.warn('[MiniTrend] No data for:', id, '(nid:', nid, ')');
+            // V16.35: Explicit "Data Pending" signal
+            if (fallback) {
+                fallback.innerHTML = `<span class="opacity-60 italic">Trend data indexing pending for this node...</span>`;
+                fallback.classList.remove('hidden');
+            }
             return;
         }
         
         const d = data[targetId];
-        const canvas = el.querySelector('canvas');
-        const badge = el.querySelector('.mini-trend-badge') as HTMLElement;
+        const canvas = container.querySelector('canvas');
+        const badge = container.querySelector('.mini-trend-badge') as HTMLElement;
         
-        // Defensive: Check for scores array
         if (canvas) {
             const scores = d.scores || (d.latest ? [d.latest, d.latest] : []);
             if (scores.length >= 2) {
                 drawSparkline(canvas as HTMLCanvasElement, scores, d.direction || 'stable');
-                
-                // V16.34: UniversalCore Signal - Hide "Synchronizing" mask
-                const fallback = el.parentElement?.querySelector('#trend-fallback');
                 if (fallback) fallback.classList.add('hidden-permanent');
             }
         }
         if (badge) {
             updateBadge(badge, d.change7d || 0, d.direction || 'stable');
         }
-        el.classList.add('inited');
+        container.classList.add('inited');
     });
 }
 
-// Init
+// Global Inits
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initMiniTrends);
 } else {
