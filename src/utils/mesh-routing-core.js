@@ -13,10 +13,17 @@ export function stripPrefix(id) {
 
     let result = id.toLowerCase();
 
-    // V16.36 Canonical Prefixes (Added kaggle & concept)
-    const canonicalPrefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|knowledge|report|arxiv|dataset|tool|paper|model|agent|space|author|kaggle|concept)[:\-\/]+/;
+    // V16.38: Reinforced Prefix Stripping (Absolute Start)
+    const canonicalPrefixes = /^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space|knowledge|report|arxiv|dataset|datasets|tool|tools|paper|model|agent|agents|space|spaces|author|kaggle|concept)[:\-\/ ]+/i;
 
     result = result.replace(canonicalPrefixes, '');
+
+    // V16.38: Recursive stripping for nested-prefix cases (e.g. hf-model--dataset--)
+    let prev;
+    do {
+        prev = result;
+        result = result.replace(canonicalPrefixes, '');
+    } while (result !== prev);
 
     // V16.14: Strip common knowledge 'phrase noise'
     result = result.replace(/^what-is-/, '');
@@ -25,14 +32,15 @@ export function stripPrefix(id) {
     const aliases = {
         'mixture-of-experts': 'moe',
         'retrieval-augmented-generation': 'rag',
-        'low-rank-adaptation': 'lora'
+        'low-rank-augmentation': 'lora'
     };
     if (aliases[result]) result = aliases[result];
 
     // Standardize separators to double-dash per SPEC V16.2
     return result
         .replace(/:/g, '--')
-        .replace(/\//g, '--');
+        .replace(/\//g, '--')
+        .replace(/^--|--$/g, ''); // Clean edges
 }
 
 /**
@@ -90,7 +98,23 @@ export function getRouteFromId(id, type = null) {
 
     const cleanId = rawId.replace(/--/g, '/');
 
-    // V16.14: Double-tap routing logic (checks both variations)
+    // V16.38: Double-Deep Guard (Heuristic Correction)
+    // If the path still contains entity markers but classified as model, pivot the type.
+    if (resolvedType === 'model') {
+        if (cleanId.includes('dataset/') || cleanId.includes('kaggle/')) resolvedType = 'dataset';
+        else if (cleanId.includes('agent/')) resolvedType = 'agent';
+        else if (cleanId.includes('tool/')) resolvedType = 'tool';
+        else if (cleanId.includes('paper/') || cleanId.includes('arxiv/')) resolvedType = 'paper';
+        else if (cleanId.includes('space/')) resolvedType = 'space';
+        else if (cleanId.includes('knowledge/') || cleanId.includes('concept/')) resolvedType = 'knowledge';
+    }
+
+    // Direct platform redirect for external datasets (Zero-Limit Transparency)
+    if (cleanId.startsWith('kaggle/')) {
+        const p = cleanId.replace('kaggle/', '').split('/');
+        if (p.length >= 2) return `https://www.kaggle.com/datasets/${p[0]}/${p[1]}`;
+    }
+
     const routeMap = {
         'knowledge': `/knowledge/${cleanId}`,
         'report': `/reports/${cleanId}`,
@@ -103,8 +127,12 @@ export function getRouteFromId(id, type = null) {
 
     const finalPath = routeMap[resolvedType] || `/model/${cleanId}`;
 
+    // V16.38: Final Sanity Strip (Prevents /model/dataset/ duplication if heuristic caught it)
+    const checkDups = /^\/(model|agent|tool|dataset|paper|space|knowledge|report)\/(model|agent|tool|dataset|paper|space|knowledge|report)\//;
+    const path = finalPath.replace(checkDups, '/$2/');
+
     // Safety: Ensure we never return a trailing slash (404 risk)
-    return finalPath.endsWith('/') ? finalPath.slice(0, -1) : finalPath;
+    return path.endsWith('/') ? path.slice(0, -1) : path;
 }
 
 /**
