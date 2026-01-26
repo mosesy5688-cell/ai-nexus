@@ -55,13 +55,29 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
         });
     }
 
+    // V16.70: Knowledge Alias Map (Prevents 404s for technical terms missing from the index)
+    const KNOWLEDGE_ALIAS_MAP = {
+        'instruction-tuning': 'fine-tuning',
+        'chat-models': 'large-language-model',
+        'rlhf': 'fine-tuning',
+        'direct-preference-optimization': 'fine-tuning',
+        'context-window': 'context-length',
+        'mixture-of-experts': 'moe'
+    };
+
     const ensureNode = (id, typeHint = 'model') => {
-        const norm = stripPrefix(id);
+        let norm = stripPrefix(id);
         if (nodeRegistry.has(norm)) return nodeRegistry.get(norm);
 
         const meta = graphMeta[id] || {};
         // V16.50: Strict metadata trust. If R2 specifies a type 't', use it.
-        const nodeType = meta.t || typeHint || getTypeFromId(id);
+        let nodeType = meta.t || typeHint || getTypeFromId(id);
+
+        // V16.70: Apply Knowledge Aliasing
+        if (nodeType === 'knowledge' && KNOWLEDGE_ALIAS_MAP[norm]) {
+            norm = KNOWLEDGE_ALIAS_MAP[norm];
+            id = `knowledge--${norm}`;
+        }
 
         const parts = id.split('--');
         const nodeAuthor = meta.author || (parts.length > 2 ? parts[parts.length - 2].replace(/-/g, ' ') : (id.startsWith('arxiv--') ? 'Research Paper' : 'Ecosystem Node'));

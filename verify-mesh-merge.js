@@ -29,20 +29,17 @@ async function testIngestion(id) {
             const res = await fetch(`https://cdn.free2aitools.com/cache/mesh/graph.json`);
             const data = await res.json();
             const keys = Object.keys(data.edges || {});
-            const matches = keys.filter(k => k.toLowerCase().includes('llama-3-8b'));
+            const matches = keys.filter(k => k.toLowerCase().includes('llama-3') && k.includes('70b'));
+            console.log(`   [Audit] Candidate keys in graph.json:`, matches);
 
             if (matches.length > 0) {
                 const testMatch = matches[0];
-                const aNorm = stripPrefix(testMatch);
-                const bNorm = stripPrefix(id);
-                const aClean = aNorm.replace(/[^a-z0-9]/g, '');
-                const bClean = bNorm.replace(/[^a-z0-9]/g, '');
-
-                console.log(`   [Audit] Source: ${testMatch} -> Norm: ${aNorm} -> Clean: ${aClean}`);
-                console.log(`   [Audit] Target: ${id} -> Norm: ${bNorm} -> Clean: ${bClean}`);
-                console.log(`   [Audit] aClean.includes(bClean):`, aClean.includes(bClean));
-                console.log(`   [Audit] bClean.includes(aClean):`, bClean.includes(aClean));
+                console.log(`   [Audit] Testing isMatch('${testMatch}', '${id}'):`, isMatch(testMatch, id));
             }
+        } else {
+            relations.slice(0, 10).forEach(r => {
+                console.log(`      - ${r.target_id} (${r.relation_type}) [Type: ${r.target_type}]`);
+            });
         }
     } catch (e) {
         console.error(`   [Error] Ingestion failed:`, e.message);
@@ -50,8 +47,9 @@ async function testIngestion(id) {
 }
 
 async function run() {
-    await testIngestion('hf-model--meta-llama--llama-3-8b');
-    await testIngestion('hf-dataset--ashishbadal18--32000-songs-ragas-mental-health-classification');
+    await testIngestion('hf-model--meta-llama--llama-3-70b-instruct');
+    // Also test a known working one for baseline
+    await testIngestion('kaggle--athina-ai--rag-cookbooks');
 }
 
 run();
