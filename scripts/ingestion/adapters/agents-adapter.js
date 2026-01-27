@@ -129,7 +129,7 @@ export class AgentsAdapter extends BaseAdapter {
         const [author, name] = raw.full_name.split('/');
         const modelsUsed = this.extractModels(raw.readme || '');
         return {
-            id: `github-agent--${this.sanitizeName(author)}--${this.sanitizeName(name)}`,
+            id: this.generateId(author, name, 'agent'),
             type: 'agent',
             source: 'github',
             source_url: raw.html_url,

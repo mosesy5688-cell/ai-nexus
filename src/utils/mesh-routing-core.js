@@ -12,8 +12,11 @@ export function stripPrefix(id) {
     // V16.2 Standard Prefixes - SSOT
     const prefixes = [
         'hf-model--', 'hf-agent--', 'hf-tool--', 'hf-dataset--', 'hf-space--',
-        'model--', 'agent--', 'tool--', 'dataset--', 'space--',
-        'knowledge--', 'concept--', 'paper--', 'report--', 'arxiv--', 'replicate:', 'github--', 'kaggle--', 'author--'
+        'gh-model--', 'gh-agent--', 'gh-tool--',
+        'arxiv-paper--', 'kaggle-dataset--', 'civitai-model--', 'ollama-model--',
+        'github-agent--', 'mcp-server--', 'github-tool--',
+        'knowledge--', 'concept--', 'paper--', 'report--', 'arxiv--', 'replicate:', 'github--', 'kaggle--', 'author--',
+        'model--', 'agent--', 'tool--', 'dataset--', 'space--'
     ];
 
     for (const p of prefixes) {
@@ -43,11 +46,12 @@ export function getTypeFromId(id) {
 
     if (low.startsWith('knowledge--') || low.startsWith('concept--')) return 'knowledge';
     if (low.startsWith('report--')) return 'report';
-    if (low.startsWith('arxiv--') || low.startsWith('paper--')) return 'paper';
-    if (low.startsWith('dataset--') || low.startsWith('hf-dataset--')) return 'dataset';
-    if (low.startsWith('space--') || low.startsWith('hf-space--')) return 'space';
-    if (low.startsWith('agent--') || low.startsWith('hf-agent--')) return 'agent';
-    if (low.startsWith('tool--') || low.startsWith('hf-tool--')) return 'tool';
+    if (low.startsWith('arxiv-paper--') || low.startsWith('arxiv--') || low.startsWith('paper--')) return 'paper';
+    if (low.startsWith('hf-dataset--') || low.startsWith('kaggle-dataset--') || low.startsWith('dataset--')) return 'dataset';
+    if (low.startsWith('hf-space--') || low.startsWith('space--')) return 'space';
+    if (low.startsWith('gh-agent--') || low.startsWith('github-agent--') || low.startsWith('agent--')) return 'agent';
+    if (low.startsWith('gh-tool--') || low.startsWith('hf-tool--') || low.startsWith('github-tool--') || low.startsWith('tool--')) return 'tool';
+    if (low.startsWith('gh-model--') || low.startsWith('hf-model--')) return 'model';
 
     return 'model';
 }

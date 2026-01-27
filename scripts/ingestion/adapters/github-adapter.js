@@ -209,10 +209,11 @@ export class GitHubAdapter extends BaseAdapter {
         const owner = raw.owner?.login || 'unknown';
         const name = raw.name || 'unknown';
 
+        const entityType = this.inferType(raw);
         const entity = {
             // Identity
-            id: this.generateId(owner, name),
-            type: this.inferType(raw),
+            id: this.generateId(owner, name, entityType),
+            type: entityType,
             source: 'github',
             source_url: raw.html_url,
 
