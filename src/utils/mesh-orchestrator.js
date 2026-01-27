@@ -3,7 +3,7 @@
  * Centralizes node extraction, tiering, and deduplication.
  * V16.11: Restricted to R2 Source only. No dynamic tag promotion.
  */
-import { fetchMeshRelations, fetchGraphMetadata, fetchConceptMetadata, stripPrefix, isMatch, getTypeFromId, normalizeSlug } from './knowledge-cache-reader.js';
+import { fetchMeshRelations, fetchGraphMetadata, fetchConceptMetadata, stripPrefix, isMatch, getTypeFromId, normalizeSlug, KNOWLEDGE_ALIAS_MAP } from './knowledge-cache-reader.js';
 import { articles as knowledgeArticles } from '../data/knowledge-articles.ts';
 
 export async function getMeshProfile(locals, rootId, entity, type = 'model') {
@@ -55,15 +55,6 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
         });
     }
 
-    // V16.70: Knowledge Alias Map (Prevents 404s for technical terms missing from the index)
-    const KNOWLEDGE_ALIAS_MAP = {
-        'instruction-tuning': 'fine-tuning',
-        'chat-models': 'large-language-model',
-        'rlhf': 'fine-tuning',
-        'direct-preference-optimization': 'fine-tuning',
-        'context-window': 'context-length',
-        'mixture-of-experts': 'moe'
-    };
 
     const ensureNode = (id, typeHint = 'model') => {
         let norm = stripPrefix(id);

@@ -53,6 +53,20 @@ export function getTypeFromId(id) {
 }
 
 /**
+ * V16.96: Knowledge Alias Map
+ * Maps technical terms and legacy slugs to canonical articles.
+ */
+export const KNOWLEDGE_ALIAS_MAP = {
+    'instruction-tuning': 'fine-tuning',
+    'image-generation': 'multimodal',
+    'chat-models': 'large-language-model',
+    'rlhf': 'fine-tuning',
+    'direct-preference-optimization': 'fine-tuning',
+    'context-window': 'context-length',
+    'mixture-of-experts': 'moe'
+};
+
+/**
  * V16.95: Routing logic strictly mapping IDs to paths.
  */
 export function getRouteFromId(id, type = null) {
@@ -60,6 +74,12 @@ export function getRouteFromId(id, type = null) {
 
     let resolvedType = type || getTypeFromId(id);
     let rawId = stripPrefix(id);
+
+    // Apply aliasing for knowledge articles
+    if (resolvedType === 'knowledge' && KNOWLEDGE_ALIAS_MAP[rawId]) {
+        rawId = KNOWLEDGE_ALIAS_MAP[rawId];
+    }
+
     const cleanId = rawId.replace(/--/g, '/');
 
     // Direct platform redirect for external datasets

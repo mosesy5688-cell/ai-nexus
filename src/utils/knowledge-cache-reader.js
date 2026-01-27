@@ -1,5 +1,5 @@
 // Knowledge Cache Reader (V16.4)
-export { stripPrefix, getTypeFromId, getRouteFromId, normalizeSlug, isMatch } from './mesh-routing-core.js';
+export { stripPrefix, getTypeFromId, getRouteFromId, normalizeSlug, isMatch, KNOWLEDGE_ALIAS_MAP } from './mesh-routing-core.js';
 import { stripPrefix, getTypeFromId, normalizeSlug, isMatch } from './mesh-routing-core.js';
 
 // Bidirectional matching and ingestion logic
