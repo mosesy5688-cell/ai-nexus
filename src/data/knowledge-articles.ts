@@ -71,4 +71,12 @@ export const articles: Record<string, KnowledgeArticle> = {
   'google': createStub('Google DeepMind', 'Pioneers of the Transformer architecture and Gemini models.', 'organizations'),
   'openai': createStub('OpenAI', 'Creators of GPT-4, DALL-E and the ChatGPT ecosystem.', 'organizations'),
   'mistral-ai': createStub('Mistral AI', 'European AI leader focused on efficient Mixture-of-Experts models.', 'organizations'),
+
+  // Technical Aliases & Mesh Support (Resolved to canonicals)
+  'instruction-tuning': createStub('Instruction Tuning', 'See Fine-Tuning for details.', 'training'),
+  'image-generation': createStub('Image Generation', 'See Multimodal AI for details.', 'fundamentals'),
+  'chat-models': createStub('Chat Models', 'See Large Language Model (LLM) for details.', 'fundamentals'),
+  'context-window': createStub('Context Window', 'See Context Length for details.', 'fundamentals'),
+  'mixture-of-experts': createStub('Mixture of Experts (MoE)', 'Scaling models with switchable layers', 'fundamentals'),
+  'direct-preference-optimization': createStub('DPO', 'Optimizing model preferences via direct feedback.', 'training'),
 };
