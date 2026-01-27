@@ -197,7 +197,7 @@ export class ArXivAdapter extends BaseAdapter {
         const primaryAuthor = raw.authors?.[0] || 'unknown';
 
         const entity = {
-            id: `arxiv--${arxivId}`,
+            id: this.generateId('arxiv', arxivId, 'paper'),
             type: 'paper',
             source: 'arxiv',
             source_url: `https://arxiv.org/abs/${arxivId}`,

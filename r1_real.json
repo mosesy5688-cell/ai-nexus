@@ -1,0 +1,41 @@
+﻿{
+  "id": "replicate:deepseek-ai/deepseek-r1",
+  "source": "replicate",
+  "entity_type": "model",
+  "name": "deepseek-r1",
+  "author": "deepseek-ai",
+  "description": "A reasoning model trained with reinforcement learning, on par with OpenAI o1",
+  "source_url": "https://replicate.com/deepseek-ai/deepseek-r1",
+  "downloads": 2171390,
+  "likes": 0,
+  "tags": [
+    "public"
+  ],
+  "license": "custom",
+  "primary_category": "other",
+  "params_billions": null,
+  "has_gguf": false,
+  "created_at": "2025-01-29T02:46:11.806773Z",
+  "last_modified": "2025-11-13T15:04:38.774351Z",
+  "meta_json": {
+    "replicate_url": "https://replicate.com/deepseek-ai/deepseek-r1",
+    "github_url": "https://github.com/deepseek-ai/DeepSeek-R1",
+    "paper_url": null,
+    "license_url": "https://github.com/deepseek-ai/DeepSeek-R1/blob/main/LICENSE",
+    "visibility": "public",
+    "latest_version": "fec99f91f58ce5302af6d4cfd8638846925f47e0cd39a4554637806e8379766d",
+    "run_count": 2171390,
+    "cover_image_url": "https://tjzk.replicate.delivery/models_models_featured_image/302182ab-af74-4963-97f2-6121a80c61d7/deepseek-r1-cover.webp"
+  },
+  "content_hash": "515676eb651eca0f3e788485894790c8",
+  "compliance_status": "pending",
+  "quality_score": 0,
+  "fni_score": 12.8,
+  "fni_p": 30,
+  "fni_v": 0,
+  "fni_c": 15,
+  "fni_u": 0,
+  "_version": "14.4.0",
+  "_updated": "2026-01-26T05:57:08.434Z",
+  "_checksum": "3786644f6770318fc84b9ae6def32fed4c95e02942c12a3d4764366bb8d79595"
+}

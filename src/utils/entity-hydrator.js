@@ -94,9 +94,23 @@ function attemptWarmCacheFallback(hydrated, summaryData) {
 function extractTechSpecs(hydrated, entity, meta) {
     const config = entity.config || meta.config || meta.extended?.config || {};
 
-    hydrated.context_length = hydrated.context_length || meta.extended?.context_length || config.max_position_embeddings || config.n_ctx || config.max_seq_len || config.max_sequence_length || config.model_max_length || config.seq_length || config.n_positions;
-    hydrated.architecture = hydrated.architecture || meta.extended?.architecture || config.model_type || config.architectures?.[0] || config.arch;
-    hydrated.params_billions = parseFloat(hydrated.params_billions || meta.extended?.params_billions || config.num_parameters || config.n_params || 0) || null;
+    // V16.96: Enhanced extraction from nested config (Ghost Fields)
+    const getVal = (paths, fallback = null) => {
+        for (const path of paths) {
+            const val = path.split('.').reduce((obj, key) => obj?.[key], config);
+            if (val !== undefined && val !== null) return val;
+        }
+        return fallback;
+    };
+
+    hydrated.context_length = hydrated.context_length || meta.extended?.context_length ||
+        getVal(['max_position_embeddings', 'n_ctx', 'max_seq_len', 'max_sequence_length', 'model_max_length', 'seq_length', 'n_positions']);
+
+    hydrated.architecture = hydrated.architecture || meta.extended?.architecture ||
+        getVal(['model_type', 'architectures.0', 'arch']);
+
+    hydrated.params_billions = parseFloat(hydrated.params_billions || meta.extended?.params_billions ||
+        getVal(['num_parameters', 'n_params', 'safetensors.total']) || 0) || null;
 
     // V16.20: Heuristic Parameter Extraction from Name
     if (!hydrated.params_billions && hydrated.name) {

@@ -156,7 +156,7 @@ export function normalizeSpace(raw, adapter) {
 
     const entity = {
         // Identity
-        id: `hf-space--${adapter.sanitizeName(author)}--${adapter.sanitizeName(name)}`,
+        id: adapter.generateId(author, name, 'space'),
         type: 'space',
         source: 'huggingface',
         source_url: `https://huggingface.co/spaces/${spaceId}`,

@@ -151,7 +151,7 @@ export class DatasetsAdapter extends BaseAdapter {
 
         const entity = {
             // Identity
-            id: this.generateDatasetId(author, name),
+            id: this.generateId(author, name, 'dataset'),
             type: 'dataset',
             source: 'huggingface',
             source_url: `https://huggingface.co/datasets/${datasetId}`,
@@ -246,12 +246,6 @@ export class DatasetsAdapter extends BaseAdapter {
     // Helper Methods
     // ============================================================
 
-    generateDatasetId(author, name) {
-        const safeAuthor = this.sanitizeName(author);
-        const safeName = this.sanitizeName(name);
-        // V4.7: Use double-dash instead of colon for URL-safe slugs
-        return `hf-dataset--${safeAuthor}--${safeName}`;
-    }
 
     parseDatasetId(datasetId) {
         const parts = (datasetId || '').split('/');

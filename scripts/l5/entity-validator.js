@@ -33,18 +33,24 @@ export function hasValidCachePath(entity) {
     }
 
     // V14.5: Check entity type prefixes (hf-space, hf-dataset, github-agent, mcp-server)
-    const TYPE_PREFIXES = ['hf-space--', 'hf-dataset--', 'github-agent--', 'mcp-server--', 'github--'];
+    // V16.96: Update for Universal Prefixing V2.0
+    const TYPE_PREFIXES = [
+        'hf-model--', 'hf-space--', 'hf-dataset--',
+        'gh-model--', 'gh-tool--', 'gh-agent--',
+        'arxiv-paper--', 'kaggle-dataset--', 'civitai-model--', 'ollama-model--',
+        'github-agent--', 'mcp-server--', 'github--'
+    ];
     for (const prefix of TYPE_PREFIXES) {
         if (idLower.startsWith(prefix)) {
             return true;
         }
     }
 
-    // HuggingFace/GitHub: must have author/name format (contains /)
-    const hasSlash = id.includes('/') ||
-        (id.includes(':') && id.split(':')[1]?.includes('/'));
+    // HuggingFace/GitHub: must have author/name format (contains / or :)
+    // V16.96: accept colon as a valid separator for multi-part IDs
+    const hasSeparator = id.includes('/') || id.includes(':');
 
-    return hasSlash;
+    return hasSeparator;
 }
 
 /**

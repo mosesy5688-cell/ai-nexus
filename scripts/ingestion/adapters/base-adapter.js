@@ -161,13 +161,27 @@ export class BaseAdapter {
     // ============================================================
 
     /**
-     * Generate unique ID in format: {source}--{author}--{name}
-     * V4.7: Use double-dash instead of colon for URL-safe slugs
+     * Generate unique ID in format: {source}-{type}--{author}--{name}
+     * V16.96: Implementation of Universal Prefixing Standard V2.0
      */
-    generateId(author, name) {
+    generateId(author, name, type = null) {
+        const sourceMap = {
+            'huggingface': 'hf',
+            'github': 'gh',
+            'arxiv': 'arxiv',
+            'kaggle': 'kaggle',
+            'civitai': 'civitai',
+            'ollama': 'ollama'
+        };
+
+        const shortSource = sourceMap[this.sourceName] || this.sourceName;
+        const resolvedType = type || (this.entityTypes.length === 1 ? this.entityTypes[0] : 'model');
+
         const safeAuthor = this.sanitizeName(author);
         const safeName = this.sanitizeName(name);
-        return `${this.sourceName}--${safeAuthor}--${safeName}`;
+
+        // Standard: {source}-{type}--{author}--{name}
+        return `${shortSource}-${resolvedType}--${safeAuthor}--${safeName}`;
     }
 
     /**

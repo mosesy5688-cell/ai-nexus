@@ -95,21 +95,49 @@ async function mergeBatches() {
                         existing.description = entity.description || existing.description;
                     }
 
-                    // 2. Metadata Augmentation (Tags)
+                    // 2. Metadata Augmentation (Deep Merge meta_json)
+                    try {
+                        const existingMeta = typeof existing.meta_json === 'string' ? JSON.parse(existing.meta_json) : (existing.meta_json || {});
+                        const newMeta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : (entity.meta_json || {});
+
+                        // Deep merge: newMeta values win if they are not null/undefined
+                        const mergedMeta = { ...existingMeta };
+                        for (const [key, value] of Object.entries(newMeta)) {
+                            if (value !== null && value !== undefined) {
+                                if (typeof value === 'object' && !Array.isArray(value) && existingMeta[key]) {
+                                    mergedMeta[key] = { ...existingMeta[key], ...value };
+                                } else {
+                                    mergedMeta[key] = value;
+                                }
+                            }
+                        }
+                        existing.meta_json = JSON.stringify(mergedMeta);
+
+                        // 3. Technical Spec Prioritization (Force update if null)
+                        const techFields = ['params_billions', 'architecture', 'context_length', 'hidden_size', 'num_layers'];
+                        for (const field of techFields) {
+                            if (!existing[field] && entity[field]) {
+                                existing[field] = entity[field];
+                            }
+                        }
+                    } catch (e) {
+                        // Fallback if parsing fails
+                    }
+
+                    // 4. Tags & Metrics
                     const tagSet = new Set([...(existing.tags || []), ...(entity.tags || [])]);
                     existing.tags = Array.from(tagSet);
 
-                    // 3. Metric Max (Fairness)
                     existing.likes = Math.max(existing.likes || 0, entity.likes || 0);
                     existing.downloads = Math.max(existing.downloads || 0, entity.downloads || 0);
 
-                    // 4. Source Trail Merging
+                    // 5. Source Trail Merging
                     try {
                         const existingTrail = typeof existing.source_trail === 'string' ? JSON.parse(existing.source_trail) : (existing.source_trail || []);
                         const newTrail = typeof entity.source_trail === 'string' ? JSON.parse(entity.source_trail) : (entity.source_trail || []);
                         existing.source_trail = JSON.stringify([...existingTrail, ...newTrail]);
                     } catch (e) {
-                        // Fallback if parsing fails
+                        // Fallback
                     }
 
                     merged++;
