@@ -4,7 +4,7 @@
  * V16.11: Restricted to R2 Source only. No dynamic tag promotion.
  */
 import { fetchMeshRelations, fetchGraphMetadata, fetchConceptMetadata, stripPrefix, isMatch, getTypeFromId, normalizeSlug } from './knowledge-cache-reader.js';
-import { articles as knowledgeArticles } from '../data/knowledge-articles';
+import { articles as knowledgeArticles } from '../data/knowledge-articles.ts';
 
 export async function getMeshProfile(locals, rootId, entity, type = 'model') {
     const normRoot = stripPrefix(rootId);
@@ -42,8 +42,8 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
 
     // V16.14: Multi-Source Knowledge SSOT (Normalized)
     const validKnowledgeSlugs = new Set([
-        ...Object.keys(KNOWLEDGE_REGISTRY),
-        ...(knowledgeIndex.articles || knowledgeIndex || []).map(a => a.slug || a.id?.split('--')?.pop())
+        ...Object.keys(knowledgeArticles),
+        ...(Array.isArray(knowledgeIndex) ? knowledgeIndex : (knowledgeIndex?.articles || [])).map(a => a.slug || a.id?.split('--')?.pop())
     ].filter(Boolean).map(s => stripPrefix(s)));
 
     // Model validation index (normalized for easy matching)
