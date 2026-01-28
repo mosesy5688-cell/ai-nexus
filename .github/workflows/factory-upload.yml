@@ -100,12 +100,13 @@ jobs:
           echo "📤 Uploading to R2 via S3 API..."
           node scripts/factory/r2-upload-s3.js
 
-      # CDN Purge
+       # CDN Purge (V16.2.3: Added search manifest and shards)
       - name: Purge CDN Cache
         run: |
           echo "🔄 Purging CDN cache..."
           
-          PURGE_PATHS='["https://cdn.free2aitools.com/cache/trending.json","https://cdn.free2aitools.com/cache/search-core.json","https://cdn.free2aitools.com/cache/category_stats.json","https://cdn.free2aitools.com/cache/relations.json"]'
+          # We purge the manifest and core index. Shards are usually unique-named or updated.
+          PURGE_PATHS='["https://cdn.free2aitools.com/cache/trending.json","https://cdn.free2aitools.com/cache/search-core.json","https://cdn.free2aitools.com/cache/search-manifest.json","https://cdn.free2aitools.com/cache/category_stats.json","https://cdn.free2aitools.com/cache/relations.json"]'
           
           curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
@@ -113,7 +114,7 @@ jobs:
             --data "{\"files\":$PURGE_PATHS}" \
             | jq '.success'
 
-      # CDN Warming
+      # CDN Warming (V16.2.3: Added search manifest)
       - name: Warm CDN Cache
         run: |
           echo "🔥 Warming CDN cache..."
@@ -121,6 +122,7 @@ jobs:
           WARM_URLS=(
             "https://cdn.free2aitools.com/cache/trending.json"
             "https://cdn.free2aitools.com/cache/search-core.json"
+            "https://cdn.free2aitools.com/cache/search-manifest.json"
             "https://cdn.free2aitools.com/cache/category_stats.json"
           )
           
