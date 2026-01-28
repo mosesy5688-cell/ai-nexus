@@ -62,8 +62,8 @@ export async function loadWithFallback(filename, defaultValue = {}) {
         await fs.writeFile(localPath, result);
 
         return JSON.parse(result);
-    } catch {
-        console.log(`[CACHE] R2 backup miss: ${filename}`);
+    } catch (err) {
+        console.log(`[CACHE] R2 backup miss: ${filename} (${err.message})`);
     }
 
     // Priority 3: Cold start with default
