@@ -64,19 +64,23 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler
 
-      # Download entity list from R2 to get image URLs
-      - name: Fetch Entity Image URLs
+      # Download global registry from R2 to get image URLs for all 140k entities
+      - name: Fetch Global Entity Registry
         run: |
           mkdir -p data/images
           
-          # Get trending entities which have image URLs
-          wrangler r2 object get $R2_BUCKET/cache/trending.json --pipe > data/trending.json || echo '[]' > data/trending.json
+          # V16.2: Load the persistent registry (The Memory)
+          wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --pipe > data/registry.json || echo '{"entities":[]}' > data/registry.json
           
-          # Extract image URLs needing processing
+          # Extract image URLs needing processing (Prioritize active entities)
           node -e "
           const fs = require('fs');
-          const trending = JSON.parse(fs.readFileSync('data/trending.json', 'utf-8'));
-          const imageUrls = trending.filter(e => e.image_url && !e.image_url.includes('free2aitools.com'))
+          const registry = JSON.parse(fs.readFileSync('data/registry.json', 'utf-8'));
+          const entities = registry.entities || [];
+          
+          // V16.2 Strategy: Process all entities with external image URLs
+          const imageUrls = entities.filter(e => e.image_url && !e.image_url.includes('free2aitools.com'))
+            .sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0)) // Top-FNI first
             .slice(0, ${{ github.event.inputs.batch_size || 500 }})
             .map(e => ({
               id: e.id || e.slug,
@@ -84,14 +88,13 @@ jobs:
               type: e.type || 'model'
             }));
           fs.writeFileSync('data/image-queue.json', JSON.stringify(imageUrls, null, 2));
-          console.log('Image queue:', imageUrls.length, 'images');
+          console.log('Image queue (Global Registry):', imageUrls.length, 'images');
           "
 
       - name: Download and Convert Images
         run: |
           echo "🖼️ Processing images..."
           
-          # Use Node.js for image processing (Rust module is for SQL generation)
           node -e "
           const fs = require('fs');
           const https = require('https');
@@ -105,7 +108,7 @@ jobs:
             return new Promise((resolve, reject) => {
               const protocol = url.startsWith('https') ? https : http;
               const file = fs.createWriteStream(dest);
-              protocol.get(url, { timeout: 10000 }, (response) => {
+              protocol.get(url, { timeout: 15000 }, (response) => {
                 if (response.statusCode === 200) {
                   response.pipe(file);
                   file.on('finish', () => { file.close(); resolve(true); });
@@ -123,6 +126,9 @@ jobs:
               const safeName = (item.id || 'unknown').replace(/[/:]/g, '--');
               const destPath = 'data/images/' + safeName + '.jpg';
               try {
+                // Optimization: Skip if already exists in this run's disk
+                if (fs.existsSync(destPath)) { results.skipped++; continue; }
+                
                 await downloadImage(item.source_url, destPath);
                 results.success++;
                 console.log('✅', safeName);
@@ -142,30 +148,29 @@ jobs:
         working-directory: tools/rust-img-optimizer
         run: |
           echo "🔄 Converting to WebP..."
-          
-          # Run Rust binary for WebP conversion
           for img in ../../data/images/*.jpg; do
             if [ -f "$img" ]; then
               base=$(basename "$img" .jpg)
-              ./target/release/rust-img-optimizer convert --input "$img" --output "../../data/images/${base}.webp" --format webp --quality 80 --max-width 800 2>/dev/null || true
+              ./target/release/rust-img-optimizer convert --input "$img" --output "../../data/images/${base}.webp" --format webp --quality 75 --max-width 640 2>/dev/null || true
             fi
           done
-          
-          count=$(ls -1 ../../data/images/*.webp 2>/dev/null | wc -l)
-          echo "Converted $count images to WebP"
 
-      - name: Upload Images to R2
+      - name: Upload Images to R2 with 2-Version Rotation
         run: |
-          echo "📤 Uploading to R2..."
-          
+          echo "📤 Uploading with 2-version rotation..."
           for webp in data/images/*.webp; do
             if [ -f "$webp" ]; then
               base=$(basename "$webp")
-              wrangler r2 object put $R2_BUCKET/images/$base --file="$webp" || true
+              
+              # V14.5.7: Backup existing to v-1 before overwrite (2-version rolling)
+              echo "🔄 Rotating $base -> ${base%.*}.v-1.webp"
+              wrangler r2 object copy $R2_BUCKET/images/$base $R2_BUCKET/images/${base%.*}.v-1.webp || echo "No existing version for $base"
+              
+              # Upload new version
+              wrangler r2 object put $R2_BUCKET/images/$base --file="$webp" --content-type="image/webp"
             fi
           done
-          
-          echo "✅ Image upload complete"
+          echo "✅ Image processing and rotation complete"
 
       - name: Summary
         run: |

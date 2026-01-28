@@ -250,9 +250,15 @@ jobs:
           echo "📦 Downloaded batches:"
           ls -la data/raw_batch_*.json 2>/dev/null || echo "No batch files found"
           
+      - name: Split Large Batches (V16.2 Split-First)
+        run: |
+          echo "🔪 V16.2: Splitting oversized individual batches before merge..."
+          node scripts/ingestion/split-large-batches.js
+          echo "✅ Batch splitting complete"
+
       - name: Merge Batches
         run: |
-          echo "🔄 Merging batches..."
+          echo "🔄 Merging split batches..."
           node scripts/ingestion/merge-batches.js
           
           if [ -f "data/merged.json" ]; then
@@ -262,12 +268,6 @@ jobs:
             echo "❌ Error: merged.json not generated"
             exit 1
           fi
-          
-      - name: Split Large Batches (V7.3)
-        run: |
-          echo "🔪 V7.3: Splitting oversized batches..."
-          node scripts/ingestion/split-large-batches.js
-          echo "✅ Batch splitting complete"
           
       - name: Upload Raw Data to R2 (V7.3 Batch Upload with Validation)
         env:

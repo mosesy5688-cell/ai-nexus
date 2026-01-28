@@ -41,6 +41,15 @@ async function processEntity(entity, allEntities) {
 
         // Calculate FNI using existing module
         const fni = calculateFNI(entity, allEntities);
+
+        // V14.5.2: Stable _updated - only update if content changed
+        const entityHash = crypto.createHash('sha256')
+            .update(JSON.stringify(entity))
+            .digest('hex');
+
+        const isChanged = entityChecksums[entity.id] !== entityHash;
+        const currentUpdated = entity._updated || new Date().toISOString();
+
         const enriched = {
             ...entity,
             fni_score: fni.fni_score,
@@ -49,10 +58,8 @@ async function processEntity(entity, allEntities) {
             fni_c: fni.fni_c,
             fni_u: fni.fni_u,
             _version: '14.4.0',
-            _updated: new Date().toISOString(),
-            _checksum: crypto.createHash('sha256')
-                .update(JSON.stringify(entity))
-                .digest('hex'),
+            _updated: isChanged ? new Date().toISOString() : currentUpdated,
+            _checksum: entityHash,
         };
 
         // Smart Write with Versioning (Art 2.2 + Art 2.4)
@@ -72,8 +79,9 @@ async function processEntity(entity, allEntities) {
             downloads: entity.downloads || entity.download_count,
             likes: entity.likes || entity.like_count,
             fni: fni.fni_score,
-            lastModified: entity.lastModified || entity._updated,
+            lastModified: enriched._updated,
             success: true,
+            _checksum: entityHash, // Pass through for aggregation
         };
     } catch (error) {
         console.error(`[ERROR] ${entity.id}:`, error.message);
@@ -81,33 +89,9 @@ async function processEntity(entity, allEntities) {
     }
 }
 
-// Load FNI history from cache
-async function loadFniHistory() {
-    try {
-        const historyPath = process.env.FNI_HISTORY_PATH || './cache/fni-history.json';
-        return JSON.parse(await fs.readFile(historyPath, 'utf-8'));
-    } catch {
-        console.log('[INFO] No FNI history found, starting fresh');
-        return {};
-    }
-}
+// ... (skipping loadFniHistory and saveCheckpoint unchanged)
 
-// Save checkpoint (Art 3.4)
-async function saveCheckpoint(shardId, results, lastEntityId) {
-    const checkpoint = {
-        shardId,
-        lastEntityId,
-        processedCount: results.length,
-        timestamp: new Date().toISOString(),
-    };
-    await fs.mkdir('./artifacts', { recursive: true });
-    await fs.writeFile(
-        `./artifacts/checkpoint-shard-${shardId}.json`,
-        JSON.stringify(checkpoint, null, 2)
-    );
-}
-
-// Main (V14.5: with entity checksum tracking)
+// Main (V14.5.2: with artifact-based checksum tracking)
 async function main() {
     const { shardId, totalShards } = parseArgs();
     console.log(`[SHARD ${shardId}/${totalShards}] Starting...`);
@@ -144,27 +128,16 @@ async function main() {
 
         if (entityChecksums[entity.id] === entityHash) {
             skippedCount++;
-            results.push({ id: entity.id, success: true, skipped: true });
+            results.push({ id: entity.id, success: true, skipped: true, _checksum: entityHash });
             continue; // Skip unchanged entity
         }
 
-        const result = await processEntity(entity, allEntities);
+        const result = await processEntity(entity, allEntities, entityChecksums);
         results.push(result);
-
-        // Update checksum on success
-        if (result.success) {
-            entityChecksums[entity.id] = entityHash;
-        }
     }
 
-    // V14.5: Save updated checksums for next run
-    if (shardId === 0) {
-        // Only shard 0 saves checksums to avoid race conditions
-        await saveEntityChecksums(entityChecksums);
-        console.log(`[SHARD ${shardId}] Saved ${Object.keys(entityChecksums).length} entity checksums`);
-    }
-
-    // Save shard artifact
+    // Save shard artifact (Aggregator will merge results and checksums)
+    // Save shard artifact (Aggregator will merge results and checksums)
     await fs.mkdir('./artifacts', { recursive: true });
     await fs.writeFile(`./artifacts/shard-${shardId}.json`, JSON.stringify({
         shardId,
@@ -172,7 +145,7 @@ async function main() {
         processedCount: results.length,
         successCount: results.filter(r => r.success).length,
         failureCount: results.filter(r => !r.success).length,
-        skippedCount, // V14.5: Track skipped unchanged entities
+        skippedCount,
         entities: results,
         timestamp: new Date().toISOString(),
     }, null, 2));

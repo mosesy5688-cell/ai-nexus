@@ -26,9 +26,8 @@ const KNOWN_TOOLS = {
 /** Normalize entity ID to standard format with V16.2 prefixes */
 export function normalizeId(id, type) {
     if (!id) return id;
-    if (id.includes('--')) return id;
 
-    // Type-specific prefixing (V16.2 Standard)
+    // Type-specific prefix mappings (V16.2 Standard)
     const prefixes = {
         model: 'hf-model--',
         paper: 'arxiv--',
@@ -37,17 +36,29 @@ export function normalizeId(id, type) {
         dataset: 'dataset--',
         tool: 'tool--',
         knowledge: 'knowledge--',
-        report: 'report--'
+        report: 'report--',
+        concept: 'concept--'
     };
 
-    const prefix = prefixes[type] || (id.includes('/') ? 'hf-model--' : '');
+    // V16.2 FIX: Don't skip if it has '--' but lacks our canonical prefix
+    const canonicalPrefix = prefixes[type];
+    if (canonicalPrefix && id.startsWith(canonicalPrefix)) return id;
 
-    if (type === 'paper' && /^\d{4}\.\d{4,5}(v\d+)?$/.test(id)) {
-        return `arxiv--${id}`;
+    // Handle special types or fallbacks
+    let prefix = canonicalPrefix;
+    if (!prefix) {
+        if (type === 'paper' || /^\d{4}\.\d{4,5}(v\d+)?$/.test(id)) prefix = 'arxiv--';
+        else if (id.includes('/')) prefix = 'hf-model--';
     }
 
+    // Standardize: Replace slashes with double-dashes and attach prefix
     const cleanId = id.replace(/\//g, '--');
-    return prefix ? `${prefix}${cleanId}` : cleanId;
+
+    if (prefix && !cleanId.startsWith(prefix)) {
+        return `${prefix}${cleanId}`;
+    }
+
+    return cleanId;
 }
 
 /** Create relation object helper */

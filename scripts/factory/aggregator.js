@@ -17,10 +17,12 @@ import { generateSitemap } from './lib/sitemap-generator.js';
 import { generateCategoryStats } from './lib/category-stats-generator.js';
 import { generateRelations } from './lib/relations-generator.js';
 import { updateWeeklyAccumulator, shouldGenerateReport, generateWeeklyReport } from './lib/weekly-report.js';
+import { RegistryManager } from './lib/registry-manager.js';
 import { backupToR2Output } from './lib/smart-writer.js';
 import { loadFniHistory, saveFniHistory, loadWeeklyAccum, saveWeeklyAccum } from './lib/cache-manager.js';
 import { generateTrendData } from './lib/trend-data-generator.js'; // V14.5 Phase 5
 import { generateReportsIndex } from './lib/reports-index-generator.js'; // V16.2: Knowledge Mesh
+import { normalizeId } from './lib/relation-extractors.js';
 
 // Config (Art 3.1, 3.3)
 const CONFIG = {
@@ -125,7 +127,11 @@ async function generateHealthReport(shardResults, entities) {
 
 // Main
 async function main() {
-    console.log('[AGGREGATOR] Phase 2 starting...');
+    console.log('[AGGREGATOR] Phase 2 starting (Stateful Mode)...');
+
+    // 0. Load Global Registry (The Memory)
+    const registryManager = new RegistryManager();
+    await registryManager.load();
 
     // 1. Load shard artifacts
     const shardResults = await loadShardArtifacts();
@@ -137,16 +143,14 @@ async function main() {
         process.exit(1);
     }
 
-    // 3. Merge entities
-    let allEntities = mergeShardEntities(shardResults);
-    console.log(`[AGGREGATOR] Merged ${allEntities.length} entities (pre-dedup)`);
+    // 3.1 Registry-First Merge (V16.2 Stateful Core)
+    // This restores historical entities that weren't in current batch
+    console.log('🔄 Registry-First Merging (Restoring 274k Entity Memory)...');
+    const registryState = await registryManager.mergeCurrentBatch(batchEntities);
 
-    // 3.1 Cross-Platform Deduplication (V14.5)
-    console.log('🔄 Cross-platform deduplication...');
-    const dedupResult = dedupCrossPlatform(allEntities);
-    allEntities = dedupResult.entities;
-    console.log(`✓ Dedup complete: ${dedupResult.stats.input} → ${dedupResult.stats.output} entities`);
-    console.log(`  (Merged ${dedupResult.stats.merged} duplicates from ${dedupResult.stats.groups} groups)`);
+    // Final work set for indexing = Registry (Full History)
+    let allEntities = registryState.entities;
+    console.log(`✓ Registry Merge complete: ${allEntities.length} total entities ready for indexing`);
 
     // 4. Calculate percentiles
     const rankedEntities = calculatePercentiles(allEntities);

@@ -192,17 +192,10 @@ jobs:
           path: ./shard-0/
         continue-on-error: true
 
-      # Save entity checksums for next run
-      - name: Save Entity Checksums
-        uses: actions/cache/save@v4
-        with:
-          path: cache/entity-checksums.json
-          key: entity-checksums-${{ github.run_id }}
-
-      # Trigger next stage (via workflow_run - automatic)
+      # V14.5.2: Checksum saving moved to Aggregator (Phase 3) for atomic consistency
       - name: Notify Aggregate Stage
         run: |
-          echo "✅ Shard ${{ matrix.shard }} complete. Factory 3/4 - Aggregate will start automatically after all shards complete."
+          echo "✅ Shards complete. Checksums and Registry state will be finalized in 'Factory 3/4 - Aggregate'."
 
       - name: Summary
         run: |

@@ -40,26 +40,51 @@ export async function generateSearchIndices(entities, outputDir = './output') {
 
     await fs.writeFile(path.join(searchDir, 'search-core.json'), coreContent);
 
-    // Full index: All entities
+    // Full index: All entities (V14.5.3 Sharding)
     const fullEntities = entities.map(e => ({
         id: e.id,
         name: e.name || e.slug,
         type: e.type,
-        description: e.description || '',
-        tags: e.tags || [],
         fni: e.fni,
         source: e.source,
+        // Shortened description to save shard space
+        description: (e.description || '').substring(0, 150),
     }));
 
-    const fullIndex = {
-        entities: fullEntities,
-        _count: fullEntities.length,
+    const SHARD_SIZE = 5000; // ~1-2MB per shard
+    const totalShards = Math.ceil(fullEntities.length / SHARD_SIZE);
+
+    console.log(`  [SEARCH] Full index sharding: ${fullEntities.length} entities into ${totalShards} shards`);
+
+    const shardingDir = path.join(searchDir, 'search');
+    await fs.mkdir(shardingDir, { recursive: true });
+
+    for (let s = 0; s < totalShards; s++) {
+        const shardEntities = fullEntities.slice(s * SHARD_SIZE, (s + 1) * SHARD_SIZE);
+        const shard = {
+            shard: s,
+            totalShards,
+            entities: shardEntities,
+            _count: shardEntities.length,
+            _generated: new Date().toISOString(),
+        };
+        await fs.writeFile(path.join(shardingDir, `shard-${s}.json`), JSON.stringify(shard));
+    }
+
+    // Manifest for client-side lazy loading
+    const manifest = {
+        totalEntities: fullEntities.length,
+        totalShards,
+        shardSize: SHARD_SIZE,
         _generated: new Date().toISOString(),
     };
+    await fs.writeFile(path.join(searchDir, 'search-manifest.json'), JSON.stringify(manifest));
 
-    const fullContent = JSON.stringify(fullIndex);
-    const fullSizeKB = (fullContent.length / 1024).toFixed(0);
-    console.log(`  [SEARCH] Full index: ${fullEntities.length} entities, ${fullSizeKB}KB`);
-
-    await fs.writeFile(path.join(searchDir, 'search-full.json'), fullContent);
+    // BACKWARD COMPATIBILITY: Keep a top-50k version for older clients
+    const legacyFull = {
+        entities: fullEntities.slice(0, 50000),
+        _count: Math.min(fullEntities.length, 50000),
+        _generated: new Date().toISOString(),
+    };
+    await fs.writeFile(path.join(searchDir, 'search-full.json'), JSON.stringify(legacyFull));
 }
