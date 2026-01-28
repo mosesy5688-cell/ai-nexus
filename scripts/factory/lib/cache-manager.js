@@ -87,8 +87,9 @@ export async function saveWithBackup(filename, data) {
 
     // Also save to R2 backup (for recovery if cache expires)
     try {
+        const os = await import('os');
         const r2Key = `${R2_BACKUP_PREFIX}${filename}`;
-        const tempFile = `/tmp/${filename}`;
+        const tempFile = path.join(os.tmpdir(), filename);
         await fs.writeFile(tempFile, content);
         execSync(
             `npx wrangler r2 object put ${R2_BUCKET}/${r2Key} --file=${tempFile}`,
@@ -154,6 +155,28 @@ export async function loadEntityChecksums() {
  */
 export async function saveEntityChecksums(checksums) {
     await saveWithBackup('entity-checksums.json', checksums);
+}
+
+/**
+ * Load Global Registry for stateful factory
+ * @returns {Promise<Object>} Registry data
+ */
+export async function loadGlobalRegistry() {
+    return loadWithFallback('global-registry.json', {
+        entities: [],
+        lastUpdated: null,
+        count: 0
+    });
+}
+
+/**
+ * Save Global Registry
+ * @param {Object} registry - Registry data
+ */
+export async function saveGlobalRegistry(registry) {
+    registry.lastUpdated = new Date().toISOString();
+    registry.count = registry.entities?.length || 0;
+    await saveWithBackup('global-registry.json', registry);
 }
 
 // Export cache key constants
