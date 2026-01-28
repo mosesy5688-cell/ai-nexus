@@ -85,7 +85,7 @@ jobs:
             if (manifest.totalShards > 0) {
               console.log('📦 Restoring ' + manifest.totalShards + ' shards...');
               for (let i = 0; i < manifest.totalShards; i++) {
-                const shardRaw = execSync('wrangler r2 object get ${{ env.R2_BUCKET }}/meta/backup/global-registry-part-' + i + '.json --pipe');
+                const shardRaw = execSync('npx -y wrangler r2 object get ${{ env.R2_BUCKET }}/meta/backup/global-registry-part-' + i + '.json --pipe');
                 const shard = JSON.parse(shardRaw);
                 entities.push(...(shard.entities || []));
               }
@@ -93,7 +93,7 @@ jobs:
               // Fallback to legacy single file
               console.log('⚠️ Manifest not found, trying legacy global-registry.json');
               try {
-                const legacy = execSync('wrangler r2 object get ${{ env.R2_BUCKET }}/meta/backup/global-registry.json --pipe');
+                const legacy = execSync('npx -y wrangler r2 object get ${{ env.R2_BUCKET }}/meta/backup/global-registry.json --pipe');
                 entities.push(...(JSON.parse(legacy).entities || []));
               } catch (e) {
                 console.log('❌ No registry found');

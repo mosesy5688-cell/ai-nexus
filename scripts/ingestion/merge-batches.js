@@ -118,6 +118,13 @@ async function mergeBatches() {
     const registryState = await registryManager.mergeCurrentBatch(allEntities);
     const fullSet = registryState.entities;
 
+    // Integrity Guard: Prevent data wipe if R2 restoration failed
+    if (fullSet.length < 50000 && process.env.GITHUB_RUN_ID) {
+        console.error(`❌ [CRITICAL] Registry restoration failed! Expected ~274k, got ${fullSet.length}.`);
+        console.error(`   To prevent data wipe, aborting merge. Check R2 credentials and paths.`);
+        throw new Error('Registry Restoration Integrity Failure');
+    }
+
     // Write merged output in shards (V16.2.3 Shard-First Implementation)
     const TOTAL_SHARDS = 20;
     console.log(`\n📦 [Merge] Sharding ${fullSet.length} entities into ${TOTAL_SHARDS} processor inputs...`);
