@@ -64,31 +64,56 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler
 
-      # Download global registry from R2 to get image URLs for all 140k entities
+      # Download sharded registry from R2 (V16.2.3 Compatibility)
       - name: Fetch Global Entity Registry
         run: |
           mkdir -p data/images
+          echo "📥 [V16.2.3] Loading sharded registry from R2..."
           
-          # V16.2: Load the persistent registry (The Memory)
-          wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --pipe > data/registry.json || echo '{"entities":[]}' > data/registry.json
+          # Fetch manifest
+          wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-manifest.json --pipe > data/manifest.json || echo '{"totalShards":0}' > data/manifest.json
           
-          # Extract image URLs needing processing (Prioritize active entities)
+          # Reassemble Registry in JS
           node -e "
           const fs = require('fs');
-          const registry = JSON.parse(fs.readFileSync('data/registry.json', 'utf-8'));
-          const entities = registry.entities || [];
+          const { execSync } = require('child_process');
           
-          // V16.2 Strategy: Process all entities with external image URLs
-          const imageUrls = entities.filter(e => e.image_url && !e.image_url.includes('free2aitools.com'))
-            .sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0)) // Top-FNI first
-            .slice(0, ${{ github.event.inputs.batch_size || 500 }})
-            .map(e => ({
-              id: e.id || e.slug,
-              source_url: e.image_url,
-              type: e.type || 'model'
-            }));
-          fs.writeFileSync('data/image-queue.json', JSON.stringify(imageUrls, null, 2));
-          console.log('Image queue (Global Registry):', imageUrls.length, 'images');
+          async function main() {
+            const manifest = JSON.parse(fs.readFileSync('data/manifest.json', 'utf-8'));
+            const entities = [];
+            
+            if (manifest.totalShards > 0) {
+              console.log('📦 Restoring ' + manifest.totalShards + ' shards...');
+              for (let i = 0; i < manifest.totalShards; i++) {
+                const shardRaw = execSync('wrangler r2 object get ${{ env.R2_BUCKET }}/meta/backup/global-registry-part-' + i + '.json --pipe');
+                const shard = JSON.parse(shardRaw);
+                entities.push(...(shard.entities || []));
+              }
+            } else {
+              // Fallback to legacy single file
+              console.log('⚠️ Manifest not found, trying legacy global-registry.json');
+              try {
+                const legacy = execSync('wrangler r2 object get ${{ env.R2_BUCKET }}/meta/backup/global-registry.json --pipe');
+                entities.push(...(JSON.parse(legacy).entities || []));
+              } catch (e) {
+                console.log('❌ No registry found');
+              }
+            }
+
+            // Extract image URLs needing processing (Prioritize active entities)
+            const imageUrls = entities.filter(e => e.image_url && !e.image_url.includes('free2aitools.com'))
+              .sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0)) 
+              .slice(0, ${{ github.event.inputs.batch_size || 500 }})
+              .map(e => ({
+                id: e.id || e.slug,
+                source_url: e.image_url,
+                type: e.type || 'model'
+              }));
+
+            fs.writeFileSync('data/image-queue.json', JSON.stringify(imageUrls, null, 2));
+            console.log('✅ Image queue created:', imageUrls.length, 'images');
+          }
+          main();
           "
 
       - name: Download and Convert Images
