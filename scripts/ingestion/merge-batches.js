@@ -206,6 +206,9 @@ async function mergeBatches() {
 }
 
 // Run if called directly
-mergeBatches().catch(console.error);
+mergeBatches().catch(err => {
+    console.error(`\n❌ [FATAL] ${err.message}`);
+    process.exit(1);
+});
 
 export { mergeBatches };
