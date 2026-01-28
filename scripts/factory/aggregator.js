@@ -143,6 +143,10 @@ async function main() {
         process.exit(1);
     }
 
+    // 3. Extract entities from current shards
+    const batchEntities = mergeShardEntities(shardResults);
+    console.log(`[AGGREGATOR] Batch entities found in shards: ${batchEntities.length}`);
+
     // 3.1 Registry-First Merge (V16.2 Stateful Core)
     // This restores historical entities that weren't in current batch
     console.log('🔄 Registry-First Merging (Restoring 274k Entity Memory)...');
@@ -150,6 +154,10 @@ async function main() {
 
     // Final work set for indexing = Registry (Full History)
     let allEntities = registryState.entities;
+    if (!allEntities || allEntities.length === 0) {
+        console.warn('⚠️ [AGGREGATOR] No entities found in registry or current batch. Using empty set.');
+        allEntities = [];
+    }
     console.log(`✓ Registry Merge complete: ${allEntities.length} total entities ready for indexing`);
 
     // 4. Calculate percentiles
@@ -206,6 +214,9 @@ async function main() {
 
     // 8. Health report (Art 8.3)
     await generateHealthReport(shardResults, rankedEntities);
+
+    // 9. Save Registry (V16.2 Stateful Finalization)
+    await registryManager.save();
 
     console.log('[AGGREGATOR] Phase 2 complete!');
 }

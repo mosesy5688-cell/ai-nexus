@@ -33,7 +33,7 @@ function parseArgs() {
 }
 
 // Atomic entity processing (Art 3.2)
-async function processEntity(entity, allEntities) {
+async function processEntity(entity, allEntities, entityChecksums) {
     try {
         if (!hasValidCachePath(entity)) {
             return { id: entity.id, success: false, error: 'Invalid cache path' };
