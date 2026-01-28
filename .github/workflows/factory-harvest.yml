@@ -264,8 +264,21 @@ jobs:
           restore-keys: |
             weekly-accum-
           
+      # Restore global registry for full-state merging (Sweep Pass)
+      - name: Restore Global Registry
+        uses: actions/cache/restore@v4
+        with:
+          path: cache/global-registry*.json
+          key: global-registry-
+          restore-keys: |
+            global-registry-
+
       # Merge batches with ID deduplication
       - name: Merge Batches
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_BUCKET: ai-nexus-assets
         run: |
           echo "🔄 Merging batches with ID deduplication..."
           node scripts/ingestion/merge-batches.js
@@ -287,11 +300,13 @@ jobs:
       - name: Save Entity Data to Cache
         uses: actions/cache/save@v4
         with:
-          path: |
-            data/merged.json
-            cache/fni-history.json
-            cache/weekly-accum.json
-          key: factory-entity-data-${{ github.run_id }}
+            path: |
+              data/merged.json
+              data/merged_shard_*.json
+              data/manifest.json
+              cache/fni-history.json
+              cache/weekly-accum.json
+            key: factory-entity-data-${{ github.run_id }}
 
       # Pipeline Summary
       - name: Summary

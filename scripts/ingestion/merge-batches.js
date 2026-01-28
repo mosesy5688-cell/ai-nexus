@@ -12,6 +12,8 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { RegistryManager } from '../factory/lib/registry-manager.js';
+import { mergeEntities } from './lib/entity-merger.js';
 
 const DATA_DIR = 'data';
 const OUTPUT_FILE = 'data/merged.json';
@@ -81,68 +83,17 @@ async function mergeBatches() {
 
             // Deduplicate by ID (Layer 1 Dedup) - Augmentative Merging V15.8
             let added = 0;
-            let merged = 0;
+            let mergedCount = 0;
 
             for (const entity of entities) {
                 if (!entity.id) continue;
 
                 if (seenIds.has(entity.id)) {
                     const existing = seenIds.get(entity.id);
-
-                    // 1. Content Priority (Readme)
-                    if ((entity.body_content?.length || 0) > (existing.body_content?.length || 0)) {
-                        existing.body_content = entity.body_content;
-                        existing.description = entity.description || existing.description;
-                    }
-
-                    // 2. Metadata Augmentation (Deep Merge meta_json)
-                    try {
-                        const existingMeta = typeof existing.meta_json === 'string' ? JSON.parse(existing.meta_json) : (existing.meta_json || {});
-                        const newMeta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : (entity.meta_json || {});
-
-                        // Deep merge: newMeta values win if they are not null/undefined
-                        const mergedMeta = { ...existingMeta };
-                        for (const [key, value] of Object.entries(newMeta)) {
-                            if (value !== null && value !== undefined) {
-                                if (typeof value === 'object' && !Array.isArray(value) && existingMeta[key]) {
-                                    mergedMeta[key] = { ...existingMeta[key], ...value };
-                                } else {
-                                    mergedMeta[key] = value;
-                                }
-                            }
-                        }
-                        existing.meta_json = JSON.stringify(mergedMeta);
-
-                        // 3. Technical Spec Prioritization (Force update if null)
-                        const techFields = ['params_billions', 'architecture', 'context_length', 'hidden_size', 'num_layers'];
-                        for (const field of techFields) {
-                            if (!existing[field] && entity[field]) {
-                                existing[field] = entity[field];
-                            }
-                        }
-                    } catch (e) {
-                        // Fallback if parsing fails
-                    }
-
-                    // 4. Tags & Metrics
-                    const tagSet = new Set([...(existing.tags || []), ...(entity.tags || [])]);
-                    existing.tags = Array.from(tagSet);
-
-                    existing.likes = Math.max(existing.likes || 0, entity.likes || 0);
-                    existing.downloads = Math.max(existing.downloads || 0, entity.downloads || 0);
-
-                    // 5. Source Trail Merging
-                    try {
-                        const existingTrail = typeof existing.source_trail === 'string' ? JSON.parse(existing.source_trail) : (existing.source_trail || []);
-                        const newTrail = typeof entity.source_trail === 'string' ? JSON.parse(entity.source_trail) : (entity.source_trail || []);
-                        existing.source_trail = JSON.stringify([...existingTrail, ...newTrail]);
-                    } catch (e) {
-                        // Fallback
-                    }
-
-                    merged++;
+                    const merged = mergeEntities(existing, entity);
+                    seenIds.set(entity.id, merged);
+                    mergedCount++;
                 } else {
-                    // Normalize trail to string for consistent storage if it's an object
                     if (entity.source_trail && typeof entity.source_trail !== 'string') {
                         entity.source_trail = JSON.stringify(entity.source_trail);
                     }
@@ -154,29 +105,54 @@ async function mergeBatches() {
 
             const sourceName = file.replace('raw_batch_', '').replace('.json', '');
             sourceStats.push({ source: sourceName, count: added, file });
-            console.log(`   ✓ ${sourceName}: ${added} new | ${merged} augmented (${entities.length - added - merged} identical skipped)`);
+            console.log(`   ✓ ${sourceName}: ${added} new | ${mergedCount} augmented (${entities.length - added - mergedCount} identical skipped)`);
 
         } catch (error) {
             console.error(`   ❌ Error reading ${file}: ${error.message}`);
         }
     }
 
-    // Write merged output
-    const mergedContent = JSON.stringify(allEntities, null, 2);
+    // V16.2.3: Integrate Global Registry for Sweep Pass (Memory Restoration)
+    const registryManager = new RegistryManager();
+    await registryManager.load();
+    const registryState = await registryManager.mergeCurrentBatch(allEntities);
+    const fullSet = registryState.entities;
+
+    // Write merged output in shards (V16.2.3 Shard-First Implementation)
+    const TOTAL_SHARDS = 20;
+    console.log(`\n📦 [Merge] Sharding ${fullSet.length} entities into ${TOTAL_SHARDS} processor inputs...`);
+
+    // Sort to ensure stable sharding across runs
+    fullSet.sort((a, b) => a.id.localeCompare(b.id));
+
+    for (let s = 0; s < TOTAL_SHARDS; s++) {
+        const shardSlice = fullSet.filter((_, idx) => idx % TOTAL_SHARDS === s);
+        const shardPath = path.join(DATA_DIR, `merged_shard_${s}.json`);
+        await fs.writeFile(shardPath, JSON.stringify(shardSlice, null, 2));
+    }
+
+    // Still write a legacy merged.json for any un-migrated scripts (BUT WARN!)
+    const mergedContent = JSON.stringify(fullSet, null, 2);
     await fs.writeFile(OUTPUT_FILE, mergedContent);
     const mergedHash = calculateHash(mergedContent);
 
     console.log(`\n✅ [Merge] Complete`);
-    console.log(`   Total: ${allEntities.length} unique entities`);
-    console.log(`   Sources: ${sourceStats.length}`);
-    console.log(`   Output: ${OUTPUT_FILE}`);
+    console.log(`   Total: ${fullSet.length} unique entities (Harvested + Registry)`);
+    console.log(`   Shards: ${TOTAL_SHARDS} files created in data/`);
+    console.log(`   Legacy Output: ${OUTPUT_FILE} (${(Buffer.byteLength(mergedContent) / 1024 / 1024).toFixed(2)} MB)`);
 
-    // Generate Integrity Manifest V1.1
+    // Calculate Global Stats for downstream Anomaly Detection (V16.2.3 optimization)
+    const avgVelocity = fullSet.reduce((sum, m) => sum + (m.velocity || 0), 0) / (fullSet.length || 1);
+
+    // Generate Integrity Manifest V1.1 (Modified to include Global Stats)
     const manifest = {
         version: 'INTEGRITY-V1.1',
         job_id: process.env.GITHUB_RUN_ID || 'local',
         timestamp: new Date().toISOString(),
         total_entities: allEntities.length,
+        stats: {
+            avgVelocity: parseFloat(avgVelocity.toFixed(4))
+        },
         output: {
             file: 'merged.json',
             hash: `sha256:${mergedHash}`,

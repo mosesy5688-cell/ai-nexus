@@ -96,15 +96,42 @@ async function main() {
     const { shardId, totalShards } = parseArgs();
     console.log(`[SHARD ${shardId}/${totalShards}] Starting...`);
 
-    // Load entities
-    const entitiesPath = process.env.ENTITIES_PATH || './data/merged.json';
-    const allEntities = JSON.parse(await fs.readFile(entitiesPath, 'utf-8'));
+    // V16.2.3: Load manifest for global stats (Avg Velocity)
+    let globalStats = 0;
+    try {
+        const manifest = JSON.parse(await fs.readFile('./data/manifest.json', 'utf-8'));
+        globalStats = manifest.stats?.avgVelocity || 0;
+        console.log(`[SHARD ${shardId}] Global Avg Velocity: ${globalStats}`);
+    } catch (e) {
+        console.warn(`[SHARD ${shardId}] Manifest stats not found, using 0 fallback`);
+    }
+
+    // V16.2.3: Load sharded input if available (Memory Optimization)
+    let entitiesPath = process.env.ENTITIES_PATH || './data/merged.json';
+    const shardedPath = `./data/merged_shard_${shardId}.json`;
+
+    try {
+        await fs.access(shardedPath);
+        entitiesPath = shardedPath;
+        console.log(`[SHARD ${shardId}] Using sharded input: ${entitiesPath}`);
+    } catch {
+        console.log(`[SHARD ${shardId}] Sharded input not found, falling back to: ${entitiesPath}`);
+    }
 
     // V14.5: Load entity checksums for diff detection
     const entityChecksums = await loadEntityChecksums();
 
-    // Partition for this shard
-    const shardEntities = allEntities.filter((_, idx) => idx % totalShards === shardId);
+    // Load entities for this shard (either sharded file or filtered from merged.json)
+    let shardEntities;
+    if (entitiesPath === shardedPath) {
+        shardEntities = JSON.parse(await fs.readFile(entitiesPath, 'utf-8'));
+    } else {
+        // If sharded input was not found, filter from the full merged.json
+        // This path should ideally not be hit if sharding is properly set up.
+        // For FNI calculation, we now use globalStats instead of allEntities.
+        const allEntitiesFallback = JSON.parse(await fs.readFile(process.env.ENTITIES_PATH || './data/merged.json', 'utf-8'));
+        shardEntities = allEntitiesFallback.filter((_, idx) => idx % totalShards === shardId);
+    }
     console.log(`[SHARD ${shardId}] Processing ${shardEntities.length} entities`);
 
     // Process
@@ -132,7 +159,7 @@ async function main() {
             continue; // Skip unchanged entity
         }
 
-        const result = await processEntity(entity, allEntities, entityChecksums);
+        const result = await processEntity(entity, globalStats, entityChecksums);
         results.push(result);
     }
 
