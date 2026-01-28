@@ -158,25 +158,55 @@ export async function saveEntityChecksums(checksums) {
 }
 
 /**
- * Load Global Registry for stateful factory
- * @returns {Promise<Object>} Registry data
+ * Load Global Registry for stateful factory (V16.2.3 Sharded)
  */
 export async function loadGlobalRegistry() {
-    return loadWithFallback('global-registry.json', {
-        entities: [],
-        lastUpdated: null,
-        count: 0
-    });
+    console.log('[CACHE] Loading sharded global registry...');
+    const manifest = await loadWithFallback('global-registry-manifest.json', { totalShards: 0, count: 0 });
+
+    if (manifest.totalShards === 0) {
+        // Fallback to legacy single file if sharded manifest doesn't exist
+        return loadWithFallback('global-registry.json', { entities: [], lastUpdated: null, count: 0 });
+    }
+
+    const allEntities = [];
+    for (let i = 0; i < manifest.totalShards; i++) {
+        const shard = await loadWithFallback(`global-registry-part-${i}.json`, { entities: [] });
+        allEntities.push(...(shard.entities || []));
+    }
+
+    return {
+        entities: allEntities,
+        lastUpdated: manifest.lastUpdated,
+        count: allEntities.length
+    };
 }
 
 /**
- * Save Global Registry
- * @param {Object} registry - Registry data
+ * Save Global Registry (V16.2.3 Sharded)
  */
 export async function saveGlobalRegistry(registry) {
-    registry.lastUpdated = new Date().toISOString();
-    registry.count = registry.entities?.length || 0;
-    await saveWithBackup('global-registry.json', registry);
+    const TOTAL_SHARDS = 20;
+    const entities = registry.entities || [];
+    const shardSize = Math.ceil(entities.length / TOTAL_SHARDS);
+
+    console.log(`[CACHE] Saving ${entities.length} entities into ${TOTAL_SHARDS} registry shards...`);
+
+    for (let i = 0; i < TOTAL_SHARDS; i++) {
+        const slice = entities.slice(i * shardSize, (i + 1) * shardSize);
+        await saveWithBackup(`global-registry-part-${i}.json`, {
+            shard: i,
+            entities: slice,
+            count: slice.length
+        });
+    }
+
+    const manifest = {
+        totalShards: TOTAL_SHARDS,
+        count: entities.length,
+        lastUpdated: new Date().toISOString()
+    };
+    await saveWithBackup('global-registry-manifest.json', manifest);
 }
 
 // Export cache key constants

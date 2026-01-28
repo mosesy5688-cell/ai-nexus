@@ -54,29 +54,101 @@ export async function initSearch() {
     }
 }
 
-// Lazy Load Full Index
-export async function loadFullSearchIndex() {
+// Lazy Load Full Index (V16.2.3 Sharded Implementation)
+export async function loadFullSearchIndex(onProgress) {
     if (isFullSearchActive || isFullSearchLoading || !isLoaded) return;
     isFullSearchLoading = true;
 
     try {
-        console.log('📥 [V16.2] Loading Full Index (30MB+)...');
-        const res = await fetch(FULL_INDEX_URL);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        console.log('📥 [V16.2.3] Loading Search Manifest...');
+        const manifestRes = await fetch(`${R2_CACHE_URL}/cache/search-manifest.json`);
+        if (!manifestRes.ok) throw new Error('Manifest load failed');
 
-        const data = await res.json();
-        const rawFull = data.entities || data.models || data;
-        const fullEntities = DataNormalizer.normalizeCollection(rawFull, 'model');
+        const manifest = await manifestRes.json();
+        const totalShards = manifest.totalShards;
+        console.log(`📦 [Search] Loading ${totalShards} shards for ${manifest.totalEntities} entities...`);
 
-        // Clear and reload MiniSearch with full data
+        // Use a Set to handle potential dupes between core and shards
+        const fullEntitiesMap = new Map();
+        // Seed with core data
+        searchData.forEach(e => fullEntitiesMap.set(e.id, e));
+
+        const shardUrls = Array.from({ length: totalShards }, (_, i) => `${R2_CACHE_URL}/cache/search/shard-${i}.json`);
+
+        // Load shards in batches of 5 to avoid browser request limits
+        const BATCH_SIZE = 5;
+        let loadedShards = 0;
+
+        for (let i = 0; i < shardUrls.length; i += BATCH_SIZE) {
+            const batch = shardUrls.slice(i, i + BATCH_SIZE);
+            const results = await Promise.all(batch.map(async (url) => {
+                const res = await fetch(url);
+                if (!res.ok) return null;
+                return res.json();
+            }));
+
+            for (const shard of results) {
+                if (shard?.entities) {
+                    shard.entities.forEach(e => {
+                        if (!fullEntitiesMap.has(e.id)) {
+                            fullEntitiesMap.set(e.id, {
+                                i: e.id,
+                                n: e.name,
+                                type: e.type,
+                                a: e.author,
+                                sc: e.fni,
+                                d: e.description,
+                                s: e.slug
+                            });
+                        }
+                    });
+                }
+            }
+
+            loadedShards += results.filter(Boolean).length;
+            if (onProgress) {
+                onProgress({
+                    percent: Math.round((loadedShards / totalShards) * 100),
+                    loaded: loadedShards,
+                    total: totalShards
+                });
+            }
+        }
+
+        const fullEntities = Array.from(fullEntitiesMap.values());
+
+        // Update MiniSearch
+        console.log('🔄 Rebuilding Search Index...');
         searchIndex.removeAll();
-        searchIndex.addAll(fullEntities);
+        searchIndex.addAll(fullEntities.map(e => ({
+            id: e.i,
+            name: e.n,
+            type: e.type,
+            author: e.a,
+            description: e.d,
+            fni_score: e.sc,
+            slug: e.s
+        })));
 
+        searchData = fullEntities;
         isFullSearchActive = true;
-        console.log(`🔥 [V16.2] Full Search Activated: ${fullEntities.length} entities`);
+        console.log(`🔥 [V16.2.3] Full Search Ready: ${fullEntities.length} entities`);
         return true;
     } catch (e) {
-        console.error('❌ [V16.2] Full Index Load Failed:', e);
+        console.error('❌ [V16.2.3] Sharded Index Load Failed:', e);
+        // Fallback to legacy full index if manifest fails
+        try {
+            console.warn('⚠️ [Search] Falling back to legacy full index...');
+            const res = await fetch(FULL_INDEX_URL);
+            if (res.ok) {
+                const data = await res.json();
+                const rawFull = data.entities || data.models || data;
+                searchIndex.removeAll();
+                searchIndex.addAll(rawFull);
+                isFullSearchActive = true;
+                return true;
+            }
+        } catch (f) { /* Silent fail */ }
         return false;
     } finally {
         isFullSearchLoading = false;

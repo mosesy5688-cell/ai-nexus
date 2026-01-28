@@ -24,8 +24,44 @@ export class RegistryManager {
     }
 
     /**
+     * Merge individual entity metadata intelligently
+     */
+    mergeEntityMetadata(existing, incoming) {
+        const merged = { ...existing, ...incoming };
+
+        // 1. Preserve longer description (Better SEO/Context)
+        if (existing.description && incoming.description) {
+            if (existing.description.length > incoming.description.length) {
+                merged.description = existing.description;
+            }
+        } else if (existing.description) {
+            merged.description = existing.description;
+        }
+
+        // 2. Deduplicate and merge tags
+        const tags = new Set([
+            ...(Array.isArray(existing.tags) ? existing.tags : []),
+            ...(Array.isArray(incoming.tags) ? incoming.tags : [])
+        ]);
+        merged.tags = Array.from(tags).filter(t => t && t.length > 1);
+
+        // 3. Keep existing image if incoming is missing
+        if (!incoming.image_url && existing.image_url) {
+            merged.image_url = existing.image_url;
+        }
+
+        // 4. Cumulative or Max stats
+        merged.total_downloads = Math.max(
+            parseInt(existing.total_downloads || 0),
+            parseInt(incoming.total_downloads || 0)
+        );
+
+        return merged;
+    }
+
+    /**
      * Merge current batch entities into the registry
-     * Priority: Current Batch > Registry
+     * Priority: Balanced Merge (v16.2.3)
      */
     async mergeCurrentBatch(batchEntities) {
         console.log(`[REGISTRY] Merging ${batchEntities.length} batch entities into registry...`);
@@ -35,16 +71,21 @@ export class RegistryManager {
         // 1. Seed with existing registry
         for (const e of this.registry.entities) {
             const id = normalizeId(e.id, e.type);
-            // V16.2: Mark historical as archived until proven otherwise in current batch
             registryMap.set(id, { ...e, status: 'archived' });
         }
 
-        // 2. Overwrite with current batch (Proof of life)
+        // 2. Intelligence Merge with current batch
         for (const e of batchEntities) {
             const id = normalizeId(e.id, e.type);
+            const existing = registryMap.get(id);
+
+            const merged = existing
+                ? this.mergeEntityMetadata(existing, e)
+                : e;
+
             registryMap.set(id, {
-                ...e,
-                status: 'active',
+                ...merged,
+                status: e.status || 'active',
                 _last_seen: new Date().toISOString()
             });
         }

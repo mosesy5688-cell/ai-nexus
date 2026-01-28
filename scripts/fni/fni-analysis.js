@@ -22,8 +22,11 @@ export function detectAnomalies(model, allModels) {
     }
 
     // 3. Suspicious growth (compared to avg)
-    if (allModels && allModels.length > 0) {
-        const avgVelocity = allModels.reduce((sum, m) => sum + (m.velocity || 0), 0) / allModels.length;
+    if (allModels) {
+        const avgVelocity = Array.isArray(allModels)
+            ? (allModels.reduce((sum, m) => sum + (m.velocity || 0), 0) / (allModels.length || 1))
+            : (typeof allModels === 'number' ? allModels : 0);
+
         if ((model.velocity || 0) > avgVelocity * CONFIG.ANOMALY.GROWTH_MULTIPLIER && avgVelocity > 0) {
             flags.push('SUSPICIOUS_GROWTH');
         }

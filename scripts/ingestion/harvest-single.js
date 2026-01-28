@@ -68,19 +68,35 @@ async function harvestSingle(sourceName, options = {}) {
         }).filter(Boolean);
         console.log(`   ✓ Normalized ${normalized.length} entities`);
 
-        // Save to batch file (even if empty)
-        const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}.json`);
-        await fs.writeFile(batchFile, JSON.stringify(normalized, null, 2));
-        console.log(`   ✓ Saved to: ${batchFile}`);
+        // Physical Chunking V16.2.3: Lowered to 4000 to catch GitHub (heavy per-entity size)
+        const CHUNK_SIZE = 4000;
+        const results = { source: sourceName, total: normalized.length, chunks: [] };
+
+        if (normalized.length <= CHUNK_SIZE) {
+            const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}.json`);
+            await fs.writeFile(batchFile, JSON.stringify(normalized, null, 2));
+            results.chunks.push(batchFile);
+            console.log(`   ✓ Saved to: ${batchFile}`);
+        } else {
+            console.log(`   📦 Splitting into ${Math.ceil(normalized.length / CHUNK_SIZE)} chunks...`);
+            for (let i = 0; i < normalized.length; i += CHUNK_SIZE) {
+                const chunk = normalized.slice(i, i + CHUNK_SIZE);
+                const chunkIndex = Math.floor(i / CHUNK_SIZE);
+                const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}_${chunkIndex}.json`);
+                await fs.writeFile(batchFile, JSON.stringify(chunk, null, 2));
+                results.chunks.push(batchFile);
+                console.log(`   ✓ Chunk ${chunkIndex} saved to: ${batchFile}`);
+            }
+        }
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`\n✅ [Harvest] Complete`);
         console.log(`   Source: ${sourceName}`);
         console.log(`   Entities: ${normalized.length}`);
+        console.log(`   Chunks: ${results.chunks.length}`);
         console.log(`   Time: ${duration}s`);
-        console.log(`   Output: ${batchFile}`);
 
-        return { source: sourceName, count: normalized.length, duration, file: batchFile };
+        return { source: sourceName, count: normalized.length, duration, chunks: results.chunks };
     } catch (error) {
         console.error(`\n❌ [Harvest] Failed: ${error.message}`);
         console.error(error.stack);
