@@ -52,7 +52,7 @@ export async function loadWithFallback(filename, defaultValue = {}) {
     try {
         const r2Key = `${R2_BACKUP_PREFIX}${filename}`;
         const result = execSync(
-            `npx wrangler r2 object get ${R2_BUCKET}/${r2Key} --pipe`,
+            `npx -y wrangler r2 object get ${R2_BUCKET}/${r2Key} --pipe`,
             { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
         );
         console.log(`[CACHE] ✅ Restored from R2 backup: ${filename}`);
@@ -92,7 +92,7 @@ export async function saveWithBackup(filename, data) {
         const tempFile = path.join(os.tmpdir(), filename);
         await fs.writeFile(tempFile, content);
         execSync(
-            `npx wrangler r2 object put ${R2_BUCKET}/${r2Key} --file=${tempFile}`,
+            `npx -y wrangler r2 object put ${R2_BUCKET}/${r2Key} --file=${tempFile}`,
             { stdio: 'pipe' }
         );
         console.log(`[CACHE] Backed up to R2: ${r2Key}`);

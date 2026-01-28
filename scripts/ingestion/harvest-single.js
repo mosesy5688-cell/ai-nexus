@@ -68,8 +68,9 @@ async function harvestSingle(sourceName, options = {}) {
         }).filter(Boolean);
         console.log(`   ✓ Normalized ${normalized.length} entities`);
 
-        // Physical Chunking V16.2.3: Lowered to 4000 to catch GitHub (heavy per-entity size)
-        const CHUNK_SIZE = 4000;
+        // Physical Chunking V16.2.3: Ensure no single file exceeds ~50MB
+        // V16.2.3 Update: 1500 limit for heavy GitHub/ArXiv metadata
+        const CHUNK_SIZE = 1500;
         const results = { source: sourceName, total: normalized.length, chunks: [] };
 
         if (normalized.length <= CHUNK_SIZE) {
