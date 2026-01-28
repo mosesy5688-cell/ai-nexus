@@ -162,12 +162,26 @@ export async function saveEntityChecksums(checksums) {
  */
 export async function loadGlobalRegistry() {
     console.log('[CACHE] Loading sharded global registry...');
-    const manifest = await loadWithFallback('global-registry-manifest.json', { totalShards: 0, count: 0 });
 
-    if (manifest.totalShards === 0) {
-        // Fallback to legacy single file if sharded manifest doesn't exist
-        return loadWithFallback('global-registry.json', { entities: [], lastUpdated: null, count: 0 });
+    // V16.2.4: Priority 0 - Local GitHub Seed (One-time Restoration Guide)
+    const seedPath = 'data/global-registry.json';
+    try {
+        const seedData = await fs.readFile(seedPath, 'utf-8');
+        const parsed = JSON.parse(seedData);
+        if (parsed.entities && parsed.entities.length > 50000) {
+            console.log(`[CACHE] 🏆 Found GitHub Seed: ${seedPath} (${parsed.entities.length} entities)`);
+            console.log(`        Using this as the authoritative memory for this run.`);
+            return {
+                entities: parsed.entities,
+                lastUpdated: parsed.lastUpdated || new Date().toISOString(),
+                count: parsed.entities.length
+            };
+        }
+    } catch (e) {
+        // No seed found, continue to normal flow
     }
+
+    const manifest = await loadWithFallback('global-registry-manifest.json', { totalShards: 0, count: 0 });
 
     const allEntities = [];
     for (let i = 0; i < manifest.totalShards; i++) {
