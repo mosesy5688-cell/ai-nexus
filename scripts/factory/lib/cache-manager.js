@@ -22,10 +22,9 @@ const CACHE_KEYS = {
 };
 
 // Configuration & Overrides
-const CACHE_DIR = process.env.CACHE_DIR || './cache';
-const R2_BACKUP_PREFIX = process.env.R2_BACKUP_PREFIX || 'meta/backup/';
-const R2_BUCKET = process.env.R2_BUCKET || 'ai-nexus-assets';
-const ENABLE_R2_BACKUP = process.env.ENABLE_R2_BACKUP === 'true'; // V16.2.5 Architecture Guard
+const getCacheDir = () => process.env.CACHE_DIR || './cache';
+const getR2Prefix = () => process.env.R2_BACKUP_PREFIX || 'meta/backup/';
+const getR2Bucket = () => process.env.R2_BUCKET || 'ai-nexus-assets';
 
 /**
  * Load data with priority chain (Art 2.3)
@@ -38,7 +37,7 @@ const ENABLE_R2_BACKUP = process.env.ENABLE_R2_BACKUP === 'true'; // V16.2.5 Arc
  * @returns {Promise<any>} Loaded data or default
  */
 export async function loadWithFallback(filename, defaultValue = {}) {
-    const localPath = path.join(CACHE_DIR, filename);
+    const localPath = path.join(getCacheDir(), filename);
 
     // Priority 1: Local cache (GH Cache)
     try {
@@ -50,7 +49,7 @@ export async function loadWithFallback(filename, defaultValue = {}) {
     }
 
     // Priority 2: R2 Backup
-    const r2Key = `${R2_BACKUP_PREFIX}${filename}`;
+    const r2Key = `${getR2Prefix()}${filename}`;
     const os = await import('os');
     const tempFile = path.join(os.tmpdir(), `r2-${filename}-${Date.now()}.json`);
 
@@ -59,7 +58,7 @@ export async function loadWithFallback(filename, defaultValue = {}) {
             console.log(`[CACHE] R2 Restore Attempt ${attempt}/3: ${filename}...`);
             // Use --file instead of --pipe for stability with large objects (54MB)
             execSync(
-                `npx wrangler r2 object get ${R2_BUCKET}/${r2Key} --file=${tempFile}`,
+                `npx wrangler r2 object get ${getR2Bucket()}/${r2Key} --file=${tempFile}`,
                 { stdio: 'pipe', timeout: 300000 } // 5min timeout
             );
 
@@ -67,7 +66,7 @@ export async function loadWithFallback(filename, defaultValue = {}) {
             console.log(`[CACHE] ✅ Restored from R2 backup: ${filename}`);
 
             // Save to local for next time
-            await fs.mkdir(CACHE_DIR, { recursive: true });
+            await fs.mkdir(getCacheDir(), { recursive: true });
             await fs.writeFile(localPath, result);
 
             // Cleanup
@@ -96,27 +95,27 @@ export async function loadWithFallback(filename, defaultValue = {}) {
  * @param {any} data - Data to save
  */
 export async function saveWithBackup(filename, data) {
-    const localPath = path.join(CACHE_DIR, filename);
+    const localPath = path.join(getCacheDir(), filename);
     const content = JSON.stringify(data, null, 2);
 
     // Save to local (will be captured by GH Cache save)
-    await fs.mkdir(CACHE_DIR, { recursive: true });
+    await fs.mkdir(getCacheDir(), { recursive: true });
     await fs.writeFile(localPath, content);
     console.log(`[CACHE] Saved to local: ${filename}`);
 
     // Also save to R2 backup (for recovery if cache expires)
     // V16.2.5: Architecture Guard - Only upload if explicitly enabled
-    if (!ENABLE_R2_BACKUP) {
+    if (process.env.ENABLE_R2_BACKUP !== 'true') {
         return;
     }
 
     try {
         const os = await import('os');
-        const r2Key = `${R2_BACKUP_PREFIX}${filename}`;
+        const r2Key = `${getR2Prefix()}${filename}`;
         const tempFile = path.join(os.tmpdir(), filename);
         await fs.writeFile(tempFile, content);
         execSync(
-            `npx -y wrangler r2 object put ${R2_BUCKET}/${r2Key} --file=${tempFile}`,
+            `npx -y wrangler r2 object put ${getR2Bucket()}/${r2Key} --file=${tempFile}`,
             { stdio: 'pipe' }
         );
         console.log(`[CACHE] Backed up to R2: ${r2Key}`);
