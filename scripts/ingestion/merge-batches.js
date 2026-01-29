@@ -12,8 +12,8 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { RegistryManager } from '../factory/lib/registry-manager.js';
 import { mergeEntities } from './lib/entity-merger.js';
+import { loadEntityChecksums, saveEntityChecksums } from '../factory/lib/cache-manager.js';
 
 const DATA_DIR = 'data';
 const OUTPUT_FILE = 'data/merged.json';
@@ -117,6 +117,18 @@ async function mergeBatches() {
     await registryManager.load();
     const registryState = await registryManager.mergeCurrentBatch(allEntities);
     const fullSet = registryState.entities;
+
+    // V16.2.7: Sync Checksum Cache (Global Fingerprint Alignment)
+    // This prevents 2/4 Shards from thinking 280k archived assets are "new"
+    console.log(`\n🔐 [Merge] Syncing global checksum cache for ${fullSet.length} entities...`);
+    const checksums = await loadEntityChecksums();
+    for (const e of fullSet) {
+        if (e._checksum && !checksums[e.id]) {
+            checksums[e.id] = e._checksum;
+        }
+    }
+    await saveEntityChecksums(checksums);
+    console.log(`   ✓ Checksum cache synchronized`);
 
     // Integrity Guard: Prevent data wipe if R2 restoration failed (V16.2.3 Emergency Guard)
     // We expect 274k+, so 200k is a safe threshold to detect a serious restoration failure.
