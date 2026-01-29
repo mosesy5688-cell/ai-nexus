@@ -137,6 +137,15 @@ jobs:
           path: cache/weekly-accum.json
           key: weekly-accum-${{ github.run_id }}
 
+      # V16.3 FIX: Explicitly save global registry to cache for Harvest (1/4) to see
+      - name: Save Global Registry
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            cache/global-registry*.json
+            cache/entity-checksums.json
+          key: global-registry-${{ github.run_id }}
+
       # V16.2.6: Restore 'internal cache' transfer (Bypasses 313k file upload crash)
       - name: Save Entity Data to Cache (for Upload & Linker)
         uses: actions/cache/save@v4
