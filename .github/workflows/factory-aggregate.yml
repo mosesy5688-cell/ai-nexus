@@ -137,29 +137,13 @@ jobs:
           path: cache/weekly-accum.json
           key: weekly-accum-${{ github.run_id }}
 
-      # V16.2.5: Compress output to handle 300k+ files (Upload Artifact limit workaround)
-      - name: Compress Output
-        run: |
-          echo "📦 Compressing 300k+ files..."
-          tar -czf factory-output.tar.gz output/
-          echo "✅ Compression complete: $(du -sh factory-output.tar.gz)"
-
-      # Upload final output artifact (Compressed)
-      - name: Upload Factory Output
-        uses: actions/upload-artifact@v4
-        with:
-          name: factory-output
-          path: factory-output.tar.gz
-          retention-days: 7
-
-      # V14.5.2: Save entity data to Cache for downstream workflows (factory-linker)
-      - name: Save Entity Data to Cache (for Linker)
+      # V16.2.6: Restore 'internal cache' transfer (Bypasses 313k file upload crash)
+      - name: Save Entity Data to Cache (for Upload & Linker)
         uses: actions/cache/save@v4
         with:
-          path: |
-            output/entities.json
-            output/cache
+          path: output/
           key: entity-data-${{ github.run_id }}
+
 
       # Trigger next stage (via workflow_run - automatic)
       - name: Notify Upload Stage
