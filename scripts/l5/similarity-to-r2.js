@@ -31,7 +31,7 @@ function getCachePath(entity) {
 function downloadFromR2(r2Path) {
     const tempFile = `/tmp/r2_${Date.now()}.json`;
     try {
-        execSync(`npx wrangler r2 object get ${R2_BUCKET}/${r2Path} --file ${tempFile}`, {
+        execSync(`npx wrangler r2 object get ${R2_BUCKET} ${r2Path} --file ${tempFile}`, {
             stdio: 'pipe'
         });
 
@@ -60,7 +60,7 @@ function uploadToR2(r2Path, data) {
     fs.writeFileSync(tempFile, compressed);
 
     try {
-        execSync(`npx wrangler r2 object put ${R2_BUCKET}/${r2Path} --file ${tempFile}`, {
+        execSync(`npx -y wrangler r2 object put ${R2_BUCKET} ${r2Path} --file ${tempFile}`, {
             stdio: 'pipe'
         });
         return true;

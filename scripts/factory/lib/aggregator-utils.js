@@ -9,6 +9,7 @@ import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { loadFniHistory, saveFniHistory, loadWeeklyAccum } from './cache-manager.js';
 import { generateTrendData } from './trend-data-generator.js';
 import { updateWeeklyAccumulator } from './weekly-report.js';
+import { mergeEntities } from '../../ingestion/lib/entity-merger.js';
 
 /**
  * Get week number for backup file naming
@@ -127,7 +128,14 @@ export function mergeShardEntities(allEntities, shardResults) {
     return allEntities.map(e => {
         const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
         const update = updatedEntitiesMap.get(id);
-        return update ? { ...e, ...update, id } : { ...e, id };
+
+        if (update) {
+            // V16.2.7: Deep Augmentative Merge to preserve R2 metadata
+            const merged = mergeEntities(e, update);
+            return { ...merged, id };
+        }
+
+        return { ...e, id };
     });
 }
 

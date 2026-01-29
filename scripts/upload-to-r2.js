@@ -59,7 +59,7 @@ async function uploadBatchToR2(batch, filename) {
     const { execSync } = await import('child_process');
     try {
         execSync(
-            `npx wrangler r2 object put "${CONFIG.R2_BUCKET}/${r2Key}" --file="${tempPath}" --content-type="application/json" ${process.argv.includes('--remote') ? '--remote' : ''}`,
+            `npx wrangler r2 object put "${CONFIG.R2_BUCKET}" "${r2Key}" --file="${tempPath}" --content-type="application/json" ${process.argv.includes('--remote') ? '--remote' : ''}`,
             {
                 cwd: path.join(__dirname, '..'),
                 stdio: 'inherit'

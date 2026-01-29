@@ -162,7 +162,7 @@ export async function smartWriteWrangler(bucketName, key, localFile, options = {
     // Check if object exists with same hash
     try {
         const headResult = execSync(
-            `npx wrangler r2 object head ${bucketName}/${key} --json --remote 2>/dev/null`,
+            `npx wrangler r2 object head ${bucketName} ${key} --json --remote 2>/dev/null`,
             { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
         );
 
@@ -185,7 +185,7 @@ export async function smartWriteWrangler(bucketName, key, localFile, options = {
 
     // PUT with cache-control
     execSync(
-        `npx wrangler r2 object put "${bucketName}/${key}" --file="${localFile}" --content-type="${contentType}" --cache-control="${CACHE_CONTROL}" --remote`,
+        `npx wrangler r2 object put "${bucketName}" "${key}" --file="${localFile}" --content-type="${contentType}" --cache-control="${CACHE_CONTROL}" --remote`,
         { stdio: 'inherit' }
     );
 
