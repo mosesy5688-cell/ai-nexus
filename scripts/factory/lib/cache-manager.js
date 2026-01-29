@@ -50,22 +50,40 @@ export async function loadWithFallback(filename, defaultValue = {}) {
     }
 
     // Priority 2: R2 Backup
-    try {
-        const r2Key = `${R2_BACKUP_PREFIX}${filename}`;
-        const result = execSync(
-            `npx -y wrangler r2 object get ${R2_BUCKET}/${r2Key} --pipe`,
-            { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
-        );
-        console.log(`[CACHE] ✅ Restored from R2 backup: ${filename}`);
+    const r2Key = `${R2_BACKUP_PREFIX}${filename}`;
+    const os = await import('os');
+    const tempFile = path.join(os.tmpdir(), `r2-${filename}-${Date.now()}.json`);
 
-        // Save to local for next time
-        await fs.mkdir(CACHE_DIR, { recursive: true });
-        await fs.writeFile(localPath, result);
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            console.log(`[CACHE] R2 Restore Attempt ${attempt}/3: ${filename}...`);
+            // Use --file instead of --pipe for stability with large objects (54MB)
+            execSync(
+                `npx wrangler r2 object get ${R2_BUCKET}/${r2Key} --file=${tempFile}`,
+                { stdio: 'pipe', timeout: 300000 } // 5min timeout
+            );
 
-        return JSON.parse(result);
-    } catch (err) {
-        console.log(`[CACHE] R2 backup miss: ${filename} (${err.message})`);
+            const result = await fs.readFile(tempFile, 'utf-8');
+            console.log(`[CACHE] ✅ Restored from R2 backup: ${filename}`);
+
+            // Save to local for next time
+            await fs.mkdir(CACHE_DIR, { recursive: true });
+            await fs.writeFile(localPath, result);
+
+            // Cleanup
+            await fs.unlink(tempFile).catch(() => { });
+            return JSON.parse(result);
+        } catch (err) {
+            console.warn(`[CACHE] Attempt ${attempt} failed: ${err.message}`);
+            if (attempt < 3) {
+                console.log('        Retrying in 5s...');
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+        }
     }
+
+    // Cleanup on total failure
+    await fs.unlink(tempFile).catch(() => { });
 
     // Priority 3: Cold start with default
     console.log(`[CACHE] ⚠️ Cold start: ${filename} using default`);
