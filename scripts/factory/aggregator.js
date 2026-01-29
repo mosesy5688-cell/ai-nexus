@@ -19,7 +19,7 @@ import { generateRelations } from './lib/relations-generator.js';
 import { updateWeeklyAccumulator, shouldGenerateReport, generateWeeklyReport } from './lib/weekly-report.js';
 import { RegistryManager } from './lib/registry-manager.js';
 import { backupToR2Output } from './lib/smart-writer.js';
-import { loadFniHistory, saveFniHistory, loadWeeklyAccum, saveWeeklyAccum } from './lib/cache-manager.js';
+import { loadFniHistory, saveFniHistory, loadWeeklyAccum, saveWeeklyAccum, saveGlobalRegistry } from './lib/cache-manager.js';
 import { generateTrendData } from './lib/trend-data-generator.js'; // V14.5 Phase 5
 import { generateReportsIndex } from './lib/reports-index-generator.js'; // V16.2: Knowledge Mesh
 import { normalizeId } from './lib/relation-extractors.js';
@@ -199,6 +199,15 @@ async function main() {
 
     // 8. Health report (Art 8.3)
     await generateHealthReport(shardResults, rankedEntities);
+
+    // V16.2.5: Restore Registry Persistence (The Memory)
+    // Saved to output/meta/backup for 4/4 to upload to R2
+    console.log('[REGISTRY] Saving global registry memory to output...');
+    await saveGlobalRegistry({
+        entities: rankedEntities,
+        count: rankedEntities.length,
+        lastUpdated: new Date().toISOString()
+    });
 
     console.log('[AGGREGATOR] Phase 2 complete!');
 }
