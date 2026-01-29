@@ -9,45 +9,25 @@ import fs from 'fs/promises';
 import { loadWithFallback, saveWithBackup } from './cache-manager.js';
 
 /**
- * Load Global Registry for stateful factory (V16.2.3 Sharded)
+ * Load Global Registry for stateful factory (V16.3.1 Unified)
  */
 export async function loadGlobalRegistry() {
-    const manifestFilename = 'global-registry-manifest.json';
-    const legacyFilename = 'global-registry.json';
+    const filename = 'global-registry.json';
 
-    // V16.2.14 Update: USER confirmed the authoritative source is meta/backup/global-registry.json
-    // We attempt loading the single-file registry first to restore the 200k+ existing entities.
-    console.log(`[CACHE] Restoring authoritative memory from ${legacyFilename}...`);
-    const legacy = await loadWithFallback(legacyFilename, { entities: [] });
+    console.log(`[CACHE] Restoring authoritative memory from ${filename}...`);
+    const registry = await loadWithFallback(filename, { entities: [] });
 
-    if (legacy.entities && legacy.entities.length > 50000) {
-        console.log(`[CACHE] ✅ Successfully restored ${legacy.entities.length} entities from storage.`);
+    const count = registry.entities?.length || 0;
+    if (count > 0) {
+        console.log(`[CACHE] ✅ Successfully restored ${count} entities from storage.`);
         return {
-            entities: legacy.entities,
-            lastUpdated: legacy.lastUpdated || new Date().toISOString(),
-            count: legacy.entities.length
+            entities: registry.entities,
+            lastUpdated: registry.lastUpdated || new Date().toISOString(),
+            count: count
         };
     }
 
-    // Fallback: Check for sharded manifest if legacy is unavailable or small
-    console.log('[CACHE] Legacy registry not found or empty. Checking for sharded manifest...');
-    const manifest = await loadWithFallback(manifestFilename, { totalShards: 0, count: 0 });
-
-    const allEntities = [];
-    if (manifest.totalShards > 0) {
-        console.log(`[CACHE] Found sharded index: ${manifest.totalShards} shards.`);
-        for (let i = 0; i < manifest.totalShards; i++) {
-            const shard = await loadWithFallback(`global-registry-part-${i}.json`, { entities: [] });
-            allEntities.push(...(shard.entities || []));
-        }
-        return {
-            entities: allEntities,
-            lastUpdated: manifest.lastUpdated || new Date().toISOString(),
-            count: allEntities.length
-        };
-    }
-
-    console.log('[CACHE] ⚠️ Cold start: No registry found in R2. Returning empty context.');
+    console.log('[CACHE] ❌ Cold start: No registry found in Cache or R2.');
     return {
         entities: [],
         lastUpdated: new Date().toISOString(),
@@ -56,28 +36,17 @@ export async function loadGlobalRegistry() {
 }
 
 /**
- * Save Global Registry (V16.2.3 Sharded)
+ * Save Global Registry (V16.3.1 Unified)
  */
 export async function saveGlobalRegistry(registry) {
-    const TOTAL_SHARDS = 20;
+    const filename = 'global-registry.json';
     const entities = registry.entities || [];
-    const shardSize = Math.ceil(entities.length / TOTAL_SHARDS);
 
-    console.log(`[CACHE] Saving ${entities.length} entities into ${TOTAL_SHARDS} registry shards...`);
+    console.log(`[CACHE] Saving ${entities.length} entities to unified registry...`);
 
-    for (let i = 0; i < TOTAL_SHARDS; i++) {
-        const slice = entities.slice(i * shardSize, (i + 1) * shardSize);
-        await saveWithBackup(`global-registry-part-${i}.json`, {
-            shard: i,
-            entities: slice,
-            count: slice.length
-        });
-    }
-
-    const manifest = {
-        totalShards: TOTAL_SHARDS,
+    await saveWithBackup(filename, {
+        entities: entities,
         count: entities.length,
         lastUpdated: new Date().toISOString()
-    };
-    await saveWithBackup('global-registry-manifest.json', manifest);
+    });
 }

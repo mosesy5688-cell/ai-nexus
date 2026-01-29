@@ -43,7 +43,8 @@ export class SemanticScholarAdapter extends BaseAdapter {
         // If no arxivIds provided, search for AI papers independently
         if (arxivIds.length === 0) {
             console.log(`📥 [S2] No arXiv IDs provided, searching for AI/ML papers...`);
-            return await this.searchAIPapers(limit);
+            const papers = await this.searchAIPapers(limit); // Original call
+            return papers.length > 0 ? papers : this.getEmptyFallback(); // Modified based on instruction
         }
 
         console.log(`📥 [S2] Fetching citations for ${arxivIds.length} papers...`);
@@ -131,7 +132,7 @@ export class SemanticScholarAdapter extends BaseAdapter {
             if (response.status === 429) {
                 console.warn(`   ⚠️ Rate limited, waiting 60s...`);
                 await this.delay(60000);
-                return this.fetchPaperCitation(arxivId);
+                return this.getEmptyFallback(); // Modified based on instruction
             }
             return null;
         }
@@ -181,6 +182,14 @@ export class SemanticScholarAdapter extends BaseAdapter {
             console.warn(`   ⚠️ Search error: ${error.message}`);
             return [];
         }
+    }
+
+    /**
+     * V16.3: Strictly return empty to prevent registry pollution
+     */
+    getEmptyFallback() {
+        console.warn('   ⚠️ Returning empty results (Mock fallback disabled for V16.3 Hardening)');
+        return [];
     }
 
     /**

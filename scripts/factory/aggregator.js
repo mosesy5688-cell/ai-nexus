@@ -236,12 +236,38 @@ async function main() {
 
     // V16.2.5: Restore Registry Persistence (The Memory)
     // Saved to output/meta/backup for 4/4 to upload to R2
-    console.log('[REGISTRY] Saving global registry memory to output...');
+    console.log('[REGISTRY] Saving global registry memory to output and cache...');
+
+    // 1. Save to output/ (authoritative for R2 upload in 4/4)
     await saveGlobalRegistry({
         entities: rankedEntities,
         count: rankedEntities.length,
         lastUpdated: new Date().toISOString()
     });
+
+    // 2. V16.3 FIX: Also copy to 'cache/' directory explicitly for GitHub Actions persistence
+    const CACHE_DIR = './cache';
+    await fs.mkdir(CACHE_DIR, { recursive: true });
+
+    const registryFiles = [
+        'global-registry.json',
+        'entity-checksums.json',
+        'fni-history.json',
+        'weekly-accum.json'
+    ];
+
+    for (const file of registryFiles) {
+        const sourcePath = path.join(process.env.CACHE_DIR, file); // This is output/meta/backup/file
+        const targetPath = path.join(CACHE_DIR, file);
+        try {
+            await fs.copyFile(sourcePath, targetPath);
+        } catch (e) {
+            // Log if critical
+            if (file === 'global-registry.json') {
+                console.warn(`  [CACHE] Failed to sync ${file}: ${e.message}`);
+            }
+        }
+    }
 
     console.log('[AGGREGATOR] Phase 2 complete!');
 }

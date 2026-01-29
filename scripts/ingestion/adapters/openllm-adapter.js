@@ -61,7 +61,7 @@ export class OpenLLMLeaderboardAdapter extends BaseAdapter {
 
             if (!response.ok) {
                 console.warn(`   ⚠️ Hub API returned ${response.status}`);
-                return this.getMockData(limit);
+                return this.getEmptyFallback();
             }
 
             const models = await response.json();
@@ -87,11 +87,11 @@ export class OpenLLMLeaderboardAdapter extends BaseAdapter {
             const validBenchmarks = benchmarks.filter(b => b.quality_flag === 'ok');
             console.log(`   🛡️ ${validBenchmarks.length}/${benchmarks.length} passed quality gate`);
 
-            return validBenchmarks.length > 0 ? validBenchmarks : this.getMockData(limit);
+            return validBenchmarks.length > 0 ? validBenchmarks : this.getEmptyFallback();
 
         } catch (error) {
             console.error(`   ❌ Fetch error: ${error.message}`);
-            return this.getMockData(limit);
+            return this.getEmptyFallback();
         }
     }
 
@@ -411,6 +411,14 @@ export class OpenLLMLeaderboardAdapter extends BaseAdapter {
         ];
 
         return curatedBenchmarks.slice(0, limit);
+    }
+
+    /**
+     * V16.3: Strictly return empty to prevent registry pollution
+     */
+    getEmptyFallback() {
+        console.warn('   ⚠️ Returning empty results (Mock fallback disabled for V16.3 Hardening)');
+        return [];
     }
 
     /**
