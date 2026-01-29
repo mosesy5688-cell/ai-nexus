@@ -134,13 +134,12 @@ async function main() {
     process.env.ENABLE_R2_BACKUP = 'false';
     const OLD_CACHE_DIR = process.env.CACHE_DIR || './cache';
 
-    // 3. Extract entities from current shards
-    // V16.2.5 Optimization: Since 1/4 already merged the registry into shards,
-    // we don't need to reload or re-merge the registry here.
-    const allEntities = mergeShardEntities(shardResults);
-    console.log(`✓ Collection complete: ${allEntities.length} entities from shards ready for indexing`);
+    // 3. Load full context (Harvested + Registry Memory from 1/4)
+    const entitiesPath = process.env.ENTITIES_PATH || './data/merged.json';
+    const allEntities = JSON.parse(await fs.readFile(entitiesPath, 'utf-8'));
+    console.log(`✓ Context loaded: ${allEntities.length} entities ready for Knowledge Mesh & Ranking`);
 
-    // 4. Calculate percentiles
+    // 4. Calculate percentiles (Wakes up dormant assets with new global rankings)
     const rankedEntities = calculatePercentiles(allEntities);
 
     // 5. Generate trending.json (CRITICAL for homepage)
