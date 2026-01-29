@@ -190,14 +190,21 @@ export async function loadGlobalRegistry() {
     const manifest = await loadWithFallback('global-registry-manifest.json', { totalShards: 0, count: 0 });
 
     const allEntities = [];
-    for (let i = 0; i < manifest.totalShards; i++) {
-        const shard = await loadWithFallback(`global-registry-part-${i}.json`, { entities: [] });
-        allEntities.push(...(shard.entities || []));
+    if (manifest.totalShards > 0) {
+        for (let i = 0; i < manifest.totalShards; i++) {
+            const shard = await loadWithFallback(`global-registry-part-${i}.json`, { entities: [] });
+            allEntities.push(...(shard.entities || []));
+        }
+    } else {
+        // V16.2.7 Bridge: Fallback to legacy single-file registry for the first sharded run
+        console.log('[CACHE] Sharded registry not found. Attempting legacy bridge to global-registry.json...');
+        const legacy = await loadWithFallback('global-registry.json', { entities: [] });
+        allEntities.push(...(legacy.entities || []));
     }
 
     return {
         entities: allEntities,
-        lastUpdated: manifest.lastUpdated,
+        lastUpdated: manifest.lastUpdated || new Date().toISOString(),
         count: allEntities.length
     };
 }
