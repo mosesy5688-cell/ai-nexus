@@ -46,63 +46,15 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # Download factory output
-      - name: Download Factory Output
-        uses: actions/download-artifact@v4
+      # V16.2.6: Restore 'internal cache' transfer
+      - name: Restore Factory Output from Cache
+        uses: actions/cache/restore@v4
         with:
-          name: factory-output
-          run-id: ${{ inputs.run_id || github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: output/
+          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
+          fail-on-cache-miss: true
 
-      # V16.2.5: Extract compressed output (Upload Artifact limit workaround)
-      - name: Extract Output
-        run: |
-          echo "📦 Extracting factory output..."
-          tar -xzf factory-output.tar.gz
-          echo "✅ Extraction complete. Content of output/:"
-          ls -F output/ | head -10
-          rm factory-output.tar.gz
-
-      # Pre-flight validation
-      - name: Pre-flight Validation
-        run: |
-          echo "🔍 V14.5 Phase 4 - Pre-flight Validation"
-          echo "========================================"
-          
-          # Check secrets
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "❌ ERROR: Missing Cloudflare credentials"
-            exit 1
-          fi
-          
-          # Count files
-          FILE_COUNT=$(find output -type f -name "*.json" 2>/dev/null | wc -l)
-          echo "📊 JSON files: $FILE_COUNT"
-          
-          if [ "$FILE_COUNT" -lt 100 ]; then
-            echo "❌ ERROR: Only $FILE_COUNT files. Expected 100+. Aborting."
-            echo "This prevents uploading empty/incomplete data to R2."
-            exit 1
-          fi
-          
-          # Check critical files
-          CRITICAL_FILES=(
-            "output/cache/trending.json"
-            "output/cache/search-core.json"
-            "output/cache/category_stats.json"
-          )
-          
-          for f in "${CRITICAL_FILES[@]}"; do
-            if [ -f "$f" ]; then
-              echo "✅ $f"
-            else
-              echo "⚠️ WARNING: Missing $f"
-            fi
-          done
-          
-          echo "✅ Pre-flight validation passed"
-
-      # Upload to R2 using S3 API (V14.5 Phase 6 - 10x faster)
+      # V16.2.6: R2 Upload (SPEC V14.5)
       - name: Upload to R2
         run: |
           echo "📤 Uploading to R2 via S3 API..."

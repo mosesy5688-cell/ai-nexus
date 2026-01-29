@@ -60,9 +60,7 @@ jobs:
       - name: Restore entity data from cache
         uses: actions/cache/restore@v4
         with:
-          path: |
-            output/entities.json
-            output/cache
+          path: output/
           key: entity-data-${{ github.event.workflow_run.id }}
           restore-keys: |
             entity-data-
@@ -113,10 +111,8 @@ jobs:
       - name: Restore entity data
         uses: actions/cache/restore@v4
         with:
-          path: |
-            output/entities.json
-            output/cache
-          key: entity-data-${{ github.run_id }}
+          path: output/
+          key: entity-data-${{ github.event.workflow_run.id }}
           restore-keys: |
             entity-data-
             
@@ -155,10 +151,8 @@ jobs:
       - name: Restore entity data
         uses: actions/cache/restore@v4
         with:
-          path: |
-            output/entities.json
-            output/cache
-          key: entity-data-${{ github.run_id }}
+          path: output/
+          key: entity-data-${{ github.event.workflow_run.id }}
           restore-keys: |
             entity-data-
             
@@ -196,10 +190,8 @@ jobs:
       - name: Restore entity data
         uses: actions/cache/restore@v4
         with:
-          path: |
-            output/entities.json
-            output/cache
-          key: entity-data-${{ github.run_id }}
+          path: output/
+          key: entity-data-${{ github.event.workflow_run.id }}
           restore-keys: |
             entity-data-
             
@@ -241,10 +233,8 @@ jobs:
       - name: Restore entity data
         uses: actions/cache/restore@v4
         with:
-          path: |
-            output/entities.json
-            output/cache
-          key: entity-data-${{ github.run_id }}
+          path: output/
+          key: entity-data-${{ github.event.workflow_run.id }}
           restore-keys: |
             entity-data-
             
@@ -292,10 +282,8 @@ jobs:
       - name: Restore entity data
         uses: actions/cache/restore@v4
         with:
-          path: |
-            output/entities.json
-            output/cache
-          key: entity-data-${{ github.run_id }}
+          path: output/
+          key: entity-data-${{ github.event.workflow_run.id }}
           restore-keys: |
             entity-data-
             
