@@ -96,6 +96,10 @@ async function main() {
     const { shardId, totalShards } = parseArgs();
     console.log(`[SHARD ${shardId}/${totalShards}] Starting...`);
 
+    // V16.2.10: Data Safety Guard - 2/4 stage must NEVER write to R2
+    // All persistence in 2/4 is via artifacts/cache
+    process.env.ENABLE_R2_BACKUP = 'false';
+
     // V16.2.3: Load manifest for global stats (Avg Velocity)
     let globalStats = 0;
     try {

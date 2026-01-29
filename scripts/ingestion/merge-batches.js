@@ -37,6 +37,10 @@ function calculateHash(content) {
 async function mergeBatches() {
     console.log('\n🔄 [Merge] Starting batch merge...');
 
+    // V16.2.10: Data Safety Guard - 1/4 stage must NEVER write to R2
+    // All persistence in 1/4 is via GitHub Cache
+    process.env.ENABLE_R2_BACKUP = 'false';
+
     // Find all batch files
     const files = await fs.readdir(DATA_DIR);
     const batchFiles = files.filter(f => f.startsWith('raw_batch_') && f.endsWith('.json'));
