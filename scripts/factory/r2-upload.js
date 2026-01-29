@@ -63,7 +63,7 @@ function uploadFile(localPath, remotePath, debug = false) {
     try {
         // Use npx to run wrangler without global install
         // V14.5: Added --remote flag to ensure upload to actual R2 (not local emulator)
-        const result = execSync(`npx wrangler r2 object put "${BUCKET}" "${remotePath}" --file="${localPath}" --remote`, {
+        const result = execSync(`npx wrangler r2 object put "${BUCKET}/${remotePath}" --file="${localPath}" --remote`, {
             stdio: debug ? 'inherit' : 'pipe', // Show output for first few files
             timeout: 60000, // 60s timeout
             encoding: 'utf-8'
