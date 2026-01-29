@@ -14,6 +14,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { mergeEntities } from './lib/entity-merger.js';
 import { loadEntityChecksums, saveEntityChecksums } from '../factory/lib/cache-manager.js';
+import { RegistryManager } from '../factory/lib/registry-manager.js';
 
 const DATA_DIR = 'data';
 const OUTPUT_FILE = 'data/merged.json';

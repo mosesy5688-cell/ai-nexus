@@ -75,13 +75,23 @@ function mergeShardEntities(shardResults) {
     return entities;
 }
 
-// Calculate percentiles
+// Calculate percentiles (Standardizes on fni_score for ranking)
 function calculatePercentiles(entities) {
-    const sorted = [...entities].sort((a, b) => b.fni - a.fni);
-    return sorted.map((e, i) => ({
-        ...e,
-        percentile: Math.round((1 - i / sorted.length) * 100),
-    }));
+    const sorted = [...entities].sort((a, b) => {
+        const aFni = a.fni_score ?? a.fni ?? 0;
+        const bFni = b.fni_score ?? b.fni ?? 0;
+        return bFni - aFni;
+    });
+
+    return sorted.map((e, i) => {
+        const finalFni = e.fni_score ?? e.fni ?? 0;
+        return {
+            ...e,
+            fni: finalFni, // Downstream (search/trending/sitemap) expects 'fni'
+            fni_score: finalFni, // Registry/Metadata expect 'fni_score'
+            percentile: Math.round((1 - i / sorted.length) * 100),
+        };
+    });
 }
 
 // Update FNI history (V14.5: uses cache-manager for GH Cache + R2 backup)
@@ -95,7 +105,8 @@ async function updateFniHistory(entities) {
     const today = new Date().toISOString().split('T')[0];
     for (const e of entities) {
         if (!history[e.id]) history[e.id] = [];
-        history[e.id].push({ date: today, score: e.fni });
+        const score = e.fni_score ?? e.fni ?? 0;
+        history[e.id].push({ date: today, score: score });
         history[e.id] = history[e.id].slice(-7); // 7-day rolling (Art 4.2)
     }
 
@@ -135,12 +146,34 @@ async function main() {
     const OLD_CACHE_DIR = process.env.CACHE_DIR || './cache';
 
     // 3. Load full context (Harvested + Registry Memory from 1/4)
-    const entitiesPath = process.env.ENTITIES_PATH || './data/merged.json';
-    const allEntities = JSON.parse(await fs.readFile(entitiesPath, 'utf-8'));
+    const entitiesInputPath = process.env.ENTITIES_PATH || './data/merged.json';
+    const allEntities = JSON.parse(await fs.readFile(entitiesInputPath, 'utf-8'));
     console.log(`✓ Context loaded: ${allEntities.length} entities ready for Knowledge Mesh & Ranking`);
 
+    // V16.2.10: Load shards and apply updated results to the full context
+    const shardResults = await loadShardArtifacts();
+    const updatedEntitiesMap = new Map();
+    for (const shard of shardResults) {
+        if (shard?.entities) {
+            for (const result of shard.entities) {
+                if (result.success) {
+                    updatedEntitiesMap.set(result.id, result);
+                }
+            }
+        }
+    }
+
+    // Apply updates to context (ensures rankings show latest 2/4 data)
+    const fullSet = allEntities.map(e => {
+        const update = updatedEntitiesMap.get(e.id);
+        if (update) {
+            return { ...e, ...update };
+        }
+        return e;
+    });
+
     // 4. Calculate percentiles (Wakes up dormant assets with new global rankings)
-    const rankedEntities = calculatePercentiles(allEntities);
+    const rankedEntities = calculatePercentiles(fullSet);
 
     // 5. Generate trending.json (CRITICAL for homepage)
     await generateTrending(rankedEntities, CONFIG.OUTPUT_DIR);
@@ -153,9 +186,9 @@ async function main() {
     await generateRelations(rankedEntities, CONFIG.OUTPUT_DIR);  // V14.4: Knowledge linking
 
     // V14.5.2: Write entities.json for factory-linker (CRITICAL for Knowledge Graph)
-    const entitiesPath = path.join(CONFIG.OUTPUT_DIR, 'entities.json');
-    await fs.writeFile(entitiesPath, JSON.stringify(rankedEntities, null, 2));
-    console.log(`[AGGREGATOR] Wrote ${rankedEntities.length} entities to ${entitiesPath}`);
+    const entitiesOutputPath = path.join(CONFIG.OUTPUT_DIR, 'entities.json');
+    await fs.writeFile(entitiesOutputPath, JSON.stringify(rankedEntities, null, 2));
+    console.log(`[AGGREGATOR] Wrote ${rankedEntities.length} entities to ${entitiesOutputPath}`);
 
     // V16.2.5: Switch cache dir to output for final saves so 4/4 picks them up
     // The path 'output/meta/backup' aligns with R2 expectations when 'output/' is stripped.
@@ -165,15 +198,15 @@ async function main() {
     await updateFniHistory(rankedEntities);
 
     // SPEC-BACKUP-V14.5 Section 3.2: Cold Backup Snapshot for FNI History
-    const fniHistory = await loadFniHistory();
+    const historyData = await loadFniHistory();
     const weekNumber = getWeekNumber();
     const fniBackupPath = path.join(CONFIG.OUTPUT_DIR, 'meta', 'backup', 'fni-history', `fni-history-${weekNumber}.json`);
     await fs.mkdir(path.dirname(fniBackupPath), { recursive: true });
-    await fs.writeFile(fniBackupPath, JSON.stringify(fniHistory, null, 2));
+    await fs.writeFile(fniBackupPath, JSON.stringify(historyData, null, 2));
     console.log(`[BACKUP] FNI History snapshot: ${weekNumber}`);
 
     // V14.5 Phase 5: Generate trend data for frontend charts
-    await generateTrendData(fniHistory, path.join(CONFIG.OUTPUT_DIR, 'cache'));
+    await generateTrendData(historyData, path.join(CONFIG.OUTPUT_DIR, 'cache'));
 
     await updateWeeklyAccumulator(rankedEntities, CONFIG.OUTPUT_DIR);
 
