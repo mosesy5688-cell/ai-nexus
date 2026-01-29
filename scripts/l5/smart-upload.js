@@ -53,7 +53,7 @@ function computeHash(filePath) {
 async function getExistingHash(r2Key) {
     try {
         const { stdout } = await execAsync(
-            `npx wrangler r2 object head ${BUCKET}/${r2Key} --json --remote 2>/dev/null`
+            `npx wrangler r2 object head ${BUCKET} ${r2Key} --json --remote 2>/dev/null`
         );
         const metadata = JSON.parse(stdout);
         return metadata.customMetadata?.sha256 || null;
@@ -80,7 +80,7 @@ async function smartWrite(localPath, r2Key) {
         ext === '.gz' ? 'application/gzip' : 'application/octet-stream';
 
     await execAsync(
-        `npx wrangler r2 object put "${BUCKET}/${r2Key}" ` +
+        `npx wrangler r2 object put "${BUCKET}" "${r2Key}" ` +
         `--file="${localPath}" ` +
         `--content-type="${contentType}" ` +
         `--cache-control="${CACHE_CONTROL}" ` +

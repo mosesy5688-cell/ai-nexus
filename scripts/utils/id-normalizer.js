@@ -42,8 +42,17 @@ export function normalizeId(id, source, type) {
     // 1. Cleanup: Remove .json suffix if present (R2 filename artifact)
     let cleanId = id.replace(/\.json$/, '');
 
-    // 2. Transmutation: Replace slashes with double-hyphens
-    cleanId = cleanId.replace(/\//g, '--');
+    // 2. Transmutation: Replace slashes and colons with double-hyphens
+    cleanId = cleanId.replace(/[\/:]/g, '--');
+
+    // Legacy Prefix Stripping to prevent Double-Prefixing (huggingface-- -> hf-model--)
+    const legacyPrefixes = ['huggingface--', 'github--', 'arxiv--', 'paper--'];
+    for (const lp of legacyPrefixes) {
+        if (cleanId.startsWith(lp)) {
+            cleanId = cleanId.slice(lp.length);
+            break;
+        }
+    }
 
     // 3. Idempotency Check (V2.1 Logic)
     // If the ID already starts with any canonical prefix, it's considered normalized.

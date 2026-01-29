@@ -21,6 +21,7 @@ const STATE_FILE = path.join(OUTPUT_DIR, '.harvest-state.json');  // V6.2: Track
 // Config and output
 import { DEFAULT_CONFIG } from './ingestion-config.js';
 import { saveOutput } from './output-mapper.js';
+import { RegistryManager } from '../factory/lib/registry-manager.js';
 
 /** Orchestrator Class */
 export class Orchestrator {
@@ -77,16 +78,26 @@ export class Orchestrator {
         console.log('\n🔄 Phase 2: Normalizing to unified schema...');
         const normalizedEntities = this.normalizeAll(rawEntities);
 
+        // Phase 2.5: Registry Integration (V16.3 Registry-First)
+        console.log('\n🧠 Phase 2.5: Loading Global Registry...');
+        const registryManager = new RegistryManager();
+        await registryManager.load();
+
         // Phase 3: Deduplicate
         console.log('\n✨ Phase 3: Deduplicating...');
         const uniqueEntities = this.deduplicate(normalizedEntities);
 
+        // Phase 3.5: Merge with Archive (Knowledge Continuity)
+        console.log('\n🔗 Phase 3.5: Merging batches with 140k existing entities...');
+        const registry = await registryManager.mergeCurrentBatch(uniqueEntities);
+        const fullEntities = registry.entities;
+
         // Phase 4: Compliance filtering
         console.log('\n🛡️ Phase 4: Compliance check...');
-        const compliantEntities = this.filterCompliance(uniqueEntities);
+        const compliantEntities = this.filterCompliance(fullEntities);
 
         // Phase 5: Output
-        console.log('\n💾 Phase 5: Saving output...');
+        console.log('\n💾 Phase 5: Saving output (merged.json + split shards)...');
         this.stats.output = await saveOutput(compliantEntities, OUTPUT_DIR, OUTPUT_FILE);
 
         // V6.2: Save harvest state for incremental mode
