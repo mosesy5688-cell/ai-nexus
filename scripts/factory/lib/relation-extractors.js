@@ -42,17 +42,21 @@ export function normalizeId(id, type) {
 
     // V16.2 FIX: Don't skip if it has '--' but lacks our canonical prefix
     const canonicalPrefix = prefixes[type];
-    if (canonicalPrefix && id.startsWith(canonicalPrefix)) return id;
+
+    // V16.2.14: Standardize model prefixes (huggingface-- -> hf-model--)
+    let cleanId = id.replace(/\//g, '--');
+    if (type === 'model' && cleanId.startsWith('huggingface--')) {
+        cleanId = cleanId.replace('huggingface--', 'hf-model--');
+    }
+
+    if (canonicalPrefix && cleanId.startsWith(canonicalPrefix)) return cleanId;
 
     // Handle special types or fallbacks
     let prefix = canonicalPrefix;
     if (!prefix) {
         if (type === 'paper' || /^\d{4}\.\d{4,5}(v\d+)?$/.test(id)) prefix = 'arxiv--';
-        else if (id.includes('/')) prefix = 'hf-model--';
+        else if (id.includes('/') || cleanId.includes('--')) prefix = 'hf-model--';
     }
-
-    // Standardize: Replace slashes with double-dashes and attach prefix
-    const cleanId = id.replace(/\//g, '--');
 
     if (prefix && !cleanId.startsWith(prefix)) {
         return `${prefix}${cleanId}`;
