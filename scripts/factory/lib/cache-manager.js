@@ -58,7 +58,7 @@ export async function loadWithFallback(filename, defaultValue = {}) {
             console.log(`[CACHE] R2 Restore Attempt ${attempt}/3: ${filename}...`);
             // Use --file instead of --pipe for stability with large objects (54MB)
             execSync(
-                `npx wrangler r2 object get ${getR2Bucket()}/${r2Key} --file=${tempFile}`,
+                `npx wrangler r2 object get ${getR2Bucket()}/${r2Key} --file=${tempFile} --remote`,
                 { stdio: 'pipe', timeout: 300000 } // 5min timeout
             );
 
@@ -115,7 +115,7 @@ export async function saveWithBackup(filename, data) {
         const tempFile = path.join(os.tmpdir(), filename);
         await fs.writeFile(tempFile, content);
         execSync(
-            `npx -y wrangler r2 object put ${getR2Bucket()} ${r2Key} --file=${tempFile}`,
+            `npx -y wrangler r2 object put ${getR2Bucket()}/${r2Key} --file=${tempFile} --remote`,
             { stdio: 'pipe' }
         );
         console.log(`[CACHE] Backed up to R2: ${r2Key}`);
