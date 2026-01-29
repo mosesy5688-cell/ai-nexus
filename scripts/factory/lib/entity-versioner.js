@@ -24,24 +24,8 @@ export async function rotateEntityVersions(s3, bucket, remotePath) {
     }
 
     try {
-        // Step 1: Delete .v-2 if exists
-        const v2Key = remotePath.replace('.json', '.v-2.json');
-        await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: v2Key })).catch(() => { });
-
-        // Step 2: Rename .v-1 to .v-2 (via copy + delete)
+        // Step 1: Rotate current to .v-1 (via copy)
         const v1Key = remotePath.replace('.json', '.v-1.json');
-        try {
-            await s3.send(new CopyObjectCommand({
-                Bucket: bucket,
-                CopySource: `${bucket}/${v1Key}`,
-                Key: v2Key
-            }));
-            await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: v1Key }));
-        } catch {
-            // .v-1 doesn't exist, that's fine
-        }
-
-        // Step 3: Rename current to .v-1 (via copy)
         try {
             await s3.send(new CopyObjectCommand({
                 Bucket: bucket,
