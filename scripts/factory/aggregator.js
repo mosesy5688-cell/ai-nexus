@@ -104,10 +104,11 @@ async function updateFniHistory(entities) {
 
     const today = new Date().toISOString().split('T')[0];
     for (const e of entities) {
-        if (!history[e.id]) history[e.id] = [];
+        const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
+        if (!history[id]) history[id] = [];
         const score = e.fni_score ?? e.fni ?? 0;
-        history[e.id].push({ date: today, score: score });
-        history[e.id] = history[e.id].slice(-7); // 7-day rolling (Art 4.2)
+        history[id].push({ date: today, score: score });
+        history[id] = history[id].slice(-7); // 7-day rolling (Art 4.2)
     }
 
     // V14.5: Save to GH Cache + R2 backup automatically
@@ -165,11 +166,12 @@ async function main() {
 
     // Apply updates to context (ensures rankings show latest 2/4 data)
     const fullSet = allEntities.map(e => {
-        const update = updatedEntitiesMap.get(e.id);
+        const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
+        const update = updatedEntitiesMap.get(id);
         if (update) {
-            return { ...e, ...update };
+            return { ...e, ...update, id };
         }
-        return e;
+        return { ...e, id };
     });
 
     // 4. Calculate percentiles (Wakes up dormant assets with new global rankings)

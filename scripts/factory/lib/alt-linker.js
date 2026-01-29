@@ -130,7 +130,7 @@ function computeCategoryAlts(entities, category, maxEntities = 500, maxAlts = 10
 
     // Compute ALT for each entity
     for (const entity of topEntities) {
-        const sourceId = entity.id || entity.slug;
+        const sourceId = normalizeId(entity.id || entity.slug, getNodeSource(entity.id || entity.slug, entity.type), entity.type);
         const candidates = getCandidates(entity.tags, tagIndex, sourceId);
 
         const alts = [];
@@ -140,7 +140,7 @@ function computeCategoryAlts(entities, category, maxEntities = 500, maxAlts = 10
 
             const score = jaccardSimilarity(entity.tags, candidate.tags);
             if (score >= minScore) {
-                alts.push({ id: candidateId, score });
+                alts.push({ id: normalizeId(candidateId, getNodeSource(candidateId, candidate.type), candidate.type), score });
             }
         }
 

@@ -12,6 +12,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 
 // Knowledge keywords mapping
 // Maps keywords found in entity data to knowledge article slugs
@@ -134,7 +135,7 @@ export async function computeKnowledgeLinks(entities, outputDir = './output') {
     const knowledgeStats = {};
 
     for (const entity of entities) {
-        const id = entity.id || entity.slug;
+        const id = normalizeId(entity.id || entity.slug, getNodeSource(entity.id || entity.slug, entity.type), entity.type);
         const links = extractKnowledgeLinks(entity);
 
         if (links.length > 0) {

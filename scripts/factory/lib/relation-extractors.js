@@ -1,4 +1,4 @@
-import { normalizeId } from '../../utils/id-normalizer.js';
+import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 
 /**
  * Relation Extractors V14.5.2
@@ -23,17 +23,6 @@ const KNOWN_TOOLS = {
     'agentic': 'knowledge--agentic-ai',
 };
 
-/** Helper to infer source from type for V2.1 compatibility */
-function getNodeSource(id, type) {
-    if (type === 'paper') return 'arxiv';
-    if (type === 'agent' || type === 'tool') return 'github';
-    if (type === 'dataset' || type === 'space') return 'huggingface';
-    if (type === 'model') {
-        if (id && id.startsWith('civitai')) return 'civitai';
-        return 'huggingface';
-    }
-    return null;
-}
 
 /** Create relation object helper */
 function rel(sourceId, sourceType, targetId, targetType, relType, conf = 1.0) {

@@ -37,11 +37,11 @@ export function getR2PathCandidates(type, normalizedSlug) {
     // V16.4 Forensics: Resolved prefixes from live production R2 bucket
     const prefixMap = {
         'model': ['hf-model--', 'gh-model--', 'civitai-model--', 'ollama-model--', 'civitai--', 'ollama--'],
-        'dataset': ['hf-dataset--', 'kaggle-dataset--', 'dataset--'],
-        'paper': ['arxiv-paper--', 'arxiv--'],
-        'space': ['hf-space--'],
-        'agent': ['gh-agent--', 'github-agent--', 'hf-agent--'],
-        'tool': ['gh-tool--', 'github-tool--', 'github--', 'tool--']
+        'dataset': ['hf-dataset--', 'dataset--', 'kaggle-dataset--', 'kaggle--'],
+        'paper': ['arxiv-paper--', 'arxiv--', 'paper--'],
+        'space': ['hf-space--', 'space--'],
+        'agent': ['gh-agent--', 'agent--', 'github-agent--', 'hf-agent--'],
+        'tool': ['gh-tool--', 'tool--', 'github-tool--', 'github--']
     };
 
     const prefixesCheck = prefixMap[singular] || [];

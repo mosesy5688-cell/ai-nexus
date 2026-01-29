@@ -14,6 +14,7 @@ import { calculateFNI } from '../fni/fni-calc.js';
 import { hasValidCachePath } from '../l5/entity-validator.js';
 import { smartWriteWithVersioning } from './lib/smart-writer.js';
 import { loadEntityChecksums, saveEntityChecksums } from './lib/cache-manager.js';
+import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 
 // Configuration (Art 3.1)
 const CONFIG = {
@@ -35,8 +36,10 @@ function parseArgs() {
 // Atomic entity processing (Art 3.2)
 async function processEntity(entity, allEntities, entityChecksums) {
     try {
+        const id = normalizeId(entity.id || entity.slug, getNodeSource(entity.id || entity.slug, entity.type), entity.type);
+
         if (!hasValidCachePath(entity)) {
-            return { id: entity.id, success: false, error: 'Invalid cache path' };
+            return { id: id, success: false, error: 'Invalid cache path' };
         }
 
         // Calculate FNI using existing module
@@ -47,37 +50,38 @@ async function processEntity(entity, allEntities, entityChecksums) {
             .update(JSON.stringify(entity))
             .digest('hex');
 
-        const isChanged = entityChecksums[entity.id] !== entityHash;
+        const isChanged = entityChecksums[id] !== entityHash;
         const currentUpdated = entity._updated || new Date().toISOString();
 
         const enriched = {
             ...entity,
+            id: id,
             fni_score: fni.fni_score,
             fni_p: fni.fni_p,
             fni_v: fni.fni_v,
             fni_c: fni.fni_c,
             fni_u: fni.fni_u,
-            _version: '14.4.0',
+            _version: '16.3.0',
             _updated: isChanged ? new Date().toISOString() : currentUpdated,
             _checksum: entityHash,
         };
 
         // Smart Write with Versioning (Art 2.2 + Art 2.4)
         // Path: cache/entities/{type}/{source}--{author}--{name}.json
-        const slugForPath = (entity.slug || entity.id).replace(/:/g, '--').replace(/\//g, '--');
-        const key = `cache/entities/${entity.type || 'model'}/${slugForPath}.json`;
+        const slugForPath = id.replace(/:/g, '--').replace(/\//g, '--');
+        const key = `cache/entities/${enriched.type || 'model'}/${slugForPath}.json`;
         await smartWriteWithVersioning(key, enriched);
 
         return {
-            id: entity.id,
-            slug: entity.slug,
-            name: entity.name,
-            type: entity.type || 'model',
-            source: entity.source || entity.source_platform,
-            description: entity.description,
-            author: entity.author,
-            downloads: entity.downloads || entity.download_count,
-            likes: entity.likes || entity.like_count,
+            id: id,
+            slug: enriched.slug,
+            name: enriched.name,
+            type: enriched.type || 'model',
+            source: enriched.source || enriched.source_platform,
+            description: enriched.description,
+            author: enriched.author,
+            downloads: enriched.downloads || enriched.download_count,
+            likes: enriched.likes || enriched.like_count,
             fni: fni.fni_score,
             lastModified: enriched._updated,
             success: true,

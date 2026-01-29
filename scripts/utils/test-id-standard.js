@@ -2,30 +2,30 @@ import { normalizeId } from './id-normalizer.js';
 
 const tests = [
     {
-        name: 'TEST CASE 1: Standard HF Model',
+        name: 'TEST CASE 1: Standard HF Model (Alias handling)',
         id: 'meta-llama/Llama-2-7b',
         source: 'huggingface',
         type: 'model',
         expected: 'hf-model--meta-llama--Llama-2-7b'
     },
     {
-        name: 'TEST CASE 2: Already Canonical (Idempotency)',
-        id: 'hf-model--meta-llama--Llama-2-7b',
-        source: 'huggingface',
-        type: 'model',
-        expected: 'hf-model--meta-llama--Llama-2-7b'
-    },
-    {
-        name: 'TEST CASE 3: ArXiv Paper',
+        name: 'TEST CASE 2: ArXiv Paper (V2.0 Prefix)',
         id: '2312.12345',
         source: 'arxiv',
         type: 'paper',
-        expected: 'arxiv--2312.12345'
+        expected: 'arxiv-paper--2312.12345'
+    },
+    {
+        name: 'TEST CASE 3: GitHub Agent (V2.0 gh prefix)',
+        id: 'gpt-author/mcp-server',
+        source: 'github',
+        type: 'agent',
+        expected: 'gh-agent--gpt-author--mcp-server'
     },
     {
         name: 'TEST CASE 4: R2 Filename Cleanup',
         id: 'gh-agent--auto-gpt--AutoGPT.json',
-        source: 'github',
+        source: 'gh',
         type: 'agent',
         expected: 'gh-agent--auto-gpt--AutoGPT'
     }

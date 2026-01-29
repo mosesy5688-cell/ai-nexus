@@ -7,17 +7,17 @@
  */
 
 const PREFIX_MAP = {
-    huggingface: {
+    hf: {
         model: 'hf-model--',
         dataset: 'hf-dataset--',
         space: 'hf-space--',
     },
-    github: {
+    gh: {
         agent: 'gh-agent--',
         tool: 'gh-tool--',
     },
     arxiv: {
-        paper: 'arxiv--',
+        paper: 'arxiv-paper--',
     },
     civitai: {
         model: 'civitai-model--',
@@ -53,6 +53,11 @@ export function normalizeId(id, source, type) {
 
     // 4. Source/Type Mapping fallbacks
     let normalizedSource = (source || '').toLowerCase();
+
+    // Alias mapping for V2.0 Standard
+    if (normalizedSource === 'huggingface') normalizedSource = 'hf';
+    if (normalizedSource === 'github') normalizedSource = 'gh';
+
     let normalizedType = (type || '').toLowerCase();
 
     // Contextual guessing if source/type is missing
@@ -76,14 +81,14 @@ export function normalizeId(id, source, type) {
     return cleanId;
 }
 
-/** Helper to infer source from type for V2.1 compatibility */
+/** Helper to infer source from type for V2.0 compatibility */
 export function getNodeSource(id, type) {
     if (type === 'paper') return 'arxiv';
-    if (type === 'agent' || type === 'tool') return 'github';
-    if (type === 'dataset' || type === 'space') return 'huggingface';
+    if (type === 'agent' || type === 'tool') return 'gh';
+    if (type === 'dataset' || type === 'space') return 'hf';
     if (type === 'model') {
         if (id && id.startsWith('civitai')) return 'civitai';
-        return 'huggingface';
+        return 'hf';
     }
     return null;
 }
