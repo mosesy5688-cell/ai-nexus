@@ -51,9 +51,17 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: factory-output
-          path: output/
           run-id: ${{ inputs.run_id || github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # V16.2.5: Extract compressed output (Upload Artifact limit workaround)
+      - name: Extract Output
+        run: |
+          echo "📦 Extracting factory output..."
+          tar -xzf factory-output.tar.gz
+          echo "✅ Extraction complete. Content of output/:"
+          ls -F output/ | head -10
+          rm factory-output.tar.gz
 
       # Pre-flight validation
       - name: Pre-flight Validation

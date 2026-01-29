@@ -21,10 +21,11 @@ const CACHE_KEYS = {
     SEARCH_FULL: 'search-full-v14',
 };
 
-// Default paths
-const CACHE_DIR = './cache';
-const R2_BACKUP_PREFIX = 'meta/backup/';
+// Configuration & Overrides
+const CACHE_DIR = process.env.CACHE_DIR || './cache';
+const R2_BACKUP_PREFIX = process.env.R2_BACKUP_PREFIX || 'meta/backup/';
 const R2_BUCKET = process.env.R2_BUCKET || 'ai-nexus-assets';
+const ENABLE_R2_BACKUP = process.env.ENABLE_R2_BACKUP === 'true'; // V16.2.5 Architecture Guard
 
 /**
  * Load data with priority chain (Art 2.3)
@@ -86,6 +87,11 @@ export async function saveWithBackup(filename, data) {
     console.log(`[CACHE] Saved to local: ${filename}`);
 
     // Also save to R2 backup (for recovery if cache expires)
+    // V16.2.5: Architecture Guard - Only upload if explicitly enabled
+    if (!ENABLE_R2_BACKUP) {
+        return;
+    }
+
     try {
         const os = await import('os');
         const r2Key = `${R2_BACKUP_PREFIX}${filename}`;

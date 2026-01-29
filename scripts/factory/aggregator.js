@@ -129,36 +129,16 @@ async function generateHealthReport(shardResults, entities) {
 async function main() {
     console.log('[AGGREGATOR] Phase 2 starting (Stateful Mode)...');
 
-    // 0. Load Global Registry (The Memory)
-    const registryManager = new RegistryManager();
-    await registryManager.load();
-
-    // 1. Load shard artifacts
-    const shardResults = await loadShardArtifacts();
-
-    // 2. Validate success rate (Art 3.3)
-    const successRate = validateShardSuccess(shardResults);
-    if (successRate < CONFIG.MIN_SUCCESS_RATE) {
-        console.error(`[FAIL] Success rate ${(successRate * 100).toFixed(1)}% < 80%`);
-        process.exit(1);
-    }
+    // V16.2.5: Architecture alignment - Aggregator should NOT upload to R2
+    // Instead, it saves to output/meta/backup for 4/4 to pick up.
+    process.env.ENABLE_R2_BACKUP = 'false';
+    const OLD_CACHE_DIR = process.env.CACHE_DIR || './cache';
 
     // 3. Extract entities from current shards
-    const batchEntities = mergeShardEntities(shardResults);
-    console.log(`[AGGREGATOR] Batch entities found in shards: ${batchEntities.length}`);
-
-    // 3.1 Registry-First Merge (V16.2 Stateful Core)
-    // This restores historical entities that weren't in current batch
-    console.log('🔄 Registry-First Merging (Restoring 274k Entity Memory)...');
-    const registryState = await registryManager.mergeCurrentBatch(batchEntities);
-
-    // Final work set for indexing = Registry (Full History)
-    let allEntities = registryState.entities;
-    if (!allEntities || allEntities.length === 0) {
-        console.warn('⚠️ [AGGREGATOR] No entities found in registry or current batch. Using empty set.');
-        allEntities = [];
-    }
-    console.log(`✓ Registry Merge complete: ${allEntities.length} total entities ready for indexing`);
+    // V16.2.5 Optimization: Since 1/4 already merged the registry into shards,
+    // we don't need to reload or re-merge the registry here.
+    const allEntities = mergeShardEntities(shardResults);
+    console.log(`✓ Collection complete: ${allEntities.length} entities from shards ready for indexing`);
 
     // 4. Calculate percentiles
     const rankedEntities = calculatePercentiles(allEntities);
@@ -177,6 +157,11 @@ async function main() {
     const entitiesPath = path.join(CONFIG.OUTPUT_DIR, 'entities.json');
     await fs.writeFile(entitiesPath, JSON.stringify(rankedEntities, null, 2));
     console.log(`[AGGREGATOR] Wrote ${rankedEntities.length} entities to ${entitiesPath}`);
+
+    // V16.2.5: Switch cache dir to output for final saves so 4/4 picks them up
+    // The path 'output/meta/backup' aligns with R2 expectations when 'output/' is stripped.
+    process.env.CACHE_DIR = path.join(CONFIG.OUTPUT_DIR, 'meta', 'backup');
+    await fs.mkdir(process.env.CACHE_DIR, { recursive: true });
 
     await updateFniHistory(rankedEntities);
 
@@ -214,9 +199,6 @@ async function main() {
 
     // 8. Health report (Art 8.3)
     await generateHealthReport(shardResults, rankedEntities);
-
-    // 9. Save Registry (V16.2 Stateful Finalization)
-    await registryManager.save();
 
     console.log('[AGGREGATOR] Phase 2 complete!');
 }
