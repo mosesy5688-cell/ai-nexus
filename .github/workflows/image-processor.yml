@@ -73,36 +73,61 @@ jobs:
           # Fetch manifest
           wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-manifest.json --pipe > data/manifest.json || echo '{"totalShards":0}' > data/manifest.json
           
-          # Reassemble Registry in JS
+          // Reassemble Registry in JS
           node -e "
           const fs = require('fs');
           const { execSync } = require('child_process');
-          
+
           async function main() {
-            const manifest = JSON.parse(fs.readFileSync('data/manifest.json', 'utf-8'));
+            let manifest = { totalShards: 0 };
             const entities = [];
-            
+
+            // Helper for reliable R2 get
+            function r2GetWithRetry(key) {
+              for (let i = 1; i <= 3; i++) {
+                try {
+                  console.log('  [R2] Attempt ' + i + ' for ' + key);
+                  // Use --pipe for small manifest, but this function can be extended
+                  return execSync('npx -y wrangler r2 object get ${{ env.R2_BUCKET }}/' + key + ' --pipe', { stdio: ['pipe', 'pipe', 'pipe'] });
+                } catch (e) {
+                  if (i === 3) throw e;
+                  console.warn('  ⚠️ Attempt ' + i + ' failed, retrying...');
+                  execSync('sleep 5');
+                }
+              }
+            }
+
+            try {
+              const manifestRaw = r2GetWithRetry('meta/backup/global-registry-manifest.json');
+              manifest = JSON.parse(manifestRaw);
+            } catch (e) {
+              console.log('⚠️ Manifest not found, will try legacy fallback');
+            }
+
             if (manifest.totalShards > 0) {
               console.log('📦 Restoring ' + manifest.totalShards + ' shards...');
               for (let i = 0; i < manifest.totalShards; i++) {
-                const shardRaw = execSync('npx -y wrangler r2 object get ${{ env.R2_BUCKET }}/meta/backup/global-registry-part-' + i + '.json --pipe');
+                const shardRaw = r2GetWithRetry('meta/backup/global-registry-part-' + i + '.json');
                 const shard = JSON.parse(shardRaw);
                 entities.push(...(shard.entities || []));
               }
             } else {
-              // Fallback to legacy single file
-              console.log('⚠️ Manifest not found, trying legacy global-registry.json');
+              // Fallback to legacy single file (54MB)
+              console.log('⚠️ Manifest not found, trying legacy global-registry.json...');
               try {
-                const legacy = execSync('npx -y wrangler r2 object get ${{ env.R2_BUCKET }}/meta/backup/global-registry.json --pipe');
-                entities.push(...(JSON.parse(legacy).entities || []));
+                // For 54MB, use --file to disk instead of --pipe to memory to avoid OOM
+                execSync('npx -y wrangler r2 object get ${{ env.R2_BUCKET }}/meta/backup/global-registry.json --file=data/legacy-registry.json');
+                const legacy = JSON.parse(fs.readFileSync('data/legacy-registry.json', 'utf-8'));
+                entities.push(...(legacy.entities || []));
+                fs.unlinkSync('data/legacy-registry.json');
               } catch (e) {
-                console.log('❌ No registry found');
+                console.log('❌ No registry found: ' + e.message);
               }
             }
 
             // Extract image URLs needing processing (Prioritize active entities)
             const imageUrls = entities.filter(e => e.image_url && !e.image_url.includes('free2aitools.com'))
-              .sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0)) 
+              .sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0))
               .slice(0, ${{ github.event.inputs.batch_size || 500 }})
               .map(e => ({
                 id: e.id || e.slug,
