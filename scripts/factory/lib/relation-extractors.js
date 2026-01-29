@@ -1,7 +1,7 @@
+import { normalizeId } from '../../utils/id-normalizer.js';
+
 /**
  * Relation Extractors V14.5.2
- * SPEC: SPEC-KNOWLEDGE-V14.5.2
- * Extracted from relations-generator.js for CES Art 5.1 compliance
  */
 
 // STACK relation tool mappings
@@ -23,50 +23,28 @@ const KNOWN_TOOLS = {
     'agentic': 'knowledge--agentic-ai',
 };
 
-/** Normalize entity ID to standard format with V16.2 prefixes */
-export function normalizeId(id, type) {
-    if (!id) return id;
-
-    // Type-specific prefix mappings (V16.2 Standard)
-    const prefixes = {
-        model: 'hf-model--',
-        paper: 'arxiv--',
-        agent: 'hf-agent--',
-        space: 'hf-space--',
-        dataset: 'dataset--',
-        tool: 'tool--',
-        knowledge: 'knowledge--',
-        report: 'report--',
-        concept: 'concept--'
-    };
-
-    // V16.2 FIX: Don't skip if it has '--' but lacks our canonical prefix
-    const canonicalPrefix = prefixes[type];
-    if (canonicalPrefix && id.startsWith(canonicalPrefix)) return id;
-
-    // Handle special types or fallbacks
-    let prefix = canonicalPrefix;
-    if (!prefix) {
-        if (type === 'paper' || /^\d{4}\.\d{4,5}(v\d+)?$/.test(id)) prefix = 'arxiv--';
-        else if (id.includes('/')) prefix = 'hf-model--';
+/** Helper to infer source from type for V2.1 compatibility */
+function getNodeSource(id, type) {
+    if (type === 'paper') return 'arxiv';
+    if (type === 'agent' || type === 'tool') return 'github';
+    if (type === 'dataset' || type === 'space') return 'huggingface';
+    if (type === 'model') {
+        if (id && id.startsWith('civitai')) return 'civitai';
+        return 'huggingface';
     }
-
-    // Standardize: Replace slashes with double-dashes and attach prefix
-    const cleanId = id.replace(/\//g, '--');
-
-    if (prefix && !cleanId.startsWith(prefix)) {
-        return `${prefix}${cleanId}`;
-    }
-
-    return cleanId;
+    return null;
 }
 
 /** Create relation object helper */
 function rel(sourceId, sourceType, targetId, targetType, relType, conf = 1.0) {
+    // V2.1 Standard: Ensure IDs are always canonicalized with source context
+    const sourceS = getNodeSource(sourceId, sourceType);
+    const targetS = getNodeSource(targetId, targetType);
+
     return {
-        source_id: sourceId,
+        source_id: normalizeId(sourceId, sourceS, sourceType),
         source_type: sourceType,
-        target_id: normalizeId(targetId, targetType),
+        target_id: normalizeId(targetId, targetS, targetType),
         target_type: targetType,
         relation_type: relType,
         confidence: conf,

@@ -31,10 +31,12 @@ export function mergeEntities(existing, incoming) {
         }
         mergedObj.meta_json = JSON.stringify(mergedMeta);
 
-        // 3. Technical Spec Prioritization
-        const techFields = ['params_billions', 'architecture', 'context_length', 'hidden_size', 'num_layers'];
+        // 3. Technical Spec Prioritization (V16.2.14 Update)
+        // We prioritize technical specs from the incoming entity if present.
+        // This ensures that metadata is not lost even if the existing record has a longer readme.
+        const techFields = ['params_billions', 'architecture', 'context_length', 'hidden_size', 'num_layers', 'fni', 'fni_score'];
         for (const field of techFields) {
-            if (!existing[field] && incoming[field]) {
+            if (incoming[field] !== undefined && incoming[field] !== null && incoming[field] !== '') {
                 mergedObj[field] = incoming[field];
             }
         }

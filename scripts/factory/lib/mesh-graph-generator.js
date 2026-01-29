@@ -2,6 +2,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { normalizeId } from '../../utils/id-normalizer.js';
 
 const CONFIG = {
     EXPLICIT_PATH: './output/cache/relations/explicit.json',
@@ -26,26 +27,24 @@ async function loadJson(filePath) {
     }
 }
 
+/** Helper to infer source from type for V2.1 compatibility */
+function getNodeSource(id, type) {
+    if (type === 'paper') return 'arxiv';
+    if (type === 'agent' || type === 'tool') return 'github';
+    if (type === 'dataset' || type === 'space') return 'huggingface';
+    if (type === 'model') {
+        if (id && id.startsWith('civitai')) return 'civitai';
+        return 'huggingface';
+    }
+    return null;
+}
+
 /**
- * Normalize entity ID to canonical format
+ * Standardize ID Wrapper
  */
-function normalizeId(id, type) {
-    if (!id) return null;
-    // Already normalized
-    if (id.includes('--')) return id;
-    // Add prefix based on type
-    const prefixes = {
-        model: 'hf-model--',
-        paper: 'arxiv--',
-        agent: 'hf-agent--',
-        space: 'hf-space--',
-        dataset: 'dataset--',
-        tool: 'tool--',
-        knowledge: 'knowledge--',
-        report: 'report--'
-    };
-    const prefix = prefixes[type] || '';
-    return `${prefix}${id.replace(/\//g, '--')}`;
+function standardizeId(id, type) {
+    const source = getNodeSource(id, type);
+    return normalizeId(id, source, type);
 }
 
 /**
