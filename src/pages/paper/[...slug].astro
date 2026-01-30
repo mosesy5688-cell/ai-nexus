@@ -107,6 +107,8 @@ const jsonLd = paper ? {
       fniPercentile={paper?.fni_percentile}
       fniCommentary={paper?.fni_commentary}
       sourceUrl={paper?.source_url}
+      entityId={paperId}
+      hasImage={Boolean(paper?.image_url)}
     />
 
     {/* Zone 1.5: Use Cases */}

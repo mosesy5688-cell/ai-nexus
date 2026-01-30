@@ -110,6 +110,8 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
       fniCommentary={model?.fni_commentary}
       paramsB={model?.params_billions}
       sourceUrl={model?.source_url}
+      entityId={modelId}
+      hasImage={Boolean(model?.image_url)}
     />
 
     {/* Zone 2: Insights Extra (Decision Metric Elevation) */}

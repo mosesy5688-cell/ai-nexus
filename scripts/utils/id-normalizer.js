@@ -24,6 +24,9 @@ const PREFIX_MAP = {
     },
     kaggle: {
         dataset: 'kaggle-dataset--',
+    },
+    replicate: {
+        model: 'replicate-model--',
     }
 };
 
@@ -64,6 +67,8 @@ export function normalizeId(id, source, type) {
         'tool--': { t: 'tool' },
         'civitai--': { s: 'civitai' },
         'kaggle--': { s: 'kaggle' },
+        'replicate--': { s: 'replicate' },
+        'replicate-model--': { s: 'replicate', t: 'model' },
         'hf--': { s: 'hf' },
         'gh--': { s: 'gh' }
     };

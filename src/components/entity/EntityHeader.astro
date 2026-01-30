@@ -19,6 +19,8 @@ interface Props {
   fniCommentary?: string;
   paramsB?: number;
   sourceUrl?: string;
+  entityId?: string;
+  hasImage?: boolean;
 }
 
 const {
@@ -33,7 +35,9 @@ const {
   fniPercentile,
   fniCommentary,
   paramsB,
-  sourceUrl
+  sourceUrl,
+  entityId = '',
+  hasImage = false
 } = Astro.props;
 
 // Type-specific colors
@@ -63,6 +67,10 @@ const cleanDescription = descriptionStr
 
 // V15.1: Author fallback
 const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author : 'Independent / Community';
+
+// V16.4.2: Deterministic Image Mapping (SPEC-IMAGE-NAMING)
+const safeId = entityId.replace(/[/:]/g, '--');
+const cdnImageUrl = (hasImage || entityId) ? `https://cdn.free2aitools.com/images/${entityType}/${safeId}.webp` : null;
 ---
 
 <header class="mb-10">
@@ -71,7 +79,18 @@ const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author
       <div class="flex-grow min-w-0 lg:max-w-[70%]">
         <!-- Title & Badges -->
         <div class="flex flex-wrap items-center gap-4 mb-6">
-          <span class="text-4xl lg:text-6xl transition-transform hover:scale-110 duration-300 cursor-default select-none">{entityIcon}</span>
+          {cdnImageUrl ? (
+            <div class="w-20 h-20 lg:w-32 lg:h-32 rounded-2xl overflow-hidden shadow-2xl border-4 border-white dark:border-gray-800 flex-shrink-0 bg-gray-100 dark:bg-gray-900 transition-transform hover:rotate-3 duration-500">
+               <img 
+                 src={cdnImageUrl} 
+                 alt={name} 
+                 class="w-full h-full object-cover"
+                 onerror="this.style.display='none'; this.parentElement.style.display='none';"
+               />
+            </div>
+          ) : (
+            <span class="text-4xl lg:text-6xl transition-transform hover:scale-110 duration-300 cursor-default select-none">{entityIcon}</span>
+          )}
           <h1 class="text-3xl lg:text-5xl font-black text-gray-900 dark:text-white tracking-tight hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-300 break-words">
             {name}
           </h1>

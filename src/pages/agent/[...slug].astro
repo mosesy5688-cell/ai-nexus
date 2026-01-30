@@ -117,6 +117,8 @@ const jsonLd = {
       fniPercentile={agent?.fni_percentile}
       fniCommentary={agent?.fni_commentary}
       sourceUrl={agent?.source_url}
+      entityId={agentId}
+      hasImage={Boolean(agent?.image_url)}
     />
 
     {/* Zone 1.5: Use Cases */}

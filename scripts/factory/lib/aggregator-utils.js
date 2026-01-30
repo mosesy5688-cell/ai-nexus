@@ -129,13 +129,21 @@ export function mergeShardEntities(allEntities, shardResults) {
         const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
         const update = updatedEntitiesMap.get(id);
 
-        if (update) {
-            // V16.2.7: Deep Augmentative Merge to preserve R2 metadata
-            const merged = mergeEntities(e, update);
-            return { ...merged, id };
+        let entity = update ? mergeEntities(e, update) : e;
+
+        // V16.4.2: Standard Image Promotion (SPEC-IMAGE-NAMING compliant)
+        // Promote raw/cover fields to the standard image_url for downstream processing
+        if (!entity.image_url) {
+            entity.image_url = entity.raw_image_url || null;
+
+            // Replicate/ArXiv/CivitAI metadata check
+            if (!entity.image_url && entity.meta_json) {
+                const meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;
+                entity.image_url = meta.cover_image_url || meta.thumbnail_url || meta.preview_url || null;
+            }
         }
 
-        return { ...e, id };
+        return { ...entity, id };
     });
 }
 

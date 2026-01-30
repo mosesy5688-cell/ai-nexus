@@ -107,6 +107,8 @@ const jsonLd = dataset ? {
       fniPercentile={dataset?.fni_percentile}
       fniCommentary={dataset?.fni_commentary}
       sourceUrl={dataset?.source_url}
+      entityId={datasetId}
+      hasImage={Boolean(dataset?.image_url)}
     />
 
     {/* Zone 1.5: Use Cases */}

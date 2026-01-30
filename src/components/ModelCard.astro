@@ -11,6 +11,11 @@ const { model, isRisingStar } = Astro.props;
 const modelUrl = generateEntityUrl(model, 'model');
 const description = model.seo_summary || model.description?.replace(/<[^>]*>?/gm, '') || 'No description available.';
 
+// V16.4.2: Deterministic Image Mapping (SPEC-IMAGE-NAMING)
+const type = model.type || 'model';
+const safeId = (model.id || '').replace(/[/:]/g, '--');
+const cdnImageUrl = model.image_url ? `https://cdn.free2aitools.com/images/${type}/${safeId}.webp` : null;
+
 function formatNumber(num) {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
@@ -60,6 +65,18 @@ const isActive = daysSinceUpdate <= 30 && lastUpdate.getTime() > 0;
 ---
 
 <a href={modelUrl} class="group block bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden h-full border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600">
+    <!-- V16.4.2: Image Header (Dynamic CDN path) -->
+    {cdnImageUrl && (
+        <div class="aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
+            <img 
+                src={cdnImageUrl} 
+                alt={model.name}
+                loading="lazy"
+                class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                onerror="this.style.display='none'"
+            />
+        </div>
+    )}
     <div class="p-5 flex flex-col h-full">
         <!-- Header: Source + Active + Rising Star -->
         <div class="flex items-center justify-between mb-3">
