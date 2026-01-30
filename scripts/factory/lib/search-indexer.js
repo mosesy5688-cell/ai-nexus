@@ -1,5 +1,5 @@
 /**
- * Search Indexer Module V14.4
+ * Search Indexer Module V16.4.3
  * Constitution Reference: Art 6.3 (Dual Search Index)
  */
 
@@ -24,7 +24,7 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         name: e.name || e.slug,
         type: e.type,
         description: (e.description || '').substring(0, 100),
-        fni: e.fni,
+        fni: e.fni_score || 0,
         source: e.source,
         has_image: Boolean(e.image_url),
     }));
@@ -46,7 +46,7 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         id: e.id,
         name: e.name || e.slug,
         type: e.type,
-        fni: e.fni,
+        fni: e.fni_score || 0,
         source: e.source,
         has_image: Boolean(e.image_url),
         // Shortened description to save shard space

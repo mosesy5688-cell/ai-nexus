@@ -1,6 +1,6 @@
 /**
- * Aggregator Utilities V1.0 (CES Compliant)
- * Extracted from aggregator.js to maintain <250 line limit.
+ * Aggregator Utilities V16.4.3 (CES Compliant)
+ * V16.4.3: Logic Restoration & Field Promotion
  */
 
 import fs from 'fs/promises';
@@ -53,21 +53,12 @@ export function validateShardSuccess(shardResults, totalShards) {
  * Calculate percentiles based on fni_score
  */
 export function calculatePercentiles(entities) {
-    const sorted = [...entities].sort((a, b) => {
-        const aFni = a.fni_score ?? a.fni ?? 0;
-        const bFni = b.fni_score ?? b.fni ?? 0;
-        return bFni - aFni;
-    });
+    const sorted = [...entities].sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
 
-    return sorted.map((e, i) => {
-        const finalFni = e.fni_score ?? e.fni ?? 0;
-        return {
-            ...e,
-            fni: finalFni,
-            fni_score: finalFni,
-            percentile: Math.round((1 - i / sorted.length) * 100),
-        };
-    });
+    return sorted.map((e, i) => ({
+        ...e,
+        percentile: Math.round((1 - i / sorted.length) * 100),
+    }));
 }
 
 /**
@@ -82,8 +73,7 @@ export async function updateFniHistory(entities) {
     for (const e of entities) {
         const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
         if (!history[id]) history[id] = [];
-        const score = e.fni_score ?? e.fni ?? 0;
-        history[id].push({ date: today, score: score });
+        history[id].push({ date: today, score: e.fni_score || 0 });
         history[id] = history[id].slice(-7);
     }
 
@@ -131,12 +121,15 @@ export function mergeShardEntities(allEntities, shardResults) {
 
         let entity = update ? mergeEntities(e, update) : e;
 
-        // V16.4.2: Standard Image Promotion (SPEC-IMAGE-NAMING compliant)
-        // Promote raw/cover fields to the standard image_url for downstream processing
+        // V16.4.3: Standard Image & Metrics Promotion (Dual-Field Strategy)
+        // Ensure fni_score is the master field while keeping fni for shadow compatibility
+        const finalFni = entity.fni_score ?? entity.fni ?? 0;
+        entity.fni_score = finalFni;
+        entity.fni = finalFni;
+
         if (!entity.image_url) {
             entity.image_url = entity.raw_image_url || null;
 
-            // Replicate/ArXiv/CivitAI metadata check
             if (!entity.image_url && entity.meta_json) {
                 const meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;
                 entity.image_url = meta.cover_image_url || meta.thumbnail_url || meta.preview_url || null;

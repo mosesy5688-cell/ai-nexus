@@ -1,8 +1,8 @@
-// Mesh Graph Generator V16.3 - SPEC-KNOWLEDGE-MESH-V16.2
+// Mesh Graph Generator V16.4.3 - SPEC-KNOWLEDGE-MESH-V16.2
 
 import fs from 'fs/promises';
 import path from 'path';
-import { normalizeId } from '../../utils/id-normalizer.js';
+import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 
 const CONFIG = {
     EXPLICIT_PATH: './output/cache/relations/explicit.json',
@@ -25,18 +25,6 @@ async function loadJson(filePath) {
         console.warn(`  [WARN] Could not load ${filePath}: ${e.message}`);
         return null;
     }
-}
-
-/** Helper to infer source from type for V2.1 compatibility */
-function getNodeSource(id, type) {
-    if (type === 'paper') return 'arxiv';
-    if (type === 'agent' || type === 'tool') return 'github';
-    if (type === 'dataset' || type === 'space') return 'huggingface';
-    if (type === 'model') {
-        if (id && id.startsWith('civitai')) return 'civitai';
-        return 'huggingface';
-    }
-    return null;
 }
 
 /**

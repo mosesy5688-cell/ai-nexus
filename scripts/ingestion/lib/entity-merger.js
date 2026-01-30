@@ -3,6 +3,7 @@
  * 
  * Handles augmentative merging of two entity objects, preserving
  * content length, technical specs, and consolidated tags.
+ * V16.4.3: Fixed missing raw_image_url / quality_score merge loss.
  */
 
 export function mergeEntities(existing, incoming) {
@@ -31,10 +32,12 @@ export function mergeEntities(existing, incoming) {
         }
         mergedObj.meta_json = JSON.stringify(mergedMeta);
 
-        // 3. Technical Spec Prioritization (V16.2.14 Update)
-        // We prioritize technical specs from the incoming entity if present.
-        // This ensures that metadata is not lost even if the existing record has a longer readme.
-        const techFields = ['params_billions', 'architecture', 'context_length', 'hidden_size', 'num_layers', 'fni', 'fni_score'];
+        // V16.4.3 Update: Include image and compliance fields
+        const techFields = [
+            'params_billions', 'architecture', 'context_length', 'hidden_size', 'num_layers',
+            'fni', 'fni_score', 'quality_score', 'compliance_status',
+            'raw_image_url', 'cover_image_url', 'image_url'
+        ];
         for (const field of techFields) {
             if (incoming[field] !== undefined && incoming[field] !== null && incoming[field] !== '') {
                 mergedObj[field] = incoming[field];
