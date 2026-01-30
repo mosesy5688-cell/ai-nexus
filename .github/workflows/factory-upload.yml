@@ -54,6 +54,19 @@ jobs:
           key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
           fail-on-cache-miss: true
 
+      # V16.3.2: Verify Registry Backup Integrity
+      - name: Verify Registry Backup
+        run: |
+          echo "🔍 Verifying Registry Backup files..."
+          if [ -f "output/meta/backup/global-registry.json" ]; then
+            SIZE=$(du -h "output/meta/backup/global-registry.json" | cut -f1)
+            COUNT=$(jq '.count // .entities | length' output/meta/backup/global-registry.json)
+            echo "✅ global-registry.json found ($SIZE, $COUNT entities)"
+          else
+            echo "❌ ERROR: global-registry.json missing from backup!"
+            exit 1
+          fi
+
       # V16.2.6: R2 Upload (SPEC V14.5)
       - name: Upload to R2
         run: |
