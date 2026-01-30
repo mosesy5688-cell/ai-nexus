@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 // Output paths
 const OUTPUT_DIR = path.join(__dirname, '../../data');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'merged.json');
-const STATE_FILE = path.join(OUTPUT_DIR, '.harvest-state.json');  // V6.2: Track last run
+const STATE_FILE = path.join(OUTPUT_DIR, '.harvest-state.json');  // V16.4.3 Restoration
 
 // Config and output
 import { DEFAULT_CONFIG } from './ingestion-config.js';
@@ -48,7 +48,7 @@ export class Orchestrator {
         } catch (e) {
             console.warn('   ⚠️ Could not load harvest state');
         }
-        return { lastRun: {}, version: '6.2' };
+        return { lastRun: {}, version: '16.4.3' };
     }
 
     /** V6.2: Save harvest state */
@@ -65,7 +65,7 @@ export class Orchestrator {
      */
     async run() {
         console.log('═'.repeat(60));
-        console.log(`🚀 V6.2 Universal Ingestion Pipeline [${this.mode.toUpperCase()}]`);
+        console.log(`🚀 V16.4.3 Universal Ingestion Pipeline [${this.mode.toUpperCase()}]`);
         console.log('═'.repeat(60));
 
         const startTime = Date.now();
@@ -88,7 +88,7 @@ export class Orchestrator {
         const uniqueEntities = this.deduplicate(normalizedEntities);
 
         // Phase 3.5: Merge with Archive (Knowledge Continuity)
-        console.log('\n🔗 Phase 3.5: Merging batches with 140k existing entities...');
+        console.log(`\n🔗 Phase 3.5: Merging batches with ${registryManager.entities.length} existing entities...`);
         const registry = await registryManager.mergeCurrentBatch(uniqueEntities);
         const fullEntities = registry.entities;
 

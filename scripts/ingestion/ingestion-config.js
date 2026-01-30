@@ -1,7 +1,7 @@
 /**
  * Ingestion Config
- * V14.4 Factory: Full L1 scale
- * Target: ~100,000 entities (matching original L1)
+ * V16.4.3 Factory: Full L1 Scale Restoration
+ * Target: ~300,000 entities (Unified Knowledge Registry)
  * Source: loop1-harvester-v42.yml exact limits
  */
 export const DEFAULT_CONFIG = {

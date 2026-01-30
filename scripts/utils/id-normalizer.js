@@ -120,13 +120,14 @@ export function normalizeId(id, source, type) {
     return prefix ? `${prefix}${cleanId}` : cleanId;
 }
 
-/** Helper to infer source from type for V2.0 compatibility */
 export function getNodeSource(id, type) {
     if (type === 'paper') return 'arxiv';
     if (type === 'agent' || type === 'tool') return 'gh';
     if (type === 'dataset' || type === 'space') return 'hf';
     if (type === 'model') {
         if (id && id.startsWith('civitai')) return 'civitai';
+        if (id && (id.startsWith('replicate') || id.startsWith('replicate-model'))) return 'replicate';
+        if (id && id.startsWith('kaggle')) return 'kaggle';
         return 'hf';
     }
     return null;
