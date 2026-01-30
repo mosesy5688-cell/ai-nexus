@@ -140,8 +140,8 @@ jobs:
       
       - name: Start Preview Server
         run: |
-          # Redirect output to file for debugging
-          npm run preview -- --host > preview.log 2>&1 &
+          # Use npx serve since astro preview is not supported by Cloudflare adapter
+          npx serve dist -l 4321 > preview.log 2>&1 &
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
           
@@ -249,7 +249,7 @@ jobs:
       
       - name: Start Preview Server
         run: |
-          npm run preview &
+          npx serve dist -l 4321 &
           
           # Wait for server to be ready
           echo "⏳ Waiting for server to start..."
