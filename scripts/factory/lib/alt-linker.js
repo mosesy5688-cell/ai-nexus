@@ -23,8 +23,8 @@ import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 function jaccardSimilarity(tagsA, tagsB) {
     if (!tagsA?.length || !tagsB?.length) return 0;
 
-    const setA = new Set(tagsA.map(t => t.toLowerCase()));
-    const setB = new Set(tagsB.map(t => t.toLowerCase()));
+    const setA = new Set((tagsA || []).filter(t => typeof t === 'string').map(t => t.toLowerCase()));
+    const setB = new Set((tagsB || []).filter(t => typeof t === 'string').map(t => t.toLowerCase()));
 
     let intersection = 0;
     for (const tag of setA) {
@@ -48,6 +48,7 @@ function buildTagIndex(entities) {
         const tags = entity.tags || [];
 
         for (const tag of tags) {
+            if (typeof tag !== 'string') continue;
             const normalizedTag = tag.toLowerCase();
             if (!index.has(normalizedTag)) {
                 index.set(normalizedTag, new Set());
@@ -70,6 +71,7 @@ function getCandidates(tags, tagIndex, excludeId) {
     const candidates = new Set();
 
     for (const tag of (tags || [])) {
+        if (typeof tag !== 'string') continue;
         const normalizedTag = tag.toLowerCase();
         const matches = tagIndex.get(normalizedTag);
         if (matches) {
