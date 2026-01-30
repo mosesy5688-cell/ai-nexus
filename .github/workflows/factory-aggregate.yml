@@ -21,10 +21,44 @@ on:
         type: string
 
 jobs:
+  # V14.5.3: Identify upstream Harvest run for full data restoration
+  check-upstream:
+    name: Check Upstream Harvest
+    runs-on: ubuntu-latest
+    outputs:
+      harvest-run-id: ${{ steps.get-id.outputs.id }}
+    steps:
+      - name: Get Harvest Run ID
+        id: get-id
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The 3/4 Aggregate is triggered by 2/4 Process. 
+          # 2/4 Process was triggered by 1/4 Harvest.
+          # We need to find the original 1/4 Harvest run that created the 'factory-entity-data' cache.
+          
+          # 1. Get 2/4 Process Run ID (Triggering event)
+          PROCESS_RUN_ID=${{ github.event.workflow_run.id }}
+          
+          # 2. Get the 1/4 Harvest Run ID (Parent of Process Run)
+          # Note: In our dispatch logic, we pass run_id as input to Process.
+          # If we don't have it explicitly, we look for the most recent successful Harvest run.
+          HARVEST_RUN_ID=$(gh run list --workflow "Factory 1/4 - Harvest" --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          
+          echo "id=$HARVEST_RUN_ID" >> $GITHUB_OUTPUT
+          echo "✅ Found Upstream Harvest Run: $HARVEST_RUN_ID"
+
   aggregate:
     name: Aggregate Shard Results
+    needs: check-upstream
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ai-nexus-assets
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -86,6 +120,16 @@ jobs:
           key: weekly-accum-${{ github.run_id }}
           restore-keys: |
             weekly-accum-
+
+      # V14.5.3: Restore the full 295k dataset from the original Harvest run
+      - name: Restore Entity Data from Harvest Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data/merged.json
+            data/merged_shard_*.json
+          key: factory-entity-data-${{ needs.check-upstream.outputs.harvest-run-id }}
+          fail-on-cache-miss: true
 
       # Run aggregator
       - name: Run Aggregator
