@@ -11,7 +11,7 @@ name: Factory 4/4 - Upload
 
 on:
   workflow_run:
-    workflows: ["Factory 3/4 - Aggregate"]
+    workflows: ["Image Processor V14.5"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -51,8 +51,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/
-          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
-          fail-on-cache-miss: true
+          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}-img
+          restore-keys: |
+            entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
 
       # V16.3.3: Verify Registry Backup Integrity (Robust Encoding)
       - name: Verify Registry Backup
