@@ -6,23 +6,28 @@
 name: Image Processor V14.5
 
 on:
-  # Trigger after Factory Upload completes (V14.5 Modular Factory)
+  # Trigger after Factory Aggregate completes (To use GitHub Cache)
   workflow_run:
-    workflows: ["Factory 4/4 - Upload"]
+    workflows: ["Factory 3/4 - Aggregate"]
     types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       batch_size:
         description: 'Number of images to process per run'
         type: number
         default: 500
+      run_id:
+        description: 'Aggregate run ID to restore cache from (Manual only)'
+        type: string
+        required: false
 
 env:
   R2_BUCKET: ai-nexus-assets
   R2_ENDPOINT: https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+  R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
 jobs:
   process-images:
@@ -64,19 +69,37 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler
 
-      # V16.4.0: Fetch Global Entity Registry (Robust)
+      # V16.4.1: Restore 'internal cache' from Aggregate (Aligns with 3.5/4)
+      - name: Restore Registry from GitHub Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
+          restore-keys: |
+            entity-data-
+
+      # V16.4.1: Fetch Global Entity Registry (Cache Priority)
       - name: Fetch Global Entity Registry
         run: |
           mkdir -p data/images
-          echo "📥 Loading authoritative registry from R2..."
           
-          # Fetch the single-file registry (54MB+) to disk with --remote
-          npx wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/registry.json --remote
+          # Check if registry exists in cache
+          if [ -f "output/meta/backup/global-registry.json" ]; then
+            echo "✅ Verified: Registry exists in GitHub Cache. Using local copy."
+            cp output/meta/backup/global-registry.json data/registry.json
+          else
+            echo "⚠️ Cache miss: Registry not found in output/meta/backup/. Falling back to R2..."
+            npx wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/registry.json --remote
+          fi
           
           # Process in Node.js
           node -e "
           const fs = require('fs');
           try {
+            if (!fs.existsSync('data/registry.json')) {
+               console.error('❌ Registry file missing both in cache and R2 backup');
+               process.exit(1);
+            }
             const registry = JSON.parse(fs.readFileSync('data/registry.json', 'utf8'));
             const entities = registry.entities || [];
             
