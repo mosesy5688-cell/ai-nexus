@@ -136,18 +136,21 @@ jobs:
           const queue = JSON.parse(fs.readFileSync('data/image-queue.json', 'utf-8'));
           const results = { success: 0, failed: 0, skipped: 0 };
           
-          async function downloadImage(url, dest) {
+          async function downloadImage(url, dest, depth = 0) {
+            if (depth > 5) throw new Error('Too many redirects');
             return new Promise((resolve, reject) => {
               const protocol = url.startsWith('https') ? https : http;
-              const file = fs.createWriteStream(dest);
-              protocol.get(url, { timeout: 15000 }, (response) => {
-                if (response.statusCode === 200) {
-                  response.pipe(file);
+              protocol.get(url, { timeout: 15000 }, (res) => {
+                if (res.statusCode === 200) {
+                  const file = fs.createWriteStream(dest);
+                  res.pipe(file);
                   file.on('finish', () => { file.close(); resolve(true); });
-                } else if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-                  downloadImage(response.headers.location, dest).then(resolve).catch(reject);
+                } else if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                  // V16.4.2: Robust Absolute Redirect Resolution
+                  const absoluteUrl = new URL(res.headers.location, url).toString();
+                  downloadImage(absoluteUrl, dest, depth + 1).then(resolve).catch(reject);
                 } else {
-                  reject(new Error('Status: ' + response.statusCode));
+                  reject(new Error('Status: ' + res.statusCode));
                 }
               }).on('error', reject);
             });
@@ -155,18 +158,23 @@ jobs:
           
           async function processQueue() {
             for (const item of queue) {
-              const safeName = (item.id || 'unknown').replace(/[/:]/g, '--');
-              const destPath = 'data/images/' + safeName + '.jpg';
+              const safeId = (item.id || 'unknown').replace(/[/:]/g, '--');
+              const type = item.type || 'model';
+              
+              // V16.4.2: Type-based sub-folder naming (SPEC-IMAGE-NAMING)
+              const destDir = path.join('data/images', type);
+              if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+              
+              const destPath = path.join(destDir, safeId + '.jpg');
+              
               try {
-                // Optimization: Skip if already exists in this run's disk
                 if (fs.existsSync(destPath)) { results.skipped++; continue; }
-                
                 await downloadImage(item.source_url, destPath);
                 results.success++;
-                console.log('✅', safeName);
+                console.log('✅ [' + type + '] ' + safeId);
               } catch (err) {
                 results.failed++;
-                console.log('❌', safeName, err.message);
+                console.log('❌ [' + type + '] ' + safeId + ': ' + err.message);
               }
             }
             console.log('Results:', results);
@@ -190,17 +198,17 @@ jobs:
       - name: Upload Images to R2 with 2-Version Rotation
         run: |
           echo "📤 Uploading with 2-version rotation..."
-          for webp in data/images/*.webp; do
-            if [ -f "$webp" ]; then
-              base=$(basename "$webp")
-              
-              # V14.5.7: Backup existing to v-1 before overwrite (2-version rolling)
-              echo "🔄 Rotating $base -> ${base%.*}.v-1.webp"
-              wrangler r2 object copy $R2_BUCKET/images/$base $R2_BUCKET/images/${base%.*}.v-1.webp || echo "No existing version for $base"
-              
-              # Upload new version
-              wrangler r2 object put $R2_BUCKET/images/$base --file="$webp" --content-type="image/webp"
-            fi
+          # V16.4.2: Recursive Type-based Upload
+          find data/images -type f -name "*.webp" | while read webp; do
+            # Get relative path (e.g. model/id.webp)
+            rel_path=$(echo "$webp" | sed 's|data/images/||')
+            
+            # Rotation Logic
+            echo "🔄 Rotating $rel_path -> ${rel_path%.*}.v-1.webp"
+            wrangler r2 object copy $R2_BUCKET/images/$rel_path $R2_BUCKET/images/${rel_path%.*}.v-1.webp || true
+            
+            # Upload new version
+            wrangler r2 object put $R2_BUCKET/images/$rel_path --file="$webp" --content-type="image/webp"
           done
           echo "✅ Image processing and rotation complete"
 

@@ -111,6 +111,8 @@ const jsonLd = tool ? {
       fniPercentile={tool?.fni_percentile}
       fniCommentary={tool?.fni_commentary}
       sourceUrl={tool?.source_url}
+      entityId={toolId}
+      hasImage={Boolean(tool?.image_url)}
     />
 
     {/* Zone 1.5: Use Cases */}

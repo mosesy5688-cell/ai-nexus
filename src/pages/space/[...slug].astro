@@ -112,6 +112,8 @@ const jsonLd = space ? {
       fniPercentile={space?.fni_percentile}
       fniCommentary={space?.fni_commentary}
       sourceUrl={space?.source_url}
+      entityId={spaceId}
+      hasImage={Boolean(space?.image_url)}
     />
 
     {/* Zone 1.5: Use Cases */}

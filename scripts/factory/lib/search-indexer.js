@@ -26,6 +26,7 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         description: (e.description || '').substring(0, 100),
         fni: e.fni,
         source: e.source,
+        has_image: Boolean(e.image_url),
     }));
 
     const coreIndex = {
@@ -47,6 +48,7 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         type: e.type,
         fni: e.fni,
         source: e.source,
+        has_image: Boolean(e.image_url),
         // Shortened description to save shard space
         description: (e.description || '').substring(0, 150),
     }));
