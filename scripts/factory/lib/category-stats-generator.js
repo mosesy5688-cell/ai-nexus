@@ -56,7 +56,7 @@ const CATEGORY_ALIASES = {
 /**
  * Get V6 category from entity
  */
-function getV6Category(entity) {
+export function getV6Category(entity) {
     // Check primary_category first (Replicate, CivitAI, etc.)
     if (entity.primary_category) {
         const mapped = CATEGORY_ALIASES[entity.primary_category];

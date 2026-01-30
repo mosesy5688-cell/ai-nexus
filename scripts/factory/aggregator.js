@@ -4,7 +4,7 @@ import { generateRankings } from './lib/rankings-generator.js';
 import { generateSearchIndices } from './lib/search-indexer.js';
 import { generateTrending } from './lib/trending-generator.js';
 import { generateSitemap } from './lib/sitemap-generator.js';
-import { generateCategoryStats } from './lib/category-stats-generator.js';
+import { generateCategoryStats, getV6Category } from './lib/category-stats-generator.js';
 import { generateRelations } from './lib/relations-generator.js';
 import { updateWeeklyAccumulator, shouldGenerateReport, generateWeeklyReport } from './lib/weekly-report.js';
 import { saveGlobalRegistry, loadFniHistory, loadWeeklyAccum, saveWeeklyAccum } from './lib/cache-manager.js';
@@ -37,7 +37,14 @@ async function main() {
     const shardResults = await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
     const fullSet = mergeShardEntities(allEntities, shardResults);
 
-    const rankedEntities = calculatePercentiles(fullSet);
+    const percentiledEntities = calculatePercentiles(fullSet);
+
+    // V16.4.4: Inject Deterministic Category (Art 3.1)
+    // Ensures rankings and category_stats use the same classification
+    const rankedEntities = percentiledEntities.map(e => ({
+        ...e,
+        category: getV6Category(e)
+    }));
 
     // Generate outputs
     await generateTrending(rankedEntities, CONFIG.OUTPUT_DIR);

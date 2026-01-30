@@ -39,11 +39,15 @@ export class RegistryManager {
         console.log(`[REGISTRY] Merging ${batchEntities.length} batch entities into registry...`);
 
         const registryMap = new Map();
+        let archivedCount = 0;
+        let activeCount = 0;
+        let mergedCount = 0;
 
         // 1. Seed with existing registry
         for (const e of this.registry.entities) {
             const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
             registryMap.set(id, { ...e, status: 'archived' });
+            archivedCount++;
         }
 
         // 2. Intelligence Merge with current batch
@@ -51,19 +55,26 @@ export class RegistryManager {
             const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
             const existing = registryMap.get(id);
 
-            const merged = existing
-                ? this.mergeEntityMetadata(existing, e)
-                : e;
-
-            registryMap.set(id, {
-                ...merged,
-                status: e.status || 'active',
-                _last_seen: new Date().toISOString()
-            });
+            if (existing) {
+                const merged = this.mergeEntityMetadata(existing, e);
+                registryMap.set(id, {
+                    ...merged,
+                    status: 'active', // Promotion to active
+                    _last_seen: new Date().toISOString()
+                });
+                mergedCount++;
+            } else {
+                registryMap.set(id, {
+                    ...e,
+                    status: 'active',
+                    _last_seen: new Date().toISOString()
+                });
+                activeCount++;
+            }
         }
 
         // 3. Convert back to array and apply FNI decay for archived entities
-        const merged = Array.from(registryMap.values()).map(e => {
+        const finalEntities = Array.from(registryMap.values()).map(e => {
             if (e.status === 'archived') {
                 // FNI Decay: Historical entities sink naturally
                 return { ...e, fni_score: (e.fni_score || 0) * 0.95 };
@@ -72,10 +83,15 @@ export class RegistryManager {
         });
 
         // 4. Sort by FNI and update state
-        this.registry.entities = merged.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
+        this.registry.entities = finalEntities.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
         this.registry.count = this.registry.entities.length;
 
-        console.log(`  [REGISTRY] Merge complete. Total: ${this.registry.count} entities`);
+        console.log(`  [REGISTRY] Merge Stats:`);
+        console.log(`    - Archived (Persistent): ${archivedCount}`);
+        console.log(`    - Active (Newly Harvested): ${activeCount}`);
+        console.log(`    - Merged (Updated): ${mergedCount}`);
+        console.log(`    - Final Deduplicated Total: ${this.registry.count}`);
+
         return this.registry;
     }
 

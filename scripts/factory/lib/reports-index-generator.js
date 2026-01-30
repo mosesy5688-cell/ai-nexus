@@ -34,9 +34,12 @@ function shouldGenerateAnnualReport() {
  */
 function parseWeekId(filename, reportData) {
     if (reportData?.id) return reportData.id;
-    // Extract YYYY-Wxx from filename
-    const match = filename.match(/(\d{4}-W\d{2})/);
-    return match ? match[1] : filename.replace('.json', '');
+    // Extract YYYY-MM-DD or YYYY-Wxx from filename
+    const dailyMatch = filename.match(/(\d{4}-\d{2}-\d{2})/);
+    if (dailyMatch) return dailyMatch[1];
+
+    const weeklyMatch = filename.match(/(\d{4}-W\d{2})/);
+    return weeklyMatch ? weeklyMatch[1] : filename.replace('.json', '');
 }
 
 /**

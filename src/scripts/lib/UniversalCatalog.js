@@ -93,7 +93,7 @@ export class UniversalCatalog {
 
         if (this.categoryFilter) {
             this.categoryFilter.addEventListener('change', (e) => {
-                this.handleSearch(e.target.value);
+                this.handleSearch(this.searchInput?.value || '', e.target.value);
             });
         }
 
@@ -138,45 +138,39 @@ export class UniversalCatalog {
         }
     }
 
-    handleSearch(query) {
+    handleSearch(query = '', category = '') {
         const q = query.trim();
+        const cat = category || this.categoryFilter?.value || '';
 
-        if (!q || q.length < 2) {
-            this.filtered = [...this.items];
-        } else {
-            const results = this.engine.search(q);
-            // Map results back to full item objects if needed, 
-            // but MiniSearch already stores display fields.
-            this.filtered = results.map(r => ({
-                ...r,
-                // Ensure consistency in field names
-                fni_score: r.fni_score || 0
-            }));
+        let results = [...this.items];
+
+        // 1. Precise Category Filter (V16.4.4)
+        if (cat && cat !== '') {
+            results = results.filter(i => i.category === cat);
         }
+
+        // 2. Keyword Search (MiniSearch)
+        if (q && q.length >= 2) {
+            const searchResults = this.engine.search(q);
+            const searchIds = new Set(searchResults.map(r => r.id));
+            results = results.filter(i => searchIds.has(i.id));
+
+            // Re-order results by search score if searching
+            const scoreMap = new Map(searchResults.map(r => [r.id, r.score]));
+            results.sort((a, b) => (scoreMap.get(b.id) || 0) - (scoreMap.get(a.id) || 0));
+        }
+
+        this.filtered = results.map(r => ({
+            ...r,
+            fni_score: r.fni_score || 0
+        }));
 
         this.currentPage = 1;
         this.handleSort(this.sortSelect?.value || 'fni');
     }
 
     handleSort(sortBy) {
-        switch (sortBy) {
-            case 'fni':
-                this.filtered.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
-                break;
-            case 'downloads':
-                this.filtered.sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
-                break;
-            case 'likes':
-                this.filtered.sort((a, b) => (b.likes || 0) - (a.likes || 0));
-                break;
-            case 'recent':
-                this.filtered.sort((a, b) => new Date(b.lastModified || 0) - new Date(a.lastModified || 0));
-                break;
-            case 'name':
-                this.filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-                break;
-        }
-
+        DataNormalizer.sortCollection(this.filtered, sortBy);
         this.renderGrid();
         this.renderPagination();
         this.updateStats();
