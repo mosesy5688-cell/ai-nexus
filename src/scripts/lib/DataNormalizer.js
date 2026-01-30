@@ -52,5 +52,29 @@ export const DataNormalizer = {
     normalizeCollection(items, defaultType = 'model') {
         if (!Array.isArray(items)) return [];
         return items.map(item => this.normalize(item, defaultType));
+    },
+
+    /**
+     * Sorts a collection based on a specified criteria
+     */
+    sortCollection(items, sortBy) {
+        switch (sortBy) {
+            case 'fni':
+                items.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
+                break;
+            case 'downloads':
+                items.sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
+                break;
+            case 'likes':
+                items.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+                break;
+            case 'recent':
+                items.sort((a, b) => new Date(b.lastModified || 0) - new Date(a.lastModified || 0));
+                break;
+            case 'name':
+                items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                break;
+        }
+        return items;
     }
 };

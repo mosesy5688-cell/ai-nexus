@@ -15,7 +15,7 @@ on:
       batch_size:
         description: 'Number of images to process per run'
         type: number
-        default: 500
+        default: 2000
       run_id:
         description: 'Aggregate run ID to restore cache from (Manual only)'
         type: string
@@ -146,7 +146,6 @@ jobs:
                   res.pipe(file);
                   file.on('finish', () => { file.close(); resolve(true); });
                 } else if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                  // V16.4.2: Robust Absolute Redirect Resolution
                   const absoluteUrl = new URL(res.headers.location, url).toString();
                   downloadImage(absoluteUrl, dest, depth + 1).then(resolve).catch(reject);
                 } else {
@@ -155,13 +154,13 @@ jobs:
               }).on('error', reject);
             });
           }
+
+          const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
           
           async function processQueue() {
             for (const item of queue) {
               const safeId = (item.id || 'unknown').replace(/[/:]/g, '--');
               const type = item.type || 'model';
-              
-              // V16.4.2: Type-based sub-folder naming (SPEC-IMAGE-NAMING)
               const destDir = path.join('data/images', type);
               if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
               
@@ -169,6 +168,11 @@ jobs:
               
               try {
                 if (fs.existsSync(destPath)) { results.skipped++; continue; }
+                
+                // V16.4.4: Polite Crawling (500ms - 1500ms jitter)
+                const delay = 500 + Math.random() * 1000;
+                await sleep(delay);
+
                 await downloadImage(item.source_url, destPath);
                 results.success++;
                 console.log('✅ [' + type + '] ' + safeId);
@@ -188,29 +192,38 @@ jobs:
         working-directory: tools/rust-img-optimizer
         run: |
           echo "🔄 Converting to WebP..."
-          for img in ../../data/images/*.jpg; do
-            if [ -f "$img" ]; then
-              base=$(basename "$img" .jpg)
-              ./target/release/rust-img-optimizer convert --input "$img" --output "../../data/images/${base}.webp" --format webp --quality 75 --max-width 640 2>/dev/null || true
-            fi
+          # V16.4.4: Fix shallow glob with recursive find
+          find ../../data/images -name "*.jpg" | while read img; do
+            base_dir=$(dirname "$img")
+            base_name=$(basename "$img" .jpg)
+            ./target/release/rust-img-optimizer convert --input "$img" --output "${base_dir}/${base_name}.webp" --format webp --quality 75 --max-width 640 2>/dev/null || true
           done
 
       - name: Upload Images to R2 with 2-Version Rotation
         run: |
           echo "📤 Uploading with 2-version rotation..."
-          # V16.4.2: Recursive Type-based Upload
           find data/images -type f -name "*.webp" | while read webp; do
-            # Get relative path (e.g. model/id.webp)
             rel_path=$(echo "$webp" | sed 's|data/images/||')
             
-            # Rotation Logic
             echo "🔄 Rotating $rel_path -> ${rel_path%.*}.v-1.webp"
             wrangler r2 object copy $R2_BUCKET/images/$rel_path $R2_BUCKET/images/${rel_path%.*}.v-1.webp || true
-            
-            # Upload new version
             wrangler r2 object put $R2_BUCKET/images/$rel_path --file="$webp" --content-type="image/webp"
           done
-          echo "✅ Image processing and rotation complete"
+          echo "✅ Image processing complete"
+
+      - name: Update Global Registry (Progressive Drain)
+        run: |
+          echo "📝 Updating registry with CDN URLs..."
+          node scripts/factory/lib/image-post-processor.js data/registry.json data/image-results.json
+          
+          # Sync back to output for persistence
+          cp data/registry.json output/meta/backup/global-registry.json
+          
+      - name: Persist Updated Registry to GitHub Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/
+          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
 
       - name: Summary
         run: |
@@ -220,5 +233,5 @@ jobs:
             cat data/image-results.json >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          WEBP_COUNT=$(ls -1 data/images/*.webp 2>/dev/null | wc -l)
-          echo "- WebP images created: $WEBP_COUNT" >> $GITHUB_STEP_SUMMARY
+          WEBP_COUNT=$(find data/images -name "*.webp" | wc -l)
+          echo "- WebP images created/uploaded: $WEBP_COUNT" >> $GITHUB_STEP_SUMMARY

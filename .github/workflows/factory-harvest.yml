@@ -12,7 +12,7 @@ name: Factory 1/4 - Harvest
 
 on:
   schedule:
-    - cron: '0 3 * * 1,4'  # Mon/Thu 03:00 UTC
+    - cron: '0 3 * * *'  # Daily 03:00 UTC
   workflow_dispatch:
 
 concurrency:

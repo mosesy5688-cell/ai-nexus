@@ -22,7 +22,7 @@ async function generateAIContent(topEntities) {
     }
 
     const top3 = topEntities.slice(0, 3).map((e, i) =>
-        `${i + 1}. ${e.name} (FNI: ${e.fni?.toFixed(1) || 'N/A'}, type: ${e.type || 'model'})`
+        `${i + 1}. ${e.name} (FNI: ${e.fni_score?.toFixed(1) || 'N/A'}, type: ${e.type || 'model'})`
     ).join('\n');
 
     const prompt = `You are an AI technology editor. Based on the following data, generate a title, subtitle, and summary for a weekly report.
@@ -89,13 +89,13 @@ export async function updateWeeklyAccumulator(entities, outputDir = './output') 
     const accumulator = await loadWeeklyAccum();
 
     const topMovers = entities
-        .filter(e => e.fni >= 70)
+        .filter(e => (e.fni_score || e.fni || 0) >= 70)
         .slice(0, WEEKLY_TOP_ENTITIES)
         .map(e => ({
             id: e.id,
             name: e.name || e.slug,
             type: e.type,
-            fni: e.fni,
+            fni_score: e.fni_score || e.fni || 0,
             date: new Date().toISOString().split('T')[0],
         }));
 
@@ -157,7 +157,7 @@ export async function generateWeeklyReport(outputDir = './output') {
             entity_id: e.id,
             name: e.name,
             type: e.type,
-            fni: e.fni
+            fni_score: e.fni_score || e.fni || 0
         })),
         stats: {
             totalEntries: accumulator.entries.length,

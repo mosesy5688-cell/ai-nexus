@@ -70,7 +70,9 @@ export class EntityCardRenderer {
                  <div class="flex items-center gap-3 mt-3 text-xs text-gray-400">
                     ${item.downloads ? `<span>📥 ${this.formatNumber(item.downloads)}</span>` : ''}
                     ${item.likes ? `<span>❤️ ${this.formatNumber(item.likes)}</span>` : ''}
-                    ${(item.authors || item.author) ? `<span>👤 ${item.authors || item.author}</span>` : ''}
+                    ${item.quality_score ? `<span>✨ ${Math.round(item.quality_score)}</span>` : ''}
+                    ${item.compliance_status === 'verified' ? `<span>✅ Verified</span>` : ''}
+                    ${(item.authors || item.author) ? `<span class="truncate max-w-[100px]">👤 ${item.authors || item.author}</span>` : ''}
                 </div>
             </a>
         `;
