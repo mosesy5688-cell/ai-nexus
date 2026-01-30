@@ -211,10 +211,54 @@ jobs:
           path: output/cache/knowledge/
           retention-days: 1
 
-  # V16.2 Job 5: Mesh Graph Generation (V14.5.3: Skipped to save compute)
-  # mesh-graph:
-  #   name: Mesh Graph
-  #   ... (disabled)
+  # V16.2 Job 5: Mesh Graph Generation
+  mesh-graph:
+    name: Mesh Graph
+    runs-on: ubuntu-latest
+    needs: [explicit-links, alt-links, knowledge-links]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+        
+      - name: Restore entity data
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: entity-data-${{ github.event.workflow_run.id }}
+          restore-keys: |
+            entity-data-
+            
+      - name: Download explicit relations
+        uses: actions/download-artifact@v4
+        with:
+          name: explicit-relations
+          path: output/cache/relations/
+          
+      - name: Download knowledge links
+        uses: actions/download-artifact@v4
+        with:
+          name: knowledge-links
+          path: output/cache/relations/
+            
+      - name: Generate mesh graph
+        run: node scripts/factory/lib/mesh-graph-generator.js ./output
+        
+      - name: Upload mesh graph
+        uses: actions/upload-artifact@v4
+        with:
+          name: mesh-graph
+          path: output/cache/mesh/
+          retention-days: 1
 
   # V16.2 Job 6: RSS Feeds
   rss-feeds:
@@ -263,7 +307,7 @@ jobs:
   upload-relations:
     name: Upload to R2
     runs-on: ubuntu-latest
-    needs: [explicit-links, alt-links, knowledge-links, knowledge-data, rss-feeds]
+    needs: [explicit-links, alt-links, knowledge-links, knowledge-data, mesh-graph, rss-feeds]
     if: always() && needs.explicit-links.result == 'success'
     
     steps:

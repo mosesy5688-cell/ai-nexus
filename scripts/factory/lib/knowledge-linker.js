@@ -94,7 +94,7 @@ function extractKnowledgeLinks(entity) {
     const searchText = [
         entity.name || '',
         entity.description || '',
-        ...(entity.tags || []),
+        ...(Array.isArray(entity.tags) ? entity.tags : []).filter(t => typeof t === 'string'),
         entity.architecture || '',
         entity.pipeline_tag || '',
         entity.primary_category || '',
