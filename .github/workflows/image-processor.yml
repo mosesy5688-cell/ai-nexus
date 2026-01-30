@@ -64,68 +64,25 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler
 
-      # Download sharded registry from R2 (V16.2.3 Compatibility)
+      # V16.3.4: Fetch Global Entity Registry (Robust)
       - name: Fetch Global Entity Registry
         run: |
           mkdir -p data/images
-          echo "📥 [V16.2.3] Loading sharded registry from R2..."
+          echo "📥 Loading authoritative registry from R2..."
           
-          # Fetch manifest
-          wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-manifest.json --pipe > data/manifest.json || echo '{"totalShards":0}' > data/manifest.json
+          # Fetch the single-file registry (54MB+) to disk to avoid pipe buffer issues
+          npx wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/registry.json
           
-          // Reassemble Registry in JS
+          # Process in Node.js
           node -e "
           const fs = require('fs');
-          const { execSync } = require('child_process');
-
-          async function main() {
-            let manifest = { totalShards: 0 };
-            const entities = [];
-
-            // Helper for reliable R2 get
-            function r2GetWithRetry(key) {
-              for (let i = 1; i <= 3; i++) {
-                try {
-                  console.log('  [R2] Attempt ' + i + ' for ' + key);
-                  // Use --pipe for small manifest, but this function can be extended
-                  return execSync('npx -y wrangler r2 object get ${{ env.R2_BUCKET }}/' + key + ' --pipe', { stdio: ['pipe', 'pipe', 'pipe'] });
-                } catch (e) {
-                  if (i === 3) throw e;
-                  console.warn('  ⚠️ Attempt ' + i + ' failed, retrying...');
-                  execSync('sleep 5');
-                }
-              }
-            }
-
-            try {
-              const manifestRaw = r2GetWithRetry('meta/backup/global-registry-manifest.json');
-              manifest = JSON.parse(manifestRaw);
-            } catch (e) {
-              console.log('⚠️ Manifest not found, will try legacy fallback');
-            }
-
-            if (manifest.totalShards > 0) {
-              console.log('📦 Restoring ' + manifest.totalShards + ' shards...');
-              for (let i = 0; i < manifest.totalShards; i++) {
-                const shardRaw = r2GetWithRetry('meta/backup/global-registry-part-' + i + '.json');
-                const shard = JSON.parse(shardRaw);
-                entities.push(...(shard.entities || []));
-              }
-            } else {
-              // Fallback to legacy single file (54MB)
-              console.log('⚠️ Manifest not found, trying legacy global-registry.json...');
-              try {
-                // For 54MB, use --file to disk instead of --pipe to memory to avoid OOM
-                execSync('npx -y wrangler r2 object get ${{ env.R2_BUCKET }}/meta/backup/global-registry.json --file=data/legacy-registry.json');
-                const legacy = JSON.parse(fs.readFileSync('data/legacy-registry.json', 'utf-8'));
-                entities.push(...(legacy.entities || []));
-                fs.unlinkSync('data/legacy-registry.json');
-              } catch (e) {
-                console.log('❌ No registry found: ' + e.message);
-              }
-            }
-
-            // Extract image URLs needing processing (Prioritize active entities)
+          try {
+            const registry = JSON.parse(fs.readFileSync('data/registry.json', 'utf8'));
+            const entities = registry.entities || [];
+            
+            console.log('📊 Registry loaded:', entities.length, 'entities');
+            
+            // Extract image URLs needing processing (Prioritize by FNI score)
             const imageUrls = entities.filter(e => e.image_url && !e.image_url.includes('free2aitools.com'))
               .sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0))
               .slice(0, ${{ github.event.inputs.batch_size || 500 }})
@@ -136,9 +93,11 @@ jobs:
               }));
 
             fs.writeFileSync('data/image-queue.json', JSON.stringify(imageUrls, null, 2));
-            console.log('✅ Image queue created:', imageUrls.length, 'images');
+            console.log('✅ Image queue created:', imageUrls.length, 'tasks');
+          } catch (e) {
+            console.error('❌ Failed to process registry:', e.message);
+            process.exit(1);
           }
-          main();
           "
 
       - name: Download and Convert Images
