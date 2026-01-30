@@ -28,6 +28,9 @@ jobs:
     outputs:
       harvest-run-id: ${{ steps.get-id.outputs.id }}
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Get Harvest Run ID
         id: get-id
         env:
