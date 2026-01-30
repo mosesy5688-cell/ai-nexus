@@ -64,14 +64,14 @@ jobs:
       - name: Install Wrangler
         run: npm install -g wrangler
 
-      # V16.3.4: Fetch Global Entity Registry (Robust)
+      # V16.4.0: Fetch Global Entity Registry (Robust)
       - name: Fetch Global Entity Registry
         run: |
           mkdir -p data/images
           echo "📥 Loading authoritative registry from R2..."
           
-          # Fetch the single-file registry (54MB+) to disk to avoid pipe buffer issues
-          npx wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/registry.json
+          # Fetch the single-file registry (54MB+) to disk with --remote
+          npx wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/registry.json --remote
           
           # Process in Node.js
           node -e "
