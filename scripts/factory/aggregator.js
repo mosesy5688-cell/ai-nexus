@@ -50,13 +50,16 @@ async function main() {
     const entitiesOutputPath = path.join(CONFIG.OUTPUT_DIR, 'entities.json');
     await fs.writeFile(entitiesOutputPath, JSON.stringify(rankedEntities, null, 2));
 
-    process.env.CACHE_DIR = path.join(CONFIG.OUTPUT_DIR, 'meta', 'backup');
-    await fs.mkdir(process.env.CACHE_DIR, { recursive: true });
-
+    // 5. Historical State & Trends (V14.5)
+    // We load historical state from GH Cache (default ./cache)
     await updateFniHistory(rankedEntities);
 
     const historyData = await loadFniHistory();
     const weekNumber = getWeekNumber();
+
+    // 6. State Persistence (V14.5.3: Backup to Output for 4/4 Upload)
+    process.env.CACHE_DIR = path.join(CONFIG.OUTPUT_DIR, 'meta', 'backup');
+    await fs.mkdir(process.env.CACHE_DIR, { recursive: true });
     await backupStateFiles(CONFIG.OUTPUT_DIR, historyData, weekNumber);
 
     if (shouldGenerateReport()) await generateWeeklyReport(CONFIG.OUTPUT_DIR);
