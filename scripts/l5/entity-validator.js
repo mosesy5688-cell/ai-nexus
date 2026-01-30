@@ -38,7 +38,7 @@ export function hasValidCachePath(entity) {
         'hf-model--', 'hf-space--', 'hf-dataset--',
         'gh-model--', 'gh-tool--', 'gh-agent--',
         'arxiv-paper--', 'kaggle-dataset--', 'civitai-model--', 'ollama-model--',
-        'github-agent--', 'mcp-server--', 'github--'
+        'mcp-server--', 'github--'
     ];
     for (const prefix of TYPE_PREFIXES) {
         if (idLower.startsWith(prefix)) {
@@ -46,9 +46,9 @@ export function hasValidCachePath(entity) {
         }
     }
 
-    // HuggingFace/GitHub: must have author/name format (contains / or :)
-    // V16.96: accept colon as a valid separator for multi-part IDs
-    const hasSeparator = id.includes('/') || id.includes(':');
+    // HuggingFace/GitHub: must have author/name format (contains / or : or --)
+    // V16.96: accept colon or double-hyphen as a valid separator for multi-part IDs
+    const hasSeparator = id.includes('/') || id.includes(':') || id.includes('--');
 
     return hasSeparator;
 }
