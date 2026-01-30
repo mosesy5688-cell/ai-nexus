@@ -82,7 +82,8 @@ jobs:
           pattern: shard-*
           path: ./downloaded/
           merge-multiple: true
-          run-id: ${{ inputs.run_id || github.event.workflow_run.id }}
+          # V16.2.7: Improve manual run-id handling
+          run-id: ${{ inputs.run_id || github.event.workflow_run.id || needs.check-upstream.outputs.harvest-run-id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       # Organize downloaded files

@@ -24,6 +24,10 @@ on:
         required: false
         default: 'false'
         type: boolean
+      run_id:
+        description: 'Aggregate workflow run ID to download artifacts from'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -61,7 +65,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/
-          key: entity-data-${{ github.event.workflow_run.id }}
+          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
           restore-keys: |
             entity-data-
           # Don't fail - we'll check manually
@@ -112,7 +116,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/
-          key: entity-data-${{ github.event.workflow_run.id }}
+          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
           restore-keys: |
             entity-data-
             
@@ -152,7 +156,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/
-          key: entity-data-${{ github.event.workflow_run.id }}
+          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
           restore-keys: |
             entity-data-
             
@@ -191,7 +195,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/
-          key: entity-data-${{ github.event.workflow_run.id }}
+          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
           restore-keys: |
             entity-data-
             
@@ -234,7 +238,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/
-          key: entity-data-${{ github.event.workflow_run.id }}
+          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
           restore-keys: |
             entity-data-
             
@@ -283,7 +287,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: output/
-          key: entity-data-${{ github.event.workflow_run.id }}
+          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
           restore-keys: |
             entity-data-
             
