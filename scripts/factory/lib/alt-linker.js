@@ -12,6 +12,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 
 /**
  * Compute Jaccard similarity between two tag sets

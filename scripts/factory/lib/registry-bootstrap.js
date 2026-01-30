@@ -12,7 +12,7 @@
 
 import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import fs from 'fs/promises';
-import { normalizeId } from './relation-extractors.js';
+import { normalizeId } from '../../utils/id-normalizer.js';
 import { saveGlobalRegistry } from './cache-manager.js';
 import dotenv from 'dotenv';
 
