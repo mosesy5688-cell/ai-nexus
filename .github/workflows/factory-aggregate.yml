@@ -46,7 +46,7 @@ jobs:
           # 2. Get the 1/4 Harvest Run ID (Parent of Process Run)
           # Note: In our dispatch logic, we pass run_id as input to Process.
           # If we don't have it explicitly, we look for the most recent successful Harvest run.
-          HARVEST_RUN_ID=$(gh run list --workflow "Factory 1/4 - Harvest" --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          HARVEST_RUN_ID=$(gh run list --workflow "Factory 1/4 - Harvest" --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           
           echo "id=$HARVEST_RUN_ID" >> $GITHUB_OUTPUT
           echo "✅ Found Upstream Harvest Run: $HARVEST_RUN_ID"
@@ -131,6 +131,9 @@ jobs:
           path: |
             data/merged.json
             data/merged_shard_*.json
+            data/manifest.json
+            cache/fni-history.json
+            cache/weekly-accum.json
           key: factory-entity-data-${{ needs.check-upstream.outputs.harvest-run-id }}
           fail-on-cache-miss: true
 
