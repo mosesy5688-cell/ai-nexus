@@ -127,7 +127,7 @@ export class SpacesAdapter extends BaseAdapter {
             popularity: raw.likes || 0,
             downloads: 0,
             likes: raw.likes || 0,
-            raw_image_url: raw.cardData?.image || `https://huggingface.co/spaces/${raw.id}/resolve/main/thumbnail.png`,
+            raw_image_url: raw.cardData?.image || `https://cdn-thumbnails.huggingface.co/social-thumbnails/spaces/${raw.id}.png`,
             relations: (raw.models_used || []).map(m => ({
                 target_id: `huggingface--${m.replace(/\//g, '--')}`,
                 relation_type: 'USES', confidence: 1.0, source: 'config'
