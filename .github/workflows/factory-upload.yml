@@ -123,16 +123,7 @@ jobs:
       - name: Trigger Health Check
         run: |
           echo "🏥 Triggering Health Check..."
-          gh workflow run health-check.yml || echo "Health check workflow not found"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-
-      # Trigger Image Processor (optional)
-      - name: Trigger Image Processor
-        run: |
-          echo "🖼️ Triggering Image Processor..."
-          gh workflow run image-processor.yml || echo "Image processor workflow not found"
+          gh workflow run daily-health-check.yml || echo "Health check workflow not found"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
@@ -148,6 +139,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
           echo "- Health Check triggered" >> $GITHUB_STEP_SUMMARY
-          echo "- Image Processor triggered" >> $GITHUB_STEP_SUMMARY
+          echo "- Image Processor (Automatic via workflow_run)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Factory Pipeline Complete!** 🎉" >> $GITHUB_STEP_SUMMARY
