@@ -39,55 +39,80 @@ const ALL_PREFIXES = Object.values(PREFIX_MAP).flatMap(source => Object.values(s
 export function normalizeId(id, source, type) {
     if (!id) return null;
 
-    // 1. Cleanup: Remove .json suffix if present (R2 filename artifact)
-    let cleanId = id.replace(/\.json$/, '');
+    // 1. Initial Cleanup: Remove file artifacts and normalize delimiters
+    let cleanId = id.replace(/\.json$/, '').replace(/[\/:]/g, '--');
 
-    // 2. Transmutation: Replace slashes and colons with double-hyphens
-    cleanId = cleanId.replace(/[\/:]/g, '--');
+    // 2. Identify and Strip ALL known prefixes (Recursive/Multi-pass)
+    // We map prefixes to hints for source (s) and type (t)
+    const knownPrefixes = {
+        'hf-model--': { s: 'hf', t: 'model' },
+        'hf-dataset--': { s: 'hf', t: 'dataset' },
+        'hf-space--': { s: 'hf', t: 'space' },
+        'gh-agent--': { s: 'gh', t: 'agent' },
+        'gh-tool--': { s: 'gh', t: 'tool' },
+        'arxiv-paper--': { s: 'arxiv', t: 'paper' },
+        'civitai-model--': { s: 'civitai', t: 'model' },
+        'kaggle-dataset--': { s: 'kaggle', t: 'dataset' },
+        'huggingface--': { s: 'hf' },
+        'github--': { s: 'gh' },
+        'arxiv--': { s: 'arxiv' },
+        'paper--': { t: 'paper' },
+        'model--': { t: 'model' },
+        'dataset--': { t: 'dataset' },
+        'space--': { t: 'space' },
+        'agent--': { t: 'agent' },
+        'tool--': { t: 'tool' },
+        'civitai--': { s: 'civitai' },
+        'kaggle--': { s: 'kaggle' },
+        'hf--': { s: 'hf' },
+        'gh--': { s: 'gh' }
+    };
 
-    // Legacy Prefix Stripping to prevent Double-Prefixing (huggingface-- -> hf-model--)
-    const legacyPrefixes = ['huggingface--', 'github--', 'arxiv--', 'paper--', 'civitai--', 'kaggle--'];
-    for (const lp of legacyPrefixes) {
-        if (cleanId.startsWith(lp)) {
-            cleanId = cleanId.slice(lp.length);
-            break;
+    let hintS = null;
+    let hintT = null;
+    let stripped = true;
+
+    while (stripped) {
+        stripped = false;
+        // Sort keys by length DESC to ensure longest match (canonical) is preferred over short legacy prefixes
+        const keys = Object.keys(knownPrefixes).sort((a, b) => b.length - a.length);
+        for (const p of keys) {
+            if (cleanId.startsWith(p)) {
+                const hint = knownPrefixes[p];
+                if (hint.s) hintS = hint.s;
+                if (hint.t) hintT = hint.t;
+                cleanId = cleanId.slice(p.length);
+                stripped = true;
+                break;
+            }
         }
     }
 
-    // 3. Idempotency Check (V2.1 Logic)
-    // If the ID already starts with any canonical prefix, it's considered normalized.
-    if (ALL_PREFIXES.some(p => cleanId.startsWith(p))) {
-        return cleanId;
+    // 3. Resolve Final Source and Type
+    let s = (source || hintS || '').toLowerCase();
+    let t = (type || hintT || '').toLowerCase();
+
+    // Canonical normalization
+    if (s === 'huggingface') s = 'hf';
+    if (s === 'github') s = 'gh';
+
+    // Contextual Guessing (Fallback)
+    if (!s) {
+        if (id.includes('github.com')) s = 'gh';
+        else if (id.includes('huggingface.co')) s = 'hf';
+        else s = 'hf'; // System default
     }
 
-    // 4. Source/Type Mapping fallbacks
-    let normalizedSource = (source || '').toLowerCase();
-
-    // Alias mapping for V2.0 Standard
-    if (normalizedSource === 'huggingface') normalizedSource = 'hf';
-    if (normalizedSource === 'github') normalizedSource = 'gh';
-
-    let normalizedType = (type || '').toLowerCase();
-
-    // Contextual guessing if source/type is missing
-    if (!normalizedSource && (cleanId.includes('--') || id.includes('/'))) {
-        normalizedSource = 'huggingface'; // Default high-traffic origin
-    }
-    if (!normalizedType && normalizedSource === 'arxiv') {
-        normalizedType = 'paper';
-    } else if (!normalizedType && (normalizedSource === 'huggingface' || normalizedSource === 'civitai')) {
-        normalizedType = 'model';
+    if (!t) {
+        if (s === 'arxiv') t = 'paper';
+        else if (s === 'gh') t = 'agent';
+        else t = 'model';
     }
 
-    const prefix = PREFIX_MAP[normalizedSource]?.[normalizedType];
+    const prefix = PREFIX_MAP[s]?.[t];
 
-    // 5. Final Assembly
-    if (prefix) {
-        return `${prefix}${cleanId}`;
-    }
-
-    // Final fallback if no prefix mapping matches
-    return cleanId;
+    // 4. Final Assembly
+    return prefix ? `${prefix}${cleanId}` : cleanId;
 }
 
 /** Helper to infer source from type for V2.0 compatibility */
