@@ -108,7 +108,7 @@ jobs:
             // Extract image URLs needing processing (Prioritize by FNI score)
             const imageUrls = entities.filter(e => e.image_url && !e.image_url.includes('free2aitools.com'))
               .sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0))
-              .slice(0, ${{ github.event.inputs.batch_size || 500 }})
+              .slice(0, ${{ inputs.batch_size || 2000 }})
               .map(e => ({
                 id: e.id || e.slug,
                 source_url: e.image_url,
@@ -185,7 +185,15 @@ jobs:
             fs.writeFileSync('data/image-results.json', JSON.stringify(results, null, 2));
           }
           
-          processQueue();
+          (async () => {
+            try {
+              await processQueue();
+              console.log('✅ Queue processing finished');
+            } catch (e) {
+              console.error('❌ Queue processing failed:', e.message);
+              process.exit(1);
+            }
+          })();
           "
 
       - name: Convert to WebP (Rust)
@@ -223,7 +231,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: output/
-          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
+          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}-img
 
       - name: Summary
         run: |
