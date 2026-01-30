@@ -46,7 +46,7 @@ export function normalizeId(id, source, type) {
     cleanId = cleanId.replace(/[\/:]/g, '--');
 
     // Legacy Prefix Stripping to prevent Double-Prefixing (huggingface-- -> hf-model--)
-    const legacyPrefixes = ['huggingface--', 'github--', 'arxiv--', 'paper--'];
+    const legacyPrefixes = ['huggingface--', 'github--', 'arxiv--', 'paper--', 'civitai--', 'kaggle--'];
     for (const lp of legacyPrefixes) {
         if (cleanId.startsWith(lp)) {
             cleanId = cleanId.slice(lp.length);
