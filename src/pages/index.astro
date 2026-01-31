@@ -186,7 +186,9 @@ const seoSchema = buildIndexSEO();
                 const categories = data.categories || [];
 
                 for (const cat of categories) {
-                    const badges = document.querySelectorAll(`.category-count[data-category="${cat.category}"]`);
+                    const catId = cat.id || cat.category;
+                    if (!catId) continue;
+                    const badges = document.querySelectorAll(`.category-count[data-category="${catId}"]`);
                     badges.forEach(badge => {
                         badge.textContent = cat.count > 0 ? `${cat.count.toLocaleString()} models` : 'Browse';
                     });
