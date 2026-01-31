@@ -175,7 +175,6 @@ const seoSchema = buildIndexSEO();
     </div>
 
     <script>
-        import { initializeSearch } from '../scripts/search.js';
         import { loadHotModels, loadWeeklyReport } from '../scripts/home-client.js';
 
         // V6.2: Load category model counts from category_stats API
@@ -207,11 +206,8 @@ const seoSchema = buildIndexSEO();
             const initialQuery = urlParams.get('q') || '';
             const initialTag = urlParams.get('tag') || '';
             
-            initializeSearch({
-                initialQuery,
-                activeTag: initialTag,
-                isExplorePage: false
-            });
+            // V14.5: Global Search initialization is handled by HomeSearch component
+            // Legacy search.js initializeSearch removed per V16.6 Unification mandate
 
             // Load hot models if no search query or tag
             if (!initialQuery && !initialTag) {

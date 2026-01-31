@@ -8,9 +8,9 @@ let loadError = null;
 
 // Configuration - V6.2: Entity-specific endpoints
 const INDEX_URLS = {
-    model: '/api/cache/trending.json',
-    space: '/api/cache/trending_spaces.json',
-    dataset: '/api/cache/trending_datasets.json'
+    model: 'https://cdn.free2aitools.com/cache/trending.json',
+    space: 'https://cdn.free2aitools.com/cache/trending_spaces.json',
+    dataset: 'https://cdn.free2aitools.com/cache/trending_datasets.json'
 };
 
 // Initialize Index for a specific entity type
