@@ -13,18 +13,9 @@ import ModelCard from '../components/ModelCard.astro';
 import CategoryFilters from '../components/category/CategoryFilters.astro';
 import TopPicks from '../components/category/TopPicks.astro';
 
-// ISR Static Generation - Expert recommendation
-export const prerender = true;
+// SSR Mode - Dynamic data-driven rendering
+// export const prerender = true;
 
-export function getStaticPaths() {
-  return [
-    { params: { category: 'text-generation' } },
-    { params: { category: 'knowledge-retrieval' } },
-    { params: { category: 'vision-multimedia' } },
-    { params: { category: 'automation-workflow' } },
-    { params: { category: 'infrastructure-ops' } },
-  ];
-}
 
 const { category } = Astro.params;
 
