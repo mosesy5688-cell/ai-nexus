@@ -62,7 +62,7 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
       <slot name="actions-mobile" slot="actions-mobile" />
     </EntityStickyHeader>
 
-    <main class="container mx-auto px-4 py-8 max-w-7xl animate-fade-in relative" data-repo-path={repoPath}>
+    <main class="container mx-auto px-2 md:px-4 py-6 max-w-7xl animate-fade-in relative" data-repo-path={repoPath}>
       
       {/* Zone 1: HERO */}
       <section id="hero-zone" class="mb-6 animate-slide-up relative z-10" style="animation-delay: 0.1s;">
@@ -121,14 +121,14 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
             {/* Zone 4: DEEP DIVE */}
             <section id="deep-dive-section">
               <details id="z4-details" open class="group">
-                <summary class="list-none cursor-pointer flex items-center justify-between mb-8 group-open:mb-4">
-                   <h2 class="text-2xl font-black flex items-center gap-2 text-gray-900 dark:text-white">
-                      <span>🔬</span> <span>Deep Dive</span>
+                <summary class="list-none cursor-pointer flex items-center justify-between mb-4 group-open:mb-4">
+                   <h2 class="text-xl font-black flex items-center gap-2 text-gray-900 dark:text-white">
+                      <span>🔬</span> <span>Technical Deep Dive</span>
                    </h2>
-                   <span class="text-indigo-600 dark:text-indigo-400 text-sm font-bold uppercase tracking-wider group-open:hidden">Expand Details [+]</span>
-                   <span class="text-gray-400 group-open:block hidden text-2xl transition-transform duration-300 group-open:rotate-180">▾</span>
+                   <span class="text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider group-open:hidden">Expand Details [+]</span>
+                   <span class="text-gray-400 group-open:block hidden text-xl transition-transform duration-300 group-open:rotate-180">▾</span>
                 </summary>
-                <div class="space-y-12 animate-slide-up">
+                <div class="space-y-8 animate-slide-up">
                   <slot name="deep-dive" />
                 </div>
               </details>

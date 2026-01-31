@@ -147,11 +147,10 @@
         --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.3);
 
         /* ========================================
-           TYPOGRAPHY
+           TYPOGRAPHY (V16.5 Compact Pro)
            ======================================== */
-
-        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        --font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        --font-sans: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
         /* ========================================
            SPACING & SIZING

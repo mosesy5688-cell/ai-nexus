@@ -64,7 +64,7 @@ const daysSinceUpdate = (Date.now() - lastUpdate.getTime()) / (1000 * 3600 * 24)
 const isActive = daysSinceUpdate <= 30 && lastUpdate.getTime() > 0;
 ---
 
-<a href={modelUrl} class="group block bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden h-full border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600">
+<a href={modelUrl} class="group block bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden h-full border border-gray-100 dark:border-gray-800 hover:border-indigo-500/50">
     <!-- V16.4.2: Image Header (Dynamic CDN path) -->
     {cdnImageUrl && (
         <div class="aspect-video w-full overflow-hidden bg-gray-100 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700">
@@ -130,15 +130,15 @@ const isActive = daysSinceUpdate <= 30 && lastUpdate.getTime() > 0;
         )}
 
         <!-- Model Name -->
-        <h3 class="text-lg font-bold text-gray-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mb-1" title={model.name}>
+        <h3 class="text-sm font-black text-gray-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors mb-1 tracking-tight" title={model.name}>
             {model.name}
         </h3>
         
         <!-- Author + Pipeline Tag -->
-        <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mb-3">
+        <div class="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500 mb-3 uppercase font-black tracking-widest">
             <span>by {model.author}</span>
             {model.pipeline_tag && (
-                <span class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-gray-600 dark:text-gray-300">
+                <span class="px-1 py-0.5 bg-gray-50 dark:bg-gray-900 rounded border border-gray-100 dark:border-gray-800">
                     {model.pipeline_tag}
                 </span>
             )}

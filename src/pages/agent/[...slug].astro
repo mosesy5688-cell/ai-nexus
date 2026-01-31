@@ -23,7 +23,6 @@ import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
 import ModelCarousel from '../../components/ModelCarousel.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import QuickCommands from '../../components/common/QuickCommands.astro';
-import QuickCommands from '../../components/common/QuickCommands.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 
 import { prepareAgentPageData } from '../../utils/agent-page-data.js';
@@ -172,9 +171,15 @@ const jsonLd = {
     </div>
   
     {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive" class="space-y-12">
-       <AgentDeepDive agent={agent} />
-       <ModelNavigation />
+    <div slot="deep-dive">
+       <div class="space-y-12">
+          <AgentDeepDive agent={agent} />
+          <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
+             <ModelNavigation 
+                pipelineTag={agent?.pipeline_tag || 'agent-framework'}
+             />
+          </section>
+       </div>
     </div>
 
     {/* Zone 5: Sidebar */}

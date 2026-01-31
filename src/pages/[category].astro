@@ -76,8 +76,8 @@ try {
   console.error(`[Category] Failed to fetch rankings for ${category}:`, e);
 }
 
-const pageTitle = `${meta.name} - Free AI Models | Free2AITools`;
-const pageDescription = meta.description;
+const pageTitle = `${meta.name} - Technical Index | Free2AI`;
+const pageDescription = meta.description + " Powered by Free2AI.";
 
 // Pagination config
 const ITEMS_PER_PAGE = 24;
@@ -89,14 +89,14 @@ const initialModels = models.slice(0, ITEMS_PER_PAGE);
   <main class="container mx-auto px-4 py-8">
     <!-- Header -->
     <header class="mb-8">
-      <div class="flex items-center gap-4 mb-4">
-        <span class="text-5xl">{meta.icon}</span>
+      <div class="flex items-center gap-4 mb-3">
+        <span class="text-4xl">{meta.icon}</span>
         <div>
-          <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 class="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">
             {meta.name}
           </h1>
-          <p class="text-gray-600 dark:text-gray-400 mt-2">
-            <span id="model-count">{totalCount.toLocaleString()}</span> models available
+          <p class="text-[12px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+            <span id="model-count">{totalCount.toLocaleString()}</span> Entities Indexed
           </p>
         </div>
       </div>

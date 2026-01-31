@@ -67,12 +67,12 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                        {tier.nodes.map(node => {
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id={`mesh-grid-${key}`}>
+                        {tier.nodes.map((node, index) => {
                             const path = getRouteFromId(node.id, node.type);
                             
                             return (
-                                <a href={path} class={`mesh-node group relative p-4 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 rounded-2xl hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300`}>
+                                <a href={path} class={`mesh-node group relative p-4 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 rounded-2xl hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 ${index >= 6 ? 'hidden extra-node' : ''}`}>
                                     <div class="flex items-start gap-4">
                                         <div class="node-icon-wrapper relative">
                                             <span class="text-3xl filter grayscale group-hover:grayscale-0 transition-all duration-500 block">
@@ -105,6 +105,15 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
                             );
                         })}
                     </div>
+
+                    {tier.nodes.length > 6 && (
+                        <button 
+                            class="show-more-nodes-btn mt-6 mx-auto flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 transition-all duration-300"
+                            data-target={`mesh-grid-${key}`}
+                        >
+                            <span class="text-[11px] font-black uppercase tracking-widest">+ Expand {tier.nodes.length - 6} Hidden Relations</span>
+                        </button>
+                    )}
                 </div>
             ))}
         </div>
@@ -131,9 +140,36 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
   }
 
   // Run on load and view transitions
+  function initFolding() {
+    const buttons = document.querySelectorAll('.show-more-nodes-btn');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = (btn as HTMLElement).dataset.target;
+            const grid = document.getElementById(targetId!);
+            if (grid) {
+                const extra = grid.querySelectorAll('.extra-node');
+                extra.forEach(el => el.classList.toggle('hidden'));
+                
+                const isHidden = extra[0].classList.contains('hidden');
+                const span = btn.querySelector('span');
+                if (span) {
+                    span.textContent = isHidden ? `+ Expand ${extra.length} Hidden Relations` : '- Collapse View';
+                }
+            }
+        });
+    });
+  }
+
   validateMeshHub();
-  document.addEventListener('astro:after-swap', validateMeshHub);
-  document.addEventListener('astro:page-load', validateMeshHub);
+  initFolding();
+  document.addEventListener('astro:after-swap', () => {
+    validateMeshHub();
+    initFolding();
+  });
+  document.addEventListener('astro:page-load', () => {
+    validateMeshHub();
+    initFolding();
+  });
 </script>
 
 <style>

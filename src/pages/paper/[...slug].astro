@@ -150,9 +150,15 @@ const jsonLd = paper ? {
     </div>
   
     {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive" class="space-y-12">
-       <PaperDeepDive paper={paper} />
-       <ModelNavigation />
+    <div slot="deep-dive">
+       <div class="space-y-12">
+          <PaperDeepDive paper={paper} />
+          <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
+             <ModelNavigation 
+                pipelineTag={paper?.arxiv_category || 'research-paper'}
+             />
+          </section>
+       </div>
     </div>
 
     {/* Zone 5: Sidebar */}

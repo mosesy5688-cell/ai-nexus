@@ -73,9 +73,12 @@ if (type === 'model') {
 const configSpecs = [];
 if (type === 'model') {
   if (entity?.num_layers) configSpecs.push({ label: 'Layers', value: entity.num_layers });
-  if (entity?.hidden_size) configSpecs.push({ label: 'Hidden Size', value: entity.hidden_size });
-  if (entity?.num_heads) configSpecs.push({ label: 'Heads', value: entity.num_heads });
-  if (entity?.vocab_size) configSpecs.push({ label: 'Vocab Size', value: entity.vocab_size.toLocaleString() });
+  if (entity?.hidden_size) configSpecs.push({ label: 'Dimension', value: entity.hidden_size.toLocaleString() });
+  if (entity?.num_heads) configSpecs.push({ label: 'Atn Heads', value: entity.num_heads });
+  if (entity?.kv_heads) configSpecs.push({ label: 'KV Heads', value: entity.kv_heads });
+  if (entity?.moe_experts) configSpecs.push({ label: 'Total Experts', value: entity.moe_experts });
+  if (entity?.moe_active) configSpecs.push({ label: 'Active Experts', value: entity.moe_active });
+  if (entity?.vocab_size) configSpecs.push({ label: 'Vocab', value: `${(entity.vocab_size / 1000).toFixed(0)}K` });
 }
 
 // 4. Cloud & Access Rights

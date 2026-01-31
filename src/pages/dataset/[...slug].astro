@@ -150,9 +150,15 @@ const jsonLd = dataset ? {
     </div>
   
     {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive" class="space-y-12">
-       <DatasetDeepDive dataset={dataset} />
-       <ModelNavigation />
+    <div slot="deep-dive">
+       <div class="space-y-12">
+          <DatasetDeepDive dataset={dataset} />
+          <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
+             <ModelNavigation 
+                pipelineTag={dataset?.pipeline_tag || 'dataset'}
+             />
+          </section>
+       </div>
     </div>
 
     {/* Zone 5: Sidebar */}

@@ -2,15 +2,17 @@
 /* V16.5 Zero-Limit UI Styles */
 
 .markdown-content :global(pre) {
-    max-height: 600px;
+    max-height: 800px;
     overflow-y: auto;
-    border-radius: 12px;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: #0f172a !important;
+    padding: 1rem !important;
 }
 
 .markdown-content :global(code) {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 0.9em;
+    font-family: var(--font-mono);
+    font-size: 0.85em;
 }
 
 /* Zero-Limit UI Strategy */
@@ -98,8 +100,25 @@
     transform: scale(1.01);
 }
 
+/* V16.5 Table of Contents */
+.markdown-toc a {
+    @apply hover:pl-1 transition-all;
+}
+
+/* V16.5 Copy Buttons */
+.markdown-copy-btn {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.group:hover .markdown-copy-btn {
+    opacity: 1;
+    visibility: visible;
+}
+
 /* Tooltip Styles */
 .markdown-content :global(.knowledge-tooltip) {
     position: relative;
     text-decoration: none;
+    @apply transition-all duration-200;
 }

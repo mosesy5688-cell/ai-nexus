@@ -18,15 +18,54 @@ interface Props {
 
 const { content, className = '' } = Astro.props;
 
+// 1. Table of Contents Extraction
+const headers: { depth: number; text: string; slug: string }[] = [];
+const renderer = new marked.Renderer();
+
 // Clean and prepare content
 let processedContent = content || '';
-
 // Remove YAML frontmatter if present (V15.8: Resilient Regex)
 processedContent = processedContent.replace(/^---\s*[\s\S]*?---\s*\n?/g, '');
 
+renderer.heading = (text, depth) => {
+  const slug = text.toLowerCase().replace(/[^\w]+/g, '-');
+  if (depth <= 3) headers.push({ depth, text, slug });
+  return `<h${depth} id="${slug}">${text}</h${depth}>`;
+};
+
+// 2. Code Block Injection (Copy Buttons)
+renderer.code = (code, language) => {
+  const escapedCode = code.replace(/"/g, '&quot;');
+  return `
+    <div class="relative group my-4">
+      <button class="markdown-copy-btn absolute top-2 right-2 p-2 bg-gray-800/50 hover:bg-gray-700/80 text-white rounded-md opacity-0 group-hover:opacity-100 transition-all border border-gray-600/30 backdrop-blur-sm z-10"
+              data-code="${escapedCode}" title="Copy code">
+        <span class="btn-icon text-sm">📋</span>
+        <span class="btn-text hidden">Copy</span>
+      </button>
+      <pre class="relative"><code class="language-${language || 'text'}">${code}</code></pre>
+    </div>
+  `;
+};
+
 // Convert markdown to HTML (server-side)
-const renderedHtml = await marked.parse(processedContent);
+const renderedHtml = await marked.parse(processedContent, { renderer });
 ---
+
+{headers.length > 2 && (
+  <nav class="markdown-toc mb-8 p-4 bg-gray-50 dark:bg-gray-900/30 rounded-xl border border-gray-100 dark:border-gray-800">
+    <div class="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Contents</div>
+    <ul class="space-y-1">
+      {headers.map(h => (
+        <li class={`text-sm ${h.depth === 3 ? 'ml-4' : ''}`}>
+          <a href={`#${h.slug}`} class="text-gray-600 dark:text-gray-400 hover:text-indigo-600 font-medium transition-colors">
+            {h.text}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}
 
 <div class={`markdown-content prose prose-slate dark:prose-invert max-w-none 
             prose-headings:font-bold prose-a:text-indigo-600 dark:prose-a:text-indigo-400

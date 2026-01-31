@@ -171,15 +171,17 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
              modelName={modelName} 
              modelId={modelId} 
            />
+          <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
+             <ModelNavigation 
+                pipelineTag={model?.pipeline_tag}
+                hasGguf={model?.has_gguf}
+             />
+          </section>
        </div>
     </div>
 
     <div slot="sidebar" class="space-y-12">
        <ModelSidebar model={model} modelId={modelId} />
-       <ModelNavigation 
-          pipelineTag={model?.pipeline_tag}
-          hasGguf={model?.has_gguf}
-       />
     </div>
 
     {/* Zone 5: Community */}
