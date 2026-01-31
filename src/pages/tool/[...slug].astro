@@ -19,7 +19,6 @@ import ModelNavigation from '../../components/model-detail/ModelNavigation.astro
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import QuickCommands from '../../components/common/QuickCommands.astro';
-import QuickCommands from '../../components/common/QuickCommands.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import { getUseCases } from '../../utils/inference.js';
 import { prepareToolPageData } from '../../utils/tool-page-data.js';
@@ -154,9 +153,15 @@ const jsonLd = tool ? {
     </div>
   
     {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive" class="space-y-12">
-       <ToolDeepDive tool={tool} />
-       <ModelNavigation />
+    <div slot="deep-dive">
+       <div class="space-y-12">
+          <ToolDeepDive tool={tool} />
+          <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
+             <ModelNavigation 
+                pipelineTag={tool?.language || 'ai-tool'}
+             />
+          </section>
+       </div>
     </div>
 
     {/* Zone 5: Sidebar */}

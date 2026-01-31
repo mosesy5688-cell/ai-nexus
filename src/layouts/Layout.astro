@@ -18,7 +18,7 @@ interface Props {
 // V3.1 Phase 7: Enhanced SEO defaults
 const { 
     title, 
-    description = 'Find the best open-source LLM for your needs. VRAM calculator, one-click deploy, full paper & dataset links. Powered by Fair Nexus Index.', 
+    description = 'The Definitive Open-Source AI Index. VRAM calculator, precision tech specs, neural discovery, and actionable toolchains powered by Free2AI.', 
     image = '/og-image.jpg', 
     jsonld 
 } = Astro.props;
@@ -31,14 +31,14 @@ const defaultSchema = {
     "@graph": [
         {
             "@type": "Organization",
-            "name": "Free2AITools",
+            "name": "Free2AI",
             "url": "https://free2aitools.com",
             "logo": "https://cdn.free2aitools.com/assets/logo.png",
-            "description": "Open-Source AI Model Selection Hub powered by Fair Nexus Index."
+            "description": "The Definitive Open-Source AI Index."
         },
         {
             "@type": "WebSite",
-            "name": "Free2AITools",
+            "name": "Free2AI",
             "url": "https://free2aitools.com",
             "potentialAction": {
                 "@type": "SearchAction",

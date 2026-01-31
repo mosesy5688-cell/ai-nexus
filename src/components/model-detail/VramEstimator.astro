@@ -15,9 +15,11 @@ import { estimateVRAM } from '../../utils/vram-calculator.js';
 interface Props {
   paramsB?: number | string;  // params_billions from D1
   contextLen?: number | string;
+  moe_experts?: number | string;
+  moe_active?: number | string;
 }
 
-const { paramsB, contextLen } = Astro.props;
+const { paramsB, contextLen, moe_experts, moe_active } = Astro.props;
 
 // Parse params (could be number or string)
 const params = typeof paramsB === 'string' ? parseFloat(paramsB) : paramsB;
@@ -27,8 +29,10 @@ const context = typeof contextLen === 'string' ? parseInt(contextLen) : (context
 
 // V15.19 Standard: Default to Q4 (0.75x) for 4-bit mainstream standard
 const estimatedVram = params && !isNaN(params) 
-  ? estimateVRAM(params, 'q4', context) 
+  ? estimateVRAM(params, 'q4', context, { experts: moe_experts, active: moe_active }) 
   : null;
+
+const isMoe = Boolean(moe_experts);
 
 // Show component only if we have valid params
 const hasData = estimatedVram !== null && params && params > 0;
@@ -39,17 +43,17 @@ const hasData = estimatedVram !== null && params && params > 0;
     <div class="flex flex-col gap-4">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="text-2xl">💾</div>
+          <div class="text-xl">💾</div>
           <div>
-            <p class="text-[10px] uppercase font-black text-purple-600/70 dark:text-purple-400/70 tracking-widest">Est. VRAM Memory</p>
-            <p class="text-3xl font-black text-purple-900 dark:text-purple-100 italic">
-              ~<span id="vram-value">{estimatedVram}</span> <span class="text-sm font-normal not-italic opacity-50">GB</span>
+            <p class="text-[9px] uppercase font-black text-purple-600/70 dark:text-purple-400/70 tracking-widest">Est. VRAM Benchmark</p>
+            <p class="text-2xl font-black text-purple-900 dark:text-purple-100 italic tracking-tighter">
+              ~<span id="vram-value">{estimatedVram}</span> <span class="text-xs font-normal not-italic opacity-50 ml-1">GB</span>
             </p>
           </div>
         </div>
         
-        <div class="status-badge px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter bg-purple-200 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700" id="compatibility-status">
-           Ready to Deploy
+        <div class="status-badge px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest bg-purple-200 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 border border-purple-300/50 dark:border-purple-700/50" id="compatibility-status">
+           Analyze Hardware
         </div>
       </div>
 
@@ -71,8 +75,9 @@ const hasData = estimatedVram !== null && params && params > 0;
         </select>
       </div>
       
-      <p class="text-[9px] text-purple-600/50 dark:text-purple-400/50 font-mono leading-tight">
-        * Based on 4-bit Quantization (Q4_K_M). Actual usage may vary by context length.
+      <p class="text-[9px] text-purple-600/60 dark:text-purple-400/60 font-medium leading-tight italic">
+        * Technical estimation for FP16/Q4 weights. Does not include OS overhead or long-context batching. 
+        <span class="block mt-1 font-bold text-red-500/80 uppercase">For Technical Reference Only.</span>
       </p>
     </div>
   </div>

@@ -82,11 +82,11 @@ const typeIcons: Record<string, string> = {
                     {group.label}
                 </h4>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {group.relations.map(rel => (
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id={`relation-grid-${group.label.replace(/\s+/g, '-')}`}>
+                    {group.relations.map((rel, index) => (
                         <a 
                             href={getRouteFromId(rel.target_id, rel.target_type)}
-                            class="group flex items-center justify-between p-4 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50 hover:border-indigo-400 dark:hover:border-indigo-500/50 hover:shadow-md transition-all duration-300"
+                            class={`group flex items-center justify-between p-4 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50 hover:border-indigo-400 dark:hover:border-indigo-500/50 hover:shadow-md transition-all duration-300 ${index >= 6 ? 'hidden extra-relation' : ''}`}
                         >
                             <div class="flex items-center gap-3 min-w-0">
                                 <span class="text-xl group-hover:scale-125 transition-transform duration-300">
@@ -115,7 +115,41 @@ const typeIcons: Record<string, string> = {
                         </a>
                     ))}
                 </div>
+
+                {group.relations.length > 6 && (
+                    <button 
+                        class="show-more-relations-btn mt-4 text-[11px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors flex items-center gap-2"
+                        data-target={`relation-grid-${group.label.replace(/\s+/g, '-')}`}
+                    >
+                        <span>+ View {group.relations.length - 6} More Relations</span>
+                    </button>
+                )}
             </div>
         ))}
     </div>
 )}
+
+<script>
+    function initRelationFolding() {
+        const buttons = document.querySelectorAll('.show-more-relations-btn');
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = (btn as HTMLElement).dataset.target;
+                const grid = document.getElementById(targetId!);
+                if (grid) {
+                    const extra = grid.querySelectorAll('.extra-relation');
+                    extra.forEach(el => el.classList.toggle('hidden'));
+                    
+                    const isHidden = extra[0].classList.contains('hidden');
+                    const span = btn.querySelector('span');
+                    if (span) {
+                        span.textContent = isHidden ? `+ View ${extra.length} More Relations` : '- Show Less';
+                    }
+                }
+            });
+        });
+    }
+
+    initRelationFolding();
+    document.addEventListener('astro:after-swap', initRelationFolding);
+</script>

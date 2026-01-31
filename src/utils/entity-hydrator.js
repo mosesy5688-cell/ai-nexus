@@ -137,11 +137,21 @@ function extractTechSpecs(hydrated, entity, meta) {
     hydrated.hidden_size = hydrated.hidden_size || config.hidden_size || config.n_embd || config.d_model || config.dim;
     hydrated.num_heads = hydrated.num_heads || config.num_attention_heads || config.n_head || config.n_heads;
 
+    // V16.5: MoE & Ghost Field Extraction
+    hydrated.moe_experts = getVal(['num_local_experts', 'num_experts', 'n_experts', 'moe.num_experts']);
+    hydrated.moe_active = getVal(['num_experts_per_tok', 'num_active_experts', 'n_active_experts']);
+    hydrated.kv_heads = getVal(['num_key_value_heads', 'multi_query_attention', 'n_kv_heads']);
+    hydrated.vocab_size = getVal(['vocab_size', 'n_vocab']);
+    hydrated.tie_weights = getVal(['tie_word_embeddings'], false);
+
     if (!hydrated.body_content) {
         hydrated.body_content = entity.body_content || entity.readme || meta.readme || meta.model_card || meta.description || meta.abstract || null;
     }
 
-    // Auto-extract gallery images from body content if not explicitly provided
+    // V16.5: Heuristic README Mining (Deep Spec Recovery)
+    heuristicMining(hydrated);
+
+    // Auto-extract gallery images from body content
     if (hydrated.body_content && (!hydrated.gallery_images || hydrated.gallery_images.length === 0)) {
         const imgRegex = /!\[.*?\]\((.*?)\)/g;
         const images = [];
@@ -150,6 +160,29 @@ function extractTechSpecs(hydrated, entity, meta) {
             if (m[1] && !images.includes(m[1])) images.push(m[1]);
         }
         hydrated.gallery_images = images.slice(0, 6);
+    }
+}
+
+function heuristicMining(hydrated) {
+    if (!hydrated.body_content) return;
+    const body = hydrated.body_content;
+
+    // Architecture Hints
+    if (!hydrated.architecture) {
+        if (body.match(/MoE|Mixture of Experts/i)) hydrated.architecture = 'MoE';
+        else if (body.match(/GQA|Grouped Query Attention/i)) hydrated.architecture = 'GQA';
+    }
+
+    // Parameter Recovery (v16.5 Higher Precision)
+    if (!hydrated.params_billions) {
+        const pMatch = body.match(/(\d+(\.\d+)?)\s?B\s(Parameters|Params)/i);
+        if (pMatch) hydrated.params_billions = parseFloat(pMatch[1]);
+    }
+
+    // Quantization Hints (for VRAM calibration)
+    if (!hydrated.quant_bits) {
+        if (body.match(/Q4_K_M|4-bit/i)) hydrated.quant_bits = 4;
+        else if (body.match(/Q8_0|8-bit/i)) hydrated.quant_bits = 8;
     }
 }
 

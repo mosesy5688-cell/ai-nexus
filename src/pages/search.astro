@@ -21,14 +21,14 @@ const entityTypes = [
 ];
 ---
 
-<Layout title="Search AI Models & Knowledge - Free2AITools">
+<Layout title="Search AI Index - Free2AI">
     <meta slot="head" name="robots" content="noindex, follow" />
     
     <main class="container mx-auto px-4 py-8 max-w-4xl min-h-screen">
         <!-- Search Header -->
-        <div class="mb-8">
-            <h1 id="search-title" class="text-3xl font-bold text-gray-800 dark:text-white mb-4">
-                Search AI Models
+        <div class="mb-6">
+            <h1 id="search-title" class="text-2xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter">
+                Neural Mesh Discovery
             </h1>
             
             <!-- Search Form -->
@@ -38,13 +38,13 @@ const entityTypes = [
                         type="text" 
                         id="results-search-box"
                         name="q" 
-                        placeholder="Search models, spaces, agents..."
-                        class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        placeholder="Search precision technical insights..."
+                        class="flex-1 px-4 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-indigo-500/50 focus:outline-none transition-all"
                         minlength="2"
                     />
                     <button 
                         type="submit"
-                        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                        class="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-black text-sm tracking-widest uppercase"
                     >
                         Search
                     </button>
@@ -53,10 +53,10 @@ const entityTypes = [
                 <!-- Type Filter -->
                 <div class="flex flex-wrap gap-2">
                     {entityTypes.map(type => (
-                        <label class="type-filter-label flex items-center gap-1 px-3 py-1.5 rounded-full cursor-pointer transition-colors bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">
+                        <label class="type-filter-label flex items-center gap-1.5 px-3 py-1 rounded-md cursor-pointer transition-all bg-gray-50 dark:bg-gray-900 text-gray-500 border border-gray-100 dark:border-gray-800 hover:border-indigo-500/50">
                             <input type="radio" name="type" value={type.id} class="sr-only" checked={type.id === 'all'} />
-                            <span>{type.icon}</span>
-                            <span class="text-sm font-medium">{type.label}</span>
+                            <span class="text-sm">{type.icon}</span>
+                            <span class="text-[12px] font-black uppercase tracking-wider">{type.label}</span>
                         </label>
                     ))}
                 </div>
@@ -146,22 +146,27 @@ const entityTypes = [
     function renderResults(items) {
         dom.results.innerHTML = `
             <section>
-                <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                    Results (${items.length})
-                </h2>
-                <div class="grid gap-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-black text-gray-400 uppercase tracking-widest">
+                        Neural Matches (${items.length})
+                    </h2>
+                </div>
+                <div class="grid gap-3">
                     ${items.map(item => `
-                        <a href="/${item.type}/${item.slug || item.id}" class="block p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition">
-                            <div class="flex justify-between items-start">
-                                <div class="flex items-center gap-2">
-                                    <span class="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded uppercase">
+                        <a href="/${item.type}/${item.slug || item.id}" class="group block p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-xl hover:shadow-sm transition-all">
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center gap-3">
+                                    <span class="text-[10px] font-black px-1.5 py-0.5 bg-gray-50 dark:bg-gray-900 text-gray-400 dark:text-gray-500 rounded border border-gray-100 dark:border-gray-800 uppercase tracking-tighter">
                                         ${item.type}
                                     </span>
-                                    <h3 class="font-semibold text-gray-800 dark:text-white">${item.name}</h3>
+                                    <h3 class="text-sm font-black text-gray-900 dark:text-white group-hover:text-indigo-600 transition-colors tracking-tight line-clamp-1">${item.name}</h3>
                                 </div>
-                                ${item.fni_score ? `<span class="text-sm font-bold text-blue-600">FNI ${Math.round(item.fni_score)}</span>` : ''}
+                                ${item.fni_score ? `<span class="text-[12px] font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-800/50">FNI ${Math.round(item.fni_score)}</span>` : ''}
                             </div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">by ${item.author || 'Unknown'}</p>
+                            <div class="mt-2 flex items-center gap-2">
+                                <span class="text-[11px] text-gray-400 font-medium">Author:</span>
+                                <span class="text-[11px] text-gray-600 dark:text-gray-400 font-black">${item.author || 'Open Source'}</span>
+                            </div>
                         </a>
                     `).join('')}
                 </div>
