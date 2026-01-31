@@ -30,10 +30,33 @@ env:
   R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
 jobs:
-  process-images:
-    name: Process Entity Images
+  # V16.7: Identify upstream Aggregate run for reliable cache restoration
+  check-upstream:
+    name: Check Upstream
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    outputs:
+      upstream-run-id: ${{ steps.get-id.outputs.id }}
+    steps:
+      - name: Get ID
+        id: get-id
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.run_id }}" ]; then
+            echo "id=${{ inputs.run_id }}" >> $GITHUB_OUTPUT
+          else
+            # 3.5/4 LINKER and Image Processor are both triggered by 3/4 Aggregate.
+            # We must resolve the parent Aggregate run ID to restore the correct cache.
+            ID=${{ github.event.workflow_run.id }}
+            echo "id=$ID" >> $GITHUB_OUTPUT
+            echo "✅ Targeting Parent Run: $ID"
+          fi
+
+  process-images:
+    name: Process Entity Images
+    needs: check-upstream
+    runs-on: ubuntu-latest
     
     steps:
       - name: Checkout Repository
@@ -66,15 +89,12 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Install Wrangler
-        run: npm install -g wrangler
-
-      # V16.4.1: Restore 'internal cache' from Aggregate (Aligns with 3.5/4)
+      # V16.7: Correct identity restoration using Resolved Upstream ID
       - name: Restore Registry from GitHub Cache
         uses: actions/cache/restore@v4
         with:
           path: output/
-          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}
+          key: entity-data-${{ needs.check-upstream.outputs.upstream-run-id }}
           restore-keys: |
             entity-data-
 
@@ -89,7 +109,7 @@ jobs:
             cp output/meta/backup/global-registry.json data/registry.json
           else
             echo "⚠️ Cache miss: Registry not found in output/meta/backup/. Falling back to R2..."
-            npx wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/registry.json --remote
+            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/registry.json --remote
           fi
           
           # Process in Node.js
@@ -200,28 +220,30 @@ jobs:
         working-directory: tools/rust-img-optimizer
         run: |
           echo "🔄 Converting to WebP..."
-          # V16.4.4: Fix shallow glob with recursive find
+          mkdir -p ../../output/images
           find ../../data/images -name "*.jpg" | while read img; do
-            base_dir=$(dirname "$img")
+            type_dir=$(basename $(dirname "$img"))
+            mkdir -p "../../output/images/$type_dir"
             base_name=$(basename "$img" .jpg)
-            ./target/release/rust-img-optimizer convert --input "$img" --output "${base_dir}/${base_name}.webp" --format webp --quality 75 --max-width 640 2>/dev/null || true
+            ./target/release/rust-img-optimizer convert --input "$img" --output "../../output/images/$type_dir/${base_name}.webp" --format webp --quality 75 --max-width 640 2>/dev/null || true
           done
 
-      - name: Upload Images to R2 with 2-Version Rotation
+      # V16.7: Standardized R2 Upload (WebP Only Policy)
+      - name: Upload Images to R2 (S3 API)
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ai-nexus-assets
         run: |
-          echo "📤 Uploading with 2-version rotation..."
-          find data/images -type f -name "*.webp" | while read webp; do
-            rel_path=$(echo "$webp" | sed 's|data/images/||')
-            
-            echo "🔄 Rotating $rel_path -> ${rel_path%.*}.v-1.webp"
-            wrangler r2 object copy $R2_BUCKET/images/$rel_path $R2_BUCKET/images/${rel_path%.*}.v-1.webp || true
-            wrangler r2 object put $R2_BUCKET/images/$rel_path --file="$webp" --content-type="image/webp"
-          done
-          echo "✅ Image processing complete"
+          echo "📤 Uploading WebP images to R2..."
+          node scripts/factory/r2-upload-s3.js
 
       - name: Update Global Registry (Progressive Drain)
         run: |
           echo "📝 Updating registry with CDN URLs..."
+          # Move output/images to data/images locally for the processor to see them as 'processed'
+          cp -r output/images/* data/images/
           node scripts/factory/lib/image-post-processor.js data/registry.json data/image-results.json
           
           # Sync back to output for persistence
@@ -231,7 +253,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: output/
-          key: entity-data-${{ inputs.run_id || github.event.workflow_run.id }}-img
+          key: entity-data-${{ needs.check-upstream.outputs.upstream-run-id }}-img
 
       - name: Summary
         run: |
@@ -241,5 +263,5 @@ jobs:
             cat data/image-results.json >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          WEBP_COUNT=$(find data/images -name "*.webp" | wc -l)
+          WEBP_COUNT=$(find output/images -name "*.webp" | wc -l)
           echo "- WebP images created/uploaded: $WEBP_COUNT" >> $GITHUB_STEP_SUMMARY

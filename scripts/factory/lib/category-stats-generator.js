@@ -56,26 +56,50 @@ const CATEGORY_ALIASES = {
 /**
  * Get V6 category from entity
  */
+// V16.7 Tier-3 Pattern Inference Logic
+const NAME_PATTERNS = {
+    'knowledge-retrieval': /embed|bert|bge|e5|retriev|sentence|jina|nomic|gte|minilm|mpnet|indexing|rag|vector|supabase/i,
+    'vision-multimedia': /stable.?diffusion|flux|sdxl|dalle|vision|vit|whisper|tts|wav2vec|clip|upscale|yolo|depth|pose|inpaint/i,
+    'automation-workflow': /agent|autom|robot|reward|rl|decision|planner|tool-use|function-call|action|orchestra/i,
+};
+
+/**
+ * Get V6 Category based on entity metadata (Art 3.1)
+ * Tier 1: source-specific (Replicate/CivitAI)
+ * Tier 2: pipeline_tag/tags (Exact Match)
+ * Tier 3: Name pattern inference (V16.7 Intelligence)
+ * Tier 4: Default fallback
+ */
 export function getV6Category(entity) {
-    // Check primary_category first (Replicate, CivitAI, etc.)
+    // Tier 1: Check primary_category (Prioritize source classification)
     if (entity.primary_category) {
         const mapped = CATEGORY_ALIASES[entity.primary_category];
         if (mapped) return mapped;
     }
 
-    // Check pipeline_tag (HuggingFace)
+    // Tier 2: Check pipeline_tag (HuggingFace direct)
     if (entity.pipeline_tag) {
         const mapped = CATEGORY_ALIASES[entity.pipeline_tag];
         if (mapped) return mapped;
     }
 
-    // Check first tag
-    if (entity.tags?.[0]) {
-        const mapped = CATEGORY_ALIASES[entity.tags[0]];
-        if (mapped) return mapped;
+    // Tier 2b: Check tags array
+    if (entity.tags) {
+        const tags = Array.isArray(entity.tags) ? entity.tags :
+            (typeof entity.tags === 'string' ? [entity.tags] : []);
+        for (const tag of tags) {
+            const mapped = CATEGORY_ALIASES[tag];
+            if (mapped) return mapped;
+        }
     }
 
-    // Default
+    // Tier 3: Name pattern inference (V16.7 Intelligence)
+    const name = (entity.name || entity.id || '').toLowerCase();
+    for (const [cat, pattern] of Object.entries(NAME_PATTERNS)) {
+        if (pattern.test(name)) return cat;
+    }
+
+    // Tier 4: Default Fallback
     return 'text-generation';
 }
 

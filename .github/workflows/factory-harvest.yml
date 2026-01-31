@@ -310,6 +310,15 @@ jobs:
               cache/weekly-accum.json
             key: factory-entity-data-${{ github.run_id }}
 
+      # V16.7 FIX: Explicitly save global registry in 1/4 Harvest for next cycle
+      - name: Save Global Registry
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            cache/global-registry*.json
+            cache/entity-checksums.json
+          key: global-registry-${{ github.run_id }}
+
       # Pipeline Summary
       - name: Summary
         run: |
