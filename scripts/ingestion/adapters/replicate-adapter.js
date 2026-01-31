@@ -139,6 +139,7 @@ export class ReplicateAdapter extends BaseAdapter {
             tags: this.extractTags(model),
             license: model.license_url ? 'custom' : null,
             primary_category: this.inferCategory(model),
+            raw_image_url: model.cover_image_url || null,
 
             // Technical
             params_billions: this.extractParamsFromName(model.name),
