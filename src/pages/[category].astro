@@ -68,9 +68,9 @@ try {
   const response = await fetch(rankingsUrl);
   if (response.ok) {
     const data = await response.json();
-    // V10.1 Fix: CDN returns 'items' not 'models'
-    models = data.items || data.models || [];
-    totalCount = data.total_items || models.length;
+    // V10.1 / V16.6 Fix: CDN returns 'entities' for Universal Protocol
+    models = data.entities || data.items || data.models || [];
+    totalCount = data.totalEntities || data.total_items || models.length;
   }
 } catch (e) {
   console.error(`[Category] Failed to fetch rankings for ${category}:`, e);

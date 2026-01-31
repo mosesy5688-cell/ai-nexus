@@ -111,7 +111,9 @@ const CATEGORY_META: Record<string, { label: string; icon: string; description: 
                 
                 if (data.categories) {
                     data.categories.forEach(cat => {
-                        const badges = document.querySelectorAll(`.category-count[data-category="${cat.category}"]`);
+                        const catId = cat.id || cat.category;
+                        if (!catId) return;
+                        const badges = document.querySelectorAll(`.category-count[data-category="${catId}"]`);
                         badges.forEach(badge => {
                             badge.textContent = `${cat.count.toLocaleString()} Models`;
                         });
