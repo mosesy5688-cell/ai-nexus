@@ -138,6 +138,15 @@ jobs:
           key: factory-entity-data-${{ needs.check-upstream.outputs.harvest-run-id }}
           fail-on-cache-miss: true
 
+      # V16.7 FIX: Explicitly restore global registry from cache before fallback to R2
+      - name: Restore Global Registry
+        uses: actions/cache/restore@v4
+        with:
+          path: cache/global-registry*.json
+          key: global-registry-${{ needs.check-upstream.outputs.harvest-run-id }}
+          restore-keys: |
+            global-registry-
+
       # Run aggregator
       - name: Run Aggregator
         env:

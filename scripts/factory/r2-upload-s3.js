@@ -111,14 +111,28 @@ async function uploadFile(s3, localPath, remotePath, remoteETag) {
         const content = await fs.readFile(localPath);
         const localMD5 = crypto.createHash('md5').update(content).digest('hex');
 
-        // V15: Compare with pre-fetched ETag (no network call!)
         if (localMD5 === remoteETag) {
             return { success: true, path: remotePath, skipped: true };
         }
 
-        const contentType = remotePath.endsWith('.json') ? 'application/json' :
-            remotePath.endsWith('.xml') ? 'application/xml' :
-                remotePath.endsWith('.gz') ? 'application/gzip' : 'application/octet-stream';
+        // V16.7: Strict WebP-Only Image Policy & Expanded MIME support
+        if (remotePath.startsWith('images/') && !remotePath.endsWith('.webp')) {
+            console.log(`[POLICY] Skipping non-WebP image: ${remotePath}`);
+            return { success: true, path: remotePath, skipped: true, untracked: true };
+        }
+
+        const mimeMap = {
+            '.json': 'application/json',
+            '.xml': 'application/xml',
+            '.gz': 'application/gzip',
+            '.webp': 'image/webp',
+            '.svg': 'image/svg+xml',
+            '.txt': 'text/plain',
+            '.html': 'text/html',
+        };
+
+        const ext = path.extname(remotePath).toLowerCase();
+        const contentType = mimeMap[ext] || 'application/octet-stream';
 
         // Entity versioning for hot data
         if (remotePath.includes('cache/') || remotePath.includes('entities/')) {

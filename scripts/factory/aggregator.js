@@ -29,7 +29,7 @@ const CONFIG = {
 async function main() {
     console.log('[AGGREGATOR] Phase 2 starting (Stateful Mode)...');
 
-    process.env.ENABLE_R2_BACKUP = 'false';
+    process.env.ENABLE_R2_BACKUP = 'true';
     const entitiesInputPath = process.env.ENTITIES_PATH || './data/merged.json';
     const allEntities = JSON.parse(await fs.readFile(entitiesInputPath, 'utf-8'));
     console.log(`✓ Context loaded: ${allEntities.length} entities ready for Knowledge Mesh & Ranking`);
