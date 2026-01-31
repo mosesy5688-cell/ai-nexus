@@ -173,12 +173,12 @@ const jsonLd = {
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">
        <div class="space-y-12">
-          <AgentDeepDive agent={agent} />
-          <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
+          <section class="mb-12">
              <ModelNavigation 
                 pipelineTag={agent?.pipeline_tag || 'agent-framework'}
              />
           </section>
+          <AgentDeepDive agent={agent} />
        </div>
     </div>
 
