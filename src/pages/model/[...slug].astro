@@ -164,6 +164,12 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
   
     <div slot="deep-dive">
        <div class="space-y-12">
+          <section class="mb-12">
+             <ModelNavigation 
+                pipelineTag={model?.pipeline_tag}
+                hasGguf={model?.has_gguf}
+             />
+          </section>
           <ModelMainColumn 
              model={model} 
              hasFNI={hasFNI} 
@@ -171,12 +177,6 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
              modelName={modelName} 
              modelId={modelId} 
            />
-          <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
-             <ModelNavigation 
-                pipelineTag={model?.pipeline_tag}
-                hasGguf={model?.has_gguf}
-             />
-          </section>
        </div>
     </div>
 

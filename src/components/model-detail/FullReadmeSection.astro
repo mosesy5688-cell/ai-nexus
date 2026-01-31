@@ -37,12 +37,12 @@ const getTitle = (t: string, provided?: string) => {
     case 'agent': return 'Agent Profile';
     case 'space': return 'Space Overview';
     case 'tool': return 'Tool Documentation';
-    default: return 'Model Card';
+    default: return 'README';
   }
 };
 
 const displayTitle = getTitle(type, title);
-const toggleLabel = type === 'dataset' ? 'Dataset Card' : (type === 'tool' ? 'Documentation' : 'Profile');
+const toggleLabel = type === 'dataset' ? 'Dataset Card' : (type === 'tool' ? 'Documentation' : 'README');
 
 // Clean content (V15.8: Resilient Regex)
 let content = (bodyContent || '').replace(/^---\s*[\s\S]*?---\s*\n?/g, '');
