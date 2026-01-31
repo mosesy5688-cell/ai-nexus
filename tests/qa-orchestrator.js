@@ -28,7 +28,7 @@ const TESTS = [
     { name: 'API: Search', url: '/api/search?q=llama&limit=3', expectStatus: 200, json: true, mustHave: ['results'] },
     { name: 'API: Trending', url: '/api/trending.json', expectStatus: 200, json: true },
     { name: 'API: Related Models', url: '/api/related-models', expectStatus: 200, json: true },
-    { name: 'API: Health', url: '/api/health', expectStatus: 200, json: true },
+    // { name: 'API: Health', url: '/api/health', expectStatus: 200, json: true }, // V16.7: Legacy /api/health removed
 
     // V4.8.2 L8 Cache Endpoints
     { name: 'Cache: neural_graph.json', url: '/api/cache/neural_graph.json', expectStatus: 200, json: true, mustHave: ['nodes', 'links'] },
