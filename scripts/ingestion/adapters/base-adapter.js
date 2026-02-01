@@ -9,6 +9,7 @@
  */
 
 import crypto from 'crypto';
+import { normalizeId } from '../../utils/id-normalizer.js';
 
 /**
  * Unified Entity Schema - All adapters must output this format
@@ -165,23 +166,11 @@ export class BaseAdapter {
      * V16.96: Implementation of Universal Prefixing Standard V2.0
      */
     generateId(author, name, type = null) {
-        const sourceMap = {
-            'huggingface': 'hf',
-            'github': 'gh',
-            'arxiv': 'arxiv',
-            'kaggle': 'kaggle',
-            'civitai': 'civitai',
-            'ollama': 'ollama'
-        };
-
-        const shortSource = sourceMap[this.sourceName] || this.sourceName;
         const resolvedType = type || (this.entityTypes.length === 1 ? this.entityTypes[0] : 'model');
+        const rawId = `${author}/${name}`;
 
-        const safeAuthor = this.sanitizeName(author);
-        const safeName = this.sanitizeName(name);
-
-        // Standard: {source}-{type}--{author}--{name}
-        return `${shortSource}-${resolvedType}--${safeAuthor}--${safeName}`;
+        // Centralized normalization (V2.0 Standard)
+        return normalizeId(rawId, this.sourceName, resolvedType);
     }
 
     /**

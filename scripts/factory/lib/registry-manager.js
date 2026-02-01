@@ -46,7 +46,7 @@ export class RegistryManager {
         // 1. Seed with existing registry
         for (const e of this.registry.entities) {
             const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
-            registryMap.set(id, { ...e, status: 'archived' });
+            registryMap.set(id, { ...e, id, status: 'archived' });
             archivedCount++;
         }
 
@@ -59,6 +59,7 @@ export class RegistryManager {
                 const merged = this.mergeEntityMetadata(existing, e);
                 registryMap.set(id, {
                     ...merged,
+                    id, // Ensure clean ID
                     status: 'active', // Promotion to active
                     _last_seen: new Date().toISOString()
                 });
@@ -66,6 +67,7 @@ export class RegistryManager {
             } else {
                 registryMap.set(id, {
                     ...e,
+                    id, // Inject normalized ID
                     status: 'active',
                     _last_seen: new Date().toISOString()
                 });

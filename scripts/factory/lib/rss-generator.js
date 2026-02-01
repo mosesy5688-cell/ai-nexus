@@ -3,7 +3,7 @@
  * SPEC: SPEC-KNOWLEDGE-MESH-V16.2 Section 9
  * 
  * Generates RSS feeds:
- * - rss/reports.xml - Weekly/Annual reports
+ * - rss/reports.xml - Daily/Annual reports
  * - rss/knowledge.xml - Knowledge articles
  * 
  * Runs in Factory 3.5/4 Linker Job 6
@@ -92,8 +92,8 @@ async function generateReportsRss(outputDir) {
     }
 
     let xml = rssHeader(
-        'Free2AITools - AI Weekly Reports',
-        'Weekly analysis of AI models, tools, and trends',
+        'Free2AITools - AI Daily Reports',
+        'Daily analysis of AI models, tools, and trends',
         `${CONFIG.SITE_URL}/reports`
     );
 

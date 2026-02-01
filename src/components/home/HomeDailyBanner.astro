@@ -1,14 +1,14 @@
 ---
-// src/components/home/HomeWeeklyBanner.astro
+// src/components/home/HomeDailyBanner.astro
 ---
-<!-- V4.9.1 Step 2.3: Weekly Report Banner (CEO Iron Law) -->
-<section id="weekly-report-banner" class="mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl hidden">
+<!-- V16.7.2: Daily Report Banner (Transitioned from Weekly) -->
+<section id="daily-report-banner" class="mb-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl hidden">
     <div class="flex flex-col md:flex-row items-center justify-between gap-4">
         <div class="flex items-center gap-4">
             <div class="text-4xl">📊</div>
             <div>
-                <h3 class="text-lg font-bold" id="report-title">This Week in AI</h3>
-                <p class="text-sm text-indigo-200" id="report-summary">Loading weekly trends...</p>
+                <h3 class="text-lg font-bold" id="report-title">Today in AI</h3>
+                <p class="text-sm text-indigo-200" id="report-summary">Loading daily trends...</p>
             </div>
         </div>
         <div class="flex gap-3">
@@ -16,7 +16,7 @@
                 🏆 Top Model: <span id="report-top-model">--</span>
             </a>
             <a href="/reports" class="bg-white text-indigo-600 hover:bg-indigo-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                View Full Report →
+                View Full Daily Report →
             </a>
         </div>
     </div>

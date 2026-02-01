@@ -1,9 +1,8 @@
 ---
 /**
- * Weekly Trending Section V5.0
- * Displays L8 precomputed trending models for weekly reports
+ * Daily Trending Section V16.7.2 (Transitioned from Weekly)
+ * Displays L8 precomputed trending models for daily reports
  * Real-time data from R2 cache
- * CES-001: Clean URL format
  */
 import { generateEntityUrl } from '../utils/url-utils.js';
 
@@ -31,7 +30,7 @@ try {
         }
     }
 } catch (e) {
-    console.error('[WeeklyTrendingSection] Error:', e);
+    console.error('[DailyTrendingSection] Error:', e);
 }
 
 const hasTrending = trendingData && trendingData.results && trendingData.results.length > 0;
@@ -39,12 +38,12 @@ const topModels = hasTrending ? trendingData.results.slice(0, 10) : [];
 const generatedAt = trendingData?.generated_at ? new Date(trendingData.generated_at) : null;
 ---
 
-<section class="weekly-trending bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg mb-8">
+<section class="daily-trending bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg mb-8">
     <div class="header">
-        <h2 class="title">📈 This Week's Trending Models</h2>
+        <h2 class="title">📈 Today's Trending Models</h2>
         {generatedAt && (
             <span class="generated-date">
-                Updated: {generatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                Updated: {generatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </span>
         )}
     </div>
@@ -74,7 +73,7 @@ const generatedAt = trendingData?.generated_at ? new Date(trendingData.generated
     ) : (
         <div class="no-data">
             <p>Trending data unavailable</p>
-            <span class="hint">Data will be generated at next L8 cycle</span>
+            <span class="hint">Data will be generated at next backend cycle</span>
         </div>
     )}
     
@@ -84,7 +83,7 @@ const generatedAt = trendingData?.generated_at ? new Date(trendingData.generated
 </section>
 
 <style>
-    .weekly-trending {
+    .daily-trending {
         border: 1px solid rgba(99, 102, 241, 0.2);
     }
     
@@ -171,13 +170,13 @@ const generatedAt = trendingData?.generated_at ? new Date(trendingData.generated
         font-weight: 600;
     }
     
-    .fni.high { background: rgba(var(--color-success), 0.2); color: var(--color-success-dark); }
-    .fni.mid { background: rgba(var(--color-warning), 0.2); color: var(--color-warning-dark); }
-    .fni.low { background: rgba(var(--color-error), 0.2); color: var(--color-error-dark); }
+    .fni.high { background: rgba(34, 197, 94, 0.2); color: #15803d; }
+    .fni.mid { background: rgba(234, 179, 8, 0.2); color: #854d0e; }
+    .fni.low { background: rgba(239, 68, 68, 0.2); color: #b91c1c; }
     
     .downloads {
         font-size: 0.75rem;
-        color: var(--theme-text-muted);
+        color: var(--gray-500);
     }
     
     .footer {
@@ -186,7 +185,7 @@ const generatedAt = trendingData?.generated_at ? new Date(trendingData.generated
     }
     
     .view-all {
-        color: var(--color-primary-600);
+        color: var(--indigo-600);
         text-decoration: none;
         font-weight: 600;
     }
@@ -198,17 +197,17 @@ const generatedAt = trendingData?.generated_at ? new Date(trendingData.generated
     .no-data {
         text-align: center;
         padding: 2rem;
-        color: var(--theme-text-muted);
+        color: var(--gray-500);
     }
     
     .hint {
         font-size: 0.75rem;
-        color: var(--theme-text-disabled);
+        color: var(--gray-400);
     }
     
-    /* Dark mode enhancements via .dark class */
-    :global(.dark) .title { color: var(--gray-100); }
+    /* Dark mode enhancements */
+    :global(.dark) .title { color: white; }
     :global(.dark) .trending-item { background: rgba(31, 41, 55, 0.8); }
-    :global(.dark) .model-name { color: var(--gray-100); }
-    :global(.dark) .rank { color: var(--color-primary-400); }
+    :global(.dark) .model-name { color: white; }
+    :global(.dark) .rank { color: #818cf8; }
 </style>

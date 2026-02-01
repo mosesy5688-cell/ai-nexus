@@ -39,7 +39,8 @@ async function processEntity(entity, allEntities, entityChecksums) {
         const id = normalizeId(entity.id || entity.slug, getNodeSource(entity.id || entity.slug, entity.type), entity.type);
 
         if (!hasValidCachePath(entity)) {
-            return { id: id, success: false, error: 'Invalid cache path' };
+            console.warn(`[WARN] Skipping ${entity.id || 'unknown'} - Invalid cache path`);
+            return { id: id || entity.id, success: false, error: 'Invalid cache path' };
         }
 
         // Calculate FNI using existing module
@@ -61,15 +62,13 @@ async function processEntity(entity, allEntities, entityChecksums) {
             fni_v: fni.fni_v,
             fni_c: fni.fni_c,
             fni_u: fni.fni_u,
-            _version: '16.3.0',
+            _version: '16.7.1',
             _updated: isChanged ? new Date().toISOString() : currentUpdated,
             _checksum: entityHash,
         };
 
-        // Smart Write with Versioning (Art 2.2 + Art 2.4)
-        // Path: cache/entities/{type}/{source}--{author}--{name}.json
-        const slugForPath = id.replace(/:/g, '--').replace(/\//g, '--');
-        const key = `cache/entities/${enriched.type || 'model'}/${slugForPath}.json`;
+        // Smart Write (V2.0 Standard: id is safe for filenames)
+        const key = `cache/entities/${enriched.type || 'model'}/${id}.json`;
         await smartWriteWithVersioning(key, enriched);
 
         return {
@@ -156,14 +155,17 @@ async function main() {
             break;
         }
 
-        // V14.5: Check if entity changed since last run
+        // V16.7.1: Normalize ID FIRST (Protocol V1.3 Alignment)
+        const normId = normalizeId(entity.id || entity.slug, getNodeSource(entity.id || entity.slug, entity.type), entity.type);
+
+        // Check if entity changed since last run (Hash after normalization)
         const entityHash = crypto.createHash('sha256')
-            .update(JSON.stringify(entity))
+            .update(JSON.stringify({ ...entity, id: normId }))
             .digest('hex');
 
-        if (entityChecksums[entity.id] === entityHash) {
+        if (entityChecksums[normId] === entityHash) {
             skippedCount++;
-            results.push({ id: entity.id, success: true, skipped: true, _checksum: entityHash });
+            results.push({ id: normId, success: true, skipped: true, _checksum: entityHash });
             continue; // Skip unchanged entity
         }
 

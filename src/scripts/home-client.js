@@ -38,9 +38,9 @@ export async function loadHotModels() {
     }
 }
 
-// V4.9.1: Weekly Report Banner Loader
-export async function loadWeeklyReport() {
-    const banner = document.getElementById('weekly-report-banner');
+// V16.8.1: Daily Report Banner Loader (Standardized to YYYY-MM-DD + 7-Day Fallback)
+export async function loadDailyReport() {
+    const banner = document.getElementById('daily-report-banner');
     const titleEl = document.getElementById('report-title');
     const summaryEl = document.getElementById('report-summary');
     const topModelEl = document.getElementById('report-top-model');
@@ -49,52 +49,52 @@ export async function loadWeeklyReport() {
     if (!banner) return;
 
     try {
-        // Get current week number
         const now = new Date();
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
-        const weekNum = Math.ceil((((now.getTime() - startOfYear.getTime()) / 86400000) + startOfYear.getDay() + 1) / 7);
-        const reportKey = `${now.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+        let reportData = null;
+        let foundDate = null;
 
-        // Fetch latest report
-        const response = await fetch(`/reports/${reportKey}.json`);
-        let data;
+        // Try last 7 days (Daily reports are prioritized)
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(now);
+            date.setDate(now.getDate() - i);
+            const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
 
-        if (!response.ok) {
-            // Try previous week if current doesn't exist
-            const prevWeek = weekNum - 1;
-            const prevReportKey = `${now.getFullYear()}-W${String(prevWeek).padStart(2, '0')}`;
-            const prevResponse = await fetch(`/reports/${prevReportKey}.json`);
-            if (!prevResponse.ok) throw new Error('No report available');
-            data = await prevResponse.json();
-        } else {
-            data = await response.json();
+            try {
+                const response = await fetch(`https://cdn.free2aitools.com/cache/reports/daily/${dateKey}.json`);
+                if (response.ok) {
+                    reportData = await response.json();
+                    foundDate = dateKey;
+                    break;
+                }
+            } catch (e) {
+                continue;
+            }
         }
 
-        // Populate banner
-        titleEl.textContent = `Week ${data.week || weekNum} AI Trends`;
+        if (!reportData) throw new Error('No recent daily report found');
 
-        if (data.this_week_changed?.fni_leader) {
-            const leader = data.this_week_changed.fni_leader;
+        // Populate banner with Daily nomenclature
+        titleEl.textContent = `Daily AI Update: ${foundDate}`;
+
+        // V16.8.1: Support both legacy 'this_week_changed' and new 'daily_brief' structures
+        const briefing = reportData.daily_brief || reportData.this_week_changed || {};
+        const leader = briefing.fni_leader || (reportData.who_to_watch ? reportData.who_to_watch[0] : null);
+
+        if (leader) {
             const leaderType = leader.type || 'model';
             const leaderPrefix = leaderType === 'agent' ? '/agent/' : leaderType === 'dataset' ? '/dataset/' : leaderType === 'tool' ? '/tool/' : leaderType === 'paper' ? '/paper/' : '/model/';
-            summaryEl.textContent = `${data.this_week_changed.new_models_count || 0} new models this week!`;
+            const count = briefing.new_entities_count || briefing.new_models_count || 0;
+
+            summaryEl.textContent = count > 0 ? `${count} new entities tracked today!` : 'Review the latest FNI leaderboards.';
             topModelEl.textContent = leader.name;
             topModelLink.href = `${leaderPrefix}${leader.slug.replace(/^[a-z]+:/i, '').replace(/^(model|agent|dataset|tool|paper|space)s?\//i, '')}`;
-        } else if (data.who_to_watch?.[0]) {
-            const top = data.who_to_watch[0];
-            const topType = top.type || 'model';
-            const topPrefix = topType === 'agent' ? '/agent/' : topType === 'dataset' ? '/dataset/' : topType === 'tool' ? '/tool/' : topType === 'paper' ? '/paper/' : '/model/';
-            summaryEl.textContent = data.why_it_matters?.summary?.slice(0, 100) + '...' || 'Check out this week\'s top models';
-            topModelEl.textContent = top.name;
-            topModelLink.href = `${topPrefix}${top.slug.replace(/^[a-z]+:/i, '').replace(/^(model|agent|dataset|tool|paper|space)s?\//i, '')}`;
         }
 
-        // Show banner
         banner.classList.remove('hidden');
     } catch (e) {
-        console.log('[WeeklyReport] No report available, falling back to trending:', e.message);
+        console.warn('[DailyReport] Daily fetch failed, falling back to legacy/trending:', e.message);
 
-        // Fallback: Use trending data instead
+        // Final fallback: Use trending.json
         try {
             const trendingRes = await fetch('https://cdn.free2aitools.com/cache/trending.json');
             if (trendingRes.ok) {
@@ -102,11 +102,8 @@ export async function loadWeeklyReport() {
                 const topModel = trendingData.models?.[0];
 
                 if (topModel) {
-                    const now = new Date();
-                    const weekNum = Math.ceil((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
-
-                    titleEl.textContent = `Week ${weekNum} AI Trends`;
-                    summaryEl.textContent = `${trendingData.count || 100} trending models this week!`;
+                    titleEl.textContent = `Daily AI Pulse`;
+                    summaryEl.textContent = `${trendingData.count || 100} top-rated entities today.`;
                     topModelEl.textContent = topModel.name;
 
                     const topModelType = topModel.type || 'model';
@@ -117,8 +114,7 @@ export async function loadWeeklyReport() {
                 }
             }
         } catch (fallbackErr) {
-            console.log('[WeeklyReport] Fallback also failed, hiding banner');
-            // Banner stays hidden
+            console.error('[DailyReport] All fallbacks failed.');
         }
     }
 }

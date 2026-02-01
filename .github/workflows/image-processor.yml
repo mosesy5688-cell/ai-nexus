@@ -104,125 +104,20 @@ jobs:
           mkdir -p data/images
           
           # Check if registry exists in cache
-          if [ -f "output/meta/backup/global-registry.json" ]; then
-            echo "✅ Verified: Registry exists in GitHub Cache. Using local copy."
-            cp output/meta/backup/global-registry.json data/registry.json
+          if [ -d "output/meta/backup" ]; then
+            echo "✅ Verified: Registry backup exists in GitHub Cache. Using it."
+            node scripts/factory/prepare-image-queue.js output/meta/backup ${{ inputs.batch_size || 2000 }}
           else
             echo "⚠️ Cache miss: Registry not found in output/meta/backup/. Falling back to R2..."
-            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/registry.json --remote
+            mkdir -p data
+            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/global-registry.json --remote
+            node scripts/factory/prepare-image-queue.js data ${{ inputs.batch_size || 2000 }}
           fi
-          
-          # Process in Node.js
-          node -e "
-          const fs = require('fs');
-          try {
-            if (!fs.existsSync('data/registry.json')) {
-               console.error('❌ Registry file missing both in cache and R2 backup');
-               process.exit(1);
-            }
-            const registry = JSON.parse(fs.readFileSync('data/registry.json', 'utf8'));
-            const entities = registry.entities || [];
-            
-            console.log('📊 Registry loaded:', entities.length, 'entities');
-            
-            // Extract image URLs needing processing (Prioritize by FNI score)
-            const imageUrls = entities.filter(e => e.image_url && !e.image_url.includes('free2aitools.com'))
-              .sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0))
-              .slice(0, ${{ inputs.batch_size || 2000 }})
-              .map(e => ({
-                id: e.id || e.slug,
-                source_url: e.image_url,
-                type: e.type || 'model'
-              }));
-
-            fs.writeFileSync('data/image-queue.json', JSON.stringify(imageUrls, null, 2));
-            console.log('✅ Image queue created:', imageUrls.length, 'tasks');
-          } catch (e) {
-            console.error('❌ Failed to process registry:', e.message);
-            process.exit(1);
-          }
-          "
 
       - name: Download and Convert Images
         run: |
           echo "🖼️ Processing images..."
-          
-          node -e "
-          const fs = require('fs');
-          const https = require('https');
-          const http = require('http');
-          const path = require('path');
-          
-          const queue = JSON.parse(fs.readFileSync('data/image-queue.json', 'utf-8'));
-          const results = { success: 0, failed: 0, skipped: 0 };
-          
-          async function downloadImage(url, dest, depth = 0) {
-            if (depth > 5) throw new Error('Too many redirects');
-            return new Promise((resolve, reject) => {
-              const protocol = url.startsWith('https') ? https : http;
-              const options = {
-                timeout: 15000,
-                headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                  'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-                  'Referer': 'https://huggingface.co/'
-                }
-              };
-              protocol.get(url, options, (res) => {
-                if (res.statusCode === 200) {
-                  const file = fs.createWriteStream(dest);
-                  res.pipe(file);
-                  file.on('finish', () => { file.close(); resolve(true); });
-                } else if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                  const absoluteUrl = new URL(res.headers.location, url).toString();
-                  downloadImage(absoluteUrl, dest, depth + 1).then(resolve).catch(reject);
-                } else {
-                  reject(new Error('Status: ' + res.statusCode));
-                }
-              }).on('error', reject);
-            });
-          }
-
-          const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-          
-          async function processQueue() {
-            for (const item of queue) {
-              const safeId = (item.id || 'unknown').replace(/[/:]/g, '--');
-              const type = item.type || 'model';
-              const destDir = path.join('data/images', type);
-              if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
-              
-              const destPath = path.join(destDir, safeId + '.jpg');
-              
-              try {
-                if (fs.existsSync(destPath)) { results.skipped++; continue; }
-                
-                // V16.4.4: Polite Crawling (500ms - 1500ms jitter)
-                const delay = 500 + Math.random() * 1000;
-                await sleep(delay);
-
-                await downloadImage(item.source_url, destPath);
-                results.success++;
-                console.log('✅ [' + type + '] ' + safeId);
-              } catch (err) {
-                results.failed++;
-                console.log('❌ [' + type + '] ' + safeId + ': ' + err.message);
-              }
-            }
-            console.log('Results:', results);
-            fs.writeFileSync('data/image-results.json', JSON.stringify(results, null, 2));
-          }
-          
-          (async () => {
-            try {
-              await processQueue();
-              console.log('✅ Queue processing finished');
-            } catch (e) {
-              console.error('❌ Queue processing failed:', e.message);
-              process.exit(1);
-            }
-          })();
-          "
+          node scripts/factory/download-images.js
 
       - name: Convert to WebP (Rust)
         working-directory: tools/rust-img-optimizer
@@ -243,6 +138,7 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
+          R2_PREFIX_FILTER: images/
         run: |
           echo "📤 Uploading WebP images to R2..."
           node scripts/factory/r2-upload-s3.js

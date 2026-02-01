@@ -10,7 +10,7 @@ import Layout from '../layouts/Layout.astro';
 // Components
 import HomeHero from '../components/home/HomeHero.astro';
 import HomeSearch from '../components/home/HomeSearch.astro';
-import HomeWebsiteBanner from '../components/home/HomeWeeklyBanner.astro';
+import HomeDailyBanner from '../components/home/HomeDailyBanner.astro';
 import HomeSkeleton from '../components/home/HomeSkeleton.astro';
 import HomeEntitySection from '../components/home/HomeEntitySection.astro';
 import OnboardingTour from '../components/common/OnboardingTour.astro';
@@ -48,7 +48,7 @@ const seoSchema = buildIndexSEO();
         <!-- V3.1 Phase 6: Search FIRST in flow -->
         <HomeSearch initialQuery={initialQuery} />
 
-        <HomeWebsiteBanner />
+        <HomeDailyBanner />
 
         <!-- V9.0: Search Results Grid (appears immediately after search) -->
         <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden mb-8">
@@ -175,7 +175,7 @@ const seoSchema = buildIndexSEO();
     </div>
 
     <script>
-        import { loadHotModels, loadWeeklyReport } from '../scripts/home-client.js';
+        import { loadHotModels, loadDailyReport } from '../scripts/home-client.js';
 
         // V6.2: Load category model counts from category_stats API
         async function loadCategoryCounts() {
@@ -219,8 +219,8 @@ const seoSchema = buildIndexSEO();
                 });
             }
 
-            // V4.9.1 Step 2.3: Load Weekly Report Banner
-            loadWeeklyReport();
+            // V4.9.1 Step 2.3: Load Daily Report Banner
+            loadDailyReport();
 
             // V6.2: Load category counts
             loadCategoryCounts();

@@ -21,6 +21,7 @@ export type EntityType =
     | 'collection'   // Curated lists
     | 'comparison'   // Model comparisons
     | 'tool'         // Tier 4: Ecosystem - Specialized AI tools
+    | 'prompt'       // Tier 3: Knowledge - Prompts (LangChain)
     | 'deployment';  // Hosted instances
 
 /**
@@ -28,20 +29,40 @@ export type EntityType =
  * Used by deriveEntityType() function
  */
 export const ENTITY_ID_PREFIXES: Record<string, EntityType> = {
+    // Tier 1: Core
     'hf-model--': 'model',
+    'gh-model--': 'model',
+    'kaggle-model--': 'model',
+    'civitai-model--': 'model',
+    'ollama-model--': 'model',
+    'replicate-model--': 'model',
+
+    // Tier 2: Enablers
     'hf-dataset--': 'dataset',
+    'kaggle-dataset--': 'dataset',
     'hf-space--': 'space',
     'benchmark--': 'benchmark',
-    'arxiv--': 'paper',
-    'agent--': 'agent',
-    'github-agent--': 'agent',  // V12: GitHub agent frameworks
+
+    // Tier 3: Knowledge
+    'arxiv-paper--': 'paper',
+    'hf-paper--': 'paper',
     'tutorial--': 'tutorial',
-    'org--': 'organization',
+    'knowledge--': 'knowledge' as any, // fallback for legacy
+
+    // Tier 4: Ecosystem
+    'gh-agent--': 'agent',
+    'hf-agent--': 'agent',
+    'langchain-agent--': 'agent',
+    'mcp-server--': 'agent' as any, // server as agent
+    'gh-tool--': 'tool',
+    'gh-repo--': 'tool',
+
+    // Others
     'collection--': 'collection',
     'compare--': 'comparison',
     'deploy--': 'deployment',
-    'hf-agent--': 'agent',
-    'tool--': 'tool',
+    'report--': 'paper' as any, // reports are specialized knowledge
+    'langchain-prompt--': 'prompt',
 };
 
 /**

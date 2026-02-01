@@ -11,10 +11,15 @@ const PREFIX_MAP = {
         model: 'hf-model--',
         dataset: 'hf-dataset--',
         space: 'hf-space--',
+        paper: 'hf-paper--',
+        collection: 'hf-collection--',
     },
     gh: {
         agent: 'gh-agent--',
         tool: 'gh-tool--',
+        model: 'gh-model--',
+        repo: 'gh-repo--',
+        space: 'gh-space--', // Added for completeness
     },
     arxiv: {
         paper: 'arxiv-paper--',
@@ -24,38 +29,32 @@ const PREFIX_MAP = {
     },
     kaggle: {
         dataset: 'kaggle-dataset--',
+        model: 'kaggle-model--',
     },
     replicate: {
         model: 'replicate-model--',
+    },
+    langchain: {
+        agent: 'langchain-agent--',
+        prompt: 'langchain-prompt--',
+    },
+    mcp: {
+        agent: 'mcp-server--',
+    },
+    ollama: {
+        model: 'ollama-model--',
     }
 };
 
 const ALL_PREFIXES = Object.values(PREFIX_MAP).flatMap(source => Object.values(source));
 
 /**
- * Normalize an entity ID based on source and type
- * @param {string} id - Raw ID (e.g., "meta-llama/Llama-2")
- * @param {string} source - Origin source (huggingface, github, etc.)
- * @param {string} type - Entity type (model, dataset, etc.)
- * @returns {string} Canonical ID (e.g., "hf-model--meta-llama--Llama-2")
+ * Generate mapping of known prefixes to hints
  */
-export function normalizeId(id, source, type) {
-    if (!id) return null;
-
-    // 1. Initial Cleanup: Remove file artifacts and normalize delimiters
-    let cleanId = id.replace(/\.json$/, '').replace(/[\/:]/g, '--');
-
-    // 2. Identify and Strip ALL known prefixes (Recursive/Multi-pass)
-    // We map prefixes to hints for source (s) and type (t)
-    const knownPrefixes = {
-        'hf-model--': { s: 'hf', t: 'model' },
-        'hf-dataset--': { s: 'hf', t: 'dataset' },
-        'hf-space--': { s: 'hf', t: 'space' },
-        'gh-agent--': { s: 'gh', t: 'agent' },
-        'gh-tool--': { s: 'gh', t: 'tool' },
-        'arxiv-paper--': { s: 'arxiv', t: 'paper' },
-        'civitai-model--': { s: 'civitai', t: 'model' },
-        'kaggle-dataset--': { s: 'kaggle', t: 'dataset' },
+function getKnownPrefixes() {
+    const prefixes = {
+        'huggingface-deepspec--': { s: 'hf' },
+        'huggingface_deepspec--': { s: 'hf' },
         'huggingface--': { s: 'hf' },
         'github--': { s: 'gh' },
         'arxiv--': { s: 'arxiv' },
@@ -65,25 +64,48 @@ export function normalizeId(id, source, type) {
         'space--': { t: 'space' },
         'agent--': { t: 'agent' },
         'tool--': { t: 'tool' },
+        'prompt--': { t: 'prompt' },
+        'hf--': { s: 'hf' },
+        'gh--': { s: 'gh' },
+        'replicate--': { s: 'replicate' },
         'civitai--': { s: 'civitai' },
         'kaggle--': { s: 'kaggle' },
-        'replicate--': { s: 'replicate' },
-        'replicate-model--': { s: 'replicate', t: 'model' },
-        'hf--': { s: 'hf' },
-        'gh--': { s: 'gh' }
+        'ollama--': { s: 'ollama' }
     };
 
+    // Auto-add from PREFIX_MAP
+    for (const [s, types] of Object.entries(PREFIX_MAP)) {
+        for (const [t, p] of Object.entries(types)) {
+            prefixes[p] = { s, t };
+        }
+    }
+
+    return prefixes;
+}
+
+const KNOWN_PREFIXES = getKnownPrefixes();
+
+/**
+ * Normalize an ID into canonical format
+ */
+export function normalizeId(id, source, type) {
+    if (!id) return null;
+
+    // 1. Initial Cleanup: Normalize delimiters and lowercase
+    let cleanId = id.toLowerCase().replace(/\.json$/, '').replace(/[\/:]/g, '--').trim();
+
+    // 2. Identify and Strip ALL known prefixes (Recursive/Multi-pass)
     let hintS = null;
     let hintT = null;
     let stripped = true;
 
     while (stripped) {
         stripped = false;
-        // Sort keys by length DESC to ensure longest match (canonical) is preferred over short legacy prefixes
-        const keys = Object.keys(knownPrefixes).sort((a, b) => b.length - a.length);
+        // Sort keys by length DESC to ensure longest match (canonical) is preferred
+        const keys = Object.keys(KNOWN_PREFIXES).sort((a, b) => b.length - a.length);
         for (const p of keys) {
             if (cleanId.startsWith(p)) {
-                const hint = knownPrefixes[p];
+                const hint = KNOWN_PREFIXES[p];
                 if (hint.s) hintS = hint.s;
                 if (hint.t) hintT = hint.t;
                 cleanId = cleanId.slice(p.length);
@@ -97,7 +119,7 @@ export function normalizeId(id, source, type) {
     let s = (source || hintS || '').toLowerCase();
     let t = (type || hintT || '').toLowerCase();
 
-    // Canonical normalization
+    // Canonical source normalization
     if (s === 'huggingface') s = 'hf';
     if (s === 'github') s = 'gh';
 
@@ -105,7 +127,21 @@ export function normalizeId(id, source, type) {
     if (!s) {
         if (id.includes('github.com')) s = 'gh';
         else if (id.includes('huggingface.co')) s = 'hf';
+        else if (id.includes('arxiv.org')) s = 'arxiv';
         else s = 'hf'; // System default
+    }
+
+    // FINAL SAFETY: Iterate once more through all known prefixes to ensure no nesting remains
+    // This handles cases where unconventional prefix strings might exist (e.g. hf-model--gh-model--)
+    let safetyCheck = true;
+    while (safetyCheck) {
+        safetyCheck = false;
+        for (const p of Object.keys(KNOWN_PREFIXES)) {
+            if (cleanId.startsWith(p)) {
+                cleanId = cleanId.slice(p.length);
+                safetyCheck = true;
+            }
+        }
     }
 
     if (!t) {
@@ -125,9 +161,12 @@ export function getNodeSource(id, type) {
     if (type === 'agent' || type === 'tool') return 'gh';
     if (type === 'dataset' || type === 'space') return 'hf';
     if (type === 'model') {
-        if (id && id.startsWith('civitai')) return 'civitai';
-        if (id && (id.startsWith('replicate') || id.startsWith('replicate-model'))) return 'replicate';
-        if (id && id.startsWith('kaggle')) return 'kaggle';
+        const lowerId = (id || '').toLowerCase();
+        if (lowerId.startsWith('gh-model--') || lowerId.startsWith('github--')) return 'gh';
+        if (lowerId.startsWith('civitai')) return 'civitai';
+        if (lowerId.startsWith('replicate')) return 'replicate';
+        if (lowerId.startsWith('kaggle')) return 'kaggle';
+        if (lowerId.startsWith('ollama')) return 'ollama';
         return 'hf';
     }
     return null;
@@ -137,4 +176,3 @@ export function getNodeSource(id, type) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { normalizeId, getNodeSource, PREFIX_MAP, ALL_PREFIXES };
 }
-

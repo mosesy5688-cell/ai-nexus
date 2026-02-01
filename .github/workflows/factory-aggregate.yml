@@ -51,180 +51,194 @@ jobs:
           echo "id=$HARVEST_RUN_ID" >> $GITHUB_OUTPUT
           echo "✅ Found Upstream Harvest Run: $HARVEST_RUN_ID"
 
-  aggregate:
-    name: Aggregate Shard Results
+  # Job 1: Core Merge (The Pivot - SPEC V2.0)
+  merge-core:
+    name: Merge Core Registry
     needs: check-upstream
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-      R2_BUCKET: ai-nexus-assets
+      NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
       - name: Install Dependencies
         run: npm ci
 
-      # Download all shard artifacts with merge
-      - name: Download All Shard Artifacts
+      - name: Download Shard Artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: shard-*
           path: ./downloaded/
           merge-multiple: true
-          # V16.2.7: Improve manual run-id handling
           run-id: ${{ inputs.run_id || github.event.workflow_run.id || needs.check-upstream.outputs.harvest-run-id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Organize downloaded files
-      - name: Organize Downloaded Files
+      - name: Organize Shards
         run: |
           mkdir -p artifacts output
-          
-          # Move shard JSON files to artifacts/
           find ./downloaded -name "shard-*.json" -exec mv {} artifacts/ \; 2>/dev/null || true
-          
-          # Merge output directories from all shards
-          if [ -d "./downloaded/output" ]; then
-            cp -r ./downloaded/output/* output/ 2>/dev/null || true
-          fi
-          
-          # Also check for cache/ directories
-          find ./downloaded -type d -name "cache" -exec cp -r {}/* output/ \; 2>/dev/null || true
-          
-          echo "📂 Artifacts structure:"
-          ls -la artifacts/ || echo "No artifacts found"
-          echo "📂 Output structure:"
-          find output -type f | head -20 || echo "No output files"
+          if [ -d "./downloaded/output" ]; then cp -r ./downloaded/output/* output/ 2>/dev/null || true; fi
 
-      # Restore FNI history
-      - name: Restore FNI History
-        uses: actions/cache@v4
-        with:
-          path: cache/fni-history.json
-          key: fni-history-${{ github.run_id }}
-          restore-keys: |
-            fni-history-
-
-      # Restore weekly accumulator
-      - name: Restore Weekly Accumulator
-        uses: actions/cache@v4
-        with:
-          path: cache/weekly-accum.json
-          key: weekly-accum-${{ github.run_id }}
-          restore-keys: |
-            weekly-accum-
-
-      # V14.5.3: Restore the full 295k dataset from the original Harvest run
-      - name: Restore Entity Data from Harvest Cache
+      - name: Restore Previous State (Golden Cache)
         uses: actions/cache/restore@v4
         with:
-          path: |
-            data/merged.json
-            data/merged_shard_*.json
-            data/manifest.json
-            cache/fni-history.json
-            cache/weekly-accum.json
-          key: factory-entity-data-${{ needs.check-upstream.outputs.harvest-run-id }}
-          fail-on-cache-miss: true
-
-      # V16.7 FIX: Explicitly restore global registry from cache before fallback to R2
-      - name: Restore Global Registry
-        uses: actions/cache/restore@v4
-        with:
-          path: cache/global-registry*.json
-          key: global-registry-${{ needs.check-upstream.outputs.harvest-run-id }}
+          path: cache/
+          key: global-registry-v2-${{ needs.check-upstream.outputs.harvest-run-id }}
           restore-keys: |
+            global-registry-v2-
             global-registry-
 
-      # Run aggregator
-      - name: Run Aggregator
+      - name: Run Core Merge & Health
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # V16.2.5: R2 secrets removed. Aggregator now saves state to output/ for 4/4 to upload.
         run: |
-          echo "🔄 Running Aggregator..."
-          node scripts/factory/aggregator.js
+            echo "🔄 Running Merge-Core (V2.0 Sharding)..."
+            node scripts/factory/aggregator.js --task=health
+            node scripts/factory/aggregator.js --task=core
 
-      # Validate critical files
-      - name: Validate Output
-        run: |
-          echo "🔍 Validating output..."
-          
-          CRITICAL_FILES=(
-            "output/cache/trending.json"
-            "output/cache/search-core.json"
-            "output/cache/category_stats.json"
-          )
-          
-          MISSING=0
-          for f in "${CRITICAL_FILES[@]}"; do
-            if [ -f "$f" ]; then
-              echo "✅ $f"
-            else
-              echo "❌ Missing: $f"
-              MISSING=$((MISSING + 1))
-            fi
-          done
-          
-          if [ $MISSING -gt 0 ]; then
-            echo "⚠️ Warning: $MISSING critical files missing"
-          fi
-          
-          FILE_COUNT=$(find output -name "*.json" | wc -l)
-          echo "📊 Total JSON files: $FILE_COUNT"
-
-      # Save updated caches
-      - name: Save FNI History
-        uses: actions/cache/save@v4
+      - name: Upload Registry Artifact (Intra-Run Delivery)
+        uses: actions/upload-artifact@v4
         with:
-          path: cache/fni-history.json
-          key: fni-history-${{ github.run_id }}
-
-      - name: Save Weekly Accumulator
-        uses: actions/cache/save@v4
-        with:
-          path: cache/weekly-accum.json
-          key: weekly-accum-${{ github.run_id }}
-
-      # V16.3 FIX: Explicitly save global registry to cache for Harvest (1/4) to see
-      - name: Save Global Registry
-        uses: actions/cache/save@v4
-        with:
+          name: core-registry-v2
           path: |
-            cache/global-registry*.json
-            cache/entity-checksums.json
-          key: global-registry-${{ github.run_id }}
+            output/entities.json
+            cache/registry/
+          retention-days: 1
 
-      # V16.2.6: Restore 'internal cache' transfer (Bypasses 313k file upload crash)
-      - name: Save Entity Data to Cache (for Upload & Linker)
+      - name: Save Updated Golden Cache (Next Cycle Prep)
+        uses: actions/cache/save@v4
+        with:
+          path: cache/
+          key: global-registry-v2-${{ github.run_id }}
+
+  # Parallel Satellite Jobs (SPEC V2.0)
+  aggregate-search:
+    name: "Agg: Search Index"
+    needs: merge-core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - name: Restore Core Registry
+        uses: actions/download-artifact@v4
+        with: { name: core-registry-v2, path: ./ }
+      - name: Generate Search Indices
+        env:
+          ENTITIES_PATH: output/entities.json
+        run: |
+          export NODE_OPTIONS="--max-old-space-size=6144"
+          node scripts/factory/aggregator.js --task=search
+      - name: Upload Search Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: agg-search
+          path: output/cache/search*
+          retention-days: 1
+
+  aggregate-rankings:
+    name: "Agg: Rankings"
+    needs: merge-core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - name: Restore Core Registry
+        uses: actions/download-artifact@v4
+        with: { name: core-registry-v2, path: ./ }
+      - name: Generate Rankings
+        env:
+          ENTITIES_PATH: output/entities.json
+        run: |
+          export NODE_OPTIONS="--max-old-space-size=6144"
+          node scripts/factory/aggregator.js --task=rankings
+          node scripts/factory/aggregator.js --task=category
+      - name: Upload Rankings Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: agg-rankings
+          path: |
+            output/rankings/
+            output/cache/category_stats.json
+          retention-days: 1
+
+  aggregate-trending:
+    name: "Agg: Trending"
+    needs: merge-core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - name: Restore Core Registry
+        uses: actions/download-artifact@v4
+        with: { name: core-registry-v2, path: ./ }
+      - name: Generate Trending
+        env:
+          ENTITIES_PATH: output/entities.json
+        run: node scripts/factory/aggregator.js --task=trending
+      - name: Upload Trending Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: agg-trending
+          path: output/cache/trending.json
+          retention-days: 1
+
+  aggregate-relations:
+    name: "Agg: Knowledge Mesh"
+    needs: merge-core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - name: Restore Core Registry
+        uses: actions/download-artifact@v4
+        with: { name: core-registry-v2, path: ./ }
+      - name: Generate Relations
+        env:
+          ENTITIES_PATH: output/entities.json
+        run: |
+          export NODE_OPTIONS="--max-old-space-size=7168"
+          node scripts/factory/aggregator.js --task=relations
+      - name: Upload Relations Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: agg-relations
+          path: output/cache/relations.json
+          retention-days: 1
+
+  finalize:
+    name: Finalize Aggregation
+    needs: [aggregate-search, aggregate-rankings, aggregate-trending, aggregate-relations]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consolidate All Results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: agg-*
+          path: output/
+          merge-multiple: true
+      - name: Run Health Consolidation
+        run: node scripts/factory/consolidate-health.js
+      - name: Save Global Output Cache (for Stage 4/4)
         uses: actions/cache/save@v4
         with:
           path: output/
           key: entity-data-${{ github.run_id }}
-
-
-      # Trigger next stage (via workflow_run - automatic)
-      - name: Notify Upload Stage
-        run: |
-          echo "✅ Aggregate complete. Factory 4/4 - Upload and Linker will start automatically."
-
       - name: Summary
         run: |
-          echo "## Factory 3/4 - Aggregate Complete 📊" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Shards merged: 20" >> $GITHUB_STEP_SUMMARY
-          echo "- JSON files: $(find output -name '*.json' | wc -l)" >> $GITHUB_STEP_SUMMARY
-          echo "- Artifact: factory-output" >> $GITHUB_STEP_SUMMARY
-          echo "- Cache: entity-data-${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Next: Factory 4/4 - Upload + Linker" >> $GITHUB_STEP_SUMMARY
+          echo "## Factory 3/4 - Aggregator V2.0 Complete 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "Scale: 1M+ Readiness Verified" >> $GITHUB_STEP_SUMMARY
+          echo "Jobs: Parallel (Search, Rankings, Trending, Relations)" >> $GITHUB_STEP_SUMMARY

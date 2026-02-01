@@ -24,7 +24,7 @@ const HF_API_BASE = 'https://huggingface.co/api';
  */
 export class HuggingFacePapersAdapter extends BaseAdapter {
     constructor() {
-        super('huggingface_papers');
+        super('hf');
         this.entityTypes = ['paper'];
         this.hfToken = process.env.HF_TOKEN || null;
     }
@@ -128,9 +128,9 @@ export class HuggingFacePapersAdapter extends BaseAdapter {
 
         const entity = {
             // Identity
-            id: `hf-paper--${this.sanitizeName(paperId)}`,
+            id: this.generateId('unknown', paperId, 'paper'),
             type: 'paper',
-            source: 'huggingface_papers',
+            source: 'hf',
             source_url: `https://huggingface.co/papers/${paperId}`,
 
             // Content
