@@ -117,27 +117,40 @@ export function buildSpaceMetaJson(raw) {
 
 /**
  * Extract meaningful images from HuggingFace space
+ * V16.7.1: Added Repo Icon priority for better branding
  * @param {Object} raw - Raw space data
  * @returns {Object[]} Array of asset objects
  */
 export function extractSpaceAssets(raw) {
     const assets = [];
+    const siblings = (raw.siblings || []).map(f => f.rfilename);
 
-    // Priority 1: Space screenshot/thumbnail
+    // B.1.1 Intelligence: Direct repo assets (Branding)
+    const brandingIcons = siblings.filter(f =>
+        /^(logo|icon|avatar)\.(webp|png|jpg|jpeg)$/i.test(f)
+    );
+    for (const filename of brandingIcons) {
+        assets.push({
+            type: 'branding_icon',
+            url: `https://huggingface.co/spaces/${raw.id}/resolve/main/${filename}`,
+            filename
+        });
+    }
+
+    // Priority 2: Space screenshot/thumbnail
     if (raw.cardData?.thumbnail) {
         assets.push({ type: 'thumbnail', url: raw.cardData.thumbnail });
     }
 
-    // Priority 2: Look for screenshot in siblings
-    const siblings = raw.siblings || [];
+    // Priority 3: Look for screenshot in siblings
     const screenshot = siblings.find(f =>
-        /screenshot|preview|demo/i.test(f.rfilename) &&
-        /\.(webp|png|jpg|jpeg)$/i.test(f.rfilename)
+        /screenshot|preview|demo/i.test(f) &&
+        /\.(webp|png|jpg|jpeg)$/i.test(f)
     );
     if (screenshot) {
         assets.push({
             type: 'screenshot',
-            url: `https://huggingface.co/spaces/${raw.id}/resolve/main/${screenshot.rfilename}`
+            url: `https://huggingface.co/spaces/${raw.id}/resolve/main/${screenshot}`
         });
     }
 

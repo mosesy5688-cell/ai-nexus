@@ -237,8 +237,8 @@ export class GitHubAdapter extends BaseAdapter {
             popularity: raw.stargazers_count || 0,
             downloads: 0, // GitHub doesn't have downloads
 
-            // Assets - GitHub repos typically don't have meaningful images
-            raw_image_url: null,
+            // Assets - V16.7.1: Extract "Helpful" images from README and Social Previews
+            raw_image_url: this.extractAssets(raw)[0]?.url || null,
 
             // Relations
             relations: [],
@@ -261,11 +261,50 @@ export class GitHubAdapter extends BaseAdapter {
     }
 
     /**
-     * Extract assets - GitHub repos typically don't have meaningful cover images
+     * Extract assets - V16.7.1: Extract "Helpful" images from README and Social Previews
+     * GitHub uses specific OpenGraph images and README-linked files.
      */
     extractAssets(raw) {
-        // Could potentially extract images from README, but for now return empty
-        return [];
+        const assets = [];
+        const fullName = raw.full_name;
+
+        // Priority 1: GitHub Social Preview (High quality, repo-specific)
+        // Format: https://opengraph.githubassets.com/[random_hash]/[owner]/[repo]
+        // But the standard direct one is often more reliable:
+        assets.push({
+            type: 'social_preview',
+            url: `https://repository-images.githubusercontent.com/${raw.id}/social_preview`
+        });
+
+        // Priority 2: README Images (Substantive visuals)
+        if (raw.readme) {
+            // Regex to find images, excluding badges/shields/icons
+            // Matches markdown: ![alt](url)
+            const imgPattern = /!\[.*?\]\(((?!http|.*badge|.*shield|.*img\.shields|.*travis-ci|.*github\.com\/.*\/badges)[^)]+\.(webp|png|jpg|jpeg|gif))\)/gi;
+            let match;
+            while ((match = imgPattern.exec(raw.readme)) !== null) {
+                const url = match[1];
+                // Resolve relative URLs
+                const absoluteUrl = url.startsWith('http') ? url :
+                    `https://raw.githubusercontent.com/${fullName}/${raw.default_branch || 'main'}/${url.replace(/^\.\//, '')}`;
+
+                assets.push({
+                    type: 'readme_image',
+                    url: absoluteUrl
+                });
+                if (assets.length > 5) break; // Don't overdo it
+            }
+        }
+
+        // Priority 3: Author Avatar (Universal Branding)
+        if (raw.owner?.avatar_url) {
+            assets.push({
+                type: 'author_avatar',
+                url: raw.owner.avatar_url
+            });
+        }
+
+        return assets;
     }
 
     // ============================================================

@@ -154,59 +154,77 @@ export function detectGGUF(raw) {
 
 /**
  * Extract meaningful images from HuggingFace model
+ * V16.7.1: Enhanced prioritization for "helpful" visuals (teasers, grids, results)
  * @param {Object} raw - Raw model data
  * @returns {Object[]} Array of asset objects
  */
 export function extractAssets(raw) {
     const assets = [];
-    const siblings = raw.siblings || [];
+    const siblings = (raw.siblings || []).map(f => f.rfilename);
     const modelId = raw.modelId || raw.id;
     const author = modelId?.split('/')[0] || 'unknown';
+    const pipelineTag = raw.pipeline_tag || '';
 
-    // Priority 1: Card image (architecture.png, model.png, etc.)
-    const cardImages = siblings.filter(f =>
-        /^(architecture|model|diagram|overview|logo)\.(webp|png|jpg|jpeg)$/i.test(f.rfilename)
+    // Priority 1: High-value "Helpful" visuals (Teasers, Grids, Benchmarks)
+    const helpfulKeywords = ['teaser', 'grid', 'benchmark', 'result', 'example', 'preview', 'comparison'];
+    const helpfulImages = siblings.filter(f =>
+        helpfulKeywords.some(kw => f.toLowerCase().includes(kw)) &&
+        /\.(webp|png|jpg|jpeg)$/i.test(f)
     );
-    for (const img of cardImages) {
+
+    for (const filename of helpfulImages) {
         assets.push({
-            type: 'card_image',
-            url: `https://huggingface.co/${modelId}/resolve/main/${img.rfilename}`,
-            filename: img.rfilename
+            type: 'helpful_image',
+            url: `https://huggingface.co/${modelId}/resolve/main/${filename}`,
+            filename
         });
     }
 
-    // Priority 2: Images referenced in README
-    if (raw.readme && assets.length === 0) {
-        const imgPattern = /!\[.*?\]\(((?!http)[^)]+\.(webp|png|jpg|jpeg))\)/gi;
+    // Priority 2: Technical/Card images
+    const cardImages = siblings.filter(f =>
+        /^(architecture|model|diagram|overview|logo)\.(webp|png|jpg|jpeg)$/i.test(f)
+    );
+    for (const filename of cardImages) {
+        assets.push({
+            type: 'card_image',
+            url: `https://huggingface.co/${modelId}/resolve/main/${filename}`,
+            filename
+        });
+    }
+
+    // Priority 3: README images (Filter for helpful sizes/types if possible)
+    if (raw.readme && assets.length < 3) {
+        // Look for standard markdown images or HTML <img> tags
+        const imgPattern = /!\[.*?\]\(((?!http)[^)]+\.(webp|png|jpg|jpeg))\)|<img[^>]+src=["']((?!http)[^"']+\.(webp|png|jpg|jpeg))["']/gi;
         let match;
         while ((match = imgPattern.exec(raw.readme)) !== null) {
-            const filename = match[1];
-            if (!filename.includes('..')) {
+            const filename = match[1] || match[3];
+            if (!filename.includes('..') && !assets.some(a => a.filename === filename)) {
                 assets.push({
                     type: 'readme_image',
                     url: `https://huggingface.co/${modelId}/resolve/main/${filename}`,
-                    filename: filename
+                    filename
                 });
             }
         }
     }
 
-    // Priority 3: First image from assets folder
+    // Priority 4: Assets folder
     if (assets.length === 0) {
-        const firstImage = siblings.find(f =>
-            /\.(webp|png|jpg|jpeg)$/i.test(f.rfilename) &&
-            f.rfilename.startsWith('assets/')
+        const firstAsset = siblings.find(f =>
+            /\.(webp|png|jpg|jpeg)$/i.test(f) && f.startsWith('assets/')
         );
-        if (firstImage) {
+        if (firstAsset) {
             assets.push({
-                type: 'fallback_image',
-                url: `https://huggingface.co/${modelId}/resolve/main/${firstImage.rfilename}`
+                type: 'asset_image',
+                url: `https://huggingface.co/${modelId}/resolve/main/${firstAsset}`,
+                filename: firstAsset
             });
         }
     }
 
-    // Priority 4 (V14.2): Author/Org avatar as universal fallback
-    if (assets.length === 0 && author && author !== 'unknown') {
+    // Priority 5: Author/Org avatar as universal high-quality branding
+    if (author && author !== 'unknown') {
         assets.push({
             type: 'author_avatar',
             url: `https://huggingface.co/api/users/${author}/avatar`,
@@ -214,6 +232,8 @@ export function extractAssets(raw) {
         });
     }
 
+    // V16.7.1 Intelligence: If it's a text-to-image model, we MUST have a visual.
+    // If no assets found, we can try to find a known 'social-thumbnail' if it's featured
     return assets;
 }
 
