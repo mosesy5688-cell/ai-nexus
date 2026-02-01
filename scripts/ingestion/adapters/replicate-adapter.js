@@ -123,7 +123,7 @@ export class ReplicateAdapter extends BaseAdapter {
         const modelId = `${model.owner}/${model.name}`;
 
         const entity = {
-            id: `replicate:${modelId}`,
+            id: this.generateId(model.owner, model.name, 'model'),
             source: 'replicate',
             entity_type: 'model',
             name: model.name,

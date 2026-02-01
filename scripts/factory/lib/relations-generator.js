@@ -35,29 +35,31 @@ export async function generateRelations(entities, outputDir = './output') {
     const nodes = {};
     const edges = {};
 
-    const HUB_NODES = ['concept--trending-now', 'concept--weekly-highlights', 'concept--agentic-ai'];
+    const HUB_NODES = ['concept--trending-now', 'concept--daily-highlights', 'concept--agentic-ai'];
     for (const hubId of HUB_NODES) {
         nodes[hubId] = { t: 'concept', f: 10.0, hub: true };
     }
 
-    // V15: Inject Weekly Reports (Time Dimension)
+    // V15: Inject Daily Reports (Time Dimension)
     try {
-        const weeklyDir = path.join(outputDir, 'weekly');
-        const reportFiles = await fs.readdir(weeklyDir).catch(() => []);
+        const dailyDir = path.join(outputDir, 'daily');
+        const reportFiles = await fs.readdir(dailyDir).catch(() => []);
         for (const file of reportFiles) {
             if (file.endsWith('.json')) {
-                const reportData = JSON.parse(await fs.readFile(path.join(weeklyDir, file), 'utf-8'));
+                const reportData = JSON.parse(await fs.readFile(path.join(dailyDir, file), 'utf-8'));
                 if (reportData.id) {
                     const rId = `report--${reportData.id}`;
-                    nodes[rId] = { t: 'report', f: 5.0, title: reportData.title, week: reportData.id };
+                    nodes[rId] = { t: 'report', f: 5.0, title: reportData.title, day: reportData.id };
 
                     // Link report to highlights
                     if (reportData.highlights) {
                         for (const h of reportData.highlights) {
-                            const hId = normalizeId(h.id, h.type);
+                            const hType = h.type || 'model';
+                            const hSource = getNodeSource(h.id, hType);
+                            const hId = normalizeId(h.id, hSource, hType);
                             allRelations.push({
                                 source_id: rId, source_type: 'report',
-                                target_id: hId, target_type: h.type || 'model',
+                                target_id: hId, target_type: hType,
                                 relation_type: 'FEATURES', confidence: 1.0
                             });
                         }
@@ -69,20 +71,21 @@ export async function generateRelations(entities, outputDir = './output') {
         // V15: Link sequential reports (FOLLOWS)
         const sortedReports = Object.values(nodes)
             .filter(n => n.t === 'report')
-            .sort((a, b) => b.week.localeCompare(a.week)); // Newest first
+            .sort((a, b) => b.day.localeCompare(a.day)); // Newest first
 
         for (let i = 0; i < sortedReports.length - 1; i++) {
+            const nextDay = sortedReports[i + 1].day;
             allRelations.push({
-                source_id: sortedReports[i].id || `report--${sortedReports[i].week}`,
+                source_id: sortedReports[i].id || `report--${sortedReports[i].day}`,
                 source_type: 'report',
-                target_id: sortedReports[i + 1].id || `report--${sortedReports[i + 1].week}`,
+                target_id: sortedReports[i + 1].id || `report--${nextDay}`,
                 target_type: 'report',
                 relation_type: 'FOLLOWS',
                 confidence: 1.0
             });
         }
     } catch (e) {
-        console.warn('  [RELATIONS] Could not inject reports into graph:', e.message);
+        console.warn('  [RELATIONS] Could not inject daily reports into graph:', e.message);
     }
 
     // Extract relations from each entity

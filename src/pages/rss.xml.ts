@@ -1,5 +1,5 @@
 /**
- * RSS Feed Endpoint - B.13 Weekly Report
+ * RSS Feed Endpoint - Daily Updates
  * Provides RSS 2.0 feed of recent AI models
  */
 
@@ -49,9 +49,9 @@ export const GET: APIRoute = async () => {
     const rss = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Free2AITools - AI Model Updates</title>
+    <title>Free2AITools - AI Industry Daily Updates</title>
     <link>${siteUrl}</link>
-    <description>Latest AI models from Free2AITools</description>
+    <description>The definitive daily record of the open-source AI ecosystem.</description>
     <language>en-us</language>
     <lastBuildDate>${now}</lastBuildDate>
     <atom:link href="${siteUrl}/rss.xml" rel="self" type="application/rss+xml"/>

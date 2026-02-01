@@ -128,15 +128,14 @@ export class ArXivAdapter extends BaseAdapter {
                 });
 
                 if (!response.ok) {
-                    // V14.5: Handle rate limit with exponential backoff
                     if (response.status === 429) {
-                        console.warn(`   ⚠️ [ArXiv] Rate limited, backing off ${backoffSeconds}s...`);
+                        console.warn(`   ⚠️ [ArXiv] Rate limited (429) on ${category}. Backing off ${backoffSeconds}s...`);
                         await this.delay(backoffSeconds * 1000);
                         backoffSeconds = Math.min(backoffSeconds * 2, MAX_BACKOFF);
                         start -= batchSize;
                         consecutiveErrors++;
                         if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-                            console.error(`   ❌ [ArXiv] Too many rate limit errors, stopping category ${category}`);
+                            console.error(`   ❌ [ArXiv] CRITICAL: Rate limit depth exceeded for ${category}. Abandoning.`);
                             break;
                         }
                         continue;

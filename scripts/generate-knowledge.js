@@ -21,7 +21,7 @@ const __dirname = path.dirname(__filename);
 const CONFIG = {
     KNOWLEDGE_DIR: path.join(__dirname, '../src/pages/knowledge'),
     CONFIG_PATH: path.join(__dirname, '../src/data/knowledge-base-config.ts'),
-    WEEKLY_INTERVAL_MS: 7 * 24 * 60 * 60 * 1000, // 7 days
+    DAILY_INTERVAL_MS: 24 * 60 * 60 * 1000, // 24 hours
     ARTICLES_PER_RUN: 2, // Max new articles per run
 };
 
@@ -160,7 +160,7 @@ function getPendingTopics() {
  */
 async function main() {
     console.log('📚 Starting Knowledge Auto-Generator...');
-    console.log(`   Config: ${CONFIG.ARTICLES_PER_RUN} articles/run, ${CONFIG.WEEKLY_INTERVAL_MS / (24 * 60 * 60 * 1000)} day interval`);
+    console.log(`   Config: ${CONFIG.ARTICLES_PER_RUN} articles/run, ${CONFIG.DAILY_INTERVAL_MS / (24 * 60 * 60 * 1000)} day interval`);
 
     // Get pending topics
     const pendingTopics = getPendingTopics();

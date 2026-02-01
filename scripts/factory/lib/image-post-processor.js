@@ -1,9 +1,11 @@
 import fs from 'fs';
 import path from 'path';
+import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 
 /**
- * Image Post-Processor V16.4.4
+ * Image Post-Processor V16.7.2
  * Updates registry.json with local CDN URLs after successful R2 upload
+ * V16.7.2: Uses V2.0 Normalized IDs for robust matching
  */
 
 async function main() {
@@ -41,7 +43,7 @@ async function main() {
             const entityType = entity.type || 'model';
             if (entityType !== type) continue;
 
-            const safeId = (entity.id || entity.slug || '').replace(/[/:]/g, '--');
+            const safeId = normalizeId(entity.id, getNodeSource(entity.id, entity.type), entity.type);
 
             if (processedIds.has(safeId)) {
                 const newUrl = `${CDN_BASE}/${type}/${safeId}.webp`;

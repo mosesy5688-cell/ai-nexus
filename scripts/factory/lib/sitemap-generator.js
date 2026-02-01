@@ -12,6 +12,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import zlib from 'zlib';
 import { promisify } from 'util';
+import { getRouteFromId, getTypeFromId } from '../../../src/utils/mesh-routing-core.js';
 
 const gzip = promisify(zlib.gzip);
 
@@ -23,13 +24,13 @@ const STATIC_PAGES = [
     { path: '/', priority: '1.0', changefreq: 'daily' },
     { path: '/models', priority: '0.9', changefreq: 'daily' },
     { path: '/search', priority: '0.8', changefreq: 'daily' },
-    { path: '/knowledge', priority: '0.7', changefreq: 'weekly' },
-    { path: '/agent', priority: '0.7', changefreq: 'weekly' },
-    { path: '/space', priority: '0.7', changefreq: 'weekly' },
-    { path: '/dataset', priority: '0.7', changefreq: 'weekly' },
-    { path: '/paper', priority: '0.7', changefreq: 'weekly' },
-    { path: '/reports', priority: '0.6', changefreq: 'weekly' },
-    { path: '/compare', priority: '0.6', changefreq: 'weekly' },
+    { path: '/knowledge', priority: '0.7', changefreq: 'daily' },
+    { path: '/agent', priority: '0.7', changefreq: 'daily' },
+    { path: '/space', priority: '0.7', changefreq: 'daily' },
+    { path: '/dataset', priority: '0.7', changefreq: 'daily' },
+    { path: '/paper', priority: '0.7', changefreq: 'daily' },
+    { path: '/reports', priority: '0.6', changefreq: 'daily' },
+    { path: '/compare', priority: '0.6', changefreq: 'daily' },
     { path: '/methodology', priority: '0.5', changefreq: 'monthly' },
     { path: '/about', priority: '0.4', changefreq: 'monthly' },
     // Category pages
@@ -98,14 +99,16 @@ export async function generateSitemap(entities, outputDir = './output') {
 
     // Add entity pages
     for (const entity of entities) {
-        const type = entity.type || 'model';
-        const slug = entity.slug || entity.id?.replace(/^[a-z]+:/i, '').replace(/:/g, '/');
-        if (!slug) continue;
+        const id = entity.id || entity.slug || '';
+        const entityType = entity.type || entity.entity_type || getTypeFromId(id);
+        const route = getRouteFromId(id, entityType);
+
+        if (!route || route === '#') continue;
 
         urls.push({
-            loc: `/${type}/${slug}`,
+            loc: route,
             priority: calculatePriority(entity.fni || entity.fni_score),
-            changefreq: 'weekly',
+            changefreq: 'daily',
             lastmod: entity._updated || entity.lastModified,
         });
     }

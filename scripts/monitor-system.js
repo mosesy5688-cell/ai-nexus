@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * AI-Nexus V9.53 - Full System Monitor
- * Comprehensive monitoring for Auto-Ingest, Weekly Maintenance, and Auto-Enrich
+ * Comprehensive monitoring for Auto-Ingest, Daily Maintenance, and Auto-Enrich
  */
 
 import { exec } from 'child_process';
@@ -68,11 +68,11 @@ async function getSystemStatus() {
     // 3. Workflow Status (placeholders - requires GitHub API)
     console.log('\n🔄 WORKFLOW STATUS:');
     console.log('  ⚠️  Auto-Ingest: Needs manual trigger via GitHub Actions');
-    console.log('  ⚠️  Weekly Maintenance: Needs manual trigger via GitHub Actions');
+    console.log('  ⚠️  Daily Maintenance: Needs manual trigger via GitHub Actions');
 
     report.components.workflows = {
         autoIngest: 'pending_manual_trigger',
-        weeklyMaintenance: 'pending_manual_trigger',
+        dailyMaintenance: 'pending_manual_trigger',
         note: 'Requires GitHub Actions workflow_dispatch'
     };
 

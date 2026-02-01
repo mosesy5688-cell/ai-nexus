@@ -5,15 +5,28 @@ import { marked } from 'marked';
 
 const { slug } = Astro.params;
 
-// In SSR mode, we must fetch data dynamically based on the slug
-const reportModules = import.meta.glob('../../data/report-archives/*.json', { eager: true });
-
-// Normalize keys to match slug
+const CDN_BASE = 'https://cdn.free2aitools.com';
 let report = null;
-for (const path in reportModules) {
-    if (path.includes(slug)) {
-        report = reportModules[path].default;
-        break;
+
+// V16.7.2: Hybrid Loading - CDN First (Static Fallback)
+try {
+    // Attempt dynamic fetch for post-build reports
+    const res = await fetch(`${CDN_BASE}/cache/reports/daily/${slug}.json`);
+    if (res.ok) {
+        report = await res.json();
+    }
+} catch (e) {
+    console.warn(`[Report Detail] CDN fetch failed for ${slug}, relying on build-time bundle.`);
+}
+
+if (!report) {
+    // Fallback: Check build-time local modules (Legacy/Initial reports)
+    const reportModules = import.meta.glob('../../data/report-archives/*.json', { eager: true });
+    for (const path in reportModules) {
+        if (path.includes(slug)) {
+            report = reportModules[path].default;
+            break;
+        }
     }
 }
 
@@ -21,8 +34,8 @@ if (!report) {
   return Astro.redirect('/404');
 }
 
-const pageTitle = report.title;
-const pageDescription = report.summary.substring(0, 160);
+const pageTitle = report.title || `AI Daily Report - ${slug}`;
+const pageDescription = (report.summary || report.subtitle || "").substring(0, 160);
 const contentHtml = marked.parse(report.content);
 ---
 

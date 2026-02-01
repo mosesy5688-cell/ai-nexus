@@ -2,21 +2,45 @@
 import Layout from '@/layouts/Layout.astro';
 import ReportCard from '@/components/ReportCard.astro';
 
-// Load all reports from the main file and archives using import.meta.glob for resilience
+const CDN_BASE = 'https://cdn.free2aitools.com';
+let allReports = [];
+
+// V16.7.2: Hybrid Archive Loading - CDN (Index) + Local Glob
+try {
+    const res = await fetch(`${CDN_BASE}/cache/reports/index.json`);
+    if (res.ok) {
+        const indexData = await res.json();
+        allReports = (indexData.reports || []).map(r => ({
+            reportId: r.id,
+            title: r.title,
+            date: r.date,
+            summary: `Daily AI analysis with ${r.highlights || 0} ecosystem highlights.`
+        }));
+    }
+} catch (e) {
+    console.warn('[Report Archive] CDN index fetch failed, falling back to build-time files.');
+}
+
+// Fallback/Merge: Load local bundled reports (Legacy/Initial)
 const mainReports = (await import('../../data/reports.json')).default;
 const archivedReportModules = await import.meta.glob('../../data/report-archives/*.json');
 
-const archivedReports = await Promise.all(
+const localReports = await Promise.all(
     Object.values(archivedReportModules).map(async (importer) => {
         const module = await importer();
-        return module.default;
+        const r = module.default;
+        return {
+            reportId: r.reportId || r.id,
+            title: r.title,
+            date: r.date || r.datePublished,
+            summary: r.summary || r.subtitle
+        };
     })
 );
 
-const allReports = [...mainReports, ...archivedReports];
-
-// Deduplicate reports based on reportId and sort by date
-const uniqueReports = Array.from(new Map(allReports.map(report => [report.reportId, report])).values())
+// Combine and Deduplicate
+const combined = [...allReports, ...mainReports, ...localReports];
+const uniqueReports = Array.from(new Map(combined.map(report => [report.reportId, report])).values())
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 const pageTitle = "Full Report Archive";

@@ -9,13 +9,14 @@ export function stripPrefix(id) {
     if (!id || typeof id !== 'string') return '';
     let result = id.toLowerCase();
 
-    // V16.2 Standard Prefixes - SSOT
+    // V2.0 Standard Prefixes - SSOT (Matrix Extension)
     const prefixes = [
-        'hf-model--', 'hf-agent--', 'hf-tool--', 'hf-dataset--', 'hf-space--',
-        'gh-model--', 'gh-agent--', 'gh-tool--',
-        'arxiv-paper--', 'kaggle-dataset--', 'civitai-model--', 'ollama-model--',
-        'github-agent--', 'mcp-server--', 'github-tool--',
-        'knowledge--', 'concept--', 'paper--', 'report--', 'arxiv--', 'replicate:', 'github--', 'kaggle--', 'author--',
+        'hf-model--', 'hf-agent--', 'hf-tool--', 'hf-dataset--', 'hf-space--', 'hf-paper--', 'hf-collection--',
+        'gh-model--', 'gh-agent--', 'gh-tool--', 'gh-repo--',
+        'arxiv-paper--', 'kaggle-dataset--', 'kaggle-model--', 'civitai-model--', 'ollama-model--',
+        'replicate-model--', 'mcp-server--', 'langchain-agent--', 'langchain-prompt--',
+        'huggingface-deepspec--', 'huggingface_deepspec--', 'huggingface--', 'github-agent--', 'github-tool--', 'github--',
+        'knowledge--', 'concept--', 'paper--', 'report--', 'arxiv--', 'replicate:', 'replicate--', 'kaggle--', 'civitai--', 'ollama--', 'author--',
         'model--', 'agent--', 'tool--', 'dataset--', 'space--'
     ];
 
@@ -26,7 +27,7 @@ export function stripPrefix(id) {
         }
     }
 
-    // Standardize separators to dual-dash and clean edges
+    // Standardize separators to dual-dash and clean edges (Restore/Cleanup Phase)
     return result.replace(/[\/:]/g, '--').replace(/^--|--$/g, '');
 }
 
@@ -85,21 +86,23 @@ export function getRouteFromId(id, type = null) {
     }
 
     const cleanId = rawId.replace(/--/g, '/');
+    const lowId = id.toLowerCase();
 
-    // Direct platform redirect for external datasets
-    if (cleanId.startsWith('kaggle/')) {
-        const p = cleanId.replace('kaggle/', '').split('/');
-        if (p.length >= 2) return `https://www.kaggle.com/datasets/${p[0]}/${p[1]}`;
+    // Direct platform redirect for external datasets (Kaggle/Source Logic)
+    if (lowId.includes('kaggle-dataset--') || lowId.includes('kaggle--')) {
+        const parts = cleanId.split('/');
+        if (parts.length >= 2) return `https://www.kaggle.com/datasets/${parts[0]}/${parts[1]}`;
     }
 
     const routeMap = {
         'knowledge': `/knowledge/${cleanId}`,
         'report': `/reports/${cleanId}`,
-        'paper': id.toLowerCase().includes('arxiv') ? `/paper/arxiv/${cleanId}` : `/paper/${cleanId}`,
+        'paper': `/paper/${cleanId}`,
         'dataset': `/dataset/${cleanId}`,
         'space': `/space/${cleanId}`,
         'agent': `/agent/${cleanId}`,
-        'tool': `/tool/${cleanId}`
+        'tool': `/tool/${cleanId}`,
+        'model': `/model/${cleanId}`
     };
 
     const finalPath = routeMap[resolvedType] || `/model/${cleanId}`;

@@ -1,12 +1,13 @@
 /**
- * Trending Generator Module V14.4
+ * Trending Generator Module V16.7.1
  * Constitution Reference: Art 3.1 (Aggregator)
  * 
- * Generates trending.json for homepage display
+ * Generates trending.json for homepage display with V2.0 IDs
  */
 
 import fs from 'fs/promises';
 import path from 'path';
+import { stripPrefix } from '../../src/utils/mesh-routing-core.js';
 
 const TRENDING_LIMIT = 1000; // Top 1000 by FNI
 
@@ -20,7 +21,7 @@ export async function generateTrending(entities, outputDir = './output') {
     await fs.mkdir(cacheDir, { recursive: true });
 
     // Sort by FNI descending
-    const sorted = [...entities].sort((a, b) => (b.fni || 0) - (a.fni || 0));
+    const sorted = [...entities].sort((a, b) => (b.fni_score || b.fni || 0) - (a.fni_score || a.fni || 0));
 
     // Take top N
     const topEntities = sorted.slice(0, TRENDING_LIMIT);
@@ -44,25 +45,21 @@ export async function generateTrending(entities, outputDir = './output') {
 }
 
 function formatEntity(e) {
-    // V14.5: Generate slug with source prefix for correct URL routing
-    // Format: {source}/{author}/{name} -> /model/source/author/name
+    // V16.7.1: Use stripped aesthetic slug for frontend stability
     const source = e.source || e.source_platform || 'unknown';
-    let slug = e.slug;
+    const id = e.id || e.slug || '';
 
-    if (!slug && e.id) {
-        // e.id format: "source:author:name" or "source:author/name"
-        const idWithoutSource = e.id.replace(/^[^:]+:/, ''); // Remove source prefix
-        slug = `${source}/${idWithoutSource.replace(/:/g, '/')}`;
-    }
+    // Aesthetic slug: author/name (stripped)
+    const slug = stripPrefix(id).replace(/--/g, '/');
 
     return {
-        id: e.id,
-        slug: slug || e.id?.replace(/:/g, '/'),
-        name: e.name || e.slug,
+        id: id,
+        slug: slug,
+        name: e.title || e.name || slug,
         type: e.type || 'model',
         source: source,
         description: (e.description || '').substring(0, 200),
-        fni_score: e.fni || e.fni_score || 0,
+        fni_score: e.fni_score || e.fni || 0,
         downloads: e.downloads || 0,
         likes: e.likes || 0,
         author: e.author || 'unknown',

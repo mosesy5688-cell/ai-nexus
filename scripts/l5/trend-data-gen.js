@@ -18,42 +18,43 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 const OUTPUT_DIR = path.join(__dirname, '../../public/cache');
-const WEEKS_TO_TRACK = 4;
+const DAYS_TO_TRACK = 30;
 
 /**
- * Generate weekly trend data from available reports
+ * Generate daily trend data from available reports
  */
 async function generateTrendData() {
-    console.log('📊 L5 Trend Data Generator Starting...');
+    console.log('📊 L5 Trend Data Generator Starting (Daily Mode)...');
 
     // Try to load existing reports data
     let reports = [];
     try {
-        const reportsPath = path.join(__dirname, '../../src/data/reports.json');
+        const reportsPath = path.join(__dirname, '../../public/cache/reports/index.json');
         if (fs.existsSync(reportsPath)) {
             const content = fs.readFileSync(reportsPath, 'utf-8');
-            reports = JSON.parse(content);
+            const index = JSON.parse(content);
+            reports = index.reports || [];
         }
     } catch (e) {
-        console.warn('Could not load reports.json, using generated data');
+        console.warn('Could not load reports index, using generated data');
     }
 
     // Generate trend data structure
     const now = new Date();
-    const weeks = [];
+    const days = [];
 
-    for (let i = WEEKS_TO_TRACK - 1; i >= 0; i--) {
-        const weekDate = new Date(now);
-        weekDate.setDate(weekDate.getDate() - (i * 7));
+    for (let i = DAYS_TO_TRACK - 1; i >= 0; i--) {
+        const dayDate = new Date(now);
+        dayDate.setDate(dayDate.getDate() - i);
 
-        const weekLabel = weekDate.toLocaleDateString('en-US', {
+        const dayLabel = dayDate.toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric'
         });
 
-        weeks.push({
-            label: weekLabel,
-            date: weekDate.toISOString().split('T')[0]
+        days.push({
+            label: dayLabel,
+            date: dayDate.toISOString().split('T')[0]
         });
     }
 
@@ -61,23 +62,23 @@ async function generateTrendData() {
     const trendData = {
         generated_at: new Date().toISOString(),
         contract_version: 'V12',
-        weeks: weeks.map(w => w.label),
+        days: days.map(d => d.label),
 
         model_count: {
             label: 'Total Models',
-            data: generateGrowthTrend(70000, 0.02, WEEKS_TO_TRACK),
+            data: generateGrowthTrend(70000, 0.001, DAYS_TO_TRACK),
             color: '#6366f1'
         },
 
-        weekly_downloads: {
-            label: 'Weekly Downloads (M)',
-            data: generateVariableTrend(15, 25, WEEKS_TO_TRACK),
+        daily_downloads: {
+            label: 'Daily Downloads (M)',
+            data: generateVariableTrend(2, 5, DAYS_TO_TRACK),
             color: '#10b981'
         },
 
         new_models: {
             label: 'New Models',
-            data: generateVariableTrend(800, 1500, WEEKS_TO_TRACK),
+            data: generateVariableTrend(50, 150, DAYS_TO_TRACK),
             color: '#f59e0b'
         },
 

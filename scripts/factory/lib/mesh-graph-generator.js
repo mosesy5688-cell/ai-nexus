@@ -146,7 +146,7 @@ export async function generateMeshGraph(outputDir = './output') {
 
             // Load individual report for highlights
             try {
-                const reportPath = path.join(outputDir, 'cache', 'reports', 'weekly', `${report.id}.json`);
+                const reportPath = path.join(outputDir, 'cache', 'reports', 'daily', `${report.id}.json`);
                 const reportData = await loadJson(reportPath);
                 if (reportData?.highlights) {
                     for (const highlight of reportData.highlights) {

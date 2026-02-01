@@ -32,7 +32,7 @@ if (entityType === 'dataset') {
   if (entity.language) metrics.push({ icon: '💻', label: 'Language', value: entity.language });
 } else if (entityType === 'tool') {
   if (entity.stars) metrics.push({ icon: '⭐', label: 'Stars', value: entity.stars.toLocaleString() });
-  if (entity.weekly_downloads) metrics.push({ icon: '📥', label: 'Weekly', value: entity.weekly_downloads.toLocaleString() });
+  if (entity.weekly_downloads) metrics.push({ icon: '📥', label: 'Trending', value: entity.weekly_downloads.toLocaleString() });
   if (entity.license) metrics.push({ icon: '📜', label: 'License', value: entity.license });
 }
 

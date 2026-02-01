@@ -106,8 +106,9 @@ export class SpacesAdapter extends BaseAdapter {
 
     normalize(raw) {
         const [author, name] = this.parseId(raw.id);
+        const id = this.generateId(author, name, 'space');
         return {
-            id: `hf-space--${this.sanitizeName(author)}--${this.sanitizeName(name)}`,
+            id,
             type: 'space',
             source: 'huggingface',
             source_url: `https://huggingface.co/spaces/${raw.id}`,
@@ -128,10 +129,13 @@ export class SpacesAdapter extends BaseAdapter {
             downloads: 0,
             likes: raw.likes || 0,
             raw_image_url: raw.cardData?.image || `https://cdn-thumbnails.huggingface.co/social-thumbnails/spaces/${raw.id}.png`,
-            relations: (raw.models_used || []).map(m => ({
-                target_id: `huggingface--${m.replace(/\//g, '--')}`,
-                relation_type: 'USES', confidence: 1.0, source: 'config'
-            })),
+            relations: (raw.models_used || []).map(m => {
+                const [mAuthor, mName] = this.parseId(m);
+                return {
+                    target_id: this.generateId(mAuthor, mName, 'model'),
+                    relation_type: 'USES', confidence: 1.0, source: 'config'
+                };
+            }),
             content_hash: null, compliance_status: null, quality_score: null
         };
     }
