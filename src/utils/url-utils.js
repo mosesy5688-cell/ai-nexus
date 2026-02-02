@@ -47,15 +47,22 @@ export function generateEntityUrl(entity, type) {
  * Parse URL path to extract entity type and slug
  */
 export function parseEntityUrl(pathname) {
-    if (!pathname) return { type: 'model', slug: '' };
+    if (!pathname || pathname === '/') return { type: 'model', slug: '' };
 
-    const match = pathname.match(/^\/(model|dataset|paper|agent|benchmark|tool)\/(.+)$/);
+    // Handle listing roots (/model, /agent, etc.)
+    const rootMatch = pathname.match(/^\/(model|dataset|paper|agent|benchmark|tool|space)\/?$/);
+    if (rootMatch) {
+        return { type: rootMatch[1], slug: '' };
+    }
+
+    const match = pathname.match(/^\/(model|dataset|paper|agent|benchmark|tool|space)\/(.+)$/);
     if (match) {
         return { type: match[1], slug: match[2] };
     }
 
-    // Fallback: treat as model
-    return { type: 'model', slug: pathname.replace(/^\//, '') };
+    // Fallback: treat as model if no other match
+    const segments = pathname.split('/').filter(Boolean);
+    return { type: 'model', slug: segments[segments.length - 1] || '' };
 }
 
 /**
