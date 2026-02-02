@@ -7,7 +7,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import { stripPrefix } from '../../src/utils/mesh-routing-core.js';
+import { stripPrefix } from '../../../src/utils/mesh-routing-core.js';
 
 const TRENDING_LIMIT = 1000; // Top 1000 by FNI
 
