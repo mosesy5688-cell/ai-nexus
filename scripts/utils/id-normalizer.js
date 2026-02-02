@@ -11,6 +11,7 @@ const PREFIX_MAP = {
         model: 'hf-model--',
         dataset: 'hf-dataset--',
         space: 'hf-space--',
+        agent: 'hf-agent--',
         paper: 'hf-paper--',
         collection: 'hf-collection--',
     },
@@ -19,30 +20,28 @@ const PREFIX_MAP = {
         tool: 'gh-tool--',
         model: 'gh-model--',
         repo: 'gh-repo--',
-        space: 'gh-space--', // Added for completeness
     },
     arxiv: {
-        paper: 'arxiv-paper--',
+        paper: 'arxiv--',
     },
     civitai: {
-        model: 'civitai-model--',
+        model: 'civitai--',
     },
     kaggle: {
-        dataset: 'kaggle-dataset--',
-        model: 'kaggle-model--',
+        dataset: 'dataset--',
+        model: 'hf-model--',
     },
     replicate: {
-        model: 'replicate-model--',
-    },
-    langchain: {
-        agent: 'langchain-agent--',
-        prompt: 'langchain-prompt--',
-    },
-    mcp: {
-        agent: 'mcp-server--',
+        model: 'replicate--',
     },
     ollama: {
-        model: 'ollama-model--',
+        model: 'ollama--',
+    },
+    knowledge: {
+        concept: 'knowledge--',
+    },
+    report: {
+        weekly: 'report--',
     }
 };
 
@@ -152,8 +151,8 @@ export function normalizeId(id, source, type) {
 
     const prefix = PREFIX_MAP[s]?.[t];
 
-    // 4. Final Assembly (V16.8.20: Aesthetic Slug Mode - Return Clean ID WITHOUT technical prefixes)
-    return cleanId;
+    // 4. Final Assembly (V16.8.21: Canonical ID Mode as per SPEC-V16.2 Section 2.1)
+    return prefix ? `${prefix}${cleanId}` : cleanId;
 }
 
 export function getNodeSource(id, type) {
