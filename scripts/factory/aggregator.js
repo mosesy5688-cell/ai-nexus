@@ -41,6 +41,11 @@ async function main() {
     const allEntities = JSON.parse(await fs.readFile(entitiesInputPath, 'utf-8'));
     console.log(`✓ Context loaded: ${allEntities.length} entities ready for Knowledge Mesh & Ranking`);
 
+    // V16.8.5: Data Safety Guard (Scale Protection)
+    if (allEntities.length < 1000) {
+        throw new Error(`[CRITICAL] Data Loss Detected! Only ${allEntities.length} entities found. This is likely a fallback to stale repo data. Aggregation aborted to protect production metrics.`);
+    }
+
     // V2.0 optimization: In satellite mode, we just load the pre-merged entities
     let fullSet = [];
     if (taskArg && taskArg !== 'core' && taskArg !== 'health') {
@@ -153,7 +158,7 @@ async function main() {
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[AGGREGATOR V16.8.4] Phase 2 complete! (Duration: ${duration}s)`);
+    console.log(`[AGGREGATOR V16.8.5] Phase 2 complete! (Duration: ${duration}s)`);
     console.log(`[SCALE] Successfully processed and indexed ${rankedEntities.length} entities for the Knowledge Mesh.`);
 }
 
