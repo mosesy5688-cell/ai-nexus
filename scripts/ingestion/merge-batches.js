@@ -135,12 +135,15 @@ async function mergeBatches() {
     await saveEntityChecksums(checksums);
     console.log(`   ✓ Checksum cache synchronized`);
 
-    // Integrity Guard: Prevent data wipe if R2 restoration failed (V16.2.3 Emergency Guard)
-    // We expect 274k+, so 200k is a safe threshold to detect a serious restoration failure.
-    if (fullSet.length < 200000 && process.env.GITHUB_RUN_ID) {
-        console.error(`❌ [CRITICAL] Registry restoration failed! Expected ~274k, got ${fullSet.length}.`);
-        console.error(`   To prevent data wipe, aborting merge. Check R2 credentials and npx-y wrangler.`);
-        throw new Error('Registry Restoration Integrity Failure - Emergency Abort to Protect R2');
+    // Integrity Guard: Prevent data wipe if R2 restoration failed (V16.8.10 Hardening)
+    // We expect 213k+, so 210k is the safe floor for the "Fresh Start" baseline.
+    const REGISTRY_FLOOR = 210000;
+    if (fullSet.length < REGISTRY_FLOOR && process.env.GITHUB_RUN_ID) {
+        console.error(`❌ [CRITICAL] Registry integrity check failed!`);
+        console.error(`   - Current Count: ${fullSet.length}`);
+        console.error(`   - Required Floor: ${REGISTRY_FLOOR}`);
+        console.error(`   To prevent data wipe, aborting merge. Check R2 connectivity or manual baseline.`);
+        throw new Error(`Registry Integrity Failure (${fullSet.length} < ${REGISTRY_FLOOR}) - Emergency Abort`);
     }
 
     // Write merged output in shards (V16.2.3 Shard-First Implementation)

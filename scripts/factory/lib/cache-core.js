@@ -12,8 +12,9 @@ const getR2Bucket = () => process.env.R2_BUCKET || 'ai-nexus-assets';
 
 /**
  * Load data with priority chain
+ * V16.8.10: Zero-Trust Hardening (throws on critical failure)
  */
-export async function loadWithFallback(filename, defaultValue = {}) {
+export async function loadWithFallback(filename, defaultValue = {}, isCritical = false) {
     const localPath = path.join(getCacheDir(), filename);
 
     try {
@@ -39,8 +40,13 @@ export async function loadWithFallback(filename, defaultValue = {}) {
         await fs.writeFile(localPath, result);
         await fs.unlink(tempFile).catch(() => { });
         return JSON.parse(result);
-    } catch {
+    } catch (err) {
         console.log(`[CACHE] ⚠️ R2 Restore Failed/Missing: ${filename}`);
+        if (isCritical) {
+            console.error(`[CRITICAL] Restoration failed for essential file: ${filename}`);
+            console.error(`[CRITICAL] Error: ${err.stderr?.toString() || err.message}`);
+            throw new Error(`Critical Restoration Failure: ${filename} - Pipeline Aborted to prevent data corruption.`);
+        }
     }
 
     return defaultValue;
