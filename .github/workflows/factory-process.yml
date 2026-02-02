@@ -31,12 +31,20 @@ jobs:
     steps:
       - name: Get Upstream Run ID
         id: get-run-id
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.run_id }}" ]; then
-            echo "run_id=${{ inputs.run_id }}" >> $GITHUB_OUTPUT
-          else
-            echo "run_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
+          # 1. Start with the Harvest Run ID (Triggering event or manual input)
+          HARVEST_RUN_ID=${{ inputs.run_id || github.event.workflow_run.id }}
+          
+          # 2. If HARVEST_RUN_ID is missing, find the latest successful Harvest run on MAIN
+          if [ -z "$HARVEST_RUN_ID" ] || [ "$HARVEST_RUN_ID" == "null" ]; then
+            echo "🔍 Manual dispatch: Finding latest successful Harvest run on main branch..."
+            HARVEST_RUN_ID=$(gh run list --workflow factory-harvest.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           fi
+          
+          echo "run_id=$HARVEST_RUN_ID" >> $GITHUB_OUTPUT
+          echo "✅ Resolved Harvest ID (Main): $HARVEST_RUN_ID"
 
   # V14.5 Optimization: Single job to restore Cache and re-upload as Artifact
   # This avoids the cross-workflow artifact download rate limit
@@ -49,7 +57,9 @@ jobs:
         uses: actions/checkout@v4
         
       - name: Setup Directories
-        run: mkdir -p data cache
+        run: |
+          rm -rf data/*.json cache/*.json # V16.8.6: Clear stale local context
+          mkdir -p data cache
         
       - name: Restore Entity Data from Cache
         uses: actions/cache/restore@v4
