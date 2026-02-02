@@ -114,27 +114,35 @@ jobs:
       # V16.4.1: Fetch Global Entity Registry (Artifact Priority)
       - name: Fetch Global Entity Registry
         run: |
-          mkdir -p data/images
+          mkdir -p data/images data/registry
           
-          # 1. Try Artifact Monolith
-          if [ -f "./registry-context/entities.json" ]; then
-            echo "✅ Verified: Registry monolith found in Artifact. Using it."
-            cp ./registry-context/entities.json data/registry.json
-            # Seed shards for queue preparation
-            mkdir -p data/registry
+          echo "🔍 Searching for registry monolith in artifact..."
+          # 1. Try Artifact Monolith (Preferred V16.8.16)
+          if [ -f "./registry-context/output/entities.json" ]; then
+            echo "✅ Verified: Registry monolith found in ./registry-context/output/entities.json"
+            cp ./registry-context/output/entities.json data/registry.json
             cp -r ./registry-context/cache/registry/* data/registry/ 2>/dev/null || true
-            node scripts/factory/prepare-image-queue.js data ${{ inputs.batch_size || 2000 }}
+          elif [ -f "./registry-context/entities.json" ]; then
+            echo "✅ Verified: Registry monolith found in ./registry-context/entities.json"
+            cp ./registry-context/entities.json data/registry.json
+            cp -r ./registry-context/registry/* data/registry/ 2>/dev/null || true
           # 2. Try Cache Shards (Legacy Fallback)
           elif [ -d "output/meta/backup/registry" ]; then
             echo "✅ Verified: Registry backup exists in GitHub Cache. Using it."
-            node scripts/factory/prepare-image-queue.js output/meta/backup ${{ inputs.batch_size || 2000 }}
-            # Copy for post-processor
+            # Copy for post-processor compatibility
             cp output/meta/backup/global-registry.json data/registry.json 2>/dev/null || true
           # 3. Try R2 Fallback
           else
             echo "⚠️ Cache/Artifact miss: Falling back to R2..."
             npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/registry.json --remote
+          fi
+
+          # V16.8.17: Ensure the queue is prepared regardless of which source was used
+          if [ -f "data/registry.json" ]; then
             node scripts/factory/prepare-image-queue.js data ${{ inputs.batch_size || 2000 }}
+          else
+             echo "❌ CRITICAL ERROR: registry.json not found in any source!"
+             exit 1
           fi
 
       - name: Download and Convert Images
@@ -170,9 +178,16 @@ jobs:
         run: |
           echo "📝 Updating registry with CDN URLs..."
           # 1. Initialize local cache and monolith from artifact context
-          mkdir -p cache data
-          cp ./registry-context/entities.json data/registry.json
-          cp -r ./registry-context/cache/registry cache/ 2>/dev/null || true
+          mkdir -p cache data registry
+          if [ -f "./registry-context/output/entities.json" ]; then
+            echo "✅ Source: ./registry-context/output/entities.json"
+            cp ./registry-context/output/entities.json data/registry.json
+            cp -r ./registry-context/cache/registry/* cache/ 2>/dev/null || true
+          elif [ -f "./registry-context/entities.json" ]; then
+            echo "✅ Source: ./registry-context/entities.json"
+            cp ./registry-context/entities.json data/registry.json
+            cp -r ./registry-context/registry/* cache/ 2>/dev/null || true
+          fi
           
           # 2. Move output/images to data/images locally for the processor to see them as 'processed'
           cp -r output/images/* data/images/
