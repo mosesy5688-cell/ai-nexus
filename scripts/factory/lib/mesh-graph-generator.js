@@ -36,19 +36,30 @@ function standardizeId(id, type) {
 }
 
 /**
- * Extract node type from ID with prefix fallthrough
+ * Extract node type from ID with v2.1 prefix standard
  */
 function getNodeType(id) {
     if (!id) return 'unknown';
     const cleanId = id.toLowerCase();
-    if (cleanId.startsWith('hf-model--') || cleanId.startsWith('huggingface--') || cleanId.startsWith('model--') || cleanId.startsWith('kb-model--')) return 'model';
-    if (cleanId.startsWith('arxiv--') || cleanId.startsWith('paper--')) return 'paper';
-    if (cleanId.startsWith('hf-agent--') || cleanId.startsWith('agent--')) return 'agent';
-    if (cleanId.startsWith('hf-space--') || cleanId.startsWith('space--')) return 'space';
-    if (cleanId.startsWith('dataset--') || cleanId.startsWith('hf-dataset--')) return 'dataset';
-    if (cleanId.startsWith('tool--') || cleanId.startsWith('hf-tool--')) return 'tool';
+
+    // Model Tier
+    if (cleanId.startsWith('hf-model--') || cleanId.startsWith('huggingface--') || cleanId.startsWith('model--') ||
+        cleanId.startsWith('kb-model--') || cleanId.startsWith('civitai-model--') ||
+        cleanId.startsWith('replicate-model--') || cleanId.startsWith('ollama-model--') ||
+        cleanId.startsWith('kaggle-model--')) return 'model';
+
+    // Paper Tier
+    if (cleanId.startsWith('arxiv-paper--') || cleanId.startsWith('paper--') ||
+        cleanId.startsWith('arxiv--') || cleanId.startsWith('hf-paper--')) return 'paper';
+
+    // Other entities
+    if (cleanId.startsWith('hf-agent--') || cleanId.startsWith('gh-agent--') || cleanId.startsWith('agent--')) return 'agent';
+    if (cleanId.startsWith('hf-space--') || cleanId.startsWith('gh-space--') || cleanId.startsWith('space--')) return 'space';
+    if (cleanId.startsWith('dataset--') || cleanId.startsWith('hf-dataset--') || cleanId.startsWith('kaggle-dataset--')) return 'dataset';
+    if (cleanId.startsWith('tool--') || cleanId.startsWith('gh-tool--') || cleanId.startsWith('hf-tool--')) return 'tool';
     if (cleanId.startsWith('knowledge--') || cleanId.startsWith('kb--')) return 'knowledge';
     if (cleanId.startsWith('report--')) return 'report';
+
     return 'unknown';
 }
 

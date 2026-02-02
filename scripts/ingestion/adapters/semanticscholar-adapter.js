@@ -1,306 +1,175 @@
 /**
  * Semantic Scholar Adapter
- * V4.3.2 Constitution Compliance
+ * V16.8.3 Standard Implementation
  * 
- * Fetches academic citation data from Semantic Scholar API:
- * - Citation counts for papers
- * - Influential citations
- * - Paper→Model linking via arXiv IDs
- * 
- * API: https://api.semanticscholar.org/
- * Rate Limit: 100 requests per 5 minutes (public)
- * 
- * V2.1: Added NSFW filter at fetch level
+ * Fetches academic citation data from Semantic Scholar API.
+ * Ensures compatibility with Unified Entity Schema (V2.1).
  * 
  * @module ingestion/adapters/semanticscholar-adapter
  */
 
-import { BaseAdapter, NSFW_KEYWORDS } from './base-adapter.js';
+import { BaseAdapter } from './base-adapter.js';
 
 const S2_API_BASE = 'https://api.semanticscholar.org/graph/v1';
 
 export class SemanticScholarAdapter extends BaseAdapter {
     constructor() {
         super('semantic_scholar');
+        this.entityTypes = ['paper'];
     }
 
     /**
-     * Rate limiting delay helper - V4.3.2 Constitution
+     * Rate limiting delay helper
      */
     delay(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
     /**
-     * Fetch citation data for papers - now supports independent search
-     * @param {Object} options
-     * @param {string[]} options.arxivIds - ArXiv paper IDs to lookup (optional)
-     * @param {number} options.limit - Maximum papers to process
+     * Main Fetch Entry Point
      */
     async fetch(options = {}) {
         const { arxivIds = [], limit = 3000 } = options;
 
-        // If no arxivIds provided, search for AI papers independently
         if (arxivIds.length === 0) {
             console.log(`📥 [S2] No arXiv IDs provided, searching for AI/ML papers...`);
-            const papers = await this.searchAIPapers(limit); // Original call
-            return papers.length > 0 ? papers : this.getEmptyFallback(); // Modified based on instruction
+            return await this.searchAIPapers(limit);
         }
 
         console.log(`📥 [S2] Fetching citations for ${arxivIds.length} papers...`);
-
-        const citations = [];
+        const results = [];
 
         for (const arxivId of arxivIds.slice(0, limit)) {
             try {
-                const citation = await this.fetchPaperCitation(arxivId);
-                if (citation) {
-                    citations.push(citation);
-                    console.log(`   ✅ ${arxivId}: ${citation.citation_count} citations`);
-                }
-
-                // Rate limiting - V4.3.2 (100 req/5min = ~3 sec between requests)
-                await this.delay(3500);
-
+                const paper = await this.fetchPaperByArxiv(arxivId);
+                if (paper) results.push(paper);
+                await this.delay(3000); // Respect API limit
             } catch (error) {
                 console.warn(`   ⚠️ ${arxivId}: ${error.message}`);
             }
         }
 
-        console.log(`   📊 Fetched ${citations.length}/${arxivIds.length} citation records`);
-
-        return citations;
+        return results;
     }
 
     /**
-     * Search for AI/ML papers independently
-     * @param {number} limit - Max papers to fetch
+     * Search papers by AI topics
      */
     async searchAIPapers(limit = 1000) {
-        const AI_TOPICS = [
-            'large language model',
-            'transformer neural network',
-            'diffusion model',
-            'machine learning',
-            'deep learning',
-            'GPT',
-            'BERT',
-            'LLaMA',
-            'vision transformer'
-        ];
-
+        const TOPICS = ['large language model', 'diffusion model', 'machine learning', 'transformer'];
         const papers = [];
-        const papersPerTopic = Math.ceil(limit / AI_TOPICS.length);
 
-        for (const topic of AI_TOPICS) {
+        for (const topic of TOPICS) {
             if (papers.length >= limit) break;
-
             console.log(`   🔍 Searching: ${topic}...`);
-            const results = await this.searchPapers(topic, Math.min(papersPerTopic, 100));
+            const results = await this.searchPapers(topic, Math.min(100, limit - papers.length));
 
-            // Deduplicate by paper_id
-            for (const paper of results) {
-                if (!papers.find(p => p.paper_id === paper.paper_id)) {
-                    papers.push(paper);
+            for (const p of results) {
+                if (!papers.find(existing => existing.paper_id === p.paper_id)) {
+                    papers.push(p);
                 }
             }
-
-            console.log(`   📦 Found ${results.length} papers (total: ${papers.length})`);
-            await this.delay(3500); // Rate limiting
+            await this.delay(3000);
         }
-
-        console.log(`✅ [S2] Fetched ${papers.length} AI/ML papers`);
-        return papers.slice(0, limit);
+        return papers;
     }
 
     /**
-     * Fetch citation data for a single paper
-     * @param {string} arxivId - ArXiv paper ID (e.g., "2307.09288")
+     * Normalize raw paper to UnifiedEntity format
+     * V16.8.3: Critical fix to avoid duplicate overwriting
      */
-    async fetchPaperCitation(arxivId) {
-        const cleanId = arxivId.replace('arXiv:', '').replace('arxiv:', '');
-        const url = `${S2_API_BASE}/paper/arXiv:${cleanId}?fields=title,citationCount,influentialCitationCount,year,authors`;
+    normalize(raw) {
+        const paperId = raw.paper_id;
+        const arxivId = raw.arxiv_id || this.extractArxivId(paperId);
 
-        const response = await fetch(url, {
-            headers: {
-                'Accept': 'application/json',
-                'User-Agent': 'Free2AITools/1.0'
-            }
-        });
+        const entity = {
+            id: this.generateId('unknown', paperId, 'paper'),
+            type: 'paper',
+            source: 'semantic_scholar',
+            source_url: `https://api.semanticscholar.org/${paperId}`,
+            title: raw.title || paperId,
+            description: this.truncate(raw.description || '', 500),
+            body_content: raw.description || '',
+            tags: ['paper', 'research', 'academic'],
+            author: raw.authors || 'Unknown',
+            license_spdx: 'ArXiv',
+            meta_json: {
+                citation_count: raw.citation_count || 0,
+                influential_count: raw.influential_citation_count || 0,
+                year: raw.year
+            },
+            popularity: raw.citation_count || 0,
+            downloads: 0,
+            arxiv_id: arxivId,
+            arxiv_url: arxivId ? `https://arxiv.org/abs/${arxivId}` : null,
+            compliance_status: 'approved',
+            quality_score: 50,
+            content_hash: null
+        };
 
-        if (!response.ok) {
-            if (response.status === 429) {
-                console.warn(`   ⚠️ Rate limited, waiting 60s...`);
-                await this.delay(60000);
-                return this.getEmptyFallback(); // Modified based on instruction
-            }
-            return null;
-        }
+        entity.content_hash = this.generateContentHash(entity);
+        entity.quality_score = this.calculateQualityScore(entity);
+        return entity;
+    }
+
+    /**
+     * Fetch single paper by ArXiv ID
+     */
+    async fetchPaperByArxiv(arxivId) {
+        const cleanId = arxivId.replace('arxiv:', '').trim();
+        const url = `${S2_API_BASE}/paper/arXiv:${cleanId}?fields=title,citationCount,influentialCitationCount,year,authors,abstract`;
+
+        const response = await fetch(url, { headers: { 'User-Agent': 'Free2AITools/1.0' } });
+        if (!response.ok) return null;
 
         const data = await response.json();
-
         return {
             paper_id: cleanId,
-            paper_version: null,
             title: data.title,
+            description: data.abstract || '',
             citation_count: data.citationCount || 0,
             influential_citation_count: data.influentialCitationCount || 0,
-            source: 'semantic_scholar',
-            authors: data.authors?.map(a => a.name).join(', ') || '',
-            year: data.year
+            authors: data.authors?.map(a => a.name).join(', ') || 'Unknown',
+            year: data.year,
+            source: 'semantic_scholar'
         };
     }
 
     /**
-     * Fetch citations for AI model papers by searching
-     * @param {string} query - Search query
-     * @param {number} limit - Max results
+     * Generic Search
      */
     async searchPapers(query, limit = 20) {
-        const url = `${S2_API_BASE}/paper/search?query=${encodeURIComponent(query)}&limit=${limit}&fields=title,citationCount,influentialCitationCount,externalIds`;
-
+        const url = `${S2_API_BASE}/paper/search?query=${encodeURIComponent(query)}&limit=${limit}&fields=title,citationCount,influentialCitationCount,externalIds,abstract,authors,year`;
         try {
-            const response = await fetch(url, {
-                headers: {
-                    'Accept': 'application/json',
-                    'User-Agent': 'Free2AITools/1.0'
-                }
-            });
-
-            if (!response.ok) return [];
-
+            console.log(`   [S2] Fetching: ${url}`);
+            const response = await fetch(url, { headers: { 'User-Agent': 'Free2AITools/1.0' } });
+            if (!response.ok) {
+                console.warn(`   [S2] API Error: ${response.status} ${response.statusText}`);
+                return [];
+            }
             const data = await response.json();
-            return (data.data || []).map(paper => ({
-                paper_id: paper.externalIds?.ArXiv || paper.paperId,
-                title: paper.title,
-                citation_count: paper.citationCount || 0,
-                influential_citation_count: paper.influentialCitationCount || 0,
+            console.log(`   [S2] Found ${data.data?.length || 0} results`);
+            return (data.data || []).map(p => ({
+                paper_id: p.externalIds?.ArXiv || p.paperId,
+                title: p.title,
+                description: p.abstract || '',
+                citation_count: p.citationCount || 0,
+                influential_citation_count: p.influentialCitationCount || 0,
+                authors: p.authors?.map(a => a.name).join(', ') || 'Unknown',
+                year: p.year,
                 source: 'semantic_scholar'
             }));
-
-        } catch (error) {
-            console.warn(`   ⚠️ Search error: ${error.message}`);
+        } catch (e) {
             return [];
         }
     }
 
-    /**
-     * V16.3: Strictly return empty to prevent registry pollution
-     */
-    getEmptyFallback() {
-        console.warn('   ⚠️ Returning empty results (Mock fallback disabled for V16.3 Hardening)');
-        return [];
+    extractArxivId(id) {
+        const match = (id || '').match(/(\d{4}\.\d{4,5})/);
+        return match ? match[1] : null;
     }
 
-    /**
-     * Get sample citations for well-known AI model papers
-     * Used when no specific papers are provided
-     */
-    getSampleCitations() {
-        console.log(`   📊 Using curated AI model paper citations`);
-
-        // Curated from Semantic Scholar as of December 2024
-        return [
-            {
-                paper_id: '2307.09288',
-                title: 'Llama 2: Open Foundation and Fine-Tuned Chat Models',
-                citation_count: 8500,
-                influential_citation_count: 1200,
-                source: 'semantic_scholar',
-                model_family: 'llama'
-            },
-            {
-                paper_id: '2302.13971',
-                title: 'LLaMA: Open and Efficient Foundation Language Models',
-                citation_count: 12000,
-                influential_citation_count: 2100,
-                source: 'semantic_scholar',
-                model_family: 'llama'
-            },
-            {
-                paper_id: '2310.06825',
-                title: 'Mistral 7B',
-                citation_count: 3200,
-                influential_citation_count: 450,
-                source: 'semantic_scholar',
-                model_family: 'mistral'
-            },
-            {
-                paper_id: '2309.16609',
-                title: 'Qwen Technical Report',
-                citation_count: 1500,
-                influential_citation_count: 280,
-                source: 'semantic_scholar',
-                model_family: 'qwen'
-            },
-            {
-                paper_id: '2403.08295',
-                title: 'Gemma: Open Models Based on Gemini Research and Technology',
-                citation_count: 800,
-                influential_citation_count: 120,
-                source: 'semantic_scholar',
-                model_family: 'gemma'
-            },
-            {
-                paper_id: '2305.10403',
-                title: 'Falcon-40B: Open-Source Large Language Model',
-                citation_count: 1100,
-                influential_citation_count: 180,
-                source: 'semantic_scholar',
-                model_family: 'falcon'
-            },
-            {
-                paper_id: '2312.11805',
-                title: 'Phi-2: The Surprising Power of Small Language Models',
-                citation_count: 600,
-                influential_citation_count: 95,
-                source: 'semantic_scholar',
-                model_family: 'phi'
-            },
-            {
-                paper_id: '2401.04088',
-                title: 'DeepSeek LLM: Scaling Open-Source Language Models',
-                citation_count: 450,
-                influential_citation_count: 70,
-                source: 'semantic_scholar',
-                model_family: 'deepseek'
-            },
-            {
-                paper_id: '2305.13245',
-                title: 'Yi: Open Foundation Models by 01.AI',
-                citation_count: 380,
-                influential_citation_count: 55,
-                source: 'semantic_scholar',
-                model_family: 'yi'
-            },
-            {
-                paper_id: '2306.01116',
-                title: 'InternLM: A Multilingual Language Model with Progressively Enhanced Capabilities',
-                citation_count: 420,
-                influential_citation_count: 65,
-                source: 'semantic_scholar',
-                model_family: 'internlm'
-            }
-        ];
-    }
-
-    /**
-     * Normalize citation record for model_citations schema
-     * @param {Object} raw 
-     * @param {string} umid - Model UMID to link to
-     */
-    normalize(raw, umid) {
-        return {
-            umid: umid,
-            paper_id: raw.paper_id,
-            paper_version: raw.paper_version || null,
-            title: raw.title,
-            citation_count: raw.citation_count || 0,
-            influential_citation_count: raw.influential_citation_count || 0,
-            source: 'semantic_scholar',
-            last_checked: new Date().toISOString()
-        };
-    }
+    extractAssets(raw) { return []; }
 }
 
 export default SemanticScholarAdapter;
