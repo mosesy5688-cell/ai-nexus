@@ -136,14 +136,10 @@ export async function loadFullSearchIndex(onProgress) {
         return true;
     } catch (e) {
         console.error('❌ [V16.2.3] Sharded Index Load Failed:', e);
-        // Fallback to legacy full index if manifest fails
-    } catch (f) {
-        console.error('[Search] All index fallbacks failed. Memory safety maintained.');
+        return false;
+    } finally {
+        isFullSearchLoading = false;
     }
-    return false;
-} finally {
-    isFullSearchLoading = false;
-}
 }
 
 export function getSearchHistory() {
