@@ -75,15 +75,22 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # V16.7: Correct identity restoration using Resolved Upstream ID (Credential-based)
-      - name: Restore Factory Output from Cache
-        uses: actions/cache/restore@v4
+      - name: Download Core Context (Monolith & Meta)
+        uses: actions/download-artifact@v4
         with:
+          name: core-registry-v2
+          path: .
+          run-id: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download Processing Results (Search, Rankings, etc.)
+        uses: actions/download-artifact@v4
+        with:
+          pattern: agg-*
           path: output/
-          key: entity-data-${{ needs.check-upstream.outputs.upstream-run-id }}-img
-          restore-keys: |
-            entity-data-${{ needs.check-upstream.outputs.upstream-run-id }}
-            entity-data-
+          merge-multiple: true
+          run-id: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       # V16.3.3: Verify Registry Backup Integrity (Robust Encoding)
       - name: Verify Registry Backup
