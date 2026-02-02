@@ -1,4 +1,116 @@
----
+/**
+ * Model Index Page - V16.8.9 Unified SSR (Singular Path Restoration)
+ * Lists AI models with filtering and sorting
+ * Zero-Runtime SSR + Sharded Ranking Fetch
+ */
+
 export const prerender = false;
-return Astro.redirect('/models', 301);
+
+import Layout from '../../layouts/Layout.astro';
+import { fetchCatalogData, truncateListingItem } from '../../utils/catalog-fetcher.js';
+import { generateEntityUrl } from '../../utils/url-utils.js';
+
+// SSR Data Fetching (Unified)
+const { items: allModels, error, source } = await fetchCatalogData('model', Astro.locals.runtime?.env);
+
+// Payload Optimization
+const models = allModels.slice(0, 100).map(truncateListingItem);
+
+const pageTitle = "AI Models Catalog | Browse 70K+ Open-Source Models";
+const pageDescription = "Browse our complete catalog of open-source AI models. Filter by category, sort by FNI score, or downloads.";
+const canonicalUrl = 'https://free2aitools.com/model';
 ---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <link slot="head" rel="canonical" href={canonicalUrl} />
+
+  <div class="container mx-auto px-4 py-8 min-h-screen flex flex-col">
+    <div class="mb-8">
+      <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+        AI Models Catalog
+      </h1>
+      <p class="text-gray-600 dark:text-gray-400">
+        Browse and discover 70,000+ open-source AI models
+      </p>
+    </div>
+
+    <!-- Filters & Sort -->
+    <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm z-10 relative">
+      <div class="flex-1 min-w-[200px]">
+        <input 
+          type="text" 
+          id="models-search" 
+          placeholder="Search models..." 
+          class="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+      
+      <select id="sort-by" class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+        <option value="fni">🛡️ FNI Score</option>
+        <option value="downloads">📥 Downloads</option>
+        <option value="likes">❤️ Likes</option>
+        <option value="recent">🕐 Recently Updated</option>
+      </select>
+    </div>
+
+    <!-- Grid -->
+    <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow min-h-[500px]">
+       {models.length > 0 ? (
+           models.slice(0, 24).map((model: any) => (
+            <a href={generateEntityUrl(model)} 
+               class="model-card p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 block">
+              <div class="flex items-center justify-between mb-2">
+                 <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">Model</span>
+                  {model.fni_score > 0 && (
+                    <span class="text-xs font-bold text-gray-500 dark:text-gray-400">
+                       🛡️ {Math.round(model.fni_score)}
+                    </span>
+                  )}
+              </div>
+              <h3 class="font-bold text-gray-900 dark:text-white truncate">{model.name || model.id}</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                  {model.description ? model.description.replace(/<[^>]*>?/gm, '') : ''}
+              </p>
+            </a>
+           ))
+       ) : (
+          Array(12).fill(0).map(() => (
+            <div class="animate-pulse bg-white dark:bg-gray-800 rounded-xl p-5 h-48">
+              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-3"></div>
+              <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
+            </div>
+          ))
+       )}
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex justify-center mt-8 mb-12">
+      <nav id="pagination" class="flex items-center gap-2"></nav>
+    </div>
+  </div>
+</Layout>
+
+<script define:vars={{ initialModels: models }}>
+  window.initialModels = initialModels;
+</script>
+
+<script>
+  import { UniversalCatalog } from '../../scripts/lib/UniversalCatalog.js';
+
+  const init = () => {
+      if (!window.initialModels) return;
+
+      new UniversalCatalog({ 
+        initialData: window.initialModels, 
+        type: 'model',
+        gridId: 'models-grid',
+        dataUrl: 'https://cdn.free2aitools.com/cache/rankings/model/p1.json'
+      });
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+</script>

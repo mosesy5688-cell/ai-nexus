@@ -137,22 +137,13 @@ export async function loadFullSearchIndex(onProgress) {
     } catch (e) {
         console.error('❌ [V16.2.3] Sharded Index Load Failed:', e);
         // Fallback to legacy full index if manifest fails
-        try {
-            console.warn('⚠️ [Search] Falling back to legacy full index...');
-            const res = await fetch(FULL_INDEX_URL);
-            if (res.ok) {
-                const data = await res.json();
-                const rawFull = data.entities || data.models || data;
-                searchIndex.removeAll();
-                searchIndex.addAll(rawFull);
-                isFullSearchActive = true;
-                return true;
-            }
-        } catch (f) { /* Silent fail */ }
-        return false;
-    } finally {
-        isFullSearchLoading = false;
+    } catch (f) {
+        console.error('[Search] All index fallbacks failed. Memory safety maintained.');
     }
+    return false;
+} finally {
+    isFullSearchLoading = false;
+}
 }
 
 export function getSearchHistory() {

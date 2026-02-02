@@ -48,7 +48,11 @@ const CATEGORY_META: Record<string, { name: string; description: string; icon: s
   }
 };
 
-const meta = CATEGORY_META[category!] || CATEGORY_META['text-generation'];
+const meta = CATEGORY_META[category!] || {
+  name: category!.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
+  description: `Explore top AI models in the ${category} category.`,
+  icon: '📁'
+};
 
 // V6.0.1: Fetch models from CDN rankings
 let models: any[] = [];

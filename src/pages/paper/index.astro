@@ -1,4 +1,49 @@
 ---
+/**
+ * Paper Index Page - V16.8.9 Restoration
+ */
+
 export const prerender = false;
-return Astro.redirect('/papers', 301);
+
+import Layout from '../../layouts/Layout.astro';
+import { fetchCatalogData, truncateListingItem } from '../../utils/catalog-fetcher.js';
+import { generateEntityUrl } from '../../utils/url-utils.js';
+
+const { items: allEntities, error, source } = await fetchCatalogData('paper', Astro.locals.runtime?.env);
+const entities = allEntities.slice(0, 100).map(truncateListingItem);
+
+const pageTitle = 'AI Research Papers | Technical Index';
+const pageDescription = 'Browse the latest AI research papers and technical reports.';
 ---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <main class="container mx-auto px-4 py-8 min-h-screen flex flex-col">
+    <h1 class="text-3xl font-bold mb-6">AI Research Papers</h1>
+    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+       {entities.map((item: any) => (
+         <a href={generateEntityUrl(item, 'paper')} class="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 block transition-all hover:shadow-lg">
+           <h3 class="font-bold truncate">{item.name || item.id}</h3>
+           <p class="text-sm text-gray-500 line-clamp-2 mt-1">{item.description}</p>
+         </a>
+       ))}
+    </div>
+  </main>
+</Layout>
+
+<script define:vars={{ initialEntities: entities }}>
+  window.initialEntities = initialEntities;
+</script>
+
+<script>
+  import { UniversalCatalog } from '../../scripts/lib/UniversalCatalog.js';
+  const init = () => {
+      if (!window.initialEntities) return;
+      new UniversalCatalog({ 
+        initialData: window.initialEntities, 
+        type: 'paper',
+        gridId: 'entity-grid',
+        dataUrl: 'https://cdn.free2aitools.com/cache/rankings/paper/p1.json'
+      });
+  };
+  document.addEventListener('DOMContentLoaded', init);
+</script>
