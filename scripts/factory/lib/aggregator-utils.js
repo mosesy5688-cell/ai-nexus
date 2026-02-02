@@ -1,6 +1,6 @@
 /**
- * Aggregator Utilities V16.4.3 (CES Compliant)
- * V16.4.3: Logic Restoration & Field Promotion
+ * Aggregator Utilities V16.8.6 (CES Compliant)
+ * V16.8.6: Logic Restoration & Field Promotion
  */
 
 import fs from 'fs/promises';
