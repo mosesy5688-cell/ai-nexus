@@ -51,7 +51,7 @@ export async function loadGlobalRegistry() {
 
     // 2. Monolith Fallback (V16.7 Compatibility)
     console.log(`[CACHE] Restoring authoritative memory from ${MONOLITH_FILE}...`);
-    const registry = await loadWithFallback(MONOLITH_FILE, { entities: [] });
+    const registry = await loadWithFallback(MONOLITH_FILE, { entities: [] }, true);
 
     const count = registry.entities?.length || 0;
     if (count > 0) {
