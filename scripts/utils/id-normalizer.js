@@ -152,8 +152,8 @@ export function normalizeId(id, source, type) {
 
     const prefix = PREFIX_MAP[s]?.[t];
 
-    // 4. Final Assembly
-    return prefix ? `${prefix}${cleanId}` : cleanId;
+    // 4. Final Assembly (V16.8.20: Aesthetic Slug Mode - Return Clean ID WITHOUT technical prefixes)
+    return cleanId;
 }
 
 export function getNodeSource(id, type) {
