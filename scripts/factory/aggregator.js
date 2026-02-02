@@ -37,6 +37,7 @@ async function main() {
 
     process.env.ENABLE_R2_BACKUP = 'true';
     const entitiesInputPath = process.env.ENTITIES_PATH || './data/merged.json';
+    console.log(`[AGGREGATOR] Loading context from: ${entitiesInputPath}`);
     const allEntities = JSON.parse(await fs.readFile(entitiesInputPath, 'utf-8'));
     console.log(`✓ Context loaded: ${allEntities.length} entities ready for Knowledge Mesh & Ranking`);
 
@@ -152,7 +153,7 @@ async function main() {
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[AGGREGATOR V16.8.2] Phase 2 complete! (Duration: ${duration}s)`);
+    console.log(`[AGGREGATOR V16.8.4] Phase 2 complete! (Duration: ${duration}s)`);
     console.log(`[SCALE] Successfully processed and indexed ${rankedEntities.length} entities for the Knowledge Mesh.`);
 }
 
