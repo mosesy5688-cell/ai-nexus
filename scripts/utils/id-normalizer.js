@@ -22,20 +22,20 @@ const PREFIX_MAP = {
         repo: 'gh-repo--',
     },
     arxiv: {
-        paper: 'arxiv--',
+        paper: 'arxiv-paper--',
     },
     civitai: {
-        model: 'civitai--',
+        model: 'civitai-model--',
     },
     kaggle: {
-        dataset: 'dataset--',
-        model: 'hf-model--',
+        dataset: 'kaggle-dataset--',
+        model: 'kaggle-model--',
     },
     replicate: {
-        model: 'replicate--',
+        model: 'replicate-model--',
     },
     ollama: {
-        model: 'ollama--',
+        model: 'ollama-model--',
     },
     knowledge: {
         concept: 'knowledge--',
