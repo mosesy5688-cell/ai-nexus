@@ -6,7 +6,7 @@ import { S3Client } from '@aws-sdk/client-s3';
 import fs from 'fs/promises';
 import path from 'path';
 import dotenv from 'dotenv';
-import { fetchAllR2ETags, uploadFile } from './lib/r2-helpers.js';
+import { fetchAllR2ETags, uploadFile, createR2Client } from './lib/r2-helpers.js';
 
 dotenv.config();
 
@@ -27,17 +27,7 @@ if (prefixArgIdx !== -1 && ARGS[prefixArgIdx + 1]) {
     CONFIG.PREFIX_FILTER.push(ARGS[prefixArgIdx + 1].trim());
 }
 
-function createR2Client() {
-    if (!CONFIG.ACCOUNT_ID || !CONFIG.ACCESS_KEY_ID || !CONFIG.SECRET_ACCESS_KEY) {
-        console.error('❌ Missing R2 credentials');
-        process.exit(1);
-    }
-    return new S3Client({
-        region: 'auto',
-        endpoint: `https://${CONFIG.ACCOUNT_ID}.r2.cloudflarestorage.com`,
-        credentials: { accessKeyId: CONFIG.ACCESS_KEY_ID, secretAccessKey: CONFIG.SECRET_ACCESS_KEY }
-    });
-}
+// createR2Client removed (using shared helper)
 
 async function loadCheckpoint() {
     try {

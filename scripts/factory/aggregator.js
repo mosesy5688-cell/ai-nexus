@@ -158,7 +158,7 @@ async function main() {
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[AGGREGATOR V16.8.5] Phase 2 complete! (Duration: ${duration}s)`);
+    console.log(`[AGGREGATOR V16.8.6] Phase 2 complete! (Duration: ${duration}s)`);
     console.log(`[SCALE] Successfully processed and indexed ${rankedEntities.length} entities for the Knowledge Mesh.`);
 }
 

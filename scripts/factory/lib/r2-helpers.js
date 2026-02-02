@@ -6,8 +6,32 @@
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
-import { PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { PutObjectCommand, ListObjectsV2Command, S3Client, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { rotateEntityVersions } from './entity-versioner.js';
+
+/**
+ * Shared R2 Client Creator
+ */
+export function createR2Client() {
+    const config = {
+        accountId: process.env.R2_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID,
+        accessKeyId: process.env.R2_ACCESS_KEY_ID,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
+    };
+
+    if (!config.accountId || !config.accessKeyId || !config.secretAccessKey) {
+        return null;
+    }
+
+    return new S3Client({
+        region: 'auto',
+        endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
+        credentials: {
+            accessKeyId: config.accessKeyId,
+            secretAccessKey: config.secretAccessKey
+        }
+    });
+}
 
 /**
  * Surgical fetch - only list objects matching the allowed prefixes
@@ -63,6 +87,7 @@ export async function uploadFile(s3, bucket, localPath, remotePath, remoteETag, 
         const localMD5 = crypto.createHash('md5').update(content).digest('hex');
 
         if (localMD5 === remoteETag) {
+            console.log(`  [SKIP] Unchanged: ${remotePath}`);
             return { success: true, path: remotePath, skipped: true };
         }
 
