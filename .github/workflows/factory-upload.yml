@@ -38,12 +38,20 @@ jobs:
     steps:
       - name: Get ID
         id: get-id
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.run_id }}" ]; then
-            echo "id=${{ inputs.run_id }}" >> $GITHUB_OUTPUT
-          else
-            echo "id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
+          # 1. Start with the Aggregate Run ID (Triggering event or manual input)
+          AGGREGATE_RUN_ID=${{ inputs.run_id || github.event.workflow_run.id }}
+          
+          # 2. If missing, find the latest successful Aggregate run on MAIN
+          if [ -z "$AGGREGATE_RUN_ID" ] || [ "$AGGREGATE_RUN_ID" == "null" ]; then
+            echo "🔍 Manual dispatch: Finding latest successful Aggregate run on main branch..."
+            AGGREGATE_RUN_ID=$(gh run list --workflow factory-aggregate.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           fi
+          
+          echo "id=$AGGREGATE_RUN_ID" >> $GITHUB_OUTPUT
+          echo "✅ Resolved Aggregate ID (Main): $AGGREGATE_RUN_ID"
 
   upload:
     name: Upload to R2

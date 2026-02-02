@@ -43,15 +43,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ inputs.run_id }}" ]; then
-            echo "id=${{ inputs.run_id }}" >> $GITHUB_OUTPUT
-          else
-            # 3.5/4 LINKER and Image Processor are both triggered by 3/4 Aggregate.
-            # We must resolve the parent Aggregate run ID to restore the correct cache.
-            ID=${{ github.event.workflow_run.id }}
-            echo "id=$ID" >> $GITHUB_OUTPUT
-            echo "✅ Targeting Parent Run: $ID"
+          # 1. Start with the Aggregate Run ID (Triggering event or manual input)
+          AGGREGATE_RUN_ID=${{ inputs.run_id || github.event.workflow_run.id }}
+          
+          # 2. If missing, find the latest successful Aggregate run on MAIN
+          if [ -z "$AGGREGATE_RUN_ID" ] || [ "$AGGREGATE_RUN_ID" == "null" ]; then
+            echo "🔍 Manual dispatch: Finding latest successful Aggregate run on main branch..."
+            AGGREGATE_RUN_ID=$(gh run list --workflow factory-aggregate.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           fi
+          
+          echo "id=$AGGREGATE_RUN_ID" >> $GITHUB_OUTPUT
+          echo "✅ Resolved Aggregate ID (Main): $AGGREGATE_RUN_ID"
 
   process-images:
     name: Process Entity Images
@@ -86,6 +88,11 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Setup Directories
+        run: |
+          rm -rf output/meta/backup/*.json # V16.8.6: Clear stale local context
+          mkdir -p output/meta/backup data/images
+        
       - name: Install Dependencies
         run: npm ci
 
