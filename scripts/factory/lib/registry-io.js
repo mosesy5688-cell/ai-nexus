@@ -42,7 +42,8 @@ export async function loadGlobalRegistry() {
             return {
                 entities: allEntities,
                 lastUpdated: lastUpdated || new Date().toISOString(),
-                count: allEntities.length
+                count: allEntities.length,
+                didLoadFromStorage: true
             };
         }
     } catch (e) {
@@ -59,7 +60,8 @@ export async function loadGlobalRegistry() {
         return {
             entities: registry.entities,
             lastUpdated: registry.lastUpdated || new Date().toISOString(),
-            count: count
+            count: count,
+            didLoadFromStorage: true
         };
     }
 
@@ -67,7 +69,8 @@ export async function loadGlobalRegistry() {
     return {
         entities: [],
         lastUpdated: new Date().toISOString(),
-        count: 0
+        count: 0,
+        didLoadFromStorage: false
     };
 }
 

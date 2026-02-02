@@ -86,30 +86,46 @@ jobs:
           run-id: ${{ needs.check-upstream.outputs.process-id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Organize Shards
+      - name: Organize Shards & Context
         run: |
           mkdir -p artifacts output data cache
-          # Fail if no shards were found (unless this is a specialized light run)
+          # 1. Move Shards
           SHARD_COUNT=$(find ./downloaded -name "shard-*.json" | wc -l)
           if [ "$SHARD_COUNT" -eq 0 ] && [ "${{ github.event.inputs.task || 'all' }}" != "health" ]; then
             echo "❌ ERROR: No shard artifacts found from Run ${{ needs.check-upstream.outputs.process-id }}"
             exit 1
           fi
           find ./downloaded -name "shard-*.json" -exec mv {} artifacts/ \; 2>/dev/null || true
+          
+          # 2. Extract context from prepared-entity-data (if downloaded there)
+          if [ -d "./downloaded/data" ]; then mv ./downloaded/data/* data/ 2>/dev/null || true; fi
+          if [ -d "./downloaded/cache" ]; then mv ./downloaded/cache/* cache/ 2>/dev/null || true; fi
+          
+          # 3. Handle output consolidation
           if [ -d "./downloaded/output" ]; then cp -r ./downloaded/output/* output/ 2>/dev/null || true; fi
 
       - name: Clear Stale Context (V16.8.6 Hardening)
         run: rm -rf data/*.json cache/*.json # Force restoration or failure
 
-      - name: Restore Harvest Context (SPEC V14.5)
-        uses: actions/cache/restore@v4
+      # V16.8.13: Use Artifact for context instead of volatile Cache
+      - name: Download Harvest Context
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            data/merged.json
-            data/merged_shard_*.json
-          key: factory-entity-data-${{ needs.check-upstream.outputs.harvest-id }}
-          restore-keys: |
-            factory-entity-data-
+          name: prepared-entity-data
+          path: ./context/
+          run-id: ${{ needs.check-upstream.outputs.process-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Apply Harvest Context
+        run: |
+          if [ -d "./context/data" ]; then cp -r ./context/data/* data/ 2>/dev/null || true; fi
+          if [ -d "./context/cache" ]; then cp -r ./context/cache/* cache/ 2>/dev/null || true; fi
+          if [ -f "data/merged.json" ]; then
+            echo "✅ Harvest context applied from artifact."
+          else
+            echo "⚠️ Harvest context not found in artifact. Falling back to cache..."
+          fi
 
       - name: Restore Previous State (Golden Cache)
         uses: actions/cache/restore@v4
@@ -322,6 +338,7 @@ jobs:
         with:
           path: output/
           key: entity-data-${{ github.run_id }}
+
       - name: Summary
         run: |
           echo "## Factory 3/4 - Aggregator V2.0 Complete 🚀" >> $GITHUB_STEP_SUMMARY

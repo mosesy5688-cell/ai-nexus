@@ -135,15 +135,18 @@ async function mergeBatches() {
     await saveEntityChecksums(checksums);
     console.log(`   ✓ Checksum cache synchronized`);
 
-    // Integrity Guard: Prevent data wipe if R2 restoration failed (V16.8.10 Hardening)
-    // We expect 213k+, so 210k is the safe floor for the "Fresh Start" baseline.
-    const REGISTRY_FLOOR = 210000;
-    if (fullSet.length < REGISTRY_FLOOR && process.env.GITHUB_RUN_ID) {
-        console.error(`❌ [CRITICAL] Registry integrity check failed!`);
-        console.error(`   - Current Count: ${fullSet.length}`);
-        console.error(`   - Required Floor: ${REGISTRY_FLOOR}`);
-        console.error(`   To prevent data wipe, aborting merge. Check R2 connectivity or manual baseline.`);
-        throw new Error(`Registry Integrity Failure (${fullSet.length} < ${REGISTRY_FLOOR}) - Emergency Abort`);
+    // V16.8.12: Load Sentinel - Must successfully restore existing registry in Production/CI
+    if (!registryState.didLoadFromStorage && process.env.GITHUB_ACTIONS) {
+        console.error(`❌ [CRITICAL] Registry restoration failed!`);
+        console.error(`   - didLoadFromStorage: false`);
+        console.error(`   - Possible Cache/R2 connectivity issue.`);
+        console.error(`   To prevent a "Stupid Mistake" data wipe, aborting merge.`);
+        throw new Error(`Registry Load Failure - Emergency Abort to Protect 222k Baseline`);
+    }
+
+    // Secondary Guard: Log count if unexpectedly low (Diagnostic only now)
+    if (fullSet.length < 210000) {
+        console.log(`⚠️ [WARN] Merged registry count (${fullSet.length}) is below 210k. Proceeding because Load Sentinel passed.`);
     }
 
     // Write merged output in shards (V16.2.3 Shard-First Implementation)

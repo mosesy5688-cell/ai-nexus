@@ -101,28 +101,39 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # V16.7: Correct identity restoration using Resolved Upstream ID
-      - name: Restore Registry from GitHub Cache
-        uses: actions/cache/restore@v4
+      # V16.8.13: Use Artifact for context instead of volatile Cache
+      - name: Download Core Registry Artifact
+        uses: actions/download-artifact@v4
         with:
-          path: output/
-          key: entity-data-${{ needs.check-upstream.outputs.upstream-run-id }}
-          restore-keys: |
-            entity-data-
+          name: core-registry-v2
+          path: ./registry-context/
+          run-id: ${{ needs.check-upstream.outputs.upstream-run-id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
 
-      # V16.4.1: Fetch Global Entity Registry (Cache Priority)
+      # V16.4.1: Fetch Global Entity Registry (Artifact Priority)
       - name: Fetch Global Entity Registry
         run: |
           mkdir -p data/images
           
-          # Check if registry exists in cache
-          if [ -d "output/meta/backup" ]; then
+          # 1. Try Artifact Monolith
+          if [ -f "./registry-context/entities.json" ]; then
+            echo "✅ Verified: Registry monolith found in Artifact. Using it."
+            cp ./registry-context/entities.json data/registry.json
+            # Seed shards for queue preparation
+            mkdir -p data/registry
+            cp -r ./registry-context/cache/registry/* data/registry/ 2>/dev/null || true
+            node scripts/factory/prepare-image-queue.js data ${{ inputs.batch_size || 2000 }}
+          # 2. Try Cache Shards (Legacy Fallback)
+          elif [ -d "output/meta/backup/registry" ]; then
             echo "✅ Verified: Registry backup exists in GitHub Cache. Using it."
             node scripts/factory/prepare-image-queue.js output/meta/backup ${{ inputs.batch_size || 2000 }}
+            # Copy for post-processor
+            cp output/meta/backup/global-registry.json data/registry.json 2>/dev/null || true
+          # 3. Try R2 Fallback
           else
-            echo "⚠️ Cache miss: Registry not found in output/meta/backup/. Falling back to R2..."
-            mkdir -p data
-            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/global-registry.json --remote
+            echo "⚠️ Cache/Artifact miss: Falling back to R2..."
+            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/registry.json --remote
             node scripts/factory/prepare-image-queue.js data ${{ inputs.batch_size || 2000 }}
           fi
 
@@ -158,18 +169,23 @@ jobs:
       - name: Update Global Registry (Progressive Drain)
         run: |
           echo "📝 Updating registry with CDN URLs..."
-          # Move output/images to data/images locally for the processor to see them as 'processed'
+          # 1. Initialize local cache and monolith from artifact context
+          mkdir -p cache data
+          cp ./registry-context/entities.json data/registry.json
+          cp -r ./registry-context/cache/registry cache/ 2>/dev/null || true
+          
+          # 2. Move output/images to data/images locally for the processor to see them as 'processed'
           cp -r output/images/* data/images/
+          
+          # 3. Update registry (will update both data/registry.json and cache/registry shards)
+          export CACHE_DIR=cache
           node scripts/factory/lib/image-post-processor.js data/registry.json data/image-results.json
           
-          # Sync back to output for persistence
-          cp data/registry.json output/meta/backup/global-registry.json
-          
-      - name: Persist Updated Registry to GitHub Cache
+      - name: Close Harvest Loop (V16.8.14)
         uses: actions/cache/save@v4
         with:
-          path: output/
-          key: entity-data-${{ needs.check-upstream.outputs.upstream-run-id }}-img
+          path: cache/
+          key: global-registry-v2-${{ github.run_id }}-img
 
       - name: Summary
         run: |

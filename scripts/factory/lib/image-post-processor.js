@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
+import { saveGlobalRegistry } from './cache-manager.js';
 
 /**
  * Image Post-Processor V16.7.2
@@ -56,7 +57,9 @@ async function main() {
     }
 
     if (updatedCount > 0) {
-        fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2));
+        // V16.8.14: Use authoritative saveGlobalRegistry to update both Monolith and Shards
+        console.log(`💾 Persisting updates to both Monolith and Shards...`);
+        await saveGlobalRegistry(registry);
         console.log(`✅ Updated ${updatedCount} entities in registry with CDN URLs.`);
     } else {
         console.log('ℹ️ No registry updates needed.');

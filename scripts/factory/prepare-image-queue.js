@@ -15,8 +15,8 @@ async function main() {
     const registry = await loadGlobalRegistry();
     const entities = registry.entities || [];
 
-    if (entities.length === 0) {
-        console.error('❌ Registry is empty or missing');
+    if (entities.length === 0 || !registry.didLoadFromStorage) {
+        console.error('❌ Registry is empty or could not be verified from storage');
         process.exit(1);
     }
 
