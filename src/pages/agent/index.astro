@@ -1,4 +1,48 @@
----
+/**
+ * Agent Index Page - V16.8.9 Restoration
+ */
+
 export const prerender = false;
-return Astro.redirect('/agents', 301);
+
+import Layout from '../../layouts/Layout.astro';
+import { fetchCatalogData, truncateListingItem } from '../../utils/catalog-fetcher.js';
+import { generateEntityUrl } from '../../utils/url-utils.js';
+
+const { items: allEntities, error, source } = await fetchCatalogData('agent', Astro.locals.runtime?.env);
+const entities = allEntities.slice(0, 100).map(truncateListingItem);
+
+const pageTitle = 'AI Agents Catalog - Autonomous AI Systems';
+const pageDescription = 'Explore autonomous AI agents like AutoGPT and BabyAGI.';
 ---
+
+<Layout title={pageTitle} description={pageDescription}>
+  <main class="container mx-auto px-4 py-8 min-h-screen flex flex-col">
+    <h1 class="text-3xl font-bold mb-6">AI Agents Catalog</h1>
+    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+       {entities.map((item: any) => (
+         <a href={generateEntityUrl(item, 'agent')} class="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 block transition-all hover:shadow-lg">
+           <h3 class="font-bold truncate">{item.name || item.id}</h3>
+           <p class="text-sm text-gray-500 line-clamp-2 mt-1">{item.description}</p>
+         </a>
+       ))}
+    </div>
+  </main>
+</Layout>
+
+<script define:vars={{ initialEntities: entities }}>
+  window.initialEntities = initialEntities;
+</script>
+
+<script>
+  import { UniversalCatalog } from '../../scripts/lib/UniversalCatalog.js';
+  const init = () => {
+      if (!window.initialEntities) return;
+      new UniversalCatalog({ 
+        initialData: window.initialEntities, 
+        type: 'agent',
+        gridId: 'entity-grid',
+        dataUrl: 'https://cdn.free2aitools.com/cache/rankings/agent/p1.json'
+      });
+  };
+  document.addEventListener('DOMContentLoaded', init);
+</script>

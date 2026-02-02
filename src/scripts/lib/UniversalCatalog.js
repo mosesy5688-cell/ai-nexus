@@ -15,7 +15,7 @@ export class UniversalCatalog {
         sortId = 'sort-by',
         categoryFilterId = 'category-filter',
         itemsPerPage = 24,
-        dataUrl = 'https://cdn.free2aitools.com/entities.json'
+        dataUrl = null // V16.8.8: Force explicit dataUrl, never default to entities.json
     }) {
         this.items = DataNormalizer.normalizeCollection(initialData, type);
         this.filtered = [...this.items];
@@ -107,6 +107,11 @@ export class UniversalCatalog {
         this.updateStats();
 
         try {
+            // V16.8.8: Global Safety Guard - Prohibit loading the massive raw database in the browser
+            if (this.dataUrl && this.dataUrl.includes('entities.json')) {
+                throw new Error('Loading full entities.json (368MB) is prohibited in the browser for memory safety. Use sharded rankings instead.');
+            }
+
             const res = await fetch(this.dataUrl);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
