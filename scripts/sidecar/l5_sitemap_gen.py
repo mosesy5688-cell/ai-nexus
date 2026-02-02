@@ -108,9 +108,26 @@ def generate_url_entry(loc, lastmod, priority, changefreq):
 
 
 def upload_to_r2(client, bucket, key, content, gzipped=False):
-    """Upload content to R2."""
+    """Upload content to R2 with Smart Sync (V16.8.6)."""
+    import hashlib
     content_type = "application/x-gzip" if gzipped else "application/xml"
     body = gzip.compress(content.encode("utf-8")) if gzipped else content.encode("utf-8")
+    
+    # Calculate local MD5
+    local_md5 = hashlib.md5(body).hexdigest()
+    
+    # 1. Precise Check (Class B Operation)
+    try:
+        response = client.head_object(Bucket=bucket, Key=key)
+        remote_etag = response.get('ETag', '').replace('"', '')
+        if local_md5 == remote_etag:
+            print(f"  ⏭️ Skipped (Unchanged): {key}")
+            return
+    except Exception:
+        # Not found or other error, proceed to upload
+        pass
+
+    # 2. Upload only if changed (Class A Operation)
     client.put_object(Bucket=bucket, Key=key, Body=body, ContentType=content_type)
     print(f"  ✅ Uploaded {key}")
 
