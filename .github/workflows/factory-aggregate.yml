@@ -26,30 +26,34 @@ jobs:
     name: Check Upstream Harvest
     runs-on: ubuntu-latest
     outputs:
-      harvest-run-id: ${{ steps.get-id.outputs.id }}
+      harvest-id: ${{ steps.get-ids.outputs.harvest-id }}
+      process-id: ${{ steps.get-ids.outputs.process-id }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Get Harvest Run ID
-        id: get-id
+      - name: Get Run IDs (Harvest & Process)
+        id: get-ids
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # The 3/4 Aggregate is triggered by 2/4 Process. 
-          # 2/4 Process was triggered by 1/4 Harvest.
-          # We need to find the original 1/4 Harvest run that created the 'factory-entity-data' cache.
+          # 1. Start with the Process Run ID (Current triggering event or manual input)
+          PROCESS_RUN_ID=${{ inputs.run_id || github.event.workflow_run.id }}
           
-          # 1. Get 2/4 Process Run ID (Triggering event)
-          PROCESS_RUN_ID=${{ github.event.workflow_run.id }}
+          # 2. If PROCESS_RUN_ID is missing (Manual dispatch without input), find the latest successful Process run
+          if [ -z "$PROCESS_RUN_ID" ] || [ "$PROCESS_RUN_ID" == "null" ]; then
+            echo "🔍 Manual dispatch: Finding latest successful Process run..."
+            PROCESS_RUN_ID=$(gh run list --workflow "Factory 2/4 - Process" --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
+          fi
           
-          # 2. Get the 1/4 Harvest Run ID (Parent of Process Run)
-          # Note: In our dispatch logic, we pass run_id as input to Process.
-          # If we don't have it explicitly, we look for the most recent successful Harvest run.
+          # 3. Find the latest successful Harvest run (Single Source of Truth for Entity Context)
+          # Note: Even if triggered by a specific Process run, the Context Cache always uses its parent Harvest ID.
           HARVEST_RUN_ID=$(gh run list --workflow "Factory 1/4 - Harvest" --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           
-          echo "id=$HARVEST_RUN_ID" >> $GITHUB_OUTPUT
-          echo "✅ Found Upstream Harvest Run: $HARVEST_RUN_ID"
+          echo "harvest-id=$HARVEST_RUN_ID" >> $GITHUB_OUTPUT
+          echo "process-id=$PROCESS_RUN_ID" >> $GITHUB_OUTPUT
+          echo "✅ Harvest ID: $HARVEST_RUN_ID"
+          echo "✅ Process ID: $PROCESS_RUN_ID"
 
   # Job 1: Core Merge (The Pivot - SPEC V2.0)
   merge-core:
@@ -76,7 +80,7 @@ jobs:
           pattern: shard-*
           path: ./downloaded/
           merge-multiple: true
-          run-id: ${{ inputs.run_id || github.event.workflow_run.id || needs.check-upstream.outputs.harvest-run-id }}
+          run-id: ${{ needs.check-upstream.outputs.process-id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Organize Shards
@@ -91,17 +95,17 @@ jobs:
           path: |
             data/merged.json
             data/merged_shard_*.json
-          key: factory-entity-data-${{ needs.check-upstream.outputs.harvest-run-id }}
-          fail-on-cache-miss: false
+          key: factory-entity-data-${{ needs.check-upstream.outputs.harvest-id }}
+          restore-keys: |
+            factory-entity-data-
 
       - name: Restore Previous State (Golden Cache)
         uses: actions/cache/restore@v4
         with:
           path: cache/
-          key: global-registry-v2-${{ needs.check-upstream.outputs.harvest-run-id }}
+          key: global-registry-v2-${{ needs.check-upstream.outputs.harvest-id }}
           restore-keys: |
             global-registry-v2-
-            global-registry-
 
       - name: Run Core Merge & Health
         env:
