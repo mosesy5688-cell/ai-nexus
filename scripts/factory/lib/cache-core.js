@@ -1,11 +1,10 @@
-/**
- * Cache Core Module (Static Storage)
- * Final V16.7.2 - CES Compliant
- */
 import fs from 'fs/promises';
 import path from 'path';
 import { execSync } from 'child_process';
 import os from 'os';
+import crypto from 'crypto';
+import { HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { createR2Client } from './r2-helpers.js';
 
 const getCacheDir = () => process.env.CACHE_DIR || './cache';
 const getR2Prefix = () => process.env.R2_BACKUP_PREFIX || 'meta/backup/';
@@ -30,6 +29,7 @@ export async function loadWithFallback(filename, defaultValue = {}) {
 
     try {
         console.log(`[CACHE] R2 Restore: ${filename}...`);
+        // Using wrangler for restore is fine as it's a GET (Class B)
         execSync(
             `npx wrangler r2 object get ${getR2Bucket()}/${r2Key} --file=${tempFile} --remote`,
             { stdio: 'pipe', timeout: 300000 }
@@ -48,6 +48,7 @@ export async function loadWithFallback(filename, defaultValue = {}) {
 
 /**
  * Save data to local cache and R2 backup
+ * V16.8.6: Smart Sync (P0 Cost Fix)
  */
 export async function saveWithBackup(filename, data) {
     const localPath = path.join(getCacheDir(), filename);
@@ -58,13 +59,40 @@ export async function saveWithBackup(filename, data) {
     await fs.writeFile(localPath, content);
 
     if (process.env.ENABLE_R2_BACKUP === 'true') {
+        const s3 = createR2Client();
+        if (!s3) {
+            console.warn(`[CACHE] ⚠️ R2 backup skipped: Credentials missing`);
+            return;
+        }
+
         try {
             const r2Key = `${getR2Prefix()}${filename}`;
-            const tempFile = path.join(os.tmpdir(), filename.replace(/\//g, '-'));
-            await fs.writeFile(tempFile, content);
-            execSync(`npx -y wrangler r2 object put ${getR2Bucket()}/${r2Key} --file=${tempFile} --remote`, { stdio: 'pipe' });
-            await fs.unlink(tempFile).catch(() => { });
-            console.log(`[CACHE] Backed up to R2: ${r2Key}`);
+            const localMD5 = crypto.createHash('md5').update(content).digest('hex');
+
+            // 1. Precise Check (Class B Operation: $0.36/1M)
+            try {
+                const head = await s3.send(new HeadObjectCommand({
+                    Bucket: getR2Bucket(),
+                    Key: r2Key
+                }));
+                const remoteHash = head.ETag?.replace(/"/g, '');
+
+                if (localMD5 === remoteHash) {
+                    console.log(`[CACHE] ⏭️ Skipped (Unchanged): ${r2Key}`);
+                    return; // Saved $4.50 operation fee!
+                }
+            } catch (e) {
+                if (e.name !== 'NotFound' && e.$metadata?.httpStatusCode !== 404) throw e;
+            }
+
+            // 2. Upload only if changed (Class A Operation: $4.50/1M)
+            console.log(`[CACHE] ⬆️ Backing up (Changed): ${r2Key}`);
+            await s3.send(new PutObjectCommand({
+                Bucket: getR2Bucket(),
+                Key: r2Key,
+                Body: content,
+                ContentType: 'application/json'
+            }));
         } catch (err) {
             console.warn(`[CACHE] ⚠️ R2 backup failed: ${err.message}`);
         }

@@ -37,23 +37,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 1. Start with the Process Run ID (Current triggering event or manual input)
+          # 1. Start with the Process Run ID (Triggering event or manual input)
           PROCESS_RUN_ID=${{ inputs.run_id || github.event.workflow_run.id }}
           
-          # 2. If PROCESS_RUN_ID is missing (Manual dispatch without input), find the latest successful Process run
+          # 2. If PROCESS_RUN_ID is missing, find the latest successful Process run on MAIN
           if [ -z "$PROCESS_RUN_ID" ] || [ "$PROCESS_RUN_ID" == "null" ]; then
-            echo "🔍 Manual dispatch: Finding latest successful Process run..."
-            PROCESS_RUN_ID=$(gh run list --workflow "Factory 2/4 - Process" --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
+            echo "🔍 Manual dispatch: Finding latest successful Process run on main branch..."
+            PROCESS_RUN_ID=$(gh run list --workflow factory-process.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           fi
           
-          # 3. Find the latest successful Harvest run (Single Source of Truth for Entity Context)
-          # Note: Even if triggered by a specific Process run, the Context Cache always uses its parent Harvest ID.
-          HARVEST_RUN_ID=$(gh run list --workflow "Factory 1/4 - Harvest" --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
+          # 3. Find the latest successful Harvest run on MAIN (The Production Source of Truth)
+          HARVEST_RUN_ID=$(gh run list --workflow factory-harvest.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           
           echo "harvest-id=$HARVEST_RUN_ID" >> $GITHUB_OUTPUT
           echo "process-id=$PROCESS_RUN_ID" >> $GITHUB_OUTPUT
-          echo "✅ Harvest ID: $HARVEST_RUN_ID"
-          echo "✅ Process ID: $PROCESS_RUN_ID"
+          echo "✅ Resolved Harvest ID (Main): $HARVEST_RUN_ID"
+          echo "✅ Resolved Process ID (Main): $PROCESS_RUN_ID"
 
   # Job 1: Core Merge (The Pivot - SPEC V2.0)
   merge-core:
@@ -86,8 +85,17 @@ jobs:
       - name: Organize Shards
         run: |
           mkdir -p artifacts output data cache
+          # Fail if no shards were found (unless this is a specialized light run)
+          SHARD_COUNT=$(find ./downloaded -name "shard-*.json" | wc -l)
+          if [ "$SHARD_COUNT" -eq 0 ] && [ "${{ github.event.inputs.task || 'all' }}" != "health" ]; then
+            echo "❌ ERROR: No shard artifacts found from Run ${{ needs.check-upstream.outputs.process-id }}"
+            exit 1
+          fi
           find ./downloaded -name "shard-*.json" -exec mv {} artifacts/ \; 2>/dev/null || true
           if [ -d "./downloaded/output" ]; then cp -r ./downloaded/output/* output/ 2>/dev/null || true; fi
+
+      - name: Clear Stale Context (V16.8.6 Hardening)
+        run: rm -rf data/*.json cache/*.json # Force restoration or failure
 
       - name: Restore Harvest Context (SPEC V14.5)
         uses: actions/cache/restore@v4

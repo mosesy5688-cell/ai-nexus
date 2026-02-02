@@ -103,7 +103,7 @@ jobs:
       # V16.2.6: R2 Upload (SPEC V14.5)
       - name: Upload to R2
         env:
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,cache/entities/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-manifest.json,meta/,sitemaps/
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-manifest.json,meta/,sitemaps/
         run: |
           echo "📤 Uploading to R2 via S3 API..."
           node scripts/factory/r2-upload-s3.js
