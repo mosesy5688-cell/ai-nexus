@@ -190,6 +190,7 @@ jobs:
           path: |
             artifacts/shard-${{ matrix.shard }}.json
             output/
+            cache/
           retention-days: 1
 
   # Aggregate and save checksums
