@@ -45,12 +45,17 @@ const CATEGORY_META: Record<string, { name: string; description: string; icon: s
     name: 'Infrastructure & Optimization',
     description: 'Tools for model fine-tuning, deployment optimization, and inference acceleration.',
     icon: '🔧'
+  },
+  'image-generation': {
+    name: 'Image Generation & Multimedia Processing',
+    description: 'Explore high-quality models for text-to-image, video synthesis, and creative AI.',
+    icon: '🎨'
   }
 };
 
 const meta = CATEGORY_META[category!] || {
-  name: category!.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
-  description: `Explore top AI models in the ${category} category.`,
+  name: category!.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') + ' - Technical Index',
+  description: `Explore top AI models in the ${category} category. Powered by Free2AI.`,
   icon: '📁'
 };
 
