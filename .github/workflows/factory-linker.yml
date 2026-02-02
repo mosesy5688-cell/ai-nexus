@@ -39,10 +39,15 @@ jobs:
   check-upstream:
     name: Check Upstream
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     outputs:
       run-id: ${{ steps.get-id.outputs.id }}
     steps:
+      - name: Verify Upstream Conclusion
+        if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success' }}
+        run: |
+          echo "❌ ERROR: Upstream workflow '${{ github.event.workflow_run.name }}' failed with conclusion '${{ github.event.workflow_run.conclusion }}'."
+          echo "Aborting Factory 3.5/4 to prevent data corruption."
+          exit 1
       - name: Get ID
         id: get-id
         env:
