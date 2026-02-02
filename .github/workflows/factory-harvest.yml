@@ -268,10 +268,28 @@ jobs:
       - name: Restore Global Registry
         uses: actions/cache/restore@v4
         with:
-          path: cache/global-registry*.json
-          key: global-registry-
+          path: cache/
+          key: global-registry-v2-
           restore-keys: |
-            global-registry-
+            global-registry-v2-
+
+      # R2 Fallback: If cache missed (first run or evicted), download monolith from R2
+      - name: R2 Fallback - Download Registry
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ai-nexus-assets
+        run: |
+          if [ ! -d "cache/registry" ] && [ ! -f "cache/global-registry.json" ]; then
+            echo "⚠️ Cache miss. Attempting R2 fallback restoration..."
+            mkdir -p cache
+            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=cache/global-registry.json --remote || echo "⚠️ R2 Monolith not found."
+            # Also try to fetch entity checksums if available
+            npx -y wrangler r2 object get $R2_BUCKET/cache/entity-checksums.json --file=cache/entity-checksums.json --remote || echo "⚠️ R2 Checksums not found."
+          else
+            echo "✅ Global Registry found in GitHub Cache."
+          fi
 
       # Merge batches with ID deduplication
       - name: Merge Batches
@@ -310,14 +328,6 @@ jobs:
               cache/weekly-accum.json
             key: factory-entity-data-${{ github.run_id }}
 
-      # V16.7 FIX: Explicitly save global registry in 1/4 Harvest for next cycle
-      - name: Save Global Registry
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            cache/global-registry*.json
-            cache/entity-checksums.json
-          key: global-registry-${{ github.run_id }}
 
       # Pipeline Summary
       - name: Summary

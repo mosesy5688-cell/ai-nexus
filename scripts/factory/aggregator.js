@@ -41,9 +41,10 @@ async function main() {
     const allEntities = JSON.parse(await fs.readFile(entitiesInputPath, 'utf-8'));
     console.log(`✓ Context loaded: ${allEntities.length} entities ready for Knowledge Mesh & Ranking`);
 
-    // V16.8.5: Data Safety Guard (Scale Protection)
-    if (allEntities.length < 1000) {
-        throw new Error(`[CRITICAL] Data Loss Detected! Only ${allEntities.length} entities found. This is likely a fallback to stale repo data. Aggregation aborted to protect production metrics.`);
+    // V16.8.12: Hardened Safety Guard (Baseline Protection)
+    const AGGREGATE_FLOOR = 210000;
+    if (allEntities.length < AGGREGATE_FLOOR) {
+        throw new Error(`[CRITICAL] Data Loss Detected! Only ${allEntities.length} entities found (Required: ${AGGREGATE_FLOOR}). Aggregation aborted to protect production metrics.`);
     }
 
     // V2.0 optimization: In satellite mode, we just load the pre-merged entities
