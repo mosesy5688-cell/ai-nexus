@@ -30,19 +30,8 @@ export async function fetchCatalogData(type, runtimeEnv) {
                 console.log(`[CatalogFetcher] R2 Rankings miss for ${type}, falling back to entities.json`);
             }
 
-            // B. Try Fast Path: entities.json (Root)
-            if (items.length === 0) {
-                try {
-                    const file = await r2.get('entities.json');
-                    if (file) {
-                        const data = await file.json();
-                        items = parseData(data, type);
-                        source = 'r2-entities';
-                    }
-                } catch (e) {
-                    console.warn(`[CatalogFetcher] R2 entities.json Load Error:`, e);
-                }
-            }
+            // V16.8.7: Removed entities.json fallback in SSR. 
+            // Loading 368MB entities.json crashes Cloudflare Workers (Error 1102).
 
             // Fallback to legacy trending.json if entities.json fails
             if (items.length === 0) {
