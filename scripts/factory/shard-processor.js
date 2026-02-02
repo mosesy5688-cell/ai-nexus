@@ -1,8 +1,8 @@
 /**
- * Factory Shard Processor V14.5 (CES Compliant)
+ * Factory Shard Processor V16.8.6 (CES Compliant)
  * 
  * Constitution: Art 3.1-3.4 (Factory Pipeline)
- * V14.5: Uses cache-manager for persistent entity checksums (cross-run diff)
+ * V16.8.6: Uses cache-manager for persistent entity checksums (cross-run diff)
  * 
  * Usage: node scripts/factory/shard-processor.js --shard=N --total=20
  */
@@ -62,7 +62,7 @@ async function processEntity(entity, allEntities, entityChecksums) {
             fni_v: fni.fni_v,
             fni_c: fni.fni_c,
             fni_u: fni.fni_u,
-            _version: '16.7.1',
+            _version: '16.8.6',
             _updated: isChanged ? new Date().toISOString() : currentUpdated,
             _checksum: entityHash,
         };

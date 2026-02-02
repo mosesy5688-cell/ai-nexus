@@ -265,9 +265,36 @@ jobs:
           path: output/cache/relations.json
           retention-days: 1
 
+  aggregate-sitemap:
+    name: "Agg: Sitemap"
+    needs: merge-core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - name: Restore Core Registry
+        uses: actions/download-artifact@v4
+        with: { name: core-registry-v2, path: ./ }
+      - name: Generate Sitemaps
+        env:
+          ENTITIES_PATH: output/entities.json
+        run: |
+          export NODE_OPTIONS="--max-old-space-size=6144"
+          node scripts/factory/aggregator.js --task=sitemap
+      - name: Upload Sitemap Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: agg-sitemap
+          path: |
+            output/sitemaps/
+            output/sitemap.xml
+          retention-days: 1
+
   finalize:
     name: Finalize Aggregation
-    needs: [aggregate-search, aggregate-rankings, aggregate-trending, aggregate-relations]
+    needs: [aggregate-search, aggregate-rankings, aggregate-trending, aggregate-relations, aggregate-sitemap]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
