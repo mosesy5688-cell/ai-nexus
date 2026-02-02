@@ -153,7 +153,8 @@ jobs:
         with:
           name: core-registry-v2
           path: |
-            output/
+            output/entities.json
+            output/meta/
             cache/
           retention-days: 1
 

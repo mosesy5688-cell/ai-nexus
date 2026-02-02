@@ -104,41 +104,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
 
     // ═══════════════════════════════════════════════════════
-    // LAYER 2: URL Redirect (CES-001 Backward Compatibility)
+    // LAYER 2: Reserved for light-weight checks
     // ═══════════════════════════════════════════════════════
-    // Redirect old URLs with colons (encoded or not) and double-dash format to clean URLs
-    // Check for: %3A (encoded colon), actual colon in path, double-dash
-    const hasEncodedColon = url.pathname.includes('%3A') || url.pathname.includes('%3a');
-    const hasUncodedColon = /\/(model|dataset|paper|agent|benchmark)\/[^/]*:/.test(url.pathname);
-    const hasDoubleDash = url.pathname.includes('--');
-
-    if (hasEncodedColon || hasUncodedColon || hasDoubleDash) {
-        const decoded = decodeURIComponent(url.pathname);
-        let cleanPath = decoded;
-
-        // Remove source prefix from entity URLs (e.g., /model/huggingface:author/model -> /model/author/model)
-        cleanPath = cleanPath.replace(
-            /^(\/(model|dataset|paper|agent|benchmark))\/[a-z]+:/i,
-            '$1/'
-        );
-
-        // Convert remaining colons to slashes in entity paths (e.g., /model/deepseek-ai:deepseek-r1 -> /model/deepseek-ai/deepseek-r1)
-        cleanPath = cleanPath.replace(
-            /^(\/(model|dataset|paper|agent|benchmark))\/([^:]+):(.+)$/i,
-            '$1/$3/$4'
-        );
-
-        // Convert double-dash to slash (e.g., /model/author--model -> /model/author/model)
-        cleanPath = cleanPath.replace(/--/g, '/');
-
-        // Normalize to lowercase
-        cleanPath = cleanPath.toLowerCase();
-
-        if (cleanPath !== url.pathname.toLowerCase()) {
-            console.log(`[CES-001] Redirecting: ${url.pathname} -> ${cleanPath}`);
-            return Response.redirect(new URL(cleanPath, url.origin), 301);
-        }
-    }
 
     // ═══════════════════════════════════════════════════════
     // LAYER 3: Smart KV Caching (existing logic)
