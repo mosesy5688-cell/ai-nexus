@@ -1,6 +1,6 @@
-
 // src/scripts/home-client.js
 import { renderModelCard } from './render-model-card.js';
+import { stripPrefix } from '../utils/mesh-routing-core.js';
 
 // Function to fetch and render hot models (Constitution: FNI-sorted)
 export async function loadHotModels() {
@@ -84,10 +84,12 @@ export async function loadDailyReport() {
             const leaderType = leader.type || 'model';
             const leaderPrefix = leaderType === 'agent' ? '/agent/' : leaderType === 'dataset' ? '/dataset/' : leaderType === 'tool' ? '/tool/' : leaderType === 'paper' ? '/paper/' : '/model/';
             const count = briefing.new_entities_count || briefing.new_models_count || 0;
+            // V16.9.23: Use centralized SSOT logic for maximal backward compatibility
+            const slug = stripPrefix(leader.slug || leader.id || '').replace(/--/g, '/');
 
             summaryEl.textContent = count > 0 ? `${count} new entities tracked today!` : 'Review the latest FNI leaderboards.';
             topModelEl.textContent = leader.name;
-            topModelLink.href = `${leaderPrefix}${leader.slug.replace(/^[a-z]+:/i, '').replace(/^(model|agent|dataset|tool|paper|space)s?\//i, '')}`;
+            topModelLink.href = `${leaderPrefix}${slug}`;
         }
 
         banner.classList.remove('hidden');
@@ -108,7 +110,9 @@ export async function loadDailyReport() {
 
                     const topModelType = topModel.type || 'model';
                     const topModelPrefix = topModelType === 'agent' ? '/agent/' : topModelType === 'dataset' ? '/dataset/' : topModelType === 'tool' ? '/tool/' : topModelType === 'paper' ? '/paper/' : '/model/';
-                    topModelLink.href = `${topModelPrefix}${topModel.slug.replace(/^[a-z]+:/i, '').replace(/^(model|agent|dataset|tool|paper|space)s?\//i, '')}`;
+                    // V16.9.23: Use centralized SSOT logic for maximal backward compatibility
+                    const slug = stripPrefix(topModel.slug || topModel.id || '').replace(/--/g, '/');
+                    topModelLink.href = `${topModelPrefix}${slug}`;
 
                     banner.classList.remove('hidden');
                 }

@@ -109,16 +109,18 @@ export function getRedirectPath(pathname) {
     // We split by / and check if any segment NEEDS cleaning (contains -- or prefix)
     const segments = cleanPath.split('/').filter(Boolean);
     let needsRedirect = false;
-    const cleanedSegments = segments.map(seg => {
+    const cleanedSegments = segments.map((seg, index) => {
         const stripped = stripPrefix(seg);
-        if (stripped !== seg.toLowerCase()) {
+        if (stripped !== seg.toLowerCase() && !seg.includes('--')) {
             needsRedirect = true;
             return stripped.replace(/--/g, '/');
         }
-        // Also handle legacy author--name format
-        if (seg.includes('--')) {
+        // V16.9.22: Only redirect legacy author--name format if it's NOT the root type segment
+        // V16.9.22: Use centralized stripPrefix for consistency
+        // V16.9.22: Less aggressive with double-dashes to avoid mangling new IDs
+        if (seg.includes('--') && index > 0 && !seg.includes('-model-') && !seg.includes('-dataset-')) {
             needsRedirect = true;
-            return seg.replace(/--/g, '/');
+            return stripped.replace(/--/g, '/'); // Apply stripPrefix before replacing --
         }
         return seg;
     });

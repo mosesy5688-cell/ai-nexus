@@ -3,6 +3,8 @@
  * Shared data normalization logic for V16.2 Search & Catalog
  * Ensures consistent fields across different data sources (core vs full json)
  */
+import { stripPrefix } from '../../utils/mesh-routing-core.js';
+
 export const DataNormalizer = {
     normalize(item, defaultType = 'model') {
         const id = item.id;
@@ -17,12 +19,8 @@ export const DataNormalizer = {
         }
 
         if (!slug && id) {
-            slug = id.replace(/^[a-z]+:/i, '')
-                .replace(/^(model|agent|dataset|tool|paper|space|benchmark)s?\//i, '')
-                .replace(/^(hf-dataset--|hf-space--|arxiv--|agent--|github-agent--)/i, '')
-                .replace(/^replicate\//i, '')
-                .replace('--', '/')
-                .replace(':', '/');
+            // V16.9.23: Use centralized SSOT logic for maximal backward compatibility
+            slug = stripPrefix(id).replace(/--/g, '/');
         }
 
         // Derive missing author from ID
