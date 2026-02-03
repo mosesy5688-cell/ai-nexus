@@ -1,0 +1,49 @@
+---
+/**
+ * ListingControls Component - V16.9.22
+ * Shared search, sort, and layout for all entity catalogs
+ */
+interface Props {
+  type: string;
+  placeholder?: string;
+  searchId?: string;
+  sortId?: string;
+}
+
+const { 
+  type, 
+  placeholder = `Search ${type}s...`, 
+  searchId = `${type}s-search`,
+  sortId = 'sort-by'
+} = Astro.props;
+---
+
+<div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm z-10 relative">
+  <div class="flex-1 min-w-[200px]">
+    <div class="relative">
+      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+      <input 
+        type="text" 
+        id={searchId} 
+        placeholder={placeholder} 
+        class="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+      />
+    </div>
+  </div>
+  
+  <div class="flex items-center gap-4">
+    <span id="results-count" class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest hidden lg:inline">
+       Checking inventory...
+    </span>
+    <div class="flex items-center gap-2">
+      <span class="text-xs font-bold text-gray-400 uppercase tracking-widest hidden sm:inline">Sort by:</span>
+      <select id={sortId} class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+        <option value="fni">🛡️ FNI Score</option>
+        {type === 'model' && <option value="downloads">📥 Downloads</option>}
+        {type === 'model' && <option value="likes">❤️ Likes</option>}
+        <option value="recent">🕐 Recently Updated</option>
+        <option value="name">🔤 Name</option>
+      </select>
+    </div>
+  </div>
+</div>

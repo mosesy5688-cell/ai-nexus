@@ -3,17 +3,14 @@
  * Helper for UniversalCatalog to render entity cards.
  * Extracted to ensure CES Compliance (< 250 lines per file).
  */
+import { stripPrefix } from '../../utils/mesh-routing-core.js';
 
 export class EntityCardRenderer {
     static getLink(type, item) {
         let slug = item.slug || item.id;
         // Standardized slug stripping
-        slug = slug.replace(/^[a-z]+:/i, '')
-            .replace(/^(model|agent|dataset|tool|paper|space|benchmark)s?\//i, '')
-            .replace(/^(hf-dataset--|hf-space--|arxiv--|agent--|github-agent--)/i, '')
-            .replace(/^replicate\//i, '')
-            .toLowerCase()
-            .trim();
+        // V16.9.23: Use centralized SSOT logic for maximal backward compatibility
+        slug = stripPrefix(slug).replace(/--/g, '/');
 
         if (type === 'space') return `/space/${slug}`;
         if (type === 'tool') return `/tool/${slug}`;
@@ -59,13 +56,15 @@ export class EntityCardRenderer {
             labelText = item.sdk; // e.g. "Gradio"
         }
 
+        const displayTitle = item.name || stripPrefix(item.id || '').replace(/--/g, ' / ');
+
         return `
             <a href="${link}" class="entity-card p-4 bg-white dark:bg-gray-800 rounded-xl hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 block fade-in">
                 <div class="flex items-center justify-between mb-2">
                      <span class="text-xs px-2 py-0.5 rounded-full ${badgeColor} capitalize">${labelText}</span>
                      ${fniDisplay}
                 </div>
-                <h3 class="font-bold text-gray-900 dark:text-white truncate">${item.name || item.id}</h3>
+                <h3 class="font-bold text-gray-900 dark:text-white truncate" title="${displayTitle}">${displayTitle}</h3>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2" title="${cleanDesc}">${cleanDesc}</p>
                  <div class="flex items-center gap-3 mt-3 text-xs text-gray-400">
                     ${item.downloads ? `<span>📥 ${this.formatNumber(item.downloads)}</span>` : ''}

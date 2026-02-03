@@ -1,6 +1,7 @@
 // src/scripts/render-model-card.js
 // Shared client-side template for rendering model cards
 // V5.0: CES-001 Clean URL format
+import { stripPrefix } from '../utils/mesh-routing-core.js';
 
 export function renderModelCard(model) {
     // V14.4 Fix: Extract author from entity.id when author field is missing
@@ -25,13 +26,9 @@ export function renderModelCard(model) {
     // V15.8: Standardized URL generation (Clean prefixes + Strip source/type)
     const prefix = entityType === 'agent' ? '/agent/' : entityType === 'dataset' ? '/dataset/' : entityType === 'tool' ? '/tool/' : entityType === 'paper' ? '/paper/' : entityType === 'space' ? '/space/' : '/model/';
 
+    // V16.9.23: Use centralized SSOT logic for maximal backward compatibility
     let cleanSlug = model.slug || model.id || '';
-    cleanSlug = cleanSlug.replace(/^[a-z]+:/i, '')
-        .replace(/^(model|agent|dataset|tool|paper|space|benchmark)s?\//i, '')
-        .replace(/^(hf-dataset--|hf-space--|arxiv--|agent--|github-agent--)/i, '')
-        .replace(/^replicate\//i, '')
-        .toLowerCase()
-        .trim();
+    cleanSlug = stripPrefix(cleanSlug).replace(/--/g, '/');
 
     const modelUrl = `${prefix}${cleanSlug}`;
 
@@ -87,11 +84,13 @@ export function renderModelCard(model) {
     // V4.9: Entity type detection (Art.X-Entity)
     function deriveEntityType(id) {
         if (!id) return 'model';
-        if (id.startsWith('hf-dataset--')) return 'dataset';
-        if (id.startsWith('hf-space--')) return 'space';
-        if (id.startsWith('benchmark--')) return 'benchmark';
-        if (id.startsWith('arxiv--')) return 'paper';
-        if (id.startsWith('agent--') || id.startsWith('github-agent--')) return 'agent';
+        const lowerId = id.toLowerCase();
+        if (lowerId.includes('dataset--')) return 'dataset';
+        if (lowerId.includes('space--')) return 'space';
+        if (lowerId.includes('paper--') || lowerId.includes('arxiv--')) return 'paper';
+        if (lowerId.includes('agent--')) return 'agent';
+        if (lowerId.includes('tool--')) return 'tool';
+        if (lowerId.includes('benchmark--')) return 'benchmark';
         return 'model';
     }
 
@@ -125,7 +124,8 @@ export function renderModelCard(model) {
         <div class="absolute top-2 right-2 z-10 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full animate-pulse shadow-sm" title="Rising Star">
             🔥
         </div>
-        ` : ''}
+        ` : ''
+        }
         
         <div class="absolute top-2 left-2 z-10 flex items-center gap-1 bg-gray-100/90 dark:bg-gray-700/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-medium text-gray-600 dark:text-gray-300 shadow-sm border border-gray-200 dark:border-gray-600">
             <span>${getEntityIcon(entityType)}</span>

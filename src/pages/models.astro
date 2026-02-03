@@ -1,3 +1,4 @@
 ---
-return Astro.redirect('/model/', 301);
+const params = Astro.url.search;
+return Astro.redirect('/model/' + params, 301);
 ---

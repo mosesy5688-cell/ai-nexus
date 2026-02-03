@@ -6,6 +6,7 @@
 export const prerender = false;
 
 import Layout from '../../layouts/Layout.astro';
+import ListingControls from '../../components/common/ListingControls.astro';
 import { fetchCatalogData, truncateListingItem } from '../../utils/catalog-fetcher.js';
 import { generateEntityUrl } from '../../utils/url-utils.js';
 
@@ -18,14 +19,39 @@ const pageDescription = 'Browse the latest AI research papers and technical repo
 
 <Layout title={pageTitle} description={pageDescription}>
   <main class="container mx-auto px-4 py-8 min-h-screen flex flex-col">
-    <h1 class="text-3xl font-bold mb-6">AI Research Papers</h1>
-    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-       {entities.map((item: any) => (
-         <a href={generateEntityUrl(item, 'paper')} class="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 block transition-all hover:shadow-lg">
-           <h3 class="font-bold truncate">{item.name || item.id}</h3>
-           <p class="text-sm text-gray-500 line-clamp-2 mt-1">{item.description}</p>
-         </a>
-       ))}
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">AI Research Papers</h1>
+      <p class="text-gray-600 dark:text-gray-400">Discover the latest breakthroughs in AI research and technical reports.</p>
+    </div>
+
+    <ListingControls type="paper" searchId="papers-search" />
+
+    <div id="papers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow min-h-[500px]">
+       {entities.length > 0 ? (
+           entities.slice(0, 24).map((item: any) => (
+            <a href={generateEntityUrl(item, 'paper')} class="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 block transition-all hover:shadow-lg">
+               <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300">Paper</span>
+                  {item.fni_score > 0 && (
+                    <span class="text-xs font-bold text-gray-500 dark:text-gray-400">🛡️ {Math.round(item.fni_score)}</span>
+                  )}
+               </div>
+               <h3 class="font-bold truncate text-gray-900 dark:text-white">{item.name || item.id}</h3>
+               <p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">{item.description}</p>
+            </a>
+           ))
+       ) : (
+          Array(12).fill(0).map(() => (
+            <div class="animate-pulse bg-white dark:bg-gray-800 rounded-xl p-5 h-48">
+              <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-3"></div>
+              <div class="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2"></div>
+            </div>
+          ))
+       )}
+    </div>
+
+    <div class="flex justify-center mt-8 mb-12">
+      <nav id="pagination" class="flex items-center gap-2"></nav>
     </div>
   </main>
 </Layout>
@@ -41,9 +67,15 @@ const pageDescription = 'Browse the latest AI research papers and technical repo
       new UniversalCatalog({ 
         initialData: window.initialEntities, 
         type: 'paper',
-        gridId: 'entity-grid',
+        gridId: 'papers-grid',
+        searchId: 'papers-search',
         dataUrl: 'https://cdn.free2aitools.com/cache/rankings/paper/p1.json'
       });
   };
-  document.addEventListener('DOMContentLoaded', init);
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 </script>

@@ -1,16 +1,18 @@
 // V15.1 Unified Entity Cache Reader Core (Art.I-Extended: Frontend D1 = 0)
 import { R2_CACHE_URL } from '../config/constants.ts';
 
+import { stripPrefix, getTypeFromId } from './mesh-routing-core.js';
+
 // Normalize entity slug for R2 storage path
-export function normalizeEntitySlug(id, source = 'huggingface') {
+export function normalizeEntitySlug(id, type = 'model') {
     if (!id) return '';
 
     // V15.12: Handle array inputs from Astro [...slug] routes
     let slug = Array.isArray(id) ? id.join('/') : id;
 
-    // Standardize separators for R2 storage artifact
-    slug = slug.replace(/:/g, '--').replace(/\//g, '--');
-    return slug;
+    // V16.9.22: Strip any legacy or current prefixes before normalizing for slug/path
+    const base = stripPrefix(slug).replace(/[:\/]/g, '--');
+    return base;
 }
 
 // V16.2 Knowledge Mesh Alignment (SPEC-KNOWLEDGE-MESH-V16.2 Section 2.1)
@@ -36,12 +38,12 @@ export function getR2PathCandidates(type, normalizedSlug) {
     // 2. Canonical Prefix Injection (Handling mapping from 'pretty' IDs to R2 Storage keys)
     // V16.4 Forensics: Resolved prefixes from live production R2 bucket
     const prefixMap = {
-        'model': ['hf-model--', 'gh-model--', 'civitai-model--', 'ollama-model--', 'civitai--', 'ollama--'],
-        'dataset': ['hf-dataset--', 'dataset--', 'kaggle-dataset--', 'kaggle--'],
-        'paper': ['arxiv-paper--', 'arxiv--', 'paper--'],
+        'model': ['hf-model--', 'gh-model--', 'civitai-model--', 'ollama-model--', 'replicate-model--', 'hf--', 'civitai--', 'ollama--'],
+        'dataset': ['hf-dataset--', 'kaggle-dataset--', 'dataset--', 'hf--'],
+        'paper': ['arxiv-paper--', 'hf-paper--', 'arxiv--', 'paper--'],
         'space': ['hf-space--', 'space--'],
-        'agent': ['gh-agent--', 'agent--', 'github-agent--', 'hf-agent--'],
-        'tool': ['gh-tool--', 'tool--', 'github-tool--', 'github--']
+        'agent': ['gh-agent--', 'hf-agent--', 'github-agent--', 'agent--'],
+        'tool': ['gh-tool--', 'hf-tool--', 'github-tool--', 'tool--']
     };
 
     const prefixesCheck = prefixMap[singular] || [];
@@ -152,15 +154,18 @@ export async function fetchEntityFromR2(type, slug, locals) {
         try {
             const fs = await import('node:fs');
             // Try specific type path first, then merged, then type-merged
+            const r2CandidatePaths = getR2PathCandidates(type, normalized);
             const pluralType = type.endsWith('s') ? type : `${type}s`;
-            const paths = [
-                `g:/ai-nexus/data/cache/entities/${type}/${normalized}.json`,
-                `g:/ai-nexus/data/cache/entities/${pluralType}/${normalized}.json`,
+
+            // Add legacy data directory paths
+            const searchPaths = [
+                ...r2CandidatePaths.map(p => `g:/ai-nexus/data/${p}`),
+                ...r2CandidatePaths.map(p => `g:/ai-nexus/data/cache/entities/${type}/${p.split('/').pop()}`),
                 `g:/ai-nexus/data/merged.json`,
                 `g:/ai-nexus/data/${pluralType}.json`
             ];
 
-            for (const localPath of paths) {
+            for (const localPath of searchPaths) {
                 if (fs.existsSync(localPath)) {
                     const raw = fs.readFileSync(localPath, 'utf-8');
                     const data = JSON.parse(raw);
@@ -169,8 +174,12 @@ export async function fetchEntityFromR2(type, slug, locals) {
                         // Scan list for the entity
                         const list = Array.isArray(data) ? data : (data.entities || []);
                         const found = list.find(m => {
-                            const mSlug = m.id || m.slug || '';
-                            return normalizeEntitySlug(mSlug, type) === normalized;
+                            const mId = m.id || m.slug || '';
+                            // Try matching regular normalized slug or prefixed version
+                            return r2CandidatePaths.some(p => {
+                                const fileName = p.split('/').pop().replace('.json', '');
+                                return (mId.toLowerCase() === fileName) || (normalizeEntitySlug(mId, type) === normalized);
+                            });
                         });
 
                         if (found) {
