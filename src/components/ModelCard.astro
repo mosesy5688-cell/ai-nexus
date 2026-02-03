@@ -4,12 +4,13 @@
 // Optimized: text-focused, extended description, simpler design
 // V5.0.0: CES-001 Clean URL format
 import { generateEntityUrl } from '../utils/url-utils.js';
+import { cleanDescription } from '../utils/text-sanitizer.js';
 
 const { model, isRisingStar } = Astro.props;
 
 // Generate clean URL without source prefix or encoding
 const modelUrl = generateEntityUrl(model, 'model');
-const description = model.seo_summary || model.description?.replace(/<[^>]*>?/gm, '') || 'No description available.';
+const description = cleanDescription(model.seo_summary || model.description) || 'No description available.';
 
 // V16.4.2: Deterministic Image Mapping (SPEC-IMAGE-NAMING)
 const type = model.type || 'model';

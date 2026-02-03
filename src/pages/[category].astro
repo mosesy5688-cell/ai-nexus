@@ -149,7 +149,7 @@ const initialModels = models.slice(0, ITEMS_PER_PAGE);
         </div>
 
         <!-- Model Grid -->
-    <div id="model-grid" class="model-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div id="model-grid" class="model-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {initialModels.length > 0 ? (
         initialModels.map((model: any) => (
           <ModelCard model={model} />
