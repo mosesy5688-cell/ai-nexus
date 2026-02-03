@@ -14,17 +14,12 @@ export function stripPrefix(id) {
     const prefixes = [
         'hf-model--', 'hf-agent--', 'hf-tool--', 'hf-dataset--', 'hf-space--', 'hf-paper--', 'hf-collection--',
         'gh-model--', 'gh-agent--', 'gh-tool--', 'gh-repo--',
-        'arxiv-paper--', 'kaggle-dataset--', 'kaggle-model--', 'civitai-model--', 'ollama-model--',
-        'replicate-model--', 'mcp-server--', 'langchain-agent--', 'langchain-prompt--',
-        'huggingface-deepspec--', 'huggingface_deepspec--', 'huggingface--', 'github-agent--', 'github-tool--', 'github--',
-        'knowledge--', 'concept--', 'paper--', 'report--', 'arxiv--', 'replicate:', 'replicate--', 'kaggle--', 'civitai--', 'ollama--', 'author--',
-        'model--', 'agent--', 'tool--', 'dataset--', 'space--',
+        'arxiv-paper--', 'kaggle-dataset--', 'civitai-model--', 'ollama-model--',
+        'github-agent--', 'github-tool--', 'github--',
+        'knowledge--', 'concept--', 'paper--', 'report--', 'arxiv--', 'replicate:', 'replicate--', 'kaggle--', 'author--',
         // Platform variants (Old data/Source lookup)
         'huggingface:', 'github:', 'arxiv:', 'kaggle:', 'civitai:', 'ollama:', 'replicate:', 'pytorch:',
-        'huggingface/', 'github/', 'arxiv/', 'replicate/', 'civitai/', 'ollama/',
-        // Single dash variants
-        'agent-', 'model-', 'dataset-', 'paper-', 'space-', 'tool-',
-        'hf-', 'gh-'
+        'huggingface--', 'github--', 'arxiv--'
     ];
 
     for (const p of prefixes) {
