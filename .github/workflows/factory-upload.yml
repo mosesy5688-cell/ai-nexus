@@ -94,24 +94,38 @@ jobs:
           ls -la output/
 
       # V4.1: R2 Dual-Version Rotation (BEFORE upload)
+      # NOTE: entities.json is too large for Wrangler (300MiB limit).
+      # The S3 API script (r2-upload-s3.js) handles this file with multipart upload.
       - name: R2 Registry Version Rotation
         run: |
           echo "🔄 Rotating R2 registry versions..."
           
-          # 1. current -> previous
-          if npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-current.json --file=./temp-current.json --remote 2>/dev/null; then
-            echo "📦 Moving current -> previous"
-            npx -y wrangler r2 object put $R2_BUCKET/meta/backup/global-registry-previous.json --file=./temp-current.json --remote
-            rm ./temp-current.json
-          else
-            echo "⚠️ No current registry found (first run)"
-          fi
+          # Check file size first
+          FILE_SIZE=$(stat -c%s "output/entities.json" 2>/dev/null || echo "0")
+          SIZE_MB=$((FILE_SIZE / 1048576))
+          echo "📊 entities.json size: ${SIZE_MB}MB"
           
-          # 2. Upload new as current
-          if [ -f "output/entities.json" ]; then
-            echo "📤 Uploading new registry as current"
-            npx -y wrangler r2 object put $R2_BUCKET/meta/backup/global-registry-current.json --file=output/entities.json --remote
+          # Wrangler limit is 300MB. Skip backup if file is too large.
+          if [ "$SIZE_MB" -gt 290 ]; then
+            echo "⚠️ entities.json exceeds Wrangler 300MiB limit (${SIZE_MB}MB)."
+            echo "📦 Backup will be handled by r2-upload-s3.js (S3 multipart upload)."
+          else
+            # 1. current -> previous (Only if file is manageable)
+            if npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-current.json --file=./temp-current.json --remote 2>/dev/null; then
+              echo "📦 Moving current -> previous"
+              npx -y wrangler r2 object put $R2_BUCKET/meta/backup/global-registry-previous.json --file=./temp-current.json --remote
+              rm ./temp-current.json
+            else
+              echo "⚠️ No current registry found (first run)"
+            fi
+            
+            # 2. Upload new as current
+            if [ -f "output/entities.json" ]; then
+              echo "📤 Uploading new registry as current"
+              npx -y wrangler r2 object put $R2_BUCKET/meta/backup/global-registry-current.json --file=output/entities.json --remote
+            fi
           fi
+
 
       # V16.3.3: Verify Registry Backup Integrity (Robust Encoding)
       - name: Verify Registry Backup
