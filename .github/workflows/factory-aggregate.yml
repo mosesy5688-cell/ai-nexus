@@ -99,7 +99,11 @@ jobs:
           
           # 2. Extract context from prepared-entity-data (if downloaded there)
           if [ -d "./downloaded/data" ]; then mv ./downloaded/data/* data/ 2>/dev/null || true; fi
-          if [ -d "./downloaded/cache" ]; then mv ./downloaded/cache/* cache/ 2>/dev/null || true; fi
+          if [ -d "./downloaded/cache" ]; then 
+            mkdir -p output/cache
+            cp -r ./downloaded/cache/* output/cache/ 2>/dev/null || true
+            mv ./downloaded/cache/* cache/ 2>/dev/null || true
+          fi
           
           # 3. Handle output consolidation
           if [ -d "./downloaded/output" ]; then cp -r ./downloaded/output/* output/ 2>/dev/null || true; fi
@@ -148,14 +152,19 @@ jobs:
             node scripts/factory/aggregator.js --task=health
             node scripts/factory/aggregator.js --task=core
 
+      - name: Consolidate Final Artifact
+        run: |
+          mkdir -p output/cache output/meta
+          [ -d "cache" ] && cp -r cache/* output/cache/ 2>/dev/null || true
+          [ -d "meta" ] && cp -r meta/* output/meta/ 2>/dev/null || true
+          echo "📦 Final output structure for R2:"
+          ls -R output/ | head -20
+
       - name: Upload Registry Artifact (Intra-Chain Universal Package)
         uses: actions/upload-artifact@v4
         with:
           name: core-registry-v2
-          path: |
-            output/entities.json
-            output/meta/
-            cache/
+          path: output/
           retention-days: 1
 
       # V16.8.18: Redundant cache save removed. Downstream stages now use artifacts exclusively.

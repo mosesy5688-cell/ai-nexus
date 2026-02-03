@@ -94,9 +94,39 @@ fn value_to_sql_string(v: &serde_json::Value) -> String {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Path to the input JSON file
-    #[arg(short, long)]
-    input: String,
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum Commands {
+    /// Process a batch of images from a JSON file (Legacy)
+    Process {
+        /// Path to the input JSON file
+        #[arg(short, long)]
+        input: String,
+    },
+    /// Convert a single image to WebP (V16.8.22)
+    Convert {
+        /// Source image path
+        #[arg(short, long)]
+        input: String,
+        /// Target WebP path
+        #[arg(short, long)]
+        output: String,
+        /// WebP quality (1-100)
+        #[arg(short, long, default_value_t = 80)]
+        quality: u8,
+        /// Max width (resized if greater)
+        #[arg(short, long, default_value_t = 1200)]
+        width: Option<u32>,
+        /// Compatibility flag for legacy workflows
+        #[arg(long, default_value_t = 1200)]
+        max_width: u32,
+        /// Format (e.g., 'webp')
+        #[arg(short, long, default_value = "webp")]
+        format: String,
+    },
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -218,15 +248,47 @@ struct D1Model {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
+    match args.command {
+        Commands::Process { input } => {
+            run_batch_process(&input).await?;
+        }
+        Commands::Convert { input, output, quality, width, max_width, format } => {
+            let final_width = width.unwrap_or(max_width);
+            run_single_convert(&input, &output, quality, final_width, &format)?;
+        }
+    }
+    Ok(())
+}
 
-    // Debug information header
-    let mut debug_header = String::new();
-    debug_header.push_str(&format!("-- Args: {:?}\n", args));
-    debug_header.push_str(&format!("-- R2_BUCKET env: {:?}\n", env::var("R2_BUCKET")));
-    debug_header.push_str(&format!("-- CLOUDFLARE_ACCOUNT_ID env: {:?}\n", env::var("CLOUDFLARE_ACCOUNT_ID")));
-    debug_header.push_str(&format!("-- R2_PUBLIC_URL_PREFIX env: {:?}\n", env::var("R2_PUBLIC_URL_PREFIX")));
+fn run_single_convert(input: &str, output: &str, _quality: u8, max_width: u32, format: &str) -> Result<(), Box<dyn std::error::Error>> {
+    eprintln!("🎞️ Converting {} to {} (format: {}, max_width: {})...", input, output, format, max_width);
+    
+    let data = fs::read(input)?;
+    let img = image::load_from_memory(&data)?;
+    let (w, h) = img.dimensions();
+    
+    let resized = if w > max_width {
+        let new_h = (h as f64 * (max_width as f64 / w as f64)) as u32;
+        img.resize(max_width, new_h, FilterType::Lanczos3)
+    } else {
+        img
+    };
 
-    eprintln!("Processing input file: {}", args.input);
+    let output_path = Path::new(output);
+    if let Some(parent) = output_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    
+    let out_file = File::create(output)?;
+    let mut writer = std::io::BufWriter::new(out_file);
+    resized.write_to(&mut writer, ImageFormat::WebP)?;
+    
+    eprintln!("✅ Saved: {}", output);
+    Ok(())
+}
+
+async fn run_batch_process(input_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    eprintln!("Processing input file: {}", input_path);
 
     // ==================== Create temporary directories ====================
     fs::create_dir_all("data/images")?;
@@ -234,10 +296,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all("data/ingest")?; // V3.2: For JSON batch output (R2-First Lakehouse)
 
     // ==================== Load JSON data with robust error handling ====================
-    let data = match fs::read_to_string(&args.input) {
+    let data = match fs::read_to_string(input_path) {
         Ok(content) => content,
         Err(e) => {
-            eprintln!("❌ FATAL: Could not read input file '{}': {}", args.input, e);
+            eprintln!("❌ FATAL: Could not read input file '{}': {}", input_path, e);
             eprintln!("📋 Health Check: FAILED - Input file not accessible");
             std::process::exit(1);
         }
@@ -352,7 +414,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut d1_models: Vec<D1Model> = Vec::new();
     
     // Re-process models for D1Model JSON output
-    let data = fs::read_to_string(&args.input)?;
+    let data = fs::read_to_string(input_path)?;
     let models: Vec<Model> = serde_json::from_str(&data)?;
     
     for model in models {
@@ -439,7 +501,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("  Total models: {}", d1_models.len());
     eprintln!("  Batch size: {} items", BATCH_SIZE);
 
-    Ok(())
+    Ok({
+        let _ = batch_sql; // Use it to avoid warning
+        ()
+    })
 }
 
 async fn process_model(model: Model) -> Option<(String, Option<String>, String)> {

@@ -15,33 +15,26 @@ import crypto from 'crypto';
 import { mergeEntities } from './lib/entity-merger.js';
 import { loadEntityChecksums, saveEntityChecksums } from '../factory/lib/cache-manager.js';
 import { RegistryManager } from '../factory/lib/registry-manager.js';
+import { scrubIdentities } from './lib/identity-scrubber.js';
+import { finalizeMerge } from './lib/manifest-helper.js';
 
 const DATA_DIR = 'data';
 const OUTPUT_FILE = 'data/merged.json';
 const MANIFEST_FILE = 'data/manifest.json';
+const TOTAL_SHARDS = 20;
 
 // Validation Constants (L1 Logic)
 const MAX_BATCH_SIZE_MB = 50;
-const MAX_ENTITIES_PER_BATCH = 15000; // Increased formerged batches
+const MAX_ENTITIES_PER_BATCH = 15000;
 
-/**
- * Calculate SHA-256 hash of a string
- */
 function calculateHash(content) {
     return crypto.createHash('sha256').update(content).digest('hex');
 }
 
-/**
- * Merge all batch files into a single merged.json
- */
 async function mergeBatches() {
     console.log('\n🔄 [Merge] Starting batch merge...');
-
-    // V16.2.10: Data Safety Guard - 1/4 stage must NEVER write to R2
-    // All persistence in 1/4 is via GitHub Cache
     process.env.ENABLE_R2_BACKUP = 'false';
 
-    // Find all batch files
     const files = await fs.readdir(DATA_DIR);
     const batchFiles = files.filter(f => f.startsWith('raw_batch_') && f.endsWith('.json'));
 
@@ -50,53 +43,32 @@ async function mergeBatches() {
         return { total: 0, sources: [] };
     }
 
-    console.log(`   Found ${batchFiles.length} batch files`);
-
     const allEntities = [];
     const sourceStats = [];
-    const seenIds = new Map(); // Changed from Set to Map for Augmentative Merging
+    const seenIds = new Map();
     const batchManifests = [];
 
-    // Process each batch
     for (const file of batchFiles) {
         const filePath = path.join(DATA_DIR, file);
         try {
             const content = await fs.readFile(filePath, 'utf-8');
-
-            // Validation: Size
             const stats = await fs.stat(filePath);
-            const sizeMB = stats.size / (1024 * 1024);
-            if (sizeMB > MAX_BATCH_SIZE_MB) {
-                console.warn(`   ⚠️ [WARN] ${file} exceeds size limit (${sizeMB.toFixed(2)}MB > ${MAX_BATCH_SIZE_MB}MB)`);
-            }
-
             const entities = JSON.parse(content);
 
-            // Validation: Count
-            if (entities.length > MAX_ENTITIES_PER_BATCH) {
-                console.warn(`   ⚠️ [WARN] ${file} entity count high (${entities.length})`);
-            }
-
-            // Calculate Hash
-            const fileHash = calculateHash(content);
             batchManifests.push({
                 name: file,
                 size: stats.size,
                 count: entities.length,
-                hash: `sha256:${fileHash}`
+                hash: `sha256:${calculateHash(content)}`
             });
 
-            // Deduplicate by ID (Layer 1 Dedup) - Augmentative Merging V15.8
             let added = 0;
             let mergedCount = 0;
 
             for (const entity of entities) {
                 if (!entity.id) continue;
-
                 if (seenIds.has(entity.id)) {
-                    const existing = seenIds.get(entity.id);
-                    const merged = mergeEntities(existing, entity);
-                    seenIds.set(entity.id, merged);
+                    seenIds.set(entity.id, mergeEntities(seenIds.get(entity.id), entity));
                     mergedCount++;
                 } else {
                     if (entity.source_trail && typeof entity.source_trail !== 'string') {
@@ -110,125 +82,63 @@ async function mergeBatches() {
 
             const sourceName = file.replace('raw_batch_', '').replace('.json', '');
             sourceStats.push({ source: sourceName, count: added, file });
-            console.log(`   ✓ ${sourceName}: ${added} new | ${mergedCount} augmented (${entities.length - added - mergedCount} identical skipped)`);
-
+            console.log(`   ✓ ${sourceName}: ${added} new | ${mergedCount} augmented`);
         } catch (error) {
             console.error(`   ❌ Error reading ${file}: ${error.message}`);
         }
     }
 
-    // V16.2.3: Integrate Global Registry for Sweep Pass (Memory Restoration)
     const registryManager = new RegistryManager();
     await registryManager.load();
     const registryState = await registryManager.mergeCurrentBatch(allEntities);
     const fullSet = registryState.entities;
 
-    // V16.2.7: Sync Checksum Cache (Global Fingerprint Alignment)
-    // This prevents 2/4 Shards from thinking 280k archived assets are "new"
     console.log(`\n🔐 [Merge] Syncing global checksum cache for ${fullSet.length} entities...`);
     const checksums = await loadEntityChecksums();
     for (const e of fullSet) {
-        if (e._checksum && !checksums[e.id]) {
-            checksums[e.id] = e._checksum;
-        }
+        if (e._checksum && !checksums[e.id]) checksums[e.id] = e._checksum;
     }
     await saveEntityChecksums(checksums);
-    console.log(`   ✓ Checksum cache synchronized`);
 
-    // V16.8.12: Load Sentinel - Must successfully restore existing registry in Production/CI
     if (!registryState.didLoadFromStorage && process.env.GITHUB_ACTIONS) {
-        console.error(`❌ [CRITICAL] Registry restoration failed!`);
-        console.error(`   - didLoadFromStorage: false`);
-        console.error(`   - Possible Cache/R2 connectivity issue.`);
-        console.error(`   To prevent a "Stupid Mistake" data wipe, aborting merge.`);
         throw new Error(`Registry Load Failure - Emergency Abort to Protect 222k Baseline`);
     }
 
-    // Secondary Guard: Log count if unexpectedly low (Diagnostic only now)
     if (fullSet.length < 210000) {
-        console.log(`⚠️ [WARN] Merged registry count (${fullSet.length}) is below 210k. Proceeding because Load Sentinel passed.`);
+        throw new Error(`CRITICAL: Entity count dropped to ${fullSet.length} (Expected >210k).`);
     }
 
-    // Write merged output in shards (V16.2.3 Shard-First Implementation)
-    const TOTAL_SHARDS = 20;
-    console.log(`\n📦 [Merge] Sharding ${fullSet.length} entities into ${TOTAL_SHARDS} processor inputs...`);
-
-    // Sort to ensure stable sharding across runs
-    fullSet.sort((a, b) => a.id.localeCompare(b.id));
+    const dedupedSet = scrubIdentities(fullSet);
+    dedupedSet.sort((a, b) => a.id.localeCompare(b.id));
 
     for (let s = 0; s < TOTAL_SHARDS; s++) {
-        const shardSlice = fullSet.filter((_, idx) => idx % TOTAL_SHARDS === s);
-        const shardPath = path.join(DATA_DIR, `merged_shard_${s}.json`);
-        await fs.writeFile(shardPath, JSON.stringify(shardSlice, null, 2));
+        const shardSlice = dedupedSet.filter((_, idx) => idx % TOTAL_SHARDS === s);
+        await fs.writeFile(path.join(DATA_DIR, `merged_shard_${s}.json`), JSON.stringify(shardSlice, null, 2));
     }
 
-    // Still write a legacy merged.json for any un-migrated scripts (BUT WARN!)
-    const mergedContent = JSON.stringify(fullSet, null, 2);
+    const mergedContent = JSON.stringify(dedupedSet, null, 2);
     await fs.writeFile(OUTPUT_FILE, mergedContent);
     const mergedHash = calculateHash(mergedContent);
 
-    console.log(`\n✅ [Merge] Complete`);
-    console.log(`   Total: ${fullSet.length} unique entities (Harvested + Registry)`);
-    console.log(`   Shards: ${TOTAL_SHARDS} files created in data/`);
-    console.log(`   Legacy Output: ${OUTPUT_FILE} (${(Buffer.byteLength(mergedContent) / 1024 / 1024).toFixed(2)} MB)`);
+    console.log(`\n✅ [Merge] Complete\n   Total: ${dedupedSet.length} unique entities`);
 
-    // Calculate Global Stats for downstream Anomaly Detection (V16.2.3 optimization)
-    const avgVelocity = fullSet.reduce((sum, m) => sum + (m.velocity || 0), 0) / (fullSet.length || 1);
-
-    // Generate Integrity Manifest V1.1 (Modified to include Global Stats)
-    const manifest = {
-        version: 'INTEGRITY-V1.1',
-        job_id: process.env.GITHUB_RUN_ID || 'local',
-        timestamp: new Date().toISOString(),
-        total_entities: allEntities.length,
-        stats: {
-            avgVelocity: parseFloat(avgVelocity.toFixed(4))
-        },
-        output: {
-            file: 'merged.json',
-            hash: `sha256:${mergedHash}`,
-            size: Buffer.byteLength(mergedContent)
-        },
-        batches: batchManifests,
-        validation: {
-            max_batch_size_mb: MAX_BATCH_SIZE_MB,
-            max_entities_per_batch: MAX_ENTITIES_PER_BATCH
-        }
-    };
-
-    await fs.writeFile(MANIFEST_FILE, JSON.stringify(manifest, null, 2));
-    console.log(`   Manifest: ${MANIFEST_FILE}`);
-
-    // Output Pipeline Summary to GITHUB_STEP_SUMMARY
-    if (process.env.GITHUB_STEP_SUMMARY) {
-        const summary = [
-            `## Factory 1/4 - Harvest Complete 🌾`,
-            ``,
-            `### 📊 Pipeline Stats`,
-            `| Metric | Value |`,
-            `|--------|-------|`,
-            `| **Total Entities** | **${allEntities.length}** |`,
-            `| Source Files | ${batchFiles.length} |`,
-            `| Total Size | ${(Buffer.byteLength(mergedContent) / 1024 / 1024).toFixed(2)} MB |`,
-            ``,
-            `### 🛡️ Integrity Check`,
-            `- Manifest: \`INTEGRITY-V1.1\``,
-            `- Merged Hash: \`${mergedHash.substring(0, 8)}...\``,
-            ``,
-            `### 📦 Source Breakdown`,
-            `| Source | Count |`,
-            `|--------|-------|`,
-            ...sourceStats.map(s => `| ${s.source} | ${s.count} |`),
-            ``
-        ].join('\n');
-
-        await fs.appendFile(process.env.GITHUB_STEP_SUMMARY, summary);
-    }
+    await finalizeMerge({
+        manifestFile: MANIFEST_FILE,
+        outputFile: OUTPUT_FILE,
+        mergedContent,
+        mergedHash,
+        allEntitiesCount: allEntities.length,
+        batchManifests,
+        sourceStats,
+        batchFilesCount: batchFiles.length,
+        fullSet: dedupedSet,
+        MAX_BATCH_SIZE_MB,
+        MAX_ENTITIES_PER_BATCH
+    });
 
     return { total: allEntities.length, sources: sourceStats };
 }
 
-// Run if called directly
 mergeBatches().catch(err => {
     console.error(`\n❌ [FATAL] ${err.message}`);
     process.exit(1);
