@@ -1,36 +1,63 @@
 ---
 /**
- * AI Spaces (V16.5)
- * Using UniversalCatalog engine
+ * AI Spaces Catalog (V4.1)
+ * Optimized SSR + UniversalCatalog Engine
  */
 import Layout from '../layouts/Layout.astro';
+import ListingControls from '../components/common/ListingControls.astro';
+import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.js';
 
-const pageTitle = "AI Spaces Discovery - Free2AI";
+// SSR Data Fetching
+const { items: allSpaces, error } = await fetchCatalogData('space', Astro.locals.runtime?.env);
+const spaces = allSpaces.slice(0, 48).map(truncateListingItem);
+
+const pageTitle = "AI Spaces Catalog | Interactive AI Demos";
+const pageDescription = "Explore interactive AI demos, Gradio apps, and Streamlit spaces hosted on HuggingFace and beyond.";
 ---
 
-<Layout title={pageTitle}>
-    <main class="container mx-auto px-4 py-8">
-        <header class="mb-12 text-center">
-            <h1 class="text-4xl font-black text-white mb-4 tracking-tighter uppercase">AI Spaces Discovery</h1>
+<Layout title={pageTitle} description={pageDescription}>
+    <main class="container mx-auto px-4 py-12 min-h-screen">
+        <header class="mb-12">
+            <h1 class="text-4xl md:text-5xl font-black text-gray-900 dark:text-white mb-4 tracking-tighter uppercase">
+                AI Spaces <span class="text-blue-600">Demos</span>
+            </h1>
+            <p class="text-lg text-gray-600 dark:text-zinc-400 max-w-2xl">
+                Real-time interactive AI prototypes and application showcases from across the ecosystem.
+            </p>
         </header>
 
-        <div class="mb-8 flex flex-col md:flex-row gap-4 items-center">
-            <input type="text" id="models-search" placeholder="Search spaces..." class="w-full md:w-1/2 p-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white" />
-            <div id="results-count" class="text-xs text-zinc-500 font-bold uppercase tracking-widest">--</div>
+        <ListingControls type="space" searchId="spaces-search" />
+
+        <div id="spaces-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {spaces.map((space: any) => (
+                <div class="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div class="h-full" data-ssr-item>
+                         <div class="p-6 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 animate-pulse h-64"></div>
+                    </div>
+                </div>
+            ))}
         </div>
 
-        <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-        <div id="pagination" class="mt-12 flex justify-center items-center gap-4"></div>
+        <div id="pagination" class="mt-16 flex justify-center items-center gap-4"></div>
     </main>
+
+    <script define:vars={{ initialData: spaces }}>
+        window.__CATALOG_DATA__ = initialData;
+    </script>
 
     <script>
         import { UniversalCatalog } from '../scripts/lib/UniversalCatalog.js';
         
-        document.addEventListener('DOMContentLoaded', () => {
-             new UniversalCatalog({
+        const init = () => {
+            new UniversalCatalog({
+                initialData: window.__CATALOG_DATA__ || [],
                 type: 'space',
+                gridId: 'spaces-grid',
+                searchId: 'spaces-search',
                 dataUrl: 'https://cdn.free2aitools.com/cache/trending.json'
             });
-        });
+        };
+
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </Layout>

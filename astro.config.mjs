@@ -15,6 +15,14 @@ import cloudflare from "@astrojs/cloudflare";
 export default defineConfig({
   site: 'https://free2aitools.com',
   output: 'server',
+  redirects: {
+    '/model': '/models',
+    '/agent': '/agents',
+    '/space': '/spaces',
+    '/tool': '/tools',
+    '/dataset': '/datasets',
+    '/paper': '/papers'
+  },
   adapter: cloudflare({
     runtime: { mode: 'local', type: 'pages' }
   }),
