@@ -82,20 +82,20 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline
 
-      # V14.5.2: Debug - Show which run ID we're looking for
+      # V4.1: Debug - Show which cache key we're looking for
       - name: Debug Cache Key
         run: |
           echo "Workflow trigger: ${{ github.event_name }}"
-          echo "Looking for cache key: entity-data-${{ github.event.workflow_run.id || 'MANUAL' }}"
+          echo "Looking for cache key: cycle-${{ needs.check-upstream.outputs.run-id }}-output"
         
-      # V17.0: Download to output/ to match expected path structure
-      - name: Restore entity data from Artifact (V17.0)
-        uses: actions/download-artifact@v4
+      # V4.1: Restore from Cache (Not Artifact)
+      - name: Restore Entity Data from Cache
+        uses: actions/cache/restore@v4
         with:
-          name: core-registry-v2
           path: output/
-          run-id: ${{ needs.check-upstream.outputs.run-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          key: cycle-${{ needs.check-upstream.outputs.run-id }}-output
+          restore-keys: |
+            cycle-
           
       - name: Check entity data exists
         run: |
@@ -138,14 +138,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline
         
-      # V17.0: Download to output/ to match expected path
-      - name: Restore entity data from Artifact (V17.0)
-        uses: actions/download-artifact@v4
+      # V4.1: Restore from Cache (Not Artifact)
+      - name: Restore Entity Data from Cache
+        uses: actions/cache/restore@v4
         with:
-          name: core-registry-v2
           path: output/
-          run-id: ${{ needs.check-upstream.outputs.run-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          key: cycle-${{ needs.check-upstream.outputs.run-id }}-output
+          restore-keys: |
+            cycle-
             
       - name: Compute ALT relations
         run: |
@@ -179,14 +179,14 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline
         
-      # V17.0: Download to output/ to match expected path
-      - name: Restore entity data from Artifact (V17.0)
-        uses: actions/download-artifact@v4
+      # V4.1: Restore from Cache (Not Artifact)
+      - name: Restore Entity Data from Cache
+        uses: actions/cache/restore@v4
         with:
-          name: core-registry-v2
           path: output/
-          run-id: ${{ needs.check-upstream.outputs.run-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          key: cycle-${{ needs.check-upstream.outputs.run-id }}-output
+          restore-keys: |
+            cycle-
             
       - name: Compute knowledge links
         run: |
