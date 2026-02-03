@@ -165,12 +165,8 @@ jobs:
           path: output/
           retention-days: 1
 
-      # V4.1: Save to Cache for downstream workflows (Linker, Upload, Image)
-      - name: Save Cycle Output to Cache
-        uses: actions/cache/save@v4
-        with:
-          path: output/
-          key: cycle-${{ github.run_id }}-output
+      # V17.2: Cache save moved to finalize job to include satellite outputs
+      # NOTE: merge-core only uploads artifact, finalize saves complete cache
 
       # V4.1: Save Global Registry for next cycle's 1/4 Harvest
       - name: Save Global Registry to Cache
@@ -208,6 +204,7 @@ jobs:
         with:
           name: agg-search
           path: output/cache/search*
+          if-no-files-found: warn
           retention-days: 1
 
   aggregate-rankings:
@@ -241,6 +238,7 @@ jobs:
           path: |
             output/rankings/
             output/cache/category_stats.json
+          if-no-files-found: warn
           retention-days: 1
 
   aggregate-trending:
@@ -269,6 +267,7 @@ jobs:
         with:
           name: agg-trending
           path: output/cache/trending.json
+          if-no-files-found: warn
           retention-days: 1
 
   aggregate-relations:
@@ -299,6 +298,7 @@ jobs:
         with:
           name: agg-relations
           path: output/cache/relations.json
+          if-no-files-found: warn
           retention-days: 1
 
   aggregate-sitemap:
@@ -326,6 +326,7 @@ jobs:
           path: |
             output/sitemaps/
             output/sitemap.xml
+          if-no-files-found: warn
           retention-days: 1
 
   finalize:
