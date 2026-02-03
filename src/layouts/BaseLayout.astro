@@ -1,18 +1,25 @@
-			<nav class="container mx-auto px-4 h-16 flex items-center justify-between">
-				<a href="/" class="text-2xl font-bold text-primary">AI Nexus</a>
-				<div class="flex items-center gap-4">
-					<ThemeToggle />
-					<a href="/models" class="text-muted-foreground hover:text-primary font-medium transition-colors">Models</a>
-					<a href="/about" class="text-muted-foreground hover:text-primary font-medium transition-colors">About</a>
-				</div>
-			</nav>
-		</header>
-			<nav class="container mx-auto px-4 h-16 flex items-center justify-between">
-				<a href="/" class="text-2xl font-bold text-primary">AI Nexus</a>
-				<div class="flex items-center gap-4">
-					<ThemeToggle />
-					<a href="/models" class="text-muted-foreground hover:text-primary font-medium transition-colors">Models</a>
-					<a href="/about" class="text-muted-foreground hover:text-primary font-medium transition-colors">About</a>
+<!doctype html>
+<html lang="en" class="h-full">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="description" content={description} />
+		<meta name="viewport" content="width=device-width" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="generator" content={Astro.generator} />
+		<title>{title}</title>
+		{jsonld && <script type="application/ld+json" set:html={JSON.stringify(jsonld)} />}
+	</head>
+	<body class="min-h-full flex flex-col bg-[#09090b] text-zinc-300 antialiased">
+		<header class="h-14 border-b border-[#27272a] bg-[#09090b]/80 backdrop-blur-md sticky top-0 z-50">
+			<nav class="container mx-auto px-4 h-full flex items-center justify-between">
+				<a href="/" class="flex items-center gap-2 group">
+					<span class="w-6 h-6 bg-zinc-100 text-black flex items-center justify-center font-black text-xs">AI</span>
+					<span class="text-sm font-bold text-white group-hover:text-zinc-400 transition-colors">NEXUS</span>
+				</a>
+				<div class="flex items-center gap-6">
+					<a href="/models" class="text-xs font-semibold uppercase tracking-widest hover:text-white transition-colors">Models</a>
+					<a href="/knowledge" class="text-xs font-semibold uppercase tracking-widest hover:text-white transition-colors">Knowledge</a>
+					<a href="/about" class="text-xs font-semibold uppercase tracking-widest hover:text-white transition-colors">About</a>
 				</div>
 			</nav>
 		</header>
