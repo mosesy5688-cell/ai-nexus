@@ -50,27 +50,7 @@ import Layout from '../layouts/Layout.astro';
                        idSpan.textContent = missingId;
                     }
 
-                    // 1. Plural to Singular Correction (e.g., /models/ -> /model/)
-                    const pluralMappings = {
-                        '/models/': '/model/',
-                        '/papers/': '/paper/',
-                        '/spaces/': '/space/',
-                        '/datasets/': '/dataset/',
-                        '/agents/': '/agent/'
-                    };
-
-                    for (const [plural, singular] of Object.entries(pluralMappings)) {
-                        if (path.startsWith(plural)) {
-                            const newPath = path.replace(plural, singular);
-                            if (newPath !== path && msg) {
-                                msg.classList.remove('hidden');
-                                setTimeout(() => window.location.href = newPath, 800);
-                                return;
-                            }
-                        }
-                    }
-
-                    // 2. Check for old key format (owner--name -> owner/name)
+                    // 1. Check for old key format (owner--name -> owner/name)
                     if (path.includes('--')) {
                         const newPath = path.replace(/--/g, '/');
                         if (newPath !== path && msg) {
