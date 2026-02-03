@@ -160,6 +160,17 @@ jobs:
           echo "📦 Final output structure for R2:"
           ls -R output/ | head -20
 
+      # V17.0: Prevent upload-artifact stack overflow from atomized entity files
+      - name: Clean Atomized Entity Directory
+        run: |
+          if [ -d "output/cache/entities" ]; then
+            FILE_COUNT=$(find output/cache/entities -type f | wc -l)
+            echo "🧹 Cleaning $FILE_COUNT atomized entity files..."
+            rm -rf output/cache/entities/
+            echo "✅ Cleanup complete. Remaining file count:"
+            find output/ -type f | wc -l
+          fi
+
       - name: Upload Registry Artifact (Intra-Chain Universal Package)
         uses: actions/upload-artifact@v4
         with:
