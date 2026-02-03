@@ -129,10 +129,5 @@ export function getRedirectPath(pathname) {
         return '/' + cleanedSegments.join('/');
     }
 
-    // Handle legacy plural paths
-    if (cleanPath.startsWith('/models/')) return cleanPath.replace('/models/', '/model/');
-    if (cleanPath.startsWith('/datasets/')) return cleanPath.replace('/datasets/', '/dataset/');
-    if (cleanPath.startsWith('/spaces/')) return cleanPath.replace('/spaces/', '/space/');
-
     return null;
 }
