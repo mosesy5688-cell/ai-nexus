@@ -24,9 +24,9 @@ const pageDescription = 'Browse the latest AI research papers and technical repo
       <p class="text-gray-600 dark:text-gray-400">Discover the latest breakthroughs in AI research and technical reports.</p>
     </div>
 
-    <ListingControls type="paper" searchId="papers-search" />
+    <ListingControls type="paper" searchId="entity-search" />
 
-    <div id="papers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow min-h-[500px]">
+    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow min-h-[500px]">
        {entities.length > 0 ? (
            entities.slice(0, 24).map((item: any) => (
             <a href={generateEntityUrl(item, 'paper')} class="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 block transition-all hover:shadow-lg">
@@ -67,8 +67,8 @@ const pageDescription = 'Browse the latest AI research papers and technical repo
       new UniversalCatalog({ 
         initialData: window.initialEntities, 
         type: 'paper',
-        gridId: 'papers-grid',
-        searchId: 'papers-search',
+        gridId: 'entity-grid',
+        searchId: 'entity-search',
         dataUrl: 'https://cdn.free2aitools.com/cache/rankings/paper/p1.json'
       });
   };

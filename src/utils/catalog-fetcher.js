@@ -30,10 +30,7 @@ export async function fetchCatalogData(type, runtimeEnv) {
                 console.log(`[CatalogFetcher] R2 Rankings miss for ${type}, falling back to entities.json`);
             }
 
-            // V16.8.7: Removed entities.json fallback in SSR. 
-            // Loading 368MB entities.json crashes Cloudflare Workers (Error 1102).
-
-            // Fallback to legacy trending.json if entities.json fails
+            // Fallback to legacy trending.json if rankings fail
             if (items.length === 0) {
                 try {
                     const trendFile = await r2.get('cache/trending.json');
@@ -43,33 +40,6 @@ export async function fetchCatalogData(type, runtimeEnv) {
                         source = 'r2-trend-fallback';
                     }
                 } catch (ex) { /* ignore */ }
-            }
-
-            // C. Fallback: Scan Bucket (Self-Healing)
-            if (items.length === 0) {
-                console.log(`[CatalogFetcher] Trending empty for ${type}. Scanning R2 bucket path: cache/entities/${type}/`);
-                try {
-                    const list = await r2.list({ prefix: `cache/entities/${type}/`, limit: 1000 });
-                    const keys = list.objects
-                        .filter(o => !o.key.endsWith('.meta.json'))
-                        .map(o => o.key)
-                        .slice(0, 1000);
-
-                    if (keys.length > 0) {
-                        const batchSize = 25;
-                        const results = [];
-                        for (let i = 0; i < keys.length; i += batchSize) {
-                            const chunk = keys.slice(i, i + batchSize);
-                            const chunkPromises = chunk.map(key => r2.get(key).then(r => r.json()).catch(e => null));
-                            const chunkResults = await Promise.all(chunkPromises);
-                            results.push(...chunkResults);
-                        }
-                        items = results.filter(r => r && r.id).map(normalizeItem);
-                        source = `r2-direct-scan (${items.length})`;
-                    }
-                } catch (e) {
-                    console.error(`[CatalogFetcher] R2 Direct Scan Error:`, e);
-                }
             }
         }
 

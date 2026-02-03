@@ -24,9 +24,9 @@ const pageDescription = 'Explore autonomous AI agents like AutoGPT and BabyAGI.'
       <p class="text-gray-600 dark:text-gray-400">Explore autonomous AI systems and intelligent agents.</p>
     </div>
 
-    <ListingControls type="agent" searchId="agents-search" />
+    <ListingControls type="agent" searchId="entity-search" />
 
-    <div id="agents-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow min-h-[500px]">
+    <div id="entity-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 flex-grow min-h-[500px]">
        {entities.length > 0 ? (
            entities.slice(0, 24).map((item: any) => (
             <a href={generateEntityUrl(item, 'agent')} class="p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 block transition-all hover:shadow-lg">
@@ -67,8 +67,8 @@ const pageDescription = 'Explore autonomous AI agents like AutoGPT and BabyAGI.'
       new UniversalCatalog({ 
         initialData: window.initialEntities, 
         type: 'agent',
-        gridId: 'agents-grid',
-        searchId: 'agents-search',
+        gridId: 'entity-grid',
+        searchId: 'entity-search',
         dataUrl: 'https://cdn.free2aitools.com/cache/rankings/agent/p1.json'
       });
   };

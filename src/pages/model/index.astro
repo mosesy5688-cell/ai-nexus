@@ -84,11 +84,11 @@ const canonicalUrl = 'https://free2aitools.com/model';
 
   const init = () => {
       if (!window.initialModels) return;
-
       new UniversalCatalog({ 
         initialData: window.initialModels, 
         type: 'model',
         gridId: 'models-grid',
+        searchId: 'models-search',
         dataUrl: 'https://cdn.free2aitools.com/cache/rankings/model/p1.json'
       });
   };
