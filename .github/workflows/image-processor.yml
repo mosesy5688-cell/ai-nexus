@@ -159,7 +159,7 @@ jobs:
             type_dir=$(basename $(dirname "$img"))
             mkdir -p "../../output/images/$type_dir"
             base_name=$(basename "$img" .jpg)
-            ./target/release/rust-img-optimizer convert --input "$img" --output "../../output/images/$type_dir/${base_name}.webp" --format webp --quality 75 --max-width 640 2>/dev/null || true
+            ./target/release/rust-img-optimizer convert --input "$img" --output "../../output/images/$type_dir/${base_name}.webp" --format webp --quality 75 --max-width 640
           done
 
       # V16.7: Standardized R2 Upload (WebP Only Policy)

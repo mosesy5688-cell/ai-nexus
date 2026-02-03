@@ -79,7 +79,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: core-registry-v2
-          path: .
+          path: output/
           run-id: ${{ needs.check-upstream.outputs.upstream-run-id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
