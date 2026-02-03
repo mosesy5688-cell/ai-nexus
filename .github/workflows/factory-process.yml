@@ -51,8 +51,7 @@ jobs:
           echo "run_id=$HARVEST_RUN_ID" >> $GITHUB_OUTPUT
           echo "✅ Resolved Harvest ID (Main): $HARVEST_RUN_ID"
 
-  # V14.5 Optimization: Single job to restore Cache and re-upload as Artifact
-  # This avoids the cross-workflow artifact download rate limit
+  # V4.1: Prepare data from Cache (not Artifact)
   prepare-data:
     name: Prepare Entity Data
     needs: check-upstream
@@ -63,10 +62,12 @@ jobs:
         
       - name: Setup Directories
         run: |
-          rm -rf data/*.json cache/*.json # V16.8.6: Clear stale local context
+          rm -rf data/*.json cache/*.json
           mkdir -p data cache
-        
+
+      # V4.1: Restore Entity Data from Cache (Cycle Key)
       - name: Restore Entity Data from Cache
+        id: cache-harvest
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -75,18 +76,23 @@ jobs:
             data/manifest.json
             cache/fni-history.json
             cache/weekly-accum.json
-          key: factory-entity-data-${{ needs.check-upstream.outputs.upstream-run-id }}
-          fail-on-cache-miss: true
+            cache/global-registry.json
+          key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-harvest
+          restore-keys: |
+            cycle-
+          fail-on-cache-miss: false
           
       - name: Validate Entity Data
         run: |
           if [ ! -f "data/merged.json" ]; then
             echo "❌ ERROR: data/merged.json not found in cache!"
+            echo "Expected cache key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-harvest"
             exit 1
           fi
           ENTITY_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/merged.json')).length)")
           echo "✅ Found $ENTITY_COUNT entities in cache"
           
+      # V4.1: Re-upload as Artifact for matrix jobs (same-workflow, no rate limit)
       - name: Upload for Matrix Jobs
         uses: actions/upload-artifact@v4
         with:
@@ -192,6 +198,32 @@ jobs:
             output/
             cache/
           retention-days: 1
+
+  # V4.1: Save all shards to Cache for next stage
+  save-shards-cache:
+    name: Save Shards to Cache
+    needs: [check-upstream, matrix-shards]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download All Shard Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: shard-*
+          path: ./shards/
+          merge-multiple: true
+
+      - name: Organize Shards
+        run: |
+          mkdir -p output/shards
+          find ./shards -name "shard-*.json" -exec cp {} output/shards/ \;
+          echo "📦 Shards collected:"
+          ls -la output/shards/
+
+      - name: Save Shards to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/shards/
+          key: cycle-${{ github.run_id }}-shards
 
   # Aggregate and save checksums
   finalize:

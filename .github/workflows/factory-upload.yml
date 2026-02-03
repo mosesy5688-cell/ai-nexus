@@ -75,22 +75,43 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Download Core Context (Monolith & Meta)
-        uses: actions/download-artifact@v4
+      # V4.1: Restore from Cache (Not Artifact)
+      - name: Restore Cycle Output from Cache
+        uses: actions/cache/restore@v4
         with:
-          name: core-registry-v2
           path: output/
-          run-id: ${{ needs.check-upstream.outputs.upstream-run-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
+          restore-keys: |
+            cycle-
 
-      - name: Download Processing Results (Search, Rankings, etc.)
-        uses: actions/download-artifact@v4
-        with:
-          pattern: agg-*
-          path: output/
-          merge-multiple: true
-          run-id: ${{ needs.check-upstream.outputs.upstream-run-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validate Output Structure
+        run: |
+          if [ ! -f "output/entities.json" ]; then
+            echo "❌ ERROR: output/entities.json not found!"
+            exit 1
+          fi
+          echo "✅ Output structure validated"
+          ls -la output/
+
+      # V4.1: R2 Dual-Version Rotation (BEFORE upload)
+      - name: R2 Registry Version Rotation
+        run: |
+          echo "🔄 Rotating R2 registry versions..."
+          
+          # 1. current -> previous
+          if npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-current.json --file=./temp-current.json --remote 2>/dev/null; then
+            echo "📦 Moving current -> previous"
+            npx -y wrangler r2 object put $R2_BUCKET/meta/backup/global-registry-previous.json --file=./temp-current.json --remote
+            rm ./temp-current.json
+          else
+            echo "⚠️ No current registry found (first run)"
+          fi
+          
+          # 2. Upload new as current
+          if [ -f "output/entities.json" ]; then
+            echo "📤 Uploading new registry as current"
+            npx -y wrangler r2 object put $R2_BUCKET/meta/backup/global-registry-current.json --file=output/entities.json --remote
+          fi
 
       # V16.3.3: Verify Registry Backup Integrity (Robust Encoding)
       - name: Verify Registry Backup

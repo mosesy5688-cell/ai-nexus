@@ -101,40 +101,35 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # V16.8.13: Use Artifact for context instead of volatile Cache
-      - name: Download Core Registry Artifact
-        uses: actions/download-artifact@v4
+      # V4.1: Restore from Cache (Not Artifact)
+      - name: Restore Cycle Output from Cache
+        uses: actions/cache/restore@v4
         with:
-          name: core-registry-v2
           path: ./registry-context/
-          run-id: ${{ needs.check-upstream.outputs.upstream-run-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
+          key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
+          restore-keys: |
+            cycle-
 
-      # V16.4.1: Fetch Global Entity Registry (Artifact Priority)
+      # V4.1: Fetch Global Entity Registry (Cache Priority)
       - name: Fetch Global Entity Registry
         run: |
           mkdir -p data/images data/registry
           
-          echo "🔍 Searching for registry monolith in artifact..."
-          # 1. Try Artifact Monolith (Preferred V16.8.16)
-          if [ -f "./registry-context/output/entities.json" ]; then
-            echo "✅ Verified: Registry monolith found in ./registry-context/output/entities.json"
-            cp ./registry-context/output/entities.json data/registry.json
-            cp -r ./registry-context/cache/registry/* data/registry/ 2>/dev/null || true
-          elif [ -f "./registry-context/entities.json" ]; then
-            echo "✅ Verified: Registry monolith found in ./registry-context/entities.json"
+          echo "🔍 Searching for registry in cache output..."
+          # 1. Try Cache Output (Preferred V4.1)
+          if [ -f "./registry-context/entities.json" ]; then
+            echo "✅ Verified: Registry found in cache output"
             cp ./registry-context/entities.json data/registry.json
-            cp -r ./registry-context/registry/* data/registry/ 2>/dev/null || true
-          # 2. Try Cache Shards (Legacy Fallback)
-          elif [ -d "output/meta/backup/registry" ]; then
-            echo "✅ Verified: Registry backup exists in GitHub Cache. Using it."
-            # Copy for post-processor compatibility
-            cp output/meta/backup/global-registry.json data/registry.json 2>/dev/null || true
-          # 3. Try R2 Fallback
+          # 2. Try R2 Fallback (Dual-Version)
+          elif npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-current.json --file=data/registry.json --remote 2>/dev/null; then
+            echo "⚠️ Using R2 fallback: global-registry-current.json"
+          elif npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-previous.json --file=data/registry.json --remote 2>/dev/null; then
+            echo "⚠️ Using R2 fallback: global-registry-previous.json"
+          elif npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/registry.json --remote 2>/dev/null; then
+            echo "⚠️ Using R2 legacy fallback: global-registry.json"
           else
-            echo "⚠️ Cache/Artifact miss: Falling back to R2..."
-            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=data/registry.json --remote
+            echo "❌ CRITICAL ERROR: registry.json not found in any source!"
+            exit 1
           fi
 
           # V16.8.17: Ensure the queue is prepared regardless of which source was used

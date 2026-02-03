@@ -77,67 +77,53 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Download Shard Artifacts
-        uses: actions/download-artifact@v4
+      # V4.1: Restore Shards from Cache (Not Artifact)
+      - name: Restore Shards from Cache
+        id: cache-shards
+        uses: actions/cache/restore@v4
         with:
-          pattern: shard-*
-          path: ./downloaded/
-          merge-multiple: true
-          run-id: ${{ needs.check-upstream.outputs.process-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: output/shards/
+          key: cycle-${{ needs.check-upstream.outputs.process-id }}-shards
+          restore-keys: |
+            cycle-
 
       - name: Organize Shards & Context
         run: |
           mkdir -p artifacts output data cache
-          # 1. Move Shards
-          SHARD_COUNT=$(find ./downloaded -name "shard-*.json" | wc -l)
-          if [ "$SHARD_COUNT" -eq 0 ] && [ "${{ github.event.inputs.task || 'all' }}" != "health" ]; then
-            echo "❌ ERROR: No shard artifacts found from Run ${{ needs.check-upstream.outputs.process-id }}"
+          # 1. Move Shards from cache
+          if [ -d "output/shards" ]; then
+            SHARD_COUNT=$(find output/shards -name "shard-*.json" | wc -l)
+            echo "📦 Found $SHARD_COUNT shards in cache"
+            find output/shards -name "shard-*.json" -exec mv {} artifacts/ \;
+          fi
+          
+          if [ $(find artifacts -name "shard-*.json" | wc -l) -eq 0 ]; then
+            echo "❌ ERROR: No shard files found!"
             exit 1
           fi
-          find ./downloaded -name "shard-*.json" -exec mv {} artifacts/ \; 2>/dev/null || true
-          
-          # 2. Extract context from prepared-entity-data (if downloaded there)
-          if [ -d "./downloaded/data" ]; then mv ./downloaded/data/* data/ 2>/dev/null || true; fi
-          if [ -d "./downloaded/cache" ]; then 
-            mkdir -p output/cache
-            cp -r ./downloaded/cache/* output/cache/ 2>/dev/null || true
-            mv ./downloaded/cache/* cache/ 2>/dev/null || true
-          fi
-          
-          # 3. Handle output consolidation
-          if [ -d "./downloaded/output" ]; then cp -r ./downloaded/output/* output/ 2>/dev/null || true; fi
 
-      - name: Clear Stale Context (V16.8.6 Hardening)
-        run: rm -rf data/*.json cache/*.json # Force restoration or failure
-
-      # V16.8.13: Use Artifact for context instead of volatile Cache
-      - name: Download Harvest Context
-        uses: actions/download-artifact@v4
-        with:
-          name: prepared-entity-data
-          path: ./context/
-          run-id: ${{ needs.check-upstream.outputs.process-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-
-      - name: Apply Harvest Context
-        run: |
-          if [ -d "./context/data" ]; then cp -r ./context/data/* data/ 2>/dev/null || true; fi
-          if [ -d "./context/cache" ]; then cp -r ./context/cache/* cache/ 2>/dev/null || true; fi
-          if [ -f "data/merged.json" ]; then
-            echo "✅ Harvest context applied from artifact."
-          else
-            echo "⚠️ Harvest context not found in artifact. Falling back to cache..."
-          fi
-
-      - name: Restore Previous State (Golden Cache)
+      # V4.1: Restore Harvest Context from Cache
+      - name: Restore Harvest Context from Cache
         uses: actions/cache/restore@v4
         with:
-          path: cache/
-          key: global-registry-v2-${{ needs.check-upstream.outputs.harvest-id }}
+          path: |
+            data/merged.json
+            data/merged_shard_*.json
+            data/manifest.json
+            cache/fni-history.json
+            cache/weekly-accum.json
+            cache/global-registry.json
+          key: cycle-${{ needs.check-upstream.outputs.harvest-id }}-harvest
           restore-keys: |
-            global-registry-v2-
+            cycle-
+
+      - name: Validate Context
+        run: |
+          if [ -f "data/merged.json" ]; then
+            echo "✅ Harvest context restored from cache."
+          else
+            echo "⚠️ Harvest context not in cache. Will use shards only."
+          fi
 
       - name: Run Core Merge & Health
         env:
@@ -171,14 +157,27 @@ jobs:
             find output/ -type f | wc -l
           fi
 
-      - name: Upload Registry Artifact (Intra-Chain Universal Package)
+      # V4.1: Keep Artifact for same-workflow satellite jobs
+      - name: Upload Registry Artifact (Intra-Chain)
         uses: actions/upload-artifact@v4
         with:
           name: core-registry-v2
           path: output/
           retention-days: 1
 
-      # V16.8.18: Redundant cache save removed. Downstream stages now use artifacts exclusively.
+      # V4.1: Save to Cache for downstream workflows (Linker, Upload, Image)
+      - name: Save Cycle Output to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/
+          key: cycle-${{ github.run_id }}-output
+
+      # V4.1: Save Global Registry for next cycle's 1/4 Harvest
+      - name: Save Global Registry to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/entities.json
+          key: global-registry-${{ github.run_id }}
 
   # Parallel Satellite Jobs (SPEC V2.0)
   aggregate-search:

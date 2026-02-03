@@ -264,17 +264,20 @@ jobs:
           restore-keys: |
             weekly-accum-
           
-      # Restore global registry for full-state merging (Sweep Pass)
-      - name: Restore Global Registry
+      # V4.1: Restore global registry (Immutable Key + Prefix Match)
+      - name: Restore Global Registry (Cache-First)
+        id: cache-registry
         uses: actions/cache/restore@v4
         with:
-          path: cache/
-          key: global-registry-v2-
+          path: cache/global-registry.json
+          key: global-registry-${{ github.run_id }}  # Won't match (not saved yet)
           restore-keys: |
-            global-registry-v2-
+            global-registry-
+          # GitHub auto-selects the most recently created match
 
-      # R2 Fallback: If cache missed (first run or evicted), download monolith from R2
+      # V4.1: R2 Dual-Version Fallback (current → previous)
       - name: R2 Fallback - Download Registry
+        if: steps.cache-registry.outputs.cache-hit != 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -282,15 +285,24 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          if [ ! -d "cache/registry" ] && [ ! -f "cache/global-registry.json" ]; then
-            echo "⚠️ Cache miss. Attempting R2 fallback restoration..."
-            mkdir -p cache
-            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=cache/global-registry.json --remote || echo "⚠️ R2 Monolith not found."
-            # Also try to fetch entity checksums if available
-            npx -y wrangler r2 object get $R2_BUCKET/cache/entity-checksums.json --file=cache/entity-checksums.json --remote || echo "⚠️ R2 Checksums not found."
+          echo "⚠️ Cache miss. Attempting R2 dual-version fallback..."
+          mkdir -p cache
+          
+          # Try current first
+          if npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-current.json --file=cache/global-registry.json --remote 2>/dev/null; then
+            echo "✅ Restored from R2: global-registry-current.json"
+          # Then try previous
+          elif npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-previous.json --file=cache/global-registry.json --remote 2>/dev/null; then
+            echo "⚠️ Restored from R2: global-registry-previous.json (fallback)"
+          # Legacy fallback
+          elif npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=cache/global-registry.json --remote 2>/dev/null; then
+            echo "⚠️ Restored from R2: global-registry.json (legacy)"
           else
-            echo "✅ Global Registry found in GitHub Cache."
+            echo "🔴 R2 Fallback failed. Starting cold (first run)."
           fi
+          
+          # Also try to fetch entity checksums if available
+          npx -y wrangler r2 object get $R2_BUCKET/cache/entity-checksums.json --file=cache/entity-checksums.json --remote 2>/dev/null || true
 
       # Merge batches with ID deduplication
       - name: Merge Batches
@@ -316,18 +328,18 @@ jobs:
             exit 1
           fi
 
-      # V14.5 Optimization: Use Cache instead of Artifact to avoid rate limit
-      # Cache restore has no rate limit, while cross-workflow artifact download does
+      # V4.1: Save Entity Data to Cache (Cycle-Specific Key)
       - name: Save Entity Data to Cache
         uses: actions/cache/save@v4
         with:
-            path: |
-              data/merged.json
-              data/merged_shard_*.json
-              data/manifest.json
-              cache/fni-history.json
-              cache/weekly-accum.json
-            key: factory-entity-data-${{ github.run_id }}
+          path: |
+            data/merged.json
+            data/merged_shard_*.json
+            data/manifest.json
+            cache/fni-history.json
+            cache/weekly-accum.json
+            cache/global-registry.json
+          key: cycle-${{ github.run_id }}-harvest
 
 
       # Pipeline Summary
