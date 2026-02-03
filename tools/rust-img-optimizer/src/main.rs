@@ -119,7 +119,7 @@ enum Commands {
         quality: u8,
         /// Max width (resized if greater)
         #[arg(short, long, default_value_t = 1200)]
-        width: Option<u32>,
+        width: u32,
         /// Compatibility flag for legacy workflows
         #[arg(long, default_value_t = 1200)]
         max_width: u32,
@@ -253,7 +253,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             run_batch_process(&input).await?;
         }
         Commands::Convert { input, output, quality, width, max_width, format } => {
-            let final_width = width.unwrap_or(max_width);
+            let final_width = if width > 0 { width } else { max_width };
             run_single_convert(&input, &output, quality, final_width, &format)?;
         }
     }
@@ -358,9 +358,6 @@ async fn run_batch_process(input_path: &str) -> Result<(), Box<dyn std::error::E
     // ==================== Generate SQL output ====================
     let mut upsert_sql = String::from("-- Auto-generated upsert SQL\n");
     let mut update_sql = String::from("-- Auto-generated update URLs SQL\n");
-    
-    upsert_sql.push_str(&debug_header);
-    update_sql.push_str(&debug_header);
 
     let mut total_models = 0;
     let mut models_with_images = 0;
@@ -501,10 +498,7 @@ async fn run_batch_process(input_path: &str) -> Result<(), Box<dyn std::error::E
     eprintln!("  Total models: {}", d1_models.len());
     eprintln!("  Batch size: {} items", BATCH_SIZE);
 
-    Ok({
-        let _ = batch_sql; // Use it to avoid warning
-        ()
-    })
+    Ok(())
 }
 
 async fn process_model(model: Model) -> Option<(String, Option<String>, String)> {

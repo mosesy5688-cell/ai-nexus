@@ -88,11 +88,12 @@ jobs:
           echo "Workflow trigger: ${{ github.event_name }}"
           echo "Looking for cache key: entity-data-${{ github.event.workflow_run.id || 'MANUAL' }}"
         
-      - name: Restore entity data from Artifact (V16.8.17)
+      # V17.0: Download to output/ to match expected path structure
+      - name: Restore entity data from Artifact (V17.0)
         uses: actions/download-artifact@v4
         with:
           name: core-registry-v2
-          path: .
+          path: output/
           run-id: ${{ needs.check-upstream.outputs.run-id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           
@@ -100,8 +101,7 @@ jobs:
         run: |
           if [ ! -f "./output/entities.json" ]; then
             echo "❌ ERROR: entities.json not found!"
-            echo "Cache may not have been saved by Factory Aggregate."
-            echo "For manual trigger, run Factory Harvest -> Process -> Aggregate first."
+            ls -la output/ || echo "output/ directory not found"
             exit 1
           fi
           echo "✅ entities.json found ($(wc -c < ./output/entities.json) bytes)"
@@ -138,11 +138,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline
         
-      - name: Restore entity data from Artifact (V16.8.17)
+      # V17.0: Download to output/ to match expected path
+      - name: Restore entity data from Artifact (V17.0)
         uses: actions/download-artifact@v4
         with:
           name: core-registry-v2
-          path: .
+          path: output/
           run-id: ${{ needs.check-upstream.outputs.run-id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
             
@@ -178,11 +179,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline
         
-      - name: Restore entity data from Artifact (V16.8.17)
+      # V17.0: Download to output/ to match expected path
+      - name: Restore entity data from Artifact (V17.0)
         uses: actions/download-artifact@v4
         with:
           name: core-registry-v2
-          path: .
+          path: output/
           run-id: ${{ needs.check-upstream.outputs.run-id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
             
@@ -217,11 +219,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline
         
-      - name: Restore entity data from Artifact (V16.8.17)
+      # V17.0: Download to output/ to match expected path
+      - name: Restore entity data from Artifact (V17.0)
         uses: actions/download-artifact@v4
         with:
           name: core-registry-v2
-          path: .
+          path: output/
           run-id: ${{ needs.check-upstream.outputs.run-id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
             
@@ -260,11 +263,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline
         
-      - name: Restore entity data from Artifact (V16.8.17)
+      # V17.0: Download to output/ to match expected path
+      - name: Restore entity data from Artifact (V17.0)
         uses: actions/download-artifact@v4
         with:
           name: core-registry-v2
-          path: .
+          path: output/
           run-id: ${{ needs.check-upstream.outputs.run-id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
             
@@ -309,11 +313,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline
         
-      - name: Restore entity data from Artifact (V16.8.17)
+      # V17.0: Download to output/ to match expected path
+      - name: Restore entity data from Artifact (V17.0)
         uses: actions/download-artifact@v4
         with:
           name: core-registry-v2
-          path: .
+          path: output/
           run-id: ${{ needs.check-upstream.outputs.run-id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
             
