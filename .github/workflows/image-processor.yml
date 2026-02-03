@@ -196,11 +196,12 @@ jobs:
           export CACHE_DIR=cache
           node scripts/factory/lib/image-post-processor.js data/registry.json data/image-results.json
           
-      - name: Close Harvest Loop (V16.8.14)
+      # V17.0: Isolated cache key to prevent pollution of global-registry-v2 prefix
+      - name: Save Image Processor Progress
         uses: actions/cache/save@v4
         with:
           path: cache/
-          key: global-registry-v2-${{ github.run_id }}-img
+          key: image-processor-v2-${{ github.run_id }}
 
       - name: Summary
         run: |
