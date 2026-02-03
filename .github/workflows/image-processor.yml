@@ -1,15 +1,18 @@
-# Image Processor Workflow V14.5
+# Image Processor Workflow V14.5 [DISABLED]
 # Constitution Reference: Art 3.4 (Image Processing), V14.5 Architecture
 # 
+# STATUS: DISABLED - Front-end does not display images, saving CI resources.
+# To re-enable: Restore workflow_run trigger below.
+#
 # Runs after Factory to download, convert (WebP), and upload entity images to R2
 
-name: Image Processor V14.5
+name: Image Processor V14.5 [DISABLED]
 
 on:
-  # Trigger after Factory Aggregate completes (To use GitHub Cache)
-  workflow_run:
-    workflows: ["Factory 3/4 - Aggregate"]
-    types: [completed]
+  # DISABLED: Automatic trigger removed to save CI resources
+  # workflow_run:
+  #   workflows: ["Factory 3/4 - Aggregate"]
+  #   types: [completed]
   workflow_dispatch:
     inputs:
       batch_size:
@@ -20,6 +23,7 @@ on:
         description: 'Aggregate run ID to restore cache from (Manual only)'
         type: string
         required: false
+
 
 env:
   R2_BUCKET: ai-nexus-assets
