@@ -1,195 +1,184 @@
 ---
 import type { Model } from '@/types';
 import BaseLayout from '@/layouts/BaseLayout.astro';
-import ModelRatings from '@/components/ModelRatings.astro'; // Import the ratings component
+// import ModelRatings from '@/components/ModelRatings.astro'; // Component MISSING in filesystem
 import ModelCard from '@/components/ModelCard.astro';
 import NeuralGraphExplorer from '@/components/NeuralGraphExplorer.astro';
 
 export interface Props {
-  model: Model;
+  model: Model;
   relatedModels: Model[];
 }
 
 const { model, relatedModels } = Astro.props;
-const lastUpdatedDate = new Date(model.lastModified);
-const formattedLastUpdated = !isNaN(lastUpdatedDate.getTime()) 
-  ? lastUpdatedDate.toLocaleDateString() 
-  : 'N/A';
-console.log(`[ModelPageLayout] Model ID: ${model.id}`); // Log model ID
-const visibleTags = model.tags?.slice(0, 15) || [];
-const hasMoreTags = model.tags?.length > 15;
+const lastUpdatedDate = model.lastModified ? new Date(model.lastModified) : new Date();
+const formattedLastUpdated = !isNaN(lastUpdatedDate.getTime()) 
+  ? lastUpdatedDate.toLocaleDateString() 
+  : 'N/A';
+
+const visibleTags = (model.tags || []).slice(0, 15);
+const hasMoreTags = (model.tags || []).length > 15;
 
 // Breadcrumbs logic
+const safeId = (model.id || '').replace(/\//g, '--');
 const breadcrumbs = [
   { name: 'Home', href: '/' },
   { name: 'Models', href: '/models' },
-  { name: model.name, href: `/model/${model.id.replace(/\//g, '--')}` }
+  { name: model.name || 'Model Detail', href: `/model/${safeId}` }
 ];
+const safeDescription = (model.description || 'AI Model details on AI Nexus').substring(0, 160);
 ---
-<BaseLayout title={model.name} description={model.description.substring(0, 160)}>
-  <div class="container mx-auto px-4 py-12 md:py-16">
+<BaseLayout title={model.name || 'AI Model'} description={safeDescription}>
+  <div class="container mx-auto px-4 py-8">
     <!-- Breadcrumbs Navigation -->
-    <nav aria-label="Breadcrumb" class="mb-8">
-      <ol class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+    <nav aria-label="Breadcrumb" class="mb-8 font-medium">
+      <ol class="flex items-center gap-2 text-sm text-zinc-500">
         {breadcrumbs.map((crumb, index) => (
           <li class="flex items-center gap-2">
-            <a href={crumb.href} class="hover:underline hover:text-primary transition-colors">{crumb.name}</a>
-            {index < breadcrumbs.length - 1 && <span class="opacity-50">/</span>}
+            <a href={crumb.href} class="hover:text-white transition-colors">{crumb.name}</a>
+            {index < breadcrumbs.length - 1 && <span class="opacity-30">/</span>}
           </li>
         ))}
       </ol>
     </nav>
-    
-    <article class="bg-white dark:bg-gray-800/50 p-6 md:p-8 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700/50">
-      
-            <header class="border-b border-gray-200 dark:border-gray-700 pb-6 mb-8">
-        <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white leading-tight">{model.name}</h1>
-        {model.author && <p class="text-lg text-gray-500 dark:text-gray-400 mt-2">by <strong>{model.author}</strong></p>}
-      </header>
+    
+    <article class="bg-zinc-900/50 p-6 md:p-10 rounded-xl border border-zinc-800 shadow-2xl">
+      
+      <header class="border-b border-zinc-800 pb-8 mb-10">
+        <h1 class="text-4xl font-black text-white leading-tight mb-4 tracking-tight">{model.name}</h1>
+        {model.author && <p class="text-lg text-zinc-400">by <strong class="text-zinc-200">{model.author}</strong></p>}
+      </header>
 
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-12 relative">
-        
-                <div class="lg:col-span-3">
-          
-                    {model.tags && model.tags.length > 0 && (
-            <section class="mb-10">
-              <h3 class="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">Tags</h3>
-              <div id="tags-container" class="flex flex-wrap gap-2">
-                {visibleTags.map(tag => (
-                  <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300 transition-colors">{tag}</span>
-                ))}
-                {hasMoreTags && (
-                  <button id="show-all-tags" class="bg-gray-200 text-gray-700 text-sm font-medium px-3 py-1 rounded-full dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-                    Show all ({model.tags.length})
-                  </button>
-                )}
-              </div>
-            </section>
-          )}
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-12 relative">
+        
+        <div class="lg:col-span-3">
+          
+          {model.tags && model.tags.length > 0 && (
+            <section class="mb-12">
+              <h3 class="text-xs font-black uppercase tracking-widest text-zinc-500 mb-4">Tags</h3>
+              <div id="tags-container" class="flex flex-wrap gap-2">
+                {visibleTags.map(tag => (
+                  <span class="bg-zinc-800 text-zinc-300 text-[10px] font-bold uppercase tracking-wider px-3 py-1 border border-zinc-700">{tag}</span>
+                ))}
+                {hasMoreTags && (
+                  <button id="show-all-tags" class="text-zinc-500 text-[11px] font-bold px-3 py-1 hover:text-white transition-colors">
+                    + SHOW ALL ({model.tags.length})
+                  </button>
+                )}
+              </div>
+            </section>
+          )}
 
-           {model.summary_ai && model.summary_ai.length > 50 && (
-            <section class="mb-8 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800 shadow-sm">
-              <h3 class="text-lg font-semibold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
-                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-bold rounded-full">
-                  ✨ AI
-                </span>
-                Summary
+          {model.summary_ai && model.summary_ai.length > 50 && (
+            <section class="mb-12 p-6 bg-indigo-500/5 rounded-xl border border-indigo-500/20">
+              <h3 class="text-sm font-black text-indigo-400 mb-4 flex items-center gap-2 uppercase tracking-widest">
+                <span>✨</span> AI Insight Summary
               </h3>
-              <p class="text-gray-700 dark:text-gray-300 text-base leading-relaxed">
+              <p class="text-zinc-300 text-base leading-relaxed">
                 {model.summary_ai}
               </p>
             </section>
           )}
 
-        <!-- Knowledge Mesh / Neural Hub Integration (V16.16) -->
-        <div class="mt-4 mb-12">
+          <!-- Neural Hub Integration -->
+          <div class="mt-4 mb-16">
             <NeuralGraphExplorer entity={model} type="model" />
-        </div>
-
-                    {model.readme ? (
-            <section id="details-usage" class="mt-8 mb-12">
-              <h2 class="text-3xl font-bold mb-4 text-gray-800 dark:text-gray-200 border-b pb-2">Details & Usage</h2>
-              <div class="prose dark:prose-invert prose-lg max-w-none bg-gray-50 dark:bg-gray-900 p-6 rounded-lg prose-pre:bg-gray-200 dark:prose-pre:bg-gray-800 prose-pre:text-gray-800 dark:prose-pre:text-gray-200 border border-gray-100 dark:border-gray-700 shadow-inner">
-        	              <div set:html={model.readme}></div>
-                  </div>
-            </section>
-          ) : (
-            <p class="text-lg text-red-500 bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800 mb-10">
-              No detailed information (README) available for this model.
-            </p>
-          )}
-        
-        {/* User Ratings and Comments Section - Moved from aside to main content area */}
-        <section class="mt-16">
-          <div class="border-t border-gray-200 dark:border-gray-700 pt-12">
-            <ModelRatings modelId={model.id} />
           </div>
-        </section>
 
-        <!-- Related Models Section -->
-        {relatedModels.length > 0 && (
-          <section class="mt-20">
-            <div class="border-t border-gray-200 dark:border-gray-700 pt-12">
-              <h2 class="text-3xl font-bold mb-8 text-gray-800 dark:text-gray-200">You Might Also Like</h2>
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <section id="details-usage" class="mt-8 mb-12">
+            <h2 class="text-2xl font-bold mb-6 text-white border-b border-zinc-800 pb-2">Technical Specifications</h2>
+            <div class="prose prose-invert prose-zinc max-w-none bg-zinc-950/50 p-6 md:p-8 border border-zinc-800 rounded-lg">
+              {model.readme ? (
+                <div set:html={model.readme}></div>
+              ) : (
+                <p class="text-zinc-500 italic">No detailed documentation available for this model.</p>
+              )}
+            </div>
+          </section>
+        
+          <section class="mt-16 border-t border-zinc-900 pt-12">
+             <p class="text-xs text-zinc-600 uppercase tracking-widest font-bold mb-4">Community Feedback</p>
+             <div class="p-8 border border-dashed border-zinc-800 rounded-lg text-center text-zinc-500 italic text-sm">
+                Feedback module temporarily offline for maintenance.
+             </div>
+             {/* <ModelRatings modelId={model.id} /> */}
+          </section>
+
+          {relatedModels.length > 0 && (
+            <section class="mt-20">
+              <h2 class="text-2xl font-bold mb-8 text-white border-b border-zinc-800 pb-2">Adjacent Entities</h2>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {relatedModels.map(related => (
                   <ModelCard model={related} />
                 ))}
               </div>
-            </div>
-          </section>
-        )}
+            </section>
+          )}
         
-        </div>
-        
-                <aside class="lg:col-span-1">
-          <div class="bg-gray-50 dark:bg-gray-700 p-6 rounded-lg sticky top-6 shadow-md border border-gray-100 dark:border-gray-600">
-            <h3 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white border-b pb-2">Model Details</h3>
-            
-                        <div class="space-y-3 text-gray-700 dark:text-gray-300">
-              <div class="flex items-center gap-2">
-                <span class="text-xl">⚙️</span>
-                <span class="font-semibold">Task:</span>
-                <span class="break-all">{model.task}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-xl">❤️</span>
-                <span class="font-semibold">Likes:</span>
-                <span>{model.likes.toLocaleString()}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-xl">⬇️</span>
-                <span class="font-semibold">Downloads:</span>
-                <span>{model.downloads.toLocaleString()}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-xl">📅</span>
-                <span class="font-semibold">Updated:</span>
-                <span>{formattedLastUpdated}</span>
-              </div>
-            </div>
-            
-                        {model.sources && model.sources.length > 0 && (
-              <div class="mt-6 border-t border-gray-200 dark:border-gray-600 pt-6">
-                <h4 class="font-bold text-lg mb-3 text-gray-900 dark:text-white">Sources & Repositories</h4>
-                <ul class="space-y-2">
-                  {model.sources.map(source => (
-                    <li>
-                      <a href={source.url} target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors break-all flex items-center gap-1">
-                        <span>{source.platform}</span>
-                        <span class="ml-1 text-sm">&rarr;</span>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </aside>
-      </div>
-    </article>
-  </div>
+        </div>
+        
+        <aside class="lg:col-span-1">
+          <div class="bg-zinc-950/20 p-6 rounded-lg sticky top-24 border border-zinc-800/50">
+            <h3 class="text-sm font-black uppercase tracking-widest text-zinc-400 mb-6 border-b border-zinc-800 pb-2">Model Stats</h3>
+            
+            <div class="space-y-6">
+              <div class="flex flex-col">
+                <span class="text-[10px] text-zinc-500 uppercase font-bold">Primary Task</span>
+                <span class="text-sm text-zinc-200 truncate">{model.task || 'General AI'}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-[10px] text-zinc-500 uppercase font-bold">Community Sentiment</span>
+                <span class="text-sm text-zinc-200">{(model.likes || 0).toLocaleString()} Likes</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-[10px] text-zinc-500 uppercase font-bold">Total Invocations</span>
+                <span class="text-sm text-zinc-200">{(model.downloads || 0).toLocaleString()} DLs</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-[10px] text-zinc-500 uppercase font-bold">Last Synchronized</span>
+                <span class="text-sm text-zinc-200">{formattedLastUpdated}</span>
+              </div>
+            </div>
+            
+            {model.sources && model.sources.length > 0 && (
+              <div class="mt-8 pt-8 border-t border-zinc-800">
+                <h4 class="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-4">Technical Assets</h4>
+                <ul class="space-y-3">
+                  {model.sources.map(source => (
+                    <li>
+                      <a href={source.url} target="_blank" rel="noopener noreferrer" class="text-xs text-indigo-400 hover:text-white transition-colors flex items-center justify-between">
+                        <span>{source.platform}</span>
+                        <span class="opacity-50">&nearr;</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
+    </article>
+  </div>
 
-    <script define:vars={{ allTags: model.tags, hasMoreTags }}>
-    // "Show all tags" button logic
-    if (hasMoreTags) {
-      const showAllBtn = document.getElementById('show-all-tags');
-      const tagsContainer = document.getElementById('tags-container');
+  <script define:vars={{ allTags: model.tags, hasMoreTags }}>
+    if (hasMoreTags) {
+      const showAllBtn = document.getElementById('show-all-tags');
+      const tagsContainer = document.getElementById('tags-container');
 
-      if (showAllBtn && tagsContainer) {
-        showAllBtn.addEventListener('click', () => {
-          const remainingTags = allTags.slice(15);
-          const tagsHtml = remainingTags.map(tag => 
-            `<span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-blue-900 dark:text-blue-300 transition-colors">${tag}</span>`
-          ).join('');
-          
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = tagsHtml;
-
-          tagsContainer.append(...tempDiv.childNodes);
-          showAllBtn.remove();
-        });
-      }
-    }
-  </script>
+      if (showAllBtn && tagsContainer) {
+        showAllBtn.addEventListener('click', () => {
+          const remainingTags = allTags.slice(15);
+          const tagsHtml = remainingTags.map(tag => 
+            `<span class="bg-zinc-800 text-zinc-300 text-[10px] font-bold uppercase tracking-wider px-3 py-1 border border-zinc-700">${tag}</span>`
+          ).join('');
+          
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = tagsHtml;
+          tagsContainer.append(...tempDiv.childNodes);
+          showAllBtn.remove();
+        });
+      }
+    }
+  </script>
 </BaseLayout>

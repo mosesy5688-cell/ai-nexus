@@ -26,12 +26,20 @@ export async function initSearch() {
     try {
         console.log('📥 [V16.2] Loading Core Search Index...');
         const res = await fetch(CORE_INDEX_URL);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+            console.warn(`⚠️ [Search] Core index HTTP ${res.status}. Attempting fallback to trending.json`);
+            // Emergency Fallback: If search-core fails, try trending.json as a mini-index
+            const trendRes = await fetch(`${R2_CACHE_URL}/cache/trending.json`);
+            if (!trendRes.ok) throw new Error("All search data sources failed.");
+            const trendData = await trendRes.json();
+            searchData = DataNormalizer.normalizeCollection(trendData.models || trendData, 'model');
+        } else {
+            const data = await res.json();
+            const rawData = data.entities || data.models || data;
+            searchData = DataNormalizer.normalizeCollection(rawData, 'model');
+        }
 
-        const data = await res.json();
-        // Support both { entities: [] } and raw array formats
-        const rawData = data.entities || data.models || data;
-        searchData = DataNormalizer.normalizeCollection(rawData, 'model');
+        if (!searchData || searchData.length === 0) throw new Error("Empty search dataset.");
 
         searchIndex = new MiniSearch({
             fields: ['name', 'author', 'description', 'tags'],
@@ -49,6 +57,8 @@ export async function initSearch() {
         console.log(`🚀 [V16.2] Search Ready: ${searchData.length} items`);
     } catch (e) {
         console.error('❌ [V16.2] Search Init Failed:', e);
+        // Set a minimal placeholder to prevent UI crashes
+        searchData = [];
     } finally {
         isLoading = false;
     }

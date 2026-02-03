@@ -59,21 +59,35 @@ const meta = CATEGORY_META[category!] || {
   icon: '📁'
 };
 
-// V6.0.1: Fetch models from CDN rankings
+// V6.0.1: Fetch models from CDN rankings with Tiered Fallback
 let models: any[] = [];
 let totalCount = 0;
+let isFallbackData = false;
 
 try {
   const rankingsUrl = `https://cdn.free2aitools.com/cache/rankings/${category}/p1.json`;
   const response = await fetch(rankingsUrl);
+  
   if (response.ok) {
     const data = await response.json();
     // V10.1 / V16.6 Fix: CDN returns 'entities' for Universal Protocol
     models = data.entities || data.items || data.models || [];
     totalCount = data.totalEntities || data.total_items || models.length;
+  } else {
+    // Tiered Fallback: If category-specific rankings are missing, fetch trending as proxy
+    console.warn(`⚠️ [Category] Rankings miss for ${category}. Fetching trending-fallback.`);
+    const trendRes = await fetch('https://cdn.free2aitools.com/cache/trending.json');
+    if (trendRes.ok) {
+        const trendData = await trendRes.json();
+        models = (trendData.models || trendData || []).filter((m: any) => 
+            (m.tags?.includes(category)) || (m.primary_category === category)
+        );
+        totalCount = models.length;
+        isFallbackData = true;
+    }
   }
 } catch (e) {
-  console.error(`[Category] Failed to fetch rankings for ${category}:`, e);
+  console.error(`[Category] Fatal fetch error for ${category}:`, e);
 }
 
 const pageTitle = `${meta.name} - Technical Index | Free2AI`;
