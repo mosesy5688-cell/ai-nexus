@@ -349,10 +349,40 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
         run: node scripts/factory/consolidate-health.js
-      # V16.8.18: Redundant cache save removed. Downstream stages now use artifacts exclusively.
+
+      # V17.1: Restore core-registry artifact for complete output
+      - name: Restore Core Registry to Output
+        uses: actions/download-artifact@v4
+        with:
+          name: core-registry-v2
+          path: ./core-context/
+
+      - name: Merge Core with Satellite Outputs
+        run: |
+          # Copy entities.json and meta from core-registry
+          cp ./core-context/output/entities.json output/ 2>/dev/null || cp ./core-context/entities.json output/ || true
+          cp -r ./core-context/output/meta output/ 2>/dev/null || cp -r ./core-context/meta output/ 2>/dev/null || true
+          # Ensure cache directory structure
+          mkdir -p output/cache
+          # Move satellite outputs into cache if needed
+          [ -f "output/trending.json" ] && mv output/trending.json output/cache/ || true
+          [ -f "output/category_stats.json" ] && mv output/category_stats.json output/cache/ || true
+          [ -f "output/relations.json" ] && mv output/relations.json output/cache/ || true
+          # List final structure
+          echo "📦 Final output structure:"
+          find output -type f | head -50
+
+      # V17.1: Save COMPLETE output (with all satellite results) to Cache for Factory 4/4
+      - name: Save Complete Cycle Output to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/
+          key: cycle-${{ github.run_id }}-output
 
       - name: Summary
         run: |
           echo "## Factory 3/4 - Aggregator V2.0 Complete 🚀" >> $GITHUB_STEP_SUMMARY
           echo "Scale: 1M+ Readiness Verified" >> $GITHUB_STEP_SUMMARY
           echo "Jobs: Parallel (Search, Rankings, Trending, Relations)" >> $GITHUB_STEP_SUMMARY
+          echo "Cache: Complete output saved for Factory 4/4" >> $GITHUB_STEP_SUMMARY
+
