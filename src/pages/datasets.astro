@@ -6,6 +6,7 @@
 import Layout from '../layouts/Layout.astro';
 import ListingControls from '../components/common/ListingControls.astro';
 import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.js';
+import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
 const { items: allDatasets, error } = await fetchCatalogData('dataset', Astro.locals.runtime?.env);
@@ -18,10 +19,10 @@ const pageDescription = "Explore 50,000+ open-source AI datasets for training, e
 <Layout title={pageTitle} description={pageDescription}>
     <main class="container mx-auto px-4 py-12 min-h-screen">
         <header class="mb-12">
-            <h1 class="text-4xl md:text-5xl font-black text-gray-900 dark:text-white mb-4 tracking-tighter uppercase">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4 tracking-tight">
                 AI Datasets <span class="text-sky-600">Archive</span>
             </h1>
-            <p class="text-lg text-gray-600 dark:text-zinc-400 max-w-2xl">
+            <p class="text-base text-gray-600 dark:text-zinc-400 max-w-2xl">
                 The high-fidelity foundation for model intelligence. Diverse, massive, and sharded.
             </p>
         </header>
@@ -30,10 +31,8 @@ const pageDescription = "Explore 50,000+ open-source AI datasets for training, e
 
         <div id="datasets-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {datasets.map((dataset: any) => (
-                <div class="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div class="h-full" data-ssr-item>
-                         <div class="p-6 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 animate-pulse h-64"></div>
-                    </div>
+                <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <CatalogCard item={dataset} type="dataset" />
                 </div>
             ))}
         </div>
