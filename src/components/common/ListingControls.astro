@@ -45,20 +45,5 @@ const {
         <option value="name">🔤 Name</option>
       </select>
     </div>
-
-    {type === 'model' && (
-      <div class="flex items-center gap-2">
-        <span class="text-xs font-bold text-gray-400 uppercase tracking-widest hidden sm:inline">Category:</span>
-        <select id="category-filter" class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
-            <option value="">All Categories</option>
-            <option value="text-generation">💬 Text Generation</option>
-            <option value="text-to-image">🖼️ Image Generation</option>
-            <option value="text-to-video">🎬 Video Generation</option>
-            <option value="code-generation">💻 Code Generation</option>
-            <option value="feature-extraction">🔢 Embeddings</option>
-            <option value="automatic-speech-recognition">🎵 Audio/Speech</option>
-        </select>
-      </div>
-    )}
   </div>
 </div>

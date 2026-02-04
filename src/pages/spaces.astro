@@ -5,7 +5,7 @@
  */
 import Layout from '../layouts/Layout.astro';
 import ListingControls from '../components/common/ListingControls.astro';
-import CatalogCard from '../components/common/CatalogCard.astro';
+import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.js';
 
 // SSR Data Fetching
 const { items: allSpaces, error } = await fetchCatalogData('space', Astro.locals.runtime?.env);
@@ -17,9 +17,9 @@ const pageDescription = "Explore interactive AI demos, Gradio apps, and Streamli
 
 <Layout title={pageTitle} description={pageDescription}>
     <main class="container mx-auto px-4 py-12 min-h-screen">
-        <header class="mb-10">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2 tracking-tight">
-                Interactive <span class="text-blue-600">Spaces</span>
+        <header class="mb-12">
+            <h1 class="text-4xl md:text-5xl font-black text-gray-900 dark:text-white mb-4 tracking-tighter uppercase">
+                AI Spaces <span class="text-blue-600">Demos</span>
             </h1>
             <p class="text-lg text-gray-600 dark:text-zinc-400 max-w-2xl">
                 Real-time interactive AI prototypes and application showcases from across the ecosystem.
@@ -32,7 +32,7 @@ const pageDescription = "Explore interactive AI demos, Gradio apps, and Streamli
             {spaces.map((space: any) => (
                 <div class="animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div class="h-full" data-ssr-item>
-                         <CatalogCard item={space} type="space" />
+                         <div class="p-6 bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 animate-pulse h-64"></div>
                     </div>
                 </div>
             ))}
