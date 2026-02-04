@@ -59,29 +59,26 @@ export class EntityCardRenderer {
         const typeLabel = (item.pipeline_tag || item.primary_category || type).replace(/-/g, ' ');
         const link = this.getLink(type, item);
 
-        // Define color scheme based on type
-        let badgeColor = 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400';
-        if (type === 'agent') badgeColor = 'bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400';
-        if (type === 'space') badgeColor = 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400';
-        if (type === 'tool') badgeColor = 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400';
-        if (type === 'dataset') badgeColor = 'bg-sky-50 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400';
-        if (type === 'paper') badgeColor = 'bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400';
+        // Define color scheme based on type - Professional Muted Palette
+        let badgeColor = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
+        if (type === 'model') badgeColor = 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400';
+        if (type === 'agent') badgeColor = 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400';
+        if (type === 'dataset') badgeColor = 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400';
 
         const displayTitle = item.name || item.id?.split('/').pop() || 'Untitled Entity';
 
         return `
-            <a href="${link}" class="entity-card group p-5 bg-white dark:bg-zinc-900 rounded-2xl hover:shadow-xl transition-all border border-gray-100 dark:border-zinc-800 hover:border-indigo-500/50 block h-full flex flex-col">
+            <a href="${link}" class="entity-card group p-5 bg-white dark:bg-zinc-900 rounded-xl hover:shadow-md transition-all border border-gray-100 dark:border-zinc-800 hover:border-indigo-500/50 block h-full flex flex-col">
                 <div class="flex items-center justify-between mb-3">
-                     <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${badgeColor}">${typeLabel}</span>
+                     <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${badgeColor}">${typeLabel}</span>
                      ${fniDisplay}
                 </div>
-                <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1" title="${displayTitle}">${displayTitle}</h3>
-                <p class="text-xs text-gray-500 dark:text-zinc-500 mt-1 mb-3">by ${item.author || item.creator || 'Nexus Collective'}</p>
-                <p class="text-sm text-gray-600 dark:text-zinc-400 line-clamp-3 mb-4 flex-grow" title="${cleanDesc}">${cleanDesc || 'Structural intelligence indexing in progress...'}</p>
+                <h3 class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1" title="${displayTitle}">${displayTitle}</h3>
+                <p class="text-[11px] text-gray-400 dark:text-zinc-500 mt-1 mb-3 uppercase tracking-wider font-medium">by ${item.author || item.creator || 'Nexus Collective'}</p>
+                <p class="text-xs text-gray-600 dark:text-zinc-400 line-clamp-3 mb-4 flex-grow leading-relaxed" title="${cleanDesc}">${cleanDesc || 'Structural intelligence indexing in progress...'}</p>
                  <div class="flex items-center gap-4 pt-4 border-t border-gray-50 dark:border-zinc-800 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
                     ${item.downloads ? `<span>📥 ${this.formatNumber(item.downloads)}</span>` : ''}
                     ${item.likes ? `<span>❤️ ${this.formatNumber(item.likes)}</span>` : ''}
-                    ${item.quality_score ? `<span>✨ ${Math.round(item.quality_score)}</span>` : ''}
                 </div>
             </a>
         `;

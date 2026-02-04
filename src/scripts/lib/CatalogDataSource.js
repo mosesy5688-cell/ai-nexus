@@ -56,10 +56,14 @@ export class CatalogDataSource {
 
             const map = new Map();
             this.items.forEach(i => map.set(i.id, i));
-            validItems.forEach(i => map.set(i.id, i));
+            validItems.forEach(i => {
+                if (!map.has(i.id)) {
+                    map.set(i.id, i);
+                    this.engine.add(i);
+                }
+            });
 
             this.items = Array.from(map.values());
-            this.engine.addAll(validItems.filter(i => !this.engine.get(i.id)));
 
             return validItems;
         } catch (e) {
@@ -77,7 +81,7 @@ export class CatalogDataSource {
             if (!res.ok) return;
             const data = await res.json();
 
-            const coreEntities = (data.entities || []).filter(e => e.type === this.type || (this.type === 'model' && !e.type));
+            const coreEntities = (data.entities || []).filter(e => e.type === this.type || (this.type === 'model' && (!e.type || e.type === 'model')));
             const normalized = DataNormalizer.normalizeCollection(coreEntities, this.type);
 
             this.engine.addAll(normalized.filter(i => !this.engine.get(i.id)));

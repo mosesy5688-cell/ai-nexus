@@ -101,6 +101,8 @@ export function renderModelCard(model) {
             case 'benchmark': return '🏆';
             case 'paper': return '📄';
             case 'agent': return '🤖';
+            case 'tool': return '🛠️';
+            case 'space': return '🚀';
             default: return '📦';
         }
     }
@@ -112,6 +114,8 @@ export function renderModelCard(model) {
             case 'benchmark': return 'Benchmark';
             case 'paper': return 'Paper';
             case 'agent': return 'Agent';
+            case 'tool': return 'Tool';
+            case 'space': return 'Space';
             default: return 'Item';
         }
     }

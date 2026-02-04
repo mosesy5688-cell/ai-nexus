@@ -24,10 +24,14 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         name: e.name || e.slug,
         type: e.type,
         description: (e.description || '').substring(0, 100),
-        fni: e.fni_score || 0,
+        fni_score: e.fni_score || 0, // Canonical name
+        author: e.author,
+        tags: typeof e.tags === 'string' ? JSON.parse(e.tags || '[]') : (e.tags || []),
         source: e.source,
         has_image: Boolean(e.image_url),
+        slug: e.slug || e.id?.split(/[:/]/).pop()
     }));
+
 
     const coreIndex = {
         entities: coreEntities,
@@ -46,8 +50,11 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         id: e.id,
         name: e.name || e.slug,
         type: e.type,
-        fni: e.fni_score || 0,
+        fni_score: e.fni_score || 0,
+        author: e.author,
+        tags: typeof e.tags === 'string' ? JSON.parse(e.tags || '[]') : (e.tags || []),
         source: e.source,
+        slug: e.slug || e.id?.split(/[:/]/).pop(),
         has_image: Boolean(e.image_url),
         // Shortened description to save shard space
         description: (e.description || '').substring(0, 150),
