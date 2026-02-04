@@ -89,8 +89,11 @@ export async function updateDailyAccumulator(entities, outputDir = './output') {
 
     const accumulator = await loadDailyAccum();
 
+    // V17.3: Changed from FNI>=70 threshold to Top N by FNI
+    // Ensures daily reports always have content
     const topMovers = entities
-        .filter(e => (e.fni_score || e.fni || 0) >= 70)
+        .filter(e => (e.fni_score || e.fni || 0) > 0)  // Only filter out zero/missing FNI
+        .sort((a, b) => (b.fni_score || b.fni || 0) - (a.fni_score || a.fni || 0))
         .slice(0, DAILY_TOP_ENTITIES)
         .map(e => ({
             id: e.id,
