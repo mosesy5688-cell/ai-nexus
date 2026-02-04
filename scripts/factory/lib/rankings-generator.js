@@ -14,7 +14,7 @@ const CATEGORIES = [
     'infrastructure-ops',
 ];
 
-const ENTITY_TYPES = ['model', 'paper', 'agent', 'space', 'dataset'];
+const ENTITY_TYPES = ['model', 'paper', 'agent', 'space', 'dataset', 'tool'];
 
 /**
  * Generate all rankings
