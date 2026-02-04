@@ -186,7 +186,8 @@ jobs:
       - name: Upload to R2
         env:
           # V17.2: Complete list - includes all data from 3/4 and 3.5/4
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/rankings/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/
+          # V17.3: Added daily/ for daily AI reports
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/rankings/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,daily/,meta/,sitemaps/,rss/
         run: |
           echo "📤 Uploading to R2 via S3 API..."
           node scripts/factory/r2-upload-s3.js
