@@ -187,7 +187,7 @@ jobs:
       - run: npm ci
       - name: Restore Core Registry
         uses: actions/download-artifact@v4
-        with: { name: core-registry-v2, path: ./ }
+        with: { name: core-registry-v2, path: output/ }
       - name: Generate Search Indices
         env:
           ENTITIES_PATH: output/entities.json
@@ -218,7 +218,7 @@ jobs:
       - run: npm ci
       - name: Restore Core Registry
         uses: actions/download-artifact@v4
-        with: { name: core-registry-v2, path: ./ }
+        with: { name: core-registry-v2, path: output/ }
       - name: Generate Rankings
         env:
           ENTITIES_PATH: output/entities.json
@@ -252,7 +252,7 @@ jobs:
       - run: npm ci
       - name: Restore Core Registry
         uses: actions/download-artifact@v4
-        with: { name: core-registry-v2, path: ./ }
+        with: { name: core-registry-v2, path: output/ }
       - name: Generate Trending
         env:
           ENTITIES_PATH: output/entities.json
@@ -281,7 +281,7 @@ jobs:
       - run: npm ci
       - name: Restore Core Registry
         uses: actions/download-artifact@v4
-        with: { name: core-registry-v2, path: ./ }
+        with: { name: core-registry-v2, path: output/ }
       - name: Generate Relations
         env:
           ENTITIES_PATH: output/entities.json
@@ -312,7 +312,7 @@ jobs:
       - run: npm ci
       - name: Restore Core Registry
         uses: actions/download-artifact@v4
-        with: { name: core-registry-v2, path: ./ }
+        with: { name: core-registry-v2, path: output/ }
       - name: Generate Sitemaps
         env:
           ENTITIES_PATH: output/entities.json
