@@ -62,6 +62,9 @@ jobs:
     name: Upload to R2
     needs: check-upstream
     runs-on: ubuntu-latest
+    env:
+      # V17.2: Safety margin for large file operations
+      NODE_OPTIONS: '--max-old-space-size=4096'
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
