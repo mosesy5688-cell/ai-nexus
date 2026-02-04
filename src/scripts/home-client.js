@@ -4,7 +4,7 @@ import { stripPrefix } from '../utils/mesh-routing-core.js';
 
 // Function to fetch and render hot models (Constitution: FNI-sorted)
 export async function loadHotModels() {
-    const loadingSkeleton = document.getElementById('home-skeleton'); // Improved skeleton targeting
+    const loadingSkeleton = document.getElementById('hot-models-loading'); // V16.2: Fixed ID mismatch
     const gridEl = document.getElementById('hot-models-grid');
     const errorEl = document.getElementById('hot-models-error');
     const errorMsgEl = document.getElementById('hot-models-error-msg');
@@ -30,10 +30,13 @@ export async function loadHotModels() {
         }
 
         // Hide skeletons if they exist
-        const skeletons = document.querySelectorAll('.home-skeleton-container');
+        const skeletons = document.querySelectorAll('.skeleton-card'); // V16.2: Corrected selector
         skeletons.forEach(s => s.classList.add('hidden'));
 
-        if (loadingSkeleton) loadingSkeleton.classList.add('hidden');
+        if (loadingSkeleton) {
+            loadingSkeleton.classList.add('hidden');
+            loadingSkeleton.style.display = 'none'; // Force hide
+        }
 
     } catch (e) {
         console.error("Failed to load hot models:", e);

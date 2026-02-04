@@ -33,6 +33,32 @@ try {
 }
 
 const latestReport = reports.length > 0 ? reports[0] : null;
+
+// V16.2.5: Fallback to Daily Reports if index.json is empty
+if (!latestReport) {
+    const now = new Date();
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const dateKey = d.toISOString().split('T')[0];
+        try {
+            const dRes = await fetch(`${CDN_BASE}/cache/reports/daily/${dateKey}.json`);
+            if (dRes.ok) {
+                const dData = await dRes.json();
+                reports.push({
+                    reportId: `daily/${dateKey}`,
+                    title: `Daily AI Update: ${dateKey}`,
+                    date: dData.generated || dateKey,
+                    summary: dData.summary || dData.daily_brief?.summary || "Daily neural mesh synchronization report.",
+                    highlights: dData.daily_brief?.new_entities_count || 0
+                });
+                if (reports.length >= 5) break;
+            }
+        } catch (e) {}
+    }
+}
+
+const finalLatest = reports.length > 0 ? reports[0] : null;
 const olderReports = reports.length > 1 ? reports.slice(1, 5) : [];
 
 const pageTitle = "AI Industry Daily Reports";
@@ -69,14 +95,14 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
       <TrendChart type="line" height="350px" />
     </section>
 
-    {latestReport ? (
+    {finalLatest ? (
       <div class="space-y-12">
         <!-- Latest Report -->
         <section class="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
-          <h2 class="text-3xl font-bold mb-2">{latestReport.title}</h2>
-          <p class="text-gray-500 dark:text-gray-400 mb-6">{new Date(latestReport.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          <p class="mb-8">{latestReport.summary}</p>
-          <a href={`/reports/${latestReport.reportId}`} class="inline-block bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+          <h2 class="text-3xl font-bold mb-2">{finalLatest.title}</h2>
+          <p class="text-gray-500 dark:text-gray-400 mb-6">{new Date(finalLatest.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <p class="mb-8">{finalLatest.summary}</p>
+          <a href={`/reports/${finalLatest.reportId}`} class="inline-block bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
             Read Full Report
           </a>
         </section>

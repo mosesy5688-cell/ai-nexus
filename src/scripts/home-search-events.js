@@ -69,9 +69,14 @@ export function renderResults(results) {
         else if (r.type === 'tool') path = `/tool/${r.slug}`;
         else if (r.type === 'space') path = `/space/${r.slug}`;
 
-        const badge = isKnowledge ?
-            `<span class="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-[10px] font-bold uppercase tracking-wider">GUIDE</span>` :
-            `<span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold uppercase tracking-wider">MODEL</span>`;
+        const typeLabel = isKnowledge ? 'Guide' : (r.type || 'Model').toUpperCase();
+        const badgeClass = isKnowledge ?
+            'bg-indigo-100 text-indigo-700' :
+            (r.type === 'agent' ? 'bg-purple-100 text-purple-700' :
+                (r.type === 'paper' ? 'bg-amber-100 text-amber-700' :
+                    (r.type === 'dataset' ? 'bg-sky-100 text-sky-700' : 'bg-blue-100 text-blue-700')));
+
+        const badge = `<span class="px-2 py-0.5 ${badgeClass} rounded text-[10px] font-bold uppercase tracking-wider">${typeLabel}</span>`;
 
         return `
     <a href="${path}" class="flex items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0">
