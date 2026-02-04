@@ -145,9 +145,19 @@ export function normalizeId(id, source, type) {
 
     if (!t) {
         if (s === 'arxiv') t = 'paper';
-        else if (s === 'gh') t = 'agent';
+        else if (s === 'gh') {
+            // V16.9.23: Refined GH source classification
+            // Check for tool indicators in the ID/slug
+            const lowerId = (id || '').toLowerCase();
+            if (lowerId.includes('tool') || lowerId.includes('mcp') || lowerId.includes('plugin')) {
+                t = 'tool';
+            } else {
+                t = 'agent';
+            }
+        }
         else t = 'model';
     }
+
 
     const prefix = PREFIX_MAP[s]?.[t];
 

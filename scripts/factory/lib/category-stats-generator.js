@@ -126,22 +126,24 @@ export async function generateCategoryStats(entities, outputDir = './output') {
     // Count entities by category
     const modelsByCategory = {};
     for (const entity of entities) {
-        if (entity.type !== 'model' && entity.type !== undefined) continue;
+        // Track models for top-level stats and top_models
+        if (entity.type === 'model' || entity.type === undefined) {
 
-        const category = getV6Category(entity);
+            const category = getV6Category(entity);
 
-        if (stats[category]) {
-            stats[category].count++;
+            if (stats[category]) {
+                stats[category].count++;
 
-            // Track for top models
-            if (!modelsByCategory[category]) {
-                modelsByCategory[category] = [];
+                // Track for top models
+                if (!modelsByCategory[category]) {
+                    modelsByCategory[category] = [];
+                }
+                modelsByCategory[category].push({
+                    id: entity.id,
+                    name: entity.name || entity.slug,
+                    fni: entity.fni || entity.fni_score || 0,
+                });
             }
-            modelsByCategory[category].push({
-                id: entity.id,
-                name: entity.name || entity.slug,
-                fni: entity.fni || entity.fni_score || 0,
-            });
         }
     }
 
@@ -158,8 +160,15 @@ export async function generateCategoryStats(entities, outputDir = './output') {
     const output = {
         categories: Object.values(stats),
         total_models: entities.filter(e => !e.type || e.type === 'model').length,
+        total_papers: entities.filter(e => e.type === 'paper').length,
+        total_agents: entities.filter(e => e.type === 'agent').length,
+        total_spaces: entities.filter(e => e.type === 'space').length,
+        total_datasets: entities.filter(e => e.type === 'dataset').length,
+        total_tools: entities.filter(e => e.type === 'tool').length,
         _generated: new Date().toISOString(),
     };
+
+
 
     const content = JSON.stringify(output, null, 2);
     const filePath = path.join(cacheDir, 'category_stats.json');

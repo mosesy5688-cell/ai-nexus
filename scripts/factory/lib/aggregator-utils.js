@@ -132,12 +132,18 @@ export function mergeShardEntities(allEntities, shardResults) {
 
             let entity = update ? mergeEntities(e, update) : e;
 
+            // V16.8.10: Type Normalization (Art 3.1)
+            // Promote entity_type to canonical type to ensure downstream visibility
+            const finalType = entity.type || entity.entity_type || 'model';
+            entity.type = finalType;
+
             // V16.4.3: Standard Image & Metrics Promotion (Dual-Field Strategy)
             const finalFni = entity.fni_score ?? entity.fni ?? 0;
             entity.fni_score = finalFni;
             entity.fni = finalFni;
 
             if (!entity.image_url) {
+
                 entity.image_url = entity.raw_image_url || null;
                 if (!entity.image_url && entity.meta_json) {
                     const meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;

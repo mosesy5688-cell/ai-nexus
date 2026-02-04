@@ -33,9 +33,11 @@ export async function generateTrending(entities, outputDir = './output') {
         agents: topEntities.filter(e => e.type === 'agent').map(formatEntity),
         spaces: topEntities.filter(e => e.type === 'space').map(formatEntity),
         datasets: topEntities.filter(e => e.type === 'dataset').map(formatEntity),
+        tools: topEntities.filter(e => e.type === 'tool').map(formatEntity),
         _count: topEntities.length,
         _generated: new Date().toISOString(),
     };
+
 
     const content = JSON.stringify(trending, null, 2);
     const filePath = path.join(cacheDir, 'trending.json');
