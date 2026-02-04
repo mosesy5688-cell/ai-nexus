@@ -46,9 +46,13 @@ async function processEntity(entity, allEntities, entityChecksums) {
         // Calculate FNI using existing module
         const fni = calculateFNI(entity, allEntities);
 
+        // V16.8.10: Type Normalization & Promotion (Art 3.1)
+        const finalType = entity.type || entity.entity_type || 'model';
+        const finalFni = fni.fni_score ?? entity.fni ?? 0;
+
         // V14.5.2: Stable _updated - only update if content changed
         const entityHash = crypto.createHash('sha256')
-            .update(JSON.stringify(entity))
+            .update(JSON.stringify({ ...entity, type: finalType }))
             .digest('hex');
 
         const isChanged = entityChecksums[id] !== entityHash;
@@ -57,19 +61,21 @@ async function processEntity(entity, allEntities, entityChecksums) {
         const enriched = {
             ...entity,
             id: id,
-            fni_score: fni.fni_score,
+            type: finalType, // Promote to canonical field
+            fni_score: finalFni,
             fni_p: fni.fni_p,
             fni_v: fni.fni_v,
             fni_c: fni.fni_c,
             fni_u: fni.fni_u,
-            _version: '16.8.7',
+            _version: '16.8.10',
             _updated: isChanged ? new Date().toISOString() : currentUpdated,
             _checksum: entityHash,
         };
 
         // Smart Write (V2.0 Standard: id is safe for filenames)
-        const key = `cache/entities/${enriched.type || 'model'}/${id}.json`;
+        const key = `cache/entities/${finalType}/${id}.json`;
         await smartWriteWithVersioning(key, enriched);
+
 
         return {
             id: id,
