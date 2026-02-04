@@ -123,30 +123,9 @@ export async function fetchEntityFromR2(type, slug, locals) {
         }
     }
 
-    // 1.5. V15.2: Global CDN Fallback (entities.json)
-    try {
-        const cdnUrl = `${R2_CACHE_URL}/entities.json`;
-        const response = await fetch(cdnUrl);
-        if (response.ok) {
-            const allEntities = await response.json();
-            const searchSlug = normalized.toLowerCase();
-            const found = allEntities.find(e => {
-                const eid = (e.id || '').toLowerCase().replace(/:/g, '--').replace(/\//g, '--');
-                const ename = ((e.author || '') + '--' + (e.name || '')).toLowerCase();
-                return eid.endsWith(searchSlug) || ename === searchSlug || eid.includes(searchSlug);
-            });
-
-            if (found) {
-                return {
-                    entity: found,
-                    computed: { fni: found.fni_score || 0 },
-                    _cache_source: 'cdn-global'
-                };
-            }
-        }
-    } catch (e) {
-        console.warn(`[Reader] Global Fallback failed:`, e.message);
-    }
+    // V15.2: Global CDN Fallback (entities.json) REMOVED per memory safety (Art 5.1)
+    // 368MB entities.json exceeds 128MB Worker memory limit.
+    // Fallback logic should rely on sharded rankings if individual entity fetch fails.
 
     // 2. Dev Shim: Local Filesystem (Art 2.4 / B14 Compatibility)
     if (import.meta.env.DEV || process.env.NODE_ENV === 'test') {
