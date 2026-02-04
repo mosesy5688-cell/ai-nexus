@@ -10,7 +10,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { extractEntityRelations } from './relation-extractors.js';
-import { normalizeId } from '../../utils/id-normalizer.js';
+import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 
 // Relation statistics template
 const RELATION_STATS = {

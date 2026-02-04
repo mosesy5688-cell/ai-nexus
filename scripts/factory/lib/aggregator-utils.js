@@ -223,6 +223,7 @@ export async function updateTaskChecksum(taskId, entities) {
     }
 
     checksums[taskId] = hash;
+    await fs.mkdir(path.dirname(checksumFile), { recursive: true });
     await fs.writeFile(checksumFile, JSON.stringify(checksums, null, 2));
     console.log(`[INCREMENTAL] ✅ Updated checksum for ${taskId}`);
 }
