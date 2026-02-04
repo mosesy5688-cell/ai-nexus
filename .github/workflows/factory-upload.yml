@@ -187,7 +187,8 @@ jobs:
         env:
           # V17.2: Complete list - includes all data from 3/4 and 3.5/4
           # V17.3: Added daily/ for daily AI reports
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/rankings/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,daily/,meta/,sitemaps/,rss/
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/rankings/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-full.json,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,daily/,meta/,sitemaps/,rss/,sitemap.xml,sitemap.xsl
+
         run: |
           echo "📤 Uploading to R2 via S3 API..."
           node scripts/factory/r2-upload-s3.js
@@ -198,7 +199,8 @@ jobs:
           echo "🔄 Purging CDN cache..."
           
           # We purge the manifest and core index. Shards are usually unique-named or updated.
-          PURGE_PATHS='["https://cdn.free2aitools.com/cache/trending.json","https://cdn.free2aitools.com/cache/search-core.json","https://cdn.free2aitools.com/cache/search-manifest.json","https://cdn.free2aitools.com/cache/category_stats.json","https://cdn.free2aitools.com/cache/relations.json"]'
+          PURGE_PATHS='["https://cdn.free2aitools.com/cache/trending.json","https://cdn.free2aitools.com/cache/search-core.json","https://cdn.free2aitools.com/cache/search-manifest.json","https://cdn.free2aitools.com/cache/category_stats.json","https://cdn.free2aitools.com/cache/relations.json","https://cdn.free2aitools.com/cache/rankings/tool/p1.json","https://cdn.free2aitools.com/sitemap.xml"]'
+
           
           curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
@@ -216,7 +218,10 @@ jobs:
             "https://cdn.free2aitools.com/cache/search-core.json"
             "https://cdn.free2aitools.com/cache/search-manifest.json"
             "https://cdn.free2aitools.com/cache/category_stats.json"
+            "https://cdn.free2aitools.com/cache/rankings/tool/p1.json"
+            "https://cdn.free2aitools.com/sitemap.xml"
           )
+
           
           for url in "${WARM_URLS[@]}"; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$url")

@@ -84,8 +84,15 @@ async function main() {
         { name: 'Search', id: 'search', fn: () => generateSearchIndices(rankedEntities, CONFIG.OUTPUT_DIR) },
         { name: 'Sitemap', id: 'sitemap', fn: () => generateSitemap(rankedEntities, CONFIG.OUTPUT_DIR) },
         { name: 'CategoryStats', id: 'category', fn: () => generateCategoryStats(rankedEntities, CONFIG.OUTPUT_DIR) },
-        { name: 'Relations', id: 'relations', fn: () => generateRelations(rankedEntities, CONFIG.OUTPUT_DIR) }
+        { name: 'Relations', id: 'relations', fn: () => generateRelations(rankedEntities, CONFIG.OUTPUT_DIR) },
+        {
+            name: 'TrendData', id: 'trend', fn: async () => {
+                const history = await loadFniHistory();
+                return generateTrendData(history, path.join(CONFIG.OUTPUT_DIR, 'cache'));
+            }
+        }
     ];
+
 
     for (const task of tasks) {
         // Skip if a specific task is requested and this isn't it

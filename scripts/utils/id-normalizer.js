@@ -14,7 +14,9 @@ const PREFIX_MAP = {
         agent: 'hf-agent--',
         paper: 'hf-paper--',
         collection: 'hf-collection--',
+        tool: 'hf-tool--',
     },
+
     gh: {
         agent: 'gh-agent--',
         tool: 'gh-tool--',
@@ -167,7 +169,12 @@ export function normalizeId(id, source, type) {
 
 export function getNodeSource(id, type) {
     if (type === 'paper') return 'arxiv';
-    if (type === 'agent' || type === 'tool') return 'gh';
+    if (type === 'agent' || type === 'tool') {
+        const lowerId = (id || '').toLowerCase();
+        if (lowerId.startsWith('hf-') || lowerId.startsWith('huggingface--')) return 'hf';
+        return 'gh';
+    }
+
     if (type === 'dataset' || type === 'space') return 'hf';
     if (type === 'model') {
         const lowerId = (id || '').toLowerCase();
