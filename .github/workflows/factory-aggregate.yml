@@ -244,10 +244,11 @@ jobs:
         with:
           name: agg-rankings
           path: |
-            output/rankings/
+            output/cache/rankings/
             output/cache/category_stats.json
           if-no-files-found: warn
           retention-days: 1
+
 
   aggregate-trending:
     name: "Agg: Trending"
