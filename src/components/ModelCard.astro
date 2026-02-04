@@ -9,7 +9,8 @@ import { cleanDescription } from '../utils/text-sanitizer.js';
 const { model, isRisingStar } = Astro.props;
 
 // Generate clean URL without source prefix or encoding
-const modelUrl = generateEntityUrl(model, 'model');
+const type = model.type || model.entity_type || 'model';
+const modelUrl = generateEntityUrl(model, type);
 const description = cleanDescription(model.seo_summary || model.description) || 'No description available.';
 
 // V16.4.2: Deterministic Image Mapping (SPEC-IMAGE-NAMING)

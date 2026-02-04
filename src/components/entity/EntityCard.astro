@@ -207,6 +207,22 @@ function formatNumber(num: any) {
                     </>
                 )}
                 
+                {/* Tool-specific stats */}
+                {entityType === 'tool' && (
+                    <>
+                        {(entity.stars || entity.github_stars) && (
+                            <div class="flex items-center gap-1" title={`${((entity.stars || entity.github_stars) || 0).toLocaleString()} stars`}>
+                                ⭐ <span class="font-medium">{formatNumber(entity.stars || entity.github_stars)}</span>
+                            </div>
+                        )}
+                        {entity.language && (
+                            <span class="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-[10px]">
+                                {entity.language}
+                            </span>
+                        )}
+                    </>
+                )}
+                
                 {/* Tier indicator */}
                 <div class={`flex items-center gap-1 px-1.5 py-0.5 rounded ${colorClass.bg} ${colorClass.text}`}>
                     <span class="text-[10px] uppercase font-medium">{tier}</span>
