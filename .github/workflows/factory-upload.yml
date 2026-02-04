@@ -93,6 +93,30 @@ jobs:
           echo "✅ Output structure validated"
           ls -la output/
 
+      # V17.2: Restore Linker output and merge with Aggregate output
+      - name: Restore Linker Output from Cache
+        uses: actions/cache/restore@v4
+        id: linker-cache
+        with:
+          path: linker-output/
+          key: linker-${{ needs.check-upstream.outputs.upstream-run-id }}-output
+          restore-keys: |
+            linker-
+          
+      - name: Merge Linker Output
+        run: |
+          if [ -d "linker-output" ]; then
+            echo "📦 Merging Linker output into main output..."
+            # Copy Linker's cache/* to output/cache/
+            cp -r linker-output/cache/* output/cache/ 2>/dev/null || true
+            # Copy Linker's rss/ to output/rss/
+            cp -r linker-output/rss output/ 2>/dev/null || true
+            echo "✅ Linker output merged"
+            ls -la output/cache/
+          else
+            echo "⚠️ No Linker cache found, continuing without knowledge mesh data"
+          fi
+
       # V4.1: R2 Dual-Version Rotation (BEFORE upload)
       # NOTE: entities.json is too large for Wrangler (300MiB limit).
       # The S3 API script (r2-upload-s3.js) handles this file with multipart upload.
@@ -158,7 +182,8 @@ jobs:
       # V16.2.6: R2 Upload (SPEC V14.5)
       - name: Upload to R2
         env:
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/rankings/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-manifest.json,meta/,sitemaps/
+          # V17.2: Complete list - includes all data from 3/4 and 3.5/4
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/rankings/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/
         run: |
           echo "📤 Uploading to R2 via S3 API..."
           node scripts/factory/r2-upload-s3.js
