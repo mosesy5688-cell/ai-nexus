@@ -11,7 +11,7 @@ name: Factory 4/4 - Upload
 
 on:
   workflow_run:
-    workflows: ["Factory 3/4 - Aggregate"]
+    workflows: ["Factory 3.5/4 - Knowledge Linker"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -48,15 +48,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # V17.4: Resolution logic for chained workflows
-          # 1. Start with the manual input
-          AGGREGATE_RUN_ID=${{ inputs.run_id }}
+          # V17.6: Resolution logic for serialized pipeline
+          # 1. Always start by trying to find the latest successful Aggregate run (The Source of Truth)
+          AGGREGATE_RUN_ID=$(gh run list --workflow factory-aggregate.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           
-          # 2. If missing (automatic trigger), find the latest successful Aggregate run on MAIN
-          # This works regardless of whether triggered by Linker or Aggregate, as Linker is downstream of Aggregate.
+          # 2. Fallback to manual input if no successful run found or if it's a manual override
           if [ -z "$AGGREGATE_RUN_ID" ] || [ "$AGGREGATE_RUN_ID" == "null" ]; then
-            echo "🔍 Resolving latest successful Aggregate run from main branch..."
-            AGGREGATE_RUN_ID=$(gh run list --workflow factory-aggregate.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
+            echo "⚠️ Warning: No successful Aggregate run found on main. Using input or current event context."
+            AGGREGATE_RUN_ID=${{ inputs.run_id }}
           fi
           
           echo "id=$AGGREGATE_RUN_ID" >> $GITHUB_OUTPUT
