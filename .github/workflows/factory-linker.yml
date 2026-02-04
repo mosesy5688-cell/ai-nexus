@@ -338,11 +338,11 @@ jobs:
           path: output/rss/
           retention-days: 1
 
-  # Job 7: Merge and Upload to R2 (V16.2 Enhanced)
-  upload-relations:
-    name: Upload to R2
+  # Job 7: Save to Cache for Factory 4/4 (V17.2: R2 upload moved to 4/4)
+  save-to-cache:
+    name: Save to Cache
     runs-on: ubuntu-latest
-    needs: [explicit-links, alt-links, knowledge-links, knowledge-data, mesh-graph, rss-feeds]
+    needs: [explicit-links, alt-links, knowledge-links, knowledge-data, mesh-graph, rss-feeds, check-upstream]
     if: always() && needs.explicit-links.result == 'success'
     
     steps:
@@ -399,18 +399,12 @@ jobs:
           name: rss-feeds
           path: output/rss/
           
-      - name: Upload to R2 (SPEC V16.2)
-        env:
-          R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-        run: |
-          echo "☁️ Uploading to R2..."
-          node scripts/factory/r2-upload-s3.js --prefix cache/relations/
-          node scripts/factory/r2-upload-s3.js --prefix cache/knowledge/
-          node scripts/factory/r2-upload-s3.js --prefix cache/mesh/
-          node scripts/factory/r2-upload-s3.js --prefix rss/
+      # V17.2: Save to Cache for Factory 4/4 (no direct R2 upload)
+      - name: Save Linker Output to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/
+          key: linker-${{ needs.check-upstream.outputs.run-id }}-output
           
       - name: Summary
         run: |

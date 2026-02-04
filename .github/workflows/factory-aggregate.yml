@@ -82,19 +82,27 @@ jobs:
         id: cache-shards
         uses: actions/cache/restore@v4
         with:
-          path: output/shards/
+          path: |
+            output/shards/
+            output/cache/entities/
           key: cycle-${{ needs.check-upstream.outputs.process-id }}-shards
           restore-keys: |
             cycle-
 
       - name: Organize Shards & Context
         run: |
-          mkdir -p artifacts output data cache
+          mkdir -p artifacts output/cache/entities data cache
           # 1. Move Shards from cache
           if [ -d "output/shards" ]; then
             SHARD_COUNT=$(find output/shards -name "shard-*.json" | wc -l)
             echo "📦 Found $SHARD_COUNT shards in cache"
             find output/shards -name "shard-*.json" -exec mv {} artifacts/ \;
+          fi
+          
+          # V17.2: Check for entity data
+          if [ -d "output/cache/entities" ]; then
+            ENTITY_FILES=$(find output/cache/entities -type f -name "*.json" | wc -l)
+            echo "📦 Found $ENTITY_FILES entity files in cache"
           fi
           
           if [ $(find artifacts -name "shard-*.json" | wc -l) -eq 0 ]; then

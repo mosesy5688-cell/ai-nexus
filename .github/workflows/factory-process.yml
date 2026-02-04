@@ -212,17 +212,33 @@ jobs:
           path: ./shards/
           merge-multiple: true
 
-      - name: Organize Shards
+      - name: Organize Shards and Entity Data
         run: |
-          mkdir -p output/shards
+          mkdir -p output/shards output/cache/entities
+          # Collect shard result files
           find ./shards -name "shard-*.json" -exec cp {} output/shards/ \;
           echo "📦 Shards collected:"
           ls -la output/shards/
+          
+          # V17.2: Collect entity data from all shards (cache/entities/{type}/*.json)
+          if [ -d "./shards/output/cache/entities" ]; then
+            cp -r ./shards/output/cache/entities/* output/cache/entities/ 2>/dev/null || true
+            echo "📦 Entity data collected:"
+            find output/cache/entities -type f | head -20
+            echo "Total entity files: $(find output/cache/entities -type f -name '*.json' | wc -l)"
+          else
+            echo "⚠️ No entity data found in shards (checking alternate paths...)"
+            # Try alternate path from merged artifact
+            find ./shards -path "*/cache/entities/*" -name "*.json" -exec cp --parents {} output/ \; 2>/dev/null || true
+          fi
 
-      - name: Save Shards to Cache
+      # V17.2: Save both shards AND entity data to Cache
+      - name: Save Shards and Entity Data to Cache
         uses: actions/cache/save@v4
         with:
-          path: output/shards/
+          path: |
+            output/shards/
+            output/cache/entities/
           key: cycle-${{ github.run_id }}-shards
 
   # Aggregate and save checksums
