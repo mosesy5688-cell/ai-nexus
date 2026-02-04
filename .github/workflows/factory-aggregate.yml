@@ -243,6 +243,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: agg-rankings
+          # V17.4: Ensure directory hierarchy is preserved
           path: |
             output/cache/rankings/
             output/cache/category_stats.json
@@ -378,6 +379,11 @@ jobs:
           [ -f "output/trending.json" ] && mv output/trending.json output/cache/ || true
           [ -f "output/category_stats.json" ] && mv output/category_stats.json output/cache/ || true
           [ -f "output/relations.json" ] && mv output/relations.json output/cache/ || true
+          # V17.4: Ensure rankings and search indices are nested in cache/
+          [ -d "output/rankings" ] && mv output/rankings output/cache/ || true
+          [ -f "output/search-core.json" ] && mv output/search-core.json output/cache/ || true
+          [ -f "output/search-full.json" ] && mv output/search-full.json output/cache/ || true
+          [ -f "output/search-manifest.json" ] && mv output/search-manifest.json output/cache/ || true
           # List final structure
           echo "📦 Final output structure:"
           find output -type f | head -50

@@ -46,17 +46,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 1. Start with the Aggregate Run ID (Triggering event or manual input)
-          AGGREGATE_RUN_ID=${{ inputs.run_id || github.event.workflow_run.id }}
+          # V17.4: Resolution logic for chained workflows
+          # 1. Start with the manual input
+          AGGREGATE_RUN_ID=${{ inputs.run_id }}
           
-          # 2. If missing, find the latest successful Aggregate run on MAIN
+          # 2. If missing (automatic trigger), find the latest successful Aggregate run on MAIN
+          # This works regardless of whether triggered by Linker or Aggregate, as Linker is downstream of Aggregate.
           if [ -z "$AGGREGATE_RUN_ID" ] || [ "$AGGREGATE_RUN_ID" == "null" ]; then
-            echo "🔍 Manual dispatch: Finding latest successful Aggregate run on main branch..."
+            echo "🔍 Resolving latest successful Aggregate run from main branch..."
             AGGREGATE_RUN_ID=$(gh run list --workflow factory-aggregate.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           fi
           
           echo "id=$AGGREGATE_RUN_ID" >> $GITHUB_OUTPUT
-          echo "✅ Resolved Aggregate ID (Main): $AGGREGATE_RUN_ID"
+          echo "✅ Resolved Aggregate ID (Source of Truth): $AGGREGATE_RUN_ID"
 
   upload:
     name: Upload to R2
