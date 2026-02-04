@@ -45,19 +45,31 @@ import Layout from '../layouts/Layout.astro';
                     // 0. Context Parsing (from [...slug].astro redirects)
                     const reason = url.searchParams.get('reason');
                     const missingId = url.searchParams.get('id');
+                    const attempt = url.searchParams.get('attempt') || '0';
+
                     if (reason === 'entity-not-found' && missingId && contextDiv && idSpan) {
                        contextDiv.classList.remove('hidden');
                        idSpan.textContent = missingId;
                     }
 
                     // 1. Check for old key format (owner--name -> owner/name)
-                    if (path.includes('--')) {
+                    // V16.7.2: Stop loop if attempt=1 already present
+                    if (path.includes('--') && attempt === '0') {
                         const newPath = path.replace(/--/g, '/');
                         if (newPath !== path && msg) {
                             msg.classList.remove('hidden');
-                            setTimeout(() => window.location.href = newPath, 1000); 
+                            const nextUrl = new URL(newPath, window.location.origin);
+                            nextUrl.searchParams.set('attempt', '1');
+                            setTimeout(() => window.location.href = nextUrl.toString(), 1000); 
                             return;
                         }
+                    }
+
+                    // 2. Loop prevention message
+                    if (attempt === '1' && msg) {
+                        msg.textContent = "We tried to find a better URL, but this entity doesn't seem to exist.";
+                        msg.classList.remove('hidden');
+                        msg.classList.replace('text-blue-600', 'text-red-500');
                     }
 
                     // 3. Last Fail-Safe: Pre-fill Search
@@ -68,6 +80,7 @@ import Layout from '../layouts/Layout.astro';
                         searchBtn.textContent = `Search for "${query}"`;
                     }
                 })();
+
             </script>
         </div>
     </div>

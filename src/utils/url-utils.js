@@ -105,29 +105,22 @@ export function getRedirectPath(pathname) {
     // Remove trailing slash for normalization
     const cleanPath = pathname.replace(/\/$/, '');
 
-    // V16.7.1: Robust Prefix & Aesthetic Redirection
-    // We split by / and check if any segment NEEDS cleaning (contains -- or prefix)
-    const segments = cleanPath.split('/').filter(Boolean);
-    let needsRedirect = false;
-    const cleanedSegments = segments.map((seg, index) => {
-        const stripped = stripPrefix(seg);
-        if (stripped !== seg.toLowerCase() && !seg.includes('--')) {
-            needsRedirect = true;
-            return stripped.replace(/--/g, '/');
-        }
-        // V16.9.22: Only redirect legacy author--name format if it's NOT the root type segment
-        // V16.9.22: Use centralized stripPrefix for consistency
-        // V16.9.22: Less aggressive with double-dashes to avoid mangling new IDs
-        if (seg.includes('--') && index > 0 && !seg.includes('-model-') && !seg.includes('-dataset-')) {
-            needsRedirect = true;
-            return stripped.replace(/--/g, '/'); // Apply stripPrefix before replacing --
-        }
-        return seg;
-    });
+    // V16.7.2: Canonical Route Validation
+    // Parse the URL to identify type and slug
+    const { type, slug } = parseEntityUrl(cleanPath);
+    if (!slug) return null;
 
-    if (needsRedirect) {
-        return '/' + cleanedSegments.join('/');
+    // Generate canonical URL using established SSOT routes
+    // This handles stripPrefix and dual-dash replacement automatically
+    const canonical = getRouteFromId(slug, type);
+
+    // If canonical differs and is valid, suggest redirect
+    if (canonical && canonical !== '#' && canonical !== cleanPath) {
+        // Multi-segment validation: Ensure we don't redirect to something that would loop
+        // (canonical already uses established prefixes and routes)
+        return canonical;
     }
 
     return null;
 }
+
