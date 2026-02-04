@@ -28,6 +28,8 @@ jobs:
     outputs:
       upstream-run-id: ${{ steps.get-run-id.outputs.run_id }}
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
       - name: Verify Upstream Conclusion
         if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success' }}
         run: |

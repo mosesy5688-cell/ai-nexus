@@ -42,6 +42,8 @@ jobs:
     outputs:
       run-id: ${{ steps.get-id.outputs.id }}
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
       - name: Verify Upstream Conclusion
         if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success' }}
         run: |
@@ -399,11 +401,16 @@ jobs:
           name: rss-feeds
           path: output/rss/
           
-      # V17.2: Save to Cache for Factory 4/4 (no direct R2 upload)
+      # V17.6: Use explicit linker-output path for cache consistency
+      - name: Prepare Cache Directory
+        run: |
+          mkdir -p linker-output
+          cp -r output/* linker-output/
+          
       - name: Save Linker Output to Cache
         uses: actions/cache/save@v4
         with:
-          path: output/
+          path: linker-output/
           key: linker-${{ needs.check-upstream.outputs.run-id }}-output
           
       - name: Summary
