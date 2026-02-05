@@ -217,8 +217,7 @@ jobs:
       - name: Prepare Registry Backup for S3 Upload
         run: |
           mkdir -p output/meta/backup
-          cp output/entities.json output/meta/backup/global-registry.json
-          echo "✅ Registry mirrored for S3 SDK upload"
+          echo "✅ aggregator.js has prepared baseline backups in output/meta/backup/"
       - name: Upload to R2 via S3 API
         env:
           R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/rankings/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-full.json,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,daily/,meta/,sitemaps/,rss/,sitemap.xml
