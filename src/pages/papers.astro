@@ -29,7 +29,7 @@ const pageDescription = "Explore the latest in AI research. 50,000+ sharded pape
 
         <ListingControls type="paper" searchId="papers-search" />
 
-        <div id="papers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div id="papers-catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {papers.map((paper: any) => (
                 <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <CatalogCard item={paper} type="paper" />
@@ -51,7 +51,7 @@ const pageDescription = "Explore the latest in AI research. 50,000+ sharded pape
             new UniversalCatalog({
                 initialData: window.__CATALOG_DATA__ || [],
                 type: 'paper',
-                gridId: 'papers-grid',
+                gridId: 'papers-catalog-grid',
                 searchId: 'papers-search',
                 dataUrl: 'https://cdn.free2aitools.com/cache/rankings/paper/p1.json'
             });

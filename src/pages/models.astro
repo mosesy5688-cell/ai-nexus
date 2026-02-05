@@ -29,7 +29,7 @@ const pageDescription = "Explore the definitive index of open-source AI models. 
 
         <ListingControls type="model" searchId="models-search" />
 
-        <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div id="models-catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {models.map((model: any) => (
                 <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <CatalogCard item={model} type="model" />
@@ -51,7 +51,7 @@ const pageDescription = "Explore the definitive index of open-source AI models. 
             new UniversalCatalog({
                 initialData: window.__CATALOG_DATA__ || [],
                 type: 'model',
-                gridId: 'models-grid',
+                gridId: 'models-catalog-grid',
                 searchId: 'models-search',
                 dataUrl: 'https://cdn.free2aitools.com/cache/rankings/model/p1.json'
             });

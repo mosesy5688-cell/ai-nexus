@@ -29,7 +29,7 @@ const pageDescription = "Explore 50,000+ open-source AI datasets for training, e
 
         <ListingControls type="dataset" searchId="datasets-search" />
 
-        <div id="datasets-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div id="datasets-catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {datasets.map((dataset: any) => (
                 <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <CatalogCard item={dataset} type="dataset" />
@@ -51,7 +51,7 @@ const pageDescription = "Explore 50,000+ open-source AI datasets for training, e
             new UniversalCatalog({
                 initialData: window.__CATALOG_DATA__ || [],
                 type: 'dataset',
-                gridId: 'datasets-grid',
+                gridId: 'datasets-catalog-grid',
                 searchId: 'datasets-search',
                 dataUrl: 'https://cdn.free2aitools.com/cache/rankings/dataset/p1.json'
             });
