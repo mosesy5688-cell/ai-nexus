@@ -1,49 +1,85 @@
 ---
 /**
- * ListingControls Component - V16.9.22
- * Shared search, sort, and layout for all entity catalogs
+ * ListingControls Component - V16.9.23
+ * Shared search, sort, and category filtering for all entity catalogs.
+ * Standardized for 6 entity types (Models, Agents, Datasets, Papers, Spaces, Tools).
  */
+import { CATEGORY_METADATA } from '../../../scripts/l5/category-mapping.js';
+
 interface Props {
   type: string;
   placeholder?: string;
   searchId?: string;
   sortId?: string;
+  categoryFilterId?: string;
 }
 
 const { 
   type, 
   placeholder = `Search ${type}s...`, 
   searchId = `${type}s-search`,
-  sortId = 'sort-by'
+  sortId = 'sort-by',
+  categoryFilterId = 'category-filter'
 } = Astro.props;
+
+// Use standard V6 categories
+const categories = Object.entries(CATEGORY_METADATA).map(([id, meta]) => ({
+    id,
+    label: meta.label,
+    icon: meta.icon
+}));
 ---
 
 <div class="flex flex-wrap items-center gap-4 mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm z-10 relative">
+  {/* Search Input */}
   <div class="flex-1 min-w-[200px]">
     <div class="relative">
-      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
       <input 
         type="text" 
         id={searchId} 
         placeholder={placeholder} 
-        class="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+        class="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
       />
     </div>
   </div>
   
-  <div class="flex items-center gap-4">
-    <span id="results-count" class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest hidden lg:inline">
-       Checking inventory...
-    </span>
+  <div class="flex flex-wrap items-center gap-4">
+    {/* Category Filter */}
     <div class="flex items-center gap-2">
-      <span class="text-xs font-bold text-gray-400 uppercase tracking-widest hidden sm:inline">Sort by:</span>
-      <select id={sortId} class="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+      <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest hidden sm:inline">Category:</span>
+      <select id={categoryFilterId} class="pl-3 pr-8 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer appearance-none transition-colors">
+        <option value="">All Categories</option>
+        {categories.map(cat => (
+            <option value={cat.id}>{cat.icon} {cat.label}</option>
+        ))}
+      </select>
+    </div>
+
+    {/* Result Count (Hydrated by JS) */}
+    <span id="results-count" class="text-[10px] font-black text-indigo-500 uppercase tracking-widest hidden lg:inline bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded">
+       Syncing...
+    </span>
+
+    {/* Sort Select */}
+    <div class="flex items-center gap-2 border-l border-gray-100 dark:border-gray-700 pl-4">
+      <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest hidden sm:inline">Sort:</span>
+      <select id={sortId} class="pl-3 pr-8 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer appearance-none transition-colors">
         <option value="fni">🛡️ FNI Score</option>
-        {type === 'model' && <option value="downloads">📥 Downloads</option>}
-        {type === 'model' && <option value="likes">❤️ Likes</option>}
-        <option value="recent">🕐 Recently Updated</option>
+        {['model', 'agent', 'space'].includes(type) && <option value="downloads">📥 Downloads</option>}
+        {['model', 'agent', 'space'].includes(type) && <option value="likes">❤️ Likes</option>}
+        <option value="recent">🕐 Updated</option>
         <option value="name">🔤 Name</option>
       </select>
     </div>
   </div>
 </div>
+
+<style>
+  select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+  }
+</style>
