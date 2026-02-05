@@ -250,36 +250,51 @@ jobs:
           echo "📦 Downloaded batches:"
           ls -la data/raw_batch_*.json 2>/dev/null || echo "No batch files found"
           
-      # Restore persistent cache
       - name: Restore FNI History
         uses: actions/cache@v4
         with:
-          path: cache/fni-history.json
+          path: |
+            cache/fni-history.json
+            cache/fni-history/
           key: fni-history-${{ github.run_id }}
           restore-keys: |
             fni-history-
 
-      - name: Restore Weekly Accumulator
+      - name: Restore Daily Accumulator
         uses: actions/cache@v4
         with:
-          path: cache/weekly-accum.json
-          key: weekly-accum-${{ github.run_id }}
+          path: |
+            cache/daily-accum.json
+            cache/daily-accum/
+          key: daily-accum-${{ github.run_id }}
           restore-keys: |
-            weekly-accum-
+            daily-accum-
+
+      - name: Restore Checksums
+        uses: actions/cache@v4
+        with:
+          path: |
+            cache/entity-checksums.json
+            cache/task-checksums.json
+          key: checksums-${{ github.run_id }}
+          restore-keys: |
+            checksums-
           
       # V4.1: Restore global registry (Immutable Key + Prefix Match)
       - name: Restore Global Registry (Cache-First)
         id: cache-registry
         uses: actions/cache/restore@v4
         with:
-          path: cache/global-registry.json
+          path: |
+            cache/global-registry.json
+            cache/registry/
           key: global-registry-${{ github.run_id }}  # Won't match (not saved yet)
           restore-keys: |
             global-registry-
           # GitHub auto-selects the most recently created match
 
       # V4.1: R2 Dual-Version Fallback (current → previous)
-      - name: R2 Fallback - Download Registry
+      - name: R2 Fallback & Pre-validation
         if: steps.cache-registry.outputs.cache-hit != 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -291,21 +306,21 @@ jobs:
           echo "⚠️ Cache miss. Attempting R2 dual-version fallback..."
           mkdir -p cache
           
-          # Try current first
-          if npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-current.json --file=cache/global-registry.json --remote 2>/dev/null; then
-            echo "✅ Restored from R2: global-registry-current.json"
-          # Then try previous
+          # 1. Restore Registry (Current/Previous)
+          if npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=cache/global-registry.json --remote 2>/dev/null; then
+            echo "✅ Restored from R2: global-registry.json"
           elif npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-previous.json --file=cache/global-registry.json --remote 2>/dev/null; then
             echo "⚠️ Restored from R2: global-registry-previous.json (fallback)"
-          # Legacy fallback
-          elif npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=cache/global-registry.json --remote 2>/dev/null; then
-            echo "⚠️ Restored from R2: global-registry.json (legacy)"
-          else
-            echo "🔴 R2 Fallback failed. Starting cold (first run)."
           fi
           
-          # Also try to fetch entity checksums if available
-          npx -y wrangler r2 object get $R2_BUCKET/cache/entity-checksums.json --file=cache/entity-checksums.json --remote 2>/dev/null || true
+          # 2. Restore FNI History
+          npx -y wrangler r2 object get $R2_BUCKET/meta/backup/fni-history.json --file=cache/fni-history.json --remote 2>/dev/null && echo "✅ Restored FNI History from R2" || true
+          
+          # 3. Restore Daily Accum
+          npx -y wrangler r2 object get $R2_BUCKET/meta/backup/daily-accum.json --file=cache/daily-accum.json --remote 2>/dev/null && echo "✅ Restored Daily Accum from R2" || true
+          
+          # 4. Restore Entity Checksums
+          npx -y wrangler r2 object get $R2_BUCKET/meta/backup/entity-checksums.json --file=cache/entity-checksums.json --remote 2>/dev/null && echo "✅ Restored Checksums from R2" || true
 
       # Merge batches with ID deduplication
       - name: Merge Batches
@@ -339,9 +354,7 @@ jobs:
             data/merged.json
             data/merged_shard_*.json
             data/manifest.json
-            cache/fni-history.json
-            cache/weekly-accum.json
-            cache/global-registry.json
+            cache/
           key: cycle-${{ github.run_id }}-harvest
 
 

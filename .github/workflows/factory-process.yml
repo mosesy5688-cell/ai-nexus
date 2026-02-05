@@ -77,8 +77,11 @@ jobs:
             data/merged_shard_*.json
             data/manifest.json
             cache/fni-history.json
-            cache/weekly-accum.json
+            cache/fni-history/
+            cache/daily-accum.json
+            cache/daily-accum/
             cache/global-registry.json
+            cache/registry/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-harvest
           restore-keys: |
             cycle-
@@ -146,7 +149,7 @@ jobs:
           # If files are at root, move them
           [ -f merged.json ] && mv merged.json data/merged.json
           [ -f fni-history.json ] && mv fni-history.json cache/fni-history.json
-          [ -f weekly-accum.json ] && mv weekly-accum.json cache/weekly-accum.json
+          [ -f daily-accum.json ] && mv daily-accum.json cache/daily-accum.json
           
           # Files may already be in correct paths from artifact
           echo "📂 Final data structure:"
