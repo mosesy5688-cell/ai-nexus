@@ -27,6 +27,11 @@ export async function fetchCatalogData(typeOrCategory, runtimeEnv = null) {
         try {
             const obj = await runtimeEnv.R2_ASSETS.get(`cache/${path}`);
             if (obj) {
+                // Art 5.1: Memory Safety - Reject chunks > 2MB to prevent Worker 1102
+                if (obj.size > 2000000) {
+                    console.warn(`[CatalogFetcher] R2 Rankings ${typeOrCategory} too large for SSR (${obj.size} bytes)`);
+                    return { items: [], error: 'Data overflow', source: 'safety-limit' };
+                }
                 const data = await obj.json();
                 items = extractItems(data);
                 source = `r2-rankings-${typeOrCategory}`;
