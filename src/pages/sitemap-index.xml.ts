@@ -29,12 +29,24 @@ export const GET: APIRoute = async () => {
 
         // Fallback: Generate minimal sitemap index
         const now = new Date().toISOString().split('T')[0];
+        const sitemaps = [
+            'sitemap-static.xml',
+            'sitemap-1.xml.gz',
+            'sitemap-2.xml.gz',
+            'sitemap-3.xml.gz',
+            'sitemap-4.xml.gz',
+            'sitemap-5.xml.gz',
+            'sitemap-6.xml.gz',
+            'sitemap-7.xml.gz'
+        ];
+
         const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  ${sitemaps.map(s => `
   <sitemap>
-    <loc>https://free2aitools.com/sitemap-static.xml</loc>
+    <loc>https://free2aitools.com/sitemaps/${s}</loc>
     <lastmod>${now}</lastmod>
-  </sitemap>
+  </sitemap>`).join('')}
 </sitemapindex>`;
 
         return new Response(fallbackXml, {
