@@ -5,7 +5,7 @@
  * Optimized for Zero-Runtime and Bidirectional Discovery.
  */
 import { fetchMeshRelations, fetchGraphMetadata, stripPrefix, isMatch, getRouteFromId } from '../utils/knowledge-cache-reader.js';
-import rankingsData from '../data/rankings.json';
+// import rankingsData from '../data/rankings.json'; // PURGED: SSR must use R2-based orchestrator
 import '../styles/neural-graph.css';
 
 interface Props {
