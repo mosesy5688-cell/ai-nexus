@@ -39,7 +39,8 @@ export class CatalogDataSource {
 
         try {
             this.currentShard++;
-            const shardUrl = this.dataUrl.replace(/p\d+\.json/, `p${this.currentShard}.json`);
+            // V16.5: SSOT Tier 2 - /lists/{type}/page-{n}.json
+            const shardUrl = `https://cdn.free2aitools.com/cache/lists/${this.type}/page-${this.currentShard}.json`;
 
             const res = await fetch(shardUrl);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -77,7 +78,8 @@ export class CatalogDataSource {
 
     async augmentSearch() {
         try {
-            const res = await fetch('https://cdn.free2aitools.com/cache/search-core.json');
+            // V16.5: SSOT Tier 3 - /indexes/search-shard-0.json
+            const res = await fetch('https://cdn.free2aitools.com/cache/indexes/search-shard-0.json');
             if (!res.ok) return;
             const data = await res.json();
 

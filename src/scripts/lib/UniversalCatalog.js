@@ -154,11 +154,13 @@ export class UniversalCatalog {
 
     updateStats() {
         if (this.countLabel) {
-            const visible = Math.min(this.currentPage * this.itemsPerPage, this.filtered.length);
             const total = this.source.totalEntities || this.filtered.length;
-            this.countLabel.textContent = this.source.isLoadingShard
-                ? `Syncing R2 Shard ${this.source.currentShard}/${this.source.totalPages}...`
-                : `${visible} visible of ${total.toLocaleString()} total ${this.source.type}s`;
+            if (this.source.isLoadingShard) {
+                this.countLabel.textContent = `Syncing Technical Index [Shard ${this.source.currentShard}/${this.source.totalPages}]...`;
+            } else {
+                // V16.5: Professional Intelligence Terminology
+                this.countLabel.textContent = `${total.toLocaleString()} ${this.source.type}s indexed in Professional Intelligence Database`;
+            }
         }
     }
 }

@@ -63,13 +63,13 @@ export class EntityCardRenderer {
         const typeLabel = (item.pipeline_tag || item.primary_category || type).replace(/-/g, ' ');
         const link = this.getLink(type, item);
 
-        // Define color scheme based on type
-        let badgeColor = 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400';
-        if (type === 'agent') badgeColor = 'bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400';
-        if (type === 'space') badgeColor = 'bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400';
-        if (type === 'tool') badgeColor = 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400';
-        if (type === 'dataset') badgeColor = 'bg-sky-50 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400';
-        if (type === 'paper') badgeColor = 'bg-amber-50 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400';
+        // V16.5: Pro-Density Badge Logic
+        let badgeColor = 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400';
+        if (type === 'agent') badgeColor = 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400';
+        if (type === 'space') badgeColor = 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
+        if (type === 'tool') badgeColor = 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400';
+        if (type === 'dataset') badgeColor = 'bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400';
+        if (type === 'paper') badgeColor = 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
 
         const displayTitle = item.name || item.id?.split('/').pop() || 'Untitled Entity';
 
