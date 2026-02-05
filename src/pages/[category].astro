@@ -21,18 +21,7 @@ const meta = CATEGORY_METADATA[category!] || {
 };
 
 // V16.9.23: Use unified fetcher for fallback and multi-type support
-// Note: fetchCatalogData needs to handle category as a parameter or we use the rankings URL
-const rankingsUrl = `https://cdn.free2aitools.com/cache/rankings/${category}/p1.json`;
-let items = [];
-try {
-    const res = await fetch(rankingsUrl);
-    if (res.ok) {
-        const data = await res.json();
-        items = (data.entities || data.items || data.models || []).slice(0, 48).map(truncateListingItem);
-    }
-} catch (e) {
-    console.warn(`[Category] Failed to fetch items for ${category}:`, e.message);
-}
+const { items = [], source } = await fetchCatalogData(category, (Astro as any).locals.runtime);
 
 const pageTitle = `${meta.label} - AI Technical Index | Free2AI`;
 const pageDescription = `Discover the best ${meta.label} AI models, agents, tools and research. Updated daily.`;
