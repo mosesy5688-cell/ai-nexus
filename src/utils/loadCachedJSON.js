@@ -10,6 +10,8 @@
  * @module utils/loadCachedJSON
  */
 
+import { R2_CACHE_URL } from '../config/constants.ts';
+
 /**
  * Load JSON data from cache with fallback support
  * @template T
@@ -43,10 +45,9 @@ export async function loadCachedJSON(path, options = {}) {
     // Strategy 2: Direct fetch from CDN/R2 (Browser or SSR Fallback)
     try {
         let fetchUrl = path;
-        // In SSR, if not absolute and no R2, we need a base URL
-        if (typeof window === 'undefined' && !path.startsWith('http')) {
-            // Default to production domain if unknown
-            fetchUrl = `https://free2aitools.com${path.startsWith('/') ? '' : '/'}${path}`;
+        if (!path.startsWith('http')) {
+            const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+            fetchUrl = `${R2_CACHE_URL}/${cleanPath}`;
         }
 
         const res = await fetch(fetchUrl, {
