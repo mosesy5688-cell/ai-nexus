@@ -160,6 +160,57 @@ async function main() {
             lastUpdated: new Date().toISOString()
         });
 
+        // V17.5: Mirror baseline state files to output for R2 unified distribution (Step 4/4)
+        console.log(`[AGGREGATOR] 📂 Mirroring state files for R2 backup...`);
+        const backupDir = path.join(CONFIG.OUTPUT_DIR, 'meta', 'backup');
+        await fs.mkdir(backupDir, { recursive: true });
+
+        // A. Mirror Monoliths
+        const monoliths = ['global-registry.json', 'fni-history.json', 'daily-accum.json', 'entity-checksums.json'];
+        for (const file of monoliths) {
+            const src = path.join(process.env.CACHE_DIR, file);
+            try {
+                await fs.access(src);
+                await fs.copyFile(src, path.join(backupDir, file));
+            } catch { /* skip missing */ }
+        }
+
+        // B. Mirror Sharded Registry (Recursive)
+        const shardSrcDir = path.join(process.env.CACHE_DIR, 'registry');
+        const shardDestDir = path.join(backupDir, 'registry');
+        try {
+            await fs.access(shardSrcDir);
+            await fs.mkdir(shardDestDir, { recursive: true });
+            const shards = await fs.readdir(shardSrcDir);
+            for (const shard of shards) {
+                await fs.copyFile(path.join(shardSrcDir, shard), path.join(shardDestDir, shard));
+            }
+        } catch { /* skip missing */ }
+
+        // C. Mirror Sharded FNI History (Recursive) - V17.6
+        const fniShardSrcDir = path.join(process.env.CACHE_DIR, 'fni-history');
+        const fniShardDestDir = path.join(backupDir, 'fni-history');
+        try {
+            await fs.access(fniShardSrcDir);
+            await fs.mkdir(fniShardDestDir, { recursive: true });
+            const fniShards = await fs.readdir(fniShardSrcDir);
+            for (const shard of fniShards) {
+                await fs.copyFile(path.join(fniShardSrcDir, shard), path.join(fniShardDestDir, shard));
+            }
+        } catch { /* skip missing */ }
+
+        // D. Mirror Sharded Daily Accum (Recursive) - V17.7
+        const accShardSrcDir = path.join(process.env.CACHE_DIR, 'daily-accum');
+        const accShardDestDir = path.join(backupDir, 'daily-accum');
+        try {
+            await fs.access(accShardSrcDir);
+            await fs.mkdir(accShardDestDir, { recursive: true });
+            const accShards = await fs.readdir(accShardSrcDir);
+            for (const shard of accShards) {
+                await fs.copyFile(path.join(accShardSrcDir, shard), path.join(accShardDestDir, shard));
+            }
+        } catch { /* skip missing */ }
+
         // GitHub Actions Cache Sync (Robust V2.0 Sync)
         const TARGET_CACHE_DIR = './cache';
         await syncCacheState(process.env.CACHE_DIR, TARGET_CACHE_DIR);

@@ -322,6 +322,27 @@ jobs:
           # 4. Restore Entity Checksums
           npx -y wrangler r2 object get $R2_BUCKET/meta/backup/entity-checksums.json --file=cache/entity-checksums.json --remote 2>/dev/null && echo "✅ Restored Checksums from R2" || true
 
+          # 5. Restore Shards (Robust Sharded Restoration V2.1)
+          echo "🧩 Fetching sharded registry baseline..."
+          mkdir -p cache/registry
+          # Sync registry folder recursively (if monolith is corrupted/missing)
+          # We use a pattern-based move or sequential get for known shards
+          for i in {000..015}; do
+            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/registry/part-$i.json --file=cache/registry/part-$i.json --remote 2>/dev/null && echo "  - Registry Shard $i restored" || break
+          done
+
+          echo "🧩 Fetching sharded FNI history baseline..."
+          mkdir -p cache/fni-history
+          for i in {000..015}; do
+            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/fni-history/part-$i.json --file=cache/fni-history/part-$i.json --remote 2>/dev/null && echo "  - FNI Shard $i restored" || break
+          done
+
+          echo "🧩 Fetching sharded Accumulator baseline..."
+          mkdir -p cache/daily-accum
+          for i in {000..015}; do
+            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/daily-accum/part-$i.json --file=cache/daily-accum/part-$i.json --remote 2>/dev/null && echo "  - Accum Shard $i restored" || break
+          done
+
       # Merge batches with ID deduplication
       - name: Merge Batches
         env:
