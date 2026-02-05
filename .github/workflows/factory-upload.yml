@@ -4,8 +4,6 @@
 # Triggers: workflow_run from Aggregate, or manual dispatch
 # Inputs: factory-output artifact/cache from Aggregate stage
 # Jobs: Relations, Knowledge Mesh, RSS, and Final R2 Upload
-# 
-# Constitution: Art 3.1 (Factory), Art 13.4 (Non-Destructive)
 
 name: Factory 4/4 - Finalize
 
@@ -27,6 +25,7 @@ env:
   R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
   R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
   R2_BUCKET: ai-nexus-assets
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   NODE_OPTIONS: '--max-old-space-size=6144'
 
 jobs:
@@ -41,24 +40,17 @@ jobs:
       - name: Verify Upstream Conclusion
         if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'success' }}
         run: |
-          echo "❌ ERROR: Upstream workflow '${{ github.event.workflow_run.name }}' failed with conclusion '${{ github.event.workflow_run.conclusion }}'."
-          echo "Aborting Factory 4/4 to prevent data corruption."
+          echo "ERROR: Upstream workflow '${{ github.event.workflow_run.name }}' failed with conclusion '${{ github.event.workflow_run.conclusion }}'."
           exit 1
       - name: Get ID
         id: get-id
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # V17.6: Optimized ID resolution
           AGGREGATE_RUN_ID=${{ inputs.run_id || github.event.workflow_run.id }}
-          
           if [ -z "$AGGREGATE_RUN_ID" ] || [ "$AGGREGATE_RUN_ID" == "null" ]; then
-            echo "🔍 Manual dispatch without ID: Finding latest successful Aggregate run on main..."
+            echo "Finding latest successful Aggregate run on main..."
             AGGREGATE_RUN_ID=$(gh run list --workflow factory-aggregate.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           fi
-          
           echo "id=$AGGREGATE_RUN_ID" >> $GITHUB_OUTPUT
-          echo "✅ Resolved Aggregate ID: $AGGREGATE_RUN_ID"
 
   explicit-links:
     name: Explicit Relations
@@ -142,12 +134,7 @@ jobs:
         with: { node-version: '20', cache: 'npm' }
       - run: npm ci
       - name: Download Registry Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: core-registry-v2
-          path: output/
-          run-id: ${{ needs.check-upstream.outputs.upstream-run-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        run: gh run download ${{ needs.check-upstream.outputs.upstream-run-id }} -n core-registry-v2 -D output/
       - name: Download knowledge links
         uses: actions/download-artifact@v4
         with: { name: knowledge-links, path: output/cache/relations/ }
@@ -170,12 +157,7 @@ jobs:
         with: { node-version: '20', cache: 'npm' }
       - run: npm ci
       - name: Download Registry Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: core-registry-v2
-          path: output/
-          run-id: ${{ needs.check-upstream.outputs.upstream-run-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        run: gh run download ${{ needs.check-upstream.outputs.upstream-run-id }} -n core-registry-v2 -D output/
       - name: Download Relations
         uses: actions/download-artifact@v4
         with: { pattern: '*-relations', path: output/cache/relations/ }
@@ -201,12 +183,7 @@ jobs:
         with: { node-version: '20', cache: 'npm' }
       - run: npm ci
       - name: Download Registry Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: core-registry-v2
-          path: output/
-          run-id: ${{ needs.check-upstream.outputs.upstream-run-id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+        run: gh run download ${{ needs.check-upstream.outputs.upstream-run-id }} -n core-registry-v2 -D output/
       - name: Download knowledge data
         uses: actions/download-artifact@v4
         with: { name: knowledge-data, path: output/cache/knowledge/ }
@@ -236,22 +213,13 @@ jobs:
           restore-keys: cycle-
       - name: Download All Enrichment Artifacts
         uses: actions/download-artifact@v4
-        with: { path: output/ } # Merges into correct paths via relative structure
-      - name: Validate Combined Metadata
-        run: |
-          mkdir -p output/cache/relations/ output/cache/knowledge/ output/cache/mesh/ output/rss/
-          # Ensure critical files are present (handles download-artifact flat patterns if any)
-          ls -R output/cache/
+        with: { path: output/ }
       - name: R2 Registry Version Rotation
         run: |
-          FILE_SIZE=$(stat -c%s "output/entities.json" 2>/dev/null || echo "0")
-          SIZE_MB=$((FILE_SIZE / 1048576))
-          if [ "$SIZE_MB" -lt 290 ]; then
-            if npx wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-current.json --file=./temp.json --remote 2>/dev/null; then
-              npx wrangler r2 object put $R2_BUCKET/meta/backup/global-registry-previous.json --file=./temp.json --remote
-            fi
-            npx wrangler r2 object put $R2_BUCKET/meta/backup/global-registry-current.json --file=output/entities.json --remote
+          if npx wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-current.json --file=./temp.json --remote 2>/dev/null; then
+            npx wrangler r2 object put $R2_BUCKET/meta/backup/global-registry-previous.json --file=./temp.json --remote
           fi
+          npx wrangler r2 object put $R2_BUCKET/meta/backup/global-registry-current.json --file=output/entities.json --remote
       - name: Upload to R2 via S3 API
         env:
           R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/rankings/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-full.json,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,daily/,meta/,sitemaps/,rss/,sitemap.xml
@@ -264,5 +232,4 @@ jobs:
             --data "{\"files\":$PURGE_PATHS}"
       - name: Trigger Health Check
         run: gh workflow run daily-health-check.yml
-        env: { GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} }
         continue-on-error: true
