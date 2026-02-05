@@ -89,9 +89,15 @@ jobs:
           restore-keys: |
             cycle-
 
+      - name: Clean Environment Residue
+        run: |
+          echo "🧹 Cleaning any residue from previous failed runs..."
+          rm -rf cache/ data/ output/meta/backup/
+          mkdir -p cache data output/meta/backup
+
       - name: Organize Shards & Context
         run: |
-          mkdir -p artifacts output/cache/entities data cache
+          mkdir -p artifacts output/cache/entities
           # 1. Move Shards from cache
           if [ -d "output/shards" ]; then
             SHARD_COUNT=$(find output/shards -name "shard-*.json" | wc -l)
@@ -143,6 +149,7 @@ jobs:
             node scripts/factory/aggregator.js --task=core
 
       - name: Consolidate Final Artifacts & Context
+        if: success()
         run: |
           mkdir -p output/cache output/meta/backup cache
           # 1. Mirror production artifacts for R2 distribution (Stage 4/4)
@@ -150,7 +157,12 @@ jobs:
           
           # 2. Mirror BACK to root cache/ for persistent memory (Stage 1/4)
           # aggreagtor.js saved to output/meta/backup, we need it in cache/ for the GH-Cache-Save
-          cp -r output/meta/backup/* cache/ 2>/dev/null || true
+          if [ -d "output/meta/backup" ] && [ "$(ls -A output/meta/backup)" ]; then
+            cp -r output/meta/backup/* cache/ 2>/dev/null || true
+            echo "✅ Synced production backups to cache for next cycle."
+          else
+            echo "⚠️ No production backups found to sync."
+          fi
           
           echo "📦 Final output structure for R2:"
           ls -R output/meta/backup/ | head -20
