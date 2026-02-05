@@ -1,134 +1,106 @@
-import { generateUrlSlug } from './url-utils.js';
+/**
+ * catalog-fetcher.js (V16.9.23)
+ * SSR Data Orchestrator for 6 Entity Catalogs & Category Hubs
+ * Handles R2 (internal) -> CDN (public) fallback with Tiered Recovery.
+ */
+import { DataNormalizer } from '../scripts/lib/DataNormalizer.js';
+
+const CDN_BASE = 'https://cdn.free2aitools.com/cache';
 
 /**
- * catalog-fetcher.js
- * Centralized logic for fetching catalog data in Astro SSR (Zero-Runtime)
- * Handles R2 (internal) -> CDN (public) fallback.
+ * Fetches catalog data with tiered fallback
+ * @param {string} typeOrCategory - Entity type (model, agent...) or Category ID
+ * @param {object} runtimeEnv - Optional environment for R2 direct access (Astro context)
  */
+export async function fetchCatalogData(typeOrCategory, runtimeEnv = null) {
+    const isType = ['model', 'agent', 'dataset', 'paper', 'space', 'tool'].includes(typeOrCategory);
 
-export async function fetchCatalogData(type, runtimeEnv) {
+    // rankings/[type|category]/p1.json
+    const path = `rankings/${typeOrCategory}/p1.json`;
+    const cdnUrl = `${CDN_BASE}/${path}`;
+
     let items = [];
-    let error = null;
     let source = 'none';
 
-    console.log(`[CatalogFetcher] Loading ${type}...`);
-
-    try {
-        // 1. Try env.R2_ASSETS (Cloudflare Internal)
-        if (runtimeEnv?.R2_ASSETS) {
-            const r2 = runtimeEnv.R2_ASSETS;
-
-            // A. Try RANKING PATH (Most accurate for sorted lists)
-            try {
-                const rankingFile = await r2.get(`cache/rankings/${type}/p1.json`);
-                if (rankingFile) {
-                    const data = await rankingFile.json();
-                    items = (data.items || data.entities || data.models || []).map(normalizeItem);
-                    source = `r2-rankings-${type}`;
-                }
-            } catch (e) {
-                console.log(`[CatalogFetcher] R2 Rankings miss for ${type}, falling back to entities.json`);
+    // Tier 1: Try R2 Internal (Rankings)
+    if (runtimeEnv?.R2_ASSETS) {
+        try {
+            const obj = await runtimeEnv.R2_ASSETS.get(`cache/${path}`);
+            if (obj) {
+                const data = await obj.json();
+                items = extractItems(data);
+                source = `r2-rankings-${typeOrCategory}`;
             }
-
-            // Fallback to legacy trending.json if rankings fail
-            if (items.length === 0) {
-                try {
-                    const trendFile = await r2.get('cache/trending.json');
-                    if (trendFile) {
-                        const data = await trendFile.json();
-                        items = parseData(data, type);
-                        source = 'r2-trend-fallback';
-                    }
-                } catch (ex) { /* ignore */ }
-            }
+        } catch (e) {
+            console.warn(`[CatalogFetcher] R2 Rankings miss for ${typeOrCategory}`);
         }
-
-        // 2. Fallback to CDN (Public)
-        if (items.length === 0) {
-            try {
-                console.log(`[CatalogFetcher] Fetching from CDN...`);
-                const res = await fetch('https://cdn.free2aitools.com/cache/trending.json', {
-                    headers: { 'User-Agent': 'Free2AI-SSR/1.0' },
-                    signal: AbortSignal.timeout(8000)
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    items = parseData(data, type);
-                    source = 'cdn';
-                }
-            } catch (e) {
-                console.error(`[CatalogFetcher] CDN Fetch Error:`, e);
-                error = e.message;
-            }
-        }
-    } catch (e) {
-        console.error(`[CatalogFetcher] Critical Error:`, e);
-        error = e.message;
     }
 
-    console.log(`[CatalogFetcher] Loaded ${items.length} ${type} from ${source}`);
-    return { items, error, source };
-}
-
-// Helper: Extract valid items based on type
-function parseData(data, type) {
-    let all = [];
-
-    // Normalize structure (Handle array vs object)
-    if (Array.isArray(data)) {
-        all = data;
-    } else if (data.models || data.agents) {
-        // Combined structure
-        all = [
-            ...(data.models || []),
-            ...(data.agents || []),
-            ...(data.spaces || []),
-            ...(data.tools || []),
-            ...(data.datasets || []),
-            ...(data.papers || [])
-        ];
+    // Tier 2: Try CDN Rankings
+    if (items.length === 0) {
+        try {
+            const res = await fetch(cdnUrl, { signal: AbortSignal.timeout(5000) });
+            if (res.ok) {
+                const data = await res.json();
+                items = extractItems(data);
+                source = `cdn-rankings-${typeOrCategory}`;
+            }
+        } catch (e) {
+            console.warn(`[CatalogFetcher] CDN Rankings fail for ${typeOrCategory}`);
+        }
     }
 
-    // Filter by type
-    return all.filter(item => {
-        // Strict Type Check
-        if (type === 'model') return item.type === 'model' || (item.id && !item.type && !item.id.startsWith('space/'));
-        if (type === 'agent') return item.type === 'agent' || (item.id && item.id.includes('agent'));
-        if (type === 'space') return item.type === 'space' || (item.id && item.id.startsWith('space/'));
-        if (type === 'tool') return item.type === 'tool';
-        if (type === 'dataset') return item.type === 'dataset' || (item.id && item.id.startsWith('dataset/'));
-        if (type === 'paper') return item.type === 'paper' || (item.id && (item.id.includes('arxiv') || item.id.startsWith('paper')));
-        return false;
-    }).map(normalizeItem);
-}
+    // Tier 3: Trending Fallback (filtered by type or category)
+    if (items.length === 0) {
+        try {
+            const trendUrl = `${CDN_BASE}/trending.json`;
+            const res = await fetch(trendUrl);
+            if (res.ok) {
+                const data = await res.json();
+                const allRaw = data.entities || data.models || data.items || [];
 
+                if (isType) {
+                    items = allRaw.filter(i => i.type === typeOrCategory || (typeOrCategory === 'model' && !i.type));
+                } else {
+                    items = allRaw.filter(i => (i.category === typeOrCategory || i.primary_category === typeOrCategory));
+                }
+                source = 'trending-fallback';
+            }
+        } catch (e) {
+            console.error(`[CatalogFetcher] Critical Fallback Failed:`, e.message);
+        }
+    }
 
-// Ensure consistent fields
-export function normalizeItem(item) {
+    const normalized = DataNormalizer.normalizeCollection(items, isType ? typeOrCategory : 'model');
+    console.log(`[CatalogFetcher] Resolved ${normalized.length} items for ${typeOrCategory} via ${source}`);
+
     return {
-        ...item,
-        name: item.name || item.id?.split('/').pop() || 'Untitled',
-        description: item.description || '',
-        slug: generateUrlSlug(item) || item.slug || item.id // Priority: Clean Slug
+        items: normalized,
+        error: normalized.length === 0 ? 'No entities found' : null,
+        source
     };
 }
 
+function extractItems(data) {
+    if (Array.isArray(data)) return data;
+    return data.entities || data.models || data.items || [];
+}
+
 /**
- * Truncate item for Minimal Listing Schema (SSR Optimization)
- * Keeps only fields required by EntityCardRenderer.js
+ * Truncates and cleans data for lightweight SSR injection
  */
 export function truncateListingItem(item) {
     if (!item) return null;
     return {
         id: item.id || '',
-        slug: item.slug || '',
         name: item.name || '',
-        description: item.description ? item.description.substring(0, 160) : '',
-        type: item.type || '',
+        author: item.author || 'Nexus Collective',
+        description: (item.description || '').substring(0, 160).replace(/<[^>]*>?/gm, ''),
+        slug: item.slug || '',
+        type: item.type || 'model',
         fni_score: item.fni_score || 0,
         downloads: item.downloads || 0,
         likes: item.likes || 0,
-        authors: item.authors || item.author || '', // Compatibility
-        sdk: item.sdk || '' // For Spaces
+        category: item.category || ''
     };
 }

@@ -52,6 +52,7 @@ export class UniversalCatalog {
 
         if (this.categoryFilter) {
             this.categoryFilter.addEventListener('change', (e) => {
+                this.updateUrlParam('category', e.target.value);
                 this.handleSearch(this.searchInput?.value || '', e.target.value);
             });
         }
@@ -60,6 +61,13 @@ export class UniversalCatalog {
         this.updateStats();
 
         if (this.config.dataUrl) this.loadFullData();
+    }
+
+    updateUrlParam(key, value) {
+        const url = new URL(window.location.href);
+        if (value) url.searchParams.set(key, value);
+        else url.searchParams.delete(key);
+        window.history.replaceState({}, '', url);
     }
 
     setupInfiniteScroll() {

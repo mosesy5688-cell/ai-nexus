@@ -1,204 +1,104 @@
 ---
 /**
  * [category].astro
- * V6.1 Category Listing Page with Client-Side Pagination
- * V3.2 Phase 7: Added CategoryFilters sidebar
- * 
- * SEO: Static-generated landing pages for each category
- * Constitution Annex A.2.1 - 5 Primary Categories
+ * V16.9.23 Unified Category Navigation
+ * Standardized for all 6 entity types (Models, Agents, Datasets, Papers, Spaces, Tools).
+ * Constitution V16.2 Knowledge Mesh Compliance.
  */
 
 import Layout from '../layouts/Layout.astro';
-import ModelCard from '../components/ModelCard.astro';
-import CategoryFilters from '../components/category/CategoryFilters.astro';
-import TopPicks from '../components/category/TopPicks.astro';
-
-// SSR Mode - Dynamic data-driven rendering
-// export const prerender = true;
-
+import ListingControls from '../components/common/ListingControls.astro';
+import CatalogCard from '../components/common/CatalogCard.astro';
+import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.js';
+import { CATEGORY_METADATA } from '../../scripts/l5/category-mapping.js';
 
 const { category } = Astro.params;
 
-// Category metadata
-const CATEGORY_META: Record<string, { name: string; description: string; icon: string }> = {
-  'text-generation': {
-    name: 'Text Generation & Content Creation',
-    description: 'Discover open-source language models for chat, code generation, content writing, summarization, and translation.',
-    icon: '💬'
-  },
-  'knowledge-retrieval': {
-    name: 'Knowledge Retrieval & Data Analysis',
-    description: 'Find embedding models, RAG solutions, and AI for document analysis, Q&A systems, and data insights.',
-    icon: '🔍'
-  },
-  'vision-multimedia': {
-    name: 'Vision & Multimedia Processing',
-    description: 'Explore image generation, video AI, speech recognition, and music synthesis models.',
-    icon: '🎨'
-  },
-  'automation-workflow': {
-    name: 'Automation & Workflow Integration',
-    description: 'Build AI agents, automation pipelines, and intelligent recommendation systems.',
-    icon: '⚡'
-  },
-  'infrastructure-ops': {
-    name: 'Infrastructure & Optimization',
-    description: 'Tools for model fine-tuning, deployment optimization, and inference acceleration.',
-    icon: '🔧'
-  },
-  'image-generation': {
-    name: 'Image Generation & Multimedia Processing',
-    description: 'Explore high-quality models for text-to-image, video synthesis, and creative AI.',
-    icon: '🎨'
-  }
+const meta = CATEGORY_METADATA[category!] || {
+  label: category!.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
+  icon: '📁',
+  description: `Explore top AI resources in the ${category} category.`
 };
 
-const meta = CATEGORY_META[category!] || {
-  name: category!.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ') + ' - Technical Index',
-  description: `Explore top AI models in the ${category} category. Powered by Free2AI.`,
-  icon: '📁'
-};
-
-// V6.0.1: Fetch models from CDN rankings with Tiered Fallback
-let models: any[] = [];
-let totalCount = 0;
-let isFallbackData = false;
-
+// V16.9.23: Use unified fetcher for fallback and multi-type support
+// Note: fetchCatalogData needs to handle category as a parameter or we use the rankings URL
+const rankingsUrl = `https://cdn.free2aitools.com/cache/rankings/${category}/p1.json`;
+let items = [];
 try {
-  const rankingsUrl = `https://cdn.free2aitools.com/cache/rankings/${category}/p1.json`;
-  const response = await fetch(rankingsUrl);
-  
-  if (response.ok) {
-    const data = await response.json();
-    // V10.1 / V16.6 Fix: CDN returns 'entities' for Universal Protocol
-    models = data.entities || data.items || data.models || [];
-    totalCount = data.totalEntities || data.total_items || models.length;
-  } else {
-    // Tiered Fallback: If category-specific rankings are missing, fetch trending as proxy
-    console.warn(`⚠️ [Category] Rankings miss for ${category}. Fetching trending-fallback.`);
-    const trendRes = await fetch('https://cdn.free2aitools.com/cache/trending.json');
-    if (trendRes.ok) {
-        const trendData = await trendRes.json();
-        models = (trendData.models || trendData || []).filter((m: any) => 
-            (m.tags?.includes(category)) || (m.primary_category === category)
-        );
-        totalCount = models.length;
-        isFallbackData = true;
+    const res = await fetch(rankingsUrl);
+    if (res.ok) {
+        const data = await res.json();
+        items = (data.entities || data.items || data.models || []).slice(0, 48).map(truncateListingItem);
     }
-  }
 } catch (e) {
-  console.error(`[Category] Fatal fetch error for ${category}:`, e);
+    console.warn(`[Category] Failed to fetch items for ${category}:`, e.message);
 }
 
-const pageTitle = `${meta.name} - Technical Index | Free2AI`;
-const pageDescription = meta.description + " Powered by Free2AI.";
-
-// Pagination config
-const ITEMS_PER_PAGE = 24;
-const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
-const initialModels = models.slice(0, ITEMS_PER_PAGE);
+const pageTitle = `${meta.label} - AI Technical Index | Free2AI`;
+const pageDescription = `Discover the best ${meta.label} AI models, agents, tools and research. Updated daily.`;
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
-  <main class="container mx-auto px-4 py-8">
-    <!-- Header -->
-    <header class="mb-8">
-      <div class="flex items-center gap-4 mb-3">
-        <span class="text-4xl">{meta.icon}</span>
-        <div>
-          <h1 class="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">
-            {meta.name}
-          </h1>
-          <p class="text-[12px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
-            <span id="model-count">{totalCount.toLocaleString()}</span> Entities Indexed
-          </p>
-        </div>
-      </div>
-      <p class="text-lg text-gray-600 dark:text-gray-400 max-w-3xl">
-        {meta.description}
-      </p>
-    </header>
-
-    <!-- Top Picks Section (Phase 7) -->
-    <TopPicks models={models} category={category} />
-
-    <!-- Two Column Layout: Filters + Content -->
-    <div class="flex flex-col lg:flex-row gap-8">
-      <!-- Sidebar Filters (Phase 7: Simplified) -->
-      <CategoryFilters category={category} />
-      
-      <!-- Main Content -->
-      <div class="flex-1">
-        <!-- Sort Bar (Updated for FNI default) -->
-        <div class="filter-bar mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <div class="flex flex-wrap gap-4 items-center justify-between">
-            <div class="flex items-center gap-3">
-              <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Sort by:
-              </label>
-              <select id="sort-select" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm">
-                <option value="fni" selected>🛡️ FNI Score (Recommended)</option>
-                <option value="popular">⬇️ Most Downloads</option>
-                <option value="recent">🆕 Most Recent</option>
-              </select>
+    <main class="container mx-auto px-4 py-12 min-h-screen">
+        <header class="mb-12">
+            <div class="flex items-center gap-4 mb-4">
+                <span class="text-5xl">{meta.icon}</span>
+                <div>
+                    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white tracking-tight">
+                        {meta.label} <span class="text-indigo-600">Archive</span>
+                    </h1>
+                    <p class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mt-1">
+                        V16.2 Knowledge Mesh Indexed
+                    </p>
+                </div>
             </div>
-            <span class="text-sm text-gray-500 dark:text-gray-400">
-              Page <span id="current-page">1</span> of <span id="total-pages">{totalPages}</span>
-            </span>
-          </div>
+            <p class="text-base text-gray-600 dark:text-zinc-400 max-w-2xl">
+                The authoritative directory of {meta.label.toLowerCase()} intelligence. Sharded across models, agents, datasets, and research.
+            </p>
+        </header>
+
+        <ListingControls type="all" searchId="category-search" categoryFilterId="category-filter" />
+
+        <div id="category-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {items.map((item: any) => (
+                <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <CatalogCard item={item} type={item.type || 'model'} />
+                </div>
+            ))}
+            {items.length === 0 && (
+                <div class="col-span-full py-20 text-center border-2 border-dashed border-gray-100 dark:border-gray-800 rounded-3xl">
+                    <span class="text-4xl block mb-4 opacity-50">📡</span>
+                    <p class="text-gray-400 font-bold uppercase tracking-widest text-sm">Synchronizing category data...</p>
+                    <p class="text-xs text-gray-500 mt-2 italic">Real-time indexing in progress for ${category}</p>
+                </div>
+            )}
         </div>
 
-        <!-- Model Grid -->
-    <div id="model-grid" class="model-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {initialModels.length > 0 ? (
-        initialModels.map((model: any) => (
-          <ModelCard model={model} />
-        ))
-      ) : (
-        <div class="col-span-full py-12 text-center text-gray-500">
-          <p class="text-lg">No models found in this category yet.</p>
-          <p class="text-sm mt-2">Check back soon as we're adding more models!</p>
-        </div>
-      )}
-    </div>
+        <div id="pagination" class="mt-16 flex justify-center items-center gap-4"></div>
+    </main>
 
-    <!-- Pagination -->
-    {totalPages > 1 && (
-      <div class="pagination mt-8 flex justify-center">
-        <nav id="pagination-nav" class="flex items-center gap-2">
-          <button 
-            id="prev-btn"
-            class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled
-          >
-            ← Previous
-          </button>
-          <div id="page-numbers" class="flex items-center gap-1">
-            <!-- Page numbers will be generated by JS -->
-          </div>
-          <button 
-            id="next-btn"
-            class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next →
-          </button>
-        </nav>
-      </div>
-    )}
-      </div>  <!-- Close flex-1 -->
-    </div>  <!-- Close flex container -->
-  </main>
+    <script define:vars={{ initialData: items, category }}>
+        window.__CATALOG_DATA__ = initialData;
+    </script>
 
-  <!-- Embed all models data for client-side pagination -->
-  <script define:vars={{ models, totalPages, ITEMS_PER_PAGE, category }}>
-    window.__CATEGORY_DATA__ = {
-      models: models,
-      totalPages: totalPages,
-      itemsPerPage: ITEMS_PER_PAGE,
-      category: category,
-      currentPage: 1
-    };
-  </script>
+    <script>
+        import { UniversalCatalog } from '../scripts/lib/UniversalCatalog.js';
+        
+        const init = () => {
+            // Get category from URL path for the dataUrl
+            const pathParts = window.location.pathname.split('/');
+            const category = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
 
-  <script src="../scripts/category-client.js"></script>
+            new UniversalCatalog({
+                initialData: window.__CATALOG_DATA__ || [],
+                type: 'all', // Show all types in category view
+                gridId: 'category-grid',
+                searchId: 'category-search',
+                dataUrl: `https://cdn.free2aitools.com/cache/rankings/${category}/p1.json`
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('astro:after-swap', init);
+    </script>
 </Layout>

@@ -39,6 +39,7 @@ export const DataNormalizer = {
             type,
             slug,
             author,
+            category: item.category || item.primary_category || '',
             // Handle both legacy 'fni' and current 'fni_score'
             fni_score: item.fni || item.fni_score || 0
         };
