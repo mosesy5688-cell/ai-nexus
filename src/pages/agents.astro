@@ -29,7 +29,7 @@ const pageDescription = "Discover and rank next-generation AI agents, autonomous
 
         <ListingControls type="agent" searchId="agents-search" />
 
-        <div id="agents-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div id="agents-catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {agents.map((agent: any) => (
                 <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <CatalogCard item={agent} type="agent" />
@@ -51,7 +51,7 @@ const pageDescription = "Discover and rank next-generation AI agents, autonomous
             new UniversalCatalog({
                 initialData: window.__CATALOG_DATA__ || [],
                 type: 'agent',
-                gridId: 'agents-grid',
+                gridId: 'agents-catalog-grid',
                 searchId: 'agents-search',
                 dataUrl: 'https://cdn.free2aitools.com/cache/rankings/agent/p1.json'
             });

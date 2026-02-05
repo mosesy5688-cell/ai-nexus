@@ -52,8 +52,12 @@ export class EntityCardRenderer {
 
     static createCardHTML(item, type) {
         const cleanDesc = this.cleanText(item.description || item.summary || '');
-        const fniDisplay = item.fni_score && item.fni_score > 0
-            ? `<span class="text-xs font-bold px-2 py-0.5 rounded-full ${(item.fni_percentile || 0) >= 90 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 dark:bg-zinc-800 text-gray-500'}">🛡️ ${Math.round(item.fni_score)}</span>`
+        const hasFni = item.fni_score !== undefined && item.fni_score !== null;
+        const fniDisplay = hasFni
+            ? `<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full ${(item.fni_percentile || 0) >= 90 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 dark:bg-zinc-800 text-gray-500'}">
+                <span class="text-[10px] font-bold">🛡️ ${Math.round(item.fni_score)}</span>
+                ${(item.fni_percentile || 0) >= 90 ? '<span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">TOP</span>' : ''}
+               </div>`
             : '';
 
         const typeLabel = (item.pipeline_tag || item.primary_category || type).replace(/-/g, ' ');

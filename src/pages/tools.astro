@@ -29,7 +29,7 @@ const pageDescription = "Discover the best open-source AI tools, libraries, and 
 
         <ListingControls type="tool" searchId="tools-search" />
 
-        <div id="tools-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div id="tools-catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {tools.map((tool: any) => (
                 <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <CatalogCard item={tool} type="tool" />
@@ -51,7 +51,7 @@ const pageDescription = "Discover the best open-source AI tools, libraries, and 
             new UniversalCatalog({
                 initialData: window.__CATALOG_DATA__ || [],
                 type: 'tool',
-                gridId: 'tools-grid',
+                gridId: 'tools-catalog-grid',
                 searchId: 'tools-search',
                 dataUrl: 'https://cdn.free2aitools.com/cache/rankings/tool/p1.json'
             });
