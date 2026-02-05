@@ -5,7 +5,7 @@
  * Routes: /sitemaps/[filename]
  * Examples:
  *   /sitemaps/sitemap-static.xml
- *   /sitemaps/models-1.xml.gz
+ *   /sitemaps/sitemap-1.xml.gz
  */
 
 import type { APIRoute, GetStaticPaths } from 'astro';
@@ -18,13 +18,13 @@ const R2_CDN_BASE = 'https://cdn.free2aitools.com';
 export const getStaticPaths: GetStaticPaths = async () => {
     return [
         { params: { filename: 'sitemap-static.xml' } },
-        { params: { filename: 'models-1.xml.gz' } },
-        { params: { filename: 'models-2.xml.gz' } },
-        { params: { filename: 'models-3.xml.gz' } },
-        { params: { filename: 'models-4.xml.gz' } },
-        { params: { filename: 'models-5.xml.gz' } },
-        { params: { filename: 'models-6.xml.gz' } },
-        { params: { filename: 'models-7.xml.gz' } },
+        { params: { filename: 'sitemap-1.xml.gz' } },
+        { params: { filename: 'sitemap-2.xml.gz' } },
+        { params: { filename: 'sitemap-3.xml.gz' } },
+        { params: { filename: 'sitemap-4.xml.gz' } },
+        { params: { filename: 'sitemap-5.xml.gz' } },
+        { params: { filename: 'sitemap-6.xml.gz' } },
+        { params: { filename: 'sitemap-7.xml.gz' } },
         { params: { filename: 'sitemap-index.xml' } },
     ];
 };
