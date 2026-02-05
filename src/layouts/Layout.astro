@@ -117,9 +117,17 @@ const schemaToUse = jsonld || defaultSchema;
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <!-- End Google Tag Manager (noscript) -->
     
+    <script is:inline>
+        // V16.9.24: Prevent FOUC by applying theme immediately
+        const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        if (theme === 'dark') document.documentElement.classList.add('dark');
+    </script>
+    
     <Header />
     <OnboardingTour />
-    <slot />
+    <main class="flex-grow container mx-auto px-4 py-8">
+        <slot />
+    </main>
     <Footer />
 </body>
 </html>

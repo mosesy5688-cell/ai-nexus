@@ -41,12 +41,12 @@ const CATEGORY_META: Record<string, { label: string; icon: string; description: 
 ---
 
 <Layout title={title} description={description}>
-    <div class="container mx-auto px-4 py-8">
+    <div class="py-4">
         <div class="text-center mb-12">
             <h1 class="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tighter mb-4">
                 AI Ecosystem Rankings
             </h1>
-            <p class="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto font-medium">
+            <p class="text-xl text-theme-secondary max-w-2xl mx-auto font-medium">
                 The Definitive High-Resolution Technical Index, driven by real-time R2 Neural Mesh data.
             </p>
         </div>
@@ -54,14 +54,14 @@ const CATEGORY_META: Record<string, { label: string; icon: string; description: 
         <!-- Main Categories (Dynamic Load) -->
         <div id="ranking-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
             {Object.entries(CATEGORY_META).map(([key, meta]) => (
-                <a href={meta.href} class="group relative p-8 rounded-[2rem] bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:shadow-2xl transition-all duration-500 overflow-hidden flex flex-col">
+                <a href={meta.href} class="group relative p-8 rounded-[2rem] bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:shadow-2xl transition-all duration-500 overflow-hidden flex flex-col glass-effect">
                     <div class="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
                          <span class="text-8xl">{meta.icon}</span>
                     </div>
                     <div class="relative z-10">
                         <div class="text-4xl mb-6">{meta.icon}</div>
-                        <h2 class="text-2xl font-black text-gray-900 dark:text-white mb-3">{meta.label}</h2>
-                        <p class="text-gray-600 dark:text-gray-400 mb-8 flex-grow">{meta.description}</p>
+                        <h2 class="text-2xl font-black text-theme-primary mb-3">{meta.label}</h2>
+                        <p class="text-theme-secondary mb-8 flex-grow">{meta.description}</p>
                         
                         <div class="flex items-center justify-between mt-auto">
                             <span class="inline-flex items-center text-blue-600 dark:text-blue-400 font-bold group-hover:gap-2 transition-all">
