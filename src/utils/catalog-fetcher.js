@@ -15,17 +15,31 @@ const CDN_BASE = 'https://cdn.free2aitools.com/cache';
 export async function fetchCatalogData(typeOrCategory, runtimeEnv = null) {
     const isType = ['model', 'agent', 'dataset', 'paper', 'space', 'tool'].includes(typeOrCategory);
 
-    // rankings/[type|category]/p1.json
-    const path = `rankings/${typeOrCategory}/p1.json`;
-    const cdnUrl = `${CDN_BASE}/${path}`;
+    // V16.5: SSOT Tier 1 - Rankings (FNI Top 100)
+    const rankingPath = `rankings/${typeOrCategory}-fni-top.json`;
+    const cdnUrl = `${CDN_BASE}/${rankingPath}`;
 
     let items = [];
     let source = 'none';
 
-    // Tier 1: Try R2 Internal (Rankings)
-    if (runtimeEnv?.R2_ASSETS) {
+    // Tier 0: Local Dev Bypassing (CORS Strategy)
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
         try {
-            const obj = await runtimeEnv.R2_ASSETS.get(`cache/${path}`);
+            const localRes = await fetch(`/data-mirror/${rankingPath}`);
+            if (localRes.ok) {
+                const data = await localRes.json();
+                items = extractItems(data);
+                source = 'localhost-mirror';
+            }
+        } catch (e) {
+            console.warn(`[CatalogFetcher] Local mirror miss for ${typeOrCategory}`);
+        }
+    }
+
+    // Tier 1: Try R2 Internal (Direct O(1) access)
+    if (items.length === 0 && runtimeEnv?.R2_ASSETS) {
+        try {
+            const obj = await runtimeEnv.R2_ASSETS.get(`cache/${rankingPath}`);
             if (obj) {
                 const data = await obj.json();
                 items = extractItems(data);
@@ -39,44 +53,48 @@ export async function fetchCatalogData(typeOrCategory, runtimeEnv = null) {
     // Tier 2: Try CDN Rankings
     if (items.length === 0) {
         try {
-            const res = await fetch(cdnUrl, { signal: AbortSignal.timeout(5000) });
+            const res = await fetch(cdnUrl, { signal: AbortSignal.timeout(3000) });
             if (res.ok) {
-                const size = res.headers.get('content-length');
-                // V16.9.24: Relaxed limit to 20MB for larger rankings
-                if (size && parseInt(size) > 20000000) {
-                    console.warn(`[CatalogFetcher] Rankings ${typeOrCategory} too large for SSR (${size} bytes)`);
-                } else {
-                    const data = await res.json();
-                    items = extractItems(data);
-                    source = `cdn-rankings-${typeOrCategory}`;
-                }
+                const data = await res.json();
+                items = extractItems(data);
+                source = `cdn-rankings-${typeOrCategory}`;
             }
         } catch (e) {
             console.warn(`[CatalogFetcher] CDN Rankings fail for ${typeOrCategory}: ${e.message}`);
         }
     }
 
-    // Tier 3: Trending Fallback (filtered by type or category)
+    // Tier 3: Anti-Crash Fallback (Tool-specific search-shard-0.json fallback)
+    if (items.length === 0 && typeOrCategory === 'tool') {
+        try {
+            const indexUrl = `${CDN_BASE}/indexes/search-shard-0.json`;
+            const res = await fetch(indexUrl);
+            if (res.ok) {
+                const data = await res.json();
+                const allRaw = data.entities || data.models || data.items || [];
+                items = allRaw.filter(i => i.type === 'tool');
+                source = 'search-index-fallback';
+            }
+        } catch (e) {
+            console.error(`[CatalogFetcher] Tool Fallback Failed:`, e.message);
+        }
+    }
+
+    // Tier 4: Trending Fallback (Legacy/Emergency)
     if (items.length === 0) {
         try {
             const trendUrl = `${CDN_BASE}/trending.json`;
             const res = await fetch(trendUrl);
             if (res.ok) {
-                const size = res.headers.get('content-length');
-                // V16.9.24: Relaxed limit to 10MB for massive trending.json fallback
-                if (size && parseInt(size) > 10000000) {
-                    console.warn(`[CatalogFetcher] Trending fallback skipped: too large for SSR (${size} bytes)`);
-                } else {
-                    const data = await res.json();
-                    const allRaw = data.entities || data.models || data.items || [];
+                const data = await res.json();
+                const allRaw = data.entities || data.models || data.items || [];
 
-                    if (isType) {
-                        items = allRaw.filter(i => i.type === typeOrCategory || (typeOrCategory === 'model' && !i.type));
-                    } else {
-                        items = allRaw.filter(i => (i.category === typeOrCategory || i.primary_category === typeOrCategory));
-                    }
-                    source = 'trending-fallback';
+                if (isType) {
+                    items = allRaw.filter(i => i.type === typeOrCategory || (typeOrCategory === 'model' && !i.type));
+                } else {
+                    items = allRaw.filter(i => (i.category === typeOrCategory || i.primary_category === typeOrCategory));
                 }
+                source = 'trending-fallback';
             }
         } catch (e) {
             console.error(`[CatalogFetcher] Critical Fallback Failed:`, e.message);
@@ -84,6 +102,7 @@ export async function fetchCatalogData(typeOrCategory, runtimeEnv = null) {
     }
 
     const normalized = DataNormalizer.normalizeCollection(items, isType ? typeOrCategory : 'model');
+    // V16.5: No 1000 limit for SSR - Pre-computed shards handle scale
     console.log(`[CatalogFetcher] Resolved ${normalized.length} items for ${typeOrCategory} via ${source}`);
 
     return {
@@ -107,7 +126,7 @@ export function truncateListingItem(item) {
         id: item.id || '',
         name: item.name || '',
         author: item.author || 'Nexus Collective',
-        description: (item.description || '').substring(0, 160).replace(/<[^>]*>?/gm, ''),
+        description: (item.description || '').replace(/<[^>]*>?/gm, ''),
         slug: item.slug || '',
         type: item.type || 'model',
         fni_score: item.fni_score || 0,
