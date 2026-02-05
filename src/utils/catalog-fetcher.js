@@ -27,11 +27,6 @@ export async function fetchCatalogData(typeOrCategory, runtimeEnv = null) {
         try {
             const obj = await runtimeEnv.R2_ASSETS.get(`cache/${path}`);
             if (obj) {
-                // Art 5.1: Memory Safety - Reject chunks > 2MB to prevent Worker 1102
-                if (obj.size > 2000000) {
-                    console.warn(`[CatalogFetcher] R2 Rankings ${typeOrCategory} too large for SSR (${obj.size} bytes)`);
-                    return { items: [], error: 'Data overflow', source: 'safety-limit' };
-                }
                 const data = await obj.json();
                 items = extractItems(data);
                 source = `r2-rankings-${typeOrCategory}`;
@@ -47,7 +42,8 @@ export async function fetchCatalogData(typeOrCategory, runtimeEnv = null) {
             const res = await fetch(cdnUrl, { signal: AbortSignal.timeout(5000) });
             if (res.ok) {
                 const size = res.headers.get('content-length');
-                if (size && parseInt(size) > 5000000) { // 5MB Limit
+                // V16.9.24: Relaxed limit to 20MB for larger rankings
+                if (size && parseInt(size) > 20000000) {
                     console.warn(`[CatalogFetcher] Rankings ${typeOrCategory} too large for SSR (${size} bytes)`);
                 } else {
                     const data = await res.json();
@@ -67,8 +63,8 @@ export async function fetchCatalogData(typeOrCategory, runtimeEnv = null) {
             const res = await fetch(trendUrl);
             if (res.ok) {
                 const size = res.headers.get('content-length');
-                // Strict 2MB limit for the massive trending.json fallback
-                if (size && parseInt(size) > 2000000) {
+                // V16.9.24: Relaxed limit to 10MB for massive trending.json fallback
+                if (size && parseInt(size) > 10000000) {
                     console.warn(`[CatalogFetcher] Trending fallback skipped: too large for SSR (${size} bytes)`);
                 } else {
                     const data = await res.json();

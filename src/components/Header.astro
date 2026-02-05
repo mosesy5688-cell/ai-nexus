@@ -19,7 +19,7 @@ const externalLinks = [
   { href: "https://github.com/mosesy5688-cell/ai-nexus", text: "GitHub", icon: "github" },
 ];
 ---
-<header class="sticky top-0 z-30 w-full backdrop-blur flex-none transition-colors duration-500 lg:border-b lg:border-gray-200 bg-white/80" x-data="{ open: false }">
+<header class="sticky top-0 z-30 w-full backdrop-blur-md flex-none transition-all duration-500 lg:border-b border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/70 glass-effect" x-data="{ open: false }">
     <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
             <!-- Site Logo (V16.5 Free2AI Branding) -->
@@ -32,7 +32,7 @@ const externalLinks = [
                 <!-- Desktop Navigation -->
                 <div class="hidden md:flex items-center gap-6">
                     {navLinks.map(link => (
-                        <a href={link.href} class="text-sm font-bold text-gray-600 hover:text-blue-600 transition-colors whitespace-nowrap">
+                        <a href={link.href} class="text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap">
                             {link.text}
                         </a>
                     ))}
@@ -41,7 +41,7 @@ const externalLinks = [
                       href="https://github.com/mosesy5688-cell/ai-nexus" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      class="text-gray-600 hover:text-gray-900 transition-colors"
+                      class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                       title="View on GitHub"
                     >
                         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -58,10 +58,10 @@ const externalLinks = [
         </div>
         <!-- Mobile Collapsible Menu -->
         <div class="w-full md:hidden" id="navbar-default" x-show="open" x-transition>
-            <ul class="font-medium flex flex-col p-4 md:p-0 mt-4 border border-gray-100 rounded-lg bg-gray-50">
+            <ul class="font-medium flex flex-col p-4 md:p-0 mt-4 border border-gray-100 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-800">
                 {navLinks.map(link => (
                     <li>
-                        <a href={link.href} class="block py-2 px-3 text-gray-900 rounded hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0">{link.text}</a>
+                        <a href={link.href} class="block py-2 px-3 text-gray-900 dark:text-gray-100 rounded hover:bg-gray-100 dark:hover:bg-gray-700 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 transition-colors">{link.text}</a>
                     </li>
                 ))}
             </ul>
