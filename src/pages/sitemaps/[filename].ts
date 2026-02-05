@@ -14,13 +14,17 @@ export const prerender = true;
 
 const R2_CDN_BASE = 'https://cdn.free2aitools.com';
 
-// Static paths for build time (SSR will handle dynamic)
+// Static paths for build time (V6.2: Support current R2 registry)
 export const getStaticPaths: GetStaticPaths = async () => {
-    // Known sitemap files - V6.2: Support pagination for 60K+ models
     return [
         { params: { filename: 'sitemap-static.xml' } },
-        { params: { filename: 'models-1.xml.gz' } },
-        { params: { filename: 'models-2.xml.gz' } },  // V6.2: 45K+ models pagination
+        { params: { filename: 'sitemap-1.xml.gz' } },
+        { params: { filename: 'sitemap-2.xml.gz' } },
+        { params: { filename: 'sitemap-3.xml.gz' } },
+        { params: { filename: 'sitemap-4.xml.gz' } },
+        { params: { filename: 'sitemap-5.xml.gz' } },
+        { params: { filename: 'sitemap-6.xml.gz' } },
+        { params: { filename: 'sitemap-7.xml.gz' } },
         { params: { filename: 'sitemap-index.xml' } },
     ];
 };

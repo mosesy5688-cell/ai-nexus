@@ -1,69 +1,9 @@
 ---
 // src/components/ExploreFilters.astro
-import models from '@/data/models.json';
+// import models from '@/data/models.json'; // PURGED: 13.5MB serialization hazard
 
-// 1. Extract unique tasks
-const allTasks = models.flatMap(model => model.task || []);
-const uniqueTasks = [...new Set(allTasks)].sort();
+const uniqueTasks = []; // Orchestrated via client-side UniversalCatalog now
 ---
-<div id="filters" class="mb-8">
-  <h3 class="text-lg font-semibold mb-3">Filter by Task</h3>
-  <div class="mt-8 text-center" id="tags-container">
-    {uniqueTasks.map(task => (
-      <button 
-        class="filter-tag"
-        data-task={task}
-      >
-        {task}
-      </button>
-    ))}
-  </div>
+<div id="filters" class="hidden">
+  <!-- V16.2: Deprecated. Filters now integrated into ListingControls component -->
 </div>
-
-<style>
-  .filter-tag {
-    @apply px-3 py-1 text-sm font-medium bg-gray-200 dark:bg-gray-700 rounded-full cursor-pointer transition-colors hover:bg-gray-300 dark:hover:bg-gray-600;
-  }
-  .filter-tag.active {
-    @apply bg-blue-600 text-white dark:bg-blue-500;
-  }
-</style>
-
-<script define:vars={{ allModels: models }}>
-  const filterContainer = document.getElementById('task-filters');
-  const modelsGrid = document.getElementById('models-grid'); // Assuming this ID exists on your explore page
-  const noResults = document.getElementById('no-results'); // Assuming this ID exists
-
-  let activeTasks = new Set();
-
-  // This function must be defined on your explore page to render cards
-  // We are assuming its existence here.
-  const modelCardTemplate = window.modelCardTemplate; 
-
-  filterContainer.addEventListener('click', (e) => {
-    const button = e.target.closest('.filter-tag');
-    if (!button) return;
-
-    const task = button.dataset.task;
-    button.classList.toggle('active');
-
-    if (activeTasks.has(task)) {
-      activeTasks.delete(task);
-    } else {
-      activeTasks.add(task);
-    }
-
-    const filteredModels = allModels.filter(model => {
-      if (activeTasks.size === 0) return true; // Show all if no filter is active
-      return activeTasks.has(model.task);
-    });
-
-    if (filteredModels.length > 0) {
-      modelsGrid.innerHTML = filteredModels.map(modelCardTemplate).join('');
-      noResults.classList.add('hidden');
-    } else {
-      modelsGrid.innerHTML = '';
-      noResults.classList.remove('hidden');
-    }
-  });
-</script>
