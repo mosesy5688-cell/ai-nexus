@@ -34,8 +34,8 @@ const CHECKPOINT_THRESHOLD = 5.5 * 3600; // 5.5 hours in seconds
 async function main() {
     const startTime = Date.now();
     console.log(`[AGGREGATOR] Phase 2 starting (Task: ${taskArg || 'ALL'})...`);
-    // V17.2: R2 uploads disabled - all uploads consolidated to Factory 4/4
-    process.env.ENABLE_R2_BACKUP = 'false';
+    // V17.2: R2 backups re-enabled for historical state continuity (CES Compliant)
+    process.env.ENABLE_R2_BACKUP = 'true';
     const entitiesInputPath = process.env.ENTITIES_PATH || './data/merged.json';
     console.log(`[AGGREGATOR] Loading context from: ${entitiesInputPath}`);
     const allEntities = JSON.parse(await fs.readFile(entitiesInputPath, 'utf-8'));
@@ -135,7 +135,7 @@ async function main() {
             const weekNumber = getWeekNumber();
 
             // 6. State Persistence
-            process.env.CACHE_DIR = path.join(CONFIG.OUTPUT_DIR, 'meta', 'backup');
+            process.env.CACHE_DIR = './cache';
             await fs.mkdir(process.env.CACHE_DIR, { recursive: true });
 
             // Backup sharded history
@@ -161,8 +161,8 @@ async function main() {
         });
 
         // GitHub Actions Cache Sync (Robust V2.0 Sync)
-        const CACHE_DIR = './cache';
-        await syncCacheState(process.env.CACHE_DIR, CACHE_DIR);
+        const TARGET_CACHE_DIR = './cache';
+        await syncCacheState(process.env.CACHE_DIR, TARGET_CACHE_DIR);
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);

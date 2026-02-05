@@ -115,12 +115,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            data/merged.json
-            data/merged_shard_*.json
-            data/manifest.json
-            cache/fni-history.json
-            cache/weekly-accum.json
-            cache/global-registry.json
+            data/
+            cache/
           key: cycle-${{ needs.check-upstream.outputs.harvest-id }}-harvest
           restore-keys: |
             cycle-
@@ -146,13 +142,20 @@ jobs:
             node scripts/factory/aggregator.js --task=health
             node scripts/factory/aggregator.js --task=core
 
-      - name: Consolidate Final Artifact
+      - name: Consolidate Final Artifacts & Context
         run: |
-          mkdir -p output/cache output/meta
-          [ -d "cache" ] && cp -r cache/* output/cache/ 2>/dev/null || true
+          mkdir -p output/cache output/meta/backup cache
+          # 1. Mirror production artifacts for R2 distribution (Stage 4/4)
           [ -d "meta" ] && cp -r meta/* output/meta/ 2>/dev/null || true
+          
+          # 2. Mirror BACK to root cache/ for persistent memory (Stage 1/4)
+          # aggreagtor.js saved to output/meta/backup, we need it in cache/ for the GH-Cache-Save
+          cp -r output/meta/backup/* cache/ 2>/dev/null || true
+          
           echo "📦 Final output structure for R2:"
-          ls -R output/ | head -20
+          ls -R output/meta/backup/ | head -20
+          echo "📦 Final cache structure for Stage 1/4:"
+          ls -R cache/ | head -20
 
       # V17.0: Prevent upload-artifact stack overflow from atomized entity files
       - name: Clean Atomized Entity Directory
@@ -180,8 +183,34 @@ jobs:
       - name: Save Global Registry to Cache
         uses: actions/cache/save@v4
         with:
-          path: output/entities.json
+          path: |
+            cache/global-registry.json
+            cache/registry/
           key: global-registry-${{ github.run_id }}
+
+      - name: Save FNI History to Cache (Self-Healing)
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            cache/fni-history.json
+            cache/fni-history/
+          key: fni-history-${{ github.run_id }}
+
+      - name: Save Daily Accumulator to Cache (Self-Healing)
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            cache/daily-accum.json
+            cache/daily-accum/
+          key: daily-accum-${{ github.run_id }}
+
+      - name: Save Checksums to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            cache/entity-checksums.json
+            cache/task-checksums.json
+          key: checksums-${{ github.run_id }}
 
   # Parallel Satellite Jobs (SPEC V2.0)
   aggregate-search:

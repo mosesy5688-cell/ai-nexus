@@ -49,6 +49,11 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
         }
     }
 
+    // 3. Fallback to default and PERSIST to disk to satisfy Path Validation (GitHub Cache Save)
+    console.log(`[CACHE] ⚠️ Using default for: ${filename} (Initializing storage)`);
+    await fs.mkdir(getCacheDir(), { recursive: true });
+    await fs.writeFile(localPath, JSON.stringify(defaultValue, null, 2));
+
     return defaultValue;
 }
 
