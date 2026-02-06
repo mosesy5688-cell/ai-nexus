@@ -414,6 +414,10 @@ jobs:
           # Copy entities.json and meta from core-registry
           cp ./core-context/output/entities.json output/ 2>/dev/null || cp ./core-context/entities.json output/ || true
           cp -r ./core-context/output/meta output/ 2>/dev/null || cp -r ./core-context/meta output/ 2>/dev/null || true
+          # V17.8: Copy Daily Reports and Reports Index generated in core task
+          cp -r ./core-context/output/daily output/ 2>/dev/null || true
+          mkdir -p output/cache
+          cp -r ./core-context/output/cache/reports output/cache/ 2>/dev/null || true
           # Ensure cache directory structure
           mkdir -p output/cache
           # Move satellite outputs into cache if needed

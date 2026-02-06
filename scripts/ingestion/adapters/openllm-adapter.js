@@ -159,7 +159,10 @@ export class OpenLLMLeaderboardAdapter extends BaseAdapter {
                         obj.norm || obj['norm,none'] ||
                         obj.value || obj['value,none'];
 
-                    if (val !== undefined && val !== null) return this.parseScore(val);
+                    if (val !== undefined && val !== null) {
+                        const parsed = this.parseScore(val);
+                        if (parsed !== null && !isNaN(parsed)) return parsed;
+                    }
                 }
             }
             return null;
@@ -338,7 +341,10 @@ export class OpenLLMLeaderboardAdapter extends BaseAdapter {
 
         // Suspect: all scores suspiciously low (random guessing level)
         const sum = (mmlu || 0) + (hellaswag || 0) + (arc || 0);
-        if (sum > 0 && sum < 75) { // Less than ~25% average
+
+        // V4.3.4 Adjustment: Some early evaluations in V2 may have very low scores or only 1 metric
+        // Use a more relaxed gate if avgScore is non-zero
+        if (sum > 0 && sum < 15) { // Relaxed from 75 to 15 to allow emerging models
             return 'suspect';
         }
 
