@@ -109,6 +109,8 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
                 } else {
                     items = allRaw.filter(i => (i.category === typeOrCategory || i.primary_category === typeOrCategory));
                 }
+                // V16.9.23: Cap items to prevent memory exhaustion in Worker during a fallback
+                items = items.slice(0, 50);
                 source = 'trending-fallback';
             }
         } catch (e) {
@@ -116,8 +118,10 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
         }
     }
 
-    const normalized = DataNormalizer.normalizeCollection(items, isType ? typeOrCategory : 'model');
-    console.log(`[CatalogFetcher] Resolved ${normalized.length} items for ${typeOrCategory} via ${source}`);
+    // SSR Optimization: Cap the total number of items to normalize to prevent Error 1102
+    const finalItems = items.slice(0, 100);
+    const normalized = DataNormalizer.normalizeCollection(finalItems, isType ? typeOrCategory : 'model');
+    console.log(`[CatalogFetcher] Resolved ${normalized.length} items (Capped for SSR) for ${typeOrCategory} via ${source}`);
 
     return {
         items: normalized,
