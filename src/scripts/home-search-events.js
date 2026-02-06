@@ -41,7 +41,7 @@ export function renderHistory() {
             if (searchBox && query) {
                 searchBox.value = query;
                 await initSearch();
-                const results = performSearch(query);
+                const results = await performSearch(query);
                 renderResults(results);
             }
         });
@@ -61,13 +61,14 @@ export function renderResults(results) {
 
     dropdown.innerHTML = results.map(r => {
         const isKnowledge = r.type === 'knowledge';
-        let path = `/model/${r.slug}`;
-        if (isKnowledge) path = `/knowledge/${r.slug}`;
-        else if (r.type === 'agent') path = `/agent/${r.slug}`;
-        else if (r.type === 'dataset') path = `/dataset/${r.slug}`;
-        else if (r.type === 'paper') path = `/paper/${r.slug}`;
-        else if (r.type === 'tool') path = `/tool/${r.slug}`;
-        else if (r.type === 'space') path = `/space/${r.slug}`;
+        const targetId = r.slug || r.id;
+        let path = `/model/${targetId}`;
+        if (isKnowledge) path = `/knowledge/${targetId}`;
+        else if (r.type === 'agent') path = `/agent/${targetId}`;
+        else if (r.type === 'dataset') path = `/dataset/${targetId}`;
+        else if (r.type === 'paper') path = `/paper/${targetId}`;
+        else if (r.type === 'tool') path = `/tool/${targetId}`;
+        else if (r.type === 'space') path = `/space/${targetId}`;
 
         const typeLabel = isKnowledge ? 'Guide' : (r.type || 'Model').toUpperCase();
         const badgeClass = isKnowledge ?
@@ -134,7 +135,7 @@ export function setupSearchEvents() {
         }
 
         await initSearch();
-        const results = performSearch(query);
+        const results = await performSearch(query);
         renderResults(results);
 
         const status = getSearchStatus();
@@ -181,7 +182,8 @@ export function setupSearchEvents() {
             if (searchBox) {
                 searchBox.value = query;
                 await initSearch();
-                renderResults(performSearch(query));
+                const results = await performSearch(query);
+                renderResults(results);
                 searchBox.focus();
             }
         });

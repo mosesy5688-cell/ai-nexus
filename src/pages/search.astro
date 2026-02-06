@@ -122,7 +122,7 @@ const entityTypes = [
         dom.prompt.classList.add('hidden');
 
         await initSearch();
-        const results = performSearch(query, 40);
+        const results = await performSearch(query, 40);
         const filtered = type === 'all' ? results : results.filter(r => r.type === type);
 
         dom.loading.classList.add('hidden');

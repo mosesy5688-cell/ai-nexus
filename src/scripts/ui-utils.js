@@ -15,15 +15,8 @@ export function createModelCardHTML(model) {
     const type = model.type || 'model';
     const prefix = type === 'agent' ? '/agent/' : type === 'dataset' ? '/dataset/' : type === 'tool' ? '/tool/' : type === 'paper' ? '/paper/' : type === 'space' ? '/space/' : '/model/';
 
-    // V15.8: Standardized slug generation (Strip source and type prefixes)
-    let slug = model.slug || model.id || '';
-    slug = slug.replace(/^[a-z]+:/i, '')
-        .replace(/^(model|agent|dataset|tool|paper|space|benchmark)s?\//i, '')
-        .replace(/^(hf-dataset--|hf-space--|arxiv--|agent--|github-agent--)/i, '')
-        .replace(/^replicate\//i, '')
-        .toLowerCase()
-        .trim();
-
+    // V15.8: Use centralized SSOT logic - Preservation Policy
+    const slug = (model.id || model.slug || '').toLowerCase();
     const modelUrl = `${prefix}${slug}`;
     const rawDesc = model.description || 'No description available.';
     const cleanDesc = rawDesc.replace(/<[^>]*>?/gm, '');

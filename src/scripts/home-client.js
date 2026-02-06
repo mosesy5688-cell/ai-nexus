@@ -9,6 +9,14 @@ export async function loadHotModels() {
     const errorEl = document.getElementById('hot-models-error');
     const errorMsgEl = document.getElementById('hot-models-error-msg');
 
+    // V16.5: If grid is already pre-rendered via SSR, just ensure UI state is correct
+    if (gridEl && gridEl.children.length > 0) {
+        console.log('[Home] Hot models pre-rendered via SSR. Skipping client fetch.');
+        if (loadingSkeleton) loadingSkeleton.classList.add('hidden');
+        gridEl.classList.remove('hidden');
+        return;
+    }
+
     try {
         const response = await fetch('https://cdn.free2aitools.com/cache/trending.json');
         if (!response.ok) throw new Error(`CDN Error: ${response.status}`);
@@ -97,7 +105,8 @@ export async function loadDailyReport() {
             const leaderPrefix = leaderType === 'agent' ? '/agent/' : leaderType === 'dataset' ? '/dataset/' : leaderType === 'tool' ? '/tool/' : leaderType === 'paper' ? '/paper/' : '/model/';
             const count = briefing.new_entities_count || briefing.new_models_count || 0;
             // V16.9.23: Use centralized SSOT logic for maximal backward compatibility
-            const slug = stripPrefix(leader.slug || leader.id || '').replace(/--/g, '/');
+            // V16.9.23: Use centralized SSOT logic - Preservation Policy
+            const slug = (leader.id || leader.slug || '').toLowerCase();
 
             summaryEl.textContent = count > 0 ? `${count} new entities tracked today!` : 'Review the latest FNI leaderboards.';
             topModelEl.textContent = leader.name;
@@ -122,8 +131,8 @@ export async function loadDailyReport() {
 
                     const topModelType = topModel.type || 'model';
                     const topModelPrefix = topModelType === 'agent' ? '/agent/' : topModelType === 'dataset' ? '/dataset/' : topModelType === 'tool' ? '/tool/' : topModelType === 'paper' ? '/paper/' : '/model/';
-                    // V16.9.23: Use centralized SSOT logic for maximal backward compatibility
-                    const slug = stripPrefix(topModel.slug || topModel.id || '').replace(/--/g, '/');
+                    // V16.9.23: Preservation Policy
+                    const slug = (topModel.id || topModel.slug || '').toLowerCase();
                     topModelLink.href = `${topModelPrefix}${slug}`;
 
                     banner.classList.remove('hidden');

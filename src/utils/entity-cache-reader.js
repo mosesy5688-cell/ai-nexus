@@ -18,15 +18,7 @@ export async function resolveEntityFromCache(slug, locals) {
     if (!slug) return { entity: null, source: 'invalid-slug' };
 
     const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-    const lower = slugStr.toLowerCase();
-    let type = 'model';
-
-    // V16.4: Enhanced type discovery for standard routes
-    if (lower.includes('hf-dataset--') || lower.includes('dataset/') || lower.includes('huggingface/datasets/')) type = 'dataset';
-    else if (lower.includes('arxiv--') || lower.includes('arxiv/')) type = 'paper';
-    else if (lower.includes('hf-agent--') || lower.includes('agent/')) type = 'agent';
-    else if (lower.includes('hf-space--') || lower.includes('space/')) type = 'space';
-    else if (lower.includes('tool--') || lower.includes('tool/')) type = 'tool';
+    const type = getTypeFromId(slugStr);
 
     const result = await fetchEntityFromR2(type, slug, locals);
     if (!result) return { entity: null, source: 'cache-miss' };

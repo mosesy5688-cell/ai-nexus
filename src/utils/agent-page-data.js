@@ -80,8 +80,8 @@ export async function prepareAgentPageData(slug, slugStr, locals) {
                     if (tid.startsWith('arxiv--') || tid.startsWith('paper--')) {
                         const id = tid.replace(/^(arxiv|paper)--/, '');
                         if (!agent.arxiv_refs.includes(id)) agent.arxiv_refs.push(id);
-                    } else if (tid.startsWith('dataset--')) {
-                        const id = tid.replace('dataset--', '');
+                    } else if (tid.startsWith('hf-dataset--') || tid.startsWith('dataset--')) {
+                        const id = tid.replace(/^(hf-dataset|dataset)--/, '');
                         if (!agent.datasets_used.includes(id)) agent.datasets_used.push(id);
                     } else if (tid.startsWith('concept--')) {
                         const knSlug = tid.replace('concept--', '');

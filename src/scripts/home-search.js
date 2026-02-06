@@ -1,156 +1,107 @@
 // src/scripts/home-search.js
-// V16.2: Refactored for Zero-Runtime compliance and MiniSearch integration
-import MiniSearch from 'minisearch';
-import { DataNormalizer } from './lib/DataNormalizer.js';
-import { R2_CACHE_URL } from '../config/constants.ts';
+// V16.6: Unified Search Orchestrator (Worker Proxy)
+// Offloads heavy indexing and search to Background Worker for Zero-UI-Lag performance.
 
-// Config & Constants
-const CORE_INDEX_URL = `${R2_CACHE_URL}/cache/search-core.json`;
-const FULL_INDEX_URL = `${R2_CACHE_URL}/cache/search-full.json`;
-const HISTORY_KEY = 'f2ai_search_history';
-const MAX_HISTORY = 5;
+// Worker Instance (Single source of truth for search)
+let searchWorker = null;
+if (typeof window !== 'undefined') {
+    searchWorker = new Worker('/workers/search-worker.js', { type: 'module' });
+}
 
-// Engine Instance
-let searchIndex = null;
-let searchData = [];
 let isLoaded = false;
 let isLoading = false;
 let isFullSearchActive = false;
 let isFullSearchLoading = false;
+let itemCount = 0;
+let pendingProgressCall = null;
 
-// Initialize Search Engine
+// Initialize Search Engine (Check Worker Status)
 export async function initSearch() {
-    if (isLoaded || isLoading) return;
+    if (isLoaded || !searchWorker) return true;
+    if (isLoading) return new Promise(resolve => {
+        const interval = setInterval(() => {
+            if (isLoaded) { clearInterval(interval); resolve(true); }
+        }, 100);
+    });
+
     isLoading = true;
-
-    try {
-        console.log('📥 [V16.2] Loading Core Search Index...');
-        const res = await fetch(CORE_INDEX_URL);
-        if (!res.ok) {
-            console.warn(`⚠️ [Search] Core index HTTP ${res.status}. Attempting fallback to trending.json`);
-            // Emergency Fallback: If search-core fails, try trending.json as a mini-index
-            const trendRes = await fetch(`${R2_CACHE_URL}/cache/trending.json`);
-            if (!trendRes.ok) throw new Error("All search data sources failed.");
-            const trendData = await trendRes.json();
-            searchData = DataNormalizer.normalizeCollection(trendData.models || trendData, 'model');
-        } else {
-            const data = await res.json();
-            const rawData = data.entities || data.models || data;
-            searchData = DataNormalizer.normalizeCollection(rawData, 'model');
-        }
-
-        if (!searchData || searchData.length === 0) throw new Error("Empty search dataset.");
-
-        searchIndex = new MiniSearch({
-            fields: ['name', 'author', 'description', 'tags'],
-            storeFields: ['id', 'name', 'type', 'fni_score', 'slug', 'author', 'description'],
-            idField: 'id',
-            searchOptions: {
-                boost: { name: 3, author: 1.5 },
-                fuzzy: 0.2,
-                prefix: true
+    return new Promise((resolve) => {
+        const requestId = 'init-' + Date.now();
+        const handler = (e) => {
+            if (e.data.type === 'STATUS') {
+                searchWorker.removeEventListener('message', handler);
+                isLoaded = e.data.isLoaded;
+                isFullSearchActive = e.data.isFullSearchActive;
+                itemCount = e.data.count;
+                isLoading = false;
+                resolve(true);
             }
-        });
-
-        searchIndex.addAll(searchData);
-        isLoaded = true;
-        console.log(`🚀 [V16.2] Search Ready: ${searchData.length} items`);
-    } catch (e) {
-        console.error('❌ [V16.2] Search Init Failed:', e);
-        // Set a minimal placeholder to prevent UI crashes
-        searchData = [];
-    } finally {
-        isLoading = false;
-    }
+        };
+        searchWorker.addEventListener('message', handler);
+        searchWorker.postMessage({ id: requestId, type: 'STATUS' });
+    });
 }
 
-// Lazy Load Full Index (V16.2.3 Sharded Implementation)
+// Lazy Load Full Index via Worker (Background Sharding)
 export async function loadFullSearchIndex(onProgress) {
-    if (isFullSearchActive || isFullSearchLoading || !isLoaded) return;
+    if (isFullSearchActive || isFullSearchLoading || !searchWorker) return true;
+
     isFullSearchLoading = true;
+    pendingProgressCall = onProgress;
 
-    try {
-        console.log('📥 [V16.2.3] Loading Search Manifest...');
-        const manifestRes = await fetch(`${R2_CACHE_URL}/cache/search-manifest.json`);
-        if (!manifestRes.ok) throw new Error('Manifest load failed');
-
-        const manifest = await manifestRes.json();
-        const totalShards = manifest.totalShards;
-        console.log(`📦 [Search] Loading ${totalShards} shards for ${manifest.totalEntities} entities...`);
-
-        // Use a Set to handle potential dupes between core and shards
-        const fullEntitiesMap = new Map();
-        // Seed with core data
-        searchData.forEach(e => fullEntitiesMap.set(e.id, e));
-
-        const shardUrls = Array.from({ length: totalShards }, (_, i) => `${R2_CACHE_URL}/cache/search/shard-${i}.json`);
-
-        // Load shards in batches of 5 to avoid browser request limits
-        const BATCH_SIZE = 5;
-        let loadedShards = 0;
-
-        for (let i = 0; i < shardUrls.length; i += BATCH_SIZE) {
-            const batch = shardUrls.slice(i, i + BATCH_SIZE);
-            const results = await Promise.all(batch.map(async (url) => {
-                const res = await fetch(url);
-                if (!res.ok) return null;
-                return res.json();
-            }));
-
-            for (const shard of results) {
-                if (shard?.entities) {
-                    shard.entities.forEach(e => {
-                        if (!fullEntitiesMap.has(e.id)) {
-                            fullEntitiesMap.set(e.id, {
-                                i: e.id,
-                                n: e.name,
-                                type: e.type,
-                                a: e.author,
-                                sc: e.fni,
-                                d: e.description,
-                                s: e.slug
-                            });
-                        }
-                    });
+    return new Promise((resolve) => {
+        const requestId = 'load-full-' + Date.now();
+        const handler = (e) => {
+            if (e.data.id === requestId) {
+                if (e.data.type === 'PROGRESS' && pendingProgressCall) {
+                    pendingProgressCall(e.data);
+                } else if (e.data.type === 'READY') {
+                    searchWorker.removeEventListener('message', handler);
+                    isFullSearchActive = true;
+                    isFullSearchLoading = false;
+                    resolve(true);
+                } else if (e.data.type === 'ERROR') {
+                    searchWorker.removeEventListener('message', handler);
+                    isFullSearchLoading = false;
+                    console.error('[HomeSearch] Full index load error:', e.data.error);
+                    resolve(false);
                 }
             }
-
-            loadedShards += results.filter(Boolean).length;
-            if (onProgress) {
-                onProgress({
-                    percent: Math.round((loadedShards / totalShards) * 100),
-                    loaded: loadedShards,
-                    total: totalShards
-                });
-            }
-        }
-
-        const fullEntities = Array.from(fullEntitiesMap.values());
-
-        // Update MiniSearch
-        console.log('🔄 Rebuilding Search Index...');
-        searchIndex.removeAll();
-        searchIndex.addAll(fullEntities.map(e => ({
-            id: e.i,
-            name: e.n,
-            type: e.type,
-            author: e.a,
-            description: e.d,
-            fni_score: e.sc,
-            slug: e.s
-        })));
-
-        searchData = fullEntities;
-        isFullSearchActive = true;
-        console.log(`🔥 [V16.2.3] Full Search Ready: ${fullEntities.length} entities`);
-        return true;
-    } catch (e) {
-        console.error('❌ [V16.2.3] Sharded Index Load Failed:', e);
-        return false;
-    } finally {
-        isFullSearchLoading = false;
-    }
+        };
+        searchWorker.addEventListener('message', handler);
+        searchWorker.postMessage({ id: requestId, type: 'LOAD_FULL' });
+    });
 }
+
+// Perform Search via Worker (Async API)
+export async function performSearch(query, limit = 20, filters = {}) {
+    if (!searchWorker || !query || query.length < 2) return [];
+
+    return new Promise((resolve) => {
+        const requestId = 'search-' + Date.now();
+        const handler = (e) => {
+            if (e.data.id === requestId && e.data.type === 'RESULT') {
+                searchWorker.removeEventListener('message', handler);
+                resolve(e.data.results || []);
+            }
+        };
+        searchWorker.addEventListener('message', handler);
+        searchWorker.postMessage({
+            id: requestId,
+            type: 'SEARCH',
+            filters: {
+                q: query,
+                limit,
+                useFull: isFullSearchActive,
+                ...filters
+            }
+        });
+    });
+}
+
+// History Utils (Main Thread Storage - remains same)
+const HISTORY_KEY = 'f2ai_search_history';
+const MAX_HISTORY = 5;
 
 export function getSearchHistory() {
     try {
@@ -169,31 +120,6 @@ export function clearSearchHistory() {
     localStorage.removeItem(HISTORY_KEY);
 }
 
-export function getTopModels(limit = 10) {
-    if (!isLoaded) return [];
-    return searchData
-        .slice(0, limit)
-        .map(r => ({
-            id: r.i, name: r.n, slug: r.s, author: r.a, fni_score: r.sc
-        }));
-}
-
-export function performSearch(query, limit = 20) {
-    if (!searchIndex || !query || query.length < 2) return [];
-
-    const results = searchIndex.search(query);
-
-    return results.slice(0, limit).map(r => ({
-        id: r.id,
-        name: r.name,
-        slug: r.slug,
-        type: r.type || 'model',
-        author: r.author,
-        fni_score: r.fni_score,
-        score: r.score
-    }));
-}
-
 export function setFullSearchActive(active) {
     isFullSearchActive = active;
 }
@@ -203,6 +129,6 @@ export function getSearchStatus() {
         isLoaded,
         isFullSearchActive,
         isFullSearchLoading,
-        itemCount: searchData.length
+        itemCount
     };
 }

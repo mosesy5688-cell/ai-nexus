@@ -15,45 +15,43 @@ export function normalizeEntitySlug(id, type = 'model') {
     return base;
 }
 
-// V16.2 Knowledge Mesh Alignment (SPEC-KNOWLEDGE-MESH-V16.2 Section 2.1)
+// V16.9.25: SPEC-ID-V2.0 Alignment - "What you see is what you fetch"
 export function getR2PathCandidates(type, normalizedSlug) {
-    // Standardize to singular: dataset, model, agent, space, tool, paper
     const typeMap = {
-        'datasets': 'dataset',
-        'models': 'model',
-        'agents': 'agent',
-        'spaces': 'space',
-        'tools': 'tool',
-        'papers': 'paper'
+        'datasets': 'dataset', 'models': 'model', 'agents': 'agent',
+        'spaces': 'space', 'tools': 'tool', 'papers': 'paper'
     };
     const singular = typeMap[type] || (type.endsWith('s') ? type.slice(0, -1) : type);
-
-    // SPEC-KNOWLEDGE-MESH-V16.2 Section 5.1: Path is cache/entities/{type}/{slug}.json
-    const prefix = `cache/entities/${singular}`;
     const lowerSlug = normalizedSlug.toLowerCase();
+    const candidates = [];
 
-    // 1. Direct match
-    const candidates = [`${prefix}/${normalizedSlug}.json`];
+    // 1. [V2.0 PRIMARY] Flat Storage: cache/entities/[ID].json
+    // If the slug is already a full canonical ID (hf-model--...), use it directly
+    candidates.push(`cache/entities/${lowerSlug}.json`);
 
-    // 2. Canonical Prefix Injection (Handling mapping from 'pretty' IDs to R2 Storage keys)
-    // V16.4 Forensics: Resolved prefixes from live production R2 bucket
+    // 2. [V16.5 FALLBACK] Tiered Storage: cache/entities/{type}/[ID].json
+    candidates.push(`cache/entities/${singular}/${lowerSlug}.json`);
+
+    // 3. [LEGACY COMPAT] Prefix Injection (Mapping 'pretty' IDs to possible prefixed keys)
     const prefixMap = {
-        'model': ['hf-model--', 'gh-model--', 'civitai-model--', 'ollama-model--', 'replicate-model--', 'hf--', 'civitai--', 'ollama--'],
-        'dataset': ['hf-dataset--', 'kaggle-dataset--', 'dataset--', 'hf--'],
-        'paper': ['arxiv-paper--', 'hf-paper--', 'arxiv--', 'paper--'],
-        'space': ['hf-space--', 'space--'],
-        'agent': ['gh-agent--', 'hf-agent--', 'github-agent--', 'agent--'],
-        'tool': ['gh-tool--', 'hf-tool--', 'github-tool--', 'tool--']
+        'model': ['hf-model--', 'gh-model--', 'hf--', 'gh--'],
+        'dataset': ['hf-dataset--', 'dataset--', 'hf--'],
+        'paper': ['arxiv-paper--', 'arxiv--', 'paper--'],
+        'space': ['hf-space--', 'space--', 'hf--'],
+        'agent': ['gh-agent--', 'hf-agent--', 'agent--'],
+        'tool': ['gh-tool--', 'hf-tool--', 'tool--']
     };
 
     const prefixesCheck = prefixMap[singular] || [];
     prefixesCheck.forEach(mandatoryPrefix => {
         if (!lowerSlug.startsWith(mandatoryPrefix)) {
-            candidates.push(`${prefix}/${mandatoryPrefix}${lowerSlug}.json`);
+            const prefixedSlug = `${mandatoryPrefix}${lowerSlug}`;
+            candidates.push(`cache/entities/${prefixedSlug}.json`); // Flat
+            candidates.push(`cache/entities/${singular}/${prefixedSlug}.json`); // Tiered
         }
     });
 
-    // 3. V16.4: R2 Replica Support (.v-1, .v-2) for resilience
+    // 4. [V16.4 REPLICAS] Core resilience (.v-1, .v-2)
     const replicas = [];
     candidates.forEach(path => {
         replicas.push(path.replace('.json', '.v-1.json'));

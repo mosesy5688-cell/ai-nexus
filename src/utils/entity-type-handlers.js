@@ -33,13 +33,13 @@ export function handleModelType(hydrated, entity, computed, meta, derivedName) {
     if (!hydrated.source_url && hydrated.id) {
         const id = hydrated.id;
         if (id.startsWith('replicate--') || id.startsWith('replicate:')) {
-            const slug = id.replace('replicate--', '').replace('replicate:', '');
+            const slug = id.replace(/^(replicate--|replicate:)/, '');
             hydrated.source_url = `https://replicate.com/${slug}`;
-        } else if (id.startsWith('hf-model--') || id.startsWith('huggingface:') || (entity.source === 'huggingface' && id.includes('/'))) {
-            const slug = id.replace('hf-model--', '').replace('huggingface:', '').replace(/--/g, '/');
+        } else if (id.startsWith('hf-model--') || id.startsWith('hf-agent--') || id.startsWith('hf-tool--') || id.startsWith('huggingface:') || (entity.source === 'huggingface' && id.includes('/'))) {
+            const slug = id.replace(/^(hf-model--|hf-agent--|hf-tool--|huggingface:)/, '').replace(/--/g, '/');
             hydrated.source_url = `https://huggingface.co/${slug}`;
-        } else if (id.startsWith('github--') || id.startsWith('github:')) {
-            const slug = id.replace('github--', '').replace('github:', '').replace(/--/g, '/');
+        } else if (id.startsWith('gh-model--') || id.startsWith('gh-agent--') || id.startsWith('gh-tool--') || id.startsWith('github--') || id.startsWith('github:')) {
+            const slug = id.replace(/^(gh-model--|gh-agent--|gh-tool--|github--|github:)/, '').replace(/--/g, '/');
             hydrated.source_url = `https://github.com/${slug}`;
         } else if (entity.author && entity.name && entity.source === 'huggingface') {
             hydrated.source_url = `https://huggingface.co/${entity.author}/${entity.name}`;

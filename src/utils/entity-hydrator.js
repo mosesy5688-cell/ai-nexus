@@ -1,5 +1,5 @@
 /**
- * Unified Entity Hydrator (V15.22)
+ * Unified Entity Hydrator (V16.5)
  * CES Compliance: Refactored to honor < 250 lines rule.
  */
 import { applyVramLogic } from './entity-vram-logic.js';
@@ -76,9 +76,9 @@ function attemptWarmCacheFallback(hydrated, summaryData) {
     if (hydrated.params_billions && hydrated.downloads) return;
 
     const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-    const searchId = norm(hydrated.id || '').replace(/^hf-model-/, '');
+    const searchId = norm(hydrated.id || '').replace(/^(hf-model|gh-model)--/, '');
     const fallback = summaryData.find(s => {
-        const sid = norm(s.id || s.umid || s.slug || '').replace(/^hf-model-/, '');
+        const sid = norm(s.id || s.umid || s.slug || '').replace(/^(hf-model|gh-model)--/, '');
         return sid === searchId || sid.endsWith('-' + searchId) || searchId.endsWith('-' + sid) || sid === norm(hydrated.slug);
     });
 
@@ -205,11 +205,15 @@ function mineRelations(hydrated, meta) {
     hydrated.similar_models = toArray(hydrated.similar_models || relSource.similar_models || relSource.related_models);
     hydrated.base_model = hydrated.base_model || relSource.base_model || relSource.parent_model || null;
 
-    // V15.21 Tag Mining
+    // V15.21 Tag Mining (Updated for V2.0 prefixes)
     const tags = toArray(hydrated.tags || []);
     tags.forEach(tag => {
-        if (tag.startsWith('arxiv:') && !hydrated.arxiv_refs.includes(tag.substring(6))) hydrated.arxiv_refs.push(tag.substring(6));
-        if (tag.startsWith('dataset:') && !hydrated.datasets_used.includes(tag.substring(8))) hydrated.datasets_used.push(tag.substring(8));
+        if ((tag.startsWith('arxiv:') || tag.startsWith('arxiv--')) && !hydrated.arxiv_refs.includes(tag.split(/[:--]/).pop())) {
+            hydrated.arxiv_refs.push(tag.split(/[:--]/).pop());
+        }
+        if ((tag.startsWith('dataset:') || tag.startsWith('dataset--')) && !hydrated.datasets_used.includes(tag.split(/[:--]/).pop())) {
+            hydrated.datasets_used.push(tag.split(/[:--]/).pop());
+        }
         if (tag.startsWith('base_model:') && !hydrated.base_model) hydrated.base_model = tag.substring(11);
     });
 
