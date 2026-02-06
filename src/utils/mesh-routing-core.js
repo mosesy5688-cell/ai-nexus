@@ -14,7 +14,8 @@ export function stripPrefix(id) {
         'hf-model--', 'hf-agent--', 'hf-tool--', 'hf-dataset--', 'hf-space--', 'hf-paper--',
         'gh-model--', 'gh-agent--', 'gh-tool--', 'gh-repo--',
         'arxiv-paper--', 'kaggle-dataset--', 'civitai-model--', 'ollama-model--',
-        'huggingface:', 'github:', 'arxiv:', 'kaggle:', 'civitai:', 'ollama:'
+        'huggingface:', 'github:', 'arxiv:', 'kaggle:', 'civitai:', 'ollama:',
+        'knowledge--', 'concept--', 'report--', 'paper--', 'dataset--', 'model--', 'agent--', 'tool--', 'space--', 'arxiv--'
     ];
 
     for (const p of prefixes) {
