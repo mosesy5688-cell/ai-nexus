@@ -9,7 +9,7 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allAgents, error } = await fetchCatalogData('agent', Astro.locals.runtime?.env);
+const { items: allAgents = [], error } = await fetchCatalogData('agent', Astro.locals.runtime?.env);
 const agents = allAgents.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Agents Catalog | Autonomous AI Index";

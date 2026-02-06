@@ -9,7 +9,7 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allDatasets, error } = await fetchCatalogData('dataset', Astro.locals.runtime?.env);
+const { items: allDatasets = [], error } = await fetchCatalogData('dataset', Astro.locals.runtime?.env);
 const datasets = allDatasets.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Datasets Catalog | Open Data Index";

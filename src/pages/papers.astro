@@ -9,7 +9,7 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allPapers, error } = await fetchCatalogData('paper', Astro.locals.runtime?.env);
+const { items: allPapers = [], error } = await fetchCatalogData('paper', Astro.locals.runtime?.env);
 const papers = allPapers.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Research Papers Catalog | Neural Archive";
