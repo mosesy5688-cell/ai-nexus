@@ -105,7 +105,7 @@ export async function prepareModelPageData(slug, slugStr, locals) {
         // V15.17: Aggressive Global Fallback
         const isV2 = slugStr.includes('--');
         const cleanSlug = isV2 ? slugStr : slugStr.replace(/\//g, '--');
-        const parts = slugStr.split(/[--|\/]/).filter(Boolean);
+        const parts = slugStr.split(/--|\//).filter(Boolean);
         const repoName = parts.pop() || 'Unknown Model';
         const authorName = parts.join('/') || 'huggingface';
 

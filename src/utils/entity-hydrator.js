@@ -208,11 +208,11 @@ function mineRelations(hydrated, meta) {
     // V15.21 Tag Mining (Updated for V2.0 prefixes)
     const tags = toArray(hydrated.tags || []);
     tags.forEach(tag => {
-        if ((tag.startsWith('arxiv:') || tag.startsWith('arxiv--')) && !hydrated.arxiv_refs.includes(tag.split(/[:--]/).pop())) {
-            hydrated.arxiv_refs.push(tag.split(/[:--]/).pop());
+        if ((tag.startsWith('arxiv:') || tag.startsWith('arxiv--')) && !hydrated.arxiv_refs.includes(tag.split(/:|--/).pop())) {
+            hydrated.arxiv_refs.push(tag.split(/:|--/).pop());
         }
-        if ((tag.startsWith('dataset:') || tag.startsWith('dataset--')) && !hydrated.datasets_used.includes(tag.split(/[:--]/).pop())) {
-            hydrated.datasets_used.push(tag.split(/[:--]/).pop());
+        if ((tag.startsWith('dataset:') || tag.startsWith('dataset--')) && !hydrated.datasets_used.includes(tag.split(/:|--/).pop())) {
+            hydrated.datasets_used.push(tag.split(/:|--/).pop());
         }
         if (tag.startsWith('base_model:') && !hydrated.base_model) hydrated.base_model = tag.substring(11);
     });
