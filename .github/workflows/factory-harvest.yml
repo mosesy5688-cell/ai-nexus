@@ -369,22 +369,15 @@ jobs:
             exit 1
           fi
 
-      - name: "Diagnostic: Pre-Save State"
-        run: |
-          echo "🔍 Diagnostic: Pre-Save Information"
-          echo "Run ID: ${{ github.run_id }}"
-          echo "Branch: ${{ github.ref }}"
-          echo "--- data/ content ---"
-          ls -R data/ || true
-          echo "--- cache/ content ---"
-          ls -R cache/ || true
-
+      # V4.1: Save Entity Data to Cache (Cycle-Specific Key)
       - name: Save Entity Data to Cache
         uses: actions/cache/save@v4
         with:
           path: |
             data/merged.json
-            cache
+            data/merged_shard_*.json
+            data/manifest.json
+            cache/
           key: cycle-${{ github.run_id }}-harvest
 
 
