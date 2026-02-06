@@ -12,7 +12,7 @@
 import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
-import { PIPELINE_TO_V6_CATEGORY, CATEGORY_METADATA } from './category-mapping.js';
+import { PIPELINE_TO_V6_CATEGORY, CATEGORY_METADATA } from '../../src/utils/category-mapping.js';
 
 // Tier 3: Name-based inference patterns (L5 only - Art 1.1 Sidecar)
 const NAME_PATTERNS = {
