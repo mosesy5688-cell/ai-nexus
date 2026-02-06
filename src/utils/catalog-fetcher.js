@@ -16,9 +16,11 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
     const isType = ['model', 'agent', 'dataset', 'paper', 'space', 'tool'].includes(typeOrCategory);
     const env = runtime?.env || runtime || null;
 
-    // V16.5: SSOT Tier 1 - Rankings (FNI Top 100)
-    const rankingPath = `rankings/${typeOrCategory}-fni-top.json`;
-    const cdnUrl = `${CDN_BASE}/${rankingPath}`;
+    // V16.9.23: Dual-Mode Path Discovery (Legacy vs V16.2 Paginated)
+    const legacyPath = `rankings/${typeOrCategory}-fni-top.json`;
+    const paginatedPath = `rankings/${typeOrCategory}/p1.json`;
+
+    const pathsToTry = [paginatedPath, legacyPath];
 
     let items = [];
     let source = 'none';
@@ -40,32 +42,40 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
     }
 
     // Tier 1: Try R2 Internal (Direct O(1) access)
-    // In Astro SSR, env.R2_ASSETS should be available if bound
     if (items.length === 0 && env?.R2_ASSETS) {
-        try {
-            // R2 store uses cache/ prefix usually
-            const obj = await env.R2_ASSETS.get(`cache/${rankingPath}`);
-            if (obj) {
-                const data = await obj.json();
-                items = extractItems(data);
-                source = 'r2-internal';
+        for (const rankingPath of pathsToTry) {
+            try {
+                const obj = await env.R2_ASSETS.get(`cache/${rankingPath}`);
+                if (obj) {
+                    const data = await obj.json();
+                    items = extractItems(data);
+                    if (items.length > 0) {
+                        source = `r2-internal-${rankingPath}`;
+                        break;
+                    }
+                }
+            } catch (e) {
+                console.warn(`[CatalogFetcher] R2 miss for ${rankingPath}: ${e.message}`);
             }
-        } catch (e) {
-            console.warn(`[CatalogFetcher] R2 miss: ${e.message}`);
         }
     }
 
     // Tier 2: Try CDN Rankings
     if (items.length === 0) {
-        try {
-            const res = await fetch(cdnUrl, { signal: AbortSignal.timeout(5000) });
-            if (res.ok) {
-                const data = await res.json();
-                items = extractItems(data);
-                source = 'cdn-rankings';
+        for (const rankingPath of pathsToTry) {
+            try {
+                const res = await fetch(`${CDN_BASE}/${rankingPath}`, { signal: AbortSignal.timeout(5000) });
+                if (res.ok) {
+                    const data = await res.json();
+                    items = extractItems(data);
+                    if (items.length > 0) {
+                        source = `cdn-rankings-${rankingPath}`;
+                        break;
+                    }
+                }
+            } catch (e) {
+                console.warn(`[CatalogFetcher] CDN fail for ${rankingPath}: ${e.message}`);
             }
-        } catch (e) {
-            console.warn(`[CatalogFetcher] CDN fail for ${typeOrCategory}: ${e.message}`);
         }
     }
 

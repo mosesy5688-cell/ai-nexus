@@ -11,7 +11,7 @@
 import fs from 'fs';
 import path from 'path';
 import { enforceUpstreamComplete } from './manifest-utils.js';
-import { PIPELINE_TO_V6_CATEGORY, CATEGORY_METADATA } from './category-mapping.js';
+import { PIPELINE_TO_V6_CATEGORY, CATEGORY_METADATA } from '../../src/utils/category-mapping.js';
 import { filterValidEntities } from './entity-validator.js';
 
 // V1.1-LOCK: Enforce upstream manifest completeness

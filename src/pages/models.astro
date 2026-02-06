@@ -9,8 +9,8 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allModels, error } = await fetchCatalogData('model', Astro.locals.runtime?.env);
-const models = allModels.slice(0, 48).map(truncateListingItem);
+const { items: allModels = [], error } = await fetchCatalogData('model', Astro.locals.runtime?.env);
+const models = (allModels || []).slice(0, 48).map(truncateListingItem).filter(Boolean);
 
 const pageTitle = "AI Models Catalog | Explore 70K+ Open-Source Models";
 const pageDescription = "Explore the definitive index of open-source AI models. Filter by performance, category, and framework.";
