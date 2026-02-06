@@ -11,11 +11,17 @@ export function stripPrefix(id) {
 
     // V2.0 Standard Prefixes - Supporting both current -- and legacy : formats
     const prefixes = [
-        'hf-model--', 'hf-agent--', 'hf-tool--', 'hf-dataset--', 'hf-space--', 'hf-paper--',
+        // Source-Specific Prefixes (SPEC-ID-V2.1)
+        'hf-model--', 'hf-agent--', 'hf-tool--', 'hf-dataset--', 'hf-space--', 'hf-paper--', 'hf-collection--',
         'gh-model--', 'gh-agent--', 'gh-tool--', 'gh-repo--',
-        'arxiv-paper--', 'kaggle-dataset--', 'civitai-model--', 'ollama-model--',
-        'huggingface:', 'github:', 'arxiv:', 'kaggle:', 'civitai:', 'ollama:',
-        'knowledge--', 'concept--', 'report--', 'paper--', 'dataset--', 'model--', 'agent--', 'tool--', 'space--', 'arxiv--'
+        'arxiv-paper--', 'arxiv--', 'paper--',
+        'replicate-model--', 'replicate-agent--', 'replicate-space--',
+        'civitai-model--', 'ollama-model--',
+        'kaggle-dataset--', 'kaggle-model--',
+
+        // Legacy/Direct Format Mapping
+        'huggingface:', 'github:', 'arxiv:', 'kaggle:', 'civitai:', 'ollama:', 'replicate:',
+        'knowledge--', 'concept--', 'report--', 'dataset--', 'model--', 'agent--', 'tool--', 'space--'
     ];
 
     for (const p of prefixes) {
@@ -48,9 +54,9 @@ export function getTypeFromId(id) {
     if (low.startsWith('arxiv-paper--') || low.startsWith('arxiv--') || low.startsWith('paper--')) return 'paper';
     if (low.startsWith('hf-dataset--') || low.startsWith('kaggle-dataset--') || low.startsWith('dataset--')) return 'dataset';
     if (low.startsWith('hf-space--') || low.startsWith('space--')) return 'space';
-    if (low.startsWith('gh-agent--') || low.startsWith('github-agent--') || low.startsWith('agent--')) return 'agent';
+    if (low.startsWith('gh-agent--') || low.startsWith('github-agent--') || low.startsWith('hf-agent--') || low.startsWith('replicate-agent--') || low.startsWith('agent--')) return 'agent';
     if (low.startsWith('gh-tool--') || low.startsWith('hf-tool--') || low.startsWith('github-tool--') || low.startsWith('tool--')) return 'tool';
-    if (low.startsWith('gh-model--') || low.startsWith('hf-model--')) return 'model';
+    if (low.startsWith('gh-model--') || low.startsWith('hf-model--') || low.startsWith('replicate-model--') || low.startsWith('civitai-model--') || low.startsWith('ollama-model--')) return 'model';
 
     return 'model';
 }
