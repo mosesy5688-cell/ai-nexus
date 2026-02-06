@@ -87,26 +87,60 @@ const hasData = estimatedVram !== null && params && params > 0;
   function initVramInteractivity() {
     const select = document.getElementById('gpu-preset') as HTMLSelectElement;
     const status = document.getElementById('compatibility-status');
-    const required = parseFloat(select?.dataset.required || '0');
-
+    const vramDisplay = document.getElementById('vram-value');
+    
     if (!select || !status) return;
 
-    select.addEventListener('change', () => {
+    function updateStatus(required: number) {
       const selectedVram = parseFloat(select.value);
       if (selectedVram === 0) {
-        status.textContent = 'Select Hardware';
-        status.className = 'status-badge px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-700';
+        status!.textContent = 'Analyze Hardware';
+        status!.className = 'status-badge px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest bg-purple-200 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 border border-purple-300/50 dark:border-purple-700/50';
         return;
       }
 
       if (selectedVram >= required) {
-        status.textContent = '✓ Compatible';
-        status.className = 'status-badge px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800';
+        status!.textContent = '✓ Compatible';
+        status!.className = 'status-badge px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800';
       } else {
         const diff = (required - selectedVram).toFixed(1);
-        status.textContent = `⚠ Missing ${diff}GB`;
-        status.className = 'status-badge px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tighter bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800';
+        status!.textContent = `⚠ Missing ${diff}GB`;
+        status!.className = 'status-badge px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800';
       }
+    }
+
+    select.addEventListener('change', () => {
+      const required = parseFloat(select.dataset.required || '0');
+      updateStatus(required);
+    });
+
+    // V16.10: Dynamic Backfilling from Neural Mining
+    window.addEventListener('neural-mining-complete', (e: any) => {
+      const mined = e.detail;
+      if (!mined || !mined.params_billions) return;
+
+      console.log('[VramEstimator] Recalculating with mined data:', mined);
+      
+      // Since we are zero-runtime, we re-run the estimate logic here
+      // V16.2 Formula: VRAM ≈ Params * 0.75 + KV + OS
+      const params = mined.params_billions;
+      const ctx = mined.context_length || 8192;
+      
+      const weightUsage = params * 0.75;
+      const kvCache = params > 30 ? 2.0 : 0.8;
+      const total = (weightUsage + kvCache + 0.5).toFixed(1);
+
+      if (vramDisplay) {
+        vramDisplay.textContent = total;
+        vramDisplay.classList.add('text-green-500', 'animate-pulse');
+      }
+      
+      select.dataset.required = total;
+      updateStatus(parseFloat(total));
+
+      // Ensure the container is visible if it was hidden
+      const wrapper = document.querySelector('.vram-estimator');
+      if (wrapper) (wrapper as HTMLElement).style.display = 'block';
     });
   }
 

@@ -1,0 +1,120 @@
+---
+/**
+ * HardwareMatrix.astro
+ * 
+ * V16.10: Professional hardware compatibility grid.
+ * Replaces the simple dropdown with a 'Traffic Light' matrix of mainstream GPUs.
+ */
+interface Props {
+  vramRequired?: number;
+  className?: string;
+}
+
+const { vramRequired = 0, className = '' } = Astro.props;
+
+const hardware = [
+  { name: 'RTX 3060 / 4060 Ti', vram: 8, icon: '🎮', type: 'Entry' },
+  { name: 'RTX 4070 Super', vram: 12, icon: '🎮', type: 'Mid' },
+  { name: 'RTX 4080 / Mac M3', vram: 16, icon: '💻', type: 'High' },
+  { name: 'RTX 3090 / 4090', vram: 24, icon: '🚀', type: 'Pro' },
+  { name: 'RTX 6000 Ada', vram: 48, icon: '🏗️', type: 'Workstation' },
+  { name: 'A100 / H100', vram: 80, icon: '🏭', type: 'Datacenter' }
+];
+---
+
+<div class={`hardware-matrix bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm ${className}`}>
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+      <div class="p-2 bg-emerald-500 rounded-lg shadow-lg shadow-emerald-500/20">
+        <span class="text-white">🖥️</span>
+      </div>
+      <div>
+        <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Hardware Compatibility</h3>
+        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Multi-Tier Validation Matrix</p>
+      </div>
+    </div>
+    <div class="vram-sync-indicator flex items-center gap-1.5 text-[9px] font-black text-emerald-500 uppercase tracking-widest">
+      <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+      Live Sync
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" id="hw-matrix-grid" data-required={vramRequired}>
+    {hardware.map(hw => {
+      const isCompatible = hw.vram >= vramRequired;
+      const progress = Math.min(100, (hw.vram / (vramRequired || 1)) * 100);
+      
+      return (
+        <div class={`hw-card p-4 rounded-xl border transition-all duration-300 ${isCompatible ? 'bg-emerald-50/30 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/50' : 'bg-red-50/30 dark:bg-red-900/10 border-red-100 dark:border-red-800/50 opacity-80'}`}
+             data-vram={hw.vram}>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xl">{hw.icon}</span>
+            <span class={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded border ${isCompatible ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-700' : 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400 border-red-200 dark:border-red-700'}`}>
+              {isCompatible ? 'Compatible' : 'Incompatible'}
+            </span>
+          </div>
+          <h4 class="text-xs font-bold text-gray-900 dark:text-white mb-1 line-clamp-1">{hw.name}</h4>
+          <div class="flex items-center justify-between text-[10px] font-mono mb-2">
+            <span class="text-gray-400 uppercase">{hw.type}</span>
+            <span class={`${isCompatible ? 'text-emerald-600' : 'text-red-600'} font-bold`}>{hw.vram}GB VRAM</span>
+          </div>
+          
+          <div class="h-1 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+             <div class={`h-full transition-all duration-500 ${isCompatible ? 'bg-emerald-500' : 'bg-red-500'}`} style={`width: ${progress}%`}></div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+
+  <div class="mt-6 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg flex items-start gap-3">
+    <span class="text-blue-500 text-sm">ℹ️</span>
+    <p class="text-[9px] text-gray-500 dark:text-gray-400 leading-snug">
+      <strong>Pro Tip:</strong> Compatibility is estimated for 4-bit quantization (Q4). High-precision (FP16) or ultra-long context windows will significantly increase VRAM requirements.
+    </p>
+  </div>
+</div>
+
+<script>
+  function initHardwareMatrixSync() {
+    window.addEventListener('neural-mining-complete', (e: any) => {
+      const mined = e.detail;
+      if (!mined || !mined.params_billions) return;
+
+      const params = mined.params_billions;
+      const weightUsage = params * 0.75;
+      const kvCache = params > 30 ? 2.0 : 0.8;
+      const required = weightUsage + kvCache + 0.5;
+
+      console.log('[HardwareMatrix] Refreshing matrix for required VRAM:', required);
+
+      const grid = document.getElementById('hw-matrix-grid');
+      if (grid) {
+        const cards = grid.querySelectorAll('.hw-card');
+        cards.forEach(card => {
+          const hwVram = parseFloat((card as HTMLElement).dataset.vram || '0');
+          const isCompatible = hwVram >= required;
+          const statusBadge = card.querySelector('span.px-1.5');
+          const progressBar = card.querySelector('.h-full');
+          
+          // Update Classes
+          card.className = `hw-card p-4 rounded-xl border transition-all duration-300 ${isCompatible ? 'bg-emerald-50/30 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/50' : 'bg-red-50/30 dark:bg-red-900/10 border-red-100 dark:border-red-800/50 opacity-80'}`;
+          
+          if (statusBadge) {
+            statusBadge.textContent = isCompatible ? 'Compatible' : 'Incompatible';
+            statusBadge.className = `text-[8px] font-black uppercase px-1.5 py-0.5 rounded border ${isCompatible ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-700' : 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400 border-red-200 dark:border-red-700'}`;
+          }
+
+          if (progressBar) {
+            const progress = Math.min(100, (hwVram / required) * 100);
+            (progressBar as HTMLElement).style.width = `${progress}%`;
+            progressBar.className = `h-full transition-all duration-500 ${isCompatible ? 'bg-emerald-500' : 'bg-red-500'}`;
+          }
+        });
+      }
+    });
+  }
+
+  initHardwareMatrixSync();
+  document.addEventListener('astro:after-swap', initHardwareMatrixSync);
+</script>

@@ -121,3 +121,47 @@ const cloudSpecs = [
     )}
   </div>
 </section>
+
+<script>
+  function initTechSpecsSync() {
+    window.addEventListener('neural-mining-complete', (e: any) => {
+      const mined = e.detail;
+      if (!mined) return;
+
+      console.log('[TechSpecs] Synchronizing with mined data:', mined);
+      
+      const cards = document.querySelectorAll('.tech-specs-full, .grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-4');
+      
+      cards.forEach(container => {
+        // Find labels and update values
+        const items = container.querySelectorAll('.flex.items-start.gap-2, div > div.text-xs');
+        items.forEach(item => {
+          const labelEl = item.querySelector('.text-xs, .text-gray-500');
+          const valueEl = item.querySelector('.font-medium, .text-gray-900');
+          
+          if (labelEl && valueEl) {
+            const label = labelEl.textContent?.trim();
+            const currentValue = valueEl.textContent?.trim();
+            
+            if (currentValue === '-' || currentValue === 'Unknown') {
+              if (label === 'Architecture' && mined.architecture) {
+                valueEl.textContent = mined.architecture;
+                valueEl.classList.add('text-green-500', 'animate-pulse');
+              } else if (label === 'Parameters' && mined.params_billions) {
+                valueEl.textContent = `${mined.params_billions}B`;
+                valueEl.classList.add('text-green-500', 'animate-pulse');
+              } else if (label === 'Context Length' && mined.context_length) {
+                const ctx = mined.context_length;
+                valueEl.textContent = ctx >= 1024 ? `${(ctx / 1024).toFixed(0)}K` : ctx.toString();
+                valueEl.classList.add('text-green-500', 'animate-pulse');
+              }
+            }
+          }
+        });
+      });
+    });
+  }
+
+  initTechSpecsSync();
+  document.addEventListener('astro:after-swap', initTechSpecsSync);
+</script>

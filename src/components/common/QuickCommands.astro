@@ -15,15 +15,22 @@ interface Props {
 const { entity, type, className = '' } = Astro.props;
 
 // Logic for snippets
+// Logic for snippets
 const id = entity?.id || entity?.umid || '';
-const cleanId = id.split('--').pop()?.replace(/--/g, '/') || '';
+// V16.10: Precise namespace extraction (e.g., hf-model--unsloth--llama -> unsloth/llama)
+const idParts = id.split('--');
+const cleanId = idParts.length > 2 
+    ? idParts.slice(1).join('/') 
+    : (idParts.pop() || '');
+    
 const repoUrl = entity?.source_url || '';
 
 const commands = [];
 
 if (type === 'model') {
   // 1. Ollama (if likely compatible)
-  if (entity.params_billions && entity.params_billions < 100) {
+  const pCount = entity.params_billions || 0;
+  if (pCount > 0 && pCount < 100) {
     commands.push({
       label: 'Ollama Run',
       cmd: `ollama run ${cleanId.includes('/') ? cleanId.split('/').pop() : cleanId}`,
@@ -37,6 +44,15 @@ if (type === 'model') {
       cmd: `huggingface-cli download ${cleanId}`,
       icon: '🤗'
     });
+    
+    // 3. Pip Install (Transformers)
+    if (entity.library_name === 'transformers' || entity.tags?.includes('transformers')) {
+        commands.push({
+            label: 'Install Lib',
+            cmd: `pip install -U transformers`,
+            icon: '📦'
+        });
+    }
   }
 } else if (type === 'agent') {
   commands.push({
@@ -44,6 +60,13 @@ if (type === 'model') {
     cmd: `git clone ${repoUrl || '...' }`,
     icon: '🐙'
   });
+  if (repoUrl.includes('github.com')) {
+      commands.push({
+          label: 'Setup Env',
+          cmd: `pip install -r requirements.txt`,
+          icon: '🐍'
+      });
+  }
 } else if (type === 'dataset') {
   commands.push({
     label: 'HF Download',
@@ -59,9 +82,10 @@ if (type === 'model') {
   });
 } else if (type === 'tool') {
   const lang = (entity?.language || '').toLowerCase();
+  const packageName = cleanId.split('/').pop();
   commands.push({
     label: 'Install',
-    cmd: lang === 'javascript' || lang === 'typescript' ? `npm install ${cleanId.split('/').pop()}` : `pip install ${cleanId.split('/').pop()}`,
+    cmd: lang === 'javascript' || lang === 'typescript' ? `npm install ${packageName}` : `pip install ${packageName}`,
     icon: '📦'
   });
 } else if (type === 'paper') {

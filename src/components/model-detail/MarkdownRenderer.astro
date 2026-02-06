@@ -64,18 +64,31 @@ renderer.code = (args) => {
 const renderedHtml = await marked.parse(processedContent, { renderer });
 ---
 
-{headers.length > 2 && (
-  <nav class="markdown-toc mb-8 p-4 bg-gray-50 dark:bg-gray-900/30 rounded-xl border border-gray-100 dark:border-gray-800">
-    <div class="text-xs font-black uppercase tracking-widest text-gray-400 mb-3">Contents</div>
-    <ul class="space-y-1">
+{headers.length > 1 && (
+  <nav class="markdown-toc mb-10 p-6 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900/50 dark:to-gray-900/10 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden group">
+    <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+      <span class="text-4xl">📑</span>
+    </div>
+    <div class="flex items-center gap-2 mb-4">
+      <div class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse"></div>
+      <div class="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">Document Outline</div>
+    </div>
+    <ul class="space-y-2 border-l-2 border-gray-100 dark:border-gray-800/50 ml-1">
       {headers.map(h => (
-        <li class={`text-sm ${h.depth === 3 ? 'ml-4' : ''}`}>
-          <a href={`#${h.slug}`} class="text-gray-600 dark:text-gray-400 hover:text-indigo-600 font-medium transition-colors">
+        <li class={`${h.depth === 1 ? 'mt-3 first:mt-0' : ''}`}>
+          <a href={`#${h.slug}`} 
+             class={`block py-0.5 pl-4 -ml-[2px] border-l-2 border-transparent hover:border-indigo-500 text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all
+                    ${h.depth === 1 ? 'text-[13px] font-black uppercase tracking-tight' : 'text-xs font-medium'}
+                    ${h.depth === 3 ? 'pl-8 opacity-70' : ''}`}>
             {h.text}
           </a>
         </li>
       ))}
     </ul>
+    <div class="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800/50 flex justify-between items-center">
+       <span class="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">AI-Optimized Extraction</span>
+       <a href="#" class="text-[9px] font-black text-indigo-500 uppercase tracking-widest hover:underline">↑ Core Focus</a>
+    </div>
   </nav>
 )}
 

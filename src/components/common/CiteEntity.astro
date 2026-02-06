@@ -1,0 +1,89 @@
+---
+/**
+ * CiteEntity.astro
+ * 
+ * V16.10: Professional citation tool for research authority.
+ * Generates BibTeX and APA snippets for the current entity.
+ */
+interface Props {
+  id: string;
+  name: string;
+  author?: string;
+  url?: string;
+  type?: string;
+  className?: string;
+}
+
+const { id, name, author = 'Free2AITools Contributors', url, type = 'model', className = '' } = Astro.props;
+
+const currentYear = new Date().getFullYear();
+const bibtex = `@misc{${id.replace(/-/g, '_')},
+  author = {${author}},
+  title = {${name} ${type.charAt(0).toUpperCase() + type.slice(1)}},
+  year = {${currentYear}},
+  howpublished = {\\url{${url || `https://free2aitools.com/${type}/${id}`}}},
+  note = {Accessed via Free2AITools Knowledge Fortress}
+}`;
+
+const apa = `${author}. (${currentYear}). ${name} [${type.charAt(0).toUpperCase() + type.slice(1)}]. Free2AITools. ${url || `https://free2aitools.com/${type}/${id}`}`;
+---
+
+<div class={`cite-entity bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 ${className}`}>
+  <div class="flex items-center gap-3 mb-6">
+    <div class="p-2 bg-rose-500 rounded-lg shadow-lg shadow-rose-500/20">
+      <span class="text-white">📜</span>
+    </div>
+    <div>
+      <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Cite this {type}</h3>
+      <p class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Academic & Research Attribution</p>
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    {/* BibTeX */}
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">BibTeX</span>
+        <button class="cite-copy-btn text-[9px] font-black text-indigo-500 hover:text-indigo-400 uppercase tracking-widest transition-colors" data-copy={bibtex}>
+          Copy Snippet
+        </button>
+      </div>
+      <pre class="p-3 bg-white dark:bg-black/40 border border-gray-100 dark:border-gray-800 rounded-lg text-[10px] text-gray-600 dark:text-gray-400 font-mono overflow-x-auto whitespace-pre-wrap">{bibtex}</pre>
+    </div>
+
+    {/* APA */}
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">APA Style</span>
+        <button class="cite-copy-btn text-[9px] font-black text-indigo-500 hover:text-indigo-400 uppercase tracking-widest transition-colors" data-copy={apa}>
+          Copy Snippet
+        </button>
+      </div>
+      <div class="p-3 bg-white dark:bg-black/40 border border-gray-100 dark:border-gray-800 rounded-lg text-[10px] text-gray-600 dark:text-gray-400 italic">
+        {apa}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function initCiteCopy() {
+    document.querySelectorAll('.cite-copy-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const text = (btn as HTMLElement).dataset.copy || '';
+        try {
+          await navigator.clipboard.writeText(text);
+          const original = btn.textContent;
+          btn.textContent = '✓ Copied';
+          btn.classList.add('text-green-500');
+          setTimeout(() => {
+            btn.textContent = original;
+            btn.classList.remove('text-green-500');
+          }, 2000);
+        } catch (e) {}
+      });
+    });
+  }
+  initCiteCopy();
+  document.addEventListener('astro:after-swap', initCiteCopy);
+</script>

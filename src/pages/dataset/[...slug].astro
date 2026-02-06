@@ -18,6 +18,7 @@ import ModelCarousel from '../../components/ModelCarousel.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 import QuickCommands from '../../components/common/QuickCommands.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
+import CiteEntity from '../../components/common/CiteEntity.astro';
 import { getUseCases } from '../../utils/inference.js';
 import { prepareDatasetPageData } from '../../utils/dataset-page-data.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
@@ -176,6 +177,14 @@ const jsonLd = dataset ? {
        <ShareButtons 
           url={`https://free2aitools.com/dataset/${slugStr}`} 
           title={`${datasetName} - AI Dataset Details`} 
+       />
+
+       <CiteEntity 
+         id={datasetId} 
+         name={datasetName} 
+         author={displayAuthor} 
+         url={dataset.source_url} 
+         type="dataset" 
        />
     </div>
 

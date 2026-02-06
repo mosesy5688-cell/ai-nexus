@@ -1,12 +1,12 @@
 // Knowledge Cache Reader (V16.4)
 export { stripPrefix, getTypeFromId, getRouteFromId, normalizeSlug, isMatch, KNOWLEDGE_ALIAS_MAP } from './mesh-routing-core.js';
 import { stripPrefix, getTypeFromId, normalizeSlug, isMatch } from './mesh-routing-core.js';
+import { loadCachedJSON } from './loadCachedJSON.js';
 
 // Bidirectional matching and ingestion logic
 
 export async function fetchMeshRelations(locals, entityId = null, options = { ssrOnly: true }) {
     const R2 = locals?.runtime?.env?.R2_ASSETS;
-    if (!R2) return [];
 
     const target = stripPrefix(entityId);
     let allRelations = [];
@@ -31,9 +31,9 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     try {
         for (const key of sourcesToFetch) {
             try {
-                const obj = await R2.get(key);
-                if (!obj) continue;
-                const data = await obj.json();
+                // V16.10: Use loadCachedJSON for environment-aware fetching
+                const { data } = await loadCachedJSON(key, { locals });
+                if (!data) continue;
 
                 // 1. Unified Graph Format (edges: { src: [[target, type, weight], ...] })
                 if (data.edges) {
@@ -164,22 +164,18 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
  * Fetch Graph Node Metadata (Icons, Types, Flags) from V16.2 Graph.
  */
 export async function fetchGraphMetadata(locals) {
-    const R2 = locals?.runtime?.env?.R2_ASSETS;
-    if (!R2) return {};
     try {
         // V16.96: Skip heavy graph metadata during SSR to preserve memory
-        if (locals?.runtime?.env) return {};
+        // V16.10: But allow if NOT in SSR (client-side)
+        const isSSR = Boolean(locals?.runtime?.env);
+        if (isSSR) return {};
 
-        const obj = await R2.get('cache/mesh/graph.json');
-        if (!obj) {
-            // Fallback to explicit
-            const legacy = await R2.get('cache/relations/explicit.json');
-            if (!legacy) return {};
-            const data = await legacy.json();
-            return data.nodes || {};
-        }
-        const data = await obj.json();
-        return data.nodes || {};
+        const { data } = await loadCachedJSON('cache/mesh/graph.json', { locals });
+        if (data) return data.nodes || {};
+
+        // Fallback to explicit
+        const { data: legacy } = await loadCachedJSON('cache/relations/explicit.json', { locals });
+        return legacy?.nodes || {};
     } catch (e) {
         return {};
     }
