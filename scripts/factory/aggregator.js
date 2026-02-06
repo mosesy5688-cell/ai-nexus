@@ -211,7 +211,33 @@ async function main() {
             }
         } catch { /* skip missing */ }
 
-        // GitHub Actions Cache Sync (Robust V2.0 Sync)
+        // E. Mirror Daily Reports & Index (V17.8) - Critical for next cycle mesh visibility
+        const reportsSrcDir = path.join(CONFIG.OUTPUT_DIR, 'cache', 'reports');
+        const reportsDestDir = path.join(backupDir, 'reports');
+        const dailySrcDir = path.join(CONFIG.OUTPUT_DIR, 'daily');
+        const dailyDestDir = path.join(backupDir, 'daily');
+
+        try {
+            // 1. Mirror reports cache
+            await fs.mkdir(reportsDestDir, { recursive: true });
+            const reportFiles = await fs.readdir(reportsSrcDir);
+            for (const file of reportFiles) {
+                const src = path.join(reportsSrcDir, file);
+                const dest = path.join(reportsDestDir, file);
+                const stat = await fs.stat(src);
+                if (stat.isFile()) await fs.copyFile(src, dest);
+                else if (stat.isDirectory()) {
+                    await fs.mkdir(path.join(reportsDestDir, file), { recursive: true });
+                    const subFiles = await fs.readdir(src);
+                    for (const sub of subFiles) await fs.copyFile(path.join(src, sub), path.join(reportsDestDir, file, sub));
+                }
+            }
+            // 2. Mirror daily raw files
+            await fs.mkdir(dailyDestDir, { recursive: true });
+            const dailyFiles = await fs.readdir(dailySrcDir);
+            for (const file of dailyFiles) await fs.copyFile(path.join(dailySrcDir, file), path.join(dailyDestDir, file));
+        } catch (e) { console.warn(`[MIRROR] Reports skipped: ${e.message}`); }
+
         const TARGET_CACHE_DIR = './cache';
         await syncCacheState(process.env.CACHE_DIR, TARGET_CACHE_DIR);
     }

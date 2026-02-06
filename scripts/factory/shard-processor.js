@@ -10,7 +10,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
-import { calculateFNI } from '../fni/fni-calc.js';
+import { calculateFNI } from './lib/fni-score.js';
 import { hasValidCachePath } from '../l5/entity-validator.js';
 import { smartWriteWithVersioning } from './lib/smart-writer.js';
 import { loadEntityChecksums, saveEntityChecksums } from './lib/cache-manager.js';
@@ -43,12 +43,12 @@ async function processEntity(entity, allEntities, entityChecksums) {
             return { id: id || entity.id, success: false, error: 'Invalid cache path' };
         }
 
-        // Calculate FNI using existing module
-        const fni = calculateFNI(entity, allEntities);
+        // Calculate FNI using V2.0 module
+        const fniScore = calculateFNI(entity);
 
         // V16.8.10: Type Normalization & Promotion (Art 3.1)
         const finalType = entity.type || entity.entity_type || 'model';
-        const finalFni = fni.fni_score ?? entity.fni ?? 0;
+        const finalFni = fniScore;
 
         // V14.5.2: Stable _updated - only update if content changed
         const entityHash = crypto.createHash('sha256')
@@ -63,11 +63,7 @@ async function processEntity(entity, allEntities, entityChecksums) {
             id: id,
             type: finalType, // Promote to canonical field
             fni_score: finalFni,
-            fni_p: fni.fni_p,
-            fni_v: fni.fni_v,
-            fni_c: fni.fni_c,
-            fni_u: fni.fni_u,
-            _version: '16.8.10',
+            _version: '16.9.7', // Search fix + FNI 2.0
             _updated: isChanged ? new Date().toISOString() : currentUpdated,
             _checksum: entityHash,
         };
@@ -87,7 +83,7 @@ async function processEntity(entity, allEntities, entityChecksums) {
             author: enriched.author,
             downloads: enriched.downloads || enriched.download_count,
             likes: enriched.likes || enriched.like_count,
-            fni: fni.fni_score,
+            fni: finalFni,
             lastModified: enriched._updated,
             success: true,
             _checksum: entityHash, // Pass through for aggregation
