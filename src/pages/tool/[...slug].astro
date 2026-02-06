@@ -20,6 +20,7 @@ import ShareButtons from '../../components/common/ShareButtons.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import QuickCommands from '../../components/common/QuickCommands.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
+import CiteEntity from '../../components/common/CiteEntity.astro';
 import { getUseCases } from '../../utils/inference.js';
 import { prepareToolPageData } from '../../utils/tool-page-data.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
@@ -184,7 +185,15 @@ const jsonLd = tool ? {
        
        <ShareButtons 
           url={`https://free2aitools.com/tool/${slugStr}`} 
-          title={`${toolName} - AI Tool Architecture`} 
+          title={`${toolName} - AI Tool Details`} 
+       />
+
+       <CiteEntity 
+         id={toolId} 
+         name={toolName} 
+         author={displayAuthor} 
+         url={tool?.source_url} 
+         type="tool" 
        />
     </div>
 

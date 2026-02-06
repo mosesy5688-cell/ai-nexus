@@ -19,6 +19,7 @@ import ModelNavigation from '../../components/model-detail/ModelNavigation.astro
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import QuickCommands from '../../components/common/QuickCommands.astro';
+import CiteEntity from '../../components/common/CiteEntity.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import { getUseCases } from '../../utils/inference.js';
 import { prepareSpacePageData } from '../../utils/space-page-data.js';
@@ -185,7 +186,15 @@ const jsonLd = space ? {
        
        <ShareButtons 
           url={`https://free2aitools.com/space/${slugStr}`} 
-          title={`${spaceName} - AI Demo Analysis`} 
+          title={`${spaceName} - AI Space Details`} 
+       />
+
+       <CiteEntity 
+         id={spaceId} 
+         name={spaceName} 
+         author={displayAuthor} 
+         url={space?.source_url} 
+         type="space" 
        />
     </div>
 

@@ -24,6 +24,7 @@ import ModelCarousel from '../../components/ModelCarousel.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import QuickCommands from '../../components/common/QuickCommands.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
+import CiteEntity from '../../components/common/CiteEntity.astro';
 
 import { prepareAgentPageData } from '../../utils/agent-page-data.js';
 import { cleanDescription } from '../../utils/model-page-helpers.js';
@@ -203,6 +204,14 @@ const jsonLd = {
        <ShareButtons 
           url={`https://free2aitools.com/agent/${slugStr}`} 
           title={`${agentName} - AI Agent Details`} 
+       />
+
+       <CiteEntity 
+         id={agentId} 
+         name={agentName} 
+         author={agent.author} 
+         url={agent.source_url} 
+         type="agent" 
        />
     </div>
 

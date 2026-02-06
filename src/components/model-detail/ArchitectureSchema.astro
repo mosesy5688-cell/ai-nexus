@@ -1,0 +1,131 @@
+---
+/**
+ * ArchitectureSchema.astro
+ * 
+ * V16.10: Visual representation of model internal structure.
+ * Uses CSS Grid/Flex for a 'Pro-Tier' technical look without heavy libraries.
+ */
+interface Props {
+  layers?: number;
+  heads?: number;
+  experts?: number;
+  activeExperts?: number;
+  hiddenSize?: number;
+  architecture?: string;
+  className?: string;
+}
+
+const { 
+  layers, heads, experts, activeExperts, hiddenSize, architecture, className = '' 
+} = Astro.props;
+
+const isMoe = Boolean(experts && experts > 0);
+---
+
+<div class={`architecture-schema bg-black/5 dark:bg-white/5 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 ${className}`}>
+  <div class="flex items-center justify-between mb-8">
+    <div class="flex items-center gap-3">
+      <div class="p-2 bg-indigo-500 rounded-lg shadow-lg shadow-indigo-500/20">
+        <span class="text-white">🧬</span>
+      </div>
+      <div>
+        <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Architecture Schema</h3>
+        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Structural Engineering View</p>
+      </div>
+    </div>
+    <div class="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 text-[9px] font-black rounded border border-indigo-200 dark:border-indigo-800 uppercase tracking-widest">
+      {architecture || 'Transformer'}
+    </div>
+  </div>
+
+  <div class="schema-viz flex flex-col items-center gap-4 py-4">
+    {/* Input Layer */}
+    <div class="w-32 h-6 bg-gray-200 dark:bg-gray-800 rounded-full border border-gray-300 dark:border-gray-700 flex items-center justify-center text-[8px] font-bold text-gray-500 uppercase tracking-widest">
+      Input Embedding
+    </div>
+
+    {/* Down Arrow */}
+    <div class="w-px h-6 bg-gradient-to-b from-gray-300 to-indigo-500 dark:from-gray-700 dark:to-indigo-500"></div>
+
+    {/* Layers Loop (Simplified Visual) */}
+    <div class="relative group w-full max-w-sm">
+      <div class="absolute inset-0 bg-indigo-500/5 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+      
+      <div class="relative p-5 bg-white dark:bg-gray-900 rounded-2xl border-2 border-indigo-500/20 shadow-xl overflow-hidden">
+        <div class="absolute top-0 right-0 p-2 opacity-5">
+           <span class="text-4xl font-black">×{layers || '...'}</span>
+        </div>
+        
+        <div class="space-y-4">
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex-1 h-8 bg-indigo-50 dark:bg-indigo-950/40 rounded-lg border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center">
+               <span class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
+                 {heads ? `${heads} Atn Heads` : 'Multi-Head Atn'}
+               </span>
+            </div>
+            {hiddenSize && (
+              <div class="text-[9px] font-mono text-gray-400">dim: {hiddenSize}</div>
+            )}
+          </div>
+
+          <div class="w-full h-px bg-gray-100 dark:bg-gray-800"></div>
+
+          {isMoe ? (
+            <div class="grid grid-cols-4 gap-2">
+              {[...Array(4)].map((_, i) => (
+                <div class={`h-10 rounded-lg border flex items-center justify-center transition-all ${i < (activeExperts || 2) ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/50' : 'bg-gray-50 dark:bg-gray-800/50 border-gray-100 dark:border-gray-800'}`}>
+                   <span class={`text-[8px] font-black ${i < (activeExperts || 2) ? 'text-emerald-600' : 'text-gray-300'}`}>E{i+1}</span>
+                </div>
+              ))}
+              <div class="col-span-4 text-center mt-1">
+                <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                  MoE: {activeExperts || '?'}/{experts} Expert Routing
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div class="h-12 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800 flex items-center justify-center">
+              <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Standard FFN Layer</span>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Repeat Indicator */}
+      <div class="mt-4 text-center">
+        <span class="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-[9px] font-black text-gray-500 uppercase tracking-[0.2em]">
+          Repeated {layers || 'N'} Times
+        </span>
+      </div>
+    </div>
+
+    {/* Down Arrow */}
+    <div class="w-px h-6 bg-gradient-to-b from-indigo-500 to-gray-300 dark:from-indigo-500 dark:to-gray-700"></div>
+
+    {/* Output Layer */}
+    <div class="w-32 h-6 bg-gray-200 dark:bg-gray-800 rounded-full border border-gray-300 dark:border-gray-700 flex items-center justify-center text-[8px] font-bold text-gray-500 uppercase tracking-widest">
+      Logits Output
+    </div>
+  </div>
+
+  <p class="mt-8 text-[9px] text-gray-400 text-center leading-tight">
+    * Structural representation based on canonical configuration metadata.<br/>
+    Visualized for architectural comparison only.
+  </p>
+</div>
+
+<script>
+  function initArchSync() {
+    window.addEventListener('neural-mining-complete', (e: any) => {
+      const mined = e.detail;
+      if (!mined || !mined.architecture) return;
+      
+      const badge = document.querySelector('.architecture-schema .badge');
+      if (badge) {
+        badge.textContent = mined.architecture;
+        badge.classList.add('animate-pulse');
+      }
+    });
+  }
+  initArchSync();
+</script>

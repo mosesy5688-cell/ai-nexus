@@ -13,6 +13,9 @@ import CodeExample from './CodeExample.astro';
 import GGUFList from './GGUFList.astro';
 import QuickCommands from '../common/QuickCommands.astro';
 import ModelGallery from './ModelGallery.astro';
+import ArchitectureSchema from './ArchitectureSchema.astro';
+import HardwareMatrix from './HardwareMatrix.astro';
+import CiteEntity from '../common/CiteEntity.astro';
 
 
 interface Props {
@@ -60,10 +63,8 @@ try {
     />
   )}
   
-  {/* V15.15 & V15.18 (Cleanup): Standardizing Zone 4 density */}
-  {/* Redundant TechSpecsFull removed, now handled in [...slug].astro core Zone 4 slot */}
-  
-  {/* Redundant BenchmarkScores removed - Zone 3 BenchmarkCard covers primary metrics */}
+  {/* V8.0: Hardware Compatibility Matrix (Replacing standalone VRAM) */}
+  <HardwareMatrix vramRequired={model.vram_estimate || 0} />
 
   {/* V15.8: GGUF File List (Zone 4) */}
   <GGUFList files={model.siblings} modelId={modelId} />
@@ -75,29 +76,46 @@ try {
           <span>⚙️</span> Technical Implementation
        </h2>
        
-       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {model.installation && (
-            <div class="space-y-4">
-               <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Installation
-               </h3>
-               <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
-                  <MarkdownRenderer content={model.installation} />
-               </div>
-            </div>
-          )}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* V16.10: Visual Architectural Skeleton */}
+          <div class="space-y-4">
+             <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <span class="w-2 h-2 bg-indigo-500 rounded-full"></span> Internal Architecture
+             </h3>
+             <ArchitectureSchema 
+               layers={model.num_layers} 
+               heads={model.num_heads} 
+               experts={model.moe_experts} 
+               activeExperts={model.moe_active} 
+               hiddenSize={model.hidden_size}
+               architecture={model.architecture}
+             />
+          </div>
 
-          {model.usage && (
-            <div class="space-y-4">
-               <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <span class="w-2 h-2 bg-green-500 rounded-full"></span> Usage Example
-               </h3>
-               <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
-                  <MarkdownRenderer content={model.usage} />
-               </div>
-            </div>
-          )}
-       </div>
+          <div class="space-y-8">
+            {model.installation && (
+              <div class="space-y-4">
+                 <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Installation
+                 </h3>
+                 <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+                    <MarkdownRenderer content={model.installation} />
+                 </div>
+              </div>
+            )}
+
+            {model.usage && (
+              <div class="space-y-4">
+                 <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span class="w-2 h-2 bg-green-500 rounded-full"></span> Usage Example
+                 </h3>
+                 <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+                    <MarkdownRenderer content={model.usage} />
+                 </div>
+              </div>
+            )}
+          </div>
+        </div>
 
        {model.configuration && (
          <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-800 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
@@ -131,6 +149,15 @@ try {
     license={model.license_spdx}
     hasDescription={!!model.description}
     hasSeoSummary={!!model.seo_summary}
+  />
+
+  {/* V16.10 Academic Authority */}
+  <CiteEntity 
+    id={modelId} 
+    name={modelName} 
+    author={model.author} 
+    url={model.source_url} 
+    type="model" 
   />
   
   {/* Legacy ModelResources & EntityLinks removed - redundant with Neural Mesh Hub (V16) */}

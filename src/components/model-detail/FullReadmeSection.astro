@@ -9,6 +9,7 @@
  */
 import MarkdownRenderer from './MarkdownRenderer.astro';
 import ZenModeModal from './ZenModeModal.astro';
+import NeuralFactSheet from './NeuralFactSheet.astro';
 
 interface Props {
   bodyContent: string | null | undefined;
@@ -47,79 +48,13 @@ const toggleLabel = type === 'dataset' ? 'Dataset Card' : (type === 'tool' ? 'Do
 // Clean content (V15.8: Resilient Regex)
 let content = (bodyContent || '').replace(/^---\s*[\s\S]*?---\s*\n?/g, '');
 
-// V16.2.1: SD 3.5 Large Fallback (Zero-Limit Content Recovery)
-// Since this model is gated on HF, we provide extracted docs from Replicate as a frontend fallback
-if (!content && Astro.params.slug?.includes('stable-diffusion-3.5-large')) {
-  content = `
-# Stable Diffusion 3.5 Large
-
-## Model Description
-- **Developed by:** Stability AI
-- **Model type:** Multimodal Diffusion Transformer (MMDiT) text-to-image generative model
-- **Description:** This model generates high-quality images based on text prompts. It utilizes three fixed, pretrained text encoders and QK-normalization to improve training stability.
-
-## Technical Details
-- **Architecture:** MMDiT (Multimodal Diffusion Transformer)
-- **Text Encoders:** 
-  - OpenCLIP-ViT/G
-  - CLIP-ViT/L
-  - T5-xxl
-- **Context Length:** 77 tokens (CLIP), up to 256 tokens (T5)
-- **Training Data:** Trained on a diverse mix of synthetic and filtered public data.
-
-## Implementation & Usage
-For optimal performance, this model is typically used via:
-- **ComfyUI:** Recommended for node-based inference.
-- **Diffusers:** Integrated into the Hugging Face diffusers library.
-- **Stability AI API:** Available through official cloud endpoints.
-
-> [!NOTE]
-> This model is gated on Hugging Face. The information above is a curated technical summary to ensure full disclosure under the Zero-Limit protocol.
-`;
-}
-
-// Global Gated Model Fallback (V16.20: Neural Fact Sheet Restoration)
-if (!content && !bodyContent) {
-  const params = model.params_billions ? `${model.params_billions}B` : 'Large Scale';
-  const arch = model.architecture || 'Neural Transformer';
-  const ctx = model.context_length ? `${Math.round(model.context_length / 1024)}k` : 'Standard (2k-4k)';
-  const vram = model.vram_gb ? `~${Math.ceil(model.vram_gb)}GB (Q4)` : 'Computing...';
-  const license = (model.license || model.license_spdx) ? (model.license || model.license_spdx).toUpperCase() : 'Proprietary/Restricted';
-  const fni = model.fni_score ? `${model.fni_score}/100` : 'Auditing...';
-
-  content = `
-# Neural Fact Sheet: ${model.name || 'AI Entity'}
-
-> [!IMPORTANT]
-> **Full Disclosure Protocol Active**: Primary source documentation is restricted or gated. 
-> The following technical intelligence has been extracted from the **R2 Production Node** and **Zero-Limit Knowledge Mesh**.
-
-## 📊 Core Architecture
-- **Parameter Scale:** ${params}
-- **Neural Architecture:** ${arch}
-- **Inference Efficiency:** ${fni} (FNI Logic Score)
-- **License Profile:** ${license}
-
-## ⚙️ Technical Capabilities
-- **Neural Context Window:** ${ctx} tokens
-- **Memory Footprint:** ${vram} estimated VRAM
-- **Pipeline Origin:** ${model.pipeline_tag || 'Standard AI'}
-- **Safety Status:** Model utilizes developer-defined safety filters.
-
-## 🚀 Strategic Recommendations
-1. **Inference Hub:** Recommended for local execution via **Ollama** or **vLLM** for private infrastructure.
-2. **Context Limits:** Optimal performance is maintained within the first ${ctx} tokens of input.
-3. **Hardware Alignment:** Ideal for hardware with at least ${vram} of high-speed video memory.
-
----
-*For full unrestricted documentation, please click **"View Source"** in the header.*
-`;
-}
-
+// SD 3.5 Large Fallback (Curated Content)
+const isSD35 = Astro.params.slug?.includes('stable-diffusion-3.5-large');
+const hasNoContent = !content && !bodyContent;
 const hasLongContent = content.length > maxPreviewLength;
 ---
 
-{content && (
+{((content || isSD35 || hasNoContent)) && (
   <section class="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
     <div class="p-6">
       <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
@@ -130,7 +65,13 @@ const hasLongContent = content.length > maxPreviewLength;
       </h2>
       
       <div id="readme-container" class={`readme-wrapper relative transition-all duration-500 ease-in-out ${hasLongContent ? 'collapsed' : ''}`}>
-        <MarkdownRenderer content={content} />
+        {content ? (
+          <MarkdownRenderer content={content} />
+        ) : isSD35 ? (
+          <MarkdownRenderer content={`# SD 3.5 Large\nTechnical summary restricted by Hugging Face gating. Proceed to [Source](${model.source_url}) for full repo access.`} />
+        ) : (
+          <NeuralFactSheet model={model} />
+        )}
         
         {hasLongContent && (
           <div id="readme-fade" class="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white dark:from-gray-800 to-transparent pointer-events-none transition-opacity duration-300"></div>
@@ -183,6 +124,8 @@ const hasLongContent = content.length > maxPreviewLength;
 <ZenModeModal content={content} displayTitle={displayTitle} />
 
 <script>
+  import { runNeuralMining } from '../../scripts/neural-miner.js';
+
   function initReadmeToggle() {
     const toggleBtn = document.getElementById('toggle-readme');
     const container = document.getElementById('readme-container');
@@ -220,11 +163,21 @@ const hasLongContent = content.length > maxPreviewLength;
         }
       });
     }
+
+    if (container) runNeuralMining(container);
   }
 
   initReadmeToggle();
   document.addEventListener('astro:after-swap', initReadmeToggle);
 </script>
+
+<style>
+  .readme-wrapper { overflow: hidden; }
+  .readme-wrapper.collapsed { max-height: 800px; }
+  .rotate-180 { transform: rotate(180deg); }
+  .opacity-0 { opacity: 0; }
+  .zen-active { overflow: hidden !important; }
+</style>
 
 <style>
   .readme-wrapper { overflow: hidden; }
