@@ -160,86 +160,64 @@ async function main() {
             lastUpdated: new Date().toISOString()
         });
 
-        // V17.5: Mirror baseline state files to output for R2 unified distribution (Step 4/4)
-        console.log(`[AGGREGATOR] 📂 Mirroring state files for R2 backup...`);
+        // Mirroring (V17.5+)
         const backupDir = path.join(CONFIG.OUTPUT_DIR, 'meta', 'backup');
         await fs.mkdir(backupDir, { recursive: true });
 
-        // A. Mirror Monoliths
         const monoliths = ['global-registry.json', 'fni-history.json', 'daily-accum.json', 'entity-checksums.json'];
         for (const file of monoliths) {
             const src = path.join(process.env.CACHE_DIR, file);
             try {
                 await fs.access(src);
                 await fs.copyFile(src, path.join(backupDir, file));
-            } catch { /* skip missing */ }
+            } catch { }
         }
 
-        // B. Mirror Sharded Registry (Recursive)
-        const shardSrcDir = path.join(process.env.CACHE_DIR, 'registry');
-        const shardDestDir = path.join(backupDir, 'registry');
-        try {
-            await fs.access(shardSrcDir);
-            await fs.mkdir(shardDestDir, { recursive: true });
-            const shards = await fs.readdir(shardSrcDir);
-            for (const shard of shards) {
-                await fs.copyFile(path.join(shardSrcDir, shard), path.join(shardDestDir, shard));
-            }
-        } catch { /* skip missing */ }
+        const syncDirs = [
+            { src: 'registry', dest: 'registry' },
+            { src: 'fni-history', dest: 'fni-history' },
+            { src: 'daily-accum', dest: 'daily-accum' }
+        ];
+        for (const dir of syncDirs) {
+            const srcPath = path.join(process.env.CACHE_DIR, dir.src);
+            const destPath = path.join(backupDir, dir.dest);
+            try {
+                await fs.access(srcPath);
+                await fs.mkdir(destPath, { recursive: true });
+                const files = await fs.readdir(srcPath);
+                for (const f of files) await fs.copyFile(path.join(srcPath, f), path.join(destPath, f));
+            } catch { }
+        }
 
-        // C. Mirror Sharded FNI History (Recursive) - V17.6
-        const fniShardSrcDir = path.join(process.env.CACHE_DIR, 'fni-history');
-        const fniShardDestDir = path.join(backupDir, 'fni-history');
-        try {
-            await fs.access(fniShardSrcDir);
-            await fs.mkdir(fniShardDestDir, { recursive: true });
-            const fniShards = await fs.readdir(fniShardSrcDir);
-            for (const shard of fniShards) {
-                await fs.copyFile(path.join(fniShardSrcDir, shard), path.join(fniShardDestDir, shard));
-            }
-        } catch { /* skip missing */ }
-
-        // D. Mirror Sharded Daily Accum (Recursive) - V17.7
-        const accShardSrcDir = path.join(process.env.CACHE_DIR, 'daily-accum');
-        const accShardDestDir = path.join(backupDir, 'daily-accum');
-        try {
-            await fs.access(accShardSrcDir);
-            await fs.mkdir(accShardDestDir, { recursive: true });
-            const accShards = await fs.readdir(accShardSrcDir);
-            for (const shard of accShards) {
-                await fs.copyFile(path.join(accShardSrcDir, shard), path.join(accShardDestDir, shard));
-            }
-        } catch { /* skip missing */ }
-
-        // E. Mirror Daily Reports & Index (V17.8) - Critical for next cycle mesh visibility
         const reportsSrcDir = path.join(CONFIG.OUTPUT_DIR, 'cache', 'reports');
         const reportsDestDir = path.join(backupDir, 'reports');
         const dailySrcDir = path.join(CONFIG.OUTPUT_DIR, 'daily');
         const dailyDestDir = path.join(backupDir, 'daily');
 
         try {
-            // 1. Mirror reports cache
             await fs.mkdir(reportsDestDir, { recursive: true });
-            const reportFiles = await fs.readdir(reportsSrcDir);
-            for (const file of reportFiles) {
-                const src = path.join(reportsSrcDir, file);
-                const dest = path.join(reportsDestDir, file);
-                const stat = await fs.stat(src);
-                if (stat.isFile()) await fs.copyFile(src, dest);
-                else if (stat.isDirectory()) {
-                    await fs.mkdir(path.join(reportsDestDir, file), { recursive: true });
-                    const subFiles = await fs.readdir(src);
-                    for (const sub of subFiles) await fs.copyFile(path.join(src, sub), path.join(reportsDestDir, file, sub));
+            if (await fs.stat(reportsSrcDir).catch(() => null)) {
+                const reportFiles = await fs.readdir(reportsSrcDir);
+                for (const file of reportFiles) {
+                    const src = path.join(reportsSrcDir, file);
+                    const dest = path.join(reportsDestDir, file);
+                    const stat = await fs.stat(src);
+                    if (stat.isFile()) await fs.copyFile(src, dest);
+                    else if (stat.isDirectory()) {
+                        await fs.mkdir(path.join(reportsDestDir, file), { recursive: true });
+                        const subFiles = await fs.readdir(src);
+                        for (const sub of subFiles) await fs.copyFile(path.join(src, sub), path.join(reportsDestDir, file, sub));
+                    }
                 }
             }
-            // 2. Mirror daily raw files
             await fs.mkdir(dailyDestDir, { recursive: true });
-            const dailyFiles = await fs.readdir(dailySrcDir);
-            for (const file of dailyFiles) await fs.copyFile(path.join(dailySrcDir, file), path.join(dailyDestDir, file));
-        } catch (e) { console.warn(`[MIRROR] Reports skipped: ${e.message}`); }
+            if (await fs.stat(dailySrcDir).catch(() => null)) {
+                const dailyFiles = await fs.readdir(dailySrcDir);
+                for (const file of dailyFiles) await fs.copyFile(path.join(dailySrcDir, file), path.join(dailyDestDir, file));
+            }
+        } catch (e) { }
 
-        const TARGET_CACHE_DIR = './cache';
-        await syncCacheState(process.env.CACHE_DIR, TARGET_CACHE_DIR);
+        await syncCacheState(process.env.CACHE_DIR, './cache');
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);

@@ -10,7 +10,7 @@ import path from 'path';
 import { loadDailyAccum, saveDailyAccum } from './cache-manager.js';
 
 const DAILY_TOP_ENTITIES = 50;
-const GEMINI_MODEL = 'gemini-2.0-flash-lite'; // Updated to 2.0 lite
+const GEMINI_MODEL = 'gemini-1.5-flash'; // Switched to 1.5 Flash for better quota stability
 
 /**
  * Generate AI content using Gemini
@@ -163,9 +163,14 @@ export async function generateDailyReport(outputDir = './output') {
     const combinedHighlights = Array.from(highlightsMap.values())
         .sort((a, b) => b.fni_score - a.fni_score); // Maintain FNI sort
 
-    // Get top entries for AI (re-run AI to capture the new "Mover of the day")
-    const topEntriesForAI = combinedHighlights.slice(0, 10);
-    const aiContent = await generateAIContent(topEntriesForAI);
+    // Get top entries for AI (skip if already generated for today to save quota/avoid 429)
+    let aiContent = null;
+    if (existingReport?.aiGenerated && existingReport?.title && !existingReport.title.startsWith('AI Daily Digest')) {
+        console.log(`  [AI] Report for ${reportId} already has AI content. Skipping generation.`);
+    } else {
+        const topEntriesForAI = combinedHighlights.slice(0, 10);
+        aiContent = await generateAIContent(topEntriesForAI);
+    }
 
     const title = aiContent?.title || existingReport?.title || `AI Daily Digest - ${reportId}`;
     const subtitle = aiContent?.subtitle || existingReport?.subtitle || 'Daily update on AI Models, Papers, and Tools';

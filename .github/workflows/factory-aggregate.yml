@@ -418,19 +418,17 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: node scripts/factory/consolidate-health.js
 
-      # V17.1: Restore core-registry from Cache
-      - name: Restore Core Registry to Output
+      # V17.1: Restore core-registry from Cache (Restores directly to output/)
+      - name: Restore Core Registry
         uses: actions/cache/restore@v4
         with:
-          path: ./core-context/
+          path: output/
           key: intra-cycle-${{ github.run_id }}-core
 
       - name: Merge Core with Satellite Outputs
         run: |
-          # Copy entities.json and meta from core-registry
-          cp ./core-context/output/entities.json output/ 2>/dev/null || cp ./core-context/entities.json output/ || true
-          cp -r ./core-context/output/meta output/ 2>/dev/null || cp -r ./core-context/meta output/ 2>/dev/null || true
-          # Ensure cache directory structure
+          # V17.5: Entities.json and meta are already restored to output/ by the previous step
+          # We just need to ensure directory structure for non-standard satellite outputs
           mkdir -p output/cache
           # Move satellite outputs into cache if needed
           [ -f "output/trending.json" ] && mv output/trending.json output/cache/ || true
