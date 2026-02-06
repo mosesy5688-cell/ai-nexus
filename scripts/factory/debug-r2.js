@@ -1,4 +1,4 @@
-import { ListObjectsV2Command, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { HeadObjectCommand } from '@aws-sdk/client-s3';
 import { createR2Client } from './lib/r2-helpers.js';
 import 'dotenv/config';
 
@@ -11,27 +11,26 @@ async function debugR2() {
         return;
     }
 
-    const prefixes = ['cache/rankings/', 'cache/rankings/_type_model/', 'cache/rankings/model/'];
+    const filesToCheck = [
+        'cache/mesh/graph.json',
+        'cache/relations.json',
+        'cache/relations/explicit.json',
+        'cache/relations/knowledge-links.json',
+        'cache/knowledge/index.json',
+        'cache/reports/index.json',
+        'cache/mesh/stats.json'
+    ];
 
-    for (const prefix of prefixes) {
+    for (const key of filesToCheck) {
         try {
-            console.log(`\n📂 Listing objects with prefix: "${prefix}"`);
-            const response = await s3.send(new ListObjectsV2Command({
+            const head = await s3.send(new HeadObjectCommand({
                 Bucket: getR2Bucket(),
-                Prefix: prefix,
-                MaxKeys: 20
+                Key: key
             }));
-
-            if (!response.Contents || response.Contents.length === 0) {
-                console.log('   (No objects found)');
-                continue;
-            }
-
-            for (const obj of response.Contents) {
-                console.log(`   - ${obj.Key} (${(obj.Size / 1024).toFixed(1)} KB, modified: ${obj.LastModified})`);
-            }
+            console.log(`\n✅ Found: "${key}"`);
+            console.log(`   - Size: ${(head.ContentLength / 1024).toFixed(1)} KB`);
         } catch (e) {
-            console.error(`\n❌ Error listing objects for prefix "${prefix}": ${e.message}`);
+            console.log(`\n❌ Not Found: "${key}" (${e.message})`);
         }
     }
 }

@@ -9,7 +9,7 @@ import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.
 import CatalogCard from '../components/common/CatalogCard.astro';
 
 // SSR Data Fetching
-const { items: allTools, error } = await fetchCatalogData('tool', Astro.locals.runtime?.env);
+const { items: allTools = [], error } = await fetchCatalogData('tool', Astro.locals.runtime?.env);
 const tools = allTools.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Tools & Utilities Catalog | Free2AI";

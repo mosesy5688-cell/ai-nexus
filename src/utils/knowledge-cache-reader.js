@@ -12,7 +12,13 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     let allRelations = [];
 
     // V16.95: Full 7-Source Aggregation (Perfect SSOT Recovery)
-    const sourcesToFetch = [
+    // V16.96: SSR Memory Protection - Exclude multi-MB files during SSR to prevent 1102 Errors
+    const sourcesToFetch = options.ssrOnly ? [
+        'cache/relations.json',
+        'cache/knowledge/index.json',
+        'cache/reports/index.json',
+        'cache/mesh/stats.json'
+    ] : [
         'cache/mesh/graph.json',
         'cache/relations.json',
         'cache/relations/explicit.json',
@@ -161,6 +167,9 @@ export async function fetchGraphMetadata(locals) {
     const R2 = locals?.runtime?.env?.R2_ASSETS;
     if (!R2) return {};
     try {
+        // V16.96: Skip heavy graph metadata during SSR to preserve memory
+        if (locals?.runtime?.env) return {};
+
         const obj = await R2.get('cache/mesh/graph.json');
         if (!obj) {
             // Fallback to explicit
