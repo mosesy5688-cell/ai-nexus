@@ -131,11 +131,38 @@ export class DatasetsAdapter extends BaseAdapter {
                 // README fetch failed, continue without it
             }
 
-            return {
-                ...data,
+            // V17.2: Memory Optimization - Target siblings list (OOM Culprit)
+            // 1. Extract what we need first
+            const extractedAssets = this.extractAssets({ ...data, readme });
+            const filesCount = data.siblings?.length || 0;
+
+            // 2. Prune heavy raw metadata before returning to the collector array
+            // We keep: basic identity, cardData (tags/license), and our extracted extras
+            const pruned = {
+                id: data.id,
+                author: data.author,
+                lastModified: data.lastModified,
+                createdAt: data.createdAt,
+                likes: data.likes,
+                downloads: data.downloads,
+                tags: data.tags,
+                cardData: {
+                    license: data.cardData?.license,
+                    size_category: data.cardData?.size_category,
+                    task_categories: data.cardData?.task_categories,
+                    task_ids: data.cardData?.task_ids,
+                    language: data.cardData?.language,
+                    multilinguality: data.cardData?.multilinguality,
+                    source_datasets: data.cardData?.source_datasets,
+                    citation: data.cardData?.citation
+                },
                 readme,
+                _extractedAssets: extractedAssets,
+                _filesCount: filesCount,
                 _fetchedAt: new Date().toISOString()
             };
+
+            return pruned;
         } catch (error) {
             console.warn(`   ⚠️ Error fetching dataset ${datasetId}: ${error.message}`);
             return null;
@@ -187,7 +214,8 @@ export class DatasetsAdapter extends BaseAdapter {
         };
 
         // Extract any visualization assets
-        const assets = this.extractAssets(raw);
+        // V17.2: Use pre-extracted assets if available (from pruned data)
+        const assets = raw._extractedAssets || this.extractAssets(raw);
         if (assets.length > 0) {
             entity.raw_image_url = assets[0].url;
         }
@@ -209,13 +237,15 @@ export class DatasetsAdapter extends BaseAdapter {
     extractAssets(raw) {
         const assets = [];
 
-        // Priority 1: Card data image
+        // Priority 1: Card data image (V17.2: Disabled per User request - "useless cover/thumbnails")
+        /*
         if (raw.cardData?.image) {
             assets.push({
                 type: 'card_image',
                 url: raw.cardData.image
             });
         }
+        */
 
         // Priority 2: Assets from siblings (visualizations, samples)
         const siblings = raw.siblings || [];
@@ -272,7 +302,8 @@ export class DatasetsAdapter extends BaseAdapter {
             multilinguality: raw.cardData?.multilinguality || null,
             source_datasets: raw.cardData?.source_datasets || [],
             paperswithcode_id: raw.cardData?.paperswithcode_id || null,
-            files_count: raw.siblings?.length || 0,
+            // V17.2: Use pre-counted file number
+            files_count: raw._filesCount || raw.siblings?.length || 0,
             gated: raw.gated || false,
             private: raw.private || false,
             citation: raw.cardData?.citation || null

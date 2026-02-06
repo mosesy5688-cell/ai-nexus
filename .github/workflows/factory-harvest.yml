@@ -39,6 +39,7 @@ jobs:
       - name: Harvest HuggingFace Models
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
           echo "📥 [Parallel] Harvesting HuggingFace Models..."
           node scripts/ingestion/harvest-single.js huggingface --limit 10000
@@ -111,6 +112,7 @@ jobs:
       - name: Harvest HuggingFace Datasets
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
           echo "📥 [Parallel] Harvesting HF Datasets..."
           node scripts/ingestion/harvest-single.js huggingface-datasets --limit 10000 || echo "HF Datasets adapter skipped"
