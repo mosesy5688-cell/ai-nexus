@@ -28,15 +28,8 @@ const ENTITY_URL_PREFIXES = {
 export function generateUrlSlug(entity) {
     if (!entity) return '';
     const id = entity.id || entity.umid || entity.slug || '';
-    const type = entity.type || entity.entity_type || getTypeFromId(id);
-
-    // For knowledge/reports, we use the cleaned name-based slug
-    if (type === 'knowledge' || type === 'report') {
-        return stripPrefix(id).replace(/--/g, '/');
-    }
-
-    // For primary types, preserve the full Canonical ID
-    return id.toLowerCase();
+    // V2.1 Standard: Hierarchical SEO Slug (strip prefixes and convert -- to /)
+    return stripPrefix(id).replace(/--/g, '/');
 }
 
 /**
