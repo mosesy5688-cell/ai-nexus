@@ -1,9 +1,8 @@
 ---
 /**
- * CiteEntity.astro
- * 
- * V16.10: Professional citation tool for research authority.
- * Generates BibTeX and APA snippets for the current entity.
+ * CiteEntity.astro - V16.12 (Professional Safe Version)
+ * V16.12: Flattened attributes and pre-calculated variables for build stability.
+ * Compliance: Zero-Limit R2 architecture. No D1/KV.
  */
 interface Props {
   id: string;
@@ -15,8 +14,8 @@ interface Props {
 }
 
 const { id, name, author = 'Free2AITools Contributors', url, type = 'model', className = '' } = Astro.props;
-
 const currentYear = new Date().getFullYear();
+
 const bibtex = `@misc{${id.replace(/-/g, '_')},
   author = {${author}},
   title = {${name} ${type.charAt(0).toUpperCase() + type.slice(1)}},
@@ -26,9 +25,17 @@ const bibtex = `@misc{${id.replace(/-/g, '_')},
 }`;
 
 const apa = `${author}. (${currentYear}). ${name} [${type.charAt(0).toUpperCase() + type.slice(1)}]. Free2AITools. ${url || `https://free2aitools.com/${type}/${id}`}`;
+
+const encodedBibtex = encodeURIComponent(bibtex);
+const encodedApa = encodeURIComponent(apa);
+
+// V16.12: Pre-calculate classes to avoid template complexity
+const containerClass = `cite-entity bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 ${className}`;
+const copyBtnClass = "cite-copy-btn text-[9px] font-black text-indigo-500 hover:text-indigo-400 uppercase tracking-widest transition-colors";
+const codeBoxClass = "p-3 bg-white dark:bg-black/40 border border-gray-100 dark:border-gray-800 rounded-lg text-[10px] text-gray-600 dark:text-gray-400 font-mono overflow-x-auto whitespace-pre-wrap";
 ---
 
-<div class={`cite-entity bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 ${className}`}>
+<div class={containerClass}>
   <div class="flex items-center gap-3 mb-6">
     <div class="p-2 bg-rose-500 rounded-lg shadow-lg shadow-rose-500/20">
       <span class="text-white">📜</span>
@@ -40,28 +47,20 @@ const apa = `${author}. (${currentYear}). ${name} [${type.charAt(0).toUpperCase(
   </div>
 
   <div class="space-y-4">
-    {/* BibTeX */}
     <div class="space-y-2">
       <div class="flex items-center justify-between">
         <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">BibTeX</span>
-        <button class="cite-copy-btn text-[9px] font-black text-indigo-500 hover:text-indigo-400 uppercase tracking-widest transition-colors" data-copy={bibtex}>
-          Copy Snippet
-        </button>
+        <button class={copyBtnClass} data-copy={encodedBibtex}>Copy Snippet</button>
       </div>
-      <pre class="p-3 bg-white dark:bg-black/40 border border-gray-100 dark:border-gray-800 rounded-lg text-[10px] text-gray-600 dark:text-gray-400 font-mono overflow-x-auto whitespace-pre-wrap">{bibtex}</pre>
+      <pre class={codeBoxClass}><code set:text={bibtex}></code></pre>
     </div>
 
-    {/* APA */}
     <div class="space-y-2">
       <div class="flex items-center justify-between">
         <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">APA Style</span>
-        <button class="cite-copy-btn text-[9px] font-black text-indigo-500 hover:text-indigo-400 uppercase tracking-widest transition-colors" data-copy={apa}>
-          Copy Snippet
-        </button>
+        <button class={copyBtnClass} data-copy={encodedApa}>Copy Snippet</button>
       </div>
-      <div class="p-3 bg-white dark:bg-black/40 border border-gray-100 dark:border-gray-800 rounded-lg text-[10px] text-gray-600 dark:text-gray-400 italic">
-        {apa}
-      </div>
+      <div class={`${codeBoxClass} italic`} set:text={apa}></div>
     </div>
   </div>
 </div>
@@ -70,7 +69,8 @@ const apa = `${author}. (${currentYear}). ${name} [${type.charAt(0).toUpperCase(
   function initCiteCopy() {
     document.querySelectorAll('.cite-copy-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const text = (btn as HTMLElement).dataset.copy || '';
+        const encoded = (btn as HTMLElement).dataset.copy || '';
+        const text = decodeURIComponent(encoded);
         try {
           await navigator.clipboard.writeText(text);
           const original = btn.textContent;
