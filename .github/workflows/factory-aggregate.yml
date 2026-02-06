@@ -83,8 +83,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            output/shards/
-            output/cache/entities/
+            output/shards
+            output/cache/entities
           key: cycle-${{ needs.check-upstream.outputs.process-id }}-shards
           restore-keys: |
             cycle-
@@ -121,8 +121,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            data/
-            cache/
+            data/merged.json
+            cache
           key: cycle-${{ needs.check-upstream.outputs.harvest-id }}-harvest
           restore-keys: |
             cycle-
@@ -180,16 +180,20 @@ jobs:
             find output/ -type f | wc -l
           fi
 
-      # V4.1: Keep Artifact for same-workflow satellite jobs
+      # V4.1: Internal Cache for same-workflow satellite jobs
+      - name: Save Intra-Cycle Core to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/
+          key: intra-cycle-${{ github.run_id }}-core
+
+      # V4.1: Keep Artifact for same-workflow satellite jobs (Safety Fallback)
       - name: Upload Registry Artifact (Intra-Chain)
         uses: actions/upload-artifact@v4
         with:
           name: core-registry-v2
           path: output/
           retention-days: 1
-
-      # V17.2: Cache save moved to finalize job to include satellite outputs
-      # NOTE: merge-core only uploads artifact, finalize saves complete cache
 
       # V4.1: Save Global Registry for next cycle's 1/4 Harvest
       - name: Save Global Registry to Cache
@@ -234,9 +238,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm' }
       - run: npm ci
-      - name: Restore Core Registry
-        uses: actions/download-artifact@v4
-        with: { name: core-registry-v2, path: output/ }
+      - name: Restore Core Registry from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: intra-cycle-${{ github.run_id }}-core
       - name: Generate Search Indices
         env:
           ENTITIES_PATH: output/entities.json
@@ -265,9 +271,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm' }
       - run: npm ci
-      - name: Restore Core Registry
-        uses: actions/download-artifact@v4
-        with: { name: core-registry-v2, path: output/ }
+      - name: Restore Core Registry from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: intra-cycle-${{ github.run_id }}-core
       - name: Generate Rankings
         env:
           ENTITIES_PATH: output/entities.json
@@ -301,9 +309,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm' }
       - run: npm ci
-      - name: Restore Core Registry
-        uses: actions/download-artifact@v4
-        with: { name: core-registry-v2, path: output/ }
+      - name: Restore Core Registry from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: intra-cycle-${{ github.run_id }}-core
       - name: Generate Trending
         env:
           ENTITIES_PATH: output/entities.json
@@ -330,9 +340,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm' }
       - run: npm ci
-      - name: Restore Core Registry
-        uses: actions/download-artifact@v4
-        with: { name: core-registry-v2, path: output/ }
+      - name: Restore Core Registry from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: intra-cycle-${{ github.run_id }}-core
       - name: Generate Relations
         env:
           ENTITIES_PATH: output/entities.json
@@ -361,9 +373,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm' }
       - run: npm ci
-      - name: Restore Core Registry
-        uses: actions/download-artifact@v4
-        with: { name: core-registry-v2, path: output/ }
+      - name: Restore Core Registry from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: intra-cycle-${{ github.run_id }}-core
       - name: Generate Sitemaps
         env:
           ENTITIES_PATH: output/entities.json
@@ -402,22 +416,18 @@ jobs:
           R2_BUCKET: ai-nexus-assets
         run: node scripts/factory/consolidate-health.js
 
-      # V17.1: Restore core-registry artifact for complete output
+      # V17.1: Restore core-registry from Cache
       - name: Restore Core Registry to Output
-        uses: actions/download-artifact@v4
+        uses: actions/cache/restore@v4
         with:
-          name: core-registry-v2
           path: ./core-context/
+          key: intra-cycle-${{ github.run_id }}-core
 
       - name: Merge Core with Satellite Outputs
         run: |
           # Copy entities.json and meta from core-registry
           cp ./core-context/output/entities.json output/ 2>/dev/null || cp ./core-context/entities.json output/ || true
           cp -r ./core-context/output/meta output/ 2>/dev/null || cp -r ./core-context/meta output/ 2>/dev/null || true
-          # V17.8: Copy Daily Reports and Reports Index generated in core task
-          cp -r ./core-context/output/daily output/ 2>/dev/null || true
-          mkdir -p output/cache
-          cp -r ./core-context/output/cache/reports output/cache/ 2>/dev/null || true
           # Ensure cache directory structure
           mkdir -p output/cache
           # Move satellite outputs into cache if needed
@@ -439,11 +449,9 @@ jobs:
         with:
           path: output/
           key: cycle-${{ github.run_id }}-output
-
       - name: Summary
         run: |
           echo "## Factory 3/4 - Aggregator V2.0 Complete 🚀" >> $GITHUB_STEP_SUMMARY
           echo "Scale: 1M+ Readiness Verified" >> $GITHUB_STEP_SUMMARY
           echo "Jobs: Parallel (Search, Rankings, Trending, Relations)" >> $GITHUB_STEP_SUMMARY
           echo "Cache: Complete output saved for Factory 4/4" >> $GITHUB_STEP_SUMMARY
-
