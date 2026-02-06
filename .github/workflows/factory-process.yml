@@ -90,7 +90,9 @@ jobs:
         with:
           path: |
             data/merged.json
-            cache
+            data/merged_shard_*.json
+            data/manifest.json
+            cache/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-harvest
           restore-keys: |
             cycle-
