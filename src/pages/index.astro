@@ -16,6 +16,7 @@ import HomeCategoryGrid from '../components/home/HomeCategoryGrid.astro';
 import OnboardingTour from '../components/common/OnboardingTour.astro';
 import TrendChart from '../components/charts/TrendChart.astro';
 import ModelCard from '../components/ModelCard.astro';
+import { fetchCatalogData } from '../utils/catalog-fetcher.js';
 
 // V4.3.2 Constitution Core Requirements
 import { buildIndexSEO } from '../utils/seo-schema.js';
@@ -32,27 +33,9 @@ const pageDescription = "Discover open-source AI models, datasets, papers, bench
 // Build JSON-LD (Constitution SEO requirement)
 const seoSchema = buildIndexSEO();
 
-// V16.5: Fetch Tier 1 SSR Data (Trending)
-let hotModels = [];
-const CDN_BASE = 'https://cdn.free2aitools.com/cache';
-try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-    
-    const res = await fetch(`${CDN_BASE}/trending.json`, { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (res.ok) {
-        const data = await res.json();
-        hotModels = (data.models || data.entities || data || []).slice(0, 12);
-    }
-} catch (e) {
-    if (e.name === 'AbortError') {
-        console.warn('[Homepage SSR] Trending fetch timed out');
-    } else {
-        console.error('[Homepage SSR] Failed to fetch trending:', e.message);
-    }
-}
+// V16.5: Fetch Tier 1 SSR Data (Trending) - Using Optimized Unified Fetcher
+const { items: hotItems = [] } = await fetchCatalogData('model', (Astro as any).locals.runtime);
+const hotModels = hotItems.slice(0, 12);
 ---
 
 <Layout title={pageTitle} description={pageDescription} jsonld={seoSchema}>
