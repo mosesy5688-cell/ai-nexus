@@ -71,8 +71,8 @@ export async function prepareSpacePageData(slug, slugStr, locals) {
                     const tid = isOut ? rel.target_id : rel.source_id;
                     if (!tid) return;
 
-                    if (tid.startsWith('hf-model--')) {
-                        const id = tid.replace('hf-model--', '');
+                    if (tid.startsWith('hf-model--') || tid.startsWith('model--')) {
+                        const id = tid.replace(/^(hf-model|model)--/, '');
                         if (!space.models_used.includes(id)) space.models_used.push(id);
                     } else if (tid.startsWith('concept--')) {
                         const knSlug = tid.replace('concept--', '');

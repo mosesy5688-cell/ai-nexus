@@ -79,6 +79,14 @@ export async function prepareToolPageData(slug, slugStr, locals) {
                                 icon: '📚'
                             });
                         }
+                    } else if (tid.startsWith('hf-model--') || tid.startsWith('model--')) {
+                        const id = tid.replace(/^(hf-model|model)--/, '');
+                        tool.models_citing = tool.models_citing || [];
+                        if (!tool.models_citing.includes(id)) tool.models_citing.push(id);
+                    } else if (tid.startsWith('arxiv--') || tid.startsWith('paper--')) {
+                        const id = tid.replace(/^(arxiv|paper)--/, '');
+                        tool.arxiv_refs = tool.arxiv_refs || [];
+                        if (!tool.arxiv_refs.includes(id)) tool.arxiv_refs.push(id);
                     }
                 });
             }

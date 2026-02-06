@@ -78,8 +78,8 @@ export class CatalogDataSource {
 
     async augmentSearch() {
         try {
-            // V16.5: SSOT Tier 3 - /indexes/search-shard-0.json
-            const res = await fetch('https://cdn.free2aitools.com/cache/indexes/search-shard-0.json');
+            // V16.5: SSOT Tier 3 - /cache/search/shard-0.json
+            const res = await fetch('https://cdn.free2aitools.com/cache/search/shard-0.json');
             if (!res.ok) return;
             const data = await res.json();
 

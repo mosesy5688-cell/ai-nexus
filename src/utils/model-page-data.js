@@ -27,10 +27,11 @@ export async function prepareModelPageData(slug, slugStr, locals) {
     // Benchmarks Augmentation
     try {
         const benchResult = await loadBenchmarks(locals);
+        const searchId = slugStr.toLowerCase();
         const benchEntry = benchResult.data?.data?.find(b =>
-            b.umid === slugStr.replace(/\//g, '-') ||
-            b.umid === slugStr.replace(/\//g, '--') ||
-            b.name === (model?.id || slugStr)
+            (b.umid && b.umid.toLowerCase() === searchId) ||
+            (b.id && b.id.toLowerCase() === searchId) ||
+            (model?.id && b.umid === model.id)
         );
 
         if (benchEntry) {
@@ -76,14 +77,15 @@ export async function prepareModelPageData(slug, slugStr, locals) {
                     const tid = isOut ? rel.target_id : rel.source_id;
                     if (!tid) return;
 
+                    // Updated prefixes for SPEC-ID-V2.0
                     if (tid.startsWith('arxiv--') || tid.startsWith('paper--')) {
                         const id = tid.replace(/^(arxiv|paper)--/, '');
                         if (!model.arxiv_refs.includes(id)) model.arxiv_refs.push(id);
-                    } else if (tid.startsWith('dataset--') || tid.startsWith('kaggle--')) {
-                        const id = tid.replace(/^(dataset|kaggle)--/, '');
+                    } else if (tid.startsWith('hf-dataset--') || tid.startsWith('dataset--') || tid.startsWith('kaggle--')) {
+                        const id = tid.replace(/^(hf-dataset|dataset|kaggle)--/, '');
                         if (!model.datasets_used.includes(id)) model.datasets_used.push(id);
-                    } else if (tid.startsWith('concept--')) {
-                        const slug = tid.replace('concept--', '');
+                    } else if (tid.startsWith('knowledge--') || tid.startsWith('concept--')) {
+                        const slug = tid.split('--').pop();
                         if (!model.knowledge_links.find(l => l.slug === slug)) {
                             model.knowledge_links.push({
                                 slug,
@@ -101,17 +103,18 @@ export async function prepareModelPageData(slug, slugStr, locals) {
         return { model, isFallback: false, similarModels, tagsArray, meshRelations: meshRelations || [] };
     } else {
         // V15.17: Aggressive Global Fallback
-        const cleanSlug = slugStr.replace(/--/g, '/');
-        const parts = cleanSlug.split('/');
+        const isV2 = slugStr.includes('--');
+        const cleanSlug = isV2 ? slugStr : slugStr.replace(/\//g, '--');
+        const parts = slugStr.split(/--|\//).filter(Boolean);
         const repoName = parts.pop() || 'Unknown Model';
         const authorName = parts.join('/') || 'huggingface';
 
         let fallbackModel = {
-            id: `hf-model--${slugStr.replace(/\//g, '--')}`,
+            id: isV2 ? slugStr : `hf-model--${cleanSlug}`,
             name: repoName,
             author: authorName,
-            source: 'huggingface',
-            source_url: `https://huggingface.co/${cleanSlug}`,
+            source: slugStr.startsWith('gh-') ? 'github' : 'huggingface',
+            source_url: slugStr.startsWith('gh-') ? `https://github.com/${parts.join('/')}/${repoName}` : `https://huggingface.co/${parts.join('/')}/${repoName}`,
             description: `State-of-the-art AI model: ${repoName} by ${authorName}.`,
             tags: [],
             fni_score: 0,
@@ -122,7 +125,7 @@ export async function prepareModelPageData(slug, slugStr, locals) {
             const norm = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
             const searchId = norm(slugStr);
             const fallbackEntry = summaryData.find(s => {
-                const sid = norm(s.id || s.umid || s.slug || '').replace(/^hf-model-/, '');
+                const sid = norm(s.id || s.umid || s.slug || '').replace(/^(hf-model|gh-model)--/, '');
                 return sid === searchId || sid.endsWith('-' + searchId) || searchId.endsWith('-' + sid) || sid === norm(slugStr);
             });
 

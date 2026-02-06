@@ -9,17 +9,13 @@ export function stripPrefix(id) {
     if (!id || typeof id !== 'string') return '';
     let result = id.toLowerCase();
 
-    // V2.0 Standard Prefixes - SSOT (Matrix Extension)
-    // V16.9.22: Added legacy colon and dash variants for maximal backward compatibility
+    // V2.0 Standard Prefixes - Supporting both current -- and legacy : formats
     const prefixes = [
-        'hf-model--', 'hf-agent--', 'hf-tool--', 'hf-dataset--', 'hf-space--', 'hf-paper--', 'hf-collection--',
+        'hf-model--', 'hf-agent--', 'hf-tool--', 'hf-dataset--', 'hf-space--', 'hf-paper--',
         'gh-model--', 'gh-agent--', 'gh-tool--', 'gh-repo--',
         'arxiv-paper--', 'kaggle-dataset--', 'civitai-model--', 'ollama-model--',
-        'github-agent--', 'github-tool--', 'github--',
-        'knowledge--', 'concept--', 'paper--', 'report--', 'arxiv--', 'replicate:', 'replicate--', 'kaggle--', 'author--',
-        // Platform variants (Old data/Source lookup)
-        'huggingface:', 'github:', 'arxiv:', 'kaggle:', 'civitai:', 'ollama:', 'replicate:', 'pytorch:',
-        'huggingface--', 'github--', 'arxiv--'
+        'huggingface:', 'github:', 'arxiv:', 'kaggle:', 'civitai:', 'ollama:',
+        'knowledge--', 'concept--', 'report--', 'paper--', 'dataset--', 'model--', 'agent--', 'tool--', 'space--', 'arxiv--'
     ];
 
     for (const p of prefixes) {
@@ -29,8 +25,8 @@ export function stripPrefix(id) {
         }
     }
 
-    // Standardize separators to dual-dash and clean edges (Restore/Cleanup Phase)
-    return result.replace(/[\/:]/g, '--').replace(/^--|--$/g, '');
+    // Standardize separators to dual-dash
+    return result.replace(/[:\/]/g, '--').replace(/^--|--$/g, '');
 }
 
 export const isMatch = (a, b) => {
@@ -74,42 +70,37 @@ export const KNOWLEDGE_ALIAS_MAP = {
 };
 
 /**
- * V16.95: Routing logic strictly mapping IDs to paths.
+ * V2.0 Routing logic - "What you see is what you fetch"
+ * SLUG = Full Canonical ID (except for Knowledge/Reports which use slugs)
  */
 export function getRouteFromId(id, type = null) {
     if (!id) return '#';
 
     let resolvedType = type || getTypeFromId(id);
-    let rawId = stripPrefix(id);
-
-    // Apply aliasing for knowledge articles
-    if (resolvedType === 'knowledge' && KNOWLEDGE_ALIAS_MAP[rawId]) {
-        rawId = KNOWLEDGE_ALIAS_MAP[rawId];
-    }
-
-    const cleanId = rawId.replace(/--/g, '/');
     const lowId = id.toLowerCase();
 
-    // Direct platform redirect for external datasets (Kaggle/Source Logic)
-    if (lowId.includes('kaggle-dataset--') || lowId.includes('kaggle--')) {
-        const parts = cleanId.split('/');
-        if (parts.length >= 2) return `https://www.kaggle.com/datasets/${parts[0]}/${parts[1]}`;
+    // V2.0 Rule: URL slug IS the Canonical ID for primary types
+    // Legacy mapping for Knowledge/Reports or if ID doesn't have prefix
+    let slug = lowId;
+    if (resolvedType === 'knowledge' || resolvedType === 'report') {
+        slug = stripPrefix(id).replace(/--/g, '/');
+        if (resolvedType === 'knowledge' && KNOWLEDGE_ALIAS_MAP[slug]) {
+            slug = KNOWLEDGE_ALIAS_MAP[slug];
+        }
     }
 
     const routeMap = {
-        'knowledge': `/knowledge/${cleanId}`,
-        'report': `/reports/${cleanId}`,
-        'paper': `/paper/${cleanId}`,
-        'dataset': `/dataset/${cleanId}`,
-        'space': `/space/${cleanId}`,
-        'agent': `/agent/${cleanId}`,
-        'tool': `/tool/${cleanId}`,
-        'model': `/model/${cleanId}`
+        'knowledge': `/knowledge/${slug}`,
+        'report': `/reports/${slug}`,
+        'paper': `/paper/${slug}`,
+        'dataset': `/dataset/${slug}`,
+        'space': `/space/${slug}`,
+        'agent': `/agent/${slug}`,
+        'tool': `/tool/${slug}`,
+        'model': `/model/${slug}`
     };
 
-    const finalPath = routeMap[resolvedType] || `/model/${cleanId}`;
-
-    // Safety: Ensure we never return a trailing slash
+    const finalPath = routeMap[resolvedType] || `/model/${slug}`;
     return finalPath.endsWith('/') ? finalPath.slice(0, -1) : finalPath;
 }
 

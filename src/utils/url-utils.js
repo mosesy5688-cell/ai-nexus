@@ -23,11 +23,20 @@ const ENTITY_URL_PREFIXES = {
 
 /**
  * Generate URL-safe slug from entity (Centralized V2.0)
+ * V2.0 Decision: Slug IS the Full Canonical ID for primary types.
  */
 export function generateUrlSlug(entity) {
     if (!entity) return '';
     const id = entity.id || entity.umid || entity.slug || '';
-    return stripPrefix(id).replace(/--/g, '/');
+    const type = entity.type || entity.entity_type || getTypeFromId(id);
+
+    // For knowledge/reports, we use the cleaned name-based slug
+    if (type === 'knowledge' || type === 'report') {
+        return stripPrefix(id).replace(/--/g, '/');
+    }
+
+    // For primary types, preserve the full Canonical ID
+    return id.toLowerCase();
 }
 
 /**
@@ -39,7 +48,6 @@ export function generateEntityUrl(entity, type) {
     const id = entity.id || entity.umid || entity.slug || '';
     const entityType = type || entity.type || entity.entity_type || getTypeFromId(id);
 
-    // Use the robust core router
     return getRouteFromId(id, entityType);
 }
 

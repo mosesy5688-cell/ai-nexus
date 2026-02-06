@@ -26,10 +26,8 @@ export function renderModelCard(model) {
     // V15.8: Standardized URL generation (Clean prefixes + Strip source/type)
     const prefix = entityType === 'agent' ? '/agent/' : entityType === 'dataset' ? '/dataset/' : entityType === 'tool' ? '/tool/' : entityType === 'paper' ? '/paper/' : entityType === 'space' ? '/space/' : '/model/';
 
-    // V16.9.23: Use centralized SSOT logic for maximal backward compatibility
-    let cleanSlug = model.slug || model.id || '';
-    cleanSlug = stripPrefix(cleanSlug).replace(/--/g, '/');
-
+    // V16.9.23: Use centralized SSOT logic - Preservation Policy
+    const cleanSlug = (model.id || model.slug || '').toLowerCase();
     const modelUrl = `${prefix}${cleanSlug}`;
 
     const description = (model.description || 'No description available.')

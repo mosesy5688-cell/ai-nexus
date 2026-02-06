@@ -72,11 +72,11 @@ export async function preparePaperPageData(slug, slugStr, locals) {
                     const tid = isOut ? rel.target_id : rel.source_id;
                     if (!tid) return;
 
-                    if (tid.startsWith('hf-model--')) {
-                        const id = tid.replace('hf-model--', '');
+                    if (tid.startsWith('hf-model--') || tid.startsWith('model--')) {
+                        const id = tid.replace(/^(hf-model|model)--/, '');
                         if (!paper.models_citing.includes(id)) paper.models_citing.push(id);
-                    } else if (tid.startsWith('hf-dataset--')) {
-                        const id = tid.replace('hf-dataset--', '');
+                    } else if (tid.startsWith('hf-dataset--') || tid.startsWith('dataset--')) {
+                        const id = tid.replace(/^(hf-dataset|dataset)--/, '');
                         if (!paper.datasets_used.includes(id)) paper.datasets_used.push(id);
                     } else if (tid.startsWith('concept--')) {
                         const knSlug = tid.replace('concept--', '');
