@@ -50,8 +50,9 @@ jobs:
             HARVEST_RUN_ID=$(gh run list --workflow factory-harvest.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' | tr -d '[:space:]')
           fi
           
+          HARVEST_RUN_ID=$(echo $HARVEST_RUN_ID | tr -d '[:space:]')
           echo "run_id=$HARVEST_RUN_ID" >> $GITHUB_OUTPUT
-          echo "✅ Resolved Harvest ID (Main): $HARVEST_RUN_ID"
+          echo "✅ Resolved Harvest ID: $HARVEST_RUN_ID"
 
   # V4.1: Prepare data from Cache (not Artifact)
   prepare-data:
@@ -68,26 +69,42 @@ jobs:
           mkdir -p data cache
 
       # V4.1: Restore Entity Data from Cache (Cycle Key)
-      # V4.1: Restore Entity Data from Cache (Cycle Key)
+      - name: "Diagnostic: Workflow Context Check"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔍 Diagnostic: Inspecting Cache Visibility..."
+          echo "Trigger Event: ${{ github.event_name }}"
+          echo "Current Branch (REF): ${{ github.ref }}"
+          echo "Harvest Run ID: ${{ needs.check-upstream.outputs.upstream-run-id }}"
+          echo "Target Key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-harvest"
+          echo "--- GitHub Cache Table ---"
+          gh cache list --limit 100 || true
+          
+      - name: "Wait for Cache Indexing"
+        run: sleep 30  # Account for propagation latency
+
       - name: Restore Entity Data from Cache
         id: cache-harvest
         uses: actions/cache/restore@v4
         with:
           path: |
             data/merged.json
-            data/merged_shard_*.json
-            data/manifest.json
-            cache/fni-history.json
-            cache/fni-history/
-            cache/daily-accum.json
-            cache/daily-accum/
-            cache/global-registry.json
-            cache/registry/
+            cache
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-harvest
           restore-keys: |
             cycle-
           fail-on-cache-miss: false
           
+      - name: "Diagnostic: Show Workspace State"
+        run: |
+          echo "🔍 Diagnostic: Checking file structure after cache restore..."
+          echo "Cache Hit: ${{ steps.cache-harvest.outputs.cache-hit }}"
+          echo "--- data/ content ---"
+          ls -R data || echo "data is missing"
+          echo "--- cache/ content ---"
+          ls -R cache || echo "cache is missing"
+
       - name: Validate Entity Data
         run: |
           if [ ! -f "data/merged.json" ]; then

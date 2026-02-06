@@ -69,6 +69,11 @@ jobs:
           restore-keys: cycle-
       - name: Generate explicit relations
         run: node scripts/factory/lib/relations-generator.js
+      - name: Save Explicit Relations to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/cache/relations/explicit.json
+          key: intra-4-4-${{ github.run_id }}-explicit
       - name: Upload explicit relations
         uses: actions/upload-artifact@v4
         with:
@@ -93,6 +98,11 @@ jobs:
           restore-keys: cycle-
       - name: Compute ALT relations
         run: node scripts/factory/lib/alt-linker.js output/entities.json output
+      - name: Save ALT Relations to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/cache/relations/alt-by-category/
+          key: intra-4-4-${{ github.run_id }}-alt
       - name: Upload ALT relations
         uses: actions/upload-artifact@v4
         with:
@@ -117,6 +127,11 @@ jobs:
           restore-keys: cycle-
       - name: Compute knowledge links
         run: node scripts/factory/lib/knowledge-linker.js output/entities.json output
+      - name: Save Knowledge Links to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/cache/relations/knowledge-links.json
+          key: intra-4-4-${{ github.run_id }}-knowledge-links
       - name: Upload knowledge links
         uses: actions/upload-artifact@v4
         with:
@@ -133,13 +148,27 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm' }
       - run: npm ci
-      - name: Download Registry Artifact
-        run: gh run download ${{ needs.check-upstream.outputs.upstream-run-id }} -n core-registry-v2 -D output/
+      - name: Restore Base Output from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
+          restore-keys: cycle-
+      - name: Restore Knowledge Links from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/cache/relations/knowledge-links.json
+          key: intra-4-4-${{ github.run_id }}-knowledge-links
       - name: Download knowledge links
         uses: actions/download-artifact@v4
         with: { name: knowledge-links, path: output/cache/relations/ }
       - name: Generate knowledge data
         run: node scripts/factory/lib/knowledge-data-generator.js ./output
+      - name: Save Knowledge Data to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/cache/knowledge/
+          key: intra-4-4-${{ github.run_id }}-knowledge-data
       - name: Upload knowledge data
         uses: actions/upload-artifact@v4
         with:
@@ -156,8 +185,24 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm' }
       - run: npm ci
-      - name: Download Registry Artifact
-        run: gh run download ${{ needs.check-upstream.outputs.upstream-run-id }} -n core-registry-v2 -D output/
+      - name: Restore Base Output from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
+          restore-keys: cycle-
+      - name: Restore Relations from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/cache/relations/explicit.json
+            output/cache/relations/alt-by-category/
+            output/cache/relations/knowledge-links.json
+          key: intra-4-4-${{ github.run_id }}-mesh-deps
+          restore-keys: |
+            intra-4-4-${{ github.run_id }}-explicit
+            intra-4-4-${{ github.run_id }}-alt
+            intra-4-4-${{ github.run_id }}-knowledge-links
       - name: Download Relations
         uses: actions/download-artifact@v4
         with: { pattern: '*-relations', path: output/cache/relations/ }
@@ -166,6 +211,11 @@ jobs:
         with: { name: knowledge-links, path: output/cache/relations/ }
       - name: Generate mesh graph
         run: node scripts/factory/lib/mesh-graph-generator.js ./output
+      - name: Save Mesh Graph to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/cache/mesh/
+          key: intra-4-4-${{ github.run_id }}-mesh-graph
       - name: Upload mesh graph
         uses: actions/upload-artifact@v4
         with:
@@ -182,13 +232,27 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: 'npm' }
       - run: npm ci
-      - name: Download Registry Artifact
-        run: gh run download ${{ needs.check-upstream.outputs.upstream-run-id }} -n core-registry-v2 -D output/
+      - name: Restore Base Output from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
+          restore-keys: cycle-
+      - name: Restore Knowledge Data from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/cache/knowledge/
+          key: intra-4-4-${{ github.run_id }}-knowledge-data
       - name: Download knowledge data
         uses: actions/download-artifact@v4
         with: { name: knowledge-data, path: output/cache/knowledge/ }
       - name: Generate RSS feeds
         run: node scripts/factory/lib/rss-generator.js ./output
+      - name: Save RSS Feeds to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/rss/
+          key: intra-4-4-${{ github.run_id }}-rss-feeds
       - name: Upload RSS feeds
         uses: actions/upload-artifact@v4
         with:
@@ -211,6 +275,13 @@ jobs:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
           restore-keys: cycle-
+      - name: Restore Enrichment Results from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: intra-4-4-${{ github.run_id }}-final-consolidation
+          restore-keys: |
+            intra-4-4-${{ github.run_id }}-
       - name: Download All Enrichment Artifacts
         uses: actions/download-artifact@v4
         with: { path: output/ }
