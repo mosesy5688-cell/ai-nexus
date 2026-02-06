@@ -79,14 +79,17 @@ export function getRouteFromId(id, type = null) {
     let resolvedType = type || getTypeFromId(id);
     const lowId = id.toLowerCase();
 
-    // V2.0 Rule: URL slug IS the Canonical ID for primary types
-    // Legacy mapping for Knowledge/Reports or if ID doesn't have prefix
+    // V2.1 Rule: Clean SEO URL. Strip redundant technical prefixes and convert -- to /
     let slug = lowId;
     if (resolvedType === 'knowledge' || resolvedType === 'report') {
         slug = stripPrefix(id).replace(/--/g, '/');
         if (resolvedType === 'knowledge' && KNOWLEDGE_ALIAS_MAP[slug]) {
             slug = KNOWLEDGE_ALIAS_MAP[slug];
         }
+    } else {
+        // For primary types (model, agent, etc.), strip the source-type-- prefix
+        // and convert author--name to author/name
+        slug = stripPrefix(id).replace(/--/g, '/');
     }
 
     const routeMap = {
