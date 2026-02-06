@@ -10,7 +10,7 @@ import Layout from '../layouts/Layout.astro';
 import ListingControls from '../components/common/ListingControls.astro';
 import CatalogCard from '../components/common/CatalogCard.astro';
 import { fetchCatalogData, truncateListingItem } from '../utils/catalog-fetcher.js';
-import { CATEGORY_METADATA } from '../../scripts/l5/category-mapping.js';
+import { CATEGORY_METADATA } from '../utils/category-mapping.js';
 
 const { category } = Astro.params;
 
@@ -21,7 +21,8 @@ const meta = CATEGORY_METADATA[category!] || {
 };
 
 // V16.9.23: Use unified fetcher for fallback and multi-type support
-const { items = [], source } = await fetchCatalogData(category, (Astro as any).locals.runtime);
+const { items: rawItems = [], source } = await fetchCatalogData(category, (Astro as any).locals.runtime);
+const items = (rawItems || []).slice(0, 100).map(truncateListingItem).filter(Boolean);
 
 const pageTitle = `${meta.label} - AI Technical Index | Free2AI`;
 const pageDescription = `Discover the best ${meta.label} AI models, agents, tools and research. Updated daily.`;
