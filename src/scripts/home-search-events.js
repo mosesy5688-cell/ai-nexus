@@ -9,6 +9,7 @@ import {
     setFullSearchActive,
     getSearchStatus
 } from './home-search.js';
+import { getRouteFromId } from '../utils/mesh-routing-core.js';
 
 export function renderHistory() {
     const dropdown = document.getElementById('search-results-dropdown');
@@ -60,15 +61,8 @@ export function renderResults(results) {
     }
 
     dropdown.innerHTML = results.map(r => {
+        const path = getRouteFromId(r.id || r.slug, r.type);
         const isKnowledge = r.type === 'knowledge';
-        const targetId = r.slug || r.id;
-        let path = `/model/${targetId}`;
-        if (isKnowledge) path = `/knowledge/${targetId}`;
-        else if (r.type === 'agent') path = `/agent/${targetId}`;
-        else if (r.type === 'dataset') path = `/dataset/${targetId}`;
-        else if (r.type === 'paper') path = `/paper/${targetId}`;
-        else if (r.type === 'tool') path = `/tool/${targetId}`;
-        else if (r.type === 'space') path = `/space/${targetId}`;
 
         const typeLabel = isKnowledge ? 'Guide' : (r.type || 'Model').toUpperCase();
         const badgeClass = isKnowledge ?

@@ -4,6 +4,7 @@
  * Client-side logic for /agents catalog page
  * Fetches from trending.json and applies filters/sorting
  */
+import { getRouteFromId } from '../utils/mesh-routing-core.js';
 
 export async function initAgentsCatalog(initialData = []) {
     const grid = document.getElementById('entity-grid');
@@ -84,9 +85,10 @@ export async function initAgentsCatalog(initialData = []) {
 
         grid.innerHTML = pageItems.map(item => {
             const description = stripHtml(item.description || '').slice(0, 120) + (item.description?.length > 120 ? '...' : '');
+            const path = getRouteFromId(item.id || item.slug, 'agent');
 
             return `
-      <a href="/agent/${item.slug || item.id}" 
+      <a href="${path}" 
          class="agent-card group bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all border border-gray-100 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 block">
         <div class="flex items-center justify-between mb-4">
           <span class="text-xs px-2.5 py-1 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-medium">
