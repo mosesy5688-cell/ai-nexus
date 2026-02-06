@@ -262,8 +262,8 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            output/shards/
-            output/cache/entities/
+            output/shards
+            output/cache/entities
           key: cycle-${{ github.run_id }}-shards
 
   # Aggregate and save checksums
