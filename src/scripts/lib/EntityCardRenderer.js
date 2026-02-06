@@ -3,21 +3,11 @@
  * Helper for UniversalCatalog to render entity cards.
  * Extracted to ensure CES Compliance (< 250 lines per file).
  */
-import { stripPrefix } from '../../utils/mesh-routing-core.js';
+import { stripPrefix, getRouteFromId } from '../../utils/mesh-routing-core.js';
 
 export class EntityCardRenderer {
     static getLink(type, item) {
-        let slug = item.slug || item.id;
-        // Standardized slug stripping
-        // V16.9.23: Use centralized SSOT logic for maximal backward compatibility
-        slug = stripPrefix(slug).replace(/--/g, '/');
-
-        if (type === 'space') return `/space/${slug}`;
-        if (type === 'tool') return `/tool/${slug}`;
-        if (type === 'dataset') return `/dataset/${slug}`;
-        if (type === 'paper') return `/paper/${slug}`;
-        if (type === 'agent') return `/agent/${slug}`;
-        return `/${type}/${slug}`;
+        return getRouteFromId(item.id || item.slug, type);
     }
 
     static getTypeLabel(type) {
