@@ -32,6 +32,8 @@ const categories: Record<string, { label: string, icon: string, relations: Relat
     EXPLAINS: { label: 'Knowledge Mesh', icon: '💡', relations: [] },
     FEATURED_IN: { label: 'Highlights', icon: '🌟', relations: [] },
     ALTERNATIVE: { label: 'Alternatives', icon: '🔄', relations: [] },
+    KNOWLEDGE: { label: 'Knowledge Articles', icon: '🎓', relations: [] },
+    REPORT: { label: 'Daily Reports', icon: '📰', relations: [] },
     RELATED: { label: 'Associations', icon: '🔗', relations: [] }
 };
 
@@ -46,10 +48,15 @@ relations.forEach(rel => {
     const targetId = stripPrefix(rel.target_id);
     const normTarget = targetId; // stripPrefix already returns the norm
     
-    // Check if node was already captured by NeuralGraphExplorer
-    if (renderedNodes.has(normTarget)) return;
+    // V16.96: Exempt Knowledge and Reports from Cross-Component Deduplication
+    // This ensures they appear as direct links even if present in the Graph Explorer.
+    if (renderedNodes.has(normTarget) && !['knowledge', 'report'].includes(rel.target_type)) return;
 
-    const cat = categories[type] || categories['RELATED'];
+    let catKey = type;
+    if (rel.target_type === 'knowledge') catKey = 'KNOWLEDGE';
+    if (rel.target_type === 'report') catKey = 'REPORT';
+
+    const cat = categories[catKey] || categories['RELATED'];
     
     // De-dupe within the specific category to prevent visual clutter
     const catCheckKey = `${type}|${targetId}`;

@@ -118,6 +118,38 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
 
     // 2. High-Confidence Structural Injections (ArXiv & Explicit Relations)
     if (entity) {
+        if (entity.base_model) {
+            const id = entity.base_model.includes('--') ? entity.base_model : `hf-model--${entity.base_model.replace(/\//g, '--')}`;
+            const norm = stripPrefix(id);
+            if (norm !== normRoot && !seenIds.has(norm)) {
+                seenIds.add(norm);
+                let node = ensureNode(id, 'model');
+                node.relation = 'BASED_ON';
+                if (!node._mapped) {
+                    node._mapped = true;
+                    tiers.core.nodes.push(node);
+                    filteredRelations.push({ target_id: id, target_type: 'model', target_name: node.name, relation_type: 'BASED_ON', confidence: 1.0 });
+                }
+            }
+        }
+
+        if (Array.isArray(entity.datasets_used)) {
+            entity.datasets_used.forEach(ds => {
+                const id = ds.includes('--') ? ds : `hf-dataset--${ds.replace(/\//g, '--')}`;
+                const norm = stripPrefix(id);
+                if (norm !== normRoot && !seenIds.has(norm)) {
+                    seenIds.add(norm);
+                    let node = ensureNode(id, 'dataset');
+                    node.relation = 'TRAINED_ON';
+                    if (!node._mapped) {
+                        node._mapped = true;
+                        tiers.utility.nodes.push(node);
+                        filteredRelations.push({ target_id: id, target_type: 'dataset', target_name: node.name, relation_type: 'TRAINED_ON', confidence: 0.9 });
+                    }
+                }
+            });
+        }
+
         if (Array.isArray(entity.arxiv_refs)) {
             entity.arxiv_refs.forEach(r => {
                 const id = `arxiv--${r}`;
