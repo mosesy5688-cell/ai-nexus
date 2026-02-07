@@ -53,14 +53,22 @@ try {
 
   // V16.96: Canonical Redirection Guard (Art.III URL Stability)
   // 1. Catch legacy /paper/arxiv/ID and redirect to clean /paper/ID
-  if (slugStr.startsWith('arxiv/')) {
+  // V16.96.9: Defensive wrap to prevent loop if data contains the prefix
+  if (slugStr.startsWith('arxiv/') && !paper?.slug?.startsWith('arxiv/')) {
     const cleanSlug = slugStr.replace('arxiv/', '');
     return Astro.redirect(`/paper/${cleanSlug}`, 301);
   }
 
   // 2. Catch descriptive slug mismatches if paper metadata provides a better slug
-  if (paper?.slug && normalizeEntitySlug(slugStr) !== normalizeEntitySlug(paper.slug)) {
-    return Astro.redirect(`/paper/${paper.slug}`, 301);
+  const currentNorm = normalizeEntitySlug(slugStr);
+  const canonicalNorm = paper?.slug ? normalizeEntitySlug(paper.slug) : null;
+  
+  if (canonicalNorm && currentNorm !== canonicalNorm) {
+    // Only redirect if the target doesn't lead back to the prefix loop
+    const targetSlug = paper.slug.replace(/^arxiv[\/-]/, '');
+    if (normalizeEntitySlug(targetSlug) !== currentNorm) {
+      return Astro.redirect(`/paper/${targetSlug}`, 301);
+    }
   }
 
   const displayPaperTitle = paper?.title || (isFallback ? (slugStr.split('/').pop() || 'Unknown Paper') : paper?.canonical_name);
