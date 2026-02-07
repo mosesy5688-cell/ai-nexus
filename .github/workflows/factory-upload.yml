@@ -28,6 +28,11 @@ env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   NODE_OPTIONS: '--max-old-space-size=6144'
 
+permissions:
+  actions: write
+  contents: read
+  id-token: write
+
 jobs:
   check-upstream:
     name: Check Upstream
@@ -291,14 +296,26 @@ jobs:
           echo "✅ aggregator.js has prepared baseline backups in output/meta/backup/"
       - name: Upload to R2 via S3 API
         env:
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/rankings/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-full.json,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,daily/,meta/,sitemaps/,rss/,sitemap.xml
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/rankings/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-full.json,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml
         run: node scripts/factory/r2-upload-s3.js
       - name: Purge & Warm CDN
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
         run: |
+          if [ -z "$CLOUDFLARE_ZONE_ID" ] || [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "⚠️ [PURGE] Skipping CDN purge: CLOUDFLARE_ZONE_ID/TOKEN missing"
+            exit 0
+          fi
           PURGE_PATHS='["https://cdn.free2aitools.com/cache/trending.json","https://cdn.free2aitools.com/cache/search-core.json","https://cdn.free2aitools.com/cache/relations.json","https://cdn.free2aitools.com/sitemap.xml"]'
+          echo "📡 Purging CDN cache for paths: $PURGE_PATHS"
           curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
             --data "{\"files\":$PURGE_PATHS}"
       - name: Trigger Health Check
-        run: gh workflow run daily-health-check.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🏥 Triggering Daily Health Check..."
+          gh workflow run daily-health-check.yml
         continue-on-error: true
