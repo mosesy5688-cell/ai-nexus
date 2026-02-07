@@ -65,9 +65,23 @@ export function hydrateEntity(data, type, summaryData) {
 function beautifyName(hydrated) {
     const isSlug = hydrated.name && !hydrated.name.includes(' ') && (hydrated.name.includes('-') || hydrated.name.includes('_'));
     if (!hydrated.name || hydrated.name === hydrated.id || isSlug) {
-        const parts = (hydrated.id || '').split('--').pop()?.split('/') || [];
-        const rawName = parts.pop() || hydrated.id || 'Unknown Entity';
-        hydrated.name = rawName.replace(/[-_]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        // V16.7: Handle SPEC-ID-V2.0 depth (e.g. hf-model--author--name)
+        const id = hydrated.id || '';
+        const parts = id.split('--');
+        const rawName = parts[parts.length - 1] || id || 'Unknown Entity';
+
+        // Clean and Title Case
+        hydrated.name = rawName
+            .replace(/[-_]/g, ' ')
+            .split(' ')
+            .filter(Boolean)
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+
+        // Final sanity check for empty or nonsense names
+        if (!hydrated.name || hydrated.name === 'Model' || hydrated.name === 'Agent') {
+            hydrated.name = rawName || 'Deep Insight Node';
+        }
     }
 }
 

@@ -178,11 +178,14 @@ const jsonLd = space ? {
           </p>
        </div>
 
-       <ModelInfoTable model={{
-         ...(space || {}),
-         displayName: spaceName,
-         pipeline_tag: space?.sdk || 'AI SDK'
-       }} />
+       <ModelInfoTable 
+         type="space"
+         model={{
+           ...(space || {}),
+           displayName: spaceName,
+           pipeline_tag: space?.sdk || 'AI SDK'
+         }} 
+       />
        
        <ShareButtons 
           url={`https://free2aitools.com/space/${slugStr}`} 

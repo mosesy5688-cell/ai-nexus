@@ -174,6 +174,15 @@ const jsonLd = dataset ? {
           </p>
        </div>
        
+       <ModelInfoTable 
+         type="dataset"
+         model={{
+           ...(dataset || {}),
+           displayName: datasetName,
+           pipeline_tag: dataset?.format || 'Dataset'
+         }} 
+       />
+       
        <ShareButtons 
           url={`https://free2aitools.com/dataset/${slugStr}`} 
           title={`${datasetName} - AI Dataset Details`} 

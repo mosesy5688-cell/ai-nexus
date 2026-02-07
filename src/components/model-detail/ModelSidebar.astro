@@ -185,14 +185,17 @@ function formatBytes(bytes: number | undefined): string {
     </div>
   )}
   
-  <ModelInfoTable model={{
-    ...model,
-    id: model.id || '',
-    umid: model.umid || '',
-    slug: model.slug || '',
-    pipeline_tag: model.pipeline_tag || null,
-    source_url: model.source_url || null
-  }} />
+  <ModelInfoTable 
+    type={model.entityType || 'model'}
+    model={{
+      ...model,
+      id: model.id || '',
+      umid: model.umid || '',
+      slug: model.slug || '',
+      pipeline_tag: model.pipeline_tag || null,
+      source_url: model.source_url || null
+    }} 
+  />
   
 
 </aside>

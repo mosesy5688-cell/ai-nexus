@@ -54,41 +54,32 @@ if (type === 'model') {
         });
     }
   }
-} else if (type === 'agent') {
-  commands.push({
-    label: 'GitHub Clone',
-    cmd: `git clone ${repoUrl || '...' }`,
-    icon: '🐙'
-  });
-  if (repoUrl.includes('github.com')) {
-      commands.push({
-          label: 'Setup Env',
-          cmd: `pip install -r requirements.txt`,
-          icon: '🐍'
-      });
+} else if (type === 'agent' || type === 'tool') {
+  const lang = (entity?.language || '').toLowerCase();
+  const packageName = cleanId.split('/').pop()?.toLowerCase() || '';
+  
+  if (repoUrl && repoUrl.includes('github.com')) {
+    commands.push({
+      label: 'GitHub Clone',
+      cmd: `git clone ${repoUrl}`,
+      icon: '🐙'
+    });
+  }
+
+  if (lang === 'javascript' || lang === 'typescript' || entity.tags?.includes('npm')) {
+    commands.push({
+      label: 'NPM Install',
+      cmd: `npm install ${packageName || 'package-name'}`,
+      icon: '📦'
+    });
+  } else if (lang === 'python' || entity.tags?.includes('pip') || type === 'agent') {
+    commands.push({
+      label: 'PIP Install',
+      cmd: `pip install ${packageName || 'package-name'}`,
+      icon: '🐍'
+    });
   }
 } else if (type === 'dataset') {
-  commands.push({
-    label: 'HF Download',
-    cmd: `huggingface-cli download --repo-type dataset ${cleanId}`,
-    icon: '📊'
-  });
-} else if (type === 'space') {
-  const sdk = entity?.sdk?.toLowerCase() || 'gradio';
-  commands.push({
-    label: `Run with ${sdk.toUpperCase()}`,
-    cmd: sdk === 'streamlit' ? 'streamlit run app.py' : 'python app.py',
-    icon: '🚀'
-  });
-} else if (type === 'tool') {
-  const lang = (entity?.language || '').toLowerCase();
-  const packageName = cleanId.split('/').pop();
-  commands.push({
-    label: 'Install',
-    cmd: lang === 'javascript' || lang === 'typescript' ? `npm install ${packageName}` : `pip install ${packageName}`,
-    icon: '📦'
-  });
-} else if (type === 'paper') {
     const arxivId = entity?.arxiv_id || (id.includes('arxiv--') ? id.replace('arxiv--', '') : '');
     if (arxivId) {
         commands.push({
