@@ -61,8 +61,8 @@ export function renderResults(results) {
     }
 
     dropdown.innerHTML = results.map(r => {
-        const path = getRouteFromId(r.id || r.slug, r.type);
-        const isKnowledge = r.type === 'knowledge';
+        const path = getRouteFromId(r.id || r.slug, r.type || 'model');
+        const isKnowledge = (r.type || 'model') === 'knowledge';
 
         const typeLabel = isKnowledge ? 'Guide' : (r.type || 'Model').toUpperCase();
         const badgeClass = isKnowledge ?

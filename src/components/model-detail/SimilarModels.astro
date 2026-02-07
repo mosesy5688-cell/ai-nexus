@@ -1,7 +1,9 @@
 ---
+import { getRouteFromId } from '../../utils/knowledge-cache-reader.js';
+
 /**
  * SimilarModels Component - Zone 3
- * V15.0: Display ALT (Alternative) models as horizontal carousel
+ * V15.1: Display ALT (Alternative) models as horizontal carousel
  * Data source: relations.json ALT edges
  */
 interface SimilarModel {
@@ -32,8 +34,7 @@ function formatNumber(num: number | undefined): string {
 }
 
 function getModelUrl(model: SimilarModel): string {
-  const slug = model.id.replace(/^model--/, '').replace(/--/g, '/');
-  return `/model/${slug}`;
+  return getRouteFromId(model.id, 'model');
 }
 ---
 

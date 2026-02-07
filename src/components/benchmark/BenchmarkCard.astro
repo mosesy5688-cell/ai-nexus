@@ -1,8 +1,5 @@
 ---
-/**
- * BenchmarkCard Component
- * V4.4 Phase 3 - Displays single model benchmark scores
- */
+import { getRouteFromId } from '../../utils/knowledge-cache-reader.js';
 
 interface Props {
   umid: string;
@@ -31,6 +28,8 @@ const {
   compact = false
 } = Astro.props;
 
+const modelUrl = getRouteFromId(umid, 'model');
+
 
 
 // Score color mapping
@@ -51,7 +50,7 @@ function getBarWidth(score: number | undefined): string {
 
 <div class={`benchmark-card ${compact ? 'compact' : ''}`}>
   <div class="card-header">
-    <a href={`/model/${umid}`} class="model-name">{name}</a>
+    <a href={modelUrl} class="model-name">{name}</a>
     {quality_flag === 'ok' && <span class="quality-badge ok">✓</span>}
     {quality_flag !== 'ok' && <span class="quality-badge warn">⚠</span>}
   </div>

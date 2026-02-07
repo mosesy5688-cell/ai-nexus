@@ -39,7 +39,7 @@ export async function loadIndex(entityType = 'model') {
 
         const miniSearch = new MiniSearch({
             fields: ['name', 'author', 'tags', 'description', 'slug'],
-            storeFields: ['name', 'author', 'tags', 'description', 'id', 'slug', 'likes', 'downloads', 'last_updated', 'fni_score', 'pwc_benchmarks', 'verified'],
+            storeFields: ['name', 'author', 'tags', 'description', 'id', 'slug', 'likes', 'downloads', 'last_updated', 'fni_score', 'pwc_benchmarks', 'verified', 'type'],
             searchOptions: {
                 boost: { name: 2, author: 1.5 },
                 fuzzy: 0.2,
