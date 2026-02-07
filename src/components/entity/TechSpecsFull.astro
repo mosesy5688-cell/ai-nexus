@@ -32,14 +32,29 @@ if (type === 'model') {
               entity?.config?.max_position_embeddings || 
               entity?.config?.n_ctx;
 
+  // V16.5: Quantization Recovery (Ghost Field)
+  if (entity?.quant_bits) {
+    hardwareSpecs.push({ label: 'Quantization', value: `${entity.quant_bits}-bit`, highlight: true });
+  }
+
   hardwareSpecs.push({ 
     label: 'Context Length', 
     value: ctx ? (ctx >= 1024 ? `${(ctx / 1024).toFixed(0)}K` : ctx) : '-' 
   });
+
+  // V16.96: Model Size / VRAM Requirement
+  if (entity?.size_kb) {
+    const size = entity.size_kb;
+    hardwareSpecs.push({ label: 'Model Size', value: size > 1048576 ? `${(size/1048576).toFixed(1)}GB` : `${(size/1024).toFixed(0)}MB` });
+  }
 } else if (type === 'dataset') {
   hardwareSpecs.push({ label: 'Size', value: entity?.size_bytes ? `${(entity.size_bytes / 1e9).toFixed(2)} GB` : (entity?.size_gb ? `${entity.size_gb} GB` : (entity?.meta?.extended?.size || '-')), highlight: true });
   hardwareSpecs.push({ label: 'Total Rows', value: entity?.rows ? (Number(entity.rows) >= 1e6 ? (Number(entity.rows) / 1e6).toFixed(1) + 'M' : Number(entity.rows).toLocaleString()) : (entity?.meta?.extended?.rows || '-') });
   hardwareSpecs.push({ label: 'Files', value: entity?.files_count || entity?.meta?.extended?.files || '-' });
+  
+  if (entity?.features) {
+     hardwareSpecs.push({ label: 'Features', value: Array.isArray(entity.features) ? entity.features.length : (typeof entity.features === 'object' ? Object.keys(entity.features).length : 'Aggregated') });
+  }
 } else if (type === 'paper') {
   hardwareSpecs.push({ label: 'Citations', value: entity?.citations || entity?.citation_count || entity?.meta?.extended?.citations || '-', highlight: true });
   hardwareSpecs.push({ label: 'Year', value: entity?.published_date ? new Date(entity.published_date).getFullYear() : (entity?.year || entity?.meta?.extended?.year || '-') });
@@ -48,6 +63,12 @@ if (type === 'model') {
   hardwareSpecs.push({ label: 'GitHub Stars', value: (entity?.github_stars || entity?.stars || entity?.meta?.extended?.stars)?.toLocaleString() || '-', highlight: true });
   hardwareSpecs.push({ label: 'Language', value: entity?.language || entity?.meta?.extended?.language || 'Python' });
   hardwareSpecs.push({ label: 'Version', value: entity?.version || entity?.meta?.extended?.version || 'v1.0.0' });
+  
+  // V16.96: Repo Size (Promoted from meta.storage_bytes)
+  const repoSize = entity?.size_kb || entity?.meta_json?.size_kb;
+  if (repoSize) {
+     hardwareSpecs.push({ label: 'Repo Size', value: repoSize > 1024 ? `${(repoSize/1024).toFixed(1)}MB` : `${repoSize}KB` });
+  }
 } else if (type === 'space') {
   hardwareSpecs.push({ label: 'SDK', value: entity?.sdk || entity?.meta?.extended?.sdk || '-', highlight: true });
   hardwareSpecs.push({ label: 'Hardware', value: entity?.hardware || entity?.meta?.extended?.hardware || 'V100' });

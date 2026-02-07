@@ -116,21 +116,90 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
         }
     });
 
-    // 2. High-Confidence Structural Injections (ArXiv ONLY)
-    if (entity && Array.isArray(entity.arxiv_refs)) {
-        entity.arxiv_refs.forEach(r => {
-            const id = `arxiv--${r}`;
+    // 2. High-Confidence Structural Injections (ArXiv & Explicit Relations)
+    if (entity) {
+        if (entity.base_model) {
+            const id = entity.base_model.includes('--') ? entity.base_model : `hf-model--${entity.base_model.replace(/\//g, '--')}`;
             const norm = stripPrefix(id);
-            if (norm === normRoot || seenIds.has(norm)) return;
-            seenIds.add(norm);
-
-            let node = ensureNode(id, 'paper');
-            node.relation = 'CITES';
-            if (!node._mapped) {
-                node._mapped = true;
-                tiers.utility.nodes.push(node);
+            if (norm !== normRoot && !seenIds.has(norm)) {
+                seenIds.add(norm);
+                let node = ensureNode(id, 'model');
+                node.relation = 'BASED_ON';
+                if (!node._mapped) {
+                    node._mapped = true;
+                    tiers.core.nodes.push(node);
+                    filteredRelations.push({ target_id: id, target_type: 'model', target_name: node.name, relation_type: 'BASED_ON', confidence: 1.0 });
+                }
             }
-        });
+        }
+
+        if (Array.isArray(entity.datasets_used)) {
+            entity.datasets_used.forEach(ds => {
+                const id = ds.includes('--') ? ds : `hf-dataset--${ds.replace(/\//g, '--')}`;
+                const norm = stripPrefix(id);
+                if (norm !== normRoot && !seenIds.has(norm)) {
+                    seenIds.add(norm);
+                    let node = ensureNode(id, 'dataset');
+                    node.relation = 'TRAINED_ON';
+                    if (!node._mapped) {
+                        node._mapped = true;
+                        tiers.utility.nodes.push(node);
+                        filteredRelations.push({ target_id: id, target_type: 'dataset', target_name: node.name, relation_type: 'TRAINED_ON', confidence: 0.9 });
+                    }
+                }
+            });
+        }
+
+        if (Array.isArray(entity.arxiv_refs)) {
+            entity.arxiv_refs.forEach(r => {
+                const id = `arxiv--${r}`;
+                const norm = stripPrefix(id);
+                if (norm === normRoot || seenIds.has(norm)) return;
+                seenIds.add(norm);
+
+                let node = ensureNode(id, 'paper');
+                node.relation = 'CITES';
+                if (!node._mapped) {
+                    node._mapped = true;
+                    tiers.utility.nodes.push(node);
+                    filteredRelations.push({ target_id: id, target_type: 'paper', target_name: node.name, relation_type: 'CITES', confidence: 1.0 });
+                }
+            });
+        }
+
+        if (Array.isArray(entity.relations)) {
+            entity.relations.forEach(r => {
+                const tid = r.target_id;
+                if (!tid) return; // Null safety for ghost relations
+                const norm = stripPrefix(tid);
+                if (norm === normRoot || seenIds.has(norm)) return;
+                seenIds.add(norm);
+
+                let node = ensureNode(tid, r.target_type || getTypeFromId(tid));
+                let relType = (r.relation_type || r.type || 'RELATED').toUpperCase();
+
+                // Semantic Normalization
+                if (relType === 'HAS_CODE' || relType === 'CODEBASE') relType = 'STACK';
+
+                node.relation = relType;
+                if (!node._mapped) {
+                    node._mapped = true;
+                    // 4-Tier Magnetic Alignment
+                    if (node.type === 'knowledge') tiers.explanation.nodes.push(node);
+                    else if (['model', 'agent', 'tool', 'space'].includes(node.type)) tiers.core.nodes.push(node);
+                    else if (['dataset', 'paper'].includes(node.type)) tiers.utility.nodes.push(node);
+                    else if (node.type === 'report') tiers.digest.nodes.push(node);
+
+                    filteredRelations.push({
+                        target_id: tid,
+                        target_type: node.type,
+                        target_name: node.name,
+                        relation_type: relType,
+                        confidence: r.confidence || 1.0
+                    });
+                }
+            });
+        }
     }
 
     return { tiers, nodeRegistry, filteredRelations };
