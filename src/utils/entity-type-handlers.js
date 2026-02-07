@@ -116,3 +116,60 @@ export function handleGenericType(hydrated, entity, type, meta, derivedName) {
         else if (hydrated.id.includes('github') || hydrated.id.includes('gh-')) hydrated.source = 'github';
     }
 }
+
+export function heuristicMining(hydrated) {
+    if (!hydrated.body_content) return;
+    const body = hydrated.body_content;
+
+    // Architecture Hints
+    if (!hydrated.architecture) {
+        if (body.match(/MoE|Mixture of Experts/i)) hydrated.architecture = 'MoE';
+        else if (body.match(/GQA|Grouped Query Attention/i)) hydrated.architecture = 'GQA';
+    }
+
+    // Parameter Recovery (v16.5 Higher Precision)
+    if (!hydrated.params_billions) {
+        const pMatch = body.match(/(\d+(\.\d+)?)\s?B\s(Parameters|Params)/i);
+        if (pMatch) hydrated.params_billions = parseFloat(pMatch[1]);
+    }
+
+    // Quantization Hints (for VRAM calibration)
+    if (!hydrated.quant_bits) {
+        if (body.match(/Q4_K_M|4-bit/i)) hydrated.quant_bits = 4;
+        else if (body.match(/Q8_0|8-bit/i)) hydrated.quant_bits = 8;
+    }
+}
+
+export function mineRelations(hydrated, meta) {
+    const relSource = meta.extended || meta.relations || hydrated.relations || {};
+    const toArray = (val) => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') {
+            if (val.trim().startsWith('[') && val.trim().endsWith(']')) {
+                try { const p = JSON.parse(val); if (Array.isArray(p)) return p; } catch (e) { }
+            }
+            return val.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return [];
+    };
+
+    hydrated.arxiv_refs = toArray(hydrated.arxiv_refs || relSource.arxiv_refs || relSource.arxiv_ids || relSource.citing_papers);
+    hydrated.datasets_used = toArray(hydrated.datasets_used || relSource.datasets_used || relSource.training_data || relSource.used_datasets);
+    hydrated.similar_models = toArray(hydrated.similar_models || relSource.similar_models || relSource.related_models);
+    hydrated.base_model = hydrated.base_model || relSource.base_model || relSource.parent_model || null;
+
+    // V15.21 Tag Mining (Updated for V2.0 prefixes)
+    const tags = toArray(hydrated.tags || []);
+    tags.forEach(tag => {
+        if ((tag.startsWith('arxiv:') || tag.startsWith('arxiv--')) && !hydrated.arxiv_refs.includes(tag.split(/:|--/).pop())) {
+            hydrated.arxiv_refs.push(tag.split(/:|--/).pop());
+        }
+        if ((tag.startsWith('dataset:') || tag.startsWith('dataset--')) && !hydrated.datasets_used.includes(tag.split(/:|--/).pop())) {
+            hydrated.datasets_used.push(tag.split(/:|--/).pop());
+        }
+        if (tag.startsWith('base_model:') && !hydrated.base_model) hydrated.base_model = tag.substring(11);
+    });
+
+    hydrated.knowledge_links = hydrated.knowledge_links || [];
+}
