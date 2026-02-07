@@ -10,6 +10,7 @@
  */
 
 import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity } from './entity-cache-reader-core.js';
+import { getTypeFromId } from './mesh-routing-core.js';
 
 /**
  * Resolve an entity from R2 cache (Constitutional: D1 = 0)
