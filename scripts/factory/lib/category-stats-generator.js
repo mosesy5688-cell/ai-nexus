@@ -45,6 +45,13 @@ const CATEGORY_ALIASES = {
     'robotics': 'automation-workflow',
     'tabular-classification': 'infrastructure-ops',
     'tabular-regression': 'infrastructure-ops',
+    'gguf': 'infrastructure-ops',
+    'awq': 'infrastructure-ops',
+    'gptq': 'infrastructure-ops',
+    'exl2': 'infrastructure-ops',
+    'onnx': 'infrastructure-ops',
+    'openvino': 'infrastructure-ops',
+    'tensorrt': 'infrastructure-ops',
     // Replicate/other source categories
     'audio': 'vision-multimedia',
     'video': 'vision-multimedia',
@@ -61,6 +68,7 @@ const NAME_PATTERNS = {
     'knowledge-retrieval': /embed|bert|bge|e5|retriev|sentence|jina|nomic|gte|minilm|mpnet|indexing|rag|vector|supabase/i,
     'vision-multimedia': /stable.?diffusion|flux|sdxl|dalle|vision|vit|whisper|tts|wav2vec|clip|upscale|yolo|depth|pose|inpaint/i,
     'automation-workflow': /agent|autom|robot|reward|rl|decision|planner|tool-use|function-call|action|orchestra/i,
+    'infrastructure-ops': /quantiz|gguf|awq|gptq|exl2|vllm|sglang|trt-llm|ollama|inference|deployment|optimization/i,
 };
 
 /**

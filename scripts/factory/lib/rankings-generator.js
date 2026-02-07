@@ -40,21 +40,23 @@ export async function generateRankings(entities, outputDir = './output') {
 
 async function generateCategoryRanking(category, entities, outputDir) {
     const pageSize = 50;
+    const MAX_PAGES = 50; // Art 2.4 Constitution Limit
     const totalPages = Math.ceil(entities.length / pageSize) || 1;
+    const effectivePages = Math.min(totalPages, MAX_PAGES);
 
     // Write to cache/rankings to match CDN path expectations
     const rankingDir = path.join(outputDir, 'cache', 'rankings', category);
     await fs.mkdir(rankingDir, { recursive: true });
 
-    for (let page = 1; page <= totalPages; page++) {
+    for (let page = 1; page <= effectivePages; page++) {
         const start = (page - 1) * pageSize;
         const pageEntities = entities.slice(start, start + pageSize);
 
         const ranking = {
             category,
             page,
-            totalPages,
-            totalEntities: entities.length,
+            totalPages: effectivePages, // Report the capped total
+            totalEntities: Math.min(entities.length, MAX_PAGES * pageSize),
             entities: pageEntities,
             generated: new Date().toISOString(),
         };
@@ -63,5 +65,5 @@ async function generateCategoryRanking(category, entities, outputDir) {
         await fs.writeFile(filePath, JSON.stringify(ranking, null, 2));
     }
 
-    console.log(`  [RANKING] ${category}: ${entities.length} entities, ${totalPages} pages`);
+    console.log(`  [RANKING] ${category}: ${entities.length} entities, ${effectivePages} pages generated (Capped at ${MAX_PAGES})`);
 }
