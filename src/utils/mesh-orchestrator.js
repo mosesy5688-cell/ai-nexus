@@ -4,7 +4,7 @@
  * V16.11: Restricted to R2 Source only. No dynamic tag promotion.
  */
 import { fetchMeshRelations, fetchGraphMetadata, fetchConceptMetadata, stripPrefix, isMatch, getTypeFromId, normalizeSlug, KNOWLEDGE_ALIAS_MAP } from './knowledge-cache-reader.js';
-import { articles as knowledgeArticles } from '../data/knowledge-articles.ts';
+import { articles as knowledgeArticles } from '../data/knowledge-articles.js';
 
 export async function getMeshProfile(locals, rootId, entity, type = 'model') {
     const normRoot = stripPrefix(rootId);
