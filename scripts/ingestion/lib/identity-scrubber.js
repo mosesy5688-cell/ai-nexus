@@ -1,4 +1,5 @@
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
+import { mergeEntities } from './entity-merger.js';
 
 /**
  * Performs a final pass of ID normalization for all entities.
@@ -24,8 +25,10 @@ export function scrubIdentities(entities) {
         if (!dedupedMap.has(entity.id)) {
             dedupedMap.set(entity.id, entity);
         } else {
-            // If duplicate after normalization, we keep the one already in the map (or could merge)
-            // But usually this shouldn't happen if sources are clean
+            // V16.96.2: Safe Collision Handling
+            // If duplicate after normalization, merge with existing entry to prevent data loss
+            const existing = dedupedMap.get(entity.id);
+            dedupedMap.set(entity.id, mergeEntities(existing, entity));
         }
     }
 
