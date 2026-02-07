@@ -28,12 +28,14 @@ const getIcon = (label: string) => {
 };
 ---
 
+{ (goodFor.length > 0 || limits.length > 0) && (
 <section class="relative overflow-hidden bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/50 mb-12 shadow-sm">
   {/* Decorator */}
   <div class="absolute -top-12 -right-12 w-24 h-24 bg-indigo-500/5 dark:bg-indigo-400/5 rounded-full blur-3xl"></div>
   
   <div class="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
     <!-- Good For: Scene Translation -->
+    {goodFor.length > 0 && (
     <div class="space-y-4">
       <div class="flex items-center gap-3">
         <div class="flex items-center justify-center w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
@@ -55,11 +57,12 @@ const getIcon = (label: string) => {
             </span>
           </div>
         ))}
-        {goodFor.length === 0 && <span class="text-xs italic text-gray-400">Evaluating capabilities...</span>}
       </div>
     </div>
+    )}
 
     <!-- Limits: Technical Constraints -->
+    {limits.length > 0 && (
     <div class="space-y-4">
       <div class="flex items-center gap-3">
         <div class="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
@@ -80,8 +83,9 @@ const getIcon = (label: string) => {
             </span>
           </div>
         ))}
-        {limits.length === 0 && <span class="text-xs italic text-gray-400">No major constraints identified.</span>}
       </div>
     </div>
+    )}
   </div>
 </section>
+)}
