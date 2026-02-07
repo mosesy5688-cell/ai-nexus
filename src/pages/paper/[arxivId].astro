@@ -16,8 +16,8 @@ const { arxivId } = Astro.params;
 const isValidArxivId = arxivId && /^\d{4}\.\d{4,5}(v\d+)?$/.test(arxivId);
 
 if (isValidArxivId) {
-  // V15.13: Permanent redirect to canonical URL format
-  return Astro.redirect(`/paper/arxiv/${arxivId}`, 301);
+  // V16.96: Permanent redirect to canonical V2.1 path (no arxiv/ middle segment)
+  return Astro.redirect(`/paper/${arxivId}`, 301);
 }
 
 // Invalid ArXiv ID - show error page

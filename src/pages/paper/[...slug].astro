@@ -18,8 +18,8 @@ import ModelCarousel from '../../components/ModelCarousel.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
-import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import CiteEntity from '../../components/common/CiteEntity.astro';
+import QuickCommands from '../../components/common/QuickCommands.astro';
 import { getUseCases } from '../../utils/inference.js';
 import { preparePaperPageData } from '../../utils/paper-page-data.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
@@ -50,6 +50,18 @@ try {
   similarEntities = rSimilar;
   tagsArray = rTags;
   meshRelations = resolvedMesh || [];
+
+  // V16.96: Canonical Redirection Guard (Art.III URL Stability)
+  // 1. Catch legacy /paper/arxiv/ID and redirect to clean /paper/ID
+  if (slugStr.startsWith('arxiv/')) {
+    const cleanSlug = slugStr.replace('arxiv/', '');
+    return Astro.redirect(`/paper/${cleanSlug}`, 301);
+  }
+
+  // 2. Catch descriptive slug mismatches if paper metadata provides a better slug
+  if (paper?.slug && normalizeEntitySlug(slugStr) !== normalizeEntitySlug(paper.slug)) {
+    return Astro.redirect(`/paper/${paper.slug}`, 301);
+  }
 
   const displayPaperTitle = paper?.title || (isFallback ? (slugStr.split('/').pop() || 'Unknown Paper') : paper?.canonical_name);
   pageTitle = `${displayPaperTitle} - AI Research Insight`;

@@ -98,8 +98,9 @@ export async function preparePaperPageData(slug, slugStr, locals) {
     } else {
         // Fallback Paper
         const paperSlugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-        const arxivMatch = paperSlugStr.match(/(\d{4}\.\d{4,5})/);
-        const arxivId = arxivMatch ? arxivMatch[1] : paperSlugStr;
+        // Improved ArXiv ID extraction (handles v1, v2 suffixes)
+        const arxivMatch = paperSlugStr.match(/(\d{4}\.\d{4,5}(v\d+)?)/);
+        const arxivId = arxivMatch ? arxivMatch[1] : paperSlugStr.split('/').pop();
 
         let fallbackPaper = {
             id: `arxiv--${arxivId.replace(/\//g, '--')}`,
