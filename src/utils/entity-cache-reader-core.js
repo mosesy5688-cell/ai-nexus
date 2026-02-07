@@ -1,5 +1,5 @@
 // V15.1 Unified Entity Cache Reader Core (Art.I-Extended: Frontend D1 = 0)
-import { R2_CACHE_URL } from '../config/constants.ts';
+import { R2_CACHE_URL } from '../config/constants.js';
 
 import { stripPrefix, getTypeFromId } from './mesh-routing-core.js';
 
