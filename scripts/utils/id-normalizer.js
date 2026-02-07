@@ -95,6 +95,12 @@ export function normalizeId(id, source, type) {
     // 1. Initial Cleanup: Normalize delimiters and lowercase
     let cleanId = id.toLowerCase().replace(/\.json$/, '').replace(/[\/:]/g, '--').trim();
 
+    // V16.96.2: Academic Continuity (Art 3.1)
+    // Strip version suffixes (v1, v2...) from ArXiv IDs to allow updates/merging
+    if (cleanId.match(/\d{4}\.\d{4,5}v\d+$/)) {
+        cleanId = cleanId.replace(/v\d+$/, '');
+    }
+
     // 2. Identify and Strip ALL known prefixes (Recursive/Multi-pass)
     let hintS = null;
     let hintT = null;

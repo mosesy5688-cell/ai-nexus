@@ -32,15 +32,22 @@ export function mergeEntities(existing, incoming) {
         }
         mergedObj.meta_json = JSON.stringify(mergedMeta);
 
-        // V16.4.3 Update: Include image and compliance fields
+        // V16.96.2 Update: Comprehensive Field Promotion (Art 3.1)
         const techFields = [
+            'name', 'canonical_name', 'author', 'author_url', 'license', 'license_url',
+            'source_url', 'slug', 'primary_category', 'entity_type', 'type',
             'params_billions', 'architecture', 'context_length', 'hidden_size', 'num_layers',
             'fni', 'fni_score', 'quality_score', 'compliance_status',
             'raw_image_url', 'cover_image_url', 'image_url'
         ];
         for (const field of techFields) {
             if (incoming[field] !== undefined && incoming[field] !== null && incoming[field] !== '') {
-                mergedObj[field] = incoming[field];
+                // Special case for score updates: keep highest or latest
+                if (field === 'fni_score' || field === 'fni' || field === 'quality_score') {
+                    mergedObj[field] = Math.max(existing[field] || 0, incoming[field] || 0);
+                } else {
+                    mergedObj[field] = incoming[field];
+                }
             }
         }
     } catch (e) {
