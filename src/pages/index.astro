@@ -127,7 +127,7 @@ const hotModels = hotItems.slice(0, 12);
         // V6.2: Load category model counts from category_stats API
         async function loadCategoryCounts() {
             try {
-                const res = await fetch('https://cdn.free2aitools.com/cache/category_stats.json');
+                const res = await fetch('/cache/category_stats.json');
                 if (!res.ok) throw new Error('Failed to fetch category stats');
                 const data = await res.json();
                 const categories = data.categories || [];
