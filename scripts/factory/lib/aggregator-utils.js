@@ -190,15 +190,16 @@ export async function backupStateFiles(outputDir, historyData, weekNumber) {
 /**
  * Check if a task should be skipped based on data checksum (V2.0 Incremental)
  */
-export async function checkIncrementalProgress(taskId, entities) {
+export async function checkIncrementalProgress(taskId, entities, logicHash = '') {
     const checksumFile = './cache/task-checksums.json';
-    const hash = crypto.createHash('md5').update(JSON.stringify(entities.map(e => ({ id: e.id, fni: e.fni_score }))).substring(0, 1000000)).digest('hex');
+    const dataHash = crypto.createHash('md5').update(JSON.stringify(entities.map(e => ({ id: e.id, fni: e.fni_score }))).substring(0, 1000000)).digest('hex');
+    const combinedHash = crypto.createHash('md5').update(dataHash + logicHash).digest('hex');
 
     try {
         const data = await fs.readFile(checksumFile, 'utf-8');
         const checksums = JSON.parse(data);
-        if (checksums[taskId] === hash) {
-            console.log(`[INCREMENTAL] ⚡ Task ${taskId} checksum matches. Skipping processing.`);
+        if (checksums[taskId] === combinedHash) {
+            console.log(`[INCREMENTAL] ⚡ Task ${taskId} checksum matches (Data + Logic). Skipping processing.`);
             return true;
         }
     } catch {
@@ -210,9 +211,10 @@ export async function checkIncrementalProgress(taskId, entities) {
 /**
  * Update task checksum after successful processing
  */
-export async function updateTaskChecksum(taskId, entities) {
+export async function updateTaskChecksum(taskId, entities, logicHash = '') {
     const checksumFile = './cache/task-checksums.json';
-    const hash = crypto.createHash('md5').update(JSON.stringify(entities.map(e => ({ id: e.id, fni: e.fni_score }))).substring(0, 1000000)).digest('hex');
+    const dataHash = crypto.createHash('md5').update(JSON.stringify(entities.map(e => ({ id: e.id, fni: e.fni_score }))).substring(0, 1000000)).digest('hex');
+    const combinedHash = crypto.createHash('md5').update(dataHash + logicHash).digest('hex');
 
     let checksums = {};
     try {
@@ -222,9 +224,9 @@ export async function updateTaskChecksum(taskId, entities) {
         // No problem
     }
 
-    checksums[taskId] = hash;
+    checksums[taskId] = combinedHash;
     await fs.mkdir(path.dirname(checksumFile), { recursive: true });
     await fs.writeFile(checksumFile, JSON.stringify(checksums, null, 2));
-    console.log(`[INCREMENTAL] ✅ Updated checksum for ${taskId}`);
+    console.log(`[INCREMENTAL] ✅ Updated combined checksum for ${taskId}`);
 }
 
