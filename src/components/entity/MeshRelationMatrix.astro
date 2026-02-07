@@ -44,21 +44,21 @@ const seenTargetsGlobal = new Set();
 const renderedNodes = Astro.locals.meshRenderedNodes || new Set();
 
 relations.forEach(rel => {
+    if (!rel || !rel.target_id) return;
+    
     const type = rel.relation_type || 'RELATED';
     const targetId = stripPrefix(rel.target_id);
-    const normTarget = targetId; // stripPrefix already returns the norm
+    const normTarget = targetId;
     
-    // V16.96: Exempt Knowledge and Reports from Cross-Component Deduplication
-    // This ensures they appear as direct links even if present in the Graph Explorer.
-    if (renderedNodes.has(normTarget) && !['knowledge', 'report'].includes(rel.target_type)) return;
+    if (renderedNodes.has(normTarget) && !['knowledge', 'report'].includes(rel.target_type || '')) return;
 
     let catKey = type;
     if (rel.target_type === 'knowledge') catKey = 'KNOWLEDGE';
     if (rel.target_type === 'report') catKey = 'REPORT';
 
     const cat = categories[catKey] || categories['RELATED'];
+    if (!cat) return;
     
-    // De-dupe within the specific category to prevent visual clutter
     const catCheckKey = `${type}|${targetId}`;
     if (seenTargetsGlobal.has(catCheckKey)) return;
     seenTargetsGlobal.add(catCheckKey);
