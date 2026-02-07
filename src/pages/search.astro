@@ -98,6 +98,7 @@ const entityTypes = [
 
 <script>
     import { initSearch, performSearch, loadFullSearchIndex, getSearchStatus } from '../scripts/home-search.js';
+    import { getRouteFromId } from '../utils/mesh-routing-core.js';
 
     const dom = {
         form: document.getElementById('results-search-form'),
@@ -155,7 +156,7 @@ const entityTypes = [
                     ${items.map(item => {
                         const type = item.type || 'model';
                         const slug = item.slug || item.id;
-                        const path = `/${type}/${slug}`;
+                        const path = getRouteFromId(slug, type);
                         return `
                         <a href="${path}" class="group block p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-xl hover:shadow-sm transition-all">
                             <div class="flex justify-between items-center">

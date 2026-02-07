@@ -104,13 +104,15 @@ export async function loadDailyReport() {
             const leaderType = leader.type || 'model';
             const leaderPrefix = leaderType === 'agent' ? '/agent/' : leaderType === 'dataset' ? '/dataset/' : leaderType === 'tool' ? '/tool/' : leaderType === 'paper' ? '/paper/' : '/model/';
             const count = briefing.new_entities_count || briefing.new_models_count || 0;
-            // V16.9.23: Use centralized SSOT logic for maximal backward compatibility
-            // V16.9.23: Use centralized SSOT logic - Preservation Policy
+
             const slug = (leader.id || leader.slug || '').toLowerCase();
 
             summaryEl.textContent = count > 0 ? `${count} new entities tracked today!` : 'Review the latest FNI leaderboards.';
             topModelEl.textContent = leader.name;
             topModelLink.href = `${leaderPrefix}${slug}`;
+        } else {
+            summaryEl.textContent = 'Review the latest FNI leaderboards.';
+            topModelEl.textContent = 'Curated AI Insights';
         }
 
         banner.classList.remove('hidden');

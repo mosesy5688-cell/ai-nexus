@@ -14,35 +14,22 @@ import { getModelFromCache } from './entity-cache-reader.js';
  * @returns {object|null} Model data from R2 cache or null if not found
  */
 export async function getModelBySlug(slug, locals) {
-    const kvCache = locals?.runtime?.env?.KV_CACHE;
     const r2 = locals?.runtime?.env?.R2_ASSETS;
 
     if (!slug) return null;
 
-    // URL decode the slug
     const decodedSlug = decodeURIComponent(slug);
     const slugNorm = decodedSlug.toString().trim().toLowerCase();
 
-    // 1. Try KV cache first (fast path)
-    const cachedModel = await getCachedModel(slugNorm, kvCache);
-    if (cachedModel) {
-        return cachedModel;
-    }
-
-    // 2. V14.2: Use R2 entity cache (replaces D1)
+    // V14.4 Constitution Alignment: KV and D1 PERMANENTLY REMOVED
+    // Pure R2 Static Cache logic only.
     try {
         const model = await getModelFromCache(slugNorm, r2);
-
-        if (model) {
-            // Cache in KV for future requests
-            await setCachedModel(slugNorm, model, kvCache);
-            return model;
-        }
+        if (model) return model;
     } catch (e) {
         console.warn('[DB] R2 cache lookup failed:', e.message);
     }
 
-    // 3. Model not found in cache
-    console.log(`[DB] Model not found in cache: ${slugNorm}`);
+    console.log(`[DB] Model not found in R2: ${slugNorm}`);
     return null;
 }
