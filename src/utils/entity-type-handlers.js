@@ -94,20 +94,25 @@ export function handleGenericType(hydrated, entity, type, meta, derivedName) {
 
     // Promotion of specialized metadata
     if (type === 'dataset') {
-        hydrated.size_bytes = entity.size_bytes || meta.size_bytes || meta.extended?.size_bytes;
-        hydrated.rows = entity.rows || meta.rows || meta.extended?.rows;
+        hydrated.size_bytes = entity.size_bytes || meta.size_bytes || meta.extended?.size_bytes || meta.dataset_info?.dataset_size;
+        hydrated.rows = entity.rows || meta.rows || meta.extended?.rows || meta.dataset_info?.splits?.train?.num_examples;
         hydrated.files_count = entity.files_count || meta.files_count || meta.extended?.files;
         hydrated.features = entity.features || meta.features || meta.extended?.features;
-        hydrated.configs = entity.configs || meta.configs || meta.extended?.configs || [];
     } else if (type === 'agent' || type === 'tool') {
         hydrated.github_stars = entity.github_stars || entity.stars || meta.stars || meta.stargazers_count || meta.extended?.stars;
         hydrated.github_forks = entity.github_forks || entity.forks || meta.forks || meta.forks_count || meta.extended?.forks;
-        hydrated.language = entity.language || meta.language || meta.extended?.language || 'Python';
+        hydrated.language = entity.language || meta.language || meta.extended?.language || meta.info?.language || 'Python';
         hydrated.version = entity.version || meta.version || meta.extended?.version || '1.0.0';
-        hydrated.framework = entity.framework || meta.framework || meta.extended?.framework;
+        hydrated.framework = entity.framework || meta.framework || meta.extended?.framework || meta.info?.framework;
     } else if (type === 'space') {
-        hydrated.sdk = entity.sdk || meta.sdk || meta.extended?.sdk || 'gradio';
-        hydrated.hardware = entity.hardware || meta.hardware || meta.extended?.hardware;
+        hydrated.sdk = entity.sdk || meta.sdk || meta.extended?.sdk || meta.sdk_version || 'gradio';
+        hydrated.hardware = entity.hardware || meta.hardware || meta.extended?.hardware || 'CPU';
         hydrated.running_status = entity.running_status || meta.running_status || meta.extended?.runtime_stage || 'RUNNING';
+    }
+
+    // Default source mapping if missing
+    if (!hydrated.source && hydrated.id) {
+        if (hydrated.id.includes('hf-') || hydrated.id.includes('huggingface')) hydrated.source = 'huggingface';
+        else if (hydrated.id.includes('github') || hydrated.id.includes('gh-')) hydrated.source = 'github';
     }
 }

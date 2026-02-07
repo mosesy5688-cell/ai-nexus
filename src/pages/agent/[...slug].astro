@@ -195,11 +195,14 @@ const jsonLd = {
           </p>
        </div>
        
-       <ModelInfoTable model={{
-         ...(agent || {}),
-         displayName: agentName,
-         pipeline_tag: agent?.framework || agent?.pipeline_tag || 'Agent Framework'
-       }} />
+       <ModelInfoTable 
+         type="agent"
+         model={{
+           ...(agent || {}),
+           displayName: agentName,
+           pipeline_tag: agent?.framework || agent?.pipeline_tag || 'Agent Framework'
+         }} 
+       />
 
        <ShareButtons 
           url={`https://free2aitools.com/agent/${slugStr}`} 

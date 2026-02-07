@@ -19,8 +19,6 @@ import ModelNavigation from '../../components/model-detail/ModelNavigation.astro
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
-import QuickCommands from '../../components/common/QuickCommands.astro';
-import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import CiteEntity from '../../components/common/CiteEntity.astro';
 import { getUseCases } from '../../utils/inference.js';
 import { preparePaperPageData } from '../../utils/paper-page-data.js';
@@ -174,11 +172,14 @@ const jsonLd = paper ? {
           </p>
        </div>
 
-       <ModelInfoTable model={{
-         ...(paper || {}),
-         displayName: paperTitle,
-         pipeline_tag: paper?.arxiv_category || 'Research Paper'
-       }} />
+       <ModelInfoTable 
+         type="paper"
+         model={{
+           ...(paper || {}),
+           displayName: paperTitle,
+           pipeline_tag: paper?.arxiv_category || 'Research Paper'
+         }} 
+       />
        
        <ShareButtons 
           url={`https://free2aitools.com/paper/${slugStr}`} 

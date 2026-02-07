@@ -177,11 +177,14 @@ const jsonLd = tool ? {
           </p>
        </div>
 
-       <ModelInfoTable model={{
-         ...(tool || {}),
-         displayName: toolName,
-         pipeline_tag: tool?.language || tool?.category || 'AI Tool'
-       }} />
+       <ModelInfoTable 
+         type="tool"
+         model={{
+           ...(tool || {}),
+           displayName: toolName,
+           pipeline_tag: tool?.language || tool?.category || 'AI Tool'
+         }} 
+       />
        
        <ShareButtons 
           url={`https://free2aitools.com/tool/${slugStr}`} 

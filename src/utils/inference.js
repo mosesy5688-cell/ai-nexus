@@ -109,8 +109,15 @@ export function getUseCases(tags = [], pipelineTag = '', entityType = 'model', f
     if (fniScore >= 90) goodFor.add('SOTA Performance');
 
     // Defaults
-    if (goodFor.size === 0) goodFor.add('Innovative Solution');
-    if (limits.size === 0) limits.add('Generic Use');
+    if (goodFor.size === 0) {
+        if (allTags.includes('api')) goodFor.add('API Integration');
+        else if (allTags.includes('web')) goodFor.add('Web Application');
+        else goodFor.add('Innovative Solution');
+    }
+    if (limits.size === 0) {
+        if (allTags.includes('beta')) limits.add('Experimental Phase');
+        else limits.add('Generic Use');
+    }
 
     return {
         goodFor: Array.from(goodFor).slice(0, 3),
