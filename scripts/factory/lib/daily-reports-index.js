@@ -25,7 +25,6 @@ export async function generateDailyReportsIndex(outputDir = './output') {
     const reportsDir = path.join(outputDir, 'cache', 'reports');
 
     await fs.mkdir(reportsDir, { recursive: true });
-    await fs.mkdir(path.join(reportsDir, 'daily'), { recursive: true });
 
     const reports = [];
 
@@ -58,8 +57,8 @@ export async function generateDailyReportsIndex(outputDir = './output') {
                         highlights: highlightsCount
                     });
 
-                    // Sync to cache location
-                    const newPath = path.join(reportsDir, 'daily', `${reportId}.json`);
+                    // Sync to cache location (V17.9: Direct into reportsDir)
+                    const newPath = path.join(reportsDir, `${reportId}.json`);
                     await fs.writeFile(newPath, JSON.stringify({
                         _v: CONFIG.VERSION,
                         ...reportData,
