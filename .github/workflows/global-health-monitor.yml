@@ -1,0 +1,69 @@
+name: Global Health Monitor
+# V16.8: Consolidated Health Monitoring
+# Replaces: v6-health-check, daily-health-check, integrity-check
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 00:00 UTC daily (Infrastructure & Data)
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Art 8.3: Execution Safety & Concurrency
+concurrency:
+  group: health-monitor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  health-audit:
+    name: Global Health Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Global Health Audit
+        run: npm run health-check -- https://free2aitools.com --full --export
+
+      - name: Upload Health Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-report
+          path: health-report.json
+          retention-days: 7
+
+      - name: Post Summary
+        if: always()
+        run: |
+          echo "## 🛡️ Global Health Audit Report" >> $GITHUB_STEP_SUMMARY
+          echo "Timestamp: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f health-report.json ]; then
+            STATUS=$(jq -r '.healthy' health-report.json)
+            if [ "$STATUS" == "true" ]; then
+              echo "✅ **System Healthy**" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ **System Degraded**" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "⚠️ **Report not generated**" >> $GITHUB_STEP_SUMMARY
+          fi

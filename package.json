@@ -16,6 +16,7 @@
     "test:e2e": "playwright test",
     "ces-check": "python scripts/check_compliance.py",
     "ces": "npm run ces-check",
+    "health-check": "node scripts/sentinel-prod.js",
     "deploy": "npm run build && npx wrangler pages deploy dist --project-name ai-nexus-293 --commit-dirty=true"
   },
   "dependencies": {
