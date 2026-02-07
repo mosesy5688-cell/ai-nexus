@@ -93,7 +93,13 @@ export function normalizeId(id, source, type) {
     if (!id) return null;
 
     // 1. Initial Cleanup: Normalize delimiters and lowercase
-    let cleanId = id.toLowerCase().replace(/\.json$/, '').replace(/[\/:]/g, '--').trim();
+    let cleanId = id.toLowerCase()
+        .replace(/\.meta\.json$/i, '') // V16.96.2: Added for meta files
+        .replace(/\.meta$/i, '')       // V16.96.2: Added for meta files
+        .replace(/\.md$/i, '')         // V16.96.2: Added for markdown files
+        .replace(/\.json$/i, '')
+        .replace(/[\/:]/g, '--')
+        .trim();
 
     // V16.96.2: Academic Continuity (Art 3.1)
     // Strip version suffixes (v1, v2...) from ArXiv IDs to allow updates/merging
@@ -102,6 +108,7 @@ export function normalizeId(id, source, type) {
     }
 
     // 2. Identify and Strip ALL known prefixes (Recursive/Multi-pass)
+    // V16.96.2: Robust prefix removal to prevent 'hf-agent--gh-agent--'
     let hintS = null;
     let hintT = null;
     let stripped = true;
