@@ -23,6 +23,7 @@ const CONFIG = {
     MIN_SUCCESS_RATE: 0.8,
     OUTPUT_DIR: './output',
     ARTIFACT_DIR: './artifacts',
+    CODE_VERSION: 'v16.96.1', // Increment this to bust incremental task cache
 };
 
 // Configuration & Argument Parsing
@@ -71,10 +72,14 @@ async function main() {
     } else {
         console.log(`[AGGREGATOR] Calculating percentiles and categories...`);
         const percentiledEntities = calculatePercentiles(fullSet);
-        rankedEntities = percentiledEntities.map(e => ({
-            ...e,
-            category: e.category || getV6Category(e)
-        }));
+        rankedEntities = percentiledEntities.map(e => {
+            // V16.96.1: Force re-evaluation of category to apply updated V6 rules
+            const freshCategory = getV6Category(e);
+            return {
+                ...e,
+                category: freshCategory
+            };
+        });
     }
 
     // Generate outputs with individual Resilience (Try-Catch)
@@ -99,8 +104,8 @@ async function main() {
         if (taskArg && taskArg !== task.id) continue;
 
         try {
-            // V2.0 Incremental: Skip if data hasn't changed
-            if (task.id && await checkIncrementalProgress(task.id, rankedEntities)) continue;
+            // V2.0 Incremental: Skip if data hasn't changed (Injected CODE_VERSION to detect logic changes)
+            if (task.id && await checkIncrementalProgress(task.id, rankedEntities, CONFIG.CODE_VERSION)) continue;
 
             // Time-Slice Safety: Check if we are approaching GitHub Action 6h limit
             const uptime = process.uptime();
@@ -114,7 +119,7 @@ async function main() {
             await task.fn();
 
             // V2.0 Incremental: Update checksum after success
-            if (task.id) await updateTaskChecksum(task.id, rankedEntities);
+            if (task.id) await updateTaskChecksum(task.id, rankedEntities, CONFIG.CODE_VERSION);
         } catch (e) {
             console.error(`[AGGREGATOR] ❌ Task ${task.name} failed: ${e.message}`);
         }
