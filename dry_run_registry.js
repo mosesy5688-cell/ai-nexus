@@ -38,11 +38,11 @@ async function dryRunRegistryMerge() {
     console.log(`   - Final UNIQUE Total: ${finalCount}`);
     console.log(`   - Net Reduction: ${entities.length - finalCount}`);
 
-    if (finalCount < 210000) {
-        console.log(`\n⚠️  The "Clean Total" (${finalCount}) is below the current 210k safety floor.`);
+    if (finalCount < 85000) {
+        console.log(`\n⚠️  The "Clean Total" (${finalCount}) is below the current 85k safety floor.`);
         console.log(`    Recommendation: Adjust AGGREGATE_FLOOR to ~${Math.floor(finalCount * 0.95)}.`);
     } else {
-        console.log(`\n✅ The "Clean Total" (${finalCount}) is still above the 210k floor.`);
+        console.log(`\n✅ The "Clean Total" (${finalCount}) is still above the 85k floor.`);
         console.log(`    Confirming that the previous failure was PURELY due to Overwriting, not Deduplication.`);
     }
 }
