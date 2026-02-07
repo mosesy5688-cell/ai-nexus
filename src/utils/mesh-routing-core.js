@@ -19,6 +19,9 @@ export function stripPrefix(id) {
         'civitai-model--', 'ollama-model--',
         'kaggle-dataset--', 'kaggle-model--',
 
+        // Standardized Dual-Dash Legacy (SPEC-URL-V15.0/V16.2 Support)
+        'huggingface--', 'github--', 'arxiv--', 'kaggle--', 'civitai--', 'ollama--', 'replicate--',
+
         // Legacy/Direct Format Mapping
         'huggingface:', 'github:', 'arxiv:', 'kaggle:', 'civitai:', 'ollama:', 'replicate:',
         'knowledge--', 'concept--', 'report--', 'dataset--', 'model--', 'agent--', 'tool--', 'space--'

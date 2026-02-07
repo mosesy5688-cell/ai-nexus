@@ -12,9 +12,9 @@ const author = item.author || item.creator || 'Nexus Collective';
 const description = item.description || item.summary || 'Structural intelligence indexing in progress...';
 const truncatedDesc = description;
 
-// Routing logic - V5.0 Clean Rails
-const slug = (item.slug || id).replace(/[/:]/g, '--');
-const link = `/${type}/${slug.toLowerCase()}`;
+// Routing logic - V5.0 Clean Rails (SPEC-KNOWLEDGE-MESH-V16.2)
+import { getRouteFromId } from '../../utils/mesh-routing-core.js';
+const link = getRouteFromId(id, type);
 
 const fni = Math.round(item.fni_score || 0);
 const fniPercentile = item.fni_percentile || 0;
