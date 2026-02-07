@@ -1,10 +1,10 @@
 // src/data/knowledge-articles.ts
-import { article as mmlu } from './knowledge/what-is-mmlu';
-import { article as humaneval } from './knowledge/what-is-humaneval';
-import { article as context } from './knowledge/what-is-context-length';
-import { article as fni } from './knowledge/what-is-fni';
-import { article as deploy } from './knowledge/what-is-deploy-score';
-import { article as gguf } from './knowledge/what-is-gguf';
+import { article as mmlu } from './knowledge/what-is-mmlu.js';
+import { article as humaneval } from './knowledge/what-is-humaneval.js';
+import { article as context } from './knowledge/what-is-context-length.js';
+import { article as fni } from './knowledge/what-is-fni.js';
+import { article as deploy } from './knowledge/what-is-deploy-score.js';
+import { article as gguf } from './knowledge/what-is-gguf.js';
 
 export interface KnowledgeArticle {
   title: string;

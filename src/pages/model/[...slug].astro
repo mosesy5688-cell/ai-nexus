@@ -21,7 +21,7 @@ import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
 import QuickCommands from '../../components/common/QuickCommands.astro';
 import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
 import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definitions.js';
-import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers.js';
+import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers.ts';
 import { getModelFromCache } from '../../utils/entity-cache-reader.js';
 import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON.js';
 import { prepareModelPageData } from '../../utils/model-page-data.js';
