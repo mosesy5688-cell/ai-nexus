@@ -233,11 +233,18 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      
+      # V16.96.2: Pre-merge Cache Maintenance
+      - name: Cache Cleanup
+        run: |
+          echo "🧹 [V16.96.2] Purging stale shards to stay under 10GB limit..."
+          node scripts/factory/cleanup-cache.js
       
       # Download all batch artifacts
       - name: Download All Batch Artifacts
@@ -326,7 +333,10 @@ jobs:
 
           # 5. Restore Shards (Robust Sharded Restoration V2.1)
           echo "🧩 Fetching sharded registry baseline..."
+          # V16.96.2: Ensure clean directory for force restore compatibility
           mkdir -p cache/registry
+          rm -rf cache/registry/*
+          
           # Sync registry folder recursively (if monolith is corrupted/missing)
           # We use a pattern-based move or sequential get for known shards
           for i in {000..015}; do
