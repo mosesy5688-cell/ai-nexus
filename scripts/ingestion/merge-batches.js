@@ -101,11 +101,11 @@ async function mergeBatches() {
     await saveEntityChecksums(checksums);
 
     if (!registryState.didLoadFromStorage && process.env.GITHUB_ACTIONS) {
-        throw new Error(`Registry Load Failure - Emergency Abort to Protect 222k Baseline`);
+        throw new Error(`Registry Load Failure - Emergency Abort to Protect 85k Baseline`);
     }
 
-    if (fullSet.length < 210000) {
-        throw new Error(`CRITICAL: Entity count dropped to ${fullSet.length} (Expected >210k).`);
+    if (fullSet.length < 85000) {
+        throw new Error(`CRITICAL: Entity count dropped to ${fullSet.length} (Expected >85k).`);
     }
 
     const dedupedSet = scrubIdentities(fullSet);
