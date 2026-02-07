@@ -108,7 +108,7 @@ const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author
                 <>
                   <span class="hidden md:block w-1.5 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full"></span>
                   <span class="text-[10px] font-medium tracking-tight opacity-70">
-                    Updated: {new Date(lastUpdated).toLocaleDateString()}
+                    Updated: {new Date(lastUpdated).toLocaleDateString() === 'Invalid Date' ? 'Recent' : new Date(lastUpdated).toLocaleDateString()}
                   </span>
                 </>
               )}

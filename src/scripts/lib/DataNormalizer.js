@@ -14,8 +14,10 @@ export const DataNormalizer = {
         let author = item.author || '';
 
         // Derive missing name from ID
-        if (!name && id) {
+        if (!name && id && typeof id === 'string') {
             name = id.split('--').pop().split(':').pop().split('/').pop();
+        } else if (!name) {
+            name = 'Untitled Entity';
         }
 
         if (!slug && id) {

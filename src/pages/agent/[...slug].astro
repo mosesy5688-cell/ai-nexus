@@ -27,7 +27,7 @@ import ModelNavigation from '../../components/model-detail/ModelNavigation.astro
 import CiteEntity from '../../components/common/CiteEntity.astro';
 
 import { prepareAgentPageData } from '../../utils/agent-page-data.js';
-import { cleanDescription } from '../../utils/model-page-helpers.js';
+import { cleanDescription } from '../../utils/model-page-helpers.ts';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
 
 const { slug } = Astro.params;

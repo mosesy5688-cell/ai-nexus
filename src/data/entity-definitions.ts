@@ -8,10 +8,10 @@ import type { EntityType } from '../types/entity';
 import type { EntityDefinition } from '../types/entity-schema';
 
 // Import tier definitions
-import { TIER_CORE_ENTITIES } from './entity-types/tier-core';
-import { TIER_ENABLERS_ENTITIES } from './entity-types/tier-enablers';
-import { TIER_KNOWLEDGE_ENTITIES } from './entity-types/tier-knowledge';
-import { TIER_ECOSYSTEM_ENTITIES } from './entity-types/tier-ecosystem';
+import { TIER_CORE_ENTITIES } from './entity-types/tier-core.js';
+import { TIER_ENABLERS_ENTITIES } from './entity-types/tier-enablers.js';
+import { TIER_KNOWLEDGE_ENTITIES } from './entity-types/tier-knowledge.js';
+import { TIER_ECOSYSTEM_ENTITIES } from './entity-types/tier-ecosystem.js';
 
 // Merge all entity definitions
 export const ENTITY_DEFINITIONS: Record<EntityType, EntityDefinition> = {
@@ -93,7 +93,7 @@ export function deriveEntityType(model: any, typeHint?: EntityType): { type: Ent
 }
 
 // Re-export tier modules for direct access
-export { TIER_CORE_ENTITIES } from './entity-types/tier-core';
-export { TIER_ENABLERS_ENTITIES } from './entity-types/tier-enablers';
-export { TIER_KNOWLEDGE_ENTITIES } from './entity-types/tier-knowledge';
-export { TIER_ECOSYSTEM_ENTITIES } from './entity-types/tier-ecosystem';
+export { TIER_CORE_ENTITIES } from './entity-types/tier-core.js';
+export { TIER_ENABLERS_ENTITIES } from './entity-types/tier-enablers.js';
+export { TIER_KNOWLEDGE_ENTITIES } from './entity-types/tier-knowledge.js';
+export { TIER_ECOSYSTEM_ENTITIES } from './entity-types/tier-ecosystem.js';
