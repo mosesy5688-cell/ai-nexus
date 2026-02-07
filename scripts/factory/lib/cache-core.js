@@ -18,9 +18,13 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
     const localPath = path.join(getCacheDir(), filename);
 
     try {
-        const data = await fs.readFile(localPath, 'utf-8');
-        console.log(`[CACHE] ✅ Loaded from local: ${filename}`);
-        return JSON.parse(data);
+        if (process.env.FORCE_R2_RESTORE !== 'true') {
+            const data = await fs.readFile(localPath, 'utf-8');
+            console.log(`[CACHE] ✅ Loaded from local: ${filename}`);
+            return JSON.parse(data);
+        } else {
+            console.log(`[CACHE] 🚀 Force R2 restore active. Skipping local: ${filename}`);
+        }
     } catch {
         console.log(`[CACHE] Local cache miss: ${filename}`);
     }

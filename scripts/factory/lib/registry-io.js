@@ -21,33 +21,42 @@ export async function loadGlobalRegistry() {
     const cacheDir = process.env.CACHE_DIR || './cache';
     const shardDirPath = path.join(cacheDir, REGISTRY_DIR);
 
-    try {
-        // 1. Check for sharded directory
-        const files = await fs.readdir(shardDirPath);
-        const shards = files.filter(f => f.startsWith('part-') && f.endsWith('.json')).sort();
+    // V16.96.2: Shard Purge on Force Restore
+    if (process.env.FORCE_R2_RESTORE === 'true') {
+        console.log(`[CACHE] 🧹 Force Restore: Purging local shards in ${shardDirPath}...`);
+        await fs.rm(shardDirPath, { recursive: true, force: true }).catch(() => { });
+        // Fall back directly to monolith/R2
+    } else {
+        try {
+            // 1. Check for sharded directory
+            const files = await fs.readdir(shardDirPath);
+            const shards = files.filter(f => f.startsWith('part-') && f.endsWith('.json')).sort();
 
-        if (shards.length > 0) {
-            console.log(`[CACHE] 🧩 Sharded registry found (${shards.length} parts). Merging...`);
-            let allEntities = [];
-            let lastUpdated = null;
+            if (shards.length > 0) {
+                console.log(`[CACHE] 🧩 Sharded registry found (${shards.length} parts). Merging...`);
+                let allEntities = [];
+                let lastUpdated = null;
 
-            for (const shard of shards) {
-                const data = await fs.readFile(path.join(shardDirPath, shard), 'utf-8');
-                const parsed = JSON.parse(data);
-                allEntities = allEntities.concat(parsed.entities || []);
-                if (!lastUpdated) lastUpdated = parsed.lastUpdated;
+                for (const shard of shards) {
+                    const data = await fs.readFile(path.join(shardDirPath, shard), 'utf-8');
+                    const parsed = JSON.parse(data);
+                    allEntities = allEntities.concat(parsed.entities || []);
+                    if (!lastUpdated) lastUpdated = parsed.lastUpdated;
+                }
+
+                console.log(`[CACHE] ✅ Successfully restored ${allEntities.length} entities from shards.`);
+                return {
+                    entities: allEntities,
+                    lastUpdated: lastUpdated || new Date().toISOString(),
+                    count: allEntities.length,
+                    didLoadFromStorage: true
+                };
             }
-
-            console.log(`[CACHE] ✅ Successfully restored ${allEntities.length} entities from shards.`);
-            return {
-                entities: allEntities,
-                lastUpdated: lastUpdated || new Date().toISOString(),
-                count: allEntities.length,
-                didLoadFromStorage: true
-            };
+        } catch (e) {
+            if (process.env.FORCE_R2_RESTORE !== 'true') {
+                console.log(`[CACHE] No sharded registry found in ${shardDirPath}. Falling back to monolith.`);
+            }
         }
-    } catch (e) {
-        console.log(`[CACHE] No sharded registry found in ${shardDirPath}. Falling back to monolith.`);
     }
 
     // 2. Monolith Fallback (V16.7 Compatibility)
