@@ -20,8 +20,8 @@ export const DataNormalizer = {
             name = 'Untitled Entity';
         }
 
-        if (!slug && id) {
-            // V16.9.23: Use centralized SSOT logic for maximal backward compatibility
+        // V16.9.23: ALWAYS normalize the slug to ensure author/name format
+        if (id) {
             slug = stripPrefix(id).replace(/--/g, '/');
         }
 
