@@ -46,8 +46,14 @@ export class RegistryManager {
         // 1. Seed with existing registry
         for (const e of this.registry.entities) {
             const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
-            registryMap.set(id, { ...e, id, status: 'archived' });
-            archivedCount++;
+            if (registryMap.has(id)) {
+                // V16.96.2: Resolve Collision (Standardize ArXiv versions without data loss)
+                const existing = registryMap.get(id);
+                registryMap.set(id, mergeEntities(existing, e));
+            } else {
+                registryMap.set(id, { ...e, id, status: 'archived' });
+                archivedCount++;
+            }
         }
 
         // 2. Intelligence Merge with current batch

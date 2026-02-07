@@ -42,8 +42,8 @@ async function main() {
     const allEntities = JSON.parse(await fs.readFile(entitiesInputPath, 'utf-8'));
     console.log(`✓ Context loaded: ${allEntities.length} entities ready for Knowledge Mesh & Ranking`);
 
-    // V16.8.12: Hardened Safety Guard (Baseline Protection)
-    const AGGREGATE_FLOOR = 210000;
+    // V16.96.2: Threshold adjusted from 210k to 85k to account for ArXiv version deduplication
+    const AGGREGATE_FLOOR = 85000;
     if (allEntities.length < AGGREGATE_FLOOR) {
         throw new Error(`[CRITICAL] Data Loss Detected! Only ${allEntities.length} entities found (Required: ${AGGREGATE_FLOOR}). Aggregation aborted to protect production metrics.`);
     }

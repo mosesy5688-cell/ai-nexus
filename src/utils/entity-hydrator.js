@@ -3,7 +3,7 @@
  * CES Compliance: Refactored to honor < 250 lines rule.
  */
 import { applyVramLogic } from './entity-vram-logic.js';
-import { handleModelType, handlePaperType, handleGenericType } from './entity-type-handlers.js';
+import { handleModelType, handlePaperType, handleGenericType, heuristicMining, mineRelations } from './entity-type-handlers.js';
 
 export function hydrateEntity(data, type, summaryData) {
     if (!data) return null;
@@ -133,6 +133,18 @@ function extractTechSpecs(hydrated, entity, meta) {
         if (pMatch) hydrated.params_billions = parseFloat(pMatch[1]);
     }
 
+    // V16.96.2: Universal Field Promotion (Restoring "Ghost Fields")
+    if (meta.params && !hydrated.params_billions) {
+        hydrated.params_billions = parseFloat(meta.params);
+    }
+    if (meta.storage_bytes && !hydrated.size_kb) {
+        hydrated.size_kb = Math.round(meta.storage_bytes / 1024);
+    }
+    const quant = meta.config?.quantization_config?.quant_method || meta.config?.quantization_config?.bits;
+    if (quant && !hydrated.quant_bits) {
+        hydrated.quant_bits = typeof quant === 'number' ? quant : (parseInt(quant) || null);
+    }
+
     // V16.20: Heuristic Context Extraction from Name (e.g. 128k, 32K)
     if (!hydrated.context_length && hydrated.name) {
         const cMatch = hydrated.name.match(/(\d+)\s?[Kk]([wW]|[tT])?/);
@@ -177,62 +189,6 @@ function extractTechSpecs(hydrated, entity, meta) {
     }
 }
 
-function heuristicMining(hydrated) {
-    if (!hydrated.body_content) return;
-    const body = hydrated.body_content;
-
-    // Architecture Hints
-    if (!hydrated.architecture) {
-        if (body.match(/MoE|Mixture of Experts/i)) hydrated.architecture = 'MoE';
-        else if (body.match(/GQA|Grouped Query Attention/i)) hydrated.architecture = 'GQA';
-    }
-
-    // Parameter Recovery (v16.5 Higher Precision)
-    if (!hydrated.params_billions) {
-        const pMatch = body.match(/(\d+(\.\d+)?)\s?B\s(Parameters|Params)/i);
-        if (pMatch) hydrated.params_billions = parseFloat(pMatch[1]);
-    }
-
-    // Quantization Hints (for VRAM calibration)
-    if (!hydrated.quant_bits) {
-        if (body.match(/Q4_K_M|4-bit/i)) hydrated.quant_bits = 4;
-        else if (body.match(/Q8_0|8-bit/i)) hydrated.quant_bits = 8;
-    }
-}
-
-function mineRelations(hydrated, meta) {
-    const relSource = meta.extended || meta.relations || hydrated.relations || {};
-    const toArray = (val) => {
-        if (!val) return [];
-        if (Array.isArray(val)) return val;
-        if (typeof val === 'string') {
-            if (val.trim().startsWith('[') && val.trim().endsWith(']')) {
-                try { const p = JSON.parse(val); if (Array.isArray(p)) return p; } catch (e) { }
-            }
-            return val.split(',').map(s => s.trim()).filter(Boolean);
-        }
-        return [];
-    };
-
-    hydrated.arxiv_refs = toArray(hydrated.arxiv_refs || relSource.arxiv_refs || relSource.arxiv_ids || relSource.citing_papers);
-    hydrated.datasets_used = toArray(hydrated.datasets_used || relSource.datasets_used || relSource.training_data || relSource.used_datasets);
-    hydrated.similar_models = toArray(hydrated.similar_models || relSource.similar_models || relSource.related_models);
-    hydrated.base_model = hydrated.base_model || relSource.base_model || relSource.parent_model || null;
-
-    // V15.21 Tag Mining (Updated for V2.0 prefixes)
-    const tags = toArray(hydrated.tags || []);
-    tags.forEach(tag => {
-        if ((tag.startsWith('arxiv:') || tag.startsWith('arxiv--')) && !hydrated.arxiv_refs.includes(tag.split(/:|--/).pop())) {
-            hydrated.arxiv_refs.push(tag.split(/:|--/).pop());
-        }
-        if ((tag.startsWith('dataset:') || tag.startsWith('dataset--')) && !hydrated.datasets_used.includes(tag.split(/:|--/).pop())) {
-            hydrated.datasets_used.push(tag.split(/:|--/).pop());
-        }
-        if (tag.startsWith('base_model:') && !hydrated.base_model) hydrated.base_model = tag.substring(11);
-    });
-
-    hydrated.knowledge_links = hydrated.knowledge_links || [];
-}
 
 
 export function augmentEntity(hydrated, summaryData) {
