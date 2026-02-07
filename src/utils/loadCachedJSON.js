@@ -9,7 +9,7 @@
  * @module utils/loadCachedJSON
  */
 
-import { R2_CACHE_URL } from '../config/constants.ts';
+import { R2_CACHE_URL } from '../config/constants.js';
 
 /**
  * Load JSON data from cache with fallback support
