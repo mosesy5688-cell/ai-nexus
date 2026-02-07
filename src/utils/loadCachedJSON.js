@@ -2,10 +2,9 @@
  * Cached JSON Loader with Fallback
  * V4.4 Phase 3 - Constitution Compliant
  * 
- * Provides robust data loading with 3-tier fallback:
+ * Provides robust data loading with 2-tier fallback:
  * 1. R2/CDN cache (primary)
- * 2. KV cache (fallback)
- * 3. Minimal stub (last resort)
+ * 2. Minimal stub (last resort)
  * 
  * @module utils/loadCachedJSON
  */
