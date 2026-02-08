@@ -1,10 +1,13 @@
 ---
 /**
- * EntityHeader - V15.0 Unified Hero Component (Recovery Stage 3)
+ * EntityHeader - V15.0 Unified Hero Component
+ * Replaces type-specific headers (ModelHeader, AgentHeader, etc.)
  */
+import ShareButtons from '../common/ShareButtons.astro';
+
 interface Props {
   name: string;
-  author?: string;
+  author: string;
   entityType?: 'model' | 'agent' | 'dataset' | 'paper' | 'space' | 'tool';
   entityIcon?: string;
   entityLabel?: string;
@@ -13,7 +16,11 @@ interface Props {
   description?: string;
   fniScore?: number;
   fniPercentile?: number;
+  fniCommentary?: string;
+  paramsB?: number;
+  sourceUrl?: string;
   entityId?: string;
+  hasImage?: boolean;
 }
 
 const {
@@ -26,8 +33,11 @@ const {
   description,
   fniScore,
   fniPercentile,
-  lastUpdated,
-  entityId = ''
+  fniCommentary,
+  paramsB,
+  sourceUrl,
+  entityId = '',
+  hasImage = false
 } = Astro.props;
 
 // Type-specific colors
@@ -41,24 +51,30 @@ const typeColors: Record<string, string> = {
 };
 
 const colors = typeColors[entityType] || typeColors.model;
-const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author : 'Independent / Community';
 
 // V16.2: Hardened description cleaning
 const descriptionStr = typeof description === 'string' ? description : (description ? String(description) : '');
 const cleanDescription = (descriptionStr && descriptionStr !== 'null')
   ? descriptionStr
-      .replace(/^---[\s\S]*?---\s*/m, '')
-      .replace(/<[^>]*>?/gm, '')
-      .replace(/!\[.*?\]\(.*?\)/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
+      .replace(/^---[\s\S]*?---\s*/m, '')           // Remove YAML frontmatter
+      .replace(/<[^>]*>?/gm, '')                     // Remove HTML tags
+      .replace(/!\[.*?\]\(.*?\)/g, '')              // Remove Markdown images
+      .replace(/\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/gi, '') // Remove GitHub alerts
+      .replace(/!\[GitHub.*?\]\(.*?\)/gi, '')        // Remove unparsed GitHub badges
+      .replace(/!\[.*?badge.*?\]\(.*?\)/gi, '')       // Remove generic badges
+      .replace(/&nbsp;/g, ' ')                       // Replace nbsp
+      .replace(/\s+/g, ' ')                          // Collapse multiple newlines
+      .trim() 
   : '';
+
+const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author : 'Independent / Community';
 ---
 
 <header class="mb-10">
   <div class="flex flex-col gap-6">
     <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-8">
       <div class="flex-grow min-w-0 lg:max-w-[85%]">
+        <!-- Title & Badges -->
         <div class="flex flex-wrap items-center gap-6 mb-6">
           <div class="w-16 h-16 lg:w-20 lg:h-20 flex items-center justify-center bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 transition-transform hover:rotate-3 duration-500 text-4xl lg:text-5xl select-none">
             {entityIcon}
@@ -71,14 +87,14 @@ const cleanDescription = (descriptionStr && descriptionStr !== 'null')
             
             <div class="flex flex-wrap items-center gap-4 mt-4 text-gray-500 dark:text-gray-400 font-bold">
               <span class="flex items-center gap-2">
-                by <strong class="text-gray-900 dark:text-white font-black">{displayAuthor}</strong>
+                by <strong class="text-gray-900 dark:text-white font-black hover:text-indigo-600 cursor-default transition-colors">{displayAuthor}</strong>
               </span>
               <span class={`inline-flex items-center px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border shadow-sm ${colors}`}>
                 {entityLabel}
               </span>
               
               {entityId && (
-                <span class="text-[10px] font-mono tracking-tight opacity-70 truncate max-w-[200px]">
+                <span class="text-[10px] font-mono tracking-tight opacity-70 truncate max-w-[200px]" title={entityId}>
                   ID: {entityId}
                 </span>
               )}
@@ -87,7 +103,7 @@ const cleanDescription = (descriptionStr && descriptionStr !== 'null')
           
           <div class="flex flex-wrap items-center gap-3">
             {fniScore !== undefined && fniScore !== null && (
-              <div class="relative group/fni flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.3)]">
+              <div class="relative group/fni flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.3)] cursor-help">
                 <span class="text-[10px] font-black uppercase tracking-widest opacity-80">FNI</span>
                 <span class="text-2xl font-black leading-none">{fniScore}</span>
                 {fniPercentile !== undefined && fniPercentile !== null && !isNaN(Number(fniPercentile)) && (
@@ -109,6 +125,22 @@ const cleanDescription = (descriptionStr && descriptionStr !== 'null')
             </p>
           </div>
         )}
+      </div>
+
+      <div class="flex flex-shrink-0 flex-wrap items-center gap-4 lg:pt-4">
+        <slot name="actions">
+          {sourceUrl && (
+            <a 
+              href={sourceUrl} 
+              target="_blank" 
+              class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-sm shadow-xl hover:scale-105 transition-all duration-300 flex items-center gap-2 group/btn"
+            >
+              <span class="group-hover/btn:rotate-12 transition-transform">🔗</span> 
+              View Source
+            </a>
+          )}
+        </slot>
+        <ShareButtons title={name || 'AI Research'} description={cleanDescription || ''} />
       </div>
     </div>
   </div>
