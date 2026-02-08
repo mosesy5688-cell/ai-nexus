@@ -185,12 +185,13 @@ async function main() {
         const allEntitiesFallback = JSON.parse(await fs.readFile(process.env.ENTITIES_PATH || './data/merged.json', 'utf-8'));
         shardEntities = allEntitiesFallback.filter((_, idx) => idx % totalShards === shardId);
     }
-    console.log(`[SHARD ${shardId}] Processing ${shardEntities.length} entities`);
+    // V16.99: FNI-style Full Processing Guard - Ensure output directories exist
+    await fs.mkdir(path.join(CONFIG.CACHE_DIR, 'entities'), { recursive: true });
+    await fs.mkdir(path.join(CONFIG.CACHE_DIR, 'html'), { recursive: true });
 
     // Process
     const results = [];
     const startTime = Date.now();
-    let skippedCount = 0;
 
     for (const entity of shardEntities) {
         // Checkpoint check (Art 3.4)
@@ -201,25 +202,15 @@ async function main() {
             break;
         }
 
-        // V16.7.1: Normalize ID FIRST (Protocol V1.3 Alignment)
+        // V16.7.1: Normalize ID FIRST
         const normId = normalizeId(entity.id || entity.slug, getNodeSource(entity.id || entity.slug, entity.type), entity.type);
 
-        // Check if entity changed since last run (Hash after normalization)
-        const entityHash = crypto.createHash('sha256')
-            .update(JSON.stringify({ ...entity, id: normId }))
-            .digest('hex');
-
-        if (entityChecksums[normId] === entityHash) {
-            skippedCount++;
-            results.push({ id: normId, success: true, skipped: true, _checksum: entityHash });
-            continue; // Skip unchanged entity
-        }
-
+        // V16.99: Process ALWAYS (FNI-style: no skipping to ensure fragment completeness)
         const result = await processEntity(entity, globalStats, entityChecksums, fniHistory);
         results.push(result);
     }
 
-    // Save shard artifact (Aggregator will merge results and checksums)
+    // Save shard artifact
     await fs.mkdir('./artifacts', { recursive: true });
     await fs.writeFile(`./artifacts/shard-${shardId}.json`, JSON.stringify({
         shardId,

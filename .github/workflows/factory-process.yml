@@ -244,11 +244,14 @@ jobs:
           echo "📦 Collecting shard results and fragments..."
           
           # 1. Collect shard result files
-          find ./shards -name "shard-*.json" -exec cp -f {} output/shards/ \; 2>/dev/null || true
+          find ./shards -type f -name "shard-*.json" -not -path "*/cache/*" -exec cp -f {} output/shards/ \; 2>/dev/null || true
           
-          # 2. Collect fragments (entities + html) regardless of artifact packaging structure
-          find ./shards -path "*/entities/*" -type f -name "*.json" -exec cp -f {} output/cache/entities/ \; 2>/dev/null || true
-          find ./shards -path "*/html/*" -type f -name "*.json" -exec cp -f {} output/cache/html/ \; 2>/dev/null || true
+          # 2. Collect fragments (entities + html) - using robust path-agnostic find
+          echo "🚚 Extracting entities..."
+          find ./shards -type f -wholename "*/entities/*.json" -exec cp -f {} output/cache/entities/ \; 2>/dev/null || true
+          
+          echo "🚚 Extracting html..."
+          find ./shards -type f -wholename "*/html/*.json" -exec cp -f {} output/cache/html/ \; 2>/dev/null || true
 
           echo "✅ Fragment collection complete."
           echo "Total shard files: $(ls output/shards/shard-*.json | wc -l)"
