@@ -81,6 +81,8 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir) {
         }
     } catch (e) { }
 
-    // 4. Final Cache Sync
-    await syncCacheState(cacheDir, './cache');
+    // 4. Final Cache Sync (V17.6: Avoid EINVAL by skipping redundant sync)
+    if (path.resolve(cacheDir) !== path.resolve('./cache')) {
+        await syncCacheState(cacheDir, './cache');
+    }
 }
