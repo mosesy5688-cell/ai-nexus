@@ -260,14 +260,14 @@ jobs:
           find ./shards-download -name "shard-*.json" -exec cp -f {} output/shards/ \; 2>/dev/null || true
           
           # 2. Robust collection of fragments regardless of artifact packaging structure
-          # Some artifacts might have 'cache/entities', others just 'entities' at root
           echo "👉 Capturing entities..."
-          find ./shards-download -type f -path "*/entities/*.json" -exec cp -f {} output/cache/entities/ \; 2>/dev/null || true
+          find ./shards-download -path "*/entities/*" -type f -name "*.json" -exec cp -f {} output/cache/entities/ \; 2>/dev/null || true
           
           echo "👉 Capturing html fragments..."
-          find ./shards-download -type f -path "*/html/*.json" -exec cp -f {} output/cache/html/ \; 2>/dev/null || true
+          find ./shards-download -path "*/html/*" -type f -name "*.json" -exec cp -f {} output/cache/html/ \; 2>/dev/null || true
 
           echo "✅ Fragment collection complete."
+          echo "Total shard files: $(ls output/shards/shard-*.json | wc -l)"
           echo "Total entity files (after merge): $(find output/cache/entities -type f -name '*.json' | wc -l)"
           echo "Total html files (after merge): $(find output/cache/html -type f -name '*.json' | wc -l)"
 
