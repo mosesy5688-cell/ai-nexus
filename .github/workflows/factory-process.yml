@@ -280,6 +280,7 @@ jobs:
           path: |
             output/shards
             output/cache/entities
+            output/cache/html
           key: cycle-${{ github.run_id }}-shards
 
   # Aggregate and save checksums
