@@ -128,9 +128,26 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
       usecases={getUseCases(model)} 
     />
 
-    {/* Zone 3: Core (Desktop) */}
-    <div slot="core-desktop">
+    {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
+    <div slot="core-desktop" class="space-y-16">
        <UniversalCore entity={model} type="model" meshRelations={meshRelations} />
+       
+       <div id="desktop-similar">
+          {similarModels.length > 0 ? (
+             <ModelCarousel models={similarModels} />
+          ) : (
+             <p class="text-gray-500 italic p-4 text-center">No similar models found.</p>
+          )}
+       </div>
+
+       {hasBench && (
+         <div id="desktop-benchmarks">
+           <BenchmarkCard 
+             title={`${modelName} Benchmarks`} 
+             scores={model.meta_json?.benchmarks}
+           />
+         </div>
+       )}
     </div>
 
     {/* Zone 3: Core (Mobile Tabs) */}

@@ -126,9 +126,23 @@ const jsonLd = dataset ? {
        </div>
     </div>
 
-    {/* Zone 3: Core */}
-    <div slot="core-desktop">
+    {/* Zone 3: Core (Knowledge Mesh & Relations) */}
+    <div slot="core-desktop" class="space-y-16">
        <UniversalCore entity={dataset} type="dataset" meshRelations={meshRelations} />
+       
+       <div id="desktop-similar">
+           {similarEntities.length > 0 ? (
+              <ModelCarousel models={similarEntities} />
+           ) : (
+              <p class="text-gray-500 italic p-4 text-center">Identifying related models and datasets...</p>
+           )}
+       </div>
+
+       <div id="desktop-benchmarks">
+           <p class="text-gray-500 italic p-4 text-center border border-gray-100 dark:border-gray-800 rounded-xl p-8 bg-gray-50/50 dark:bg-gray-900/50">
+             Benchmarks correlations for this dataset are indexed in the Knowledge Mesh.
+           </p>
+       </div>
     </div>
 
     <div slot="core-knowledge">
