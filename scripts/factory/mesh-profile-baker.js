@@ -1,5 +1,5 @@
 /**
- * Knowledge Mesh Profile Baker V16.5.0
+ * Knowledge Mesh Profile Baker V16.5.1
  * job: Creates atomized, URL-injected mesh profiles for each entity.
  */
 
@@ -10,9 +10,8 @@ import { smartWriteWithVersioning } from './lib/smart-writer.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './cache';
 const GRAPH_PATH = path.join(CACHE_DIR, 'mesh/graph.json');
-const RELATIONS_PATH = path.join(CACHE_DIR, 'relations.json');
 
-// URL routing mapping (Art 6.2 Alignment)
+// URL routing mapping
 const TYPE_TO_ROUTE = {
     'model': '/model',
     'agent': '/agent',
@@ -36,18 +35,16 @@ function stripPrefix(id) {
 }
 
 async function main() {
-    console.log('[BAKER] 🧁 Baking atomized Mesh Profiles...');
+    console.log('[BAKER V16.5.1] Baking atomized Mesh Profiles...');
 
     try {
-        // 1. Load authoritative graph and relations
+        // 1. Load authoritative graph
         const graph = JSON.parse(await fs.readFile(GRAPH_PATH, 'utf-8'));
-        const relations = JSON.parse(await fs.readFile(RELATIONS_PATH, 'utf-8'));
-
         const nodeRegistry = graph.nodes || {};
-        const edgeRegistry = relations || {};
+        const edgeRegistry = graph.edges || {}; // Authoritative adjacency list
         const nodeIds = Object.keys(nodeRegistry);
 
-        console.log(`[BAKER] Loaded ${nodeIds.length} nodes and ${Object.keys(edgeRegistry).length} relation sets.`);
+        console.log(`[BAKER] Loaded ${nodeIds.length} nodes from graph.`);
 
         let bakedCount = 0;
 
@@ -56,49 +53,48 @@ async function main() {
             const node = nodeRegistry[nodeId];
             const entityRelations = edgeRegistry[nodeId] || [];
 
-            // V16.11 Fix: Support 't' (shorthand) or 'type'
+            // V16.11 Fix: Support shorthand 't' or full 'type' from graph.json
             const typeValue = node.type || node.t;
             if (!node || !typeValue) continue;
 
             const baseType = typeValue.toLowerCase();
             const route = TYPE_TO_ROUTE[baseType] || '/knowledge';
             const slug = stripPrefix(nodeId);
-
-            // Bake absolute URL for self
             const canonUrl = `${route}/${slug}`;
 
             // 3. Process relations with baked URLs
             const bakedRelations = entityRelations.map(rel => {
-                const targetId = rel.target_id || rel.id;
-                const targetType = (rel.target_type || rel.type || rel.t || 'model').toLowerCase();
+                const targetId = rel.target || rel.target_id || rel.id;
+                const targetType = (rel.type || rel.t || 'model').toLowerCase();
                 const targetRoute = TYPE_TO_ROUTE[targetType] || '/knowledge';
                 const targetSlug = stripPrefix(targetId);
 
                 return {
                     ...rel,
                     url: `${targetRoute}/${targetSlug}`,
-                    target_name: rel.target_name || rel.name || targetSlug
+                    target_id: targetId,
+                    target_name: rel.name || rel.target_name || targetSlug
                 };
             });
 
             // 4. Construct Atomized Profile
             const profile = {
                 id: nodeId,
-                name: node.name,
+                name: node.name || slug,
                 type: typeValue,
                 url: canonUrl,
                 icon: node.icon || '📦',
                 relations: bakedRelations,
                 _generated_at: new Date().toISOString(),
-                _version: '16.5.0-baked'
+                _version: '16.5.1-baked'
             };
 
-            // 5. Smart Write to storage (Atomic) - Structure: mesh/profiles/{nodeId}.json
+            // 5. Smart Write: mesh/profiles/{nodeId}.json
             const targetKey = `mesh/profiles/${nodeId}.json`;
             await smartWriteWithVersioning(targetKey, profile, CACHE_DIR);
 
             bakedCount++;
-            if (bakedCount % 5000 === 0) console.log(`[BAKER] Baked ${bakedCount} profiles...`);
+            if (bakedCount % 10000 === 0) console.log(`[BAKER] Baked ${bakedCount} profiles...`);
         }
 
         console.log(`[BAKER] ✅ Successfully baked ${bakedCount} Mesh Profiles.`);
