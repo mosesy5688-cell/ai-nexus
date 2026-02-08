@@ -240,21 +240,18 @@ jobs:
       - name: Organize Shards and Entity Data
         run: |
           mkdir -p output/shards output/cache/entities output/cache/html
-          # Collect shard result files
-          find ./shards -name "shard-*.json" -exec cp {} output/shards/ \;
           
-          # V16.5 Mastery Fusion: Collect all fragments (entities + html)
-          echo "📦 Collecting fragments from shards..."
+          echo "📦 Collecting shard results and fragments..."
           
-          # Use recursive copy to ensure we get entities and html from the artifact structures
-          if [ -d "shards/cache/entities" ]; then
-            cp -r shards/cache/entities/* output/cache/entities/ 2>/dev/null || true
-          fi
-          if [ -d "shards/cache/html" ]; then
-            cp -r shards/cache/html/* output/cache/html/ 2>/dev/null || true
-          fi
+          # 1. Collect shard result files
+          find ./shards -name "shard-*.json" -exec cp -f {} output/shards/ \; 2>/dev/null || true
+          
+          # 2. Collect fragments (entities + html) regardless of artifact packaging structure
+          find ./shards -path "*/entities/*" -type f -name "*.json" -exec cp -f {} output/cache/entities/ \; 2>/dev/null || true
+          find ./shards -path "*/html/*" -type f -name "*.json" -exec cp -f {} output/cache/html/ \; 2>/dev/null || true
 
           echo "✅ Fragment collection complete."
+          echo "Total shard files: $(ls output/shards/shard-*.json | wc -l)"
           echo "Total entity files: $(find output/cache/entities -type f -name '*.json' | wc -l)"
           echo "Total html files: $(find output/cache/html -type f -name '*.json' | wc -l)"
 
