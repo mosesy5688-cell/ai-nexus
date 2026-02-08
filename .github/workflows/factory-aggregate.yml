@@ -181,7 +181,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: core-registry-v2
-          path: output/
+          path: |
+            output/
+            artifacts/
           retention-days: 1
 
       # V4.1: Save Global Registry for next cycle's 1/4 Harvest
@@ -433,6 +435,12 @@ jobs:
           [ -f "output/search-core.json" ] && mv output/search-core.json output/cache/ || true
           [ -f "output/search-full.json" ] && mv output/search-full.json output/cache/ || true
           [ -f "output/search-manifest.json" ] && mv output/search-manifest.json output/cache/ || true
+          # V17.6: Shards might be in output/ (from core-registry-v2) or artifacts/
+          mkdir -p output/cache/shards
+          [ -d "output/shards" ] && mv output/shards/* output/cache/shards/ || true
+          # Check if shards were restored to root artifacts/ by download-artifact merge
+          [ -d "output/artifacts" ] && find output/artifacts -name "shard-*.json.gz" -exec mv {} output/cache/shards/ \; || true
+          
           # List final structure
           echo "📦 Final output structure:"
           find output -type f | head -50
