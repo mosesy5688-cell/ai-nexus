@@ -94,7 +94,7 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
   jsonld={jsonld}
 >
     {/* Zone 1: Hero */}
-    {/* <EntityHeader 
+    <EntityHeader 
       slot="hero"
       name={modelName}
       entityType="model"
@@ -111,7 +111,7 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
       sourceUrl={model?.source_url}
       entityId={modelId}
       hasImage={Boolean(model?.image_url)}
-    /> */}
+    />
 
     {/* Zone 2: Insights Extra (Decision Metric Elevation) */}
     {/* <div slot="insights-extra" class="mt-4 space-y-6">
