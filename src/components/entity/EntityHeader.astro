@@ -42,6 +42,17 @@ const typeColors: Record<string, string> = {
 
 const colors = typeColors[entityType] || typeColors.model;
 const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author : 'Independent / Community';
+
+// V16.2: Hardened description cleaning
+const descriptionStr = typeof description === 'string' ? description : (description ? String(description) : '');
+const cleanDescription = descriptionStr
+  ? descriptionStr
+      .replace(/^---[\s\S]*?---\s*/m, '')
+      .replace(/<[^>]*>?/gm, '')
+      .replace(/!\[.*?\]\(.*?\)/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  : '';
 ---
 
 <header class="mb-10">
@@ -75,14 +86,29 @@ const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author
           </div>
           
           <div class="flex flex-wrap items-center gap-3">
-            {fniScore !== undefined && (
-              <div class="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-xl shadow-lg">
+            {fniScore !== undefined && fniScore !== null && (
+              <div class="relative group/fni flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.3)]">
                 <span class="text-[10px] font-black uppercase tracking-widest opacity-80">FNI</span>
                 <span class="text-2xl font-black leading-none">{fniScore}</span>
+                {fniPercentile !== undefined && fniPercentile !== null && !isNaN(Number(fniPercentile)) && (
+                  <div class="flex flex-col border-l border-white/30 pl-2 ml-1">
+                    <span class="text-[9px] font-bold uppercase leading-none opacity-70">Top</span>
+                    <span class="text-[10px] font-black leading-none">{100 - Math.round(Number(fniPercentile))}%</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
+
+        {cleanDescription && (
+          <div class="relative group">
+            <div class="absolute -left-4 top-0 bottom-0 w-1.5 bg-indigo-600 rounded-full transform scale-y-90 group-hover:scale-y-100 transition-transform duration-300"></div>
+            <p class="text-xl text-gray-700 dark:text-gray-200 leading-relaxed font-medium bg-gradient-to-r from-gray-50/80 to-transparent dark:from-gray-800/40 dark:to-transparent p-6 pl-4 rounded-r-2xl italic tracking-tight border-l border-indigo-100 dark:border-indigo-900/30">
+              "{cleanDescription.slice(0, 300)}..."
+            </p>
+          </div>
+        )}
       </div>
     </div>
   </div>
