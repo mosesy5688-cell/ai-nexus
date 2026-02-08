@@ -43,7 +43,7 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
     // V16.14: Multi-Source Knowledge SSOT (Normalized)
     const validKnowledgeSlugs = new Set([
         ...Object.keys(knowledgeArticles),
-        ...(Array.isArray(knowledgeIndex) ? knowledgeIndex : (knowledgeIndex?.articles || [])).map(a => a.slug || a.id?.split('--')?.pop())
+        ...(Array.isArray(knowledgeIndex) ? knowledgeIndex : (knowledgeIndex?.articles || [])).map(a => a?.slug || a?.id?.split('--')?.pop())
     ].filter(Boolean).map(s => stripPrefix(s)));
 
     // Model validation index (normalized for easy matching)
@@ -57,6 +57,7 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
 
 
     const ensureNode = (id, typeHint = 'model') => {
+        if (!id || typeof id !== 'string') return null;
         let norm = stripPrefix(id);
         if (nodeRegistry.has(norm)) return nodeRegistry.get(norm);
 
@@ -75,7 +76,7 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
 
         const node = {
             id, norm,
-            name: meta.n || id.split('--').pop().replace(/-/g, ' ').toUpperCase(),
+            name: meta.n || id.split('--').pop()?.replace(/-/g, ' ')?.toUpperCase() || 'UNKNOWN',
             type: nodeType,
             icon: meta.icon || UNIVERSAL_ICONS[nodeType] || '📦',
             author: nodeAuthor,
@@ -89,13 +90,18 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
     // 1. Process Relations (Strict Aggregate from R2)
     const filteredRelations = [];
     rawRelations.forEach(rel => {
+        if (!rel) return;
         const neighborId = isMatch(rel.norm_source, normRoot) ? rel.target_id : rel.source_id;
+        if (!neighborId) return;
+
         const normNeighbor = stripPrefix(neighborId);
         if (normNeighbor === normRoot || seenIds.has(normNeighbor)) return;
 
         seenIds.add(normNeighbor);
 
         let node = ensureNode(neighborId, rel.target_type || rel.source_type);
+        if (!node) return;
+
         const relType = (rel.relation_type || 'RELATED').toUpperCase();
         node.relation = relType;
 
@@ -118,33 +124,38 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
 
     // 2. High-Confidence Structural Injections (ArXiv & Explicit Relations)
     if (entity) {
-        if (entity.base_model) {
+        if (entity.base_model && typeof entity.base_model === 'string') {
             const id = entity.base_model.includes('--') ? entity.base_model : `hf-model--${entity.base_model.replace(/\//g, '--')}`;
             const norm = stripPrefix(id);
             if (norm !== normRoot && !seenIds.has(norm)) {
                 seenIds.add(norm);
                 let node = ensureNode(id, 'model');
-                node.relation = 'BASED_ON';
-                if (!node._mapped) {
-                    node._mapped = true;
-                    tiers.core.nodes.push(node);
-                    filteredRelations.push({ target_id: id, target_type: 'model', target_name: node.name, relation_type: 'BASED_ON', confidence: 1.0 });
+                if (node) {
+                    node.relation = 'BASED_ON';
+                    if (!node._mapped) {
+                        node._mapped = true;
+                        tiers.core.nodes.push(node);
+                        filteredRelations.push({ target_id: id, target_type: 'model', target_name: node.name, relation_type: 'BASED_ON', confidence: 1.0 });
+                    }
                 }
             }
         }
 
         if (Array.isArray(entity.datasets_used)) {
             entity.datasets_used.forEach(ds => {
+                if (!ds || typeof ds !== 'string') return;
                 const id = ds.includes('--') ? ds : `hf-dataset--${ds.replace(/\//g, '--')}`;
                 const norm = stripPrefix(id);
                 if (norm !== normRoot && !seenIds.has(norm)) {
                     seenIds.add(norm);
                     let node = ensureNode(id, 'dataset');
-                    node.relation = 'TRAINED_ON';
-                    if (!node._mapped) {
-                        node._mapped = true;
-                        tiers.utility.nodes.push(node);
-                        filteredRelations.push({ target_id: id, target_type: 'dataset', target_name: node.name, relation_type: 'TRAINED_ON', confidence: 0.9 });
+                    if (node) {
+                        node.relation = 'TRAINED_ON';
+                        if (!node._mapped) {
+                            node._mapped = true;
+                            tiers.utility.nodes.push(node);
+                            filteredRelations.push({ target_id: id, target_type: 'dataset', target_name: node.name, relation_type: 'TRAINED_ON', confidence: 0.9 });
+                        }
                     }
                 }
             });
@@ -152,17 +163,20 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
 
         if (Array.isArray(entity.arxiv_refs)) {
             entity.arxiv_refs.forEach(r => {
+                if (!r) return;
                 const id = `arxiv--${r}`;
                 const norm = stripPrefix(id);
                 if (norm === normRoot || seenIds.has(norm)) return;
                 seenIds.add(norm);
 
                 let node = ensureNode(id, 'paper');
-                node.relation = 'CITES';
-                if (!node._mapped) {
-                    node._mapped = true;
-                    tiers.utility.nodes.push(node);
-                    filteredRelations.push({ target_id: id, target_type: 'paper', target_name: node.name, relation_type: 'CITES', confidence: 1.0 });
+                if (node) {
+                    node.relation = 'CITES';
+                    if (!node._mapped) {
+                        node._mapped = true;
+                        tiers.utility.nodes.push(node);
+                        filteredRelations.push({ target_id: id, target_type: 'paper', target_name: node.name, relation_type: 'CITES', confidence: 1.0 });
+                    }
                 }
             });
         }
