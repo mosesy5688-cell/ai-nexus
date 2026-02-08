@@ -25,11 +25,10 @@ import ModelGallery from '../model-detail/ModelGallery.astro';
 ---
 
 <div class="space-y-12">
-  {/* V16.2: Universal Enhancements (Promoted Top) */}
-  <section class="space-y-6">
-     <QuickCommands entity={paper} type="paper" />
-     <ModelGallery content={paper.body_content || paper.abstract} title="Paper Figures & Visuals" />
-  </section>
+  {/* V16.2: Visual First - Auto Gallery */}
+  {(paper.image_url || paper.body_content || paper.abstract) && (
+    <ModelGallery content={paper.body_content || paper.abstract} title="Paper Figures & Visuals" />
+  )}
 
   <!-- Section: Abstract & Citation (Grid) -->
   <div class="grid grid-cols-1 lg:grid-cols-1 gap-12">
@@ -83,8 +82,9 @@ import ModelGallery from '../model-detail/ModelGallery.astro';
   <div class="relative">
      <div class="absolute -left-6 top-10 w-1 bg-indigo-500/20 h-24 rounded-full blur-sm"></div>
      <FullReadmeSection 
-       bodyContent={paper.body_content || paper.abstract}
+       bodyContent={paper.body_content || paper.abstract || paper.description}
        type="paper"
+       initialCollapsed={false}
        maxPreviewLength={5000}
      />
   </div>
