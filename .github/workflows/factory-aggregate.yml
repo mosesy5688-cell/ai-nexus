@@ -97,11 +97,11 @@ jobs:
       - name: Organize Shards & Context
         run: |
           mkdir -p artifacts
-          # 1. Move Shards from cache (V16.11 Compressed)
+          # 1. Copy Shards from cache to artifacts for Aggregator (V16.11 Compressed)
           if [ -d "output/shards" ]; then
             SHARD_COUNT=$(find output/shards -name "shard-*.json.gz" | wc -l)
-            echo "📦 Found $SHARD_COUNT compressed shards in cache"
-            find output/shards -name "shard-*.json.gz" -exec mv {} artifacts/ \;
+            echo "📦 Copying $SHARD_COUNT compressed shards to artifacts/"
+            cp output/shards/shard-*.json.gz artifacts/ 2>/dev/null || true
           fi
           
           if [ $(find artifacts -name "shard-*.json.gz" | wc -l) -eq 0 ]; then
@@ -146,7 +146,10 @@ jobs:
       - name: Consolidate Final Artifacts & Context
         if: success()
         run: |
-          mkdir -p output/cache output/meta/backup cache
+          mkdir -p output/cache output/meta/backup cache output/cache/shards
+          # V17.7: Preserve shards in output/cache/shards for Stage 4/4
+          [ -d "output/shards" ] && mv output/shards/* output/cache/shards/ || true
+          
           # 1. Mirror production artifacts for R2 distribution (Stage 4/4)
           [ -d "meta" ] && cp -r meta/* output/meta/ 2>/dev/null || true
           
