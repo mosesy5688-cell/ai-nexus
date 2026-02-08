@@ -230,39 +230,48 @@ jobs:
     needs: [check-upstream, matrix-shards]
     runs-on: ubuntu-latest
     steps:
+      # V16.5 Mastery Fusion: Rolling Cache ensures we don't lose atomized data in incremental runs
+      - name: Restore Previous Shards Cache (Rolling)
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            output/shards
+            output/cache/entities
+            output/cache/html
+          key: cycle-${{ github.run_id }}-shards
+          restore-keys: |
+            cycle-
+            intra-shards-
+
       - name: Download All Shard Artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: shard-*
-          path: ./shards/
+          path: ./shards-download/
           merge-multiple: true
 
       - name: Organize Shards and Entity Data
         run: |
           mkdir -p output/shards output/cache/entities output/cache/html
-          # Collect shard result files
-          find ./shards -name "shard-*.json" -exec cp {} output/shards/ \;
           
-          # V16.5 Mastery Fusion: Collect all fragments (entities + html)
-          echo "📦 Collecting fragments from shards..."
+          echo "📦 Merging new fragments into rolling cache..."
           
-          # Search for entities recursively in all possible download locations
-          find ./shards -path "*/cache/entities/*" -name "*.json" -exec cp --parents {} output/ \; 2>/dev/null || true
+          # 1. Collect new shard result files (.json)
+          if [ -d "./shards-download/artifacts" ]; then
+            cp -f ./shards-download/artifacts/shard-*.json output/shards/ 2>/dev/null || true
+          fi
           
-          # Search for html fragments
-          find ./shards -path "*/cache/html/*" -name "*.json" -exec cp --parents {} output/ \; 2>/dev/null || true
-          
-          # Flatten if cp --parents made it too deep (depends on shards root)
-          # We want them at output/cache/entities/ and output/cache/html/
-          if [ -d "output/shards" ]; then
-            # Cleanup nested structures to standard root
-            mv output/shards/cache/entities/* output/cache/entities/ 2>/dev/null || true
-            mv output/shards/cache/html/* output/cache/html/ 2>/dev/null || true
+          # 2. Collect fragments from the 'cache' folder in shards
+          if [ -d "./shards-download/cache" ]; then
+            echo "👉 Transferring entities..."
+            cp -rf ./shards-download/cache/entities/* output/cache/entities/ 2>/dev/null || true
+            echo "👉 Transferring html fragments..."
+            cp -rf ./shards-download/cache/html/* output/cache/html/ 2>/dev/null || true
           fi
 
           echo "✅ Fragment collection complete."
-          echo "Total entity files: $(find output/cache/entities -type f -name '*.json' | wc -l)"
-          echo "Total html files: $(find output/cache/html -type f -name '*.json' | wc -l)"
+          echo "Total entity files (after merge): $(find output/cache/entities -type f -name '*.json' | wc -l)"
+          echo "Total html files (after merge): $(find output/cache/html -type f -name '*.json' | wc -l)"
 
       # V17.2: Save both shards AND entity data to Cache
       - name: Save Shards and Entity Data to Cache
