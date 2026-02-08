@@ -228,6 +228,61 @@ jobs:
           path: output/cache/mesh/
           retention-days: 1
 
+  mesh-baking:
+    name: Mesh Baking
+    needs: [mesh-graph, check-upstream]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - name: Restore Base Output from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
+          restore-keys: cycle-
+      - name: Bake atomized Mesh Profiles
+        env:
+          CACHE_DIR: ./output/cache
+        run: node scripts/factory/mesh-profile-baker.js
+      - name: Save Baked Profiles to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/cache/mesh/profiles/
+          key: intra-4-4-${{ github.run_id }}-baked
+
+  master-fusion:
+    name: Master Fusion
+    needs: [mesh-baking, knowledge-data, check-upstream]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - name: Restore Base Output from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
+          restore-keys: cycle-
+      - name: Restore Baked Profiles from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/cache/mesh/profiles/
+          key: intra-4-4-${{ github.run_id }}-baked
+      - name: Execute Master Fusion
+        env:
+          CACHE_DIR: ./output/cache
+        run: node scripts/factory/master-fusion.js
+      - name: Save Fused Entities to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: output/cache/fused/
+          key: intra-4-4-${{ github.run_id }}-fused
+
   rss-feeds:
     name: RSS Feeds
     needs: [knowledge-data, check-upstream]
@@ -267,7 +322,7 @@ jobs:
 
   upload:
     name: Final Upload to R2
-    needs: [explicit-links, alt-links, knowledge-links, knowledge-data, mesh-graph, rss-feeds, check-upstream]
+    needs: [explicit-links, alt-links, knowledge-links, knowledge-data, mesh-graph, mesh-baking, master-fusion, rss-feeds, check-upstream]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -296,7 +351,7 @@ jobs:
           echo "✅ aggregator.js has prepared baseline backups in output/meta/backup/"
       - name: Upload to R2 via S3 API
         env:
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/rankings/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-full.json,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/fused/,cache/html/,cache/rankings/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-full.json,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml
         run: node scripts/factory/r2-upload-s3.js
       - name: Purge & Warm CDN
         env:

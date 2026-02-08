@@ -239,23 +239,30 @@ jobs:
 
       - name: Organize Shards and Entity Data
         run: |
-          mkdir -p output/shards output/cache/entities
+          mkdir -p output/shards output/cache/entities output/cache/html
           # Collect shard result files
           find ./shards -name "shard-*.json" -exec cp {} output/shards/ \;
-          echo "📦 Shards collected:"
-          ls -la output/shards/
           
-          # V17.2: Collect entity data from all shards (cache/entities/{type}/*.json)
-          if [ -d "./shards/output/cache/entities" ]; then
-            cp -r ./shards/output/cache/entities/* output/cache/entities/ 2>/dev/null || true
-            echo "📦 Entity data collected:"
-            find output/cache/entities -type f | head -20
-            echo "Total entity files: $(find output/cache/entities -type f -name '*.json' | wc -l)"
-          else
-            echo "⚠️ No entity data found in shards (checking alternate paths...)"
-            # Try alternate path from merged artifact
-            find ./shards -path "*/cache/entities/*" -name "*.json" -exec cp --parents {} output/ \; 2>/dev/null || true
+          # V16.5 Mastery Fusion: Collect all fragments (entities + html)
+          echo "📦 Collecting fragments from shards..."
+          
+          # Search for entities recursively in all possible download locations
+          find ./shards -path "*/cache/entities/*" -name "*.json" -exec cp --parents {} output/ \; 2>/dev/null || true
+          
+          # Search for html fragments
+          find ./shards -path "*/cache/html/*" -name "*.json" -exec cp --parents {} output/ \; 2>/dev/null || true
+          
+          # Flatten if cp --parents made it too deep (depends on shards root)
+          # We want them at output/cache/entities/ and output/cache/html/
+          if [ -d "output/shards" ]; then
+            # Cleanup nested structures to standard root
+            mv output/shards/cache/entities/* output/cache/entities/ 2>/dev/null || true
+            mv output/shards/cache/html/* output/cache/html/ 2>/dev/null || true
           fi
+
+          echo "✅ Fragment collection complete."
+          echo "Total entity files: $(find output/cache/entities -type f -name '*.json' | wc -l)"
+          echo "Total html files: $(find output/cache/html -type f -name '*.json' | wc -l)"
 
       # V17.2: Save both shards AND entity data to Cache
       - name: Save Shards and Entity Data to Cache
