@@ -93,8 +93,12 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
         {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
         <section id="core-zone" class="animate-slide-up" style="animation-delay: 0.3s;">
            <div class="space-y-12">
-             <div class="hidden md:block">
+             <div class="hidden md:block space-y-16">
                <slot name="core-desktop" />
+               <slot name="core-knowledge" />
+               <slot name="core-similar" />
+               <slot name="core-benchmarks" />
+               <slot name="core-trends" />
              </div>
              
              <div class="md:hidden">
