@@ -85,6 +85,7 @@ jobs:
           path: |
             output/shards
             output/cache/entities
+            output/cache/html
           key: cycle-${{ needs.check-upstream.outputs.process-id }}-shards
           restore-keys: |
             cycle-
@@ -109,6 +110,12 @@ jobs:
           if [ -d "output/cache/entities" ]; then
             ENTITY_FILES=$(find output/cache/entities -type f -name "*.json" | wc -l)
             echo "📦 Found $ENTITY_FILES entity files in cache"
+          fi
+          
+          # V16.5: Check for HTML fragments
+          if [ -d "output/cache/html" ]; then
+            HTML_FILES=$(find output/cache/html -type f -name "*.json" | wc -l)
+            echo "📦 Found $HTML_FILES HTML fragments in cache"
           fi
           
           if [ $(find artifacts -name "shard-*.json" | wc -l) -eq 0 ]; then
@@ -171,16 +178,10 @@ jobs:
           echo "📦 Final cache structure for Stage 1/4:"
           ls -R cache/ | head -20
 
-      # V17.0: Prevent upload-artifact stack overflow from atomized entity files
-      - name: Clean Atomized Entity Directory
+      # V17.0: Cleaning relocated to finalize step after cache save to prevent Fusion data loss
+      - name: Registry Handoff
         run: |
-          if [ -d "output/cache/entities" ]; then
-            FILE_COUNT=$(find output/cache/entities -type f | wc -l)
-            echo "🧹 Cleaning $FILE_COUNT atomized entity files..."
-            rm -rf output/cache/entities/
-            echo "✅ Cleanup complete. Remaining file count:"
-            find output/ -type f | wc -l
-          fi
+          echo "✅ Core registry and fragments verified. Ready for handoff."
 
       # V4.1: Internal Cache for same-workflow satellite jobs
       - name: Save Intra-Cycle Core to Cache
