@@ -96,38 +96,13 @@ jobs:
 
       - name: Organize Shards & Context
         run: |
-          mkdir -p artifacts
-          # 1. Copy Shards from cache to artifacts for Aggregator (V16.11 Compressed)
-          if [ -d "output/shards" ]; then
-            SHARD_COUNT=$(find output/shards -name "shard-*.json.gz" | wc -l)
-            echo "📦 Copying $SHARD_COUNT compressed shards to artifacts/"
-            cp output/shards/shard-*.json.gz artifacts/ 2>/dev/null || true
-          fi
+          mkdir -p artifacts output/cache/shards
+          # Copy shards for local aggregator use
+          [ -d "output/shards" ] && cp output/shards/shard-*.json.gz artifacts/ 2>/dev/null || true
           
           if [ $(find artifacts -name "shard-*.json.gz" | wc -l) -eq 0 ]; then
             echo "❌ ERROR: No compressed shard files found!"
             exit 1
-          fi
-
-      # V4.1: Restore Harvest Context from Cache
-      - name: Restore Harvest Context from Cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            data/merged.json
-            data/merged_shard_*.json
-            data/manifest.json
-            cache/
-          key: cycle-${{ needs.check-upstream.outputs.harvest-id }}-harvest
-          restore-keys: |
-            cycle-
-
-      - name: Validate Context
-        run: |
-          if [ -f "data/merged.json" ]; then
-            echo "✅ Harvest context restored from cache."
-          else
-            echo "⚠️ Harvest context not in cache. Will use shards only."
           fi
 
       - name: Run Core Merge & Health
@@ -147,19 +122,15 @@ jobs:
         if: success()
         run: |
           mkdir -p output/cache output/meta/backup cache output/cache/shards
-          # V17.7: Preserve shards in output/cache/shards for Stage 4/4
-          [ -d "output/shards" ] && mv output/shards/* output/cache/shards/ || true
+          # Preserve shards in output/cache/shards for the intra-cycle and upload artifacts
+          [ -d "output/shards" ] && cp output/shards/shard-*.json.gz output/cache/shards/ || true
           
           # 1. Mirror production artifacts for R2 distribution (Stage 4/4)
           [ -d "meta" ] && cp -r meta/* output/meta/ 2>/dev/null || true
           
           # 2. Mirror BACK to root cache/ for persistent memory (Stage 1/4)
-          # aggreagtor.js saved to output/meta/backup, we need it in cache/ for the GH-Cache-Save
           if [ -d "output/meta/backup" ] && [ "$(ls -A output/meta/backup)" ]; then
             cp -r output/meta/backup/* cache/ 2>/dev/null || true
-            echo "✅ Synced production backups to cache for next cycle."
-          else
-            echo "⚠️ No production backups found to sync."
           fi
           
           echo "📦 Final output structure for R2:"
@@ -171,6 +142,14 @@ jobs:
       - name: Registry Handoff
         run: |
           echo "✅ Core registry and fragments verified. Ready for handoff."
+
+      # V4.1: Explicitly upload shards as artifact to satisfy pattern downloader
+      - name: Upload Shard Artifact (Bridge)
+        uses: actions/upload-artifact@v4
+        with:
+          name: agg-shards
+          path: output/cache/shards/shard-*.json.gz
+          retention-days: 1
 
       # V4.1: Internal Cache for same-workflow satellite jobs
       - name: Save Intra-Cycle Core to Cache
@@ -438,11 +417,13 @@ jobs:
           [ -f "output/search-core.json" ] && mv output/search-core.json output/cache/ || true
           [ -f "output/search-full.json" ] && mv output/search-full.json output/cache/ || true
           [ -f "output/search-manifest.json" ] && mv output/search-manifest.json output/cache/ || true
-          # V17.6: Shards might be in output/ (from core-registry-v2) or artifacts/
+          
+          # V17.8: Shard Bridge - Shards from agg-shards download will be in output/*.json.gz
           mkdir -p output/cache/shards
-          [ -d "output/shards" ] && mv output/shards/* output/cache/shards/ || true
-          # Check if shards were restored to root artifacts/ by download-artifact merge
-          [ -d "output/artifacts" ] && find output/artifacts -name "shard-*.json.gz" -exec mv {} output/cache/shards/ \; || true
+          find output -maxdepth 1 -name "shard-*.json.gz" -exec mv {} output/cache/shards/ \; || true
+          
+          # Check legacy and intra-cycle locations
+          [ -d "output/shards" ] && mv output/shards/* output/cache/shards/ 2>/dev/null || true
           
           # List final structure
           echo "📦 Final output structure:"
