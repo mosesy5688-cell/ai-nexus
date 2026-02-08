@@ -1,11 +1,7 @@
-/**
- * R2 Upload Helpers V16.8.3
- * Extracted from r2-upload-s3.js for CES Compliance (Art 5.1)
- */
-
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
+import zlib from 'zlib';
 import { PutObjectCommand, ListObjectsV2Command, S3Client, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { rotateEntityVersions } from './entity-versioner.js';
 
@@ -78,27 +74,28 @@ export async function fetchAllR2ETags(s3, bucket, prefixFilter = []) {
 }
 
 /**
- * Reliable upload with retries
+ * Reliable upload with retries (V16.11: Production Gzip Support)
  */
 export async function uploadFile(s3, bucket, localPath, remotePath, remoteETag, retryCount = 0) {
     const MAX_RETRIES = 3;
     try {
         const content = await fs.readFile(localPath);
+
+        // V16.11: Detect pre-compressed Gzip content (Magic number 1f 8b)
+        let contentEncoding = undefined;
+        if (content[0] === 0x1f && content[1] === 0x8b) {
+            contentEncoding = 'gzip';
+        }
+
         const localMD5 = crypto.createHash('md5').update(content).digest('hex');
 
         if (localMD5 === remoteETag) {
-            console.log(`  [SKIP] Unchanged: ${remotePath}`);
+            // console.log(`  [SKIP] Unchanged: ${remotePath}`);
             return { success: true, path: remotePath, skipped: true };
-        }
-
-        // V16.7: Strict WebP-Only Image Policy
-        if (remotePath.startsWith('images/') && !remotePath.endsWith('.webp')) {
-            return { success: true, path: remotePath, skipped: true, untracked: true };
         }
 
         const mimeMap = {
             '.json': 'application/json',
-            '.xml': 'application/xml',
             '.gz': 'application/gzip',
             '.webp': 'image/webp',
             '.svg': 'image/svg+xml',
@@ -117,8 +114,10 @@ export async function uploadFile(s3, bucket, localPath, remotePath, remoteETag, 
             Bucket: bucket,
             Key: remotePath,
             Body: content,
-            ContentType: contentType
+            ContentType: contentType,
+            ContentEncoding: contentEncoding
         }));
+
         return { success: true, path: remotePath, skipped: false };
     } catch (e) {
         if (retryCount < MAX_RETRIES) {

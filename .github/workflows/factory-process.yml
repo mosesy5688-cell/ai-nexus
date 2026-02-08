@@ -213,13 +213,13 @@ jobs:
           echo "🔄 Processing Shard ${{ matrix.shard }}/20..."
           node scripts/factory/shard-processor.js --shard=${{ matrix.shard }} --total=20
 
-      # Upload shard artifact
+      # Upload shard artifact (V16.11: Monolithic Compressed)
       - name: Upload Shard Artifact
         uses: actions/upload-artifact@v4
         with:
           name: shard-${{ matrix.shard }}
           path: |
-            artifacts/shard-${{ matrix.shard }}.json
+            artifacts/shard-${{ matrix.shard }}.json.gz
             output/
             cache/
           retention-days: 1
@@ -237,41 +237,23 @@ jobs:
           path: ./shards/
           merge-multiple: true
 
-      - name: "Diagnostic: Inspect Downloads"
-        run: |
-          echo "🔍 Inspecting ./shards structure..."
-          [ -d "./shards" ] && ls -R ./shards | head -n 100 || echo "❌ ./shards not found!"
-          find ./shards -name "shard-*.json" | head -n 10 || true
-
       - name: Organize Shards and Entity Data
         run: |
-          mkdir -p output/shards output/cache/entities output/cache/html
+          mkdir -p output/shards
           
-          echo "📦 Collecting shard results and fragments..."
+          echo "📦 Collecting compressed monolithic shards..."
           
-          # 1. Collect shard result files
-          echo "🚚 Extracting shard result summaries..."
-          [ -d "./shards" ] && find ./shards -type f -name "shard-*.json" -not -path "*cache*" -exec cp -f {} output/shards/ \; || echo "No shards found"
+          # Collect compressed shard artifacts
+          [ -d "./shards" ] && find ./shards -type f -name "shard-*.json.gz" -exec cp -f {} output/shards/ \; || echo "No shards found"
           
-          # 2. Collect fragments (entities + html)
-          echo "🚚 Extracting entities..."
-          [ -d "./shards" ] && find ./shards -type f -path "*entities*" -name "*.json" -exec cp -f {} output/cache/entities/ \; || echo "No entities found"
-          
-          echo "🚚 Extracting html..."
-          [ -d "./shards" ] && find ./shards -type f -path "*html*" -name "*.json" -exec cp -f {} output/cache/html/ \; || echo "No html found"
-
           echo "✅ Fragment collection summary:"
-          echo "Shard files found: $(find output/shards -name 'shard-*.json' | wc -l)"
-          echo "Entity files found: $(find output/cache/entities -name '*.json' | wc -l)"
-          echo "HTML files found: $(find output/cache/html -name '*.json' | wc -l)"
+          echo "Compressed shards found: $(find output/shards -name 'shard-*.json.gz' | wc -l)"
 
-      - name: Save Shards and Entity Data to Cache
+      - name: Save Shards to Cache
         uses: actions/cache/save@v4
         with:
           path: |
             output/shards
-            output/cache/entities
-            output/cache/html
           key: cycle-${{ github.run_id }}-shards
 
   # Aggregate and save checksums

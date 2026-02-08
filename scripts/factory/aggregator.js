@@ -8,7 +8,7 @@ import { generateCategoryStats, getV6Category } from './lib/category-stats-gener
 import { generateRelations } from './lib/relations-generator.js';
 import { generateDailyReport, updateDailyAccumulator, shouldGenerateReport } from './lib/daily-report.js';
 import { generateDailyReportsIndex } from './lib/daily-reports-index.js';
-import { saveGlobalRegistry, loadFniHistory, saveFniHistory, loadDailyAccum, saveDailyAccum, syncCacheState } from './lib/cache-manager.js';
+import { saveGlobalRegistry, loadFniHistory, saveFniHistory, syncCacheState, loadEntityChecksums, saveEntityChecksums } from './lib/cache-manager.js';
 import { generateTrendData } from './lib/trend-data-generator.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import {
@@ -50,18 +50,33 @@ async function main() {
 
     // V2.0 optimization: In satellite mode, we just load the pre-merged entities
     let fullSet = [];
+    let shardResults = null;
     if (taskArg && taskArg !== 'core' && taskArg !== 'health') {
         fullSet = allEntities;
         console.log(`[AGGREGATOR] Satellite mode: Using pre-merged context (${fullSet.length} entities)`);
     } else {
-        const shardResults = await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+        shardResults = await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
         fullSet = mergeShardEntities(allEntities, shardResults);
+
+        // V16.11: Consolidate entity checksums from shards to support future incremental runs
+        console.log('[AGGREGATOR] Consolidating entity checksums...');
+        const checksums = await loadEntityChecksums();
+        for (const shard of shardResults) {
+            if (shard?.entities) {
+                for (const result of shard.entities) {
+                    if (result.success && result._checksum) {
+                        checksums[result.id] = result._checksum;
+                    }
+                }
+            }
+        }
+        await saveEntityChecksums(checksums);
     }
 
     // V16.7.1: Early Health Report (Resilience) - Only in 'ALL' or 'health' task
     if (!taskArg || taskArg === 'health') {
-        const shardResults = await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
-        await generateHealthReport(shardResults, fullSet, CONFIG.TOTAL_SHARDS, CONFIG.MIN_SUCCESS_RATE, CONFIG.OUTPUT_DIR);
+        const resultsForHealth = shardResults || await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+        await generateHealthReport(resultsForHealth, fullSet, CONFIG.TOTAL_SHARDS, CONFIG.MIN_SUCCESS_RATE, CONFIG.OUTPUT_DIR);
     }
 
     // V2.0 optimization: Avoid re-calculating if already done in core

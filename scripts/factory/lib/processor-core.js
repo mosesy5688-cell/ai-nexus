@@ -7,7 +7,6 @@ import crypto from 'crypto';
 import { marked } from 'marked';
 import { calculateFNI } from './fni-score.js';
 import { hasValidCachePath } from '../../l5/entity-validator.js';
-import { smartWriteWithVersioning } from './smart-writer.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { estimateVRAM } from '../../../src/utils/vram-calculator.js';
 import { getUseCases, getQuickInsights } from '../../../src/utils/inference.js';
@@ -80,21 +79,23 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
             _checksum: entityHash,
         };
 
-        // Output 1: Atomic Processed Entity (Registry Entry)
-        const registryEntry = { ...enriched };
-        delete registryEntry.description;
-        await smartWriteWithVersioning(`entities/${finalType}/${id}.json`, registryEntry, config.CACHE_DIR);
-
-        // Output 2: HTML Fragment
-        if (htmlFragment && isChanged) {
-            await smartWriteWithVersioning(`html/${id}.json`, { html: htmlFragment, id }, config.CACHE_DIR);
-        }
+        // V16.11 Optimization: Stop writing individual files to disk in Stage 2/4.
+        // Data is now carried by the Monolithic Shard.
 
         return {
-            id, slug: enriched.slug, name: enriched.name, type: enriched.type,
+            id,
+            slug: enriched.slug,
+            name: enriched.name,
+            type: enriched.type,
             source: enriched.source || enriched.source_platform,
-            fni: finalFni, vram: vramEstimate, lastModified: enriched._updated,
-            success: true, _checksum: entityHash
+            fni: finalFni,
+            vram: vramEstimate,
+            lastModified: enriched._updated,
+            success: true,
+            _checksum: entityHash,
+            // Return full payload for monolithic bundling
+            enriched: registryEntry,
+            html: htmlFragment
         };
     } catch (error) {
         console.error(`[ERROR] ${entity.id}:`, error.message);

@@ -273,9 +273,17 @@ jobs:
         with:
           path: output/cache/mesh/profiles/
           key: intra-4-4-${{ github.run_id }}-baked
+      - name: Organize Shards for Fusion
+        run: |
+          mkdir -p artifacts
+          if [ -d "output/shards" ]; then
+            echo "📦 Moving compressed shards to artifacts/..."
+            find output/shards -name "shard-*.json.gz" -exec mv {} artifacts/ \;
+          fi
       - name: Execute Master Fusion
         env:
           CACHE_DIR: ./output/cache
+          ARTIFACT_DIR: ./artifacts
         run: node scripts/factory/master-fusion.js
       - name: Save Fused Entities to Cache
         uses: actions/cache/save@v4

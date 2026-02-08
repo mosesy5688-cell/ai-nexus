@@ -6,6 +6,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
+import zlib from 'zlib';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { loadFniHistory, saveFniHistory, loadDailyAccum } from './cache-manager.js';
 import { generateTrendData } from './trend-data-generator.js';
@@ -24,16 +25,29 @@ export function getWeekNumber() {
 }
 
 /**
- * Load shard artifacts from parallel harvester jobs
+ * Load shard artifacts from parallel harvester jobs (V16.11 Compressed support)
  */
 export async function loadShardArtifacts(artifactDir, totalShards) {
     const artifacts = [];
     for (let i = 0; i < totalShards; i++) {
         try {
-            const filePath = path.join(artifactDir, `shard-${i}.json`);
-            artifacts.push(JSON.parse(await fs.readFile(filePath, 'utf-8')));
+            // Priority: .json.gz (V16.11)
+            const gzPath = path.join(artifactDir, `shard-${i}.json.gz`);
+            const jsonPath = path.join(artifactDir, `shard-${i}.json`);
+
+            let data;
+            try {
+                // Try Gzip first
+                const compressed = await fs.readFile(gzPath);
+                data = zlib.gunzipSync(compressed).toString('utf-8');
+            } catch {
+                // Fallback to plain JSON
+                data = await fs.readFile(jsonPath, 'utf-8');
+            }
+
+            artifacts.push(JSON.parse(data));
         } catch {
-            console.warn(`[WARN] Shard ${i} not found`);
+            console.warn(`[WARN] Shard ${i} not found in .gz or .json`);
             artifacts.push(null);
         }
     }
@@ -115,7 +129,16 @@ export function mergeShardEntities(allEntities, shardResults) {
     for (const shard of shardResults) {
         if (shard?.entities) {
             for (const result of shard.entities) {
-                if (result.success) updatedEntitiesMap.set(result.id, result);
+                if (result.success) {
+                    // V16.11: Field Stripping to prevent Registry Shard bloat
+                    // Use the dedicated 'enriched' object which already has description stripped
+                    const strippedUpdate = { ...result.enriched };
+                    delete strippedUpdate.body_content;
+                    delete strippedUpdate.html_readme;
+                    delete strippedUpdate.htmlFragment;
+
+                    updatedEntitiesMap.set(result.id, strippedUpdate);
+                }
             }
         }
     }
@@ -132,18 +155,23 @@ export function mergeShardEntities(allEntities, shardResults) {
 
             let entity = update ? mergeEntities(e, update) : e;
 
+            // V16.11: Final Safety Strip (Registry Leanness)
+            // Ensure no heavy content leaks into the shard results or global registry
+            delete entity.description;
+            delete entity.body_content;
+            delete entity.html_readme;
+            delete entity.htmlFragment;
+
             // V16.8.10: Type Normalization (Art 3.1)
-            // Promote entity_type to canonical type to ensure downstream visibility
             const finalType = entity.type || entity.entity_type || 'model';
             entity.type = finalType;
 
-            // V16.4.3: Standard Image & Metrics Promotion (Dual-Field Strategy)
+            // V16.4.3: Standard Image & Metrics Promotion
             const finalFni = entity.fni_score ?? entity.fni ?? 0;
             entity.fni_score = finalFni;
             entity.fni = finalFni;
 
             if (!entity.image_url) {
-
                 entity.image_url = entity.raw_image_url || null;
                 if (!entity.image_url && entity.meta_json) {
                     const meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;
@@ -155,13 +183,12 @@ export function mergeShardEntities(allEntities, shardResults) {
         });
         merged.push(...mergedBatch);
 
-        // Manual "clear" hint for GC to keep memory stable
         if (i % 200000 === 0 && i > 0) {
             console.log(`  [Merge] Processed ${i} entities...`);
         }
     }
 
-    updatedEntitiesMap.clear(); // Explicitly clear big map
+    updatedEntitiesMap.clear();
     return merged;
 }
 
