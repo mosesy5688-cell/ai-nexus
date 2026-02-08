@@ -230,12 +230,18 @@ jobs:
     needs: [check-upstream, matrix-shards]
     runs-on: ubuntu-latest
     steps:
+      - name: Download All Shard Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: shard-*
+          path: ./shards/
+          merge-multiple: true
+
       - name: "Diagnostic: Inspect Downloads"
         run: |
           echo "🔍 Inspecting ./shards structure..."
-          ls -R ./shards | head -n 100
-          echo "..."
-          find ./shards -name "shard-*.json" | head -n 10
+          [ -d "./shards" ] && ls -R ./shards | head -n 100 || echo "❌ ./shards not found!"
+          find ./shards -name "shard-*.json" | head -n 10 || true
 
       - name: Organize Shards and Entity Data
         run: |
@@ -243,16 +249,16 @@ jobs:
           
           echo "📦 Collecting shard results and fragments..."
           
-          # 1. Collect shard result files (recursive find, ignore the cache fragments)
+          # 1. Collect shard result files
           echo "🚚 Extracting shard result summaries..."
-          find ./shards -type f -name "shard-*.json" -not -path "*cache*" -exec cp -f {} output/shards/ \;
+          [ -d "./shards" ] && find ./shards -type f -name "shard-*.json" -not -path "*cache*" -exec cp -f {} output/shards/ \; || echo "No shards found"
           
-          # 2. Collect fragments (entities + html) - Ultra-robust recursive search
+          # 2. Collect fragments (entities + html)
           echo "🚚 Extracting entities..."
-          find ./shards -type f -path "*entities*" -name "*.json" -exec cp -f {} output/cache/entities/ \;
+          [ -d "./shards" ] && find ./shards -type f -path "*entities*" -name "*.json" -exec cp -f {} output/cache/entities/ \; || echo "No entities found"
           
           echo "🚚 Extracting html..."
-          find ./shards -type f -path "*html*" -name "*.json" -exec cp -f {} output/cache/html/ \;
+          [ -d "./shards" ] && find ./shards -type f -path "*html*" -name "*.json" -exec cp -f {} output/cache/html/ \; || echo "No html found"
 
           echo "✅ Fragment collection summary:"
           echo "Shard files found: $(find output/shards -name 'shard-*.json' | wc -l)"
