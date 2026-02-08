@@ -105,6 +105,27 @@ jobs:
             exit 1
           fi
 
+      # V4.1: Restore Harvest Context from Cache
+      - name: Restore Harvest Context from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data/merged.json
+            data/merged_shard_*.json
+            data/manifest.json
+            cache/
+          key: cycle-${{ needs.check-upstream.outputs.harvest-id }}-harvest
+          restore-keys: |
+            cycle-
+
+      - name: Validate Context
+        run: |
+          if [ -f "data/merged.json" ]; then
+            echo "✅ Harvest context restored from cache."
+          else
+            echo "⚠️ Harvest context not in cache. Will use shards only."
+          fi
+
       - name: Run Core Merge & Health
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
