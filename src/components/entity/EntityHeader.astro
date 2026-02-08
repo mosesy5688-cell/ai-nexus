@@ -1,33 +1,89 @@
 ---
 /**
- * EntityHeader - Barebones Diagnostic Version
+ * EntityHeader - V15.0 Unified Hero Component (Recovery Stage 3)
  */
 interface Props {
   name: string;
   author?: string;
-  entityType?: string;
+  entityType?: 'model' | 'agent' | 'dataset' | 'paper' | 'space' | 'tool';
   entityIcon?: string;
+  entityLabel?: string;
+  verified?: boolean;
+  lastUpdated?: string;
+  description?: string;
+  fniScore?: number;
+  fniPercentile?: number;
   entityId?: string;
 }
 
 const {
-  name = 'Unknown',
-  author = 'Community',
+  name,
+  author = '',
+  entityType = 'model',
   entityIcon = '📦',
+  entityLabel = 'Entity',
+  verified = false,
+  description,
+  fniScore,
+  fniPercentile,
+  lastUpdated,
   entityId = ''
 } = Astro.props;
+
+// Type-specific colors
+const typeColors: Record<string, string> = {
+  model: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-100',
+  agent: 'text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300 border-purple-100',
+  dataset: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-100',
+  paper: 'text-rose-600 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-300 border-rose-100',
+  space: 'text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300 border-blue-100',
+  tool: 'text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-300 border-amber-100',
+};
+
+const colors = typeColors[entityType] || typeColors.model;
+const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author : 'Independent / Community';
 ---
 
 <header class="mb-10">
-  <div class="flex items-center gap-6">
-    <div class="text-4xl">{entityIcon}</div>
-    <div>
-      <h1 class="text-3xl font-black text-gray-900 dark:text-white">
-        {name}
-      </h1>
-      <p class="text-sm text-gray-500 font-bold">
-        by <strong>{author}</strong> {entityId && `| ID: ${entityId}`}
-      </p>
+  <div class="flex flex-col gap-6">
+    <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-8">
+      <div class="flex-grow min-w-0 lg:max-w-[85%]">
+        <div class="flex flex-wrap items-center gap-6 mb-6">
+          <div class="w-16 h-16 lg:w-20 lg:h-20 flex items-center justify-center bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 transition-transform hover:rotate-3 duration-500 text-4xl lg:text-5xl select-none">
+            {entityIcon}
+          </div>
+          
+          <div class="flex-1 min-w-0">
+            <h1 class="text-3xl lg:text-5xl font-black text-gray-900 dark:text-white tracking-tight hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-300 break-words leading-tight">
+              {name}
+            </h1>
+            
+            <div class="flex flex-wrap items-center gap-4 mt-4 text-gray-500 dark:text-gray-400 font-bold">
+              <span class="flex items-center gap-2">
+                by <strong class="text-gray-900 dark:text-white font-black">{displayAuthor}</strong>
+              </span>
+              <span class={`inline-flex items-center px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border shadow-sm ${colors}`}>
+                {entityLabel}
+              </span>
+              
+              {entityId && (
+                <span class="text-[10px] font-mono tracking-tight opacity-70 truncate max-w-[200px]">
+                  ID: {entityId}
+                </span>
+              )}
+            </div>
+          </div>
+          
+          <div class="flex flex-wrap items-center gap-3">
+            {fniScore !== undefined && (
+              <div class="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-xl shadow-lg">
+                <span class="text-[10px] font-black uppercase tracking-widest opacity-80">FNI</span>
+                <span class="text-2xl font-black leading-none">{fniScore}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </header>
