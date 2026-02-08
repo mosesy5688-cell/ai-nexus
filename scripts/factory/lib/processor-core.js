@@ -6,11 +6,11 @@
 import crypto from 'crypto';
 import { marked } from 'marked';
 import { calculateFNI } from './fni-score.js';
-import { hasValidCachePath } from '../l5/entity-validator.js';
+import { hasValidCachePath } from '../../l5/entity-validator.js';
 import { smartWriteWithVersioning } from './smart-writer.js';
-import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
-import { estimateVRAM } from '../../src/utils/vram-calculator.js';
-import { getUseCases, getQuickInsights } from '../../src/utils/inference.js';
+import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
+import { estimateVRAM } from '../../../src/utils/vram-calculator.js';
+import { getUseCases, getQuickInsights } from '../../../src/utils/inference.js';
 
 // Configure marked
 marked.setOptions({ gfm: true, breaks: true });
