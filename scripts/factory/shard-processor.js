@@ -220,7 +220,6 @@ async function main() {
     }
 
     // Save shard artifact (Aggregator will merge results and checksums)
-    // Save shard artifact (Aggregator will merge results and checksums)
     await fs.mkdir('./artifacts', { recursive: true });
     await fs.writeFile(`./artifacts/shard-${shardId}.json`, JSON.stringify({
         shardId,
