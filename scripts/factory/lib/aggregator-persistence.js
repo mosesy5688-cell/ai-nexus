@@ -36,7 +36,10 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir) {
     const syncDirs = [
         { src: 'registry', dest: 'registry' },
         { src: 'fni-history', dest: 'fni-history' },
-        { src: 'daily-accum', dest: 'daily-accum' }
+        { src: 'daily-accum', dest: 'daily-accum' },
+        { src: 'mesh', dest: 'mesh' },
+        { src: 'relations', dest: 'relations' },
+        { src: 'knowledge', dest: 'knowledge' }
     ];
     for (const dir of syncDirs) {
         const srcPath = path.join(cacheDir, dir.src);
