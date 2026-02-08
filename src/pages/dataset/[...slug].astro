@@ -144,22 +144,6 @@ const jsonLd = dataset ? {
            </p>
        </div>
     </div>
-
-    <div slot="core-knowledge">
-       <UniversalCore entity={dataset} type="dataset" meshRelations={meshRelations} />
-    </div>
-    
-    <div slot="core-similar">
-        {similarEntities.length > 0 ? (
-           <ModelCarousel models={similarEntities} />
-        ) : (
-           <p class="text-gray-500 italic p-4 text-center">Identifying related models and datasets...</p>
-        )}
-    </div>
-  
-    <div slot="core-benchmarks">
-        <p class="text-gray-500 italic p-4 text-center">Benchmarks correlations for this dataset are indexed in the Knowledge Mesh.</p>
-    </div>
   
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">

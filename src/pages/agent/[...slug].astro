@@ -161,29 +161,6 @@ const jsonLd = {
            )}
        </div>
     </div>
-
-    <div slot="core-knowledge">
-       <UniversalCore entity={agent} type="agent" meshRelations={meshRelations} />
-    </div>
-    
-    <div slot="core-similar">
-        {similarEntities.length > 0 ? (
-           <ModelCarousel models={similarEntities} />
-        ) : (
-           <p class="text-gray-500 italic p-4 text-center">Finding related autonomous agents and frameworks...</p>
-        )}
-    </div>
-  
-    <div slot="core-benchmarks">
-        {agent && (agent.mmlu || agent.humaneval || agent.avg_score || agent.benchmark_avg) ? (
-            <BenchmarkCard 
-              title={`${agentName} Benchmarks`} 
-              scores={agent.meta_json?.benchmarks}
-            />
-        ) : (
-            <p class="text-gray-500 italic p-4 text-center">Benchmark metrics for this agent are currently being analyzed.</p>
-        )}
-    </div>
   
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">

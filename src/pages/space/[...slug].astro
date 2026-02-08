@@ -148,22 +148,6 @@ const jsonLd = space ? {
            </p>
        </div>
     </div>
-
-    <div slot="core-knowledge">
-       <UniversalCore entity={space} type="space" meshRelations={meshRelations} />
-    </div>
-    
-    <div slot="core-similar">
-        {similarEntities.length > 0 ? (
-           <ModelCarousel models={similarEntities} />
-        ) : (
-           <p class="text-gray-500 italic p-4 text-center">Identifying related models and demo spaces...</p>
-        )}
-    </div>
-  
-    <div slot="core-benchmarks">
-        <p class="text-gray-500 italic p-4 text-center">Benchmark metrics for interactive spaces are currently under theoretical analysis.</p>
-    </div>
   
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">
