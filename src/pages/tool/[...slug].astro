@@ -116,20 +116,14 @@ const jsonLd = tool ? {
     />
 
     {/* Zone 1.5: Use Cases */}
-
-    {/* Zone 1.5: Use Cases */}
     <ZoneUseCases
       slot="use-cases"
-      goodFor={derivedUseCases.goodFor}
-      limits={derivedUseCases.limits}
+      usecases={getUseCases(tool)}
     />
 
     {/* Zone 2: Insights Extra */}
     <div slot="insights-extra" class="mt-4 space-y-6">
-       <QuickCommands entity={tool} type="tool" className="mb-4" />
-       <div class="px-4 py-2 bg-purple-50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-800/30">
-          <TechSpecsFull entity={tool} type="tool" />
-       </div>
+       {/* Elevated metrics if needed */}
     </div>
 
     {/* Zone 3: Core */}
@@ -158,25 +152,13 @@ const jsonLd = tool ? {
        <div class="space-y-12">
           <ToolDeepDive tool={tool} />
           <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
-             <ModelNavigation 
-                pipelineTag={tool?.language || 'ai-tool'}
-             />
+             <ModelNavigation />
           </section>
        </div>
     </div>
 
-    {/* Zone 5: Sidebar */}
+    {/* Zone Sidebar Slots */}
     <div slot="sidebar" class="space-y-8">
-       <div class="p-6 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/50">
-          <h3 class="font-bold text-purple-900 dark:text-purple-100 mb-2 flex items-center gap-2">
-            <span>🛠️</span> Technical Node
-          </h3>
-          <p class="text-xs text-purple-700 dark:text-purple-300 leading-relaxed">
-            This entity is an infrastructure component in the AI ecosystem. 
-            All technical insights are aggregated via <strong>Factory Stage 3</strong>.
-          </p>
-       </div>
-
        <ModelInfoTable 
          type="tool"
          model={{
@@ -186,11 +168,6 @@ const jsonLd = tool ? {
          }} 
        />
        
-       <ShareButtons 
-          url={`https://free2aitools.com/tool/${slugStr}`} 
-          title={`${toolName} - AI Tool Details`} 
-       />
-
        <CiteEntity 
          id={toolId} 
          name={toolName} 

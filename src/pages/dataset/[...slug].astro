@@ -113,20 +113,14 @@ const jsonLd = dataset ? {
     />
 
     {/* Zone 1.5: Use Cases */}
-
-    {/* Zone 1.5: Use Cases */}
     <ZoneUseCases
       slot="use-cases"
-      goodFor={derivedUseCases.goodFor}
-      limits={derivedUseCases.limits}
+      usecases={getUseCases(dataset)}
     />
 
     {/* Zone 2: Insights Extra */}
     <div slot="insights-extra" class="mt-4 space-y-4">
-       <QuickCommands entity={dataset} type="dataset" />
-       <div class="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
-          <TechSpecsFull entity={dataset} type="dataset" />
-       </div>
+       {/* Elevated metrics if needed */}
     </div>
 
     {/* Zone 3: Core */}
@@ -155,25 +149,13 @@ const jsonLd = dataset ? {
        <div class="space-y-12">
           <DatasetDeepDive dataset={dataset} />
           <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
-             <ModelNavigation 
-                pipelineTag={dataset?.pipeline_tag || 'dataset'}
-             />
+             <ModelNavigation />
           </section>
        </div>
     </div>
 
-    {/* Zone 5: Sidebar */}
+    {/* Zone Sidebar Slots */}
     <div slot="sidebar" class="space-y-8">
-       <div class="p-6 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800/50">
-          <h3 class="font-bold text-emerald-900 dark:text-emerald-100 mb-2 flex items-center gap-2">
-            <span>📊</span> Dataset Node
-          </h3>
-          <p class="text-xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
-            This entity represents a critical data node in the AI ecosystem. 
-            Metadata is processed via <strong>Factory Stage 3 Aggregator</strong> under Zero-Limit transparency rules.
-          </p>
-       </div>
-       
        <ModelInfoTable 
          type="dataset"
          model={{
@@ -183,16 +165,11 @@ const jsonLd = dataset ? {
          }} 
        />
        
-       <ShareButtons 
-          url={`https://free2aitools.com/dataset/${slugStr}`} 
-          title={`${datasetName} - AI Dataset Details`} 
-       />
-
        <CiteEntity 
          id={datasetId} 
          name={datasetName} 
          author={displayAuthor} 
-         url={dataset.source_url} 
+         url={dataset?.source_url} 
          type="dataset" 
        />
     </div>

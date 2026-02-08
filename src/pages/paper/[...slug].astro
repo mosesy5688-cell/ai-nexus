@@ -131,20 +131,14 @@ const jsonLd = paper ? {
     />
 
     {/* Zone 1.5: Use Cases */}
-
-    {/* Zone 1.5: Use Cases */}
     <ZoneUseCases
       slot="use-cases"
-      goodFor={derivedUseCases.goodFor}
-      limits={derivedUseCases.limits}
+      usecases={getUseCases(paper)}
     />
 
     {/* Zone 2: Insights Extra */}
     <div slot="insights-extra" class="mt-4 space-y-4">
-       <QuickCommands entity={paper} type="paper" />
-       <div class="px-4 py-2 bg-rose-50 dark:bg-rose-900/10 rounded-xl border border-rose-100 dark:border-rose-800/30">
-          <TechSpecsFull entity={paper} type="paper" />
-       </div>
+       {/* Elevated metrics if needed */}
     </div>
 
     {/* Zone 3: Core */}
@@ -173,25 +167,13 @@ const jsonLd = paper ? {
        <div class="space-y-12">
           <PaperDeepDive paper={paper} />
           <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
-             <ModelNavigation 
-                pipelineTag={paper?.arxiv_category || 'research-paper'}
-             />
+             <ModelNavigation />
           </section>
        </div>
     </div>
 
-    {/* Zone 5: Sidebar */}
+    {/* Zone Sidebar Slots */}
     <div slot="sidebar" class="space-y-8">
-       <div class="p-6 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-800/50">
-          <h3 class="font-bold text-rose-900 dark:text-rose-100 mb-2 flex items-center gap-2">
-            <span>📄</span> Academic Node
-          </h3>
-          <p class="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">
-            This entity represents a theoretical baseline in the AI Knowledge Mesh. 
-            Citations and implementations are mapped via <strong>Factory Stage 3 Aggregator</strong>.
-          </p>
-       </div>
-
        <ModelInfoTable 
          type="paper"
          model={{
@@ -201,16 +183,11 @@ const jsonLd = paper ? {
          }} 
        />
        
-       <ShareButtons 
-          url={`https://free2aitools.com/paper/${slugStr}`} 
-          title={`${paperTitle} - AI Research Analysis`} 
-       />
-
        <CiteEntity 
          id={paperId} 
          name={paperTitle} 
          author={displayAuthor} 
-         url={paper.source_url} 
+         url={paper?.source_url} 
          type="paper" 
        />
     </div>
