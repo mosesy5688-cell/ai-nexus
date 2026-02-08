@@ -100,22 +100,24 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
              
              <div class="md:hidden">
                {/* Stability Fallback: If specialized mobile slots are empty, render the unified core stack */}
-               <Astro.slots.has('core-knowledge') ? (
-                 <div class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 mb-6 no-scrollbar">
-                   {['Knowledge', 'Similar', 'Benchmarks', 'Trends'].map((tab) => (
-                     <button 
-                       class="z3-tab-btn px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap" 
-                       data-target={`z3-${tab.toLowerCase()}`}
-                     >
-                       {tab}
-                     </button>
-                   ))}
-                 </div>
-                 
-                 <div id="z3-knowledge" class="z3-tab-content block animate-fade-in"><slot name="core-knowledge" /></div>
-                 <div id="z3-similar" class="z3-tab-content hidden animate-fade-in"><slot name="core-similar" /></div>
-                 <div id="z3-benchmarks" class="z3-tab-content hidden animate-fade-in"><slot name="core-benchmarks" /></div>
-                 <div id="z3-trends" class="z3-tab-content hidden animate-fade-in"><slot name="core-trends" /></div>
+               {Astro.slots.has('core-knowledge') ? (
+                 <>
+                   <div class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 mb-6 no-scrollbar">
+                     {['Knowledge', 'Similar', 'Benchmarks', 'Trends'].map((tab) => (
+                       <button 
+                         class="z3-tab-btn px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap" 
+                         data-target={`z3-${tab.toLowerCase()}`}
+                       >
+                         {tab}
+                       </button>
+                     ))}
+                   </div>
+                   
+                   <div id="z3-knowledge" class="z3-tab-content block animate-fade-in"><slot name="core-knowledge" /></div>
+                   <div id="z3-similar" class="z3-tab-content hidden animate-fade-in"><slot name="core-similar" /></div>
+                   <div id="z3-benchmarks" class="z3-tab-content hidden animate-fade-in"><slot name="core-benchmarks" /></div>
+                   <div id="z3-trends" class="z3-tab-content hidden animate-fade-in"><slot name="core-trends" /></div>
+                 </>
                ) : (
                  <div class="space-y-16">
                     <slot name="core-desktop" />
