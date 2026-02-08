@@ -82,7 +82,7 @@
 
 /* Responsive Grid Adjustments */
 @media (max-width: 768px) {
-    .grid {
+    .neural-graph-explorer .grid {
         grid-template-columns: 1fr !important;
     }
 

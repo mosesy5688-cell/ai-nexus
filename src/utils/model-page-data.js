@@ -27,15 +27,17 @@ export async function prepareModelPageData(slug, slugStr, locals) {
     // Benchmarks Augmentation
     try {
         const benchResult = await loadBenchmarks(locals);
-        const searchId = slugStr.toLowerCase();
-        const benchEntry = benchResult.data?.data?.find(b =>
-            (b.umid && b.umid.toLowerCase() === searchId) ||
-            (b.id && b.id.toLowerCase() === searchId) ||
-            (model?.id && b.umid === model.id)
-        );
+        if (benchResult && benchResult.data && Array.isArray(benchResult.data.data)) {
+            const searchId = slugStr.toLowerCase();
+            const benchEntry = benchResult.data.data.find(b =>
+                (b.umid && b.umid.toLowerCase() === searchId) ||
+                (b.id && b.id.toLowerCase() === searchId) ||
+                (model?.id && b.umid === model.id)
+            );
 
-        if (benchEntry) {
-            model = augmentEntity(model || {}, benchEntry);
+            if (benchEntry) {
+                model = augmentEntity(model || {}, benchEntry);
+            }
         }
     } catch (benchError) {
         console.warn("[ModelPageData] Benchmark augmentation failed:", benchError.message);
@@ -141,6 +143,6 @@ export async function prepareModelPageData(slug, slugStr, locals) {
         fallbackModel.entityDefinition = ENTITY_DEFINITIONS['model'];
         tagsArray = Array.isArray(fallbackModel.tags) ? fallbackModel.tags : [];
 
-        return { model: fallbackModel, isFallback: true, repoName, similarModels, tagsArray };
+        return { model: fallbackModel, isFallback: true, repoName, similarModels, tagsArray, meshRelations: [] };
     }
 }
