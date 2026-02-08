@@ -14,8 +14,9 @@ import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 import {
     getWeekNumber, loadShardArtifacts, calculatePercentiles,
     updateFniHistory, generateHealthReport, mergeShardEntities,
-    backupStateFiles, checkIncrementalProgress, updateTaskChecksum
+    backupStateFiles
 } from './lib/aggregator-utils.js';
+import { checkIncrementalProgress, updateTaskChecksum } from './lib/aggregator-incremental.js';
 
 // Config (Art 3.1, 3.3)
 const CONFIG = {
