@@ -120,10 +120,10 @@ const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author
               <div class="relative group/fni flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.3)] dark:shadow-[0_0_30px_rgba(79,70,229,0.2)] cursor-help">
                 <span class="text-[10px] font-black uppercase tracking-widest opacity-80">FNI</span>
                 <span class="text-2xl font-black leading-none">{fniScore}</span>
-                {fniPercentile !== undefined && (
+                {fniPercentile !== undefined && fniPercentile !== null && !isNaN(Number(fniPercentile)) && (
                   <div class="flex flex-col border-l border-white/30 pl-2 ml-1">
                     <span class="text-[9px] font-bold uppercase leading-none opacity-70">Top</span>
-                    <span class="text-[10px] font-black leading-none">{100 - Math.round(fniPercentile)}%</span>
+                    <span class="text-[10px] font-black leading-none">{100 - Math.round(Number(fniPercentile))}%</span>
                   </div>
                 )}
               </div>

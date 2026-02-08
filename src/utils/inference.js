@@ -59,12 +59,12 @@ export function getUseCases(tags = [], pipelineTag = '', entityType = 'model', f
         if (allTags.includes('small-model')) limits.add('Limited Complexity');
 
         // V15.9 Trust Signal: Restrictive License Detection
-        const license = (pipelineTag || '').toLowerCase(); // Fallback if no specific license arg, usually passed in tags
+        const licenseStr = String(pipelineTag || '').toLowerCase(); // Fallback if no specific license arg
         const fullTags = allTags.join(' ');
         if (fullTags.includes('non-commercial') || fullTags.includes('cc-by-nc') || fullTags.includes('research-only')) {
             limits.add('Non-Commercial Use');
-        } else if (fullTags.includes('apache') || fullTags.includes('mit')) {
-            // permissible, do nothing
+        } else if (licenseStr.includes('apache') || licenseStr.includes('mit')) {
+            // permissible
         }
     }
 
@@ -189,10 +189,11 @@ export function getQuickInsights(entity, type) {
         if (entity.has_gguf) insights.push({ label: 'Format', value: 'GGUF ✓', highlight: true, badge: 'Local' });
 
         if (entity.license) {
-            const isPermissive = entity.license.includes('apache') || entity.license.includes('mit');
+            const licenseStr = String(entity.license).toLowerCase();
+            const isPermissive = licenseStr.includes('apache') || licenseStr.includes('mit');
             insights.push({
                 label: 'License',
-                value: entity.license.split('-')[0].toUpperCase(),
+                value: licenseStr.split('-')[0].toUpperCase(),
                 highlight: isPermissive,
                 badge: isPermissive ? 'Commercial' : 'Restricted'
             });
