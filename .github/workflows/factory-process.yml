@@ -230,12 +230,12 @@ jobs:
     needs: [check-upstream, matrix-shards]
     runs-on: ubuntu-latest
     steps:
-      - name: Download All Shard Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: shard-*
-          path: ./shards/
-          merge-multiple: true
+      - name: "Diagnostic: Inspect Downloads"
+        run: |
+          echo "🔍 Inspecting ./shards structure..."
+          ls -R ./shards | head -n 100
+          echo "..."
+          find ./shards -name "shard-*.json" | head -n 10
 
       - name: Organize Shards and Entity Data
         run: |
@@ -243,20 +243,21 @@ jobs:
           
           echo "📦 Collecting shard results and fragments..."
           
-          # 1. Collect shard result files
-          find ./shards -type f -name "shard-*.json" -not -path "*/cache/*" -exec cp -f {} output/shards/ \; 2>/dev/null || true
+          # 1. Collect shard result files (recursive find, ignore the cache fragments)
+          echo "🚚 Extracting shard result summaries..."
+          find ./shards -type f -name "shard-*.json" -not -path "*cache*" -exec cp -f {} output/shards/ \;
           
-          # 2. Collect fragments (entities + html) - using robust path-agnostic find
+          # 2. Collect fragments (entities + html) - Ultra-robust recursive search
           echo "🚚 Extracting entities..."
-          find ./shards -type f -wholename "*/entities/*.json" -exec cp -f {} output/cache/entities/ \; 2>/dev/null || true
+          find ./shards -type f -path "*entities*" -name "*.json" -exec cp -f {} output/cache/entities/ \;
           
           echo "🚚 Extracting html..."
-          find ./shards -type f -wholename "*/html/*.json" -exec cp -f {} output/cache/html/ \; 2>/dev/null || true
+          find ./shards -type f -path "*html*" -name "*.json" -exec cp -f {} output/cache/html/ \;
 
-          echo "✅ Fragment collection complete."
-          echo "Total shard files: $(ls output/shards/shard-*.json | wc -l)"
-          echo "Total entity files: $(find output/cache/entities -type f -name '*.json' | wc -l)"
-          echo "Total html files: $(find output/cache/html -type f -name '*.json' | wc -l)"
+          echo "✅ Fragment collection summary:"
+          echo "Shard files found: $(find output/shards -name 'shard-*.json' | wc -l)"
+          echo "Entity files found: $(find output/cache/entities -name '*.json' | wc -l)"
+          echo "HTML files found: $(find output/cache/html -name '*.json' | wc -l)"
 
       - name: Save Shards and Entity Data to Cache
         uses: actions/cache/save@v4
