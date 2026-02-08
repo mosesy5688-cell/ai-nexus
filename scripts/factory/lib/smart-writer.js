@@ -6,12 +6,13 @@
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
+import zlib from 'zlib';
 
 /**
- * Generate SHA-256 hash of content
+ * Generate MD5 hash of content (Aligned with S3 ETag for Gzip support)
  */
 export function generateHash(content) {
-    return crypto.createHash('sha256').update(content).digest('hex');
+    return crypto.createHash('md5').update(content).digest('hex');
 }
 
 /**
@@ -62,10 +63,17 @@ async function writeToLocal(key, content, metadata, outputDir) {
  * @param {string} key - R2 object key
  * @param {Object} data - Data to write
  * @param {string} outputDir - Output directory
+ * @param {Object} options - { compress: boolean }
  * @returns {boolean} Whether write occurred
  */
-export async function smartWriteWithVersioning(key, data, outputDir = './output') {
-    const content = JSON.stringify(data, null, 2);
+export async function smartWriteWithVersioning(key, data, outputDir = './output', options = {}) {
+    let content = JSON.stringify(data, null, 2);
+
+    // V16.11: Support for pre-compression to align local MD5 with R2 ETag
+    if (options.compress) {
+        content = zlib.gzipSync(content);
+    }
+
     const localHash = generateHash(content);
 
     // Check if content changed (Art 2.2)
@@ -99,8 +107,8 @@ export async function smartWriteWithVersioning(key, data, outputDir = './output'
 }
 
 // Keep original for backward compatibility
-export async function writeWithVersioning(key, data, outputDir = './output') {
-    return smartWriteWithVersioning(key, data, outputDir);
+export async function writeWithVersioning(key, data, outputDir = './output', options = {}) {
+    return smartWriteWithVersioning(key, data, outputDir, options);
 }
 
 /**
