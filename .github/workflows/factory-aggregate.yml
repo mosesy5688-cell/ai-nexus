@@ -77,16 +77,17 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # V4.1: Restore Shards from Cache (Not Artifact)
-      - name: Restore Shards from Cache
-        id: cache-shards
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            output/shards
-          key: cycle-${{ needs.check-upstream.outputs.process-id }}-shards
-          restore-keys: |
-            cycle-
+      - name: Download Shards from Process Run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p output/shards
+          echo "📥 Downloading 20 shards from Process Run: ${{ needs.check-upstream.outputs.process-id }}"
+          gh run download ${{ needs.check-upstream.outputs.process-id }} --pattern "shard-*" --dir output/shards-raw/
+          # Flatten GHA nested structure
+          find output/shards-raw -name "shard-*.json.gz" -exec mv {} output/shards/ \;
+          rm -rf output/shards-raw
+          echo "✅ Shards gathered: $(ls output/shards | wc -l)"
 
       - name: Clean Environment Residue
         run: |
@@ -98,10 +99,15 @@ jobs:
         run: |
           mkdir -p artifacts output/cache/shards
           # Copy shards for local aggregator use
-          [ -d "output/shards" ] && cp output/shards/shard-*.json.gz artifacts/ 2>/dev/null || true
+          if [ -d "output/shards" ]; then
+            SHARD_COUNT=$(find output/shards -name "shard-*.json.gz" | wc -l)
+            echo "📦 Preparing $SHARD_COUNT shards for aggregation..."
+            cp output/shards/shard-*.json.gz artifacts/ 2>/dev/null || true
+          fi
           
           if [ $(find artifacts -name "shard-*.json.gz" | wc -l) -eq 0 ]; then
             echo "❌ ERROR: No compressed shard files found!"
+            ls -R output/shards
             exit 1
           fi
 
