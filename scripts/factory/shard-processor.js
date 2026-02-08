@@ -131,7 +131,32 @@ async function processEntity(entity, globalStats, entityChecksums, fniHistory = 
     }
 }
 
-// ... (skipping loadFniHistory and saveCheckpoint unchanged)
+/**
+ * Utility: Parse CLI arguments (Art 3.1)
+ */
+function parseArgs() {
+    const args = process.argv.slice(2);
+    const shard = args.find(a => a.startsWith('--shard='))?.split('=')[1];
+    const total = args.find(a => a.startsWith('--total='))?.split('=')[1];
+    return {
+        shardId: parseInt(shard) || 0,
+        totalShards: parseInt(total) || 20
+    };
+}
+
+/**
+ * Utility: Save partial results for long-running shards (Art 3.4)
+ */
+async function saveCheckpoint(shardId, results, lastId) {
+    const checkpointPath = `./artifacts/checkpoint-shard-${shardId}.json`;
+    await fs.mkdir('./artifacts', { recursive: true });
+    await fs.writeFile(checkpointPath, JSON.stringify({
+        shardId,
+        lastId,
+        results,
+        timestamp: new Date().toISOString()
+    }, null, 2));
+}
 
 // Main (V14.5.2: with artifact-based checksum tracking)
 async function main() {
