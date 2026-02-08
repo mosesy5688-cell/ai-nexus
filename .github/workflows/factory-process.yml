@@ -257,17 +257,15 @@ jobs:
           echo "📦 Merging new fragments into rolling cache..."
           
           # 1. Collect new shard result files (.json)
-          if [ -d "./shards-download/artifacts" ]; then
-            cp -f ./shards-download/artifacts/shard-*.json output/shards/ 2>/dev/null || true
-          fi
+          find ./shards-download -name "shard-*.json" -exec cp -f {} output/shards/ \; 2>/dev/null || true
           
-          # 2. Collect fragments from the 'cache' folder in shards
-          if [ -d "./shards-download/cache" ]; then
-            echo "👉 Transferring entities..."
-            cp -rf ./shards-download/cache/entities/* output/cache/entities/ 2>/dev/null || true
-            echo "👉 Transferring html fragments..."
-            cp -rf ./shards-download/cache/html/* output/cache/html/ 2>/dev/null || true
-          fi
+          # 2. Robust collection of fragments regardless of artifact packaging structure
+          # Some artifacts might have 'cache/entities', others just 'entities' at root
+          echo "👉 Capturing entities..."
+          find ./shards-download -type f -path "*/entities/*.json" -exec cp -f {} output/cache/entities/ \; 2>/dev/null || true
+          
+          echo "👉 Capturing html fragments..."
+          find ./shards-download -type f -path "*/html/*.json" -exec cp -f {} output/cache/html/ \; 2>/dev/null || true
 
           echo "✅ Fragment collection complete."
           echo "Total entity files (after merge): $(find output/cache/entities -type f -name '*.json' | wc -l)"
