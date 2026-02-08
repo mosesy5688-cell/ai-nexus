@@ -1,171 +1,33 @@
 ---
 /**
- * EntityHeader - V15.0 Unified Hero Component
- * Replaces type-specific headers (ModelHeader, AgentHeader, etc.)
+ * EntityHeader - Barebones Diagnostic Version
  */
-import ShareButtons from '../common/ShareButtons.astro';
-
 interface Props {
   name: string;
-  author: string;
-  entityType?: 'model' | 'agent' | 'dataset' | 'paper' | 'space' | 'tool';
+  author?: string;
+  entityType?: string;
   entityIcon?: string;
-  entityLabel?: string;
-  verified?: boolean;
-  lastUpdated?: string;
-  description?: string;
-  fniScore?: number;
-  fniPercentile?: number;
-  fniCommentary?: string;
-  paramsB?: number;
-  sourceUrl?: string;
   entityId?: string;
-  hasImage?: boolean;
 }
 
 const {
-  name,
-  author = '',
-  entityType = 'model',
+  name = 'Unknown',
+  author = 'Community',
   entityIcon = '📦',
-  entityLabel = 'Entity',
-  verified = false,
-  description,
-  fniScore,
-  fniPercentile,
-  fniCommentary,
-  paramsB,
-  sourceUrl,
-  entityId = '',
-  hasImage = false
+  entityId = ''
 } = Astro.props;
-
-// Type-specific colors
-const typeColors: Record<string, string> = {
-  model: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-300 border-indigo-100',
-  agent: 'text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300 border-purple-100',
-  dataset: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-100',
-  paper: 'text-rose-600 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-300 border-rose-100',
-  space: 'text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300 border-blue-100',
-  tool: 'text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-300 border-amber-100',
-};
-
-const colors = typeColors[entityType] || typeColors.model;
-
-// V16.2: Clean description - Strip HTML, YAML frontmatter, Markdown badges, and Links
-const descriptionStr = typeof description === 'string' ? description : (description ? JSON.stringify(description) : '');
-const cleanDescription = descriptionStr
-  ? descriptionStr
-      .replace(/^---[\s\S]*?---\s*/m, '')           // Remove YAML frontmatter
-      .replace(/<[^>]*>?/gm, '')                     // Remove HTML tags
-      .replace(/!\[.*?\]\(.*?\)/g, '')              // Remove Markdown images
-      .replace(/\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/gi, '') // Remove GitHub alerts
-      .replace(/!\[GitHub.*?\]\(.*?\)/gi, '')        // Remove unparsed GitHub badges
-      .replace(/!\[.*?badge.*?\]\(.*?\)/gi, '')       // Remove generic badges
-      .replace(/&nbsp;/g, ' ')                       // Replace nbsp
-      .replace(/\n{2,}/g, ' ')                       // Collapse multiple newlines
-      .trim() 
-  : '';
-
-// V15.1: Author fallback
-const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author : 'Independent / Community';
 ---
 
 <header class="mb-10">
-  <div class="flex flex-col gap-6">
-    <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-8">
-      <div class="flex-grow min-w-0 lg:max-w-[85%]">
-        <!-- Title & Badges -->
-        <div class="flex flex-wrap items-center gap-6 mb-6">
-          <div class="w-16 h-16 lg:w-20 lg:h-20 flex items-center justify-center bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 transition-transform hover:rotate-3 duration-500 text-4xl lg:text-5xl select-none">
-            {entityIcon}
-          </div>
-          
-          <div class="flex-1 min-w-0">
-            <h1 class="text-3xl lg:text-5xl font-black text-gray-900 dark:text-white tracking-tight hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-300 break-words leading-tight">
-              {name}
-            </h1>
-            
-            <div class="flex flex-wrap items-center gap-4 mt-4 text-gray-500 dark:text-gray-400 font-bold">
-              <span class="flex items-center gap-2">
-                by <strong class="text-gray-900 dark:text-white font-black hover:text-indigo-600 cursor-default transition-colors">{displayAuthor}</strong>
-              </span>
-              <span class="hidden md:block w-1.5 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full"></span>
-              <span class={`inline-flex items-center px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border shadow-sm ${colors}`}>
-                {entityLabel}
-              </span>
-              
-              {entityId && (
-                <>
-                  <span class="hidden md:block w-1.5 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full"></span>
-                  <span class="text-[10px] font-mono tracking-tight opacity-70 truncate max-w-[200px]" title={entityId}>
-                    ID: {entityId}
-                  </span>
-                </>
-              )}
-
-              {lastUpdated && (
-                <>
-                  <span class="hidden md:block w-1.5 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full"></span>
-                  <span class="text-[10px] font-medium tracking-tight opacity-70">
-                    Updated: {new Date(lastUpdated).toLocaleDateString() === 'Invalid Date' ? 'Recent' : new Date(lastUpdated).toLocaleDateString()}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-          
-          <div class="flex flex-wrap items-center gap-3">
-            {fniScore !== undefined && (
-              <div class="relative group/fni flex items-center gap-2 px-4 py-1.5 bg-indigo-600 text-white rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.3)] dark:shadow-[0_0_30px_rgba(79,70,229,0.2)] cursor-help">
-                <span class="text-[10px] font-black uppercase tracking-widest opacity-80">FNI</span>
-                <span class="text-2xl font-black leading-none">{fniScore}</span>
-                {fniPercentile !== undefined && fniPercentile !== null && !isNaN(Number(fniPercentile)) && (
-                  <div class="flex flex-col border-l border-white/30 pl-2 ml-1">
-                    <span class="text-[9px] font-bold uppercase leading-none opacity-70">Top</span>
-                    <span class="text-[10px] font-black leading-none">{100 - Math.round(Number(fniPercentile))}%</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {verified && (
-              <span class="inline-flex items-center gap-2 text-blue-600 bg-blue-50 dark:bg-blue-900/40 dark:text-blue-300 px-4 py-1.5 rounded-full text-xs font-black border border-blue-100 dark:border-blue-700/50 shadow-sm">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
-                </svg>
-                Verified
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* V15.0: "What is this?" (Brief One-liner) */}
-        {cleanDescription && (
-          <div class="relative group">
-            <div class="absolute -left-4 top-0 bottom-0 w-1.5 bg-indigo-600 rounded-full transform scale-y-90 group-hover:scale-y-100 transition-transform duration-300"></div>
-            <p class="text-xl text-gray-700 dark:text-gray-200 leading-relaxed font-medium bg-gradient-to-r from-gray-50/80 to-transparent dark:from-gray-800/40 dark:to-transparent p-6 pl-4 rounded-r-2xl italic tracking-tight border-l border-indigo-100 dark:border-indigo-900/30">
-              "{cleanDescription}"
-            </p>
-          </div>
-        )}
-      </div>
-
-      <div class="flex flex-shrink-0 flex-wrap items-center gap-4 lg:pt-4">
-        <slot name="actions">
-          {sourceUrl && (
-            <a 
-              href={sourceUrl} 
-              target="_blank" 
-              class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-sm shadow-xl hover:scale-105 transition-all duration-300 flex items-center gap-2 group/btn"
-            >
-              <span class="group-hover/btn:rotate-12 transition-transform">🔗</span> 
-              View Source
-            </a>
-          )}
-        </slot>
-        <ShareButtons title={name || 'AI Research'} description={cleanDescription || ''} />
-      </div>
+  <div class="flex items-center gap-6">
+    <div class="text-4xl">{entityIcon}</div>
+    <div>
+      <h1 class="text-3xl font-black text-gray-900 dark:text-white">
+        {name}
+      </h1>
+      <p class="text-sm text-gray-500 font-bold">
+        by <strong>{author}</strong> {entityId && `| ID: ${entityId}`}
+      </p>
     </div>
   </div>
 </header>
