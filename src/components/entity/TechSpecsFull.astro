@@ -53,7 +53,7 @@ if (type === 'model') {
   hardwareSpecs.push({ label: 'Files', value: entity?.files_count || entity?.meta?.extended?.files || '-' });
   
   if (entity?.features) {
-     hardwareSpecs.push({ label: 'Features', value: Array.isArray(entity.features) ? entity.features.length : (typeof entity.features === 'object' ? Object.keys(entity.features).length : 'Aggregated') });
+     hardwareSpecs.push({ label: 'Features', value: Array.isArray(entity.features) ? entity.features.length : (entity.features && typeof entity.features === 'object' ? Object.keys(entity.features).length : 'Aggregated') });
   }
 } else if (type === 'paper') {
   hardwareSpecs.push({ label: 'Citations', value: entity?.citations || entity?.citation_count || entity?.meta?.extended?.citations || '-', highlight: true });

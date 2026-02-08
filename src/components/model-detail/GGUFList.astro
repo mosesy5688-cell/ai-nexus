@@ -16,7 +16,7 @@ interface Props {
 const { files = [], modelId } = Astro.props;
 
 // Filter for .gguf files
-const ggufFiles = files.filter(f => f.rfilename?.endsWith('.gguf'));
+const ggufFiles = files.filter(f => f?.rfilename?.endsWith('.gguf'));
 const hasFiles = ggufFiles.length > 0;
 
 // Helper to extract quantization tag (e.g., Q4_K_M) from filename

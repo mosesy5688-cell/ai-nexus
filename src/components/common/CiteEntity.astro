@@ -13,18 +13,21 @@ interface Props {
   className?: string;
 }
 
-const { id, name, author = 'Free2AITools Contributors', url, type = 'model', className = '' } = Astro.props;
+const { id = '', name, author = 'Free2AITools Contributors', url, type = 'model', className = '' } = Astro.props;
 const currentYear = new Date().getFullYear();
 
-const bibtex = `@misc{${id.replace(/-/g, '_')},
+const safeType = type || 'model';
+const safeId = id || 'entity';
+
+const bibtex = `@misc{${safeId.replace(/-/g, '_')},
   author = {${author}},
-  title = {${name} ${type.charAt(0).toUpperCase() + type.slice(1)}},
+  title = {${name} ${safeType.charAt(0).toUpperCase() + safeType.slice(1)}},
   year = {${currentYear}},
-  howpublished = {\\url{${url || `https://free2aitools.com/${type}/${id}`}}},
+  howpublished = {\\url{${url || `https://free2aitools.com/${safeType}/${safeId}`}}},
   note = {Accessed via Free2AITools Knowledge Fortress}
 }`;
 
-const apa = `${author}. (${currentYear}). ${name} [${type.charAt(0).toUpperCase() + type.slice(1)}]. Free2AITools. ${url || `https://free2aitools.com/${type}/${id}`}`;
+const apa = `${author}. (${currentYear}). ${name} [${safeType.charAt(0).toUpperCase() + safeType.slice(1)}]. Free2AITools. ${url || `https://free2aitools.com/${safeType}/${safeId}`}`;
 
 const encodedBibtex = encodeURIComponent(bibtex);
 const encodedApa = encodeURIComponent(apa);
