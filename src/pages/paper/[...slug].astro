@@ -162,22 +162,6 @@ const jsonLd = paper ? {
            </p>
        </div>
     </div>
-
-    <div slot="core-knowledge">
-       <UniversalCore entity={paper} type="paper" meshRelations={meshRelations} />
-    </div>
-    
-    <div slot="core-similar">
-        {similarEntities.length > 0 ? (
-           <ModelCarousel models={similarEntities} />
-        ) : (
-           <p class="text-gray-500 italic p-4 text-center">Identifying citing models and related research...</p>
-        )}
-    </div>
-  
-    <div slot="core-benchmarks">
-        <p class="text-gray-500 italic p-4 text-center">Academic benchmark results for this paper are indexed in the neural mesh.</p>
-    </div>
   
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">

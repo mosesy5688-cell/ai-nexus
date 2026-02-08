@@ -147,22 +147,6 @@ const jsonLd = tool ? {
            </p>
        </div>
     </div>
-
-    <div slot="core-knowledge">
-       <UniversalCore entity={tool} type="tool" meshRelations={meshRelations} />
-    </div>
-    
-    <div slot="core-similar">
-        {similarEntities.length > 0 ? (
-           <ModelCarousel models={similarEntities} />
-        ) : (
-           <p class="text-gray-500 italic p-4 text-center">Identifying related frameworks and libraries...</p>
-        )}
-    </div>
-  
-    <div slot="core-benchmarks">
-        <p class="text-gray-500 italic p-4 text-center">Software performance and throughput benchmarks are being analyzed.</p>
-    </div>
   
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">
