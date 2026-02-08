@@ -131,8 +131,8 @@ function formatBytes(bytes: number | undefined): string {
   <DeploymentInfo 
     paramsB={model.params_billions || 0}
     hasGguf={model.has_gguf || false}
-    hasAwq={metaJson.quantization?.toLowerCase().includes('awq')}
-    hasGptq={metaJson.quantization?.toLowerCase().includes('gptq')}
+    hasAwq={String(metaJson.quantization || '').toLowerCase().includes('awq')}
+    hasGptq={String(metaJson.quantization || '').toLowerCase().includes('gptq')}
     libraryName={libraryName}
   />
   
