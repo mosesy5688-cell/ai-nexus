@@ -118,7 +118,8 @@ async function main() {
     }
 
     if (!taskArg || taskArg === 'core' || taskArg === 'relations') {
-        await fs.writeFile(path.join(CONFIG.OUTPUT_DIR, 'entities.json'), JSON.stringify(rankedEntities, null, 2));
+        const entitiesOutputPath = path.join(CONFIG.OUTPUT_DIR, 'entities.json');
+        await fs.writeFile(entitiesOutputPath, JSON.stringify(rankedEntities, null, 2));
     }
 
     if (!taskArg || taskArg === 'core') {

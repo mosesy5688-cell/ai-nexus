@@ -56,10 +56,11 @@ async function main() {
             const node = nodeRegistry[nodeId];
             const entityRelations = edgeRegistry[nodeId] || [];
 
-            // Skip invalid nodes
-            if (!node || !node.type) continue;
+            // V16.11 Fix: Support 't' (shorthand) or 'type'
+            const typeValue = node.type || node.t;
+            if (!node || !typeValue) continue;
 
-            const baseType = node.type.toLowerCase();
+            const baseType = typeValue.toLowerCase();
             const route = TYPE_TO_ROUTE[baseType] || '/knowledge';
             const slug = stripPrefix(nodeId);
 
@@ -69,7 +70,7 @@ async function main() {
             // 3. Process relations with baked URLs
             const bakedRelations = entityRelations.map(rel => {
                 const targetId = rel.target_id || rel.id;
-                const targetType = (rel.target_type || rel.type || 'model').toLowerCase();
+                const targetType = (rel.target_type || rel.type || rel.t || 'model').toLowerCase();
                 const targetRoute = TYPE_TO_ROUTE[targetType] || '/knowledge';
                 const targetSlug = stripPrefix(targetId);
 
@@ -84,7 +85,7 @@ async function main() {
             const profile = {
                 id: nodeId,
                 name: node.name,
-                type: node.type,
+                type: typeValue,
                 url: canonUrl,
                 icon: node.icon || '📦',
                 relations: bakedRelations,
