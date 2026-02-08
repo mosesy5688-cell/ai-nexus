@@ -122,21 +122,14 @@ const jsonLd = {
     />
 
     {/* Zone 1.5: Use Cases */}
-
-    {/* Zone 1.5: Use Cases */}
     <ZoneUseCases
       slot="use-cases"
-      goodFor={derivedUseCases.goodFor}
-      limits={derivedUseCases.limits}
+      usecases={getUseCases(agent)}
     />
 
-    {/* Zone 2: Insights Extra (Decision Metric Elevation) */}
+    {/* Zone 2: Insights Extra */}
     <div slot="insights-extra" class="mt-4 space-y-6">
-       <QuickCommands entity={agent} type="agent" className="mb-6" />
-       <div class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
-          <TechSpecsFull entity={agent} type="agent" />
-       </div>
-       {agent?.params_billions && <VramEstimator paramsB={agent?.params_billions} contextLen={agent?.context_length} />}
+       {/* Use TechSpecs elevated if needed */}
     </div>
 
     {/* Zone 3: Core (Desktop/Mobile) */}
@@ -157,16 +150,12 @@ const jsonLd = {
     </div>
   
     <div slot="core-benchmarks">
-        {(agent?.mmlu || agent?.humaneval || agent?.avg_score || agent?.benchmark_avg) && (
+        {agent && (agent.mmlu || agent.humaneval || agent.avg_score || agent.benchmark_avg) ? (
             <BenchmarkCard 
-              umid={agentId}
-              name={agentName}
-              mmlu={agent?.mmlu || agent?.benchmark_mmlu}
-              humaneval={agent?.humaneval || agent?.benchmark_humaneval}
-              hellaswag={agent?.hellaswag || agent?.benchmark_hellaswag}
-              avg_score={agent?.avg_score || agent?.benchmark_avg || 0}
+              title={`${agentName} Benchmarks`} 
+              scores={agent.meta_json?.benchmarks}
             />
-        ) || (
+        ) : (
             <p class="text-gray-500 italic p-4 text-center">Benchmark metrics for this agent are currently being analyzed.</p>
         )}
     </div>
@@ -175,26 +164,14 @@ const jsonLd = {
     <div slot="deep-dive">
        <div class="space-y-12">
           <section class="mb-12">
-             <ModelNavigation 
-                pipelineTag={agent?.pipeline_tag || 'agent-framework'}
-             />
+             <ModelNavigation />
           </section>
           <AgentDeepDive agent={agent} />
        </div>
     </div>
 
-    {/* Zone 5: Sidebar */}
+    {/* Zone Sidebar Slots */}
     <div slot="sidebar" class="space-y-8">
-       <div class="p-6 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/50">
-          <h3 class="font-bold text-purple-900 dark:text-indigo-100 mb-2 flex items-center gap-2">
-            <span>🤖</span> Autonomous Agent
-          </h3>
-          <p class="text-xs text-purple-700 dark:text-indigo-300 leading-relaxed">
-            This entity is indexed as a specialized autonomous system. 
-            All technical insights and benchmarks are derived from our <strong>Factory Stage 3 Aggregator</strong> under the Zero-Limit Protocol.
-          </p>
-       </div>
-       
        <ModelInfoTable 
          type="agent"
          model={{
@@ -204,16 +181,11 @@ const jsonLd = {
          }} 
        />
 
-       <ShareButtons 
-          url={`https://free2aitools.com/agent/${slugStr}`} 
-          title={`${agentName} - AI Agent Details`} 
-       />
-
        <CiteEntity 
          id={agentId} 
          name={agentName} 
-         author={agent.author} 
-         url={agent.source_url} 
+         author={agent?.author} 
+         url={agent?.source_url} 
          type="agent" 
        />
     </div>

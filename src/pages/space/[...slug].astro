@@ -117,20 +117,14 @@ const jsonLd = space ? {
     />
 
     {/* Zone 1.5: Use Cases */}
-
-    {/* Zone 1.5: Use Cases */}
     <ZoneUseCases
       slot="use-cases"
-      goodFor={derivedUseCases.goodFor}
-      limits={derivedUseCases.limits}
+      usecases={getUseCases(space)}
     />
 
     {/* Zone 2: Insights Extra */}
     <div slot="insights-extra" class="mt-4 space-y-6">
-       <QuickCommands entity={space} type="space" className="mb-4" />
-       <div class="px-4 py-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-800/30">
-          <TechSpecsFull entity={space} type="space" />
-       </div>
+       {/* Elevated metrics if needed */}
     </div>
 
     {/* Zone 3: Core */}
@@ -159,14 +153,12 @@ const jsonLd = space ? {
        <div class="space-y-12">
           <SpaceDeepDive space={space} />
           <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
-             <ModelNavigation 
-                pipelineTag={space?.sdk || 'space-sdk'}
-             />
+             <ModelNavigation />
           </section>
        </div>
     </div>
 
-    {/* Zone 5: Sidebar */}
+    {/* Zone Sidebar Slots */}
     <div slot="sidebar" class="space-y-8">
        <div class="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800/50">
           <h3 class="font-bold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
@@ -187,11 +179,6 @@ const jsonLd = space ? {
          }} 
        />
        
-       <ShareButtons 
-          url={`https://free2aitools.com/space/${slugStr}`} 
-          title={`${spaceName} - AI Space Details`} 
-       />
-
        <CiteEntity 
          id={spaceId} 
          name={spaceName} 
