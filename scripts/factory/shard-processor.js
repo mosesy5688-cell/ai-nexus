@@ -218,12 +218,14 @@ async function main() {
         processedCount: results.length,
         successCount: results.filter(r => r.success).length,
         failureCount: results.filter(r => !r.success).length,
-        skippedCount,
         entities: results,
         timestamp: new Date().toISOString(),
     }, null, 2));
 
-    console.log(`[SHARD ${shardId}] Complete. Success: ${results.filter(r => r.success).length}/${results.length}, Skipped: ${skippedCount}`);
+    console.log(`[SHARD ${shardId}] Complete. Success: ${results.filter(r => r.success).length}/${results.length}`);
 }
 
-main().catch(console.error);
+main().catch(err => {
+    console.error(err);
+    process.exit(1);
+});
