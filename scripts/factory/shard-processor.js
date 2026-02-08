@@ -209,16 +209,11 @@ async function main() {
             .update(JSON.stringify({ ...entity, id: normId }))
             .digest('hex');
 
-        // V16.5 Fusion: Process everything to ensure complete atomized set in clean CI/CD environment
-        /*
         if (entityChecksums[normId] === entityHash) {
             skippedCount++;
             results.push({ id: normId, success: true, skipped: true, _checksum: entityHash });
             continue; // Skip unchanged entity
         }
-        */
-
-        const result = await processEntity(entity, globalStats, entityChecksums, fniHistory);
 
         const result = await processEntity(entity, globalStats, entityChecksums, fniHistory);
         results.push(result);
