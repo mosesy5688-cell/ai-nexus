@@ -6,7 +6,7 @@
  * 100% architectural consistency.
  */
 
-const PREFIX_MAP = {
+export const PREFIX_MAP = {
     hf: {
         model: 'hf-model--',
         dataset: 'hf-dataset--',
@@ -47,7 +47,7 @@ const PREFIX_MAP = {
     }
 };
 
-const ALL_PREFIXES = Object.values(PREFIX_MAP).flatMap(source => Object.values(source));
+export const ALL_PREFIXES = Object.values(PREFIX_MAP).flatMap(source => Object.values(source));
 
 /**
  * Generate mapping of known prefixes to hints
