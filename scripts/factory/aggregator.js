@@ -12,9 +12,16 @@ import { computeKnowledgeLinks } from './lib/knowledge-linker.js';
 import { generateKnowledgeData } from './lib/knowledge-data-generator.js';
 import { generateDailyReport, updateDailyAccumulator, shouldGenerateReport } from './lib/daily-report.js';
 import { generateDailyReportsIndex } from './lib/daily-reports-index.js';
-import { saveGlobalRegistry, loadFniHistory, saveFniHistory, syncCacheState, loadEntityChecksums, saveEntityChecksums } from './lib/cache-manager.js';
+import { loadFniHistory, loadEntityChecksums, saveEntityChecksums } from './lib/cache-manager.js';
 import { generateTrendData } from './lib/trend-data-generator.js';
 import { persistRegistry } from './lib/aggregator-persistence.js';
+import {
+    getWeekNumber, loadShardArtifacts, calculatePercentiles,
+    updateFniHistory, generateHealthReport, mergeShardEntities,
+    backupStateFiles
+} from './lib/aggregator-utils.js';
+import { checkIncrementalProgress, updateTaskChecksum } from './lib/aggregator-incremental.js';
+import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 
 // Config (Art 3.1, 3.3)
 const CONFIG = {
@@ -135,4 +142,7 @@ async function main() {
     console.log(`[AGGREGATOR V16.11.1] Complete! (${duration}s)`);
 }
 
-main().catch(console.error);
+main().catch(err => {
+    console.error(err);
+    process.exit(1);
+});
