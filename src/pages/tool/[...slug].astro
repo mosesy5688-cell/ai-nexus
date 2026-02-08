@@ -123,7 +123,10 @@ const jsonLd = tool ? {
 
     {/* Zone 2: Insights Extra */}
     <div slot="insights-extra" class="mt-4 space-y-6">
-       {/* Elevated metrics if needed */}
+       <QuickCommands entity={tool} type="tool" className="mb-4" />
+       <div class="px-4 py-2 bg-purple-50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-800/30">
+          <TechSpecsFull entity={tool} type="tool" />
+       </div>
     </div>
 
     {/* Zone 3: Core */}

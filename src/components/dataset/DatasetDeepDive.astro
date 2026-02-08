@@ -31,11 +31,10 @@ const configs = Array.isArray(dataset.configs)
 ---
 
 <div class="space-y-12">
-  {/* V16.2: Universal Enhancements (Top) */}
-  <section class="space-y-6">
-     <QuickCommands entity={dataset} type="dataset" />
-     <ModelGallery content={dataset.body_content || dataset.description} title="Dataset Preview & Visuals" />
-  </section>
+  {/* V16.2: Visual First - Auto Gallery */}
+  {(dataset.image_url || dataset.body_content || dataset.description) && (
+    <ModelGallery content={dataset.body_content || dataset.description} title="Dataset Preview & Visuals" />
+  )}
 
   <!-- Section: Data Preview & Schema (Grid) -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -119,7 +118,7 @@ const configs = Array.isArray(dataset.configs)
   <div class="relative">
      <div class="absolute -left-6 top-10 w-1 bg-blue-500/20 h-24 rounded-full blur-sm"></div>
      <FullReadmeSection 
-       bodyContent={dataset.body_content || dataset.description}
+       bodyContent={dataset.body_content || dataset.description || dataset.abstract}
        type="dataset"
        initialCollapsed={false}
        maxPreviewLength={5000}

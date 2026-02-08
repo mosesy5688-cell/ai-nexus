@@ -113,9 +113,13 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
       hasImage={Boolean(model?.image_url)}
     />
 
-    {/* Zone 2: Insights Extra (Decision Metric Elevation) */}
+    {/* Zone 2: Insights Extra */}
     <div slot="insights-extra" class="mt-4 space-y-6">
-       {/* Conditional high-value elevation could go here */}
+       <QuickCommands entity={model} type="model" className="mb-6" />
+       <div class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
+          <TechSpecsFull entity={model} type="model" />
+       </div>
+       {model?.params_billions && <VramEstimator paramsB={model?.params_billions} contextLen={model?.context_length} />}
     </div>
     
     {/* Zone 1.5: Use Cases */}
