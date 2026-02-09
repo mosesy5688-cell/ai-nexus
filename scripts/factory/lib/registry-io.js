@@ -108,7 +108,7 @@ export async function saveGlobalRegistry(registry) {
     }
 
     // 2. Dual-Write Monolith (Compatibility Mode)
-    if (count < 500000) {
+    if (count < 50000) {
         await saveWithBackup(MONOLITH_FILE, {
             entities,
             count,
@@ -210,7 +210,7 @@ export async function saveFniHistory(history) {
     }
 
     // Monolith fallback
-    if (count < 200000) {
+    if (count < 50000) {
         await saveWithBackup('fni-history.json', { ...history, lastUpdated: timestamp });
     }
 }
