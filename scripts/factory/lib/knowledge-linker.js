@@ -186,7 +186,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const outputDir = process.argv[3] || './output';
 
     try {
-        const data = await fs.readFile(entitiesPath, 'utf-8');
+        const data = await fs.readFile(entitiesPath);
         const entities = JSON.parse(data);
         await computeKnowledgeLinks(Array.isArray(entities) ? entities : entities.entities || [], outputDir);
     } catch (error) {

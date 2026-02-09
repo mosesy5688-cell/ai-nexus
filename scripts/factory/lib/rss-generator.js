@@ -71,7 +71,7 @@ function escapeXml(str) {
  */
 async function loadJson(filePath) {
     try {
-        const content = await fs.readFile(filePath, 'utf-8');
+        const content = await fs.readFile(filePath);
         return JSON.parse(content);
     } catch (e) {
         console.warn(`  [WARN] Could not load ${filePath}: ${e.message}`);

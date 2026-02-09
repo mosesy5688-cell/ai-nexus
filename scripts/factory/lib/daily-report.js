@@ -133,7 +133,7 @@ export async function generateDailyReport(outputDir = './output') {
 
     let existingReport = null;
     try {
-        const existingContent = await fs.readFile(reportPath, 'utf-8');
+        const existingContent = await fs.readFile(reportPath);
         existingReport = JSON.parse(existingContent);
         console.log(`  [REPORT] Existing report found for ${reportId}. Merging cumulative data...`);
     } catch (e) {

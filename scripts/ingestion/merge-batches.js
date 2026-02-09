@@ -113,10 +113,10 @@ async function mergeBatches() {
 
     for (let s = 0; s < TOTAL_SHARDS; s++) {
         const shardSlice = dedupedSet.filter((_, idx) => idx % TOTAL_SHARDS === s);
-        await fs.writeFile(path.join(DATA_DIR, `merged_shard_${s}.json`), JSON.stringify(shardSlice, null, 2));
+        await fs.writeFile(path.join(DATA_DIR, `merged_shard_${s}.json`), JSON.stringify(shardSlice));
     }
 
-    const mergedContent = JSON.stringify(dedupedSet, null, 2);
+    const mergedContent = JSON.stringify(dedupedSet);
     await fs.writeFile(OUTPUT_FILE, mergedContent);
     const mergedHash = calculateHash(mergedContent);
 

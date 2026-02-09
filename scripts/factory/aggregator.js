@@ -43,7 +43,7 @@ async function main() {
     console.log(`[AGGREGATOR] Phase 2 starting (Task: ${taskArg || 'ALL'})...`);
     process.env.ENABLE_R2_BACKUP = 'true';
     const entitiesInputPath = process.env.ENTITIES_PATH || './data/merged.json';
-    const allEntities = JSON.parse(await fs.readFile(entitiesInputPath, 'utf-8'));
+    const allEntities = JSON.parse(await fs.readFile(entitiesInputPath));
     console.log(`✓ Context loaded: ${allEntities.length} entities ready`);
 
     const AGGREGATE_FLOOR = 85000;

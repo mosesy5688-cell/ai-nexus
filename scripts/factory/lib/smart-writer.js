@@ -23,7 +23,7 @@ export function generateHash(content) {
  * @returns {boolean} Whether write occurred
  */
 export async function smartWrite(key, data, outputDir = './output') {
-    const content = JSON.stringify(data, null, 2);
+    const content = JSON.stringify(data);
     const localHash = generateHash(content);
 
     // Check remote hash (simulated - in real impl, use R2 HEAD request)
@@ -42,7 +42,7 @@ export async function smartWrite(key, data, outputDir = './output') {
 async function getRemoteHash(key, outputDir) {
     try {
         const metaPath = path.join(outputDir, `${key}.meta.json`);
-        const meta = JSON.parse(await fs.readFile(metaPath, 'utf-8'));
+        const meta = JSON.parse(await fs.readFile(metaPath));
         return meta.checksum;
     } catch {
         return null;
@@ -67,7 +67,7 @@ async function writeToLocal(key, content, metadata, outputDir) {
  * @returns {boolean} Whether write occurred
  */
 export async function smartWriteWithVersioning(key, data, outputDir = './output', options = {}) {
-    let content = JSON.stringify(data, null, 2);
+    let content = JSON.stringify(data);
 
     // V16.11: Support for pre-compression to align local MD5 with R2 ETag
     if (options.compress) {
@@ -116,7 +116,7 @@ export async function writeWithVersioning(key, data, outputDir = './output', opt
  */
 export async function backupToR2Output(sourcePath, outputDir = './output') {
     try {
-        const content = await fs.readFile(sourcePath, 'utf-8');
+        const content = await fs.readFile(sourcePath);
         const destPath = path.join(outputDir, 'meta', 'backup', path.basename(sourcePath));
         await fs.mkdir(path.dirname(destPath), { recursive: true });
         await fs.writeFile(destPath, content);

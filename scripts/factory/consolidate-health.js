@@ -22,7 +22,7 @@ async function main() {
 
         const shardHealthPath = path.join(healthDir, `${today}.json`);
         try {
-            const shardData = JSON.parse(await fs.readFile(shardHealthPath, 'utf8'));
+            const shardData = JSON.parse(await fs.readFile(shardHealthPath));
             pulse = { ...pulse, ...shardData, tasks: {} };
         } catch {
             // No shard health yet

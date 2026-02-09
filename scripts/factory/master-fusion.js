@@ -25,7 +25,7 @@ async function main() {
         try {
             console.log(`[FUSION] 📦 Processing Shard ${i}...`);
             const compressed = await fs.readFile(shardPath);
-            const shardData = JSON.parse(zlib.gunzipSync(compressed).toString('utf-8'));
+            const shardData = JSON.parse(zlib.gunzipSync(compressed));
             const entities = shardData.entities || [];
 
             totalEntitiesFound += entities.length;
@@ -36,7 +36,7 @@ async function main() {
                 if (!id) continue;
 
                 // Load mesh profile if exists
-                const meshData = await fs.readFile(path.join(MESH_DIR, `${id}.json`), 'utf-8').then(JSON.parse).catch(() => null);
+                const meshData = await fs.readFile(path.join(MESH_DIR, `${id}.json`)).then(JSON.parse).catch(() => null);
 
                 // Perform Deep Fusion
                 const fusedEntity = {

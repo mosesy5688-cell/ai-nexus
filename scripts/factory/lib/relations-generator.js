@@ -46,7 +46,7 @@ export async function generateRelations(entities, outputDir = './output') {
         const reportFiles = await fs.readdir(dailyDir).catch(() => []);
         for (const file of reportFiles) {
             if (file.endsWith('.json')) {
-                const reportData = JSON.parse(await fs.readFile(path.join(dailyDir, file), 'utf-8'));
+                const reportData = JSON.parse(await fs.readFile(path.join(dailyDir, file)));
                 if (reportData.id) {
                     const rId = `report--${reportData.id}`;
                     nodes[rId] = { t: 'report', f: 5.0, title: reportData.title, day: reportData.id };
@@ -164,7 +164,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const outputDir = process.argv[3] || './output';
 
     try {
-        const data = await fs.readFile(entitiesPath, 'utf-8');
+        const data = await fs.readFile(entitiesPath);
         const entities = JSON.parse(data);
         await generateRelations(Array.isArray(entities) ? entities : entities.entities || [], outputDir);
     } catch (error) {
