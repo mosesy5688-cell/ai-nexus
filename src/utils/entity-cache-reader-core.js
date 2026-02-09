@@ -25,11 +25,12 @@ export function getR2PathCandidates(type, normalizedSlug) {
     const lowerSlug = normalizedSlug.toLowerCase();
     const candidates = [];
 
-    // 1. [V2.0 PRIMARY] Flat Storage: cache/entities/[ID].json
-    // If the slug is already a full canonical ID (hf-model--...), use it directly
-    candidates.push(`cache/entities/${lowerSlug}.json`);
+    // 1. [V18.2 PRIMARY] Fused Storage: cache/fused/[ID].json
+    // Contains fused specs, benchmarks, and mesh profiles for 121k scalability
+    candidates.push(`cache/fused/${lowerSlug}.json`);
 
-    // 2. [V16.5 FALLBACK] Tiered Storage: cache/entities/{type}/[ID].json
+    // 2. [V16.5 FALLBACK] Tiered/Flat Storage: cache/entities/
+    candidates.push(`cache/entities/${lowerSlug}.json`);
     candidates.push(`cache/entities/${singular}/${lowerSlug}.json`);
 
     // 3. [LEGACY COMPAT] Prefix Injection (Mapping 'pretty' IDs to possible prefixed keys)

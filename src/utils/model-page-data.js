@@ -18,29 +18,36 @@ export async function prepareModelPageData(slug, slugStr, locals) {
         const specsResult = await loadSpecs(locals);
         summaryData = specsResult.data?.data || [];
     } catch (e) {
-        console.warn("[ModelPageData] Summary data load failed:", e.message);
+        // V18.2: Specs might be sharded/fused, non-critical if entity is found in fused/
+        console.warn("[ModelPageData] Monolithic specs missing (expected in V18.2):", e.message);
     }
 
     const result = await fetchEntityFromR2('model', slug, locals);
     let model = result ? hydrateEntity(result, 'model', summaryData) : null;
 
-    // Benchmarks Augmentation
-    try {
-        const benchResult = await loadBenchmarks(locals);
-        if (benchResult && benchResult.data && Array.isArray(benchResult.data.data)) {
-            const searchId = slugStr.toLowerCase();
-            const benchEntry = benchResult.data.data.find(b =>
-                (b.umid && b.umid.toLowerCase() === searchId) ||
-                (b.id && b.id.toLowerCase() === searchId) ||
-                (model?.id && b.umid === model.id)
-            );
+    // V18.2 Fusion Check: If model already has benchmarks/specs fused, skip extra augmentation
+    const hasFusedBenchmarks = model?.meta_json?.extended?.benchmarks || model?.benchmarks;
+    const hasFusedSpecs = model?.meta_json?.params || model?.params_billions;
 
-            if (benchEntry) {
-                model = augmentEntity(model || {}, benchEntry);
+    // Benchmarks Augmentation (Legacy Fallback)
+    if (!hasFusedBenchmarks) {
+        try {
+            const benchResult = await loadBenchmarks(locals);
+            if (benchResult && benchResult.data && Array.isArray(benchResult.data.data)) {
+                const searchId = slugStr.toLowerCase();
+                const benchEntry = benchResult.data.data.find(b =>
+                    (b.umid && b.umid.toLowerCase() === searchId) ||
+                    (b.id && b.id.toLowerCase() === searchId) ||
+                    (model?.id && b.umid === model.id)
+                );
+
+                if (benchEntry) {
+                    model = augmentEntity(model || {}, benchEntry);
+                }
             }
+        } catch (benchError) {
+            console.warn("[ModelPageData] Benchmark augmentation failed:", benchError.message);
         }
-    } catch (benchError) {
-        console.warn("[ModelPageData] Benchmark augmentation failed:", benchError.message);
     }
 
     if (model && model._hydrated) {
