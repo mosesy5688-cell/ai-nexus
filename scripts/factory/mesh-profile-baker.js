@@ -9,7 +9,7 @@ import { normalizeId, getNodeSource, ALL_PREFIXES } from '../utils/id-normalizer
 import { smartWriteWithVersioning } from './lib/smart-writer.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './cache';
-const GRAPH_PATH = path.join(CACHE_DIR, 'mesh/graph.json');
+const GRAPH_PATH = path.join(CACHE_DIR, 'mesh/graph.json.gz');
 
 // URL routing mapping
 const TYPE_TO_ROUTE = {
@@ -38,9 +38,18 @@ async function main() {
     console.log('[BAKER V16.5.1] Baking atomized Mesh Profiles...');
 
     try {
-        // 1. Load authoritative graph
-        const graphBuffer = await fs.readFile(GRAPH_PATH);
-        const graph = JSON.parse(graphBuffer);
+        // 1. Load authoritative graph (V16.11 Gzip Support)
+        let graphBuffer = await fs.readFile(GRAPH_PATH);
+
+        // Manual Gunzip for baker core
+        try {
+            const zlib = await import('zlib');
+            graphBuffer = zlib.default.gunzipSync(graphBuffer);
+        } catch (e) {
+            // Fallback if already uncompressed (dev mode)
+        }
+
+        const graph = JSON.parse(graphBuffer.toString('utf-8'));
         const nodeRegistry = graph.nodes || {};
         const edgeRegistry = graph.edges || {}; // Authoritative adjacency list
         const nodeIds = Object.keys(nodeRegistry);
@@ -90,9 +99,9 @@ async function main() {
                 _version: '16.5.1-baked'
             };
 
-            // 5. Smart Write: mesh/profiles/{nodeId}.json
+            // 5. Smart Write: mesh/profiles/{nodeId}.json (Gzip Enabled)
             const targetKey = `mesh/profiles/${nodeId}.json`;
-            await smartWriteWithVersioning(targetKey, profile, CACHE_DIR);
+            await smartWriteWithVersioning(targetKey, profile, CACHE_DIR, { compress: true });
 
             bakedCount++;
             if (bakedCount % 10000 === 0) console.log(`[BAKER] Baked ${bakedCount} profiles...`);

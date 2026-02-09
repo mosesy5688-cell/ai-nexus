@@ -35,8 +35,17 @@ async function main() {
                 const id = entityData.id;
                 if (!id) continue;
 
-                // Load mesh profile if exists
-                const meshData = await fs.readFile(path.join(MESH_DIR, `${id}.json`)).then(JSON.parse).catch(() => null);
+                // Load mesh profile if exists (V16.11: Handle potential Gzip buffer)
+                const meshData = await fs.readFile(path.join(MESH_DIR, `${id}.json`))
+                    .then(buf => {
+                        try {
+                            // Check for Gzip magic number (1f 8b)
+                            if (buf[0] === 0x1f && buf[1] === 0x8b) {
+                                return JSON.parse(zlib.gunzipSync(buf));
+                            }
+                            return JSON.parse(buf);
+                        } catch (e) { return null; }
+                    }).catch(() => null);
 
                 // Perform Deep Fusion
                 const fusedEntity = {
