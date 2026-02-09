@@ -38,19 +38,39 @@ export async function loadGlobalRegistry() {
                 let lastUpdated = null;
 
                 for (const shard of shards) {
-                    const data = await fs.readFile(path.join(shardDirPath, shard), 'utf-8');
-                    const parsed = JSON.parse(data);
-                    allEntities = allEntities.concat(parsed.entities || []);
-                    if (!lastUpdated) lastUpdated = parsed.lastUpdated;
+                    try {
+                        const shardPath = path.join(shardDirPath, shard);
+                        const stats = await fs.stat(shardPath);
+                        if (stats.size === 0) {
+                            console.warn(`[CACHE] ⚠️ Skipping empty shard: ${shard}`);
+                            continue;
+                        }
+
+                        const data = await fs.readFile(shardPath, 'utf-8');
+                        const parsed = JSON.parse(data);
+
+                        if (parsed.entities && Array.isArray(parsed.entities)) {
+                            allEntities = allEntities.concat(parsed.entities);
+                            if (!lastUpdated) lastUpdated = parsed.lastUpdated;
+                        } else {
+                            console.warn(`[CACHE] ⚠️ Invalid shard structure in ${shard}`);
+                        }
+                    } catch (err) {
+                        console.error(`[CACHE] ❌ Failed to parse shard ${shard}: ${err.message}`);
+                        // Continue to next shard to recover as much data as possible
+                    }
                 }
 
-                console.log(`[CACHE] ✅ Successfully restored ${allEntities.length} entities from shards.`);
-                return {
-                    entities: allEntities,
-                    lastUpdated: lastUpdated || new Date().toISOString(),
-                    count: allEntities.length,
-                    didLoadFromStorage: true
-                };
+                if (allEntities.length > 0) {
+                    console.log(`[CACHE] ✅ Successfully restored ${allEntities.length} entities from shards.`);
+                    return {
+                        entities: allEntities,
+                        lastUpdated: lastUpdated || new Date().toISOString(),
+                        count: allEntities.length,
+                        didLoadFromStorage: true
+                    };
+                }
+                console.warn('[CACHE] ⚠️ All shards were empty or invalid.');
             }
         } catch (e) {
             if (process.env.FORCE_R2_RESTORE !== 'true') {

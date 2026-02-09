@@ -337,23 +337,25 @@ jobs:
           mkdir -p cache/registry
           rm -rf cache/registry/*
           
-          # Sync registry folder recursively (if monolith is corrupted/missing)
-          # We use a pattern-based move or sequential get for known shards
+          # Sync registry folder (Robust restoration: skip missing, delete empty)
           for i in {000..015}; do
-            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/registry/part-$i.json --file=cache/registry/part-$i.json --remote 2>/dev/null && echo "  - Registry Shard $i restored" || break
+            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/registry/part-$i.json --file=cache/registry/part-$i.json --remote 2>/dev/null && echo "  - Registry Shard $i restored" || true
           done
+          find cache/registry -name "*.json" -size 0 -delete
 
           echo "🧩 Fetching sharded FNI history baseline..."
           mkdir -p cache/fni-history
           for i in {000..015}; do
-            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/fni-history/part-$i.json --file=cache/fni-history/part-$i.json --remote 2>/dev/null && echo "  - FNI Shard $i restored" || break
+            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/fni-history/part-$i.json --file=cache/fni-history/part-$i.json --remote 2>/dev/null && echo "  - FNI Shard $i restored" || true
           done
+          find cache/fni-history -name "*.json" -size 0 -delete
 
           echo "🧩 Fetching sharded Accumulator baseline..."
           mkdir -p cache/daily-accum
           for i in {000..015}; do
-            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/daily-accum/part-$i.json --file=cache/daily-accum/part-$i.json --remote 2>/dev/null && echo "  - Accum Shard $i restored" || break
+            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/daily-accum/part-$i.json --file=cache/daily-accum/part-$i.json --remote 2>/dev/null && echo "  - Accum Shard $i restored" || true
           done
+          find cache/daily-accum -name "*.json" -size 0 -delete
 
       # Merge batches with ID deduplication
       - name: Merge Batches
