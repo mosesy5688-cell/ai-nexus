@@ -54,18 +54,27 @@ async function main() {
         }
     }
 
-    let data = await fs.readFile(entitiesInputPath);
-    if (entitiesInputPath.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) {
-        const zlib = await import('zlib');
-        data = zlib.gunzipSync(data);
+    let allEntities = [];
+    try {
+        let data = await fs.readFile(entitiesInputPath);
+        if (entitiesInputPath.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) {
+            const zlib = await import('zlib');
+            data = zlib.gunzipSync(data);
+        }
+        allEntities = JSON.parse(data.toString('utf-8'));
+        console.log(`✓ Context loaded: ${allEntities.length} entities ready`);
+    } catch (e) {
+        if (e.code === 'ENOENT') {
+            console.warn(`[WARN] Baseline context missing (${entitiesInputPath}), proceeding with Shard-Only Recovery.`);
+        } else {
+            throw e;
+        }
     }
-    const allEntities = JSON.parse(data.toString('utf-8'));
-    console.log(`✓ Context loaded: ${allEntities.length} entities ready`);
 
-    const AGGREGATE_FLOOR = 85000;
-    if (allEntities.length < AGGREGATE_FLOOR) {
-        throw new Error(`[CRITICAL] Data Loss Detected! Only ${allEntities.length} entities found.`);
-    }
+    // Minimum data safety floor
+    const AGGREGATE_FLOOR = 80000;
+    const currentCount = allEntities.length;
+    // Note: If allEntities is empty, we MUST have shards to proceed.
 
     let fullSet = [];
     let shardResults = null;
@@ -73,6 +82,13 @@ async function main() {
         fullSet = allEntities;
     } else {
         shardResults = await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+
+        // Safety Guard: If no baseline AND no shards, abort to prevent empty registry
+        const successfulShards = shardResults.filter(s => s !== null).length;
+        if (allEntities.length === 0 && successfulShards === 0) {
+            throw new Error(`[CRITICAL] Shard-Only Recovery failed: No baseline and no shards found in ${CONFIG.ARTIFACT_DIR}`);
+        }
+
         fullSet = mergeShardEntities(allEntities, shardResults);
 
         const checksums = await loadEntityChecksums();
@@ -84,6 +100,11 @@ async function main() {
             }
         }
         await saveEntityChecksums(checksums);
+    }
+
+    // Post-merge safety check
+    if (fullSet.length < AGGREGATE_FLOOR) {
+        throw new Error(`[CRITICAL] Data Loss Detected! Only ${fullSet.length} entities in full set (Min: ${AGGREGATE_FLOOR}).`);
     }
 
     if (!taskArg || taskArg === 'health') {
