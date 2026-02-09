@@ -223,5 +223,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🏥 Triggering Daily Health Check..."
-          gh workflow run daily-health-check.yml
+          gh workflow run global-health-monitor.yml
         continue-on-error: true
