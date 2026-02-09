@@ -65,7 +65,8 @@ async function main() {
     ]);
 
     // Gather shard entities
-    const rawEntities = await fs.readFile(path.join(CONFIG.CACHE_DIR, 'raw-entities.json'), 'utf-8').then(JSON.parse).catch(() => []);
+    const entitiesPath = process.env.ENTITIES_PATH || path.join(CONFIG.CACHE_DIR, 'raw-entities.json');
+    const rawEntities = await fs.readFile(entitiesPath, 'utf-8').then(JSON.parse).catch(() => []);
     const shardEntities = rawEntities.filter((_, idx) => idx % totalShards === shardId);
 
     console.log(`[SHARD ${shardId}] Processing ${shardEntities.length} entities...`);
