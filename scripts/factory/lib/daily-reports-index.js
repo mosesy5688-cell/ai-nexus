@@ -34,15 +34,19 @@ export async function generateDailyReportsIndex(outputDir = './output') {
     for (const dir of dirsToScan) {
         try {
             const files = await fs.readdir(dir);
-            const jsonFiles = files.filter(f => f.endsWith('.json'));
+            const jsonFiles = files.filter(f => f.endsWith('.json') || f.endsWith('.json.gz'));
 
             for (const file of jsonFiles) {
                 try {
                     const filePath = path.join(dir, file);
-                    const content = await fs.readFile(filePath);
-                    const reportData = JSON.parse(content);
+                    let content = await fs.readFile(filePath);
+                    if (file.endsWith('.gz') || (content[0] === 0x1f && content[1] === 0x8b)) {
+                        const zlib = await import('zlib');
+                        content = zlib.gunzipSync(content);
+                    }
+                    const reportData = JSON.parse(content.toString('utf-8'));
 
-                    const reportId = reportData.id || file.replace('.json', '');
+                    const reportId = reportData.id || file.replace(/\.json(\.gz)?$/, '');
 
                     // Skip if already processed
                     if (reports.find(r => r.id === reportId)) continue;
@@ -58,13 +62,14 @@ export async function generateDailyReportsIndex(outputDir = './output') {
                     });
 
                     // Sync to cache location (V17.9: Direct into reportsDir)
-                    const newPath = path.join(reportsDir, `${reportId}.json`);
-                    await fs.writeFile(newPath, JSON.stringify({
+                    const zlib = await import('zlib');
+                    const newPath = path.join(reportsDir, `${reportId}.json.gz`);
+                    await fs.writeFile(newPath, zlib.gzipSync(JSON.stringify({
                         _v: CONFIG.VERSION,
                         ...reportData,
                         id: reportId,
                         type: 'daily'
-                    }));
+                    })));
 
                 } catch (e) {
                     console.warn(`  [WARN] Failed to process ${file}: ${e.message}`);
@@ -84,7 +89,8 @@ export async function generateDailyReportsIndex(outputDir = './output') {
         reports
     };
 
-    await fs.writeFile(path.join(reportsDir, 'index.json'), JSON.stringify(index));
+    const zlib = await import('zlib');
+    await fs.writeFile(path.join(reportsDir, 'index.json.gz'), zlib.gzipSync(JSON.stringify(index)));
 
     console.log(`✅ [REPORTS-INDEX] Generated index with ${reports.length} daily reports`);
     return { total: reports.length };

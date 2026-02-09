@@ -113,7 +113,8 @@ export async function generateHealthReport(shardResults, entities, totalShards, 
 
     const healthDir = path.join(outputDir, 'meta', 'health');
     await fs.mkdir(healthDir, { recursive: true });
-    await fs.writeFile(path.join(healthDir, `${today}.json`), JSON.stringify(health, null, 2));
+    const zlib = await import('zlib');
+    await fs.writeFile(path.join(healthDir, `${today}.json.gz`), zlib.gzipSync(JSON.stringify(health, null, 2)));
     console.log(`[HEALTH] Status: ${health.status}`);
 }
 
@@ -155,12 +156,33 @@ export function mergeShardEntities(allEntities, shardResults) {
 
             let entity = update ? mergeEntities(e, update) : e;
 
-            // V16.11: Final Safety Strip (Registry Leanness)
-            // Ensure no heavy content leaks into the shard results or global registry
+            // V16.11: Deep Metadata Stripping (Bloat Prevention)
+            // Parse meta_json to remove nested heavy fields (READMEs, descriptions)
+            if (entity.meta_json) {
+                try {
+                    const meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;
+                    if (meta.extended) {
+                        delete meta.extended.description;
+                        delete meta.extended.body_content;
+                        delete meta.extended.readme;
+                        delete meta.extended.html_readme;
+                        delete meta.extended.rawMetadata;
+                    }
+                    delete meta.description;
+                    delete meta.body_content;
+                    delete meta.readme;
+                    delete meta.html_readme;
+                    entity.meta_json = JSON.stringify(meta);
+                } catch (e) { /* ignore parse errors */ }
+            }
+
+            // Final Safety Strip
             delete entity.description;
             delete entity.body_content;
             delete entity.html_readme;
             delete entity.htmlFragment;
+            delete entity.rawMetadata;
+            delete entity.readme;
 
             // V16.8.10: Type Normalization (Art 3.1)
             const finalType = entity.type || entity.entity_type || 'model';
@@ -199,18 +221,20 @@ export async function backupStateFiles(outputDir, historyData, weekNumber) {
     const backupBase = path.join(outputDir, 'meta', 'backup');
 
     // FNI Snapshot
-    const fniBackupPath = path.join(backupBase, 'fni-history', `fni-history-${weekNumber}.json`);
+    const fniBackupPath = path.join(backupBase, 'fni-history', `fni-history-${weekNumber}.json.gz`);
     await fs.mkdir(path.dirname(fniBackupPath), { recursive: true });
-    await fs.writeFile(fniBackupPath, JSON.stringify(historyData, null, 2));
+    const zlib = await import('zlib');
+    await fs.writeFile(fniBackupPath, zlib.gzipSync(JSON.stringify(historyData, null, 2)));
 
     await generateTrendData(historyData, path.join(outputDir, 'cache'));
 
     // Daily Accumulator Snapshot (Transitioned from Weekly)
-    const accumBackupPath = path.join(backupBase, 'accum', `accum-${weekNumber}.json`);
+    const accumBackupPath = path.join(backupBase, 'accum', `accum-${weekNumber}.json.gz`);
     await fs.mkdir(path.dirname(accumBackupPath), { recursive: true });
     try {
         const accum = await loadDailyAccum();
-        await fs.writeFile(accumBackupPath, JSON.stringify(accum, null, 2));
+        const zlib = await import('zlib');
+        await fs.writeFile(accumBackupPath, zlib.gzipSync(JSON.stringify(accum, null, 2)));
     } catch (e) { console.warn(`[BACKUP] Accumulator skipped: ${e.message}`); }
 }
 

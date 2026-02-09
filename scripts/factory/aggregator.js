@@ -42,8 +42,24 @@ async function main() {
     const startTime = Date.now();
     console.log(`[AGGREGATOR] Phase 2 starting (Task: ${taskArg || 'ALL'})...`);
     process.env.ENABLE_R2_BACKUP = 'true';
-    const entitiesInputPath = process.env.ENTITIES_PATH || './data/merged.json';
-    const allEntities = JSON.parse(await fs.readFile(entitiesInputPath));
+    let entitiesInputPath = process.env.ENTITIES_PATH || './data/merged.json';
+
+    // Transparent .gz fallback
+    if (!await fs.access(entitiesInputPath).then(() => true).catch(() => false)) {
+        if (!entitiesInputPath.endsWith('.gz')) {
+            const gzPath = entitiesInputPath + '.gz';
+            if (await fs.access(gzPath).then(() => true).catch(() => false)) {
+                entitiesInputPath = gzPath;
+            }
+        }
+    }
+
+    let data = await fs.readFile(entitiesInputPath);
+    if (entitiesInputPath.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) {
+        const zlib = await import('zlib');
+        data = zlib.gunzipSync(data);
+    }
+    const allEntities = JSON.parse(data.toString('utf-8'));
     console.log(`✓ Context loaded: ${allEntities.length} entities ready`);
 
     const AGGREGATE_FLOOR = 85000;
@@ -112,14 +128,21 @@ async function main() {
             if (task.id && await checkIncrementalProgress(task.id, rankedEntities, CONFIG.CODE_VERSION)) continue;
             if (process.uptime() > CHECKPOINT_THRESHOLD) break;
             console.log(`[AGGREGATOR] Task: ${task.name}...`);
+
+            // Set shared environment for satellite tasks
+            process.env.ENTITIES_PATH = path.join(CONFIG.OUTPUT_DIR, 'entities.json.gz');
+
             await task.fn();
             if (task.id) await updateTaskChecksum(task.id, rankedEntities, CONFIG.CODE_VERSION);
         } catch (e) { console.error(`[AGGREGATOR] ❌ Task ${task.name} failed: ${e.message}`); }
     }
 
     if (!taskArg || taskArg === 'core' || taskArg === 'relations') {
-        const entitiesOutputPath = path.join(CONFIG.OUTPUT_DIR, 'entities.json');
-        await fs.writeFile(entitiesOutputPath, JSON.stringify(rankedEntities));
+        const entitiesOutputPath = path.join(CONFIG.OUTPUT_DIR, 'entities.json.gz');
+        const zlib = await import('zlib');
+        const compressed = zlib.gzipSync(JSON.stringify(rankedEntities));
+        await fs.writeFile(entitiesOutputPath, compressed);
+        console.log(`[AGGREGATOR] ✅ Persisted compressed entities: ${entitiesOutputPath}`);
     }
 
     if (!taskArg || taskArg === 'core') {

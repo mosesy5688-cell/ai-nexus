@@ -59,7 +59,15 @@ export function getR2PathCandidates(type, normalizedSlug) {
         replicas.push(path.replace('.json', '.v-2.json'));
     });
 
-    return [...new Set([...candidates, ...replicas])];
+    // 5. [V18.2 GZIP] Compressed variants
+    const gzipped = [];
+    [...candidates, ...replicas].forEach(path => {
+        if (path.endsWith('.json')) {
+            gzipped.push(path + '.gz');
+        }
+    });
+
+    return [...new Set([...candidates, ...replicas, ...gzipped])];
 }
 
 
@@ -131,7 +139,7 @@ export async function fetchEntityFromR2(type, slug, locals) {
 
         try {
             const fs = await import('node:fs');
-            // Try specific type path first, then merged, then type-merged
+            const zlib = await import('node:zlib');
             const r2CandidatePaths = getR2PathCandidates(type, normalized);
             const pluralType = type.endsWith('s') ? type : `${type}s`;
 
@@ -145,8 +153,11 @@ export async function fetchEntityFromR2(type, slug, locals) {
 
             for (const localPath of searchPaths) {
                 if (fs.existsSync(localPath)) {
-                    const raw = fs.readFileSync(localPath, 'utf-8');
-                    const data = JSON.parse(raw);
+                    let raw = fs.readFileSync(localPath);
+                    if (localPath.endsWith('.gz') || (raw[0] === 0x1f && raw[1] === 0x8b)) {
+                        raw = zlib.gunzipSync(raw);
+                    }
+                    const data = JSON.parse(raw.toString('utf-8'));
 
                     if (localPath.endsWith('merged.json') || localPath.match(/data\/[a-z]+s\.json$/)) {
                         // Scan list for the entity

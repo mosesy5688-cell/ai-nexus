@@ -19,7 +19,7 @@ import { scrubIdentities } from './lib/identity-scrubber.js';
 import { finalizeMerge } from './lib/manifest-helper.js';
 
 const DATA_DIR = 'data';
-const OUTPUT_FILE = 'data/merged.json';
+const OUTPUT_FILE = 'data/merged.json.gz';
 const MANIFEST_FILE = 'data/manifest.json';
 const TOTAL_SHARDS = 20;
 
@@ -111,14 +111,17 @@ async function mergeBatches() {
     const dedupedSet = scrubIdentities(fullSet);
     dedupedSet.sort((a, b) => a.id.localeCompare(b.id));
 
+    const zlib = await import('zlib');
     for (let s = 0; s < TOTAL_SHARDS; s++) {
         const shardSlice = dedupedSet.filter((_, idx) => idx % TOTAL_SHARDS === s);
-        await fs.writeFile(path.join(DATA_DIR, `merged_shard_${s}.json`), JSON.stringify(shardSlice));
+        const compressedShard = zlib.gzipSync(JSON.stringify(shardSlice));
+        await fs.writeFile(path.join(DATA_DIR, `merged_shard_${s}.json.gz`), compressedShard);
     }
 
-    const mergedContent = JSON.stringify(dedupedSet);
-    await fs.writeFile(OUTPUT_FILE, mergedContent);
-    const mergedHash = calculateHash(mergedContent);
+    const mergedContentRaw = JSON.stringify(dedupedSet);
+    const compressedMain = zlib.gzipSync(mergedContentRaw);
+    await fs.writeFile(OUTPUT_FILE, compressedMain);
+    const mergedHash = calculateHash(compressedMain);
 
     console.log(`\n✅ [Merge] Complete\n   Total: ${dedupedSet.length} unique entities`);
 

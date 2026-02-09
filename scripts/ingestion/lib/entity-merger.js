@@ -82,13 +82,5 @@ export function mergeEntities(existing, incoming) {
         // Fallback
     }
 
-    // 6. Registry Leanness (CES Art 3.1)
-    // Strip heavy fields to prevent registry shard bloat.
-    // These belong in fused/ detail pages, not the global persistent list.
-    delete mergedObj.body_content;
-    delete mergedObj.description;
-    delete mergedObj.html_readme;
-    delete mergedObj.htmlFragment;
-
     return mergedObj;
 }

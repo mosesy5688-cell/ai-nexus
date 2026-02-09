@@ -24,7 +24,7 @@ export async function persistRegistry(rankedEntities, outputDir, cacheDir) {
     const backupDir = path.join(outputDir, 'meta', 'backup');
     await fs.mkdir(backupDir, { recursive: true });
 
-    const monoliths = ['global-registry.json', 'fni-history.json', 'daily-accum.json', 'entity-checksums.json'];
+    const monoliths = ['global-registry.json.gz', 'fni-history.json.gz', 'daily-accum.json.gz', 'entity-checksums.json.gz'];
     for (const file of monoliths) {
         const src = path.join(cacheDir, file);
         try {

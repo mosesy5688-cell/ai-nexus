@@ -14,9 +14,10 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { getCategory, parseFrontmatter, extractSections } from './knowledge-utils.js';
 
 const CONFIG = {
-    KNOWLEDGE_LINKS_PATH: './output/cache/relations/knowledge-links.json',
+    KNOWLEDGE_LINKS_PATH: './output/cache/relations/knowledge-links.json.gz',
     TEMPLATES_DIR: './meta/knowledge-templates',
     MARKDOWN_DIR: './src/pages/knowledge',
     OUTPUT_DIR: './output/cache/knowledge',
@@ -36,70 +37,28 @@ const CATEGORIES = {
  */
 async function loadKnowledgeLinks() {
     try {
-        const content = await fs.readFile(CONFIG.KNOWLEDGE_LINKS_PATH, 'utf-8');
-        return JSON.parse(content);
+        let content = await fs.readFile(CONFIG.KNOWLEDGE_LINKS_PATH);
+        if (CONFIG.KNOWLEDGE_LINKS_PATH.endsWith('.gz') || (content[0] === 0x1f && content[1] === 0x8b)) {
+            const zlib = await import('zlib');
+            content = zlib.gunzipSync(content);
+        }
+        return JSON.parse(content.toString('utf-8'));
     } catch (e) {
+        // Try .gz fallback
+        if (!CONFIG.KNOWLEDGE_LINKS_PATH.endsWith('.gz')) {
+            try {
+                let content = await fs.readFile(CONFIG.KNOWLEDGE_LINKS_PATH + '.gz');
+                const zlib = await import('zlib');
+                content = zlib.gunzipSync(content);
+                return JSON.parse(content.toString('utf-8'));
+            } catch (e2) { }
+        }
         console.warn(`  [WARN] knowledge-links.json not found: ${e.message}`);
         return { links: [] };
     }
 }
 
-/**
- * Get category for a slug
- */
-function getCategory(slug) {
-    for (const [category, slugs] of Object.entries(CATEGORIES)) {
-        if (slugs.includes(slug)) return category;
-    }
-    return 'concepts';
-}
-
-/**
- * Parse markdown frontmatter
- */
-function parseFrontmatter(content) {
-    const match = content.match(/^---\n([\s\S]*?)\n---/);
-    if (!match) return {};
-
-    const frontmatter = {};
-    const lines = match[1].split('\n');
-    for (const line of lines) {
-        const [key, ...valueParts] = line.split(':');
-        if (key && valueParts.length) {
-            frontmatter[key.trim()] = valueParts.join(':').trim();
-        }
-    }
-    return frontmatter;
-}
-
-/**
- * Extract content sections from markdown
- */
-function extractSections(content) {
-    const sections = {};
-    const bodyMatch = content.match(/---\n[\s\S]*?\n---\n([\s\S]*)/);
-    if (!bodyMatch) return sections;
-
-    const body = bodyMatch[1];
-    const headingRegex = /^##\s+(.+)$/gm;
-    let match;
-    let lastHeading = 'overview';
-    let lastIndex = 0;
-
-    while ((match = headingRegex.exec(body)) !== null) {
-        if (lastIndex > 0) {
-            sections[lastHeading] = body.slice(lastIndex, match.index).trim();
-        }
-        lastHeading = match[1].toLowerCase().replace(/\s+/g, '_');
-        lastIndex = match.index + match[0].length;
-    }
-
-    if (lastIndex > 0) {
-        sections[lastHeading] = body.slice(lastIndex).trim();
-    }
-
-    return sections;
-}
+// Utility functions extracted to knowledge-utils.js per Art 5.1
 
 /**
  * Count entity references for a knowledge slug
@@ -148,7 +107,7 @@ export async function generateKnowledgeData(outputDir = './output') {
 
                 const frontmatter = parseFrontmatter(content);
                 const sections = extractSections(content);
-                const category = getCategory(slug);
+                const category = getCategory(slug, CATEGORIES);
                 const refs = countEntityRefs(knowledgeLinks, slug);
 
                 // Build article JSON
@@ -177,8 +136,9 @@ export async function generateKnowledgeData(outputDir = './output') {
                 };
 
                 // Write individual article
-                const articlePath = path.join(articlesDir, `${slug}.json`);
-                await fs.writeFile(articlePath, JSON.stringify(article, null, 2));
+                const zlib = await import('zlib');
+                const articlePath = path.join(articlesDir, `${slug}.json.gz`);
+                await fs.writeFile(articlePath, zlib.gzipSync(JSON.stringify(article, null, 2)));
 
                 // Add to index
                 articles.push({
@@ -211,8 +171,9 @@ export async function generateKnowledgeData(outputDir = './output') {
         articles: articles.sort((a, b) => b.refs - a.refs)
     };
 
-    const indexPath = path.join(knowledgeDir, 'index.json');
-    await fs.writeFile(indexPath, JSON.stringify(index, null, 2));
+    const zlib = await import('zlib');
+    const indexPath = path.join(knowledgeDir, 'index.json.gz');
+    await fs.writeFile(indexPath, zlib.gzipSync(JSON.stringify(index, null, 2)));
 
     // Generate stats
     const stats = {
@@ -225,8 +186,8 @@ export async function generateKnowledgeData(outputDir = './output') {
         )
     };
 
-    const statsPath = path.join(knowledgeDir, 'stats.json');
-    await fs.writeFile(statsPath, JSON.stringify(stats, null, 2));
+    const statsPath = path.join(knowledgeDir, 'stats.json.gz');
+    await fs.writeFile(statsPath, zlib.gzipSync(JSON.stringify(stats, null, 2)));
 
     console.log(`[KNOWLEDGE-DATA] Generated ${articles.length} articles`);
 

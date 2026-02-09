@@ -15,49 +15,68 @@ const getR2Bucket = () => process.env.R2_BUCKET || 'ai-nexus-assets';
  * V16.8.10: Zero-Trust Hardening (throws on critical failure)
  */
 export async function loadWithFallback(filename, defaultValue = {}, isCritical = false) {
-    const localPath = path.join(getCacheDir(), filename);
+    const cacheDir = getCacheDir();
+    let localPath = path.join(cacheDir, filename);
 
+    const tryLoad = async (filepath) => {
+        let data = await fs.readFile(filepath);
+        if (filepath.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) {
+            const zlib = await import('zlib');
+            data = zlib.gunzipSync(data);
+        }
+        return JSON.parse(data.toString('utf-8'));
+    };
+
+    // 1. Try Local (Original or .gz)
     try {
         if (process.env.FORCE_R2_RESTORE !== 'true') {
-            const data = await fs.readFile(localPath);
-            console.log(`[CACHE] ✅ Loaded from local: ${filename}`);
-            return JSON.parse(data);
-        } else {
-            console.log(`[CACHE] 🚀 Force R2 restore active. Skipping local: ${filename}`);
+            try {
+                return await tryLoad(localPath);
+            } catch {
+                if (!filename.endsWith('.gz')) {
+                    const gzPath = localPath + '.gz';
+                    const result = await tryLoad(gzPath);
+                    console.log(`[CACHE] ✅ Loaded from local (.gz): ${filename}.gz`);
+                    return result;
+                }
+                throw new Error('Not found');
+            }
         }
     } catch {
         console.log(`[CACHE] Local cache miss: ${filename}`);
     }
 
-    const r2Key = `${getR2Prefix()}${filename}`;
-    const tempFile = path.join(os.tmpdir(), `r2-${filename.replace(/\//g, '-')}-${Date.now()}.json`);
-
-    try {
-        console.log(`[CACHE] R2 Restore: ${filename}...`);
-        // Using wrangler for restore is fine as it's a GET (Class B)
+    // 2. Try R2 (Original or .gz)
+    const tryR2 = async (targetFile, targetKey) => {
+        const tempFile = path.join(os.tmpdir(), `r2-${targetFile.replace(/\//g, '-')}-${Date.now()}`);
+        console.log(`[CACHE] R2 Restore: ${targetKey}...`);
         execSync(
-            `npx wrangler r2 object get ${getR2Bucket()}/${r2Key} --file=${tempFile} --remote`,
+            `npx wrangler r2 object get ${getR2Bucket()}/${targetKey} --file=${tempFile} --remote`,
             { stdio: 'pipe', timeout: 300000 }
         );
-        const result = await fs.readFile(tempFile, 'utf-8');
-        await fs.mkdir(getCacheDir(), { recursive: true });
-        await fs.writeFile(localPath, result);
+        const result = await tryLoad(tempFile);
+        await fs.mkdir(cacheDir, { recursive: true });
+        await fs.writeFile(targetFile, await fs.readFile(tempFile));
         await fs.unlink(tempFile).catch(() => { });
-        return JSON.parse(result);
-    } catch (err) {
-        console.log(`[CACHE] ⚠️ R2 Restore Failed/Missing: ${filename}`);
-        if (isCritical) {
-            console.error(`[CRITICAL] Restoration failed for essential file: ${filename}`);
-            console.error(`[CRITICAL] Error: ${err.stderr?.toString() || err.message}`);
-            throw new Error(`Critical Restoration Failure: ${filename} - Pipeline Aborted to prevent data corruption.`);
+        return result;
+    };
+
+    try {
+        const r2Key = `${getR2Prefix()}${filename}`;
+        return await tryR2(localPath, r2Key);
+    } catch {
+        if (!filename.endsWith('.gz')) {
+            try {
+                const r2KeyGz = `${getR2Prefix()}${filename}.gz`;
+                const localPathGz = localPath + '.gz';
+                return await tryR2(localPathGz, r2KeyGz);
+            } catch { }
         }
     }
 
-    // 3. Fallback to default and PERSIST to disk to satisfy Path Validation (GitHub Cache Save)
-    console.log(`[CACHE] ⚠️ Using default for: ${filename} (Initializing storage)`);
-    await fs.mkdir(getCacheDir(), { recursive: true });
-    await fs.writeFile(localPath, JSON.stringify(defaultValue, null, 2));
-
+    if (isCritical) {
+        throw new Error(`[CRITICAL] Restoration failed for essential file: ${filename}`);
+    }
     return defaultValue;
 }
 
@@ -65,9 +84,14 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
  * Save data to local cache and R2 backup
  * V16.8.6: Smart Sync (P0 Cost Fix)
  */
-export async function saveWithBackup(filename, data) {
+export async function saveWithBackup(filename, data, options = {}) {
     const localPath = path.join(getCacheDir(), filename);
-    const content = JSON.stringify(data);
+    let content = JSON.stringify(data);
+
+    if (options.compress) {
+        const zlib = await import('zlib');
+        content = zlib.gzipSync(Buffer.from(content));
+    }
 
     const dir = path.dirname(localPath);
     await fs.mkdir(dir, { recursive: true });
@@ -106,7 +130,7 @@ export async function saveWithBackup(filename, data) {
                 Bucket: getR2Bucket(),
                 Key: r2Key,
                 Body: content,
-                ContentType: 'application/json'
+                ContentType: options.compress ? 'application/x-gzip' : 'application/json'
             }));
         } catch (err) {
             console.warn(`[CACHE] ⚠️ R2 backup failed: ${err.message}`);

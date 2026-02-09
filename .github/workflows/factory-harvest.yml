@@ -263,7 +263,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            cache/fni-history.json
+            cache/fni-history.json.gz
             cache/fni-history/
           key: fni-history-${{ github.run_id }}
           restore-keys: |
@@ -273,7 +273,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            cache/daily-accum.json
+            cache/daily-accum.json.gz
             cache/daily-accum/
           key: daily-accum-${{ github.run_id }}
           restore-keys: |
@@ -283,8 +283,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            cache/entity-checksums.json
-            cache/task-checksums.json
+            cache/entity-checksums.json.gz
+            cache/task-checksums.json.gz
           key: checksums-${{ github.run_id }}
           restore-keys: |
             checksums-
@@ -295,7 +295,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            cache/global-registry.json
+            cache/global-registry.json.gz
             cache/registry/
           key: global-registry-${{ github.run_id }}  # Won't match (not saved yet)
           restore-keys: |
@@ -316,20 +316,20 @@ jobs:
           mkdir -p cache
           
           # 1. Restore Registry (Current/Previous)
-          if npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json --file=cache/global-registry.json --remote 2>/dev/null; then
-            echo "✅ Restored from R2: global-registry.json"
-          elif npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-previous.json --file=cache/global-registry.json --remote 2>/dev/null; then
-            echo "⚠️ Restored from R2: global-registry-previous.json (fallback)"
+          if npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json.gz --file=cache/global-registry.json.gz --remote 2>/dev/null; then
+            echo "✅ Restored from R2: global-registry.json.gz"
+          elif npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-previous.json.gz --file=cache/global-registry.json.gz --remote 2>/dev/null; then
+            echo "⚠️ Restored from R2: global-registry-previous.json.gz (fallback)"
           fi
           
           # 2. Restore FNI History
-          npx -y wrangler r2 object get $R2_BUCKET/meta/backup/fni-history.json --file=cache/fni-history.json --remote 2>/dev/null && echo "✅ Restored FNI History from R2" || true
+          npx -y wrangler r2 object get $R2_BUCKET/meta/backup/fni-history.json.gz --file=cache/fni-history.json.gz --remote 2>/dev/null && echo "✅ Restored FNI History from R2" || true
           
           # 3. Restore Daily Accum
-          npx -y wrangler r2 object get $R2_BUCKET/meta/backup/daily-accum.json --file=cache/daily-accum.json --remote 2>/dev/null && echo "✅ Restored Daily Accum from R2" || true
+          npx -y wrangler r2 object get $R2_BUCKET/meta/backup/daily-accum.json.gz --file=cache/daily-accum.json.gz --remote 2>/dev/null && echo "✅ Restored Daily Accum from R2" || true
           
           # 4. Restore Entity Checksums
-          npx -y wrangler r2 object get $R2_BUCKET/meta/backup/entity-checksums.json --file=cache/entity-checksums.json --remote 2>/dev/null && echo "✅ Restored Checksums from R2" || true
+          npx -y wrangler r2 object get $R2_BUCKET/meta/backup/entity-checksums.json.gz --file=cache/entity-checksums.json.gz --remote 2>/dev/null && echo "✅ Restored Checksums from R2" || true
 
           # 5. Restore Shards (Robust Sharded Restoration V2.1)
           echo "🧩 Fetching sharded registry baseline..."
@@ -337,25 +337,23 @@ jobs:
           mkdir -p cache/registry
           rm -rf cache/registry/*
           
-          # Sync registry folder (Robust restoration: skip missing, delete empty)
+          # Sync registry folder recursively (if monolith is corrupted/missing)
+          # V18.2: Removed '|| break' for robustness
           for i in {000..015}; do
-            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/registry/part-$i.json --file=cache/registry/part-$i.json --remote 2>/dev/null && echo "  - Registry Shard $i restored" || true
+            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/registry/part-$i.json.gz --file=cache/registry/part-$i.json.gz --remote 2>/dev/null && echo "  - Registry Shard $i restored" || true
           done
-          find cache/registry -name "*.json" -size 0 -delete
 
           echo "🧩 Fetching sharded FNI history baseline..."
           mkdir -p cache/fni-history
           for i in {000..015}; do
-            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/fni-history/part-$i.json --file=cache/fni-history/part-$i.json --remote 2>/dev/null && echo "  - FNI Shard $i restored" || true
+            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/fni-history/part-$i.json.gz --file=cache/fni-history/part-$i.json.gz --remote 2>/dev/null && echo "  - FNI Shard $i restored" || true
           done
-          find cache/fni-history -name "*.json" -size 0 -delete
 
           echo "🧩 Fetching sharded Accumulator baseline..."
           mkdir -p cache/daily-accum
           for i in {000..015}; do
-            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/daily-accum/part-$i.json --file=cache/daily-accum/part-$i.json --remote 2>/dev/null && echo "  - Accum Shard $i restored" || true
+            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/daily-accum/part-$i.json.gz --file=cache/daily-accum/part-$i.json.gz --remote 2>/dev/null && echo "  - Accum Shard $i restored" || true
           done
-          find cache/daily-accum -name "*.json" -size 0 -delete
 
       # Merge batches with ID deduplication
       - name: Merge Batches
@@ -369,8 +367,8 @@ jobs:
           echo "🔄 Merging batches with ID deduplication..."
           node scripts/ingestion/merge-batches.js
           
-          if [ -f "data/merged.json" ]; then
-            ENTITY_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/merged.json')).length)")
+          if [ -f "data/merged.json.gz" ]; then
+            ENTITY_COUNT=$(node -e "const zlib = require('zlib'); const fs = require('fs'); const data = zlib.gunzipSync(fs.readFileSync('data/merged.json.gz')); console.log(JSON.parse(data).length)")
             echo "✅ Merged: $ENTITY_COUNT total entities"
             
             if [ "$ENTITY_COUNT" -lt 1000 ]; then
@@ -382,31 +380,31 @@ jobs:
           fi
 
       # V4.1: Save Entity Data to Cache (Cycle-Specific Key)
+      # V4.1: Save Entity Data to Cache (Cycle-Specific Key)
       - name: Save Entity Data to Cache
         uses: actions/cache/save@v4
         with:
           path: |
-            data/merged.json
-            data/merged_shard_*.json
+            data/merged.json.gz
+            data/merged_shard_*.json.gz
             data/manifest.json
             cache/
           key: cycle-${{ github.run_id }}-harvest
 
-
       # Pipeline Summary
       - name: Summary
         run: |
-          ENTITY_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/merged.json')).length)")
+          ENTITY_COUNT=$(node -e "const zlib = require('zlib'); const fs = require('fs'); const data = zlib.gunzipSync(fs.readFileSync('data/merged.json.gz')); console.log(JSON.parse(data).length)")
           BATCH_COUNT=$(ls -1 data/raw_batch_*.json 2>/dev/null | wc -l)
           
           echo "## Factory 1/4 - Harvest Complete 🌾" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### V14.5 Parallel Harvest Results" >> $GITHUB_STEP_SUMMARY
+          echo "### V18.2 Compressed Pipeline" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Total Entities | $ENTITY_COUNT |" >> $GITHUB_STEP_SUMMARY
           echo "| Batch Files | $BATCH_COUNT |" >> $GITHUB_STEP_SUMMARY
-          echo "| Architecture | 4 Parallel Jobs |" >> $GITHUB_STEP_SUMMARY
+          echo "| Compression | Gzip Enabled (V18.2) |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Next: Factory 2/4 - Process" >> $GITHUB_STEP_SUMMARY

@@ -16,16 +16,16 @@ import { CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
  * @param {string} remotePath - Remote file path
  */
 export async function rotateEntityVersions(s3, bucket, remotePath) {
-    // Only version entity files (cache/entities/*.json)
+    // Only version entity files (cache/entities/*.json or .json.gz)
     if (!remotePath.startsWith('cache/entities/') ||
-        !remotePath.endsWith('.json') ||
+        (!remotePath.endsWith('.json') && !remotePath.endsWith('.json.gz')) ||
         remotePath.includes('.v-')) {
         return;
     }
 
     try {
         // Step 1: Rotate current to .v-1 (via copy)
-        const v1Key = remotePath.replace('.json', '.v-1.json');
+        const v1Key = remotePath.replace(/\.json(\.gz)?$/, '.v-1' + (remotePath.endsWith('.gz') ? '.json.gz' : '.json'));
         try {
             await s3.send(new CopyObjectCommand({
                 Bucket: bucket,

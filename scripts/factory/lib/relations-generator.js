@@ -45,8 +45,13 @@ export async function generateRelations(entities, outputDir = './output') {
         const dailyDir = path.join(outputDir, 'daily');
         const reportFiles = await fs.readdir(dailyDir).catch(() => []);
         for (const file of reportFiles) {
-            if (file.endsWith('.json')) {
-                const reportData = JSON.parse(await fs.readFile(path.join(dailyDir, file)));
+            if (file.endsWith('.json') || file.endsWith('.json.gz')) {
+                let data = await fs.readFile(path.join(dailyDir, file));
+                if (file.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) {
+                    const zlib = await import('zlib');
+                    data = zlib.gunzipSync(data);
+                }
+                const reportData = JSON.parse(data.toString('utf-8'));
                 if (reportData.id) {
                     const rId = `report--${reportData.id}`;
                     nodes[rId] = { t: 'report', f: 5.0, title: reportData.title, day: reportData.id };
@@ -147,8 +152,9 @@ export async function generateRelations(entities, outputDir = './output') {
     };
 
     // Write both formats
-    await fs.writeFile(path.join(relationsDir, 'explicit.json'), JSON.stringify(v2Output));
-    await fs.writeFile(path.join(cacheDir, 'relations.json'), JSON.stringify(legacyOutput));
+    const zlib = await import('zlib');
+    await fs.writeFile(path.join(relationsDir, 'explicit.json.gz'), zlib.gzipSync(JSON.stringify(v2Output)));
+    await fs.writeFile(path.join(cacheDir, 'relations.json.gz'), zlib.gzipSync(JSON.stringify(legacyOutput)));
 
     console.log(`  [RELATIONS] ${allRelations.length} relations extracted`);
     for (const [type, count] of Object.entries(counts)) {
@@ -160,7 +166,7 @@ export async function generateRelations(entities, outputDir = './output') {
 
 // CLI execution
 if (import.meta.url === `file://${process.argv[1]}`) {
-    const entitiesPath = process.argv[2] || './output/entities.json';
+    const entitiesPath = process.argv[2] || './output/entities.json.gz';
     const outputDir = process.argv[3] || './output';
 
     try {

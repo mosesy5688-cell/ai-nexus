@@ -49,9 +49,16 @@ export async function loadCachedJSON(path, options = {}) {
             fetchUrl = `${R2_CACHE_URL}/${cleanPath}`;
         }
 
-        const res = await fetch(fetchUrl, {
+        let res = await fetch(fetchUrl, {
             headers: { 'Accept': 'application/json' }
         });
+
+        // V18.2: Transparent .gz fallback for CDN
+        if (!res.ok && !fetchUrl.endsWith('.gz')) {
+            const gzUrl = fetchUrl + '.gz';
+            const gzRes = await fetch(gzUrl);
+            if (gzRes.ok) res = gzRes;
+        }
 
         if (res.ok) {
             const data = await res.json();

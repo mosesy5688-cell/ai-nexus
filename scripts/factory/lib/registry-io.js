@@ -12,7 +12,7 @@ import { loadWithFallback, saveWithBackup } from './cache-core.js';
 
 const SHARD_SIZE = 25000;
 const REGISTRY_DIR = 'registry';
-const MONOLITH_FILE = 'global-registry.json';
+const MONOLITH_FILE = 'global-registry.json.gz';
 
 /**
  * Load Global Registry with Transparent Sharding (V2.0 Core)
@@ -30,35 +30,22 @@ export async function loadGlobalRegistry() {
         try {
             // 1. Check for sharded directory
             const files = await fs.readdir(shardDirPath);
-            const shards = files.filter(f => f.startsWith('part-') && f.endsWith('.json')).sort();
+            const shards = files.filter(f => f.startsWith('part-') && (f.endsWith('.json.gz') || f.endsWith('.json'))).sort();
 
             if (shards.length > 0) {
                 console.log(`[CACHE] 🧩 Sharded registry found (${shards.length} parts). Merging...`);
                 let allEntities = [];
                 let lastUpdated = null;
+                const zlib = await import('zlib');
 
                 for (const shard of shards) {
-                    try {
-                        const shardPath = path.join(shardDirPath, shard);
-                        const stats = await fs.stat(shardPath);
-                        if (stats.size === 0) {
-                            console.warn(`[CACHE] ⚠️ Skipping empty shard: ${shard}`);
-                            continue;
-                        }
-
-                        const data = await fs.readFile(shardPath, 'utf-8');
-                        const parsed = JSON.parse(data);
-
-                        if (parsed.entities && Array.isArray(parsed.entities)) {
-                            allEntities = allEntities.concat(parsed.entities);
-                            if (!lastUpdated) lastUpdated = parsed.lastUpdated;
-                        } else {
-                            console.warn(`[CACHE] ⚠️ Invalid shard structure in ${shard}`);
-                        }
-                    } catch (err) {
-                        console.error(`[CACHE] ❌ Failed to parse shard ${shard}: ${err.message}`);
-                        // Continue to next shard to recover as much data as possible
+                    let data = await fs.readFile(path.join(shardDirPath, shard));
+                    if (shard.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) {
+                        data = zlib.gunzipSync(data);
                     }
+                    const parsed = JSON.parse(data.toString('utf-8'));
+                    allEntities = allEntities.concat(parsed.entities || []);
+                    if (!lastUpdated) lastUpdated = parsed.lastUpdated;
                 }
 
                 if (allEntities.length > 0) {
@@ -81,7 +68,7 @@ export async function loadGlobalRegistry() {
 
     // 2. Monolith Fallback (V16.7 Compatibility)
     console.log(`[CACHE] Restoring authoritative memory from ${MONOLITH_FILE}...`);
-    const registry = await loadWithFallback(MONOLITH_FILE, { entities: [] }, true);
+    const registry = await loadWithFallback(MONOLITH_FILE, { entities: [] });
 
     const count = registry.entities?.length || 0;
     if (count > 0) {
@@ -113,7 +100,7 @@ export async function saveGlobalRegistry(registry) {
 
     console.log(`[CACHE] Saving ${count} entities to sharded registry...`);
 
-    // 1. Save Shards
+    // 1. Save Shards with Gzip (V18.2 Stability)
     const shardCount = Math.ceil(count / SHARD_SIZE);
     for (let i = 0; i < shardCount; i++) {
         const shardEntities = entities.slice(i * SHARD_SIZE, (i + 1) * SHARD_SIZE);
@@ -124,24 +111,15 @@ export async function saveGlobalRegistry(registry) {
             total: shardCount,
             lastUpdated: timestamp
         };
-        await saveWithBackup(`${REGISTRY_DIR}/part-${String(i).padStart(3, '0')}.json`, shardData);
+        await saveWithBackup(`${REGISTRY_DIR}/part-${String(i).padStart(3, '0')}.json.gz`, shardData, { compress: true });
     }
 
-    // 2. Dual-Write Monolith (Compatibility Mode)
-    if (count < 50000) {
-        await saveWithBackup(MONOLITH_FILE, {
-            entities,
-            count,
-            lastUpdated: timestamp
-        });
-    } else {
-        await saveWithBackup(MONOLITH_FILE, {
-            status: 'migrated_to_shards',
-            shardCount,
-            count,
-            lastUpdated: timestamp
-        });
-    }
+    // 2. Dual-Write Monolith (Gzip Only)
+    const monolithData = count < 50000
+        ? { entities, count, lastUpdated: timestamp }
+        : { status: 'migrated_to_shards', shardCount, count, lastUpdated: timestamp };
+
+    await saveWithBackup(MONOLITH_FILE, monolithData, { compress: true });
 }
 
 /**
@@ -183,16 +161,20 @@ export async function loadFniHistory() {
 
     try {
         const files = await fs.readdir(historyDir);
-        const shards = files.filter(f => f.startsWith('part-') && f.endsWith('.json')).sort();
+        const shards = files.filter(f => f.startsWith('part-') && (f.endsWith('.json.gz') || f.endsWith('.json'))).sort();
 
         if (shards.length > 0) {
             console.log(`[CACHE] 🧩 Sharded FNI history found (${shards.length} parts). Merging...`);
             let allEntities = {};
             let lastUpdated = null;
+            const zlib = await import('zlib');
 
             for (const shard of shards) {
-                const data = await fs.readFile(path.join(historyDir, shard), 'utf-8');
-                const parsed = JSON.parse(data);
+                let data = await fs.readFile(path.join(historyDir, shard));
+                if (shard.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) {
+                    data = zlib.gunzipSync(data);
+                }
+                const parsed = JSON.parse(data.toString('utf-8'));
                 Object.assign(allEntities, parsed.entities || {});
                 if (!lastUpdated) lastUpdated = parsed.lastUpdated;
             }
@@ -201,7 +183,7 @@ export async function loadFniHistory() {
         }
     } catch { /* fallback to monolith */ }
 
-    return loadWithFallback('fni-history.json', { entities: {}, lastUpdated: null });
+    return loadWithFallback('fni-history.json.gz', { entities: {}, lastUpdated: null });
 }
 
 /**
@@ -221,17 +203,17 @@ export async function saveFniHistory(history) {
         const shardEntities = {};
         for (const k of shardKeys) shardEntities[k] = entities[k];
 
-        await saveWithBackup(`fni-history/part-${String(i).padStart(3, '0')}.json`, {
+        await saveWithBackup(`fni-history/part-${String(i).padStart(3, '0')}.json.gz`, {
             entities: shardEntities,
             part: i,
             total: shardCount,
             lastUpdated: timestamp
-        });
+        }, { compress: true });
     }
 
     // Monolith fallback
     if (count < 50000) {
-        await saveWithBackup('fni-history.json', { ...history, lastUpdated: timestamp });
+        await saveWithBackup('fni-history.json.gz', { ...history, lastUpdated: timestamp }, { compress: true });
     }
 }
 
