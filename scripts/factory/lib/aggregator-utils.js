@@ -127,17 +127,16 @@ export function mergeShardEntities(allEntities, shardResults) {
 
     // Build update map from shards
     const updatedEntitiesMap = new Map();
+    const processedIds = new Set();
+
     for (const shard of shardResults) {
         if (shard?.entities) {
             for (const result of shard.entities) {
                 if (result.success) {
-                    // V16.11: Field Stripping to prevent Registry Shard bloat
-                    // Use the dedicated 'enriched' object which already has description stripped
                     const strippedUpdate = { ...result.enriched };
                     delete strippedUpdate.body_content;
                     delete strippedUpdate.html_readme;
                     delete strippedUpdate.htmlFragment;
-
                     updatedEntitiesMap.set(result.id, strippedUpdate);
                 }
             }
@@ -147,70 +146,79 @@ export function mergeShardEntities(allEntities, shardResults) {
     const merged = [];
     const BATCH_SIZE = 50000;
 
-    // Process in batches to reduce peak memory pressure during mapping
+    // Helper: Standard Entity Processor (V16.11 CES)
+    const processEntity = (e, update) => {
+        let entity = update ? mergeEntities(e, update) : e;
+        const id = normalizeId(entity.id, getNodeSource(entity.id, entity.type), entity.type);
+
+        if (entity.meta_json) {
+            try {
+                const meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;
+                if (meta.extended) {
+                    delete meta.extended.description;
+                    delete meta.extended.body_content;
+                    delete meta.extended.readme;
+                    delete meta.extended.html_readme;
+                    delete meta.extended.rawMetadata;
+                }
+                delete meta.description;
+                delete meta.body_content;
+                delete meta.readme;
+                delete meta.html_readme;
+                entity.meta_json = JSON.stringify(meta);
+            } catch (e) { /* ignore parse errors */ }
+        }
+
+        delete entity.description;
+        delete entity.body_content;
+        delete entity.html_readme;
+        delete entity.htmlFragment;
+        delete entity.rawMetadata;
+        delete entity.readme;
+
+        entity.type = entity.type || entity.entity_type || 'model';
+        const finalFni = entity.fni_score ?? entity.fni ?? 0;
+        entity.fni_score = finalFni;
+        entity.fni = finalFni;
+
+        if (!entity.image_url) {
+            entity.image_url = entity.raw_image_url || null;
+            if (!entity.image_url && entity.meta_json) {
+                const meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;
+                entity.image_url = meta.cover_image_url || meta.thumbnail_url || meta.preview_url || null;
+            }
+        }
+        return { ...entity, id };
+    };
+
+    // 1. Process Baseline Entities (with Shard updates)
     for (let i = 0; i < allEntities.length; i += BATCH_SIZE) {
         const batch = allEntities.slice(i, i + BATCH_SIZE);
         const mergedBatch = batch.map(e => {
             const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
             const update = updatedEntitiesMap.get(id);
-
-            let entity = update ? mergeEntities(e, update) : e;
-
-            // V16.11: Deep Metadata Stripping (Bloat Prevention)
-            // Parse meta_json to remove nested heavy fields (READMEs, descriptions)
-            if (entity.meta_json) {
-                try {
-                    const meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;
-                    if (meta.extended) {
-                        delete meta.extended.description;
-                        delete meta.extended.body_content;
-                        delete meta.extended.readme;
-                        delete meta.extended.html_readme;
-                        delete meta.extended.rawMetadata;
-                    }
-                    delete meta.description;
-                    delete meta.body_content;
-                    delete meta.readme;
-                    delete meta.html_readme;
-                    entity.meta_json = JSON.stringify(meta);
-                } catch (e) { /* ignore parse errors */ }
-            }
-
-            // Final Safety Strip
-            delete entity.description;
-            delete entity.body_content;
-            delete entity.html_readme;
-            delete entity.htmlFragment;
-            delete entity.rawMetadata;
-            delete entity.readme;
-
-            // V16.8.10: Type Normalization (Art 3.1)
-            const finalType = entity.type || entity.entity_type || 'model';
-            entity.type = finalType;
-
-            // V16.4.3: Standard Image & Metrics Promotion
-            const finalFni = entity.fni_score ?? entity.fni ?? 0;
-            entity.fni_score = finalFni;
-            entity.fni = finalFni;
-
-            if (!entity.image_url) {
-                entity.image_url = entity.raw_image_url || null;
-                if (!entity.image_url && entity.meta_json) {
-                    const meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;
-                    entity.image_url = meta.cover_image_url || meta.thumbnail_url || meta.preview_url || null;
-                }
-            }
-
-            return { ...entity, id };
+            if (update) processedIds.add(id);
+            return processEntity(e, update);
         });
         merged.push(...mergedBatch);
+        if (i % 200000 === 0 && i > 0) console.log(`  [Merge] Processed ${i} entities...`);
+    }
 
-        if (i % 200000 === 0 && i > 0) {
-            console.log(`  [Merge] Processed ${i} entities...`);
+    // 2. Fragment Recovery/New Inclusion: Add shard entities not in baseline
+    let recoveryCount = 0;
+    for (const [id, update] of updatedEntitiesMap) {
+        if (!processedIds.has(id)) {
+            merged.push(processEntity(update, null));
+            recoveryCount++;
         }
     }
 
+    if (recoveryCount > 0) {
+        console.log(`  [Merge] Recovery: Added ${recoveryCount} entities from shards not in baseline.`);
+    }
+
     updatedEntitiesMap.clear();
+    processedIds.clear();
     return merged;
 }
 
