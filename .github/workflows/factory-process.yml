@@ -213,15 +213,12 @@ jobs:
           echo "🔄 Processing Shard ${{ matrix.shard }}/20..."
           node scripts/factory/shard-processor.js --shard=${{ matrix.shard }} --total=20
 
-      # Upload shard artifact (V16.11: Monolithic Compressed)
+      # V16.11: Upload ONLY the compressed monolithic shard (No debris)
       - name: Upload Shard Artifact
         uses: actions/upload-artifact@v4
         with:
           name: shard-${{ matrix.shard }}
-          path: |
-            artifacts/shard-${{ matrix.shard }}.json.gz
-            output/
-            cache/
+          path: artifacts/shard-${{ matrix.shard }}.json.gz
           retention-days: 1
 
   # V4.1: Save all shards to Cache for next stage
@@ -240,20 +237,23 @@ jobs:
       - name: Organize Shards and Entity Data
         run: |
           mkdir -p output/shards
+          echo "📦 Collecting 20 parallel compressed shards..."
           
-          echo "📦 Collecting compressed monolithic shards..."
+          # Force a clean collection from the downloaded artifacts
+          find ./shards -name "shard-*.json.gz" -exec cp -v {} output/shards/ \;
           
-          # Collect compressed shard artifacts
-          [ -d "./shards" ] && find ./shards -type f -name "shard-*.json.gz" -exec cp -f {} output/shards/ \; || echo "No shards found"
+          SHARD_COUNT=$(find output/shards -name "shard-*.json.gz" | wc -l)
+          echo "✅ Total shards collected: $SHARD_COUNT"
           
-          echo "✅ Fragment collection summary:"
-          echo "Compressed shards found: $(find output/shards -name 'shard-*.json.gz' | wc -l)"
+          if [ "$SHARD_COUNT" -lt 20 ]; then
+            echo "❌ ERROR: Missing shards! Expected 20, found $SHARD_COUNT."
+            exit 1
+          fi
 
       - name: Save Shards to Cache
         uses: actions/cache/save@v4
         with:
-          path: |
-            output/shards
+          path: output/shards
           key: cycle-${{ github.run_id }}-shards
 
   # Aggregate and save checksums

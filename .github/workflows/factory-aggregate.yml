@@ -98,10 +98,15 @@ jobs:
         run: |
           mkdir -p artifacts output/cache/shards
           # Copy shards for local aggregator use
-          [ -d "output/shards" ] && cp output/shards/shard-*.json.gz artifacts/ 2>/dev/null || true
+          if [ -d "output/shards" ]; then
+            SHARD_COUNT=$(find output/shards -name "shard-*.json.gz" | wc -l)
+            echo "📦 Preparing $SHARD_COUNT shards for aggregation..."
+            cp output/shards/shard-*.json.gz artifacts/ 2>/dev/null || true
+          fi
           
           if [ $(find artifacts -name "shard-*.json.gz" | wc -l) -eq 0 ]; then
             echo "❌ ERROR: No compressed shard files found!"
+            ls -R output/shards
             exit 1
           fi
 
