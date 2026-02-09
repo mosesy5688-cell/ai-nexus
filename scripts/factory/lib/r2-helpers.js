@@ -101,6 +101,7 @@ export async function uploadFile(s3, bucket, localPath, remotePath, remoteETag, 
             '.svg': 'image/svg+xml',
             '.txt': 'text/plain',
             '.html': 'text/html',
+            '.xml': 'application/xml',
         };
 
         const ext = path.extname(remotePath).toLowerCase();
