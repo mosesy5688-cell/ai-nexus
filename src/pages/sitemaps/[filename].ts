@@ -14,10 +14,8 @@ export const prerender = true;
 
 const R2_CDN_BASE = 'https://cdn.free2aitools.com';
 
-// Static paths for build time (V6.2: Support current R2 registry)
 export const getStaticPaths: GetStaticPaths = async () => {
     return [
-        { params: { filename: 'sitemap-static.xml' } },
         { params: { filename: 'sitemap-1.xml.gz' } },
         { params: { filename: 'sitemap-2.xml.gz' } },
         { params: { filename: 'sitemap-3.xml.gz' } },
@@ -38,7 +36,12 @@ export const GET: APIRoute = async ({ params }) => {
 
     try {
         const r2Url = `${R2_CDN_BASE}/sitemaps/${filename}`;
-        const response = await fetch(r2Url);
+
+        // V18.2: Force identity to skip transparent decompression by some fetch clients.
+        // This ensures the magic number check is reliable across all environments.
+        const response = await fetch(r2Url, {
+            headers: { 'Accept-Encoding': 'identity' }
+        });
 
         if (!response.ok) {
             return new Response(`Sitemap ${filename} not found`, {
@@ -49,14 +52,14 @@ export const GET: APIRoute = async ({ params }) => {
 
         // Get response body
         const body = await response.arrayBuffer();
+        const bytes = new Uint8Array(body);
 
         // For gzip files, decompress and return XML
-        // (Cloudflare strips Content-Encoding, so we decompress server-side)
-        if (filename.endsWith('.gz')) {
+        // We detect the magic number (1f 8b) to handle both compressed and uncompressed files safely.
+        if (filename.endsWith('.gz') && bytes[0] === 0x1f && bytes[1] === 0x8b) {
             try {
-                const decompressed = new Response(body).body;
-                if (decompressed) {
-                    const decompressedStream = decompressed.pipeThrough(new DecompressionStream('gzip'));
+                const decompressedStream = new Response(body).body?.pipeThrough(new DecompressionStream('gzip'));
+                if (decompressedStream) {
                     return new Response(decompressedStream, {
                         status: 200,
                         headers: {
