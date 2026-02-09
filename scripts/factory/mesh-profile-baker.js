@@ -39,7 +39,8 @@ async function main() {
 
     try {
         // 1. Load authoritative graph
-        const graph = JSON.parse(await fs.readFile(GRAPH_PATH, 'utf-8'));
+        const graphBuffer = await fs.readFile(GRAPH_PATH);
+        const graph = JSON.parse(graphBuffer);
         const nodeRegistry = graph.nodes || {};
         const edgeRegistry = graph.edges || {}; // Authoritative adjacency list
         const nodeIds = Object.keys(nodeRegistry);

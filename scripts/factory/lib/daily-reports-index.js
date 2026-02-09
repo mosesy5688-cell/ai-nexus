@@ -39,7 +39,7 @@ export async function generateDailyReportsIndex(outputDir = './output') {
             for (const file of jsonFiles) {
                 try {
                     const filePath = path.join(dir, file);
-                    const content = await fs.readFile(filePath, 'utf-8');
+                    const content = await fs.readFile(filePath);
                     const reportData = JSON.parse(content);
 
                     const reportId = reportData.id || file.replace('.json', '');
@@ -64,7 +64,7 @@ export async function generateDailyReportsIndex(outputDir = './output') {
                         ...reportData,
                         id: reportId,
                         type: 'daily'
-                    }, null, 2));
+                    }));
 
                 } catch (e) {
                     console.warn(`  [WARN] Failed to process ${file}: ${e.message}`);
@@ -84,7 +84,7 @@ export async function generateDailyReportsIndex(outputDir = './output') {
         reports
     };
 
-    await fs.writeFile(path.join(reportsDir, 'index.json'), JSON.stringify(index, null, 2));
+    await fs.writeFile(path.join(reportsDir, 'index.json'), JSON.stringify(index));
 
     console.log(`✅ [REPORTS-INDEX] Generated index with ${reports.length} daily reports`);
     return { total: reports.length };

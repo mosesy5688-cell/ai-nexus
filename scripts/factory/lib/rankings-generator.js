@@ -62,7 +62,7 @@ async function generateCategoryRanking(category, entities, outputDir) {
         };
 
         const filePath = path.join(rankingDir, `p${page}.json`);
-        await fs.writeFile(filePath, JSON.stringify(ranking, null, 2));
+        await fs.writeFile(filePath, JSON.stringify(ranking));
     }
 
     console.log(`  [RANKING] ${category}: ${entities.length} entities, ${effectivePages} pages generated (Capped at ${MAX_PAGES})`);

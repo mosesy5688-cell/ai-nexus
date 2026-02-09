@@ -19,7 +19,7 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
 
     try {
         if (process.env.FORCE_R2_RESTORE !== 'true') {
-            const data = await fs.readFile(localPath, 'utf-8');
+            const data = await fs.readFile(localPath);
             console.log(`[CACHE] ✅ Loaded from local: ${filename}`);
             return JSON.parse(data);
         } else {
