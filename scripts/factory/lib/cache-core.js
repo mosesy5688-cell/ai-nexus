@@ -67,7 +67,7 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
  */
 export async function saveWithBackup(filename, data) {
     const localPath = path.join(getCacheDir(), filename);
-    const content = JSON.stringify(data, null, 2);
+    const content = JSON.stringify(data);
 
     const dir = path.dirname(localPath);
     await fs.mkdir(dir, { recursive: true });

@@ -119,7 +119,7 @@ async function main() {
 
     if (!taskArg || taskArg === 'core' || taskArg === 'relations') {
         const entitiesOutputPath = path.join(CONFIG.OUTPUT_DIR, 'entities.json');
-        await fs.writeFile(entitiesOutputPath, JSON.stringify(rankedEntities, null, 2));
+        await fs.writeFile(entitiesOutputPath, JSON.stringify(rankedEntities));
     }
 
     if (!taskArg || taskArg === 'core') {
