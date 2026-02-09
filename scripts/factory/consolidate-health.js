@@ -5,7 +5,7 @@ async function main() {
     const outputDir = './output';
     const healthDir = path.join(outputDir, 'meta', 'health');
     const today = new Date().toISOString().split('T')[0];
-    const pulseFile = path.join(healthDir, `pulse-${today}.json`);
+    const pulseFile = path.join(healthDir, `pulse-${today}.json.gz`);
 
     console.log('[HEALTH] Consolidating Factory Pulse...');
 
@@ -20,9 +20,14 @@ async function main() {
             overallStatus: 'healthy'
         };
 
-        const shardHealthPath = path.join(healthDir, `${today}.json`);
+        const shardHealthPath = path.join(healthDir, `${today}.json.gz`);
         try {
-            const shardData = JSON.parse(await fs.readFile(shardHealthPath));
+            let data = await fs.readFile(shardHealthPath);
+            if (data[0] === 0x1f && data[1] === 0x8b) {
+                const zlib = await import('zlib');
+                data = zlib.gunzipSync(data);
+            }
+            const shardData = JSON.parse(data.toString('utf-8'));
             pulse = { ...pulse, ...shardData, tasks: {} };
         } catch {
             // No shard health yet
@@ -46,8 +51,9 @@ async function main() {
             };
         }
 
-        await fs.writeFile(pulseFile, JSON.stringify(pulse, null, 2));
-        console.log(`✅ [HEALTH] Factory Pulse generated: ${pulseFile}`);
+        const zlib = await import('zlib');
+        await fs.writeFile(pulseFile, zlib.gzipSync(JSON.stringify(pulse, null, 2)));
+        console.log(`✅ [HEALTH] Factory Pulse generated: ${pulseFile} (Compressed)`);
     } catch (e) {
         console.error(`❌ [HEALTH] Consolidation failed: ${e.message}`);
     }

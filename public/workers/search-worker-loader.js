@@ -13,6 +13,21 @@ const INDEX_URLS = {
     dataset: 'https://cdn.free2aitools.com/cache/trending_datasets.json'
 };
 
+/**
+ * Robust JSON fetcher with .gz fallback
+ */
+async function tryFetchJson(url) {
+    let response = await fetch(url);
+    if (!response.ok && !url.endsWith('.gz')) {
+        const gzUrl = url + '.gz';
+        const gzResponse = await fetch(gzUrl);
+        if (gzResponse.ok) response = gzResponse;
+    }
+
+    if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+    return await response.json();
+}
+
 export async function loadIndex(entityType = 'model') {
     if (indexCache[entityType]) {
         currentEntityType = entityType;
@@ -22,16 +37,7 @@ export async function loadIndex(entityType = 'model') {
 
     const url = INDEX_URLS[entityType] || INDEX_URLS.model;
     try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            if (entityType !== 'model' && response.status === 404) {
-                console.warn(`[SearchWorker] ${entityType} index not available, using models`);
-                return loadIndex('model');
-            }
-            throw new Error(`Failed to load index: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = await tryFetchJson(url);
         const items = (data.models || data.spaces || data.datasets || data || []).map((item, idx) => ({
             ...item,
             id: item.id || `auto-${idx}`
@@ -63,10 +69,7 @@ export async function loadFullIndex(onProgress) {
     if (isFullSearchActive) return;
 
     try {
-        const manifestRes = await fetch('https://cdn.free2aitools.com/cache/search-manifest.json');
-        if (!manifestRes.ok) throw new Error('Manifest load failed');
-
-        const manifest = await manifestRes.json();
+        const manifest = await tryFetchJson('https://cdn.free2aitools.com/cache/search-manifest.json');
         const totalShards = manifest.totalShards;
         const itemsMap = new Map();
 
@@ -82,8 +85,7 @@ export async function loadFullIndex(onProgress) {
             const batch = shardUrls.slice(i, i + BATCH_SIZE);
             const results = await Promise.all(batch.map(async (url) => {
                 try {
-                    const res = await fetch(url);
-                    return res.ok ? res.json() : null;
+                    return await tryFetchJson(url);
                 } catch { return null; }
             }));
 

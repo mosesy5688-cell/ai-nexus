@@ -133,12 +133,28 @@ export async function generateDailyReport(outputDir = './output') {
 
     let existingReport = null;
     try {
-        const existingContent = await fs.readFile(reportPath);
-        existingReport = JSON.parse(existingContent);
+        let existingContent = await fs.readFile(reportPath);
+        if (existingContent[0] === 0x1f && existingContent[1] === 0x8b) {
+            const zlib = await import('zlib');
+            existingContent = zlib.gunzipSync(existingContent);
+        }
+        existingReport = JSON.parse(existingContent.toString('utf-8'));
         console.log(`  [REPORT] Existing report found for ${reportId}. Merging cumulative data...`);
     } catch (e) {
-        // No existing report for today, which is fine
+        // Try .gz fallback if the primary path didn't work and wasn't already .gz
+        if (!reportPath.endsWith('.gz')) {
+            try {
+                let existingContent = await fs.readFile(reportPath + '.gz');
+                const zlib = await import('zlib');
+                existingContent = zlib.gunzipSync(existingContent);
+                existingReport = JSON.parse(existingContent.toString('utf-8'));
+                console.log(`  [REPORT] Existing report found for ${reportId} (.gz). Merging cumulative data...`);
+            } catch (e2) { }
+        }
     }
+
+    // V18.2: Standardize reportPath to .gz
+    const finalReportPath = reportPath.endsWith('.gz') ? reportPath : reportPath + '.gz';
 
     if ((!accumulator.entries || accumulator.entries.length === 0) && !existingReport) {
         console.warn('[WARN] No daily entries found and no existing report to update');
@@ -195,13 +211,14 @@ export async function generateDailyReport(outputDir = './output') {
     };
 
     // Save to daily directory
+    const zlib = await import('zlib');
     await fs.mkdir(dailyDir, { recursive: true });
-    await fs.writeFile(reportPath, JSON.stringify(report, null, 2));
+    await fs.writeFile(finalReportPath, zlib.gzipSync(JSON.stringify(report, null, 2)));
 
     // Archive backup
     const backupDir = path.join(outputDir, 'meta', 'daily-backup');
     await fs.mkdir(backupDir, { recursive: true });
-    await fs.writeFile(path.join(backupDir, `${reportId}.json`), JSON.stringify(report, null, 2));
+    await fs.writeFile(path.join(backupDir, `${reportId}.json.gz`), zlib.gzipSync(JSON.stringify(report, null, 2)));
 
     // Clear accumulator after successful generation
     await saveDailyAccum({ entries: [], lastUpdated: new Date().toISOString() });

@@ -178,8 +178,9 @@ export async function generateCategoryStats(entities, outputDir = './output') {
 
 
 
-    const content = JSON.stringify(output, null, 2);
-    const filePath = path.join(cacheDir, 'category_stats.json');
+    const zlib = await import('zlib');
+    const content = zlib.gzipSync(JSON.stringify(output, null, 2));
+    const filePath = path.join(cacheDir, 'category_stats.json.gz');
     await fs.writeFile(filePath, content);
 
     console.log(`  [CATEGORY] ${Object.keys(stats).length} categories, ${output.total_models} models`);

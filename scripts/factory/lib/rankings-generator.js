@@ -61,8 +61,9 @@ async function generateCategoryRanking(category, entities, outputDir) {
             generated: new Date().toISOString(),
         };
 
-        const filePath = path.join(rankingDir, `p${page}.json`);
-        await fs.writeFile(filePath, JSON.stringify(ranking));
+        const zlib = await import('zlib');
+        const filePath = path.join(rankingDir, `p${page}.json.gz`);
+        await fs.writeFile(filePath, zlib.gzipSync(JSON.stringify(ranking)));
     }
 
     console.log(`  [RANKING] ${category}: ${entities.length} entities, ${effectivePages} pages generated (Capped at ${MAX_PAGES})`);

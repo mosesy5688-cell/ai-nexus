@@ -39,11 +39,12 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         _generated: new Date().toISOString(),
     };
 
-    const coreContent = JSON.stringify(coreIndex);
+    const zlib = await import('zlib');
+    const coreContent = zlib.gzipSync(JSON.stringify(coreIndex));
     const coreSizeKB = (coreContent.length / 1024).toFixed(0);
-    console.log(`  [SEARCH] Core index: ${coreEntities.length} entities, ${coreSizeKB}KB`);
+    console.log(`  [SEARCH] Core index: ${coreEntities.length} entities, ${coreSizeKB}KB (Compressed)`);
 
-    await fs.writeFile(path.join(searchDir, 'search-core.json'), coreContent);
+    await fs.writeFile(path.join(searchDir, 'search-core.json.gz'), coreContent);
 
     // Full index: All entities (V14.5.3 Sharding)
     const fullEntities = entities.map(e => ({
@@ -54,13 +55,9 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         author: e.author,
         tags: typeof e.tags === 'string' ? JSON.parse(e.tags || '[]') : (e.tags || []),
         source: e.source,
-        slug: e.slug || e.id?.split(/[:/]/).pop(),
-        has_image: Boolean(e.image_url),
-        // Shortened description to save shard space
-        description: (e.description || '').substring(0, 150),
+        slug: e.slug || e.id?.split(/[:/]/).pop()
     }));
-
-    const SHARD_SIZE = 5000; // ~1-2MB per shard
+    const SHARD_SIZE = 5000;
     const totalShards = Math.ceil(fullEntities.length / SHARD_SIZE);
 
     console.log(`  [SEARCH] Full index sharding: ${fullEntities.length} entities into ${totalShards} shards`);
@@ -77,10 +74,11 @@ export async function generateSearchIndices(entities, outputDir = './output') {
             _count: shardEntities.length,
             _generated: new Date().toISOString(),
         };
-        await fs.writeFile(path.join(shardingDir, `shard-${s}.json`), JSON.stringify(shard));
+        const compressedShard = zlib.gzipSync(JSON.stringify(shard));
+        await fs.writeFile(path.join(shardingDir, `shard-${s}.json.gz`), compressedShard);
     }
 
-    // Manifest for client-side lazy loading
+    // Manifest for client-side lazy loading (Keep uncompressed for small size and easy fetch)
     const manifest = {
         totalEntities: fullEntities.length,
         totalShards,
@@ -89,11 +87,11 @@ export async function generateSearchIndices(entities, outputDir = './output') {
     };
     await fs.writeFile(path.join(searchDir, 'search-manifest.json'), JSON.stringify(manifest));
 
-    // BACKWARD COMPATIBILITY: Keep a top-50k version for older clients
+    // BACKWARD COMPATIBILITY
     const legacyFull = {
         entities: fullEntities.slice(0, 50000),
         _count: Math.min(fullEntities.length, 50000),
         _generated: new Date().toISOString(),
     };
-    await fs.writeFile(path.join(searchDir, 'search-full.json'), JSON.stringify(legacyFull));
+    await fs.writeFile(path.join(searchDir, 'search-full.json.gz'), zlib.gzipSync(JSON.stringify(legacyFull)));
 }

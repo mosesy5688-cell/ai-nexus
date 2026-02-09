@@ -5,9 +5,9 @@ import path from 'path';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 
 const CONFIG = {
-    EXPLICIT_PATH: './output/cache/relations/explicit.json',
-    KNOWLEDGE_LINKS_PATH: './output/cache/relations/knowledge-links.json',
-    REPORTS_INDEX_PATH: './output/cache/reports/index.json',
+    EXPLICIT_PATH: './output/cache/relations/explicit.json.gz',
+    KNOWLEDGE_LINKS_PATH: './output/cache/relations/knowledge-links.json.gz',
+    REPORTS_INDEX_PATH: './output/cache/reports/index.json.gz',
     OUTPUT_DIR: './output/cache/mesh',
     VERSION: '16.2'
 };
@@ -19,9 +19,22 @@ const CONFIG = {
  */
 async function loadJson(filePath) {
     try {
-        const content = await fs.readFile(filePath);
-        return JSON.parse(content);
+        let content = await fs.readFile(filePath);
+        if (filePath.endsWith('.gz') || (content[0] === 0x1f && content[1] === 0x8b)) {
+            const zlib = await import('zlib');
+            content = zlib.gunzipSync(content);
+        }
+        return JSON.parse(content.toString('utf-8'));
     } catch (e) {
+        // Try .gz fallback if not found
+        if (!filePath.endsWith('.gz')) {
+            try {
+                let content = await fs.readFile(filePath + '.gz');
+                const zlib = await import('zlib');
+                content = zlib.gunzipSync(content);
+                return JSON.parse(content.toString('utf-8'));
+            } catch (e2) { }
+        }
         console.warn(`  [WARN] Could not load ${filePath}: ${e.message}`);
         return null;
     }
@@ -157,7 +170,7 @@ export async function generateMeshGraph(outputDir = './output') {
 
             // Load individual report for highlights
             try {
-                const reportPath = path.join(outputDir, 'cache', 'reports', 'daily', `${report.id}.json`);
+                const reportPath = path.join(outputDir, 'cache', 'reports', 'daily', `${report.id}.json.gz`);
                 const reportData = await loadJson(reportPath);
                 if (reportData?.highlights) {
                     for (const highlight of reportData.highlights) {
@@ -199,8 +212,9 @@ export async function generateMeshGraph(outputDir = './output') {
         edges
     };
 
-    const graphPath = path.join(meshDir, 'graph.json');
-    await fs.writeFile(graphPath, JSON.stringify(graph));
+    const zlib = await import('zlib');
+    const graphPath = path.join(meshDir, 'graph.json.gz');
+    await fs.writeFile(graphPath, zlib.gzipSync(JSON.stringify(graph)));
 
     // Generate stats.json
     const statsOutput = {
@@ -209,8 +223,8 @@ export async function generateMeshGraph(outputDir = './output') {
         ...stats
     };
 
-    const statsPath = path.join(meshDir, 'stats.json');
-    await fs.writeFile(statsPath, JSON.stringify(statsOutput, null, 2));
+    const statsPath = path.join(meshDir, 'stats.json.gz');
+    await fs.writeFile(statsPath, zlib.gzipSync(JSON.stringify(statsOutput, null, 2)));
 
     console.log(`[MESH-GRAPH] Generated graph with ${stats.nodes} nodes, ${stats.edges} edges`);
     console.log(`  By type: ${JSON.stringify(stats.by_type)}`);

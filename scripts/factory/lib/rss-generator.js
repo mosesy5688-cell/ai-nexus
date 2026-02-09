@@ -15,8 +15,8 @@ import fs from 'fs/promises';
 import path from 'path';
 
 const CONFIG = {
-    REPORTS_INDEX_PATH: './output/cache/reports/index.json',
-    KNOWLEDGE_INDEX_PATH: './output/cache/knowledge/index.json',
+    REPORTS_INDEX_PATH: './output/cache/reports/index.json.gz',
+    KNOWLEDGE_INDEX_PATH: './output/cache/knowledge/index.json.gz',
     OUTPUT_DIR: './output/rss',
     SITE_URL: 'https://free2aitools.com',
     VERSION: '16.2'
@@ -71,9 +71,22 @@ function escapeXml(str) {
  */
 async function loadJson(filePath) {
     try {
-        const content = await fs.readFile(filePath);
-        return JSON.parse(content);
+        let content = await fs.readFile(filePath);
+        if (filePath.endsWith('.gz') || (content[0] === 0x1f && content[1] === 0x8b)) {
+            const zlib = await import('zlib');
+            content = zlib.gunzipSync(content);
+        }
+        return JSON.parse(content.toString('utf-8'));
     } catch (e) {
+        // Try .gz fallback
+        if (!filePath.endsWith('.gz')) {
+            try {
+                let content = await fs.readFile(filePath + '.gz');
+                const zlib = await import('zlib');
+                content = zlib.gunzipSync(content);
+                return JSON.parse(content.toString('utf-8'));
+            } catch (e2) { }
+        }
         console.warn(`  [WARN] Could not load ${filePath}: ${e.message}`);
         return null;
     }
@@ -85,8 +98,8 @@ async function loadJson(filePath) {
 async function generateReportsRss(outputDir) {
     console.log('  [RSS] Generating reports.xml...');
 
-    const reportsIndex = await loadJson(path.join(outputDir, 'cache', 'reports', 'index.json'));
-    if (!reportsIndex?.reports?.length) {
+    const index = await loadJson(CONFIG.REPORTS_INDEX_PATH);
+    if (!index?.reports?.length) {
         console.warn('  [WARN] No reports found, skipping RSS');
         return 0;
     }
@@ -98,7 +111,7 @@ async function generateReportsRss(outputDir) {
     );
 
     // Add up to 20 most recent reports
-    const recentReports = reportsIndex.reports.slice(0, 20);
+    const recentReports = index.reports.slice(0, 20);
     for (const report of recentReports) {
         const link = `${CONFIG.SITE_URL}/reports/${report.id}`;
         xml += rssItem(
@@ -125,8 +138,8 @@ async function generateReportsRss(outputDir) {
 async function generateKnowledgeRss(outputDir) {
     console.log('  [RSS] Generating knowledge.xml...');
 
-    const knowledgeIndex = await loadJson(path.join(outputDir, 'cache', 'knowledge', 'index.json'));
-    if (!knowledgeIndex?.articles?.length) {
+    const index = await loadJson(CONFIG.KNOWLEDGE_INDEX_PATH);
+    if (!index?.articles?.length) {
         console.warn('  [WARN] No knowledge articles found, skipping RSS');
         return 0;
     }
@@ -138,7 +151,7 @@ async function generateKnowledgeRss(outputDir) {
     );
 
     // Add all articles (sorted by refs/popularity)
-    const sortedArticles = [...knowledgeIndex.articles].sort((a, b) => (b.refs || 0) - (a.refs || 0));
+    const sortedArticles = [...index.articles].sort((a, b) => (b.refs || 0) - (a.refs || 0));
     for (const article of sortedArticles.slice(0, 50)) {
         const link = `${CONFIG.SITE_URL}/knowledge/${article.slug}`;
         xml += rssItem(

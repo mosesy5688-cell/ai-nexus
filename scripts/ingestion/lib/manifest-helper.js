@@ -29,7 +29,7 @@ export async function finalizeMerge(options) {
             avgVelocity: parseFloat(avgVelocity.toFixed(4))
         },
         output: {
-            file: 'merged.json',
+            file: 'merged.json.gz',
             hash: `sha256:${mergedHash}`,
             size: Buffer.byteLength(mergedContent)
         },

@@ -49,11 +49,16 @@ export async function getRelatedEntities(entityId, locals) {
 
     try {
         // Try to get entity relations from precomputed cache
-        const cachePath = 'cache/relations.json';
-        const cacheFile = await r2.get(cachePath);
+        let cachePath = 'cache/relations.json';
+        let cacheFile = await r2.get(cachePath);
 
         if (!cacheFile) {
-            console.log('[RelationsCache] relations.json not found');
+            cachePath = 'cache/relations.json.gz';
+            cacheFile = await r2.get(cachePath);
+        }
+
+        if (!cacheFile) {
+            console.log('[RelationsCache] relations.json(.gz) not found');
             return [];
         }
 

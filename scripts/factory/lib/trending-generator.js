@@ -39,11 +39,12 @@ export async function generateTrending(entities, outputDir = './output') {
     };
 
 
-    const content = JSON.stringify(trending, null, 2);
-    const filePath = path.join(cacheDir, 'trending.json');
-    await fs.writeFile(filePath, content);
+    const zlib = await import('zlib');
+    const compressed = zlib.gzipSync(JSON.stringify(trending, null, 2));
+    const filePath = path.join(cacheDir, 'trending.json.gz');
+    await fs.writeFile(filePath, compressed);
 
-    console.log(`  [TRENDING] ${topEntities.length} entities, ${(content.length / 1024).toFixed(0)}KB`);
+    console.log(`  [TRENDING] ${topEntities.length} entities, ${(compressed.length / 1024).toFixed(0)}KB (Compressed)`);
 }
 
 function formatEntity(e) {

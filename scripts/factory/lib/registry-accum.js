@@ -19,7 +19,7 @@ export async function loadDailyAccum() {
 
     try {
         const files = await fs.readdir(accumDir);
-        const shards = files.filter(f => f.startsWith('part-') && f.endsWith('.json')).sort();
+        const shards = files.filter(f => f.startsWith('part-') && (f.endsWith('.json.gz') || f.endsWith('.json'))).sort();
 
         if (shards.length > 0) {
             console.log(`[CACHE] 🧩 Sharded daily accumulator found (${shards.length} parts). Merging...`);
@@ -28,8 +28,12 @@ export async function loadDailyAccum() {
             let meta = {};
 
             for (const shard of shards) {
-                const data = await fs.readFile(path.join(accumDir, shard), 'utf-8');
-                const parsed = JSON.parse(data);
+                let data = await fs.readFile(path.join(accumDir, shard));
+                const zlib = await import('zlib');
+                if (shard.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) {
+                    data = zlib.gunzipSync(data);
+                }
+                const parsed = JSON.parse(data.toString('utf-8'));
                 allEntries = allEntries.concat(parsed.entries || []);
                 if (!lastUpdated) {
                     lastUpdated = parsed.lastUpdated;
@@ -42,7 +46,7 @@ export async function loadDailyAccum() {
         }
     } catch { /* fallback to monolith */ }
 
-    return loadWithFallback('daily-accum.json', { entries: [], lastUpdated: null });
+    return loadWithFallback('daily-accum.json.gz', { entries: [], lastUpdated: null });
 }
 
 /**
@@ -58,17 +62,17 @@ export async function saveDailyAccum(accum) {
     const shardCount = Math.ceil(count / SHARD_SIZE);
     for (let i = 0; i < shardCount; i++) {
         const shardEntries = entries.slice(i * SHARD_SIZE, (i + 1) * SHARD_SIZE);
-        await saveWithBackup(`daily-accum/part-${String(i).padStart(3, '0')}.json`, {
+        await saveWithBackup(`daily-accum/part-${String(i).padStart(3, '0')}.json.gz`, {
             ...accum,
             entries: shardEntries,
             part: i,
             total: shardCount,
             lastUpdated: timestamp
-        });
+        }, { compress: true });
     }
 
     // Monolith fallback for small data
     if (count < 50000) {
-        await saveWithBackup('daily-accum.json', { ...accum, lastUpdated: timestamp });
+        await saveWithBackup('daily-accum.json.gz', { ...accum, lastUpdated: timestamp }, { compress: true });
     }
 }

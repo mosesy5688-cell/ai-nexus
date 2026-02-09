@@ -106,7 +106,13 @@ const CATEGORY_META: Record<string, { label: string; icon: string; description: 
     <script>
         async function loadRankingStats() {
             try {
-                const res = await fetch('https://cdn.free2aitools.com/cache/category_stats.json');
+                let res = await fetch('https://cdn.free2aitools.com/cache/category_stats.json');
+                if (!res.ok) {
+                    // V18.2: Try .gz fallback
+                    const resGz = await fetch('https://cdn.free2aitools.com/cache/category_stats.json.gz');
+                    if (resGz.ok) res = resGz;
+                }
+                
                 if (!res.ok) throw new Error('Failed to fetch stats');
                 const data = await res.json();
                 
