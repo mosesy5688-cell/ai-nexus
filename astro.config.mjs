@@ -45,7 +45,8 @@ export default defineConfig({
     },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src')
+        '@': path.resolve(__dirname, './src'),
+        'sharp': path.resolve(__dirname, './src/utils/sharp-stub.js')
       }
     },
     build: {
