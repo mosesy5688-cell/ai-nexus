@@ -94,7 +94,7 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
             success: true,
             _checksum: entityHash,
             // Return full payload for monolithic bundling
-            enriched: registryEntry,
+            enriched: enriched,
             html: htmlFragment
         };
     } catch (error) {
