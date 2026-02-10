@@ -17,11 +17,12 @@ const INDEX_URLS = {
  * Robust JSON fetcher with .gz fallback
  */
 async function tryFetchJson(url) {
-    let response = await fetch(url);
+    const gzUrl = url.endsWith('.gz') ? url : url + '.gz';
+    let response = await fetch(gzUrl);
+
+    // Fallback to uncompressed if .gz is missing
     if (!response.ok && !url.endsWith('.gz')) {
-        const gzUrl = url + '.gz';
-        const gzResponse = await fetch(gzUrl);
-        if (gzResponse.ok) response = gzResponse;
+        response = await fetch(url);
     }
 
     if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
