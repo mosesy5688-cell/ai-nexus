@@ -15,79 +15,69 @@ const REGISTRY_DIR = 'registry';
 const MONOLITH_FILE = 'global-registry.json.gz';
 
 /**
- * Load Global Registry with Transparent Sharding (V2.0 Core)
+ * Load Global Registry with Cache-First Integrity (V18.2.1)
+ * Priority: Local Monolith -> Local Shards -> R2 Monolith Backup
  */
 export async function loadGlobalRegistry() {
     const cacheDir = process.env.CACHE_DIR || './cache';
     const shardDirPath = path.join(cacheDir, REGISTRY_DIR);
+    const monolithPath = path.join(cacheDir, MONOLITH_FILE);
+    const REGISTRY_FLOOR = 85000;
 
-    // V16.96.2: Shard Purge on Force Restore
-    if (process.env.FORCE_R2_RESTORE === 'true') {
-        console.log(`[CACHE] 🧹 Force Restore: Purging local shards in ${shardDirPath}...`);
-        await fs.rm(shardDirPath, { recursive: true, force: true }).catch(() => { });
-        // Fall back directly to monolith/R2
-    } else {
-        try {
-            // 1. Check for sharded directory
-            const files = await fs.readdir(shardDirPath);
-            const shards = files.filter(f => f.startsWith('part-') && (f.endsWith('.json.gz') || f.endsWith('.json'))).sort();
-
-            if (shards.length > 0) {
-                console.log(`[CACHE] 🧩 Sharded registry found (${shards.length} parts). Merging...`);
-                let allEntities = [];
-                let lastUpdated = null;
-                const zlib = await import('zlib');
-
-                for (const shard of shards) {
-                    let data = await fs.readFile(path.join(shardDirPath, shard));
-                    if (shard.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) {
-                        data = zlib.gunzipSync(data);
-                    }
-                    const parsed = JSON.parse(data.toString('utf-8'));
-                    allEntities = allEntities.concat(parsed.entities || []);
-                    if (!lastUpdated) lastUpdated = parsed.lastUpdated;
-                }
-
-                if (allEntities.length > 0) {
-                    console.log(`[CACHE] ✅ Successfully restored ${allEntities.length} entities from shards.`);
-                    return {
-                        entities: allEntities,
-                        lastUpdated: lastUpdated || new Date().toISOString(),
-                        count: allEntities.length,
-                        didLoadFromStorage: true
-                    };
-                }
-                console.warn('[CACHE] ⚠️ All shards were empty or invalid.');
-            }
-        } catch (e) {
-            if (process.env.FORCE_R2_RESTORE !== 'true') {
-                console.log(`[CACHE] No sharded registry found in ${shardDirPath}. Falling back to monolith.`);
-            }
+    const zlib = await import('zlib');
+    const tryLoad = async (filepath) => {
+        const data = await fs.readFile(filepath);
+        if (filepath.endsWith('.gz') || (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b)) {
+            return JSON.parse(zlib.gunzipSync(data).toString('utf-8'));
         }
-    }
-
-    // 2. Monolith Fallback (V16.7 Compatibility)
-    console.log(`[CACHE] Restoring authoritative memory from ${MONOLITH_FILE}...`);
-    const registry = await loadWithFallback(MONOLITH_FILE, { entities: [] });
-
-    const count = registry.entities?.length || 0;
-    if (count > 0) {
-        console.log(`[CACHE] ✅ Successfully restored ${count} entities from monolith.`);
-        return {
-            entities: registry.entities,
-            lastUpdated: registry.lastUpdated || new Date().toISOString(),
-            count: count,
-            didLoadFromStorage: true
-        };
-    }
-
-    console.log('[CACHE] ❌ Cold start: No registry found in Shards or Monolith.');
-    return {
-        entities: [],
-        lastUpdated: new Date().toISOString(),
-        count: 0,
-        didLoadFromStorage: false
+        return JSON.parse(data.toString('utf-8'));
     };
+
+    // 1. Try Local Monolith (GZ Preferred)
+    if (process.env.FORCE_R2_RESTORE !== 'true') {
+        try {
+            const registry = await tryLoad(monolithPath);
+            const count = registry.entities?.length || 0;
+            if (count >= REGISTRY_FLOOR) {
+                console.log(`[CACHE] ✅ Local Monolith hit: ${count} entities.`);
+                return { entities: registry.entities, count, lastUpdated: registry.lastUpdated, didLoadFromStorage: true };
+            }
+        } catch { }
+
+        // 2. Try Local Shards
+        try {
+            const files = await fs.readdir(shardDirPath).catch(() => []);
+            const shards = files.filter(f => f.startsWith('part-')).sort();
+            if (shards.length > 0) {
+                console.log(`[CACHE] 🧩 Local Shards detected (${shards.length} parts). Merging...`);
+                let allEntities = [];
+                for (const s of shards) {
+                    const parsed = await tryLoad(path.join(shardDirPath, s));
+                    allEntities = allEntities.concat(parsed.entities || []);
+                }
+                if (allEntities.length >= REGISTRY_FLOOR) {
+                    console.log(`[CACHE] ✅ Local Shards hit: ${allEntities.length} entities.`);
+                    return { entities: allEntities, count: allEntities.length, lastUpdated: new Date().toISOString(), didLoadFromStorage: true };
+                }
+            }
+        } catch { }
+    }
+
+    // 3. R2 Fallback (Authoritative Monolith)
+    console.log(`[CACHE] 🌐 Local Cache missed or below floor. Attempting R2 Monolith Restoration...`);
+    try {
+        const registry = await loadWithFallback(MONOLITH_FILE, { entities: [] }, true);
+        const count = registry.entities?.length || 0;
+        if (count >= REGISTRY_FLOOR) {
+            console.log(`[CACHE] ✅ R2 Monolith restored: ${count} entities.`);
+            return { entities: registry.entities, count, lastUpdated: registry.lastUpdated, didLoadFromStorage: true };
+        }
+    } catch (e) {
+        console.error(`[CACHE] ❌ R2 Restoration failed: ${e.message}`);
+    }
+
+    console.log('[CACHE] ❌ Integrity Breach: No valid registry found meeting 85k floor.');
+    return { entities: [], count: 0, didLoadFromStorage: false };
 }
 
 /**
@@ -115,11 +105,58 @@ export async function saveGlobalRegistry(registry) {
     }
 
     // 2. Dual-Write Monolith (Gzip Only)
-    const monolithData = count < 50000
-        ? { entities, count, lastUpdated: timestamp }
-        : { status: 'migrated_to_shards', shardCount, count, lastUpdated: timestamp };
+    // V18.2.1: Always save full registry to monolith for recovery visibility
+    const monolithData = { entities, count, lastUpdated: timestamp };
 
     await saveWithBackup(MONOLITH_FILE, monolithData, { compress: true });
+
+    // 3. Purge Stale Shards (V18.2.1 GA)
+    await purgeStaleShards(REGISTRY_DIR, shardCount);
+}
+
+/**
+ * Purge stale sharded files from R2 to prevent baseline mutation
+ */
+export async function purgeStaleShards(directory, currentShardCount) {
+    if (process.env.ENABLE_R2_BACKUP !== 'true') return;
+
+    const { ListObjectsV2Command, DeleteObjectsCommand } = await import('@aws-sdk/client-s3');
+    const { createR2Client } = await import('./r2-helpers.js');
+    const s3 = createR2Client();
+    if (!s3) return;
+
+    const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
+    const prefix = `${process.env.R2_BACKUP_PREFIX || 'meta/backup/'}${directory}/part-`;
+
+    try {
+        const list = await s3.send(new ListObjectsV2Command({
+            Bucket: bucket,
+            Prefix: prefix
+        }));
+
+        if (!list.Contents) return;
+
+        const deleteBatch = [];
+        for (const obj of list.Contents) {
+            const match = obj.Key.match(/part-(\d+)\.json(\.gz)?/);
+            if (match) {
+                const index = parseInt(match[1]);
+                if (index >= currentShardCount) {
+                    deleteBatch.push({ Key: obj.Key });
+                }
+            }
+        }
+
+        if (deleteBatch.length > 0) {
+            console.log(`[CACHE] 🧹 Purging ${deleteBatch.length} stale shards from ${directory}/...`);
+            await s3.send(new DeleteObjectsCommand({
+                Bucket: bucket,
+                Delete: { Objects: deleteBatch }
+            }));
+        }
+    } catch (err) {
+        console.warn(`[CACHE] ⚠️ Shard purge failed for ${directory}: ${err.message}`);
+    }
 }
 
 /**
@@ -212,9 +249,11 @@ export async function saveFniHistory(history) {
     }
 
     // Monolith fallback
-    if (count < 50000) {
-        await saveWithBackup('fni-history.json.gz', { ...history, lastUpdated: timestamp }, { compress: true });
-    }
+    // V18.2.1: Always save full history to monolith
+    await saveWithBackup('fni-history.json.gz', { ...history, lastUpdated: timestamp }, { compress: true });
+
+    // Purge stale shards (V18.2.1)
+    await purgeStaleShards('fni-history', shardCount);
 }
 
 export { loadDailyAccum, saveDailyAccum } from './registry-accum.js';

@@ -163,9 +163,10 @@ export async function computeKnowledgeLinks(entities, outputDir = './output') {
         links: allLinks,
     };
 
+    const zlib = await import('zlib');
     await fs.writeFile(
-        path.join(relationsDir, 'knowledge-links.json'),
-        JSON.stringify(output)
+        path.join(relationsDir, 'knowledge-links.json.gz'),
+        zlib.gzipSync(JSON.stringify(output))
     );
 
     console.log(`  [KNOWLEDGE-LINKER] Linked ${allLinks.length} entities to knowledge articles`);

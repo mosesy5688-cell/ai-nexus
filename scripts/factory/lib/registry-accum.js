@@ -72,7 +72,10 @@ export async function saveDailyAccum(accum) {
     }
 
     // Monolith fallback for small data
-    if (count < 50000) {
-        await saveWithBackup('daily-accum.json.gz', { ...accum, lastUpdated: timestamp }, { compress: true });
-    }
+    // V18.2.1: Always save full accum to monolith
+    await saveWithBackup('daily-accum.json.gz', { ...accum, lastUpdated: timestamp }, { compress: true });
+
+    // Purge stale shards (V18.2.1)
+    const { purgeStaleShards } = await import('./registry-io.js');
+    await purgeStaleShards('daily-accum', shardCount);
 }

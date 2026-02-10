@@ -204,14 +204,16 @@ export async function computeAltRelations(entities, outputDir = './output') {
             relations,
         };
 
+        const zlib = await import('zlib');
         // Sanitize category name for filename
         const safeCategory = category.replace(/[^a-z0-9-]/gi, '-').toLowerCase();
         await fs.writeFile(
-            path.join(relationsDir, `${safeCategory}.json`),
-            JSON.stringify(output)
+            path.join(relationsDir, `${safeCategory}.json.gz`),
+            zlib.gzipSync(JSON.stringify(output))
         );
     }
 
+    const zlib = await import('zlib');
     // Write meta file
     const meta = {
         _v: '14.5.2',
@@ -220,8 +222,8 @@ export async function computeAltRelations(entities, outputDir = './output') {
         ...stats,
     };
     await fs.writeFile(
-        path.join(outputDir, 'cache', 'relations', 'alt-meta.json'),
-        JSON.stringify(meta, null, 2)
+        path.join(outputDir, 'cache', 'relations', 'alt-meta.json.gz'),
+        zlib.gzipSync(JSON.stringify(meta, null, 2))
     );
 
     console.log(`  [ALT-LINKER] Completed in ${Date.now() - startTime}ms`);

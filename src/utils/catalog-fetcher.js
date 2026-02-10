@@ -45,17 +45,29 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
     if (items.length === 0 && env?.R2_ASSETS) {
         for (const rankingPath of pathsToTry) {
             try {
-                const obj = await env.R2_ASSETS.get(`cache/${rankingPath}`);
-                if (obj) {
-                    const data = await obj.json();
-                    items = extractItems(data);
-                    if (items.length > 0) {
-                        source = `r2-internal-${rankingPath}`;
-                        break;
+                const paths = [rankingPath, rankingPath.endsWith('.gz') ? rankingPath : rankingPath + '.gz'];
+                for (const p of paths) {
+                    const obj = await env.R2_ASSETS.get(`cache/${p}`);
+                    if (obj) {
+                        let data;
+                        if (p.endsWith('.gz')) {
+                            const ds = new DecompressionStream('gzip');
+                            const decompressedStream = obj.body.pipeThrough(ds);
+                            const response = new Response(decompressedStream);
+                            data = await response.json();
+                        } else {
+                            data = await obj.json();
+                        }
+                        items = extractItems(data);
+                        if (items.length > 0) {
+                            source = `r2-internal-${p}`;
+                            break;
+                        }
                     }
                 }
+                if (items.length > 0) break;
             } catch (e) {
-                console.warn(`[CatalogFetcher] R2 miss for ${rankingPath}: ${e.message}`);
+                console.warn(`[CatalogFetcher] R2 error for ${rankingPath}: ${e.message}`);
             }
         }
     }
@@ -64,15 +76,31 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
     if (items.length === 0) {
         for (const rankingPath of pathsToTry) {
             try {
-                const res = await fetch(`${CDN_BASE}/${rankingPath}`, { signal: AbortSignal.timeout(5000) });
-                if (res.ok) {
-                    const data = await res.json();
-                    items = extractItems(data);
-                    if (items.length > 0) {
-                        source = `cdn-rankings-${rankingPath}`;
-                        break;
+                const paths = [rankingPath, rankingPath.endsWith('.gz') ? rankingPath : rankingPath + '.gz'];
+                for (const p of paths) {
+                    const res = await fetch(`${CDN_BASE}/${p}`, { signal: AbortSignal.timeout(5000) });
+                    if (res.ok) {
+                        let data;
+                        const isGzip = p.endsWith('.gz');
+                        const isAlreadyDecompressed = res.headers.get('Content-Encoding') === 'gzip';
+
+                        if (isGzip && !isAlreadyDecompressed) {
+                            const ds = new DecompressionStream('gzip');
+                            const decompressedStream = res.body.pipeThrough(ds);
+                            const response = new Response(decompressedStream);
+                            data = await response.json();
+                        } else {
+                            data = await res.json();
+                        }
+
+                        items = extractItems(data);
+                        if (items.length > 0) {
+                            source = `cdn-rankings-${p}`;
+                            break;
+                        }
                     }
                 }
+                if (items.length > 0) break;
             } catch (e) {
                 console.warn(`[CatalogFetcher] CDN fail for ${rankingPath}: ${e.message}`);
             }

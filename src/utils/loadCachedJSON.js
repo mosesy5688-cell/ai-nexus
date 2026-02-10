@@ -29,7 +29,17 @@ export async function loadCachedJSON(path, options = {}) {
         try {
             const file = await r2.get(r2Path);
             if (file) {
-                const data = await file.json();
+                // V18.2: Handle Gzip decompression in Worker environment
+                let data;
+                if (r2Path.endsWith('.gz')) {
+                    const ds = new DecompressionStream('gzip');
+                    const decompressedStream = file.body.pipeThrough(ds);
+                    const response = new Response(decompressedStream);
+                    data = await response.json();
+                } else {
+                    data = await file.json();
+                }
+
                 return {
                     data,
                     source: 'r2-internal',

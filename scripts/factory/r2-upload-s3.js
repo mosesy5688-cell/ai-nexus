@@ -6,7 +6,7 @@ import { S3Client } from '@aws-sdk/client-s3';
 import fs from 'fs/promises';
 import path from 'path';
 import dotenv from 'dotenv';
-import { fetchAllR2ETags, uploadFile, createR2Client } from './lib/r2-helpers.js';
+import { fetchAllR2ETags, uploadFile, createR2Client, purgeEntropy } from './lib/r2-helpers.js';
 
 dotenv.config();
 
@@ -96,6 +96,10 @@ async function main() {
 
     const { success, fail, skipped, unchanged } = await processQueue(s3, allFiles, new Set(checkpoint.uploaded), checkpoint, r2ETagMap);
     await saveCheckpoint(checkpoint);
+
+    // V18.2.1: Final Purge of Entropy
+    await purgeEntropy(s3, CONFIG.BUCKET, r2ETagMap);
+
     console.log(`\n✅ Upload Complete! New: ${success}, Unchanged: ${unchanged}, Fail: ${fail}`);
     if (fail > 0) process.exit(1);
 }

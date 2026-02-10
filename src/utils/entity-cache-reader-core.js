@@ -92,7 +92,17 @@ export async function fetchEntityFromR2(type, slug, locals) {
             try {
                 const file = await r2.get(path);
                 if (file) {
-                    const data = await file.json();
+                    // V18.2: Handle Gzip decompression in Worker environment
+                    let data;
+                    if (path.endsWith('.gz')) {
+                        const ds = new DecompressionStream('gzip');
+                        const decompressedStream = file.body.pipeThrough(ds);
+                        const response = new Response(decompressedStream);
+                        data = await response.json();
+                    } else {
+                        data = await file.json();
+                    }
+
                     return {
                         entity: data.entity || data,
                         computed: data.computed || {},
@@ -115,7 +125,24 @@ export async function fetchEntityFromR2(type, slug, locals) {
                 const cdnUrl = `${R2_CACHE_URL}/${path}`;
                 const res = await fetch(cdnUrl);
                 if (res.ok) {
-                    const data = await res.json();
+                    let data;
+                    const isGzip = path.endsWith('.gz');
+                    const isAlreadyDecompressed = res.headers.get('Content-Encoding') === 'gzip' || res.headers.get('content-encoding') === 'gzip';
+
+                    if (isGzip && !isAlreadyDecompressed) {
+                        try {
+                            const ds = new DecompressionStream('gzip');
+                            const decompressedStream = res.body.pipeThrough(ds);
+                            const decompressedRes = new Response(decompressedStream);
+                            data = await decompressedRes.json();
+                        } catch (e) {
+                            // If manual decompression fails, try direct JSON (might have been transparently decompressed after all)
+                            data = await res.json();
+                        }
+                    } else {
+                        data = await res.json();
+                    }
+
                     return {
                         entity: data.entity || data,
                         computed: data.computed || {},
