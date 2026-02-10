@@ -5,7 +5,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import { SHARD_SIZE } from './registry-utils.js';
+import { SHARD_SIZE, purgeStaleShards } from './registry-utils.js';
 import { loadWithFallback, saveWithBackup } from './cache-core.js';
 
 /**
@@ -71,6 +71,5 @@ export async function saveFniHistory(history) {
     await saveWithBackup('fni-history.json.gz', { ...history, lastUpdated: timestamp }, { compress: true });
 
     // Purge stale shards (V18.2.1)
-    const { purgeStaleShards } = await import('./registry-io.js');
     await purgeStaleShards('fni-history', shardCount);
 }

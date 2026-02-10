@@ -8,54 +8,10 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import { SHARD_SIZE, syncCacheState } from './registry-utils.js';
+import { SHARD_SIZE, syncCacheState, purgeStaleShards } from './registry-utils.js';
 import { loadWithFallback, saveWithBackup } from './cache-core.js';
 
-/**
- * Purge stale sharded files from R2 to prevent baseline mutation
- * V18.2.2: Inlined for CI robustness
- */
-export async function purgeStaleShards(directory, currentShardCount) {
-    if (process.env.ENABLE_R2_BACKUP !== 'true') return;
 
-    try {
-        const { ListObjectsV2Command, DeleteObjectsCommand } = await import('@aws-sdk/client-s3');
-        const { createR2Client } = await import('./r2-helpers.js');
-        const s3 = createR2Client();
-        if (!s3) return;
-
-        const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
-        const prefix = `${process.env.R2_BACKUP_PREFIX || 'meta/backup/'}${directory}/part-`;
-
-        const list = await s3.send(new ListObjectsV2Command({
-            Bucket: bucket,
-            Prefix: prefix
-        }));
-
-        if (!list.Contents) return;
-
-        const deleteBatch = [];
-        for (const obj of list.Contents) {
-            const match = obj.Key.match(/part-(\d+)\.json(\.gz)?/);
-            if (match) {
-                const index = parseInt(match[1]);
-                if (index >= currentShardCount) {
-                    deleteBatch.push({ Key: obj.Key });
-                }
-            }
-        }
-
-        if (deleteBatch.length > 0) {
-            console.log(`[CACHE] 🧹 Purging ${deleteBatch.length} stale shards from ${directory}/...`);
-            await s3.send(new DeleteObjectsCommand({
-                Bucket: bucket,
-                Delete: { Objects: deleteBatch }
-            }));
-        }
-    } catch (err) {
-        console.warn(`[CACHE] ⚠️ Shard purge failed for ${directory}: ${err.message}`);
-    }
-}
 
 const REGISTRY_DIR = 'registry';
 const MONOLITH_FILE = 'global-registry.json.gz';
