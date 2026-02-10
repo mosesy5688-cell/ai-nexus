@@ -106,6 +106,7 @@ const jsonLd = tool ? {
       entityLabel={tool?.language || 'Dev Tool'}
       verified={tool?.verified}
       author={displayAuthor}
+      lastUpdated={tool?.last_updated}
       description={tool?.seo_summary?.description || tool?.description}
       fniScore={tool?.fni_score}
       fniPercentile={tool?.fni_percentile}

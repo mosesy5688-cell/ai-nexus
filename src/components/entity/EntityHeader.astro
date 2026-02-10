@@ -68,6 +68,29 @@ const cleanDescription = (descriptionStr && descriptionStr !== 'null')
   : '';
 
 const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author : 'Independent / Community';
+
+// V19: Relative time formatting for freshness indicator
+function formatRelativeTime(dateStr?: string): string | null {
+  if (!dateStr) return null;
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return null;
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    if (diffMs < 0) return null; // future date
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Updated today';
+    if (diffDays === 1) return 'Updated yesterday';
+    if (diffDays < 30) return `Updated ${diffDays} days ago`;
+    const diffMonths = Math.floor(diffDays / 30);
+    if (diffMonths < 12) return `Updated ${diffMonths} month${diffMonths > 1 ? 's' : ''} ago`;
+    const diffYears = Math.floor(diffMonths / 12);
+    return `Updated ${diffYears} year${diffYears > 1 ? 's' : ''} ago`;
+  } catch {
+    return null;
+  }
+}
+const relativeTime = formatRelativeTime(lastUpdated);
 ---
 
 <header class="mb-10">
@@ -93,6 +116,13 @@ const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author
                 {entityLabel}
               </span>
               
+              {relativeTime && (
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+                  <span class="opacity-70">🕐</span>
+                  {relativeTime}
+                </span>
+              )}
+
               {entityId && (
                 <span class="text-[10px] font-mono tracking-tight opacity-70 truncate max-w-[200px]" title={entityId}>
                   ID: {entityId}

@@ -6,13 +6,18 @@ interface Props {
 const { tool } = Astro.props;
 
 const toolName = tool?.name || tool?.canonical_name || 'unknown-tool';
-const safeToolName = toolName.replace(/ /g,'');
-const safeToolLower = toolName.toLowerCase();
 
-const apiExample = `import { ${safeToolName} } from '${safeToolLower}';\n\nconst client = new ${safeToolName}();\nawait client.connect();`;
+// V19: Use REAL usage data from fused entity, not fabricated code
+const realUsage = tool?.usage || tool?.installation || null;
+
+// V19: Popularity metrics with defensive parsing
+const downloads = tool?.downloads ? Number(tool.downloads) : null;
+const likes = tool?.likes ? Number(tool.likes) : null;
+
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
 import QuickCommands from '../common/QuickCommands.astro';
 import ModelGallery from '../model-detail/ModelGallery.astro';
+import MarkdownRenderer from '../model-detail/MarkdownRenderer.astro';
 ---
 
 <div class="space-y-12">
@@ -21,6 +26,30 @@ import ModelGallery from '../model-detail/ModelGallery.astro';
      <QuickCommands entity={tool} type="tool" />
      <ModelGallery content={tool.body_content || tool.description} title="Tool Documentation & Demos" />
   </section>
+
+  {/* V19: Popularity Metrics (if available) */}
+  {(downloads || likes) && (
+    <section class="flex flex-wrap gap-4">
+      {downloads && (
+        <div class="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
+          <span class="text-lg">⬇️</span>
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Downloads</div>
+            <div class="text-sm font-black text-gray-900 dark:text-white">{downloads >= 1e6 ? `${(downloads/1e6).toFixed(1)}M` : downloads.toLocaleString()}</div>
+          </div>
+        </div>
+      )}
+      {likes && (
+        <div class="flex items-center gap-2 px-4 py-2 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800/30">
+          <span class="text-lg">❤️</span>
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Likes</div>
+            <div class="text-sm font-black text-gray-900 dark:text-white">{likes.toLocaleString()}</div>
+          </div>
+        </div>
+      )}
+    </section>
+  )}
 
   <!-- Section: Tool Info & Classification (Grid) -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -54,38 +83,42 @@ import ModelGallery from '../model-detail/ModelGallery.astro';
 
    </div>
 
-  <!-- Section: API Implementation -->
-   <section class="bg-[#0a0a0a] rounded-2xl p-8 border border-gray-800 shadow-2xl relative overflow-hidden group">
-      <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-         <span class="text-8xl text-indigo-500 select-none">CODE</span>
-      </div>
-      <h2 class="text-xl font-bold mb-6 text-white flex items-center gap-2">
-         <span class="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">🔌</span> API Integration
-      </h2>
-      <div class="relative">
-         <div class="bg-black/50 backdrop-blur-sm text-indigo-300 p-6 rounded-xl font-mono text-[11px] overflow-x-auto border border-gray-800/50">
-            <pre id="tool-api-example"><code>{apiExample}</code></pre>
-         </div>
-         <button 
-           class="absolute top-4 right-4 p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-all active:scale-95 shadow-lg"
-           onclick={`navigator.clipboard.writeText(document.getElementById('tool-api-example').innerText).then(() => { this.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>'; setTimeout(() => this.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>', 2000); })`}
-         >
-           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-           </svg>
-         </button>
-      </div>
-  </section>
+  <!-- Section: Usage / API Integration (V19: Real data or Fallback) -->
+  {realUsage ? (
+    <section class="bg-[#0a0a0a] rounded-2xl p-8 border border-gray-800 shadow-2xl relative overflow-hidden group">
+       <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+          <span class="text-8xl text-indigo-500 select-none">CODE</span>
+       </div>
+       <h2 class="text-xl font-bold mb-6 text-white flex items-center gap-2">
+          <span class="p-2 bg-indigo-500/10 rounded-lg text-indigo-400">🔌</span> Usage & Integration
+       </h2>
+       <div class="prose prose-invert prose-sm max-w-none">
+         <MarkdownRenderer content={realUsage} />
+       </div>
+    </section>
+  ) : (
+    <section class="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-8 border border-gray-200 dark:border-gray-800 text-center">
+       <div class="text-4xl mb-4 opacity-40">📦</div>
+       <p class="text-sm text-gray-500 dark:text-gray-400 font-medium mb-4">
+         Usage documentation not yet indexed for this tool.
+       </p>
+       {tool.source_url && (
+         <a href={tool.source_url} target="_blank" rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs uppercase tracking-tight shadow-lg hover:scale-105 transition-all">
+           <span>🔗</span> View Source Code ↗
+         </a>
+       )}
+    </section>
+  )}
 
-  <!-- Section: README / Tool Card -->
+  <!-- Section: README / Tool Card (V19: html_readme priority) -->
   <div class="relative">
      <div class="absolute -left-6 top-10 w-1 bg-indigo-500/20 h-24 rounded-full blur-sm"></div>
      <FullReadmeSection 
-       bodyContent={tool.body_content || tool.description}
+       bodyContent={tool.html_readme || tool.body_content || tool.description}
        type="tool"
        initialCollapsed={false}
        maxPreviewLength={5000}
      />
   </div>
-</div>
 </div>
