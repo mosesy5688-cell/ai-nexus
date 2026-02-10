@@ -27,27 +27,49 @@ export function getWeekNumber() {
 /**
  * Load shard artifacts from parallel harvester jobs (V16.11 Compressed support)
  */
-export async function loadShardArtifacts(artifactDir, totalShards) {
+export async function loadShardArtifacts(defaultArtifactDir, totalShards) {
     const artifacts = [];
+
+    // V18.2.2: Search in multiple potential CI context directories
+    const searchPaths = [
+        defaultArtifactDir,
+        './artifacts',
+        './output/cache/shards',
+        './cache/registry',
+        './output/registry'
+    ];
+
+    console.log(`[AGGREGATOR] Searching for ${totalShards} shards in: ${searchPaths.join(', ')}`);
+
     for (let i = 0; i < totalShards; i++) {
-        try {
-            // Priority: .json.gz (V16.11)
-            const gzPath = path.join(artifactDir, `shard-${i}.json.gz`);
-            const jsonPath = path.join(artifactDir, `shard-${i}.json`);
-
-            let data;
+        let shardData = null;
+        for (const p of searchPaths) {
             try {
-                // Try Gzip first
-                const compressed = await fs.readFile(gzPath);
-                data = zlib.gunzipSync(compressed).toString('utf-8');
-            } catch {
-                // Fallback to plain JSON
-                data = await fs.readFile(jsonPath, 'utf-8');
-            }
+                // Priority: .json.gz (V16.11)
+                const gzPath = path.join(p, `shard-${i}.json.gz`);
+                const jsonPath = path.join(p, `shard-${i}.json`);
+                const mergedGzPath = path.join(p, `merged_shard_${i}.json.gz`); // Harvester V18.2.1 format
 
-            artifacts.push(JSON.parse(data));
-        } catch {
-            console.warn(`[WARN] Shard ${i} not found in .gz or .json`);
+                let data;
+                if (await fs.access(mergedGzPath).then(() => true).catch(() => false)) {
+                    data = zlib.gunzipSync(await fs.readFile(mergedGzPath)).toString('utf-8');
+                } else if (await fs.access(gzPath).then(() => true).catch(() => false)) {
+                    data = zlib.gunzipSync(await fs.readFile(gzPath)).toString('utf-8');
+                } else if (await fs.access(jsonPath).then(() => true).catch(() => false)) {
+                    data = await fs.readFile(jsonPath, 'utf-8');
+                } else {
+                    continue; // Check next path
+                }
+
+                shardData = JSON.parse(data);
+                break; // Found it!
+            } catch (e) { continue; }
+        }
+
+        if (shardData) {
+            artifacts.push(shardData);
+        } else {
+            console.warn(`[WARN] Shard ${i} not found in any search path.`);
             artifacts.push(null);
         }
     }

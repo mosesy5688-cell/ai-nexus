@@ -136,10 +136,10 @@ async function main() {
             if (process.uptime() > CHECKPOINT_THRESHOLD) break;
             console.log(`[AGGREGATOR] Task: ${task.name}...`);
 
-            // Set shared environment for satellite tasks
-            process.env.ENTITIES_PATH = path.join(CONFIG.OUTPUT_DIR, 'entities.json.gz');
-
-            await task.fn();
+            // Set shared environment for satellite tasks (V18.2.2: Monolith removed)
+            // Satellite tasks now receive rankedEntities directly or use sharded loaders.
+            process.env.AGGREGATOR_MODE = 'true';
+            process.env.CACHE_DIR = './cache';
             if (task.id) await updateTaskChecksum(task.id, rankedEntities, CONFIG.CODE_VERSION);
         } catch (e) { console.error(`[AGGREGATOR] ❌ Task ${task.name} failed: ${e.message}`); }
     }

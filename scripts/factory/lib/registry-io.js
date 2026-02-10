@@ -8,8 +8,53 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import { loadWithFallback, saveWithBackup } from './cache-core.js';
-import { SHARD_SIZE, purgeStaleShards, syncCacheState } from './registry-utils.js';
+import { SHARD_SIZE, syncCacheState } from './registry-utils.js';
+
+/**
+ * Purge stale sharded files from R2 to prevent baseline mutation
+ * V18.2.2: Inlined for CI robustness
+ */
+async function purgeStaleShards(directory, currentShardCount) {
+    if (process.env.ENABLE_R2_BACKUP !== 'true') return;
+
+    try {
+        const { ListObjectsV2Command, DeleteObjectsCommand } = await import('@aws-sdk/client-s3');
+        const { createR2Client } = await import('./r2-helpers.js');
+        const s3 = createR2Client();
+        if (!s3) return;
+
+        const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
+        const prefix = `${process.env.R2_BACKUP_PREFIX || 'meta/backup/'}${directory}/part-`;
+
+        const list = await s3.send(new ListObjectsV2Command({
+            Bucket: bucket,
+            Prefix: prefix
+        }));
+
+        if (!list.Contents) return;
+
+        const deleteBatch = [];
+        for (const obj of list.Contents) {
+            const match = obj.Key.match(/part-(\d+)\.json(\.gz)?/);
+            if (match) {
+                const index = parseInt(match[1]);
+                if (index >= currentShardCount) {
+                    deleteBatch.push({ Key: obj.Key });
+                }
+            }
+        }
+
+        if (deleteBatch.length > 0) {
+            console.log(`[CACHE] 🧹 Purging ${deleteBatch.length} stale shards from ${directory}/...`);
+            await s3.send(new DeleteObjectsCommand({
+                Bucket: bucket,
+                Delete: { Objects: deleteBatch }
+            }));
+        }
+    } catch (err) {
+        console.warn(`[CACHE] ⚠️ Shard purge failed for ${directory}: ${err.message}`);
+    }
+}
 
 const REGISTRY_DIR = 'registry';
 const MONOLITH_FILE = 'global-registry.json.gz';
@@ -44,23 +89,40 @@ export async function loadGlobalRegistry() {
             }
         } catch { }
 
-        // 2. Try Local Shards
+        // 2. Try Local Shards (Flexible Paths for CI)
         try {
-            const files = await fs.readdir(shardDirPath).catch(() => []);
-            const shards = files.filter(f => f.startsWith('part-')).sort();
-            if (shards.length > 0) {
-                console.log(`[CACHE] 🧩 Local Shards detected (${shards.length} parts). Merging...`);
+            const shardSearchPaths = [
+                shardDirPath,
+                path.join(process.cwd(), 'artifacts'),
+                path.join(process.cwd(), 'output/cache/shards')
+            ];
+
+            let shardFiles = [];
+            let foundPath = null;
+
+            for (const p of shardSearchPaths) {
+                const files = await fs.readdir(p).catch(() => []);
+                const shards = files.filter(f => f.startsWith('part-') || f.startsWith('merged_shard_')).sort();
+                if (shards.length > 0) {
+                    shardFiles = shards;
+                    foundPath = p;
+                    break;
+                }
+            }
+
+            if (shardFiles.length > 0) {
+                console.log(`[CACHE] 🧩 Shards detected in ${foundPath} (${shardFiles.length} parts). Merging...`);
                 let allEntities = [];
-                for (const s of shards) {
-                    const parsed = await tryLoad(path.join(shardDirPath, s));
-                    allEntities = allEntities.concat(parsed.entities || []);
+                for (const s of shardFiles) {
+                    const parsed = await tryLoad(path.join(foundPath, s));
+                    allEntities = allEntities.concat(parsed.entities || parsed || []);
                 }
                 if (allEntities.length >= REGISTRY_FLOOR) {
-                    console.log(`[CACHE] ✅ Local Shards hit: ${allEntities.length} entities.`);
+                    console.log(`[CACHE] ✅ Shards hit: ${allEntities.length} entities.`);
                     return { entities: allEntities, count: allEntities.length, lastUpdated: new Date().toISOString(), didLoadFromStorage: true };
                 }
             }
-        } catch { }
+        } catch (e) { console.warn(`[CACHE] Shard loading failed: ${e.message}`); }
     }
 
     // 3. R2 Fallback (Authoritative Monolith)
