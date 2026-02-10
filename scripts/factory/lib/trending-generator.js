@@ -48,24 +48,17 @@ export async function generateTrending(entities, outputDir = './output') {
 }
 
 function formatEntity(e) {
-    // V16.7.1: Use stripped aesthetic slug for frontend stability
-    const source = e.source || e.source_platform || 'unknown';
+    // V18.2.1 GA: STOP cherry-picking. Perform Inclusive Merge for frontend richness.
     const id = e.id || e.slug || '';
-
-    // Aesthetic slug: author/name (stripped)
     const slug = stripPrefix(id).replace(/--/g, '/');
 
     return {
+        ...e, // Preservation of ALL fields (Images, Tags, Benchmarks, Use Cases)
         id: id,
         slug: slug,
         name: e.title || e.name || slug,
-        type: e.type || 'model',
-        source: source,
-        description: (e.description || '').substring(0, 200),
-        fni_score: e.fni_score || e.fni || 0,
-        downloads: e.downloads || 0,
-        likes: e.likes || 0,
-        author: e.author || 'unknown',
+        type: e.type || e.entity_type || 'model',
+        description: (e.description || '').substring(0, 250), // Increased for richer preview
         lastModified: e.lastModified || e._updated,
     };
 }
