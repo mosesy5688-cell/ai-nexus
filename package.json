@@ -17,7 +17,7 @@
     "ces-check": "python scripts/check_compliance.py",
     "ces": "npm run ces-check",
     "health-check": "node scripts/sentinel-prod.js",
-    "deploy": "npm run build && npx wrangler pages deploy dist --project-name ai-nexus-293 --commit-dirty=true"
+    "deploy": "npm run build && npx wrangler pages deploy dist --project-name ai-nexus --commit-dirty=true"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.5",
@@ -25,7 +25,6 @@
     "@astrojs/react": "^4.4.2",
     "@astrojs/sitemap": "^3.2.1",
     "@astrojs/tailwind": "^6.0.2",
-    "@cloudflare/ai": "^1.2.2",
     "@cloudflare/workers-types": "^4.20251121.0",
     "@google/generative-ai": "^0.18.0",
     "@iconify-json/mdi": "^1.1.67",
