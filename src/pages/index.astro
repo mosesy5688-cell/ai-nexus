@@ -15,7 +15,7 @@ import HomeEntitySection from '../components/home/HomeEntitySection.astro';
 import HomeCategoryGrid from '../components/home/HomeCategoryGrid.astro';
 import OnboardingTour from '../components/common/OnboardingTour.astro';
 import TrendChart from '../components/charts/TrendChart.astro';
-import ModelCard from '../components/ModelCard.astro';
+import CatalogCard from '../components/common/CatalogCard.astro';
 import { fetchCatalogData } from '../utils/catalog-fetcher.js';
 
 // V4.3.2 Constitution Core Requirements
@@ -96,7 +96,7 @@ try {
                 <!-- Top Picks Grid (FNI-sorted models) -->
                 <div id="hot-models-grid" class={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 ${hotModels.length > 0 ? '' : 'hidden'}`}>
                     {hotModels.length > 0 && hotModels.map((model) => (
-                        <ModelCard model={model} />
+                        <CatalogCard item={model} type="model" isRisingStar={model.is_rising_star} />
                     ))}
                 </div>
 

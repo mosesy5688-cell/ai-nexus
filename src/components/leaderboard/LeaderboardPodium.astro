@@ -1,6 +1,6 @@
 ---
 // src/components/leaderboard/LeaderboardPodium.astro
-import ModelCard from '../ModelCard.astro';
+import CatalogCard from '../common/CatalogCard.astro';
 
 interface Props {
   topModels: any[];
@@ -16,7 +16,7 @@ const { topModels } = Astro.props;
         <div class="rank-medal">
           {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
         </div>
-        <ModelCard model={b} />
+        <CatalogCard item={b} type="model" />
         <div class="mt-4 text-center">
           <div class="text-3xl font-bold text-white">{b.avg_score}</div>
           <div class="text-xs text-gray-400 uppercase tracking-widest">Avg Score</div>
