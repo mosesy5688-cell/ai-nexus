@@ -138,10 +138,20 @@ async function runAudit() {
     for (const page of PAGES) {
         process.stdout.write(`      - ${page.name.padEnd(20)} `);
         try {
-            const res = await fetch(`${TARGET_URL}${page.url}`, { headers: HEADERS });
-            const content = await res.text();
+            const url = `${TARGET_URL}${page.url}`;
+            let res = await fetch(url, { headers: HEADERS });
+
+            // V18.2.7: .gz Fallback for health check
+            if (!res.ok && !url.endsWith('.gz')) {
+                const gzRes = await fetch(url + '.gz', { headers: HEADERS });
+                if (gzRes.ok) res = gzRes;
+            }
+
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const content = await res.text();
             if (page.text && !content.includes(page.text)) throw new Error(`Text missing: "${page.text}"`);
+            if (page.minSize && content.length < page.minSize) throw new Error(`Payload too small: ${content.length}b < ${page.minSize}b`);
 
             console.log('✅ OK');
             finalReport.results.push({ name: page.name, status: 'PASS' });

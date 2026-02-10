@@ -4,6 +4,7 @@
  * V16.11: Restricted to R2 Source only. No dynamic tag promotion.
  */
 import { fetchMeshRelations, fetchGraphMetadata, fetchConceptMetadata, stripPrefix, isMatch, getTypeFromId, normalizeSlug, KNOWLEDGE_ALIAS_MAP } from './knowledge-cache-reader.js';
+import { loadCachedJSON, loadSpecs } from './loadCachedJSON.js';
 import { articles as knowledgeArticles } from '../data/knowledge-articles.js';
 
 export async function getMeshProfile(locals, rootId, entity, type = 'model') {
@@ -14,13 +15,18 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
 
     // V16.12: Fetch all relevant indices for cross-validation
     // V18.2.5: SSR Protection - Do not load specs/mesh-stats during SSR orchestration
-    const [rawRelations, graphMeta, knowledgeIndex, specsResult, meshStats] = await Promise.all([
+    // V18.2.7: Use loadCachedJSON for consistent .gz handling
+    const [rawRelations, graphMeta, knowledgeIndex, specsResult, meshStatsResult] = await Promise.all([
         fetchMeshRelations(locals, rootId, { ssrOnly: true }).catch(() => []),
         fetchGraphMetadata(locals).catch(() => ({})),
         fetchConceptMetadata(locals).catch(() => ([])),
-        isSSR ? Promise.resolve(null) : locals?.runtime?.env?.R2_ASSETS?.get('cache/specs.json').then(async (f) => f ? await f.json() : null).catch(() => null),
-        isSSR ? Promise.resolve(null) : locals?.runtime?.env?.R2_ASSETS?.get('cache/mesh/stats.json').then(async (f) => f ? await f.json() : null).catch(() => null)
+        isSSR ? Promise.resolve(null) : loadSpecs(locals).catch(() => null),
+        isSSR ? Promise.resolve(null) : loadCachedJSON('cache/mesh/stats.json', { locals }).catch(() => null)
     ]);
+
+    // Normalize results
+    const specsData = specsResult?.data || specsResult;
+    const meshStats = meshStatsResult?.data || meshStatsResult;
 
     const nodeRegistry = new Map();
     const seenIds = new Set();
