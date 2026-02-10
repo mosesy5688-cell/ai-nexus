@@ -63,8 +63,13 @@ async function main() {
         allEntities = JSON.parse(data.toString('utf-8'));
         console.log(`✓ Context loaded: ${allEntities.length} entities ready`);
     } catch (e) {
-        console.error(`[CRITICAL] Authoritative Baseline missing (${entitiesInputPath}): ${e.message}`);
-        throw e;
+        if (e.code === 'ENOENT') {
+            console.warn(`[AGGREGATOR] ⚠️ Authoritative Baseline missing (${entitiesInputPath}). Proceeding with SHARDS-ONLY mode.`);
+            allEntities = []; // Use empty baseline, reconstruct from shards
+        } else {
+            console.error(`[CRITICAL] Error reading baseline context: ${e.message}`);
+            throw e;
+        }
     }
 
     // Minimum data safety floor
