@@ -7,6 +7,15 @@ import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
 
+const TASK_OUTPUT_MAP = {
+    'trending': ['output/cache/trending.json.gz'],
+    'search': ['output/cache/search-core.json.gz', 'output/cache/search-manifest.json'],
+    'rankings': ['output/cache/rankings', 'output/cache/category_stats.json'],
+    'sitemap': ['output/sitemap.xml'],
+    'relations': ['output/cache/relations.json.gz', 'output/cache/mesh/graph.json.gz'],
+    'trend': ['output/cache/trend-data.json.gz']
+};
+
 /**
  * Check if a task should be skipped based on data checksum (V2.0 Incremental)
  */
@@ -16,15 +25,37 @@ export async function checkIncrementalProgress(taskId, entities, logicHash = '')
     const combinedHash = crypto.createHash('md5').update(dataHash + logicHash).digest('hex');
 
     try {
+        // 1. Check Checksum
         let data = await fs.readFile(checksumFile);
         if (data[0] === 0x1f && data[1] === 0x8b) {
             const zlib = await import('zlib');
             data = zlib.gunzipSync(data);
         }
         const checksums = JSON.parse(data.toString('utf-8'));
+
         if (checksums[taskId] === combinedHash) {
-            console.log(`[INCREMENTAL] ⚡ Task ${taskId} checksum matches (Data + Logic). Skipping processing.`);
-            return true;
+            // 2. Check File Existence (V18.2.3: Prevent "false skip" in CI)
+            const requiredFiles = TASK_OUTPUT_MAP[taskId] || [];
+            if (requiredFiles.length === 0) {
+                console.log(`[INCREMENTAL] ⚡ Task ${taskId} checksum matches. Skipping.`);
+                return true;
+            }
+
+            let allExist = true;
+            for (const file of requiredFiles) {
+                try {
+                    await fs.access(path.resolve(process.cwd(), file));
+                } catch {
+                    allExist = false;
+                    console.warn(`[INCREMENTAL] ⚠️ Task ${taskId} checksum matches but ${file} is missing. Re-running.`);
+                    break;
+                }
+            }
+
+            if (allExist) {
+                console.log(`[INCREMENTAL] ⚡ Task ${taskId} checksum matches and files exist. Skipping.`);
+                return true;
+            }
         }
     } catch {
         // File missing or corrupt, assume first run

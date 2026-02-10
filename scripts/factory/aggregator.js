@@ -142,6 +142,14 @@ async function main() {
             // Satellite tasks now receive rankedEntities directly or use sharded loaders.
             process.env.AGGREGATOR_MODE = 'true';
             process.env.CACHE_DIR = './cache';
+            console.log(`[AGGREGATOR] Executing logic for ${task.id}...`);
+            const promise = task.fn();
+            if (promise instanceof Promise) {
+                await promise;
+            } else {
+                console.warn(`[WARN] Task ${task.id} did not return a promise.`);
+            }
+            console.log(`[AGGREGATOR] Task ${task.id} logic completed.`);
             if (task.id) await updateTaskChecksum(task.id, rankedEntities, CONFIG.CODE_VERSION);
         } catch (e) { console.error(`[AGGREGATOR] ❌ Task ${task.name} failed: ${e.message}`); }
     }
