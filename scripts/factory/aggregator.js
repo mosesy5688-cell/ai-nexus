@@ -16,10 +16,12 @@ import { loadFniHistory, loadEntityChecksums, saveEntityChecksums } from './lib/
 import { generateTrendData } from './lib/trend-data-generator.js';
 import { persistRegistry } from './lib/aggregator-persistence.js';
 import {
-    getWeekNumber, loadShardArtifacts, calculatePercentiles,
-    updateFniHistory, generateHealthReport, mergeShardEntities,
-    backupStateFiles
+    loadShardArtifacts, calculatePercentiles,
+    updateFniHistory, mergeShardEntities
 } from './lib/aggregator-utils.js';
+import {
+    getWeekNumber, generateHealthReport, backupStateFiles
+} from './lib/aggregator-maintenance.js';
 import { checkIncrementalProgress, updateTaskChecksum } from './lib/aggregator-incremental.js';
 import { loadGlobalRegistry } from './lib/cache-manager.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
