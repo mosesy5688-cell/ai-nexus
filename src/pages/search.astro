@@ -158,19 +158,20 @@ const entityTypes = [
                         const slug = item.slug || item.id;
                         const path = getRouteFromId(slug, type);
                         return `
-                        <a href="${path}" class="group block p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-xl hover:shadow-sm transition-all">
-                            <div class="flex justify-between items-center">
-                                <div class="flex items-center gap-3">
-                                    <span class="text-[10px] font-black px-1.5 py-0.5 bg-gray-50 dark:bg-gray-900 text-gray-400 dark:text-gray-500 rounded border border-gray-100 dark:border-gray-800 uppercase tracking-tighter">
-                                        ${type}
-                                    </span>
-                                    <h3 class="text-sm font-black text-gray-900 dark:text-white group-hover:text-indigo-600 transition-colors tracking-tight line-clamp-1">${item.name}</h3>
-                                </div>
-                                ${item.fni_score ? `<span class="text-[12px] font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-800/50">FNI ${Math.round(item.fni_score)}</span>` : ''}
+                        <a href="${path}" class="entity-card group p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-2xl hover:shadow-xl transition-all duration-300 block hover:-translate-y-1">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="text-[10px] font-black px-2 py-0.5 bg-gray-50 dark:bg-gray-900 text-gray-400 dark:text-gray-500 rounded border border-gray-100 dark:border-gray-800 uppercase tracking-widest">
+                                    ${type}
+                                </span>
+                                ${item.fni_score ? `
+                                    <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-600/90 text-white shadow-sm">
+                                        <span class="text-[10px] font-bold">🛡️ ${item.fni_percentile?.startsWith('top_') ? item.fni_percentile.replace('top_', 'Top ') : `FNI ${Math.round(item.fni_score)}`}</span>
+                                    </div>
+                                ` : ''}
                             </div>
-                            <div class="mt-2 flex items-center gap-2">
-                                <span class="text-[11px] text-gray-400 font-medium">Author:</span>
-                                <span class="text-[11px] text-gray-600 dark:text-gray-400 font-black">${item.author || 'Open Source'}</span>
+                            <h3 class="text-sm font-black text-gray-900 dark:text-white group-hover:text-indigo-600 transition-colors tracking-tight line-clamp-1 mb-1">${item.name}</h3>
+                            <div class="flex items-center gap-2 text-[11px] text-gray-400 dark:text-gray-500 mb-3 uppercase font-black tracking-widest">
+                                <span>by ${item.author || 'Open Source'}</span>
                             </div>
                         </a>
                     `;}).join('')}

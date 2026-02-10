@@ -1,5 +1,5 @@
 ---
-import ModelCard from './ModelCard.astro';
+import CatalogCard from './common/CatalogCard.astro';
 
 const { models } = Astro.props;
 
@@ -16,7 +16,7 @@ const hasModels = Array.isArray(models) && models.length > 0;
     </h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
       {models.map((model) => (
-        <ModelCard model={model} />
+        <CatalogCard item={model} type="model" />
       ))}
     </div>
   </section>
