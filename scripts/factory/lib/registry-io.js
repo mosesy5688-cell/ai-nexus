@@ -9,6 +9,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { SHARD_SIZE, syncCacheState } from './registry-utils.js';
+import { loadWithFallback, saveWithBackup } from './cache-core.js';
 
 /**
  * Purge stale sharded files from R2 to prevent baseline mutation
@@ -94,7 +95,10 @@ export async function loadGlobalRegistry() {
             const shardSearchPaths = [
                 shardDirPath,
                 path.join(process.cwd(), 'artifacts'),
-                path.join(process.cwd(), 'output/cache/shards')
+                path.join(process.cwd(), 'output/cache/shards'),
+                path.join(process.cwd(), 'cache/registry'),
+                path.join(process.cwd(), 'output/registry'),
+                path.join(process.cwd(), 'output/meta/backup/registry')
             ];
 
             let shardFiles = [];
@@ -102,7 +106,7 @@ export async function loadGlobalRegistry() {
 
             for (const p of shardSearchPaths) {
                 const files = await fs.readdir(p).catch(() => []);
-                const shards = files.filter(f => f.startsWith('part-') || f.startsWith('merged_shard_')).sort();
+                const shards = files.filter(f => f.startsWith('part-') || f.startsWith('shard-') || f.startsWith('merged_shard_')).sort();
                 if (shards.length > 0) {
                     shardFiles = shards;
                     foundPath = p;
@@ -188,7 +192,7 @@ export async function loadFniHistory() {
 
     try {
         const files = await fs.readdir(historyDir);
-        const shards = files.filter(f => f.startsWith('part-') && (f.endsWith('.json.gz') || f.endsWith('.json'))).sort();
+        const shards = files.filter(f => (f.startsWith('part-') || f.startsWith('shard-')) && (f.endsWith('.json.gz') || f.endsWith('.json'))).sort();
 
         if (shards.length > 0) {
             console.log(`[CACHE] 🧩 Sharded FNI history found (${shards.length} parts). Merging...`);
