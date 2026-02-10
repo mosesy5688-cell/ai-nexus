@@ -147,8 +147,7 @@ export async function generateCategoryStats(entities, outputDir = './output') {
                     modelsByCategory[category] = [];
                 }
                 modelsByCategory[category].push({
-                    id: entity.id,
-                    name: entity.name || entity.slug,
+                    ...entity, // V18.2.1 GA: Inclusive Top Models
                     fni: entity.fni || entity.fni_score || 0,
                 });
             }

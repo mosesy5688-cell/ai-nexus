@@ -20,15 +20,15 @@ export async function generateSearchIndices(entities, outputDir = './output') {
 
     // Core index: Top N by FNI (Art 6.3: <500KB)
     const coreEntities = entities.slice(0, SEARCH_CORE_SIZE).map(e => ({
+        ...e, // V18.2.1 GA: Inclusion by default
         id: e.id,
         name: e.name || e.slug,
         type: e.type,
-        description: (e.description || '').substring(0, 100),
-        fni_score: e.fni_score || 0, // Canonical name
+        description: (e.description || '').substring(0, 250),
+        fni_score: e.fni_score || 0,
         author: e.author,
-        tags: typeof e.tags === 'string' ? JSON.parse(e.tags || '[]') : (e.tags || []),
-        source: e.source,
-        has_image: Boolean(e.image_url),
+        tags: Array.isArray(e.tags) ? e.tags : (typeof e.tags === 'string' ? JSON.parse(e.tags || '[]') : []),
+        image_url: e.image_url || null,
         slug: e.slug || e.id?.split(/[:/]/).pop()
     }));
 
@@ -48,14 +48,15 @@ export async function generateSearchIndices(entities, outputDir = './output') {
 
     // Full index: All entities (V14.5.3 Sharding)
     const fullEntities = entities.map(e => ({
+        ...e, // V18.2.1 GA: Inclusion by default
         id: e.id,
         name: e.name || e.slug,
         type: e.type,
         fni_score: e.fni_score || 0,
         author: e.author,
-        description: (e.description || '').substring(0, 100),
-        tags: typeof e.tags === 'string' ? JSON.parse(e.tags || '[]') : (e.tags || []),
-        source: e.source,
+        description: (e.description || '').substring(0, 250),
+        tags: Array.isArray(e.tags) ? e.tags : (typeof e.tags === 'string' ? JSON.parse(e.tags || '[]') : []),
+        image_url: e.image_url || null,
         slug: e.slug || e.id?.split(/[:/]/).pop()
     }));
     const SHARD_SIZE = 5000;

@@ -96,9 +96,9 @@ export async function updateDailyAccumulator(entities, outputDir = './output') {
         .sort((a, b) => (b.fni_score || b.fni || 0) - (a.fni_score || a.fni || 0))
         .slice(0, DAILY_TOP_ENTITIES)
         .map(e => ({
+            ...e, // V18.2.1 GA: Inclusive backup
             id: e.id,
             name: e.name || e.slug,
-            type: e.type,
             fni_score: e.fni_score || e.fni || 0,
             date: new Date().toISOString().split('T')[0],
         }));
@@ -163,9 +163,8 @@ export async function generateDailyReport(outputDir = './output') {
 
     // Prepare Highlights: Merge existing + new accomplishments
     const newHighlights = (accumulator.entries || []).map(e => ({
+        ...e, // V18.2.1 GA: Inclusive Highlights
         entity_id: e.id,
-        name: e.name,
-        type: e.type,
         fni_score: e.fni_score || e.fni || 0
     }));
 

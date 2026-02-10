@@ -7,80 +7,51 @@
  */
 
 export function mergeEntities(existing, incoming) {
-    const mergedObj = { ...existing };
+    // 1. Base Inclusive Merge (V18.2.1 GA: Stop whitelisting to prevent data loss)
+    const mergedObj = { ...existing, ...incoming };
 
-    // 1. Content Priority (Readme)
-    if ((incoming.body_content?.length || 0) > (existing.body_content?.length || 0)) {
-        mergedObj.body_content = incoming.body_content;
-        mergedObj.description = incoming.description || existing.description;
+    // 2. Content Quality Guard (Readme)
+    // Only prefer incoming description/body if it's substantially longer or existing is missing
+    if ((incoming.body_content?.length || 0) < (existing.body_content?.length || 0)) {
+        mergedObj.body_content = existing.body_content;
+        mergedObj.description = existing.description;
     }
 
-    // 2. Metadata Augmentation (Deep Merge meta_json)
+    // 3. Metadata Deep Merge (meta_json)
     try {
         const existingMeta = typeof existing.meta_json === 'string' ? JSON.parse(existing.meta_json) : (existing.meta_json || {});
         const newMeta = typeof incoming.meta_json === 'string' ? JSON.parse(incoming.meta_json) : (incoming.meta_json || {});
 
-        const mergedMeta = { ...existingMeta };
-        for (const [key, value] of Object.entries(newMeta)) {
-            if (value !== null && value !== undefined) {
-                if (typeof value === 'object' && !Array.isArray(value) && existingMeta[key]) {
-                    mergedMeta[key] = { ...existingMeta[key], ...value };
-                } else {
-                    mergedMeta[key] = value;
-                }
-            }
+        const mergedMeta = { ...existingMeta, ...newMeta };
+        // Deep merge 'extended' or other known sub-objects if they exist
+        if (existingMeta.extended && newMeta.extended) {
+            mergedMeta.extended = { ...existingMeta.extended, ...newMeta.extended };
         }
         mergedObj.meta_json = JSON.stringify(mergedMeta);
+    } catch (e) { /* ignore parse errors */ }
 
-        // V16.96.2 Update: Comprehensive Field Promotion (Art 3.1)
-        // Ensures name, author, and descriptions actually update during harvesting
-        const coreFields = [
-            'name', 'canonical_name', 'author', 'author_url', 'author_id',
-            'license', 'license_url', 'source_url', 'slug',
-            'primary_category', 'entity_type', 'type', 'version'
-        ];
-        const techFields = [
-            'params_billions', 'architecture', 'context_length', 'hidden_size', 'num_layers',
-            'fni', 'fni_score', 'quality_score', 'compliance_status',
-            'raw_image_url', 'cover_image_url', 'image_url'
-        ];
-
-        // 1. Update Core Metadata (Strings/Identifiers)
-        for (const field of coreFields) {
-            if (incoming[field] && incoming[field] !== '') {
-                mergedObj[field] = incoming[field];
-            }
-        }
-
-        // 2. Update Technical/Score Data (Numeric/Status)
-        for (const field of techFields) {
-            if (incoming[field] !== undefined && incoming[field] !== null && incoming[field] !== '') {
-                // Special case for score updates: keep highest to prevent metric jitter
-                if (field === 'fni_score' || field === 'fni' || field === 'quality_score') {
-                    mergedObj[field] = Math.max(existing[field] || 0, incoming[field] || 0);
-                } else {
-                    mergedObj[field] = incoming[field];
-                }
-            }
-        }
-    } catch (e) {
-        // Fallback or log
+    // 4. Specialized Metric Handling (Stickiness Logic)
+    // High-water mark for scores and likes/downloads to prevent metric jitter
+    const metricFields = ['fni_score', 'fni', 'quality_score', 'likes', 'downloads'];
+    for (const field of metricFields) {
+        mergedObj[field] = Math.max(existing[field] || 0, incoming[field] || 0);
     }
 
-    // 4. Tags & Metrics
+    // 5. Tags Union
     const tagSet = new Set([...(existing.tags || []), ...(incoming.tags || [])]);
     mergedObj.tags = Array.from(tagSet);
-    mergedObj.likes = Math.max(existing.likes || 0, incoming.likes || 0);
-    mergedObj.downloads = Math.max(existing.downloads || 0, incoming.downloads || 0);
 
-    // 5. Source Trail Merging
+    // 6. Source Trail Consolidation
     try {
         const existingTrail = typeof existing.source_trail === 'string' ? JSON.parse(existing.source_trail) : (existing.source_trail || []);
         const newTrail = typeof incoming.source_trail === 'string' ? JSON.parse(incoming.source_trail) : (incoming.source_trail || []);
-        mergedObj.source_trail = JSON.stringify([...existingTrail, ...newTrail]);
-    } catch (e) {
-        // Fallback
-    }
+        // deduplicate trail entries by a unique key if possible, or just concat
+        mergedObj.source_trail = JSON.stringify([...existingTrail, ...newTrail].slice(-10)); // Keep last 10 steps
+    } catch (e) { /* fallback */ }
+
+    // Always preserve identity fields
+    mergedObj.id = existing.id || incoming.id;
+    mergedObj._updated = incoming._updated || new Date().toISOString();
 
     return mergedObj;
 }

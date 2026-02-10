@@ -133,8 +133,13 @@ export function mergeShardEntities(allEntities, shardResults) {
         if (shard?.entities) {
             for (const result of shard.entities) {
                 if (result.success) {
-                    const update = { ...result.enriched };
-                    // NO DELETIONS: Preservation of description & body_content (V18.2.1 GA)
+                    const enriched = result.enriched || result;
+                    const update = {
+                        ...enriched,
+                        // V18.2.1 Restoration: Explicitly pull HTML for fusion
+                        html_readme: result.html || enriched.html_readme || '',
+                        htmlFragment: result.html || enriched.htmlFragment || ''
+                    };
                     updatedEntitiesMap.set(result.id, update);
                 }
             }
@@ -152,36 +157,28 @@ export function mergeShardEntities(allEntities, shardResults) {
         if (entity.meta_json) {
             try {
                 const meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;
-                if (meta.extended) {
-                    // Preservation V18.2.1
-                    delete meta.extended.readme;
-                    delete meta.extended.html_readme;
-                    delete meta.extended.rawMetadata;
-                }
-                // Preservation V18.2.1
-                delete meta.readme;
-                delete meta.html_readme;
+                // V18.2.1 GA: Stop stripping metadata from internal meta_json
                 entity.meta_json = JSON.stringify(meta);
             } catch (e) { /* ignore parse errors */ }
         }
 
-        // NO DELETIONS: Preservation of description & body_content (V18.2.1 GA)
-        delete entity.html_readme;
-        delete entity.htmlFragment;
-        delete entity.rawMetadata;
-        delete entity.readme;
+        // V18.2.1 GA Restoration: NO DELETIONS.
+        // We MUST preserve all fields for SEO, Search, and Detail Pages (Monolith Integrity)
+        // Only strip rawMetadata if it's truly auxiliary and massive, but keep it for now.
 
         entity.type = entity.type || entity.entity_type || 'model';
         const finalFni = entity.fni_score ?? entity.fni ?? 0;
         entity.fni_score = finalFni;
         entity.fni = finalFni;
 
+        // V18.2.1 GA: Selective Image Promotion (User Principle: Only Helpful Images)
+        // Stop pulling generic thumbnails/covers that don't add real value.
         if (!entity.image_url) {
-            entity.image_url = entity.raw_image_url || null;
-            if (!entity.image_url && entity.meta_json) {
-                const meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;
-                entity.image_url = meta.cover_image_url || meta.thumbnail_url || meta.preview_url || null;
-            }
+            // Only use raw_image_url or explicit high-value preview_url
+            entity.image_url = entity.raw_image_url || entity.preview_url || null;
+
+            // Explicitly AVOID promoting common 'thumbnail' or 'cover' fields if they are the only ones left,
+            // as these are often generic placeholders across registries.
         }
         return { ...entity, id };
     };
