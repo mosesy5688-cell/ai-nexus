@@ -15,7 +15,7 @@ import { loadWithFallback, saveWithBackup } from './cache-core.js';
  * Purge stale sharded files from R2 to prevent baseline mutation
  * V18.2.2: Inlined for CI robustness
  */
-async function purgeStaleShards(directory, currentShardCount) {
+export async function purgeStaleShards(directory, currentShardCount) {
     if (process.env.ENABLE_R2_BACKUP !== 'true') return;
 
     try {
