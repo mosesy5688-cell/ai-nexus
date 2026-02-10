@@ -1,123 +1,90 @@
 // src/scripts/render-model-card.js
 // Shared client-side template for rendering model cards
-// V19.5: High-Utility Decision Tool (Identity + Reliability + Capability)
-import { getRouteFromId, getTypeFromId } from '../utils/mesh-routing-core.js';
+// V5.0: CES-001 Clean URL format
+import { generateEntityUrl } from '../utils/url-utils.js';
+import { extractAuthor } from '../utils/entity-utils.js';
 
 export function renderModelCard(model) {
-    // Robust Extraction Logic (Sync with entity-utils.js)
-    const id = model.id || model.umid || '';
-    const name = model.name || id.split(/[:/]/).pop()?.replace(/--/g, '/') || 'unknown';
-
-    // Author Normalization
-    let author = model.author || model.creator;
-    const isNumeric = /^\d+$/.test(author);
-    if (!author || isNumeric) {
-        const cleanId = id.replace(/^[a-z]+:/i, '').replace(/^[a-z]+-[a-z]+--/i, '');
-        const parts = cleanId.split(/[:/]/);
-        author = parts.length >= 2 ? parts[0] : 'Open Source';
-    }
-
-    // Source Metadata
-    const getSource = (id) => {
-        const lowId = (id || '').toLowerCase();
-        if (lowId.startsWith('hf:') || lowId.includes('huggingface')) return { icon: '🤗', label: 'HF' };
-        if (lowId.startsWith('gh:') || lowId.includes('github')) return { icon: '🐙', label: 'GH' };
-        if (lowId.startsWith('arxiv:') || lowId.includes('arxiv')) return { icon: '📄', label: 'ArXiv' };
-        if (lowId.includes('pytorch')) return { icon: '🔥', label: 'PT' };
-        return { icon: '📦', label: 'Source' };
-    };
-    const source = getSource(id || model.source);
-
-    // Active Status
-    const lastUpdate = new Date(model.last_updated || model.lastModified || 0);
-    const isActive = lastUpdate.getTime() > 0 && (Date.now() - lastUpdate.getTime()) / (1000 * 3600 * 24) <= 30;
-
-    const entityType = model.type || model.entity_type || getTypeFromId(id);
-    const modelUrl = getRouteFromId(id || model.slug || '', entityType);
-
-    const description = (model.description || model.summary || 'Indexing structural intelligence...')
-        .replace(/\<[^>]*>?/gm, '');
-
-    const tags = (typeof model.tags === 'string' ? JSON.parse(model.tags || '[]') : (model.tags || [])).slice(0, 2);
+    const entityType = deriveEntityType(model.id || model.umid || model.slug);
+    const id = model.id || model.slug || '';
+    const displayTitle = model.name || id.split('/').pop()?.replace(/--/g, '/') || 'Untitled Entity';
+    const author = extractAuthor(id, model.author || model.creator || model.organization);
+    const description = (model.description || 'No description available.').replace(/<[^>]*>?/gm, '');
+    const cleanDesc = description.substring(0, 150) + '...';
+    const modelUrl = generateEntityUrl(model, entityType);
 
     const fni = Math.round(model.fni_score || 0);
-    const fniPercentile = model.fni_percentile;
+    const fniPercentile = model.fni_percentile || 0;
 
-    let meta = {};
-    try {
-        meta = typeof model.meta_json === 'string' ? JSON.parse(model.meta_json || '{}') : (model.meta_json || {});
-    } catch (e) { meta = {}; }
-    const ext = meta.extended || {};
-    const params = ext.params_billions || 0;
-    const hasQuant = (ext.quantizations?.length || 0) > 0;
-    const vram = params ? Math.ceil(hasQuant ? (params * 0.6 + 2) : (params * 2.2 + 4)) : null;
-    const sizeTag = params ? (params >= 1 ? `${params}B` : `${Math.round(params * 1000)}M`) : null;
+    let fniBadgeClass = "bg-gray-100 dark:bg-zinc-800 text-gray-500";
+    if (fni >= 85) fniBadgeClass = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
+    else if (fni >= 70) fniBadgeClass = "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
+    else if (fni > 0) fniBadgeClass = "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400";
 
-    const typeColors = {
-        model: 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
-        agent: 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-        dataset: 'bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400',
-        tool: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
-        paper: 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
-        space: 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-    };
-    const typeBadgeColor = typeColors[entityType] || 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
+    let typeBadgeColor = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
+    if (entityType === 'model') typeBadgeColor = 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400';
+    if (entityType === 'agent') typeBadgeColor = 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400';
+    if (entityType === 'dataset') typeBadgeColor = 'bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400';
+    if (entityType === 'tool') typeBadgeColor = 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400';
+    if (entityType === 'paper') typeBadgeColor = 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
+    if (entityType === 'space') typeBadgeColor = 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
+
     const typeLabel = (model.pipeline_tag || model.primary_category || entityType).replace(/-/g, ' ');
 
     function formatNumber(n) {
+        if (!n) return 0;
         if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
         if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
-        return n || 0;
+        return n;
+    }
+
+    function deriveEntityType(id) {
+        if (!id) return 'model';
+        const lowerId = id.toLowerCase();
+        if (lowerId.includes('dataset--')) return 'dataset';
+        if (lowerId.includes('space--')) return 'space';
+        if (lowerId.includes('paper--') || lowerId.includes('arxiv--')) return 'paper';
+        if (lowerId.includes('agent--')) return 'agent';
+        if (lowerId.includes('tool--')) return 'tool';
+        return 'model';
     }
 
     return `
-    <a href="${modelUrl}" class="entity-card group p-5 bg-white dark:bg-zinc-900 rounded-2xl hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-zinc-800 hover:border-indigo-500/50 block h-full flex flex-col hover:-translate-y-1">
-        <div class="flex items-center justify-between mb-3">
-             <div class="flex items-center gap-2">
-                <span class="text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${typeBadgeColor}">${typeLabel}</span>
-                <div class="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-zinc-500 font-black uppercase tracking-widest">
-                    <span title="${source.label}">${source.icon}</span>
-                    ${isActive ? `<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" title="Active"></span>` : ''}
-                </div>
-             </div>
-             ${fni > 0 ? `
-                <div class="text-xs px-2 py-1 rounded-full font-bold shadow-sm bg-indigo-600/90 text-white">
-                    🛡️ ${fniPercentile?.startsWith('top_') ? fniPercentile.replace('top_', 'Top ') : `FNI ${fni}`}
-                </div>
-             ` : ''}
-        </div>
-        
-        ${(sizeTag || vram) && entityType === 'model' ? `
-            <div class="flex flex-wrap gap-2 mb-3">
-                ${sizeTag ? `<span class="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded">${sizeTag}</span>` : ''}
-                ${vram ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${vram <= 12 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : vram <= 24 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'}">💾 ${vram}GB VRAM</span>` : ''}
+        <a href="${modelUrl}" class="entity-card group p-5 bg-white dark:bg-zinc-900 rounded-xl hover:shadow-md transition-all border border-gray-100 dark:border-zinc-800 hover:border-indigo-500/50 block h-full flex flex-col">
+            <div class="flex items-center justify-between mb-3">
+                 <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${typeBadgeColor}">${typeLabel}</span>
+                 ${(model.fni_score !== undefined && model.fni_score !== null) ? `
+                    <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full ${fniBadgeClass}">
+                        <span class="text-[10px] font-bold">🛡️ ${fni}</span>
+                        ${fniPercentile >= 90 ? '<span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">TOP</span>' : ''}
+                    </div>
+                 ` : ''}
             </div>
-        ` : ''}
+            
+            <h3 class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1 mb-1" title="${displayTitle}">
+                ${displayTitle}
+            </h3>
+            
+            <p class="text-[11px] text-gray-400 dark:text-zinc-500 mb-3 uppercase tracking-wider font-medium">by ${author}</p>
+            
+            <p class="text-xs text-gray-600 dark:text-zinc-400 line-clamp-3 mb-4 flex-grow leading-relaxed">
+                ${cleanDesc}
+            </p>
 
-        <h3 class="text-sm font-black text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2 mt-1 mb-1 tracking-tight" title="${name}">${name}</h3>
-        <p class="text-[11px] text-gray-400 dark:text-zinc-500 mb-3 uppercase tracking-[0.15em] font-black">by ${author}</p>
-        <p class="text-sm text-gray-600 dark:text-zinc-400 line-clamp-3 mb-4 flex-grow leading-relaxed">${description}</p>
-
-        <div class="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-zinc-800/50">
-            <div class="flex flex-wrap gap-1.5">
-                ${tags.map(tag => `
-                    <span class="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-gray-50 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500 rounded border border-gray-100 dark:border-zinc-700/50">
-                        ${tag}
-                    </span>
-                `).join('')}
+            <div class="flex items-center gap-4 pt-4 border-t border-gray-50 dark:border-zinc-800 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                ${model.downloads > 0 ? `
+                    <div class="flex items-center gap-1">
+                        <span>📥</span>
+                        <span>${formatNumber(model.downloads)}</span>
+                    </div>
+                ` : ''}
+                ${model.likes > 0 ? `
+                    <div class="flex items-center gap-1">
+                        <span>❤️</span>
+                        <span>${formatNumber(model.likes)}</span>
+                    </div>
+                ` : ''}
             </div>
-            <div class="flex items-center gap-3 text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none">
-                <div class="flex items-center gap-1" title="Downloads/Usage">
-                    <span>📥</span>
-                    <span>${formatNumber(model.downloads || model.download_count)}</span>
-                </div>
-                <div class="flex items-center gap-1" title="Likes">
-                    <span>❤️</span>
-                    <span>${formatNumber(model.likes || model.likes_count)}</span>
-                </div>
-            </div>
-        </div>
-    </a>
+        </a>
     `;
 }
-

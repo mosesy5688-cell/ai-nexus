@@ -3,79 +3,81 @@
  * Helper for UniversalCatalog to render entity cards.
  * Extracted to ensure CES Compliance (< 250 lines per file).
  */
-import { stripPrefix, getRouteFromId } from '../../utils/mesh-routing-core.js';
+import { generateEntityUrl } from '../../utils/url-utils.js';
+import { extractAuthor } from '../../utils/entity-utils.js';
 
 export class EntityCardRenderer {
-    static getLink(type, item) {
-        return getRouteFromId(item.id || item.slug, type);
-    }
-
-    static getTypeLabel(type) {
-        if (type === 'space') return 'Space';
-        if (type === 'tool') return 'Tool';
-        if (type === 'dataset') return 'Dataset';
-        if (type === 'paper') return 'Paper';
-        return type;
-    }
-
     static formatNumber(num) {
+        if (!num) return 0;
         return new Intl.NumberFormat('en-US', { notation: "compact", maximumFractionDigits: 1 }).format(num);
     }
 
     static cleanText(text) {
         if (!text) return '';
-        return text
-            // Remove HTML tags
-            .replace(/<[^>]*>?/gm, '')
-            // Remove Markdown images ![alt](url)
-            .replace(/!\[.*?\]\(.*?\)/g, '')
-            // Remove Markdown links [text](url) -> text
-            .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-            // Remove raw long URLs (common in bad data)
-            .replace(/https?:\/\/[^\s]{30,}/g, '')
-            // Remove specific common clutter
-            .replace(/!GitHub repo size|!Harbor Ko-fi/gi, '')
-            // Clean up whitespace
-            .replace(/\s+/g, ' ')
-            .trim();
+        return text.replace(/<[^>]*>?/gm, '').substring(0, 150) + '...';
     }
 
     static createCardHTML(item, type) {
-        const cleanDesc = this.cleanText(item.description || item.summary || '');
-        const hasFni = item.fni_score !== undefined && item.fni_score !== null;
-        const fniDisplay = hasFni
-            ? `<div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full ${(item.fni_percentile || 0) >= 90 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 dark:bg-zinc-800 text-gray-500'}">
-                <span class="text-[10px] font-bold">🛡️ ${Math.round(item.fni_score)}</span>
-                ${(item.fni_percentile || 0) >= 90 ? '<span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">TOP</span>' : ''}
-               </div>`
-            : '';
+        const id = item.id || item.slug || '';
+        const displayTitle = item.name || id.split('/').pop()?.replace(/--/g, '/') || 'Untitled Entity';
+        const author = extractAuthor(id, item.author || item.creator || item.organization);
+        const description = (item.description || item.summary || 'Structural intelligence indexing in progress...');
+        const cleanDesc = this.cleanText(description);
+        const link = generateEntityUrl(item, type);
+
+        const fni = Math.round(item.fni_score || 0);
+        const fniPercentile = item.fni_percentile || 0;
+
+        let fniBadgeClass = "bg-gray-100 dark:bg-zinc-800 text-gray-500";
+        if (fni >= 85) fniBadgeClass = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
+        else if (fni >= 70) fniBadgeClass = "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
+        else if (fni > 0) fniBadgeClass = "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400";
+
+        let typeBadgeColor = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
+        if (type === 'model') typeBadgeColor = 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400';
+        if (type === 'agent') typeBadgeColor = 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400';
+        if (type === 'dataset') typeBadgeColor = 'bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400';
+        if (type === 'tool') typeBadgeColor = 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400';
+        if (type === 'paper') typeBadgeColor = 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
+        if (type === 'space') typeBadgeColor = 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
 
         const typeLabel = (item.pipeline_tag || item.primary_category || type).replace(/-/g, ' ');
-        const link = this.getLink(type, item);
-
-        // V16.5: Pro-Density Badge Logic
-        let badgeColor = 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400';
-        if (type === 'agent') badgeColor = 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400';
-        if (type === 'space') badgeColor = 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
-        if (type === 'tool') badgeColor = 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400';
-        if (type === 'dataset') badgeColor = 'bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400';
-        if (type === 'paper') badgeColor = 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
-
-        const displayTitle = item.name || item.id?.split('/').pop() || 'Untitled Entity';
 
         return `
-            <a href="${link}" class="entity-card group p-5 bg-white dark:bg-zinc-900 rounded-2xl hover:shadow-xl transition-all border border-gray-100 dark:border-zinc-800 hover:border-indigo-500/50 block h-full flex flex-col">
+            <a href="${link}" class="entity-card group p-5 bg-white dark:bg-zinc-900 rounded-xl hover:shadow-md transition-all border border-gray-100 dark:border-zinc-800 hover:border-indigo-500/50 block h-full flex flex-col">
                 <div class="flex items-center justify-between mb-3">
-                     <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${badgeColor}">${typeLabel}</span>
-                     ${fniDisplay}
+                     <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${typeBadgeColor}">${typeLabel}</span>
+                     ${(item.fni_score !== undefined && item.fni_score !== null) ? `
+                        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full ${fniBadgeClass}">
+                            <span class="text-[10px] font-bold">🛡️ ${fni}</span>
+                            ${fniPercentile >= 90 ? '<span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">TOP</span>' : ''}
+                        </div>
+                     ` : ''}
                 </div>
-                <h3 class="font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1" title="${displayTitle}">${displayTitle}</h3>
-                <p class="text-xs text-gray-500 dark:text-zinc-500 mt-1 mb-3">by ${item.author || item.creator || 'Nexus Collective'}</p>
-                <p class="text-sm text-gray-600 dark:text-zinc-400 line-clamp-3 mb-4 flex-grow" title="${cleanDesc}">${cleanDesc || 'Structural intelligence indexing in progress...'}</p>
-                 <div class="flex items-center gap-4 pt-4 border-t border-gray-50 dark:border-zinc-800 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                    ${item.downloads ? `<span>📥 ${this.formatNumber(item.downloads)}</span>` : ''}
-                    ${item.likes ? `<span>❤️ ${this.formatNumber(item.likes)}</span>` : ''}
-                    ${item.quality_score ? `<span>✨ ${Math.round(item.quality_score)}</span>` : ''}
+                
+                <h3 class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1 mb-1" title="${displayTitle}">
+                    ${displayTitle}
+                </h3>
+                
+                <p class="text-[11px] text-gray-400 dark:text-zinc-500 mb-3 uppercase tracking-wider font-medium">by ${author}</p>
+                
+                <p class="text-xs text-gray-600 dark:text-zinc-400 line-clamp-3 mb-4 flex-grow leading-relaxed">
+                    ${cleanDesc}
+                </p>
+
+                <div class="flex items-center gap-4 pt-4 border-t border-gray-50 dark:border-zinc-800 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                    ${item.downloads > 0 ? `
+                        <div class="flex items-center gap-1">
+                            <span>📥</span>
+                            <span>${this.formatNumber(item.downloads)}</span>
+                        </div>
+                    ` : ''}
+                    ${item.likes > 0 ? `
+                        <div class="flex items-center gap-1">
+                            <span>❤️</span>
+                            <span>${this.formatNumber(item.likes)}</span>
+                        </div>
+                    ` : ''}
                 </div>
             </a>
         `;
