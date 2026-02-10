@@ -22,8 +22,8 @@ export async function loadHotModels() {
     try {
         const path = 'trending.json';
         const gzPath = path + '.gz';
-        let response = await fetch(`${CDN_BASE}/${path}`);
-        if (!response.ok) response = await fetch(`${CDN_BASE}/${gzPath}`);
+        let response = await fetch(`${CDN_BASE}/${gzPath}`);
+        if (!response.ok) response = await fetch(`${CDN_BASE}/${path}`);
         if (!response.ok) throw new Error(`CDN Error: ${response.status}`);
 
         let data;
@@ -99,8 +99,8 @@ export async function loadDailyReport() {
             const gzPath = path + '.gz';
 
             try {
-                let response = await fetch(`${CDN_BASE}/${path}`);
-                if (!response.ok) response = await fetch(`${CDN_BASE}/${gzPath}`);
+                let response = await fetch(`${CDN_BASE}/${gzPath}`);
+                if (!response.ok) response = await fetch(`${CDN_BASE}/${path}`);
 
                 if (response.ok) {
                     const isGzip = response.url.endsWith('.gz');

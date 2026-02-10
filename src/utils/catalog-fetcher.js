@@ -45,7 +45,7 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
     if (items.length === 0 && env?.R2_ASSETS) {
         for (const rankingPath of pathsToTry) {
             try {
-                const paths = [rankingPath, rankingPath.endsWith('.gz') ? rankingPath : rankingPath + '.gz'];
+                const paths = [rankingPath.endsWith('.gz') ? rankingPath : rankingPath + '.gz', rankingPath];
                 for (const p of paths) {
                     const obj = await env.R2_ASSETS.get(`cache/${p}`);
                     if (obj) {
@@ -76,7 +76,7 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
     if (items.length === 0) {
         for (const rankingPath of pathsToTry) {
             try {
-                const paths = [rankingPath, rankingPath.endsWith('.gz') ? rankingPath : rankingPath + '.gz'];
+                const paths = [rankingPath.endsWith('.gz') ? rankingPath : rankingPath + '.gz', rankingPath];
                 for (const p of paths) {
                     const res = await fetch(`${CDN_BASE}/${p}`, { signal: AbortSignal.timeout(5000) });
                     if (res.ok) {
@@ -126,20 +126,34 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
     // Tier 4: Trending Fallback (Legacy/Emergency)
     if (items.length === 0) {
         try {
-            const trendUrl = `${CDN_BASE}/trending.json`;
-            const res = await fetch(trendUrl);
-            if (res.ok) {
-                const data = await res.json();
-                const allRaw = extractItems(data);
+            const paths = ['trending.json', 'trending.json.gz'];
+            for (const p of paths) {
+                const trendUrl = `${CDN_BASE}/${p}`;
+                const res = await fetch(trendUrl, { signal: AbortSignal.timeout(5000) });
+                if (res.ok) {
+                    let data;
+                    const isGzip = p.endsWith('.gz');
+                    const isAlreadyDecompressed = res.headers.get('Content-Encoding') === 'gzip';
 
-                if (isType) {
-                    items = allRaw.filter(i => i.type === typeOrCategory || (typeOrCategory === 'model' && !i.type));
-                } else {
-                    items = allRaw.filter(i => (i.category === typeOrCategory || i.primary_category === typeOrCategory));
+                    if (isGzip && !isAlreadyDecompressed) {
+                        const ds = new DecompressionStream('gzip');
+                        const decompressedStream = res.body.pipeThrough(ds);
+                        const response = new Response(decompressedStream);
+                        data = await response.json();
+                    } else {
+                        data = await res.json();
+                    }
+
+                    const allRaw = extractItems(data);
+                    if (isType) {
+                        items = allRaw.filter(i => i.type === typeOrCategory || (typeOrCategory === 'model' && !i.type));
+                    } else {
+                        items = allRaw.filter(i => (i.category === typeOrCategory || i.primary_category === typeOrCategory));
+                    }
+                    items = items.slice(0, 50);
+                    source = `trending-fallback-${p}`;
+                    if (items.length > 0) break;
                 }
-                // V16.9.23: Cap items to prevent memory exhaustion in Worker during a fallback
-                items = items.slice(0, 50);
-                source = 'trending-fallback';
             }
         } catch (e) {
             console.error(`[CatalogFetcher] Critical Fallback Failed:`, e.message);
