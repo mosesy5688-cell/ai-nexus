@@ -129,3 +129,56 @@ export async function uploadFile(s3, bucket, localPath, remotePath, remoteETag, 
         return { success: false, path: remotePath, error: e.message };
     }
 }
+
+/**
+ * Purge of Entropy: Delete uncompressed files that have Gzip equivalents
+ * V18.2.1: Expanded to include .xml and explicit legacy monoliths
+ */
+export async function purgeEntropy(s3, bucket, etagMap) {
+    console.log('\n🧹 Starting Purge of Entropy (Deep Scrub)...');
+    let purged = 0;
+    const deleteBatch = [];
+
+    const { DeleteObjectsCommand } = await import('@aws-sdk/client-s3');
+
+    // Explicit Legacy Blacklist: These should NEVER exist in production anymore
+    const BLACKLIST = [
+        'cache/search-full.json',
+        'cache/search-full.json.gz',
+        'cache/search-core.json'
+    ];
+
+    for (const legacyKey of BLACKLIST) {
+        if (etagMap.has(legacyKey)) {
+            deleteBatch.push({ Key: legacyKey });
+            purged++;
+        }
+    }
+
+    // Dynamic Purge: any .json that has a .gz equivalent
+    for (const [key, etag] of etagMap) {
+        if (key.endsWith('.json')) {
+            const gzKey = key + '.gz';
+            if (etagMap.has(gzKey)) {
+                deleteBatch.push({ Key: key });
+                purged++;
+            }
+        }
+    }
+
+    // Process deletions in batches of 1000
+    for (let i = 0; i < deleteBatch.length; i += 1000) {
+        const batch = deleteBatch.slice(i, i + 1000);
+        await s3.send(new DeleteObjectsCommand({
+            Bucket: bucket,
+            Delete: { Objects: batch }
+        })).catch(e => console.error(`❌ Purge batch failed: ${e.message}`));
+    }
+
+    if (purged > 0) {
+        console.log(`✅ Purged ${purged} artifacts of high entropy from R2.`);
+    } else {
+        console.log('✨ R2 Bucket is pristine. No entropy detected.');
+    }
+    return purged;
+}

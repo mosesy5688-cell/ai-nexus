@@ -64,15 +64,12 @@ async function main() {
         allEntities = JSON.parse(data.toString('utf-8'));
         console.log(`✓ Context loaded: ${allEntities.length} entities ready`);
     } catch (e) {
-        if (e.code === 'ENOENT') {
-            console.warn(`[WARN] Baseline context missing (${entitiesInputPath}), proceeding with Shard-Only Recovery.`);
-        } else {
-            throw e;
-        }
+        console.error(`[CRITICAL] Authoritative Baseline missing or corrupted (${entitiesInputPath}): ${e.message}`);
+        throw e; // Restore Strict Gate (V18.2.1)
     }
 
     // Minimum data safety floor
-    const AGGREGATE_FLOOR = 80000;
+    const AGGREGATE_FLOOR = 85000;
     const currentCount = allEntities.length;
     // Note: If allEntities is empty, we MUST have shards to proceed.
 
@@ -82,13 +79,6 @@ async function main() {
         fullSet = allEntities;
     } else {
         shardResults = await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
-
-        // Safety Guard: If no baseline AND no shards, abort to prevent empty registry
-        const successfulShards = shardResults.filter(s => s !== null).length;
-        if (allEntities.length === 0 && successfulShards === 0) {
-            throw new Error(`[CRITICAL] Shard-Only Recovery failed: No baseline and no shards found in ${CONFIG.ARTIFACT_DIR}`);
-        }
-
         fullSet = mergeShardEntities(allEntities, shardResults);
 
         const checksums = await loadEntityChecksums();

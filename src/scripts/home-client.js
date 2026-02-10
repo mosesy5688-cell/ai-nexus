@@ -2,9 +2,11 @@
 import { renderModelCard } from './render-model-card.js';
 import { stripPrefix } from '../utils/mesh-routing-core.js';
 
+const CDN_BASE = 'https://cdn.free2aitools.com/cache';
+
 // Function to fetch and render hot models (Constitution: FNI-sorted)
 export async function loadHotModels() {
-    const loadingSkeleton = document.getElementById('hot-models-loading'); // V16.2: Fixed ID mismatch
+    const loadingSkeleton = document.getElementById('hot-models-loading');
     const gridEl = document.getElementById('hot-models-grid');
     const errorEl = document.getElementById('hot-models-error');
     const errorMsgEl = document.getElementById('hot-models-error-msg');
@@ -18,10 +20,25 @@ export async function loadHotModels() {
     }
 
     try {
-        const response = await fetch('https://cdn.free2aitools.com/cache/trending.json');
+        const path = 'trending.json';
+        const gzPath = path + '.gz';
+        let response = await fetch(`${CDN_BASE}/${path}`);
+        if (!response.ok) response = await fetch(`${CDN_BASE}/${gzPath}`);
         if (!response.ok) throw new Error(`CDN Error: ${response.status}`);
 
-        const data = await response.json();
+        let data;
+        const isGzip = response.url.endsWith('.gz');
+        const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip' || response.headers.get('content-encoding') === 'gzip';
+
+        if (isGzip && !isAlreadyDecompressed) {
+            const ds = new DecompressionStream('gzip');
+            const decompressedStream = response.body.pipeThrough(ds);
+            const decompressedRes = new Response(decompressedStream);
+            data = await decompressedRes.json();
+        } else {
+            data = await response.json();
+        }
+
         const models = (data.models || data || []).slice(0, 12);
 
         if (models.length === 0) {
@@ -38,7 +55,7 @@ export async function loadHotModels() {
         }
 
         // Hide skeletons if they exist
-        const skeletons = document.querySelectorAll('.skeleton-card'); // V16.2: Corrected selector
+        const skeletons = document.querySelectorAll('.skeleton-card');
         skeletons.forEach(s => s.classList.add('hidden'));
 
         if (loadingSkeleton) {
@@ -77,18 +94,30 @@ export async function loadDailyReport() {
         for (let i = 0; i < 7; i++) {
             const date = new Date(now);
             date.setDate(now.getDate() - i);
-            const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+            const dateKey = date.toISOString().split('T')[0];
+            const path = `reports/daily/${dateKey}.json`;
+            const gzPath = path + '.gz';
 
             try {
-                const response = await fetch(`https://cdn.free2aitools.com/cache/reports/daily/${dateKey}.json`);
+                let response = await fetch(`${CDN_BASE}/${path}`);
+                if (!response.ok) response = await fetch(`${CDN_BASE}/${gzPath}`);
+
                 if (response.ok) {
-                    reportData = await response.json();
+                    const isGzip = response.url.endsWith('.gz');
+                    const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip' || response.headers.get('content-encoding') === 'gzip';
+
+                    if (isGzip && !isAlreadyDecompressed) {
+                        const ds = new DecompressionStream('gzip');
+                        const decompressedStream = response.body.pipeThrough(ds);
+                        const decompressedRes = new Response(decompressedStream);
+                        reportData = await decompressedRes.json();
+                    } else {
+                        reportData = await response.json();
+                    }
                     foundDate = dateKey;
                     break;
                 }
-            } catch (e) {
-                continue;
-            }
+            } catch (e) { continue; }
         }
 
         if (!reportData) throw new Error('No recent daily report found');

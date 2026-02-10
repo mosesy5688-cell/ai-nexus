@@ -37,10 +37,26 @@ export function initRankingInfiniteScroll() {
             const category = currentPath.split('/').pop();
 
             try {
-                const res = await fetch(`/cache/rankings/${category}/p${nextPage}.json`);
+                const path = `/cache/rankings/${category}/p${nextPage}.json`;
+                const gzPath = path + '.gz';
+                let res = await fetch(path);
+                if (!res.ok) res = await fetch(gzPath);
+
                 if (res.ok) {
-                    const data = await res.json();
-                    const models = data.items || data;
+                    let data;
+                    const isGzip = res.url.endsWith('.gz');
+                    const isAlreadyDecompressed = res.headers.get('Content-Encoding') === 'gzip' || res.headers.get('content-encoding') === 'gzip';
+
+                    if (isGzip && !isAlreadyDecompressed) {
+                        const ds = new DecompressionStream('gzip');
+                        const decompressedStream = res.body.pipeThrough(ds);
+                        const decompressedRes = new Response(decompressedStream);
+                        data = await decompressedRes.json();
+                    } else {
+                        data = await res.json();
+                    }
+
+                    const models = data.items || data.entities || data;
                     const fragment = document.createDocumentFragment();
 
                     models.forEach(model => {

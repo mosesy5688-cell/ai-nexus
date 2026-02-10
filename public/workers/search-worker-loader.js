@@ -25,6 +25,22 @@ async function tryFetchJson(url) {
     }
 
     if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+
+    // V18.2: Handle Gzip decompression in Worker/Browser environment
+    // Only decompress manually if the browser didn't do it transparently
+    const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip' || response.headers.get('content-encoding') === 'gzip';
+
+    if ((response.url.endsWith('.gz') || url.endsWith('.gz')) && !isAlreadyDecompressed) {
+        try {
+            const ds = new DecompressionStream('gzip');
+            const decompressedStream = response.body.pipeThrough(ds);
+            const decompressedRes = new Response(decompressedStream);
+            return await decompressedRes.json();
+        } catch (e) {
+            // Fallback: the browser might have decompressed it but kept the header/url
+            return await response.json();
+        }
+    }
     return await response.json();
 }
 
@@ -77,7 +93,8 @@ export async function loadFullIndex(onProgress) {
             indexCache['model'].items.forEach(e => itemsMap.set(e.id, e));
         }
 
-        const shardUrls = Array.from({ length: totalShards }, (_, i) => `https://cdn.free2aitools.com/cache/search/shard-${i}.json`);
+        const ext = manifest.extension || (manifest.totalShards > 0 ? '.gz' : '.json');
+        const shardUrls = Array.from({ length: totalShards }, (_, i) => `https://cdn.free2aitools.com/cache/search/shard-${i}.json${ext === '.gz' ? '.gz' : ''}`);
         const BATCH_SIZE = 5;
         let loadedShards = 0;
 

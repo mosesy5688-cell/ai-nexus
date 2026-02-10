@@ -19,12 +19,23 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
     let localPath = path.join(cacheDir, filename);
 
     const tryLoad = async (filepath) => {
+        const stats = await fs.stat(filepath);
+        if (stats.size === 0) throw new Error(`Empty file: ${filepath}`);
+
         let data = await fs.readFile(filepath);
-        if (filepath.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) {
+        if (filepath.endsWith('.gz') || (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b)) {
             const zlib = await import('zlib');
-            data = zlib.gunzipSync(data);
+            try {
+                data = zlib.gunzipSync(data);
+            } catch (e) {
+                throw new Error(`Gzip decompression failed for ${filepath}: ${e.message}`);
+            }
         }
-        return JSON.parse(data.toString('utf-8'));
+        try {
+            return JSON.parse(data.toString('utf-8'));
+        } catch (e) {
+            throw new Error(`JSON parse failed for ${filepath}: ${e.message}`);
+        }
     };
 
     // 1. Try Local (Original or .gz)
@@ -48,17 +59,31 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
 
     // 2. Try R2 (Original or .gz)
     const tryR2 = async (targetFile, targetKey) => {
-        const tempFile = path.join(os.tmpdir(), `r2-${targetFile.replace(/\//g, '-')}-${Date.now()}`);
         console.log(`[CACHE] R2 Restore: ${targetKey}...`);
-        execSync(
-            `npx wrangler r2 object get ${getR2Bucket()}/${targetKey} --file=${tempFile} --remote`,
-            { stdio: 'pipe', timeout: 300000 }
-        );
-        const result = await tryLoad(tempFile);
+        const s3 = createR2Client();
+        if (!s3) throw new Error('R2 Client unavailable');
+
+        const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+        const response = await s3.send(new GetObjectCommand({
+            Bucket: getR2Bucket(),
+            Key: targetKey
+        }));
+
+        const body = await response.Body.transformToByteArray();
+        const buffer = Buffer.from(body);
+
+        // Save to local cache for next time
         await fs.mkdir(cacheDir, { recursive: true });
-        await fs.writeFile(targetFile, await fs.readFile(tempFile));
-        await fs.unlink(tempFile).catch(() => { });
-        return result;
+        await fs.writeFile(targetFile, buffer);
+
+        // Decompress and parse
+        let data = buffer;
+        const isGzipHeader = response.ContentEncoding === 'gzip' || targetKey.endsWith('.gz');
+        if (isGzipHeader || (data[0] === 0x1f && data[1] === 0x8b)) {
+            const zlib = await import('zlib');
+            data = zlib.gunzipSync(data);
+        }
+        return JSON.parse(data.toString('utf-8'));
     };
 
     try {
@@ -130,7 +155,8 @@ export async function saveWithBackup(filename, data, options = {}) {
                 Bucket: getR2Bucket(),
                 Key: r2Key,
                 Body: content,
-                ContentType: options.compress ? 'application/x-gzip' : 'application/json'
+                ContentType: options.compress ? 'application/x-gzip' : 'application/json',
+                ContentEncoding: options.compress ? 'gzip' : undefined
             }));
         } catch (err) {
             console.warn(`[CACHE] ⚠️ R2 backup failed: ${err.message}`);

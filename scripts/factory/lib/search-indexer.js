@@ -53,6 +53,7 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         type: e.type,
         fni_score: e.fni_score || 0,
         author: e.author,
+        description: (e.description || '').substring(0, 100),
         tags: typeof e.tags === 'string' ? JSON.parse(e.tags || '[]') : (e.tags || []),
         source: e.source,
         slug: e.slug || e.id?.split(/[:/]/).pop()
@@ -75,6 +76,7 @@ export async function generateSearchIndices(entities, outputDir = './output') {
             _generated: new Date().toISOString(),
         };
         const compressedShard = zlib.gzipSync(JSON.stringify(shard));
+        // SPEC-ID-V2.0: Always use .gz for shards
         await fs.writeFile(path.join(shardingDir, `shard-${s}.json.gz`), compressedShard);
     }
 
@@ -83,15 +85,12 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         totalEntities: fullEntities.length,
         totalShards,
         shardSize: SHARD_SIZE,
+        extension: '.gz', // Explicitly tell client to use .gz
         _generated: new Date().toISOString(),
     };
     await fs.writeFile(path.join(searchDir, 'search-manifest.json'), JSON.stringify(manifest));
 
-    // BACKWARD COMPATIBILITY
-    const legacyFull = {
-        entities: fullEntities.slice(0, 50000),
-        _count: Math.min(fullEntities.length, 50000),
-        _generated: new Date().toISOString(),
-    };
-    await fs.writeFile(path.join(searchDir, 'search-full.json.gz'), zlib.gzipSync(JSON.stringify(legacyFull)));
+    // V18.2: Legacy search-full removed per Art 6.2 (Strict Compression)
+    // and explicitly requested by user to optimize browser memory.
+    console.log(`  [SEARCH] ✅ Done. Manifest and ${totalShards} shards generated.`);
 }
