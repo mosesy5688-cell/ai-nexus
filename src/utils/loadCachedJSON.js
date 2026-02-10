@@ -113,6 +113,13 @@ export async function loadBenchmarks(locals = null) {
  * @returns {Promise<{data: SpecsData | null, source: string, freshness: string}>}
  */
 export async function loadSpecs(locals = null) {
+    // V18.2.5: Block heavy specs load during SSR to prevent Worker Resource Limit (1102)
+    const isSSR = Boolean(locals?.runtime?.env);
+    if (isSSR) {
+        console.warn('[loadSpecs] SSR Memory Protection active: Returning stub');
+        return { data: { count: 0, data: [], architecture_families: [] }, source: 'ssr-stub', freshness: 'live' };
+    }
+
     return loadCachedJSON('/cache/specs.json', {
         locals,
         fallbackData: {

@@ -13,11 +13,9 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
 
     // V16.95: Full 7-Source Aggregation (Perfect SSOT Recovery)
     // V16.96: SSR Memory Protection - Exclude multi-MB files during SSR to prevent 1102 Errors
+    // V18.2.5: Emergency - Use ONLY core relations for SSR to bypass CPU/RAM limits
     const sourcesToFetch = options.ssrOnly ? [
-        'cache/relations.json',
-        'cache/knowledge/index.json',
-        'cache/reports/index.json',
-        'cache/mesh/stats.json'
+        'cache/relations.json'
     ] : [
         'cache/mesh/graph.json',
         'cache/relations.json',

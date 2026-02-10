@@ -34,8 +34,14 @@ const pageDescription = "Discover open-source AI models, datasets, papers, bench
 const seoSchema = buildIndexSEO();
 
 // V16.5: Fetch Tier 1 SSR Data (Trending) - Using Optimized Unified Fetcher
-const { items: hotItems = [] } = await fetchCatalogData('model', (Astro as any).locals.runtime);
-const hotModels = hotItems.slice(0, 12);
+// V18.2.5: Emergency Protection - Graceful degradation if R2 is saturated by CI
+let hotModels = [];
+try {
+    const { items: hotItems = [] } = await fetchCatalogData('model', (Astro as any).locals.runtime);
+    hotModels = hotItems.slice(0, 12);
+} catch (e) {
+    console.error('[Homepage] Critical SSR Fetch Failure:', e.message);
+}
 ---
 
 <Layout title={pageTitle} description={pageDescription} jsonld={seoSchema}>
