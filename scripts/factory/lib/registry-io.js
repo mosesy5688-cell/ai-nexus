@@ -142,4 +142,4 @@ export async function saveGlobalRegistry(registry) {
 
 export { loadFniHistory, saveFniHistory } from './registry-history.js';
 export { loadDailyAccum, saveDailyAccum } from './registry-accum.js';
-export { syncCacheState };
+export { syncCacheState, purgeStaleShards };

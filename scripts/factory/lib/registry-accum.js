@@ -6,6 +6,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { loadWithFallback, saveWithBackup } from './cache-core.js';
+import { purgeStaleShards } from './registry-utils.js';
 
 const SHARD_SIZE = 25000;
 const REGISTRY_DIR = 'registry';
@@ -76,6 +77,5 @@ export async function saveDailyAccum(accum) {
     await saveWithBackup('daily-accum.json.gz', { ...accum, lastUpdated: timestamp }, { compress: true });
 
     // Purge stale shards (V18.2.1)
-    const { purgeStaleShards } = await import('./registry-io.js');
     await purgeStaleShards('daily-accum', shardCount);
 }
