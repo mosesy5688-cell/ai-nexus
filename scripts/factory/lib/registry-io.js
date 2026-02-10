@@ -108,9 +108,10 @@ export async function saveGlobalRegistry(registry) {
         await saveWithBackup(`${REGISTRY_DIR}/part-${String(i).padStart(3, '0')}.json.gz`, shardData, { compress: true });
     }
 
-    // 2. Dual-Write Monolith (Gzip Only)
-    const monolithData = { entities, count, lastUpdated: timestamp };
-    await saveWithBackup(MONOLITH_FILE, monolithData, { compress: true });
+    // 2. Dual-Write Monolith (Gzip Only) - DISABLED (V18.2.1: Bypassing RangeError: Invalid string length)
+    // const monolithData = { entities, count, lastUpdated: timestamp };
+    // await saveWithBackup(MONOLITH_FILE, monolithData, { compress: true });
+    console.log(`[CACHE] Monolith save skipped. Sharded registry is now the primary Source of Truth.`);
 
     // 3. Purge Stale Shards (V18.2.1 GA)
     await purgeStaleShards(REGISTRY_DIR, shardCount);

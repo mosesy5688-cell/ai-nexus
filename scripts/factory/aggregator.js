@@ -55,21 +55,13 @@ async function main() {
 
     let allEntities = [];
     try {
-        let data = await fs.readFile(entitiesInputPath);
-        if (entitiesInputPath.endsWith('.gz') || (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b)) {
-            const zlib = await import('zlib');
-            data = zlib.gunzipSync(data);
-        }
-        allEntities = JSON.parse(data.toString('utf-8'));
-        console.log(`✓ Context loaded: ${allEntities.length} entities ready`);
+        console.log(`[AGGREGATOR] 🧩 Loading sharded baseline...`);
+        const registry = await loadGlobalRegistry();
+        allEntities = registry.entities || [];
+        console.log(`✓ Context loaded: ${allEntities.length} entities ready (via Shards/Monolith fallback)`);
     } catch (e) {
-        if (e.code === 'ENOENT') {
-            console.warn(`[AGGREGATOR] ⚠️ Authoritative Baseline missing (${entitiesInputPath}). Proceeding with SHARDS-ONLY mode.`);
-            allEntities = []; // Use empty baseline, reconstruct from shards
-        } else {
-            console.error(`[CRITICAL] Error reading baseline context: ${e.message}`);
-            throw e;
-        }
+        console.warn(`[AGGREGATOR] ⚠️ Authoritative Baseline missing or corrupt. Proceeding with SHARDS-ONLY mode.`);
+        allEntities = []; // Reconstruct from shards
     }
 
     // Minimum data safety floor
@@ -152,13 +144,8 @@ async function main() {
         } catch (e) { console.error(`[AGGREGATOR] ❌ Task ${task.name} failed: ${e.message}`); }
     }
 
-    if (!taskArg || taskArg === 'core' || taskArg === 'relations') {
-        const entitiesOutputPath = path.join(CONFIG.OUTPUT_DIR, 'entities.json.gz');
-        const zlib = await import('zlib');
-        const compressed = zlib.gzipSync(JSON.stringify(rankedEntities));
-        await fs.writeFile(entitiesOutputPath, compressed);
-        console.log(`[AGGREGATOR] ✅ Persisted compressed entities: ${entitiesOutputPath}`);
-    }
+    // V18.2.1: Monolith save removed to prevent RangeError: Invalid string length.
+    // Sharded persistence is handled by persistRegistry() below.
 
     if (!taskArg || taskArg === 'core') {
         try {
