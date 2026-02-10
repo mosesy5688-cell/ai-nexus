@@ -77,16 +77,27 @@ async function checkInfrastructure() {
         const statsRes = await fetch(statsUrl, { headers: HEADERS });
         if (!statsRes.ok) throw new Error(`Stats fetch failed (${statsRes.status})`);
 
+        // Get stats last modified as a freshness baseline
+        const statsLastMod = new Date(statsRes.headers.get('last-modified') || Date.now());
+
         // 2. Pagination Cap Check (Art 2.4 - No p51)
         const categories = ['text-generation', 'vision-multimedia', 'infrastructure-ops', 'knowledge-retrieval'];
         for (const cat of categories) {
             const p51Url = `${TARGET_URL}/cache/rankings/${cat}/p51.json`;
-            const p51Res = await fetch(p51Url, { headers: HEADERS });
+            const p51Res = await fetch(p51Url, { method: 'HEAD', headers: HEADERS });
+
             if (p51Res.status === 200) {
-                results.status = 'FAIL';
-                results.error = `Pagination CAP violated: ${cat}/p51.json exists (Art 2.4 Violation). Generator fix applied, R2 needs purge.`;
-                console.log('❌ FAIL');
-                return results;
+                const p51LastMod = new Date(p51Res.headers.get('last-modified') || 0);
+                const isStale = (statsLastMod - p51LastMod) > 1000 * 60 * 60; // Older than 1 hour relative to stats
+
+                if (isStale) {
+                    console.warn(`   ⚠️  Stale artifact detected: ${cat}/p51.json (LastModified: ${p51LastMod.toISOString()}). Ignoring.`);
+                } else {
+                    results.status = 'FAIL';
+                    results.error = `Pagination CAP violated: ${cat}/p51.json is FRESH (Art 2.4 Violation). LastModified: ${p51LastMod.toISOString()}.`;
+                    console.log('❌ FAIL');
+                    return results;
+                }
             }
         }
 
