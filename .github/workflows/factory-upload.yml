@@ -217,7 +217,11 @@ jobs:
           echo "📡 Purging CDN cache for paths: $PURGE_PATHS"
           curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
-            --data "{\"files\":$PURGE_PATHS}"
+            --data "{\"files\":$PURGE_PATHS}" > purge_res.json
+          if grep -q '"code":10000' purge_res.json; then
+            echo "❌ [PURGE ERROR] Authentication failed. Please ensure your CLOUDFLARE_API_TOKEN has 'Zone.Cache Purge' permissions."
+          fi
+          cat purge_res.json
       - name: Trigger Health Check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
