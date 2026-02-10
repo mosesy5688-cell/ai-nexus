@@ -21,6 +21,7 @@ import {
     backupStateFiles
 } from './lib/aggregator-utils.js';
 import { checkIncrementalProgress, updateTaskChecksum } from './lib/aggregator-incremental.js';
+import { loadGlobalRegistry } from './lib/cache-manager.js';
 import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 
 // Config (Art 3.1, 3.3)
@@ -40,9 +41,7 @@ const CHECKPOINT_THRESHOLD = 5.5 * 3600; // 5.5 hours in seconds
 // Main
 async function main() {
     const startTime = Date.now();
-    console.log(`[AGGREGATOR] Phase 2 starting (Task: ${taskArg || 'ALL'})...`);
-    process.env.ENABLE_R2_BACKUP = 'true';
-    let entitiesInputPath = process.env.ENTITIES_PATH || './data/merged.json';
+    let entitiesInputPath = process.env.ENTITIES_PATH || './data/merged.json.gz';
 
     // Transparent .gz fallback
     if (!await fs.access(entitiesInputPath).then(() => true).catch(() => false)) {
@@ -57,15 +56,15 @@ async function main() {
     let allEntities = [];
     try {
         let data = await fs.readFile(entitiesInputPath);
-        if (entitiesInputPath.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) {
+        if (entitiesInputPath.endsWith('.gz') || (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b)) {
             const zlib = await import('zlib');
             data = zlib.gunzipSync(data);
         }
         allEntities = JSON.parse(data.toString('utf-8'));
         console.log(`✓ Context loaded: ${allEntities.length} entities ready`);
     } catch (e) {
-        console.error(`[CRITICAL] Authoritative Baseline missing or corrupted (${entitiesInputPath}): ${e.message}`);
-        throw e; // Restore Strict Gate (V18.2.1)
+        console.error(`[CRITICAL] Authoritative Baseline missing (${entitiesInputPath}): ${e.message}`);
+        throw e;
     }
 
     // Minimum data safety floor
