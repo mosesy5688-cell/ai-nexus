@@ -24,7 +24,10 @@ export default defineConfig({
     '/paper': '/papers'
   },
   adapter: cloudflare({
-    runtime: { mode: 'local', type: 'pages' }
+    runtime: { mode: 'local', type: 'pages' },
+    // V18.2.6: Disable built-in session KV to comply with Zero-Cost Constitution
+    // This suppresses the "Enabling sessions with Cloudflare KV" build step
+    sessionPersistence: false
   }),
   build: {
     assets: 'assets',
