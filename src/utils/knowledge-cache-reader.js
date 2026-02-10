@@ -164,10 +164,11 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
 export async function fetchGraphMetadata(locals) {
     try {
         // V16.96: Skip heavy graph metadata during SSR to preserve memory
-        // V16.10: But allow if NOT in SSR (client-side)
+        // V18.2.7: Allow if NOT in SSR (client-side) or explicit override
         const isSSR = Boolean(locals?.runtime?.env);
         if (isSSR) return {};
 
+        // V16.10: Use loadCachedJSON for environment-aware fetching
         const { data } = await loadCachedJSON('cache/mesh/graph.json', { locals });
         if (data) return data.nodes || {};
 
@@ -175,6 +176,7 @@ export async function fetchGraphMetadata(locals) {
         const { data: legacy } = await loadCachedJSON('cache/relations/explicit.json', { locals });
         return legacy?.nodes || {};
     } catch (e) {
+        console.warn('[KnowledgeReader] Metadata load failed:', e.message);
         return {};
     }
 }

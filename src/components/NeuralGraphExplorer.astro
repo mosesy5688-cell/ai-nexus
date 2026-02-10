@@ -44,7 +44,7 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
 
 {hasRelations && (
 <div class="neural-graph-wrapper bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-    <section class="neural-graph-explorer" id="neural-mesh-hub">
+    <section class="neural-graph-explorer" id="neural-mesh-hub" data-root-id={rootId}>
         <div class="header">
             <div class="title-group">
                 <h3 class="title">🕸️ Neural Mesh Hub</h3>
@@ -123,35 +123,116 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
 
 <script is:inline>
   // V16.34: Neural Mesh Hub Stability Guard
+  // V18.2.7: Client-Side Hydration (Enables Hub after SSR-Lite)
+  async function hydrateMeshHub() {
+    const hub = document.getElementById('neural-mesh-hub');
+    if (!hub) return;
+    
+    const rootId = hub.dataset.rootId || '';
+    const nodes = hub.querySelectorAll('.mesh-node');
+    
+    // V18.2.7: If SSR only provided core relations (or nothing), fetch full mesh on client
+    if (nodes.length <= 1) {
+      console.log('[NeuralMesh] Hydration triggered for:', rootId);
+      try {
+        const { getMeshProfile } = await import('/src/utils/mesh-orchestrator.js');
+        const { getRouteFromId } = await import('/src/utils/mesh-routing-core.js');
+        
+        const profile = await getMeshProfile(null, rootId);
+        if (profile && profile.tiers) {
+          Object.entries(profile.tiers).forEach(([key, tier]) => {
+            if (tier.nodes.length === 0) return;
+            
+            const grid = document.getElementById(`mesh-grid-${key}`);
+            if (!grid) return;
+
+            // Clear existing and render fresh nodes
+            grid.innerHTML = tier.nodes.map((node, index) => {
+              const path = getRouteFromId(node.id, node.type);
+              const isExtra = index >= 6 ? 'hidden extra-node' : '';
+              
+              return `
+                <a href="${path}" class="mesh-node group relative p-4 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 rounded-2xl hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 ${isExtra}">
+                  <div class="flex items-start gap-4">
+                    <div class="node-icon-wrapper relative">
+                      <span class="text-3xl filter grayscale group-hover:grayscale-0 transition-all duration-500 block">
+                        ${node.icon || '📦'}
+                      </span>
+                      ${node.relation ? `
+                        <span class="relation-badge absolute -top-2 -right-2 px-1.5 py-0.5 bg-indigo-500 text-[8px] font-black text-white rounded shadow-sm uppercase tracking-tighter">
+                          ${node.relation}
+                        </span>
+                      ` : ''}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between gap-2 mb-1">
+                        <span class="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-indigo-500 transition-colors">
+                          ${node.name}
+                        </span>
+                        <span class="text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded bg-gray-50 dark:bg-gray-900 text-gray-400 border border-gray-100 dark:border-gray-800">
+                          ${node.type}
+                        </span>
+                      </div>
+                      <p class="text-[10px] text-gray-500 dark:text-gray-400 line-clamp-1">
+                        ${node.author || 'Ecosystem Node'}
+                      </p>
+                    </div>
+                    <div class="flex flex-col justify-center opacity-30 group-hover:opacity-100 transition-opacity">
+                      <span class="text-indigo-500 translate-x-0 group-hover:translate-x-1 transition-transform">→</span>
+                    </div>
+                  </div>
+                </a>
+              `;
+            }).join('');
+            
+            // Show the tier container if it was hidden
+            const tierContainer = grid.closest('.mesh-tier');
+            if (tierContainer) tierContainer.style.display = 'block';
+          });
+
+          // Re-validate and re-init folding
+          validateMeshHub();
+          initFolding();
+        }
+      } catch (e) {
+        console.warn('[NeuralMesh] Hydration failed:', e.message);
+      }
+    }
+  }
+
   function validateMeshHub() {
     const hub = document.getElementById('neural-mesh-hub');
     if (!hub) return;
     
     const nodes = hub.querySelectorAll('.mesh-node');
-    // If orchestration failed and zero nodes were rendered, hide the entire section
-    // to prevent showing an empty "Knowledge Base" header.
     if (nodes.length === 0) {
       const wrapper = hub.closest('.neural-graph-wrapper');
       if (wrapper) {
         wrapper.style.display = 'none';
         console.warn('[NeuralMesh] Hub stability guard triggered: Zero nodes.');
       }
+    } else {
+      const wrapper = hub.closest('.neural-graph-wrapper');
+      if (wrapper) wrapper.style.display = 'block';
     }
   }
 
-  // Run on load and view transitions
   function initFolding() {
     const buttons = document.querySelectorAll('.show-more-nodes-btn');
     buttons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const targetId = btn.dataset.target;
+        // Remove existing listeners to prevent double-clicks
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+        
+        newBtn.addEventListener('click', () => {
+            const targetId = newBtn.dataset.target;
             const grid = document.getElementById(targetId);
             if (grid) {
                 const extra = grid.querySelectorAll('.extra-node');
                 extra.forEach(el => el.classList.toggle('hidden'));
                 
                 const isHidden = extra[0].classList.contains('hidden');
-                const span = btn.querySelector('span');
+                const span = newBtn.querySelector('span');
                 if (span) {
                     span.textContent = isHidden ? `+ Expand ${extra.length} Hidden Relations` : '- Collapse View';
                 }
@@ -160,14 +241,15 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
     });
   }
 
-  validateMeshHub();
+  hydrateMeshHub().then(() => validateMeshHub());
   initFolding();
+  
   document.addEventListener('astro:after-swap', () => {
-    validateMeshHub();
+    hydrateMeshHub().then(() => validateMeshHub());
     initFolding();
   });
   document.addEventListener('astro:page-load', () => {
-    validateMeshHub();
+    hydrateMeshHub().then(() => validateMeshHub());
     initFolding();
   });
 </script>

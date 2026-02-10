@@ -25,9 +25,16 @@ export async function loadCachedJSON(path, options = {}) {
     // Strategy 1: R2 Direct (Primary for SSR)
     const r2 = locals?.runtime?.env?.R2_ASSETS;
     if (r2) {
-        const r2Path = path.startsWith('/') ? path.slice(1) : path;
+        let r2Path = path.startsWith('/') ? path.slice(1) : path;
         try {
-            const file = await r2.get(r2Path);
+            let file = await r2.get(r2Path);
+
+            // V18.2.7: R2 .gz Fallback
+            if (!file && !r2Path.endsWith('.gz')) {
+                r2Path = r2Path + '.gz';
+                file = await r2.get(r2Path);
+            }
+
             if (file) {
                 // V18.2: Handle Gzip decompression in Worker environment
                 let data;
