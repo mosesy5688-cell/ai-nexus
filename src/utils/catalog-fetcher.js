@@ -147,9 +147,12 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
     }
 
     // SSR Optimization: Cap the total number of items to normalize to prevent Error 1102
-    const finalItems = items.slice(0, 100);
+    // V18.2.5: Aggressive reduction for SSR (24 items) to avoid OOM in Workers
+    const isSSR = Boolean(runtime?.env || (typeof process !== 'undefined' && process.env.AGGREGATOR_MODE));
+    const finalItems = items.slice(0, isSSR ? 24 : 100);
+
     const normalized = DataNormalizer.normalizeCollection(finalItems, isType ? typeOrCategory : 'model');
-    console.log(`[CatalogFetcher] Resolved ${normalized.length} items (Capped for SSR) for ${typeOrCategory} via ${source}`);
+    console.log(`[CatalogFetcher] Resolved ${normalized.length} items (SSR Cap: ${isSSR ? 24 : 100}) for ${typeOrCategory} via ${source}`);
 
     return {
         items: normalized,

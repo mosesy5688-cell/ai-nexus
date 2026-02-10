@@ -9,13 +9,17 @@ import { articles as knowledgeArticles } from '../data/knowledge-articles.js';
 export async function getMeshProfile(locals, rootId, entity, type = 'model') {
     const normRoot = stripPrefix(rootId);
 
+    // V18.2.5: SSR Lite Protection
+    const isSSR = Boolean(locals?.runtime?.env);
+
     // V16.12: Fetch all relevant indices for cross-validation
+    // V18.2.5: SSR Protection - Do not load specs/mesh-stats during SSR orchestration
     const [rawRelations, graphMeta, knowledgeIndex, specsResult, meshStats] = await Promise.all([
         fetchMeshRelations(locals, rootId, { ssrOnly: true }).catch(() => []),
         fetchGraphMetadata(locals).catch(() => ({})),
         fetchConceptMetadata(locals).catch(() => ([])),
-        locals?.runtime?.env?.R2_ASSETS?.get('cache/specs.json').then(async (f) => f ? await f.json() : null).catch(() => null),
-        locals?.runtime?.env?.R2_ASSETS?.get('cache/mesh/stats.json').then(async (f) => f ? await f.json() : null).catch(() => null)
+        isSSR ? Promise.resolve(null) : locals?.runtime?.env?.R2_ASSETS?.get('cache/specs.json').then(async (f) => f ? await f.json() : null).catch(() => null),
+        isSSR ? Promise.resolve(null) : locals?.runtime?.env?.R2_ASSETS?.get('cache/mesh/stats.json').then(async (f) => f ? await f.json() : null).catch(() => null)
     ]);
 
     const nodeRegistry = new Map();
