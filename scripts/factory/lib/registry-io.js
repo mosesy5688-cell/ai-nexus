@@ -9,8 +9,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { loadWithFallback, saveWithBackup } from './cache-core.js';
+import { SHARD_SIZE, purgeStaleShards, syncCacheState } from './registry-utils.js';
 
-const SHARD_SIZE = 25000;
 const REGISTRY_DIR = 'registry';
 const MONOLITH_FILE = 'global-registry.json.gz';
 
@@ -105,88 +105,11 @@ export async function saveGlobalRegistry(registry) {
     }
 
     // 2. Dual-Write Monolith (Gzip Only)
-    // V18.2.1: Always save full registry to monolith for recovery visibility
     const monolithData = { entities, count, lastUpdated: timestamp };
-
     await saveWithBackup(MONOLITH_FILE, monolithData, { compress: true });
 
     // 3. Purge Stale Shards (V18.2.1 GA)
     await purgeStaleShards(REGISTRY_DIR, shardCount);
-}
-
-/**
- * Purge stale sharded files from R2 to prevent baseline mutation
- */
-export async function purgeStaleShards(directory, currentShardCount) {
-    if (process.env.ENABLE_R2_BACKUP !== 'true') return;
-
-    const { ListObjectsV2Command, DeleteObjectsCommand } = await import('@aws-sdk/client-s3');
-    const { createR2Client } = await import('./r2-helpers.js');
-    const s3 = createR2Client();
-    if (!s3) return;
-
-    const bucket = process.env.R2_BUCKET || 'ai-nexus-assets';
-    const prefix = `${process.env.R2_BACKUP_PREFIX || 'meta/backup/'}${directory}/part-`;
-
-    try {
-        const list = await s3.send(new ListObjectsV2Command({
-            Bucket: bucket,
-            Prefix: prefix
-        }));
-
-        if (!list.Contents) return;
-
-        const deleteBatch = [];
-        for (const obj of list.Contents) {
-            const match = obj.Key.match(/part-(\d+)\.json(\.gz)?/);
-            if (match) {
-                const index = parseInt(match[1]);
-                if (index >= currentShardCount) {
-                    deleteBatch.push({ Key: obj.Key });
-                }
-            }
-        }
-
-        if (deleteBatch.length > 0) {
-            console.log(`[CACHE] 🧹 Purging ${deleteBatch.length} stale shards from ${directory}/...`);
-            await s3.send(new DeleteObjectsCommand({
-                Bucket: bucket,
-                Delete: { Objects: deleteBatch }
-            }));
-        }
-    } catch (err) {
-        console.warn(`[CACHE] ⚠️ Shard purge failed for ${directory}: ${err.message}`);
-    }
-}
-
-/**
- * Sync entire cache directory for GitHub Cache persistence
- * V2.0: Robust directory-level sync
- */
-export async function syncCacheState(sourceDir, targetDir) {
-    console.log(`[CACHE] Syncing state: ${sourceDir} → ${targetDir}...`);
-    try {
-        await fs.mkdir(targetDir, { recursive: true });
-
-        // Use recursive copy if available (Node 16.7+)
-        if (fs.cp) {
-            await fs.cp(sourceDir, targetDir, { recursive: true, force: true });
-        } else {
-            // Manual recursive copy for older environments if needed
-            const entries = await fs.readdir(sourceDir, { withFileTypes: true });
-            for (const entry of entries) {
-                const src = path.join(sourceDir, entry.name);
-                const dest = path.join(targetDir, entry.name);
-                if (entry.isDirectory()) {
-                    await syncCacheState(src, dest);
-                } else {
-                    await fs.copyFile(src, dest);
-                }
-            }
-        }
-    } catch (e) {
-        console.warn(`[CACHE] Sync failed: ${e.message}`);
-    }
 }
 
 /**
@@ -228,7 +151,7 @@ export async function loadFniHistory() {
  */
 export async function saveFniHistory(history) {
     const entities = history.entities || {};
-    const keys = Object.keys(entities);
+    const keys = Object.keys(entities).sort();
     const count = keys.length;
     const timestamp = new Date().toISOString();
 
@@ -249,7 +172,6 @@ export async function saveFniHistory(history) {
     }
 
     // Monolith fallback
-    // V18.2.1: Always save full history to monolith
     await saveWithBackup('fni-history.json.gz', { ...history, lastUpdated: timestamp }, { compress: true });
 
     // Purge stale shards (V18.2.1)
@@ -257,3 +179,4 @@ export async function saveFniHistory(history) {
 }
 
 export { loadDailyAccum, saveDailyAccum } from './registry-accum.js';
+export { syncCacheState };
