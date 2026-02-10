@@ -52,7 +52,7 @@ import ModelGallery from '../model-detail/ModelGallery.astro';
   <div class="relative">
      <div class="absolute -left-6 top-10 w-1 bg-indigo-500/20 h-24 rounded-full blur-sm"></div>
      <FullReadmeSection 
-       bodyContent={space.body_content || space.description}
+       bodyContent={space.html_readme || space.body_content || space.description}
        type="space"
        initialCollapsed={false}
        maxPreviewLength={5000}

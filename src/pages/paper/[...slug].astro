@@ -121,6 +121,7 @@ const jsonLd = paper ? {
       entityLabel="Research Paper"
       verified={paper?.verified}
       author={displayAuthor}
+      lastUpdated={paper?.last_updated || paper?.published_date}
       description={paper?.seo_summary?.description || paper?.abstract}
       fniScore={paper?.fni_score}
       fniPercentile={paper?.fni_percentile}

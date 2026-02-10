@@ -10,22 +10,42 @@ import QuickCommands from '../common/QuickCommands.astro';
 import ModelGallery from '../model-detail/ModelGallery.astro';
 import MarkdownRenderer from '../model-detail/MarkdownRenderer.astro';
 
-// Mock Config YAML
+// V19: Removed dead mockConfig variable (fabricated YAML never rendered)
 const agentName = agent?.name || agent?.canonical_name || 'unknown-agent';
-const mockConfig = `agent:
-  name: "${agentName}"
-  framework: "${agent.framework || 'unknown'}"
-  version: "1.0.0"
-capabilities:
-  - web_search
-  - code_interpreter
-`;
+
+// V19: Popularity metrics with defensive parsing
+const downloads = agent?.downloads ? Number(agent.downloads) : null;
+const likes = agent?.likes ? Number(agent.likes) : null;
 ---
 
    <div class="lg:col-span-3 space-y-8">
-      <!-- Full README / Agent Profile -->
+      {/* V19: Popularity Metrics (if available) */}
+      {(downloads || likes) && (
+        <section class="flex flex-wrap gap-4">
+          {downloads && (
+            <div class="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
+              <span class="text-lg">⬇️</span>
+              <div>
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Downloads</div>
+                <div class="text-sm font-black text-gray-900 dark:text-white">{downloads >= 1e6 ? `${(downloads/1e6).toFixed(1)}M` : downloads.toLocaleString()}</div>
+              </div>
+            </div>
+          )}
+          {likes && (
+            <div class="flex items-center gap-2 px-4 py-2 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-100 dark:border-rose-800/30">
+              <span class="text-lg">❤️</span>
+              <div>
+                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Likes</div>
+                <div class="text-sm font-black text-gray-900 dark:text-white">{likes.toLocaleString()}</div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      <!-- Full README / Agent Profile (V19: html_readme priority) -->
       <FullReadmeSection 
-        bodyContent={agent.body_content || agent.description}
+        bodyContent={agent.html_readme || agent.body_content || agent.description}
         type="agent"
         maxPreviewLength={5000}
       />

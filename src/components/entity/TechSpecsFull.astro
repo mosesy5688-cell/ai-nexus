@@ -55,10 +55,22 @@ if (type === 'model') {
   if (entity?.features) {
      hardwareSpecs.push({ label: 'Features', value: Array.isArray(entity.features) ? entity.features.length : (entity.features && typeof entity.features === 'object' ? Object.keys(entity.features).length : 'Aggregated') });
   }
+  // V19: Popularity metrics
+  if (entity?.downloads) hardwareSpecs.push({ label: 'Downloads', value: Number(entity.downloads) >= 1e6 ? `${(Number(entity.downloads)/1e6).toFixed(1)}M` : Number(entity.downloads).toLocaleString() });
+  if (entity?.likes) hardwareSpecs.push({ label: 'Likes', value: Number(entity.likes).toLocaleString() });
 } else if (type === 'paper') {
   hardwareSpecs.push({ label: 'Citations', value: entity?.citations || entity?.citation_count || entity?.meta?.extended?.citations || '-', highlight: true });
   hardwareSpecs.push({ label: 'Year', value: entity?.published_date ? new Date(entity.published_date).getFullYear() : (entity?.year || entity?.meta?.extended?.year || '-') });
   hardwareSpecs.push({ label: 'Page Count', value: entity?.pages || entity?.meta?.extended?.pages || '-' });
+  // V19: Author count
+  const authorList = entity?.authors;
+  if (Array.isArray(authorList) && authorList.length > 0) {
+    hardwareSpecs.push({ label: 'Authors', value: authorList.length });
+  }
+  // V19: ArXiv category
+  if (entity?.arxiv_category || entity?.primary_category) {
+    hardwareSpecs.push({ label: 'Category', value: entity.arxiv_category || entity.primary_category });
+  }
 } else if (type === 'agent' || type === 'tool') {
   hardwareSpecs.push({ label: 'GitHub Stars', value: (entity?.github_stars || entity?.stars || entity?.meta?.extended?.stars)?.toLocaleString() || '-', highlight: true });
   hardwareSpecs.push({ label: 'Language', value: entity?.language || entity?.meta?.extended?.language || 'Python' });
@@ -69,10 +81,15 @@ if (type === 'model') {
   if (repoSize) {
      hardwareSpecs.push({ label: 'Repo Size', value: repoSize > 1024 ? `${(repoSize/1024).toFixed(1)}MB` : `${repoSize}KB` });
   }
+  // V19: Popularity metrics
+  if (entity?.downloads) hardwareSpecs.push({ label: 'Downloads', value: Number(entity.downloads) >= 1e6 ? `${(Number(entity.downloads)/1e6).toFixed(1)}M` : Number(entity.downloads).toLocaleString() });
+  if (entity?.likes) hardwareSpecs.push({ label: 'Likes', value: Number(entity.likes).toLocaleString() });
 } else if (type === 'space') {
   hardwareSpecs.push({ label: 'SDK', value: entity?.sdk || entity?.meta?.extended?.sdk || '-', highlight: true });
   hardwareSpecs.push({ label: 'Hardware', value: entity?.hardware || entity?.meta?.extended?.hardware || 'V100' });
   hardwareSpecs.push({ label: 'Status', value: entity?.runtime?.stage || 'Running' });
+  // V19: Popularity metrics
+  if (entity?.likes) hardwareSpecs.push({ label: 'Likes', value: Number(entity.likes).toLocaleString() });
 }
 
 // 2. Training & Environment
@@ -88,6 +105,8 @@ if (type === 'model') {
 } else if (type === 'agent' || type === 'tool') {
   trainingSpecs.push({ label: 'License', value: entity?.license });
   trainingSpecs.push({ label: 'Forks', value: entity?.github_forks || entity?.forks });
+  // V19: Framework if available
+  if (entity?.framework) trainingSpecs.push({ label: 'Framework', value: entity.framework });
 }
 
 // 3. Model Configuration (V15.9 Enhanced)

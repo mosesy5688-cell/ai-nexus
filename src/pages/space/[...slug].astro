@@ -107,6 +107,7 @@ const jsonLd = space ? {
       entityLabel={space?.sdk || 'Demo Space'}
       verified={space?.verified}
       author={displayAuthor}
+      lastUpdated={space?.last_updated}
       description={space?.seo_summary?.description || space?.description}
       fniScore={space?.fni_score}
       fniPercentile={space?.fni_percentile}

@@ -103,6 +103,7 @@ const jsonLd = dataset ? {
       entityLabel="Dataset"
       verified={dataset?.verified}
       author={displayAuthor}
+      lastUpdated={dataset?.last_updated}
       description={dataset?.seo_summary?.description || dataset?.description}
       fniScore={dataset?.fni_score}
       fniPercentile={dataset?.fni_percentile}
