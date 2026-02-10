@@ -87,17 +87,23 @@ export class Orchestrator {
         console.log('\n✨ Phase 3: Deduplicating...');
         const uniqueEntities = this.deduplicate(normalizedEntities);
 
-        // Phase 3.5: Merge with Archive (Knowledge Continuity)
+        // Phase 3.5: Merging batches with Archive (Knowledge Continuity)
         console.log(`\n🔗 Phase 3.5: Merging batches with ${registryManager.entities.length} existing entities...`);
         const registry = await registryManager.mergeCurrentBatch(uniqueEntities);
         const fullEntities = registry.entities;
+
+        // V18.2.1 GA: Persist the full merged registry into sharded parts (V2.0 Core)
+        // This ensures unharvested entities are preserved and FNI decay is saved.
+        await registryManager.save();
 
         // Phase 4: Compliance filtering
         console.log('\n🛡️ Phase 4: Compliance check...');
         const compliantEntities = this.filterCompliance(fullEntities);
 
-        // Phase 5: Output
-        console.log('\n💾 Phase 5: Saving output (merged.json + split shards)...');
+        // Phase 5: Output (Sharded Persistence)
+        // V18.2.1 GA: We restore the full registry output by passing compliantEntities.
+        // The saveOutput function now handles sharding internally to bypass V8 string limits.
+        console.log('\n💾 Phase 5: Saving sharded output (Full Registry)...');
         this.stats.output = await saveOutput(compliantEntities, OUTPUT_DIR, OUTPUT_FILE);
 
         // V6.2: Save harvest state for incremental mode
