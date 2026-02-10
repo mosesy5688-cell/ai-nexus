@@ -133,11 +133,9 @@ export function mergeShardEntities(allEntities, shardResults) {
         if (shard?.entities) {
             for (const result of shard.entities) {
                 if (result.success) {
-                    const strippedUpdate = { ...result.enriched };
-                    delete strippedUpdate.body_content;
-                    delete strippedUpdate.html_readme;
-                    delete strippedUpdate.htmlFragment;
-                    updatedEntitiesMap.set(result.id, strippedUpdate);
+                    const update = { ...result.enriched };
+                    // NO DELETIONS: Preservation of description & body_content (V18.2.1 GA)
+                    updatedEntitiesMap.set(result.id, update);
                 }
             }
         }
@@ -155,22 +153,19 @@ export function mergeShardEntities(allEntities, shardResults) {
             try {
                 const meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;
                 if (meta.extended) {
-                    delete meta.extended.description;
-                    delete meta.extended.body_content;
+                    // Preservation V18.2.1
                     delete meta.extended.readme;
                     delete meta.extended.html_readme;
                     delete meta.extended.rawMetadata;
                 }
-                delete meta.description;
-                delete meta.body_content;
+                // Preservation V18.2.1
                 delete meta.readme;
                 delete meta.html_readme;
                 entity.meta_json = JSON.stringify(meta);
             } catch (e) { /* ignore parse errors */ }
         }
 
-        delete entity.description;
-        delete entity.body_content;
+        // NO DELETIONS: Preservation of description & body_content (V18.2.1 GA)
         delete entity.html_readme;
         delete entity.htmlFragment;
         delete entity.rawMetadata;

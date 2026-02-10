@@ -64,16 +64,20 @@ export async function loadGlobalRegistry() {
     }
 
     // 3. R2 Fallback (Authoritative Monolith)
-    console.log(`[CACHE] 🌐 Local Cache missed or below floor. Attempting R2 Monolith Restoration...`);
-    try {
-        const registry = await loadWithFallback(MONOLITH_FILE, { entities: [] }, true);
-        const count = registry.entities?.length || 0;
-        if (count >= REGISTRY_FLOOR) {
-            console.log(`[CACHE] ✅ R2 Monolith restored: ${count} entities.`);
-            return { entities: registry.entities, count, lastUpdated: registry.lastUpdated, didLoadFromStorage: true };
+    if (process.env.ALLOW_R2_RECOVERY === 'true') { // Added check for ALLOW_R2_RECOVERY
+        console.log(`[CACHE] 🌐 Local Cache missed or below floor. Attempting R2 Monolith Restoration...`);
+        try {
+            const registry = await loadWithFallback(MONOLITH_FILE, { entities: [] }, true);
+            const count = registry.entities?.length || 0;
+            if (count >= REGISTRY_FLOOR) {
+                console.log(`[CACHE] ✅ R2 Monolith restored: ${count} entities.`);
+                return { entities: registry.entities, count, lastUpdated: registry.lastUpdated, didLoadFromStorage: true };
+            }
+        } catch (e) {
+            console.error(`[CACHE] ❌ R2 Restoration failed: ${e.message}`);
         }
-    } catch (e) {
-        console.error(`[CACHE] ❌ R2 Restoration failed: ${e.message}`);
+    } else {
+        console.warn(`[CACHE] ⚠️ Local baseline not found. R2 recovery disabled for this stage.`);
     }
 
     console.log('[CACHE] ❌ Integrity Breach: No valid registry found meeting 85k floor.');
