@@ -171,7 +171,7 @@ function extractTechSpecs(hydrated, entity, meta) {
     hydrated.tie_weights = getVal(['tie_word_embeddings'], false);
 
     if (!hydrated.body_content) {
-        hydrated.body_content = entity.body_content || entity.readme || meta.readme || meta.model_card || meta.description || meta.abstract || null;
+        hydrated.body_content = entity.html_readme || entity.htmlFragment || meta.html_readme || meta.htmlFragment || meta.extended?.html_readme || entity.body_content || entity.readme || meta.readme || meta.model_card || meta.description || meta.abstract || null;
     }
 
     // V16.5: Heuristic README Mining (Deep Spec Recovery)

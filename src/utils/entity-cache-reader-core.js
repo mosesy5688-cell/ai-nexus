@@ -25,15 +25,7 @@ export function getR2PathCandidates(type, normalizedSlug) {
     const lowerSlug = normalizedSlug.toLowerCase();
     const candidates = [];
 
-    // 1. [V18.2 PRIMARY] Fused Storage: cache/fused/[ID].json
-    // Contains fused specs, benchmarks, and mesh profiles for 121k scalability
-    candidates.push(`cache/fused/${lowerSlug}.json`);
-
-    // 2. [V16.5 FALLBACK] Tiered/Flat Storage: cache/entities/
-    candidates.push(`cache/entities/${lowerSlug}.json`);
-    candidates.push(`cache/entities/${singular}/${lowerSlug}.json`);
-
-    // 3. [LEGACY COMPAT] Prefix Injection (Mapping 'pretty' IDs to possible prefixed keys)
+    // V18.2.1: Unified Prefix Map for all storage tiers
     const prefixMap = {
         'model': ['hf-model--', 'gh-model--', 'hf--', 'gh--'],
         'dataset': ['hf-dataset--', 'dataset--', 'hf--'],
@@ -42,9 +34,24 @@ export function getR2PathCandidates(type, normalizedSlug) {
         'agent': ['gh-agent--', 'hf-agent--', 'agent--'],
         'tool': ['gh-tool--', 'hf-tool--', 'tool--']
     };
+    const prefixes = prefixMap[singular] || [];
 
-    const prefixesCheck = prefixMap[singular] || [];
-    prefixesCheck.forEach(mandatoryPrefix => {
+    // 1. [V18.2 PRIMARY] Fused Storage: cache/fused/[ID].json
+    // Contains fused specs, benchmarks, and mesh profiles for 121k scalability
+    candidates.push(`cache/fused/${lowerSlug}.json`);
+
+    prefixes.forEach(p => {
+        if (!lowerSlug.startsWith(p)) {
+            candidates.push(`cache/fused/${p}${lowerSlug}.json`);
+        }
+    });
+
+    // 2. [V16.5 FALLBACK] Tiered/Flat Storage: cache/entities/
+    candidates.push(`cache/entities/${lowerSlug}.json`);
+    candidates.push(`cache/entities/${singular}/${lowerSlug}.json`);
+
+    // 3. [LEGACY COMPAT] Prefix Injection (Mapping 'pretty' IDs to possible prefixed keys)
+    prefixes.forEach(mandatoryPrefix => {
         if (!lowerSlug.startsWith(mandatoryPrefix)) {
             const prefixedSlug = `${mandatoryPrefix}${lowerSlug}`;
             candidates.push(`cache/entities/${prefixedSlug}.json`); // Flat

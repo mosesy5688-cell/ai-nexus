@@ -131,7 +131,14 @@ const relativeTime = formatRelativeTime(lastUpdated);
     </div>
 
     <!-- Metric Block -->
-    <div class="flex flex-shrink-0">
+    <div class="flex flex-shrink-0 gap-4">
+      {paramsB && (
+        <div class="px-5 py-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center">
+           <span class="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Scale</span>
+           <span class="text-xl font-black text-zinc-900 dark:text-white leading-none">{paramsB}B</span>
+        </div>
+      )}
+
       {fniScore !== undefined && fniScore !== null && (
         <div class="flex items-center bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
           <div class="px-5 py-3 border-r border-zinc-200 dark:border-zinc-800 flex flex-col items-center">

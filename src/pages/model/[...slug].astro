@@ -143,8 +143,9 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
        {hasBench && (
          <div id="desktop-benchmarks">
            <BenchmarkCard 
-             title={`${modelName} Benchmarks`} 
-             scores={model.meta_json?.benchmarks}
+             name={`${modelName} Benchmarks`} 
+             scores={model.meta_json?.benchmarks || model.benchmarks}
+             umid={modelId}
            />
          </div>
        )}
