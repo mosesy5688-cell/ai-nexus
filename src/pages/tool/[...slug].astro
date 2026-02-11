@@ -12,15 +12,10 @@ import EntityLayout from '../../layouts/EntityLayout.astro';
 import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
-import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
-import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
-import ModelCarousel from '../../components/ModelCarousel.astro';
-import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
-import ShareButtons from '../../components/common/ShareButtons.astro';
-import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
-import QuickCommands from '../../components/common/QuickCommands.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import CiteEntity from '../../components/common/CiteEntity.astro';
+import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
+import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 import { getUseCases } from '../../utils/inference.js';
 import { prepareToolPageData } from '../../utils/tool-page-data.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
@@ -123,29 +118,31 @@ const jsonLd = tool ? {
     />
 
     {/* Zone 2: Insights Extra */}
-    <div slot="insights-extra" class="mt-4 space-y-6">
-       <QuickCommands entity={tool} type="tool" className="mb-4" />
-       <div class="px-4 py-2 bg-purple-50 dark:bg-purple-900/10 rounded-xl border border-purple-100 dark:border-purple-800/30">
-          <TechSpecsFull entity={tool} type="tool" />
+    <div slot="insights-extra" class="mt-4 space-y-8">
+       <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
+          <ModelInfoTable 
+            type="tool"
+            model={{
+              ...(tool || {}),
+              displayName: toolName,
+              pipeline_tag: tool?.language || tool?.category || 'AI Tool'
+            }} 
+          />
        </div>
     </div>
-
+    
     {/* Zone 3: Core (Knowledge Mesh & Relations) */}
     <div slot="core-desktop" class="space-y-16">
        <UniversalCore entity={tool} type="tool" meshRelations={meshRelations} />
        
-       <div id="desktop-similar">
-           {similarEntities.length > 0 ? (
-              <ModelCarousel models={similarEntities} />
-           ) : (
-              <p class="text-gray-500 italic p-4 text-center">Identifying related frameworks and libraries...</p>
-           )}
-       </div>
-
-       <div id="desktop-benchmarks">
-           <p class="text-gray-500 italic p-4 text-center border border-gray-100 dark:border-gray-800 rounded-xl p-8 bg-gray-50/50 dark:bg-gray-900/50">
-             Software performance and throughput benchmarks are being analyzed.
-           </p>
+       <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
+          <CiteEntity 
+            id={toolId} 
+            name={toolName} 
+            author={displayAuthor} 
+            url={tool?.source_url} 
+            type="tool" 
+          />
        </div>
     </div>
   
@@ -157,26 +154,6 @@ const jsonLd = tool ? {
              <ModelNavigation />
           </section>
        </div>
-    </div>
-
-    {/* Zone Sidebar Slots */}
-    <div slot="sidebar" class="space-y-8">
-       <ModelInfoTable 
-         type="tool"
-         model={{
-           ...(tool || {}),
-           displayName: toolName,
-           pipeline_tag: tool?.language || tool?.category || 'AI Tool'
-         }} 
-       />
-       
-       <CiteEntity 
-         id={toolId} 
-         name={toolName} 
-         author={displayAuthor} 
-         url={tool?.source_url} 
-         type="tool" 
-       />
     </div>
 
     {/* Zone 5: Community */}

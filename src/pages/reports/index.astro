@@ -9,17 +9,29 @@ const CDN_BASE = 'https://cdn.free2aitools.com';
 let reports = [];
 
 try {
-    const res = await fetch(`${CDN_BASE}/cache/reports/index.json`);
-    if (res.ok) {
-        const data = await res.json();
-        // Transform to expected format
-        reports = (data.reports || []).map(r => ({
-            reportId: r.id,
-            title: r.title,
-            date: r.date,
-            summary: `${r.highlights || 0} highlights from AI ecosystem today`,
-            highlights: r.highlights
-        }));
+    const paths = [`${CDN_BASE}/cache/reports/index.json.gz`, `${CDN_BASE}/cache/reports/index.json` || []];
+    for (const p of paths) {
+        const res = await fetch(p);
+        if (res.ok) {
+            let data;
+            if (p.endsWith('.gz')) {
+                const ds = new DecompressionStream('gzip');
+                const decompressedStream = res.body.pipeThrough(ds);
+                const response = new Response(decompressedStream);
+                data = await response.json();
+            } else {
+                data = await res.json();
+            }
+            
+            reports = (data.reports || []).map(r => ({
+                reportId: r.id,
+                title: r.title,
+                date: r.date,
+                summary: `${r.highlights || 0} highlights from AI ecosystem today`,
+                highlights: r.highlights
+            }));
+            if (reports.length > 0) break;
+        }
     }
 } catch (e) {
     console.warn('[Reports] CDN fetch failed, using fallback:', e.message);
@@ -42,18 +54,36 @@ if (!latestReport) {
         d.setDate(now.getDate() - i);
         const dateKey = d.toISOString().split('T')[0];
         try {
-            const dRes = await fetch(`${CDN_BASE}/cache/reports/daily/${dateKey}.json`);
-            if (dRes.ok) {
-                const dData = await dRes.json();
-                reports.push({
-                    reportId: `daily/${dateKey}`,
-                    title: `Daily AI Update: ${dateKey}`,
-                    date: dData.generated || dateKey,
-                    summary: dData.summary || dData.daily_brief?.summary || "Daily neural mesh synchronization report.",
-                    highlights: dData.daily_brief?.new_entities_count || 0
-                });
-                if (reports.length >= 5) break;
+            // V18.2: Support compressed daily reports directly in reports/
+            const paths = [
+                `${CDN_BASE}/cache/reports/${dateKey}.json.gz`,
+                `${CDN_BASE}/cache/reports/${dateKey}.json`
+            ];
+            
+            for (const p of paths) {
+                const dRes = await fetch(p);
+                if (dRes.ok) {
+                    let dData;
+                    if (p.endsWith('.gz')) {
+                        const ds = new DecompressionStream('gzip');
+                        const decompressedStream = dRes.body.pipeThrough(ds);
+                        const response = new Response(decompressedStream);
+                        dData = await response.json();
+                    } else {
+                        dData = await dRes.json();
+                    }
+
+                    reports.push({
+                        reportId: dateKey,
+                        title: `Daily AI Update: ${dateKey}`,
+                        date: dData.generated || dData.datePublished || dateKey,
+                        summary: dData.summary || dData.daily_brief?.summary || "Daily neural mesh synchronization report.",
+                        highlights: dData.highlights?.length || dData.daily_brief?.new_entities_count || 0
+                    });
+                    break;
+                }
             }
+            if (reports.length >= 5) break;
         } catch (e) {}
     }
 }

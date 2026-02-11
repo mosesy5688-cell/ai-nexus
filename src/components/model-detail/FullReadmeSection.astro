@@ -65,16 +65,27 @@ const hasLongContent = content.length > maxPreviewLength;
       </h2>
       
       <div id="readme-container" class={`readme-wrapper relative transition-all duration-500 ease-in-out ${hasLongContent ? 'collapsed' : ''}`}>
-        {content ? (
-          <MarkdownRenderer content={content} />
-        ) : isSD35 ? (
-          <MarkdownRenderer content={`# SD 3.5 Large\nTechnical summary restricted by Hugging Face gating. Proceed to [Source](${model.source_url}) for full repo access.`} />
-        ) : (
-          <NeuralFactSheet model={model} />
-        )}
+        <div class="prose prose-sm dark:prose-invert max-w-none prose-technical 
+                    prose-headings:font-black prose-headings:uppercase prose-headings:tracking-widest 
+                    prose-p:text-zinc-600 dark:prose-p:text-zinc-400 
+                    prose-a:text-indigo-600 dark:prose-a:text-indigo-400 
+                    prose-pre:bg-zinc-950 prose-pre:border prose-pre:border-zinc-800
+                    prose-img:rounded-xl prose-img:shadow-lg prose-img:mx-auto">
+            {content ? (
+              content.trim().startsWith('<') ? (
+                <article set:html={content} class="html-optimized-content" />
+              ) : (
+                <MarkdownRenderer content={content} />
+              )
+            ) : isSD35 ? (
+              <MarkdownRenderer content={`# SD 3.5 Large\nTechnical summary restricted by Hugging Face gating. Proceed to [Source](${model.source_url}) for full repo access.`} />
+            ) : (
+              <NeuralFactSheet model={model} />
+            )}
+        </div>
         
         {hasLongContent && (
-          <div id="readme-fade" class="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white dark:from-gray-800 to-transparent pointer-events-none transition-opacity duration-300"></div>
+          <div id="readme-fade" class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white dark:from-gray-800 to-transparent pointer-events-none transition-opacity duration-300"></div>
         )}
       </div>
     </div>

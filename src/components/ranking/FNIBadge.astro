@@ -25,7 +25,7 @@ const displayText = fniPercentile?.startsWith?.('top_')
   : `FNI ${Math.round(fniScore || 0)}`;
 ---
 
-{fniScore && fniScore > 0 && (
+{(fniScore > 0 || fniPercentile) && (
   <div class={`text-xs px-2 py-1 rounded-full font-bold shadow-sm ${badgeClass} ${className}`}>
     🛡️ {displayText}
   </div>

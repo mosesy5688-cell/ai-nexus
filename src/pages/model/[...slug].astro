@@ -5,20 +5,8 @@ import EntityLayout from '../../layouts/EntityLayout.astro';
 import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import { getUseCases } from '../../utils/inference.js';
-import ModelMainColumn from '../../components/model-detail/ModelMainColumn.astro';
-import ModelSidebar from '../../components/model-detail/ModelSidebar.astro';
-import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
-import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
-import ModelCarousel from '../../components/ModelCarousel.astro';
-import RelatedResearch from '../../components/model-detail/RelatedResearch.astro';
-import RelatedKnowledge from '../../components/model-detail/RelatedKnowledge.astro';
-import RelationsPanel from '../../components/model-detail/RelationsPanel.astro';
 import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
-import EntityRelations from '../../components/entity/EntityRelations.astro';
-import UniversalCore from '../../components/entity/UniversalCore.astro';
-import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
-import QuickCommands from '../../components/common/QuickCommands.astro';
 import { fetchEntityFromR2, normalizeEntitySlug, hydrateEntity, augmentEntity } from '../../utils/entity-cache-reader-core.js';
 import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definitions.js';
 import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers.ts';
@@ -114,10 +102,15 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
     />
 
     {/* Zone 2: Insights Extra */}
-    <div slot="insights-extra" class="mt-4 space-y-6">
-       <QuickCommands entity={model} type="model" className="mb-6" />
-       <div class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
-          <TechSpecsFull entity={model} type="model" />
+    <div slot="insights-extra" class="mt-4 space-y-8">
+       <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
+          <ModelInfoTable 
+            type="model"
+            model={{
+              ...(model || {}),
+              displayName: modelName
+            }} 
+          />
        </div>
        {model?.params_billions && <VramEstimator paramsB={model?.params_billions} contextLen={model?.context_length} />}
     </div>
@@ -132,23 +125,15 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
     <div slot="core-desktop" class="space-y-16">
        <UniversalCore entity={model} type="model" meshRelations={meshRelations} />
        
-       <div id="desktop-similar">
-          {similarModels.length > 0 ? (
-             <ModelCarousel models={similarModels} />
-          ) : (
-             <p class="text-gray-500 italic p-4 text-center">No similar models found.</p>
-          )}
+       <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
+          <CiteEntity 
+            id={modelId} 
+            name={modelName} 
+            author={model?.author} 
+            url={model?.source_url} 
+            type="model" 
+          />
        </div>
-
-       {hasBench && (
-         <div id="desktop-benchmarks">
-           <BenchmarkCard 
-             name={`${modelName} Benchmarks`} 
-             scores={model.meta_json?.benchmarks || model.benchmarks}
-             umid={modelId}
-           />
-         </div>
-       )}
     </div>
   
     <div slot="deep-dive">
@@ -163,10 +148,6 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
             jsonld={jsonld}
           />
        </div>
-    </div>
-
-    <div slot="sidebar" class="space-y-12">
-       <ModelSidebar model={model} modelId={modelId} />
     </div>
 
     {/* Zone 5: Community */}

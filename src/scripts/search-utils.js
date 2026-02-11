@@ -35,6 +35,6 @@ export function scoreItem(item, query) {
     if (fuzzyMatch(item.t, query)) score += 20;  // Tags match = 20 points
     if (fuzzyMatch(item.a, query)) score += 10;  // Author match = 10 points
     if (item.n?.toLowerCase() === query) score += 100;  // Exact match = max boost
-    score += (item.sc || 0) / 10;  // FNI score bonus
+    score += (item.sc || item.fni || 0) / 10;  // FNI score bonus
     return score;
 }

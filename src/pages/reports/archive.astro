@@ -7,15 +7,28 @@ let allReports = [];
 
 // V16.7.2: Hybrid Archive Loading - CDN (Index) + Local Glob
 try {
-    const res = await fetch(`${CDN_BASE}/cache/reports/index.json`);
-    if (res.ok) {
-        const indexData = await res.json();
-        allReports = (indexData.reports || []).map(r => ({
-            reportId: r.id,
-            title: r.title,
-            date: r.date,
-            summary: `Daily AI analysis with ${r.highlights || 0} ecosystem highlights.`
-        }));
+    const paths = [`${CDN_BASE}/cache/reports/index.json.gz`, `${CDN_BASE}/cache/reports/index.json` || []];
+    for (const p of paths) {
+        const res = await fetch(p);
+        if (res.ok) {
+            let indexData;
+            if (p.endsWith('.gz')) {
+                const ds = new DecompressionStream('gzip');
+                const decompressedStream = res.body.pipeThrough(ds);
+                const response = new Response(decompressedStream);
+                indexData = await response.json();
+            } else {
+                indexData = await res.json();
+            }
+            
+            allReports = (indexData.reports || []).map(r => ({
+                reportId: r.id,
+                title: r.title,
+                date: r.date,
+                summary: `Daily AI analysis with ${r.highlights || 0} ecosystem highlights.`
+            }));
+            if (allReports.length > 0) break;
+        }
     }
 } catch (e) {
     console.warn('[Report Archive] CDN index fetch failed, falling back to build-time files.');

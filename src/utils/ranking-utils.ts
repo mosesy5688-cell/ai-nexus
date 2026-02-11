@@ -35,7 +35,7 @@ export function sortByDimension(models: RankableModel[], dim: string): RankableM
             case 'v': return bComp.v - aComp.v;
             case 'c': return bComp.c - aComp.c;
             case 'u': return bComp.u - aComp.u;
-            default: return (b.fni_score || 0) - (a.fni_score || 0);
+            default: return (b.fni_score ?? b.fni ?? 0) - (a.fni_score ?? a.fni ?? 0);
         }
     });
 }

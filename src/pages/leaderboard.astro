@@ -32,13 +32,35 @@ let benchmarkData = null;
 let error = null;
 
 try {
-  // SSR Fetch from Static CDN Cache (R2 backed, V6.2.1 with slugs)
-  const response = await fetch(new URL('/cache/benchmarks.json', Astro.url.origin));
-  if (response.ok) {
-    benchmarkData = await response.json();
-  } else {
-    throw new Error(`Failed to fetch benchmarks: ${response.status}`);
+  // V18.2: Try .gz first, then fallback to .json
+  const paths = [
+    new URL('/cache/benchmarks.json.gz', Astro.url.origin),
+    new URL('/cache/benchmarks.json', Astro.url.origin)
+  ];
+
+  for (const url of paths) {
+    const response = await fetch(url);
+    if (response.ok) {
+      const isGzip = url.toString().endsWith('.gz');
+      if (isGzip) {
+        // SSR environment (Cloudflare Workers) supports DecompressionStream
+        try {
+          const ds = new DecompressionStream('gzip');
+          const decompressedStream = response.body.pipeThrough(ds);
+          const decompressedRes = new Response(decompressedStream);
+          benchmarkData = await decompressedRes.json();
+          break;
+        } catch (e) {
+          console.warn(`[Leaderboard] SSR Decompression failed for ${url}:`, e);
+        }
+      } else {
+        benchmarkData = await response.json();
+        break;
+      }
+    }
   }
+  
+  if (!benchmarkData) throw new Error("Could not load benchmarks from CDN");
 } catch (e) {
   console.error("Leaderboard Load Error:", e);
   error = e.message;

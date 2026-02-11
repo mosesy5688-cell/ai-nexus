@@ -112,8 +112,8 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
            </div>
         </section>
 
-        {/* SIDEBAR CONTENT (Re-homed to main stack) */}
-        <section id="sidebar-relocation" class="animate-slide-up space-y-12" style="animation-delay: 0.35s;">
+        {/* Zone 5.0: COMMUNITY ENGAGEMENT (Re-homed) */}
+        <section id="community-engagement" class="animate-slide-up space-y-12" style="animation-delay: 0.35s;">
           {hasEntity && (
              <CommunityStats 
                 source={entity.source || 'huggingface'}
@@ -127,8 +127,6 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
                 fniPercentile={entity.fni_percentile}
              />
           )}
-          <slot name="sidebar" />
-          <slot name="community-sidebar" />
         </section>
 
         {/* Zone 4: DEEP DIVE (Technical Documentation) */}

@@ -12,15 +12,9 @@ import EntityLayout from '../../layouts/EntityLayout.astro';
 import EntityHeader from '../../components/entity/EntityHeader.astro';
 import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
-import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
-import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
-import ModelCarousel from '../../components/ModelCarousel.astro';
-import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
-import ShareButtons from '../../components/common/ShareButtons.astro';
-import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
-import QuickCommands from '../../components/common/QuickCommands.astro';
-import CiteEntity from '../../components/common/CiteEntity.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
+import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
+import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 import { getUseCases } from '../../utils/inference.js';
 import { prepareSpacePageData } from '../../utils/space-page-data.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
@@ -124,45 +118,22 @@ const jsonLd = space ? {
     />
 
     {/* Zone 2: Insights Extra */}
-    <div slot="insights-extra" class="mt-4 space-y-6">
-       <QuickCommands entity={space} type="space" className="mb-4" />
-       <div class="px-4 py-2 bg-blue-50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-800/30">
-          <TechSpecsFull entity={space} type="space" />
+    <div slot="insights-extra" class="mt-4 space-y-8">
+       <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
+          <ModelInfoTable 
+            type="space"
+            model={{
+              ...(space || {}),
+              displayName: spaceName,
+              pipeline_tag: space?.sdk || 'AI SDK'
+            }} 
+          />
        </div>
     </div>
 
     {/* Zone 3: Core (Knowledge Mesh & Relations) */}
     <div slot="core-desktop" class="space-y-16">
-       <UniversalCore entity={space} type="space" meshRelations={meshRelations} />
-       
-       <div id="desktop-similar">
-           {similarEntities.length > 0 ? (
-              <ModelCarousel models={similarEntities} />
-           ) : (
-              <p class="text-gray-500 italic p-4 text-center">Identifying related models and demo spaces...</p>
-           )}
-       </div>
-
-       <div id="desktop-benchmarks">
-           <p class="text-gray-500 italic p-4 text-center border border-gray-100 dark:border-gray-800 rounded-xl p-8 bg-gray-50/50 dark:bg-gray-900/50">
-             Benchmark metrics for interactive spaces are currently under theoretical analysis.
-           </p>
-       </div>
-    </div>
-  
-    {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive">
-       <div class="space-y-12">
-          <SpaceDeepDive space={space} />
-          <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
-             <ModelNavigation />
-          </section>
-       </div>
-    </div>
-
-    {/* Zone Sidebar Slots */}
-    <div slot="sidebar" class="space-y-8">
-       <div class="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800/50">
+       <div class="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-3xl border border-blue-100 dark:border-blue-800/50 animate-slide-up">
           <h3 class="font-bold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
             <span>🚀</span> Interactive Node
           </h3>
@@ -172,22 +143,26 @@ const jsonLd = space ? {
           </p>
        </div>
 
-       <ModelInfoTable 
-         type="space"
-         model={{
-           ...(space || {}),
-           displayName: spaceName,
-           pipeline_tag: space?.sdk || 'AI SDK'
-         }} 
-       />
+       <UniversalCore entity={space} type="space" meshRelations={meshRelations} />
        
-       <CiteEntity 
-         id={spaceId} 
-         name={spaceName} 
-         author={displayAuthor} 
-         url={space?.source_url} 
-         type="space" 
-       />
+       <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
+          <CiteEntity 
+            id={spaceId} 
+            name={spaceName} 
+            author={displayAuthor} 
+            url={space?.source_url} 
+            type="space" 
+          />
+       </div>
+    </div>
+    {/* Zone 4: Deep Dive */}
+    <div slot="deep-dive">
+       <div class="space-y-12">
+          <SpaceDeepDive space={space} />
+          <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
+             <ModelNavigation />
+          </section>
+       </div>
     </div>
 
     {/* Zone 5: Community */}

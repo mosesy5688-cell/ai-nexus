@@ -80,7 +80,7 @@ function formatNumber(num: any) {
             <FreshBadge lastModified={entity.lastModified || entity.last_updated} />
             
             <!-- FNI Badge for Model entities only (Art.X-Entity-FNI) -->
-            {hasFNI && entity.fni_score > 0 && (
+            {hasFNI && (entity.fni_score > 0 || entity.fni_percentile) && (
                 <FNIBadge 
                     fniScore={entity.fni_score || 0}
                     fniPercentile={entity.fni_percentile || 0}

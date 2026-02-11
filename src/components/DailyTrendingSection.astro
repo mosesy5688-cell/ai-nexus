@@ -22,19 +22,51 @@ let trendingData: {
 
 try {
     const runtime = Astro.locals.runtime;
+    const paths = ['cache/trending.json.gz', 'cache/trending.json'];
+    
+    // TIER 1: R2 Direct
     if (runtime?.env?.R2_ASSETS) {
         const r2 = runtime.env.R2_ASSETS;
-        const trendingFile = await r2.get('cache/trending.json');
-        if (trendingFile) {
-            trendingData = await trendingFile.json() as any;
+        for (const p of paths) {
+            const file = await r2.get(p);
+            if (file) {
+                if (p.endsWith('.gz')) {
+                    const ds = new DecompressionStream('gzip');
+                    const decompressedStream = file.body.pipeThrough(ds);
+                    const response = new Response(decompressedStream);
+                    trendingData = await response.json();
+                } else {
+                    trendingData = await file.json() as any;
+                }
+                if (trendingData) break;
+            }
+        }
+    }
+
+    // TIER 2: CDN Fallback (Art 5.2 Recovery)
+    if (!trendingData) {
+        const CDN_BASE = 'https://cdn.free2aitools.com';
+        for (const p of paths) {
+            const res = await fetch(`${CDN_BASE}/${p}`);
+            if (res.ok) {
+                if (p.endsWith('.gz')) {
+                    const ds = new DecompressionStream('gzip');
+                    const decompressedStream = res.body.pipeThrough(ds);
+                    const response = new Response(decompressedStream);
+                    trendingData = await response.json();
+                } else {
+                    trendingData = await res.json();
+                }
+                if (trendingData) break;
+            }
         }
     }
 } catch (e) {
     console.error('[DailyTrendingSection] Error:', e);
 }
 
-const hasTrending = trendingData && trendingData.results && trendingData.results.length > 0;
-const topModels = hasTrending ? trendingData.results.slice(0, 10) : [];
+const hasTrending = !!(trendingData && (trendingData.models || trendingData.results || (trendingData as any).data));
+const topModels = hasTrending ? (trendingData.models || trendingData.results || (trendingData as any).data).slice(0, 10) : [];
 const generatedAt = trendingData?.generated_at ? new Date(trendingData.generated_at) : null;
 ---
 
@@ -42,27 +74,26 @@ const generatedAt = trendingData?.generated_at ? new Date(trendingData.generated
     <div class="flex flex-col gap-4">
         {hasTrending ? (
             <div class="flex flex-col border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden divide-y divide-zinc-100 dark:divide-zinc-800">
-                {topModels.map((model, index) => (
-                    <a href={generateEntityUrl(model, 'model')} class="group flex items-center gap-6 p-4 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                        <span class="w-8 text-xs font-black text-zinc-400 dark:text-zinc-600 tracking-tight">#{index + 1}</span>
-                        <div class="flex-grow min-w-0">
-                            <span class="block text-sm font-black text-zinc-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{model.name}</span>
-                            <span class="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">{model.author}</span>
-                        </div>
-                        <div class="flex items-center gap-4">
-                            {model.fni_score > 0 && (
-                                <div class="flex flex-col items-end">
-                                    <span class="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Rank</span>
-                                    <span class="text-xs font-black text-zinc-900 dark:text-white">{model.fni_score.toFixed(0)}</span>
-                                </div>
-                            )}
-                            <div class="flex flex-col items-end border-l border-zinc-100 dark:border-zinc-800 pl-4">
-                                <span class="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Velocity</span>
-                                <span class="text-xs font-black text-zinc-900 dark:text-white">↓{model.downloads >= 1000 ? (model.downloads / 1000).toFixed(1) + 'K' : model.downloads}</span>
+                {topModels.map((model: any, index) => {
+                    const fni = model.fni_score ?? model.fni ?? 0;
+                    return (
+                        <a href={generateEntityUrl(model, 'model')} class="group flex items-center gap-6 p-4 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                            <span class="w-8 text-xs font-black text-zinc-400 dark:text-zinc-600 tracking-tight">#{index + 1}</span>
+                            <div class="flex-grow min-w-0">
+                                <span class="block text-sm font-black text-zinc-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{model.name}</span>
+                                <span class="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">{model.author}</span>
                             </div>
-                        </div>
-                    </a>
-                ))}
+                            <div class="flex items-center gap-4">
+                                {fni > 0 && (
+                                    <div class="flex flex-col items-end">
+                                        <span class="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Rank</span>
+                                        <span class="text-xs font-black text-zinc-900 dark:text-white">{fni.toFixed(0)}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </a>
+                    );
+                })}
             </div>
         ) : (
             <div class="text-center py-12 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">

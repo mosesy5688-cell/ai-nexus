@@ -30,7 +30,7 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
     if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
         try {
             console.log(`[CatalogFetcher] Dev Mode: Fetching via data-mirror for ${typeOrCategory}`);
-            const localRes = await fetch(`/data-mirror/${rankingPath}`);
+            const localRes = await fetch(`/data-mirror/${paginatedPath}`);
             if (localRes.ok) {
                 const data = await localRes.json();
                 items = extractItems(data);
@@ -186,15 +186,16 @@ function extractItems(data) {
 export function truncateListingItem(item) {
     if (!item) return null;
     return {
-        id: item.id || '',
-        name: item.name || '',
-        author: item.author || 'Nexus Collective',
-        description: (item.description || '').replace(/<[^>]*>?/gm, ''),
-        slug: item.slug || '',
-        type: item.type || 'model',
-        fni_score: item.fni_score || 0,
+        id: item.id || item.slug || '',
+        name: item.name || item.title || '',
+        author: item.author || item.creator || item.organization || '',
+        description: item.description || '',
+        type: item.type || item.entity_type || 'model',
         downloads: item.downloads || 0,
         likes: item.likes || 0,
-        category: item.category || ''
+        fni_score: item.fni_score ?? item.fni ?? 0,
+        fni_percentile: item.fni_percentile || '',
+        pipeline_tag: item.pipeline_tag || item.primary_category || '',
+        lastModified: item.lastModified || item._updated || ''
     };
 }

@@ -25,8 +25,8 @@ export class EntityCardRenderer {
         const cleanDesc = this.cleanText(description);
         const link = generateEntityUrl(item, type);
 
-        const fni = Math.round(item.fni_score || 0);
-        const fniPercentile = item.fni_percentile || 0;
+        const fni = Math.round(item.fni_score ?? item.fni ?? 0);
+        const fniPercentile = item.fni_percentile || item.percentile || '';
 
         let fniBadgeClass = "bg-gray-100 dark:bg-zinc-800 text-gray-500";
         if (fni >= 85) fniBadgeClass = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
@@ -47,10 +47,10 @@ export class EntityCardRenderer {
             <a href="${link}" class="entity-card group p-5 bg-white dark:bg-zinc-900 rounded-xl hover:shadow-md transition-all border border-gray-100 dark:border-zinc-800 hover:border-indigo-500/50 block h-full flex flex-col">
                 <div class="flex items-center justify-between mb-3">
                      <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${typeBadgeColor}">${typeLabel}</span>
-                     ${(item.fni_score !== undefined && item.fni_score !== null) ? `
+                     ${(fni > 0 || fniPercentile) ? `
                         <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full ${fniBadgeClass}">
                             <span class="text-[10px] font-bold">🛡️ ${fni}</span>
-                            ${fniPercentile >= 90 ? '<span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">TOP</span>' : ''}
+                            ${(fniPercentile === 'top_1%' || fniPercentile === 'top_10%' || (typeof fniPercentile === 'number' && fniPercentile >= 90)) ? '<span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">TOP</span>' : ''}
                         </div>
                      ` : ''}
                 </div>
