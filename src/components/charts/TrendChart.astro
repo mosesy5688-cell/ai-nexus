@@ -43,18 +43,53 @@ const {
     
     try {
       const type = container.dataset.type || 'bar';
-      const TRENDING_URL = `${R2_CACHE_URL}/cache/trending.json`;
-      const HISTORICAL_URL = `${R2_CACHE_URL}/cache/trends.json`;
+      const paths = type === 'line' 
+        ? [`${R2_CACHE_URL}/cache/trends.json.gz`, `${R2_CACHE_URL}/cache/trends.json`]
+        : [`${R2_CACHE_URL}/cache/trending.json.gz`, `${R2_CACHE_URL}/cache/trending.json`];
       
-      let res = await fetch(type === 'line' ? HISTORICAL_URL : TRENDING_URL);
-      if (!res.ok) {
-          console.warn(`[TrendChart] Fetch failed for ${type}, trying local fallback...`);
-          res = await fetch(type === 'line' ? '/cache/trends.json' : '/cache/trending.json');
+      let res = null;
+      let rawData = null;
+
+      for (const p of paths) {
+          res = await fetch(p);
+          if (res.ok) {
+              const isGzip = p.endsWith('.gz');
+              // Check if browser already decompressed it (Content-Encoding: gzip)
+              const isAlreadyDecompressed = res.headers.get('Content-Encoding') === 'gzip';
+              
+              if (isGzip && !isAlreadyDecompressed) {
+                  try {
+                      const ds = new (window as any).DecompressionStream('gzip');
+                      const decompressedStream = res.body.pipeThrough(ds);
+                      const response = new Response(decompressedStream);
+                      rawData = await response.json();
+                  } catch (e) {
+                      console.warn('[TrendChart] Manual decompression failed:', e);
+                      // Fallback: maybe it's actually raw text despite no header
+                      const text = await res.text();
+                      rawData = JSON.parse(text);
+                  }
+              } else {
+                  rawData = await res.json();
+              }
+              if (rawData) break;
+          }
       }
 
-      if (!res.ok) throw new Error('Trend assets not available');
-      
-      const rawData = await res.json();
+      if (!rawData) {
+          console.warn(`[TrendChart] Fetch failed for ${type}, trying local fallback...`);
+          const localPaths = type === 'line' ? ['/cache/trends.json.gz', '/cache/trends.json'] : ['/cache/trending.json.gz', '/cache/trending.json'];
+          for (const lp of localPaths) {
+              const res2 = await fetch(lp);
+              if (res2.ok) {
+                  // Local usually handled by server/vite, but let's be safe
+                  rawData = await res2.json();
+                  if (rawData) break;
+              }
+          }
+      }
+
+      if (!rawData) throw new Error('Trend assets not available');
       let labels = [];
       let datasets = [];
 

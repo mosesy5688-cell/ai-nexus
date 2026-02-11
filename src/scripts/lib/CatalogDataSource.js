@@ -40,11 +40,40 @@ export class CatalogDataSource {
         try {
             this.currentShard++;
             // V16.5: SSOT Tier 2 - /lists/{type}/page-{n}.json
-            const shardUrl = `https://cdn.free2aitools.com/cache/lists/${this.type}/page-${this.currentShard}.json`;
+            // V18.2: Support compressed shards (.gz) with local decompression
+            const paths = [
+                `https://cdn.free2aitools.com/cache/lists/${this.type}/page-${this.currentShard}.json.gz`,
+                `https://cdn.free2aitools.com/cache/rankings/${this.type}/p${this.currentShard}.json`
+            ];
+            let res = null;
+            let data = null;
 
-            const res = await fetch(shardUrl);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
+            for (const p of paths) {
+                const response = await fetch(p);
+                if (response.ok) {
+                    const isGzip = p.endsWith('.gz');
+                    const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip';
+
+                    if (isGzip && !isAlreadyDecompressed) {
+                        try {
+                            const ds = new DecompressionStream('gzip');
+                            const decompressedStream = response.body.pipeThrough(ds);
+                            const decompressedRes = new Response(decompressedStream);
+                            data = await decompressedRes.json();
+                            res = response;
+                            break;
+                        } catch (e) {
+                            console.warn(`[CatalogDataSource] Decompression failed for ${p}:`, e);
+                        }
+                    } else {
+                        data = await response.json();
+                        res = response;
+                        break;
+                    }
+                }
+            }
+
+            if (!res || !data) throw new Error(`Fetch failed for all paths`);
 
             if (this.currentShard === 1) {
                 this.totalPages = data.totalPages || 1;
@@ -78,10 +107,31 @@ export class CatalogDataSource {
 
     async augmentSearch() {
         try {
-            // V16.5: SSOT Tier 3 - /cache/search/shard-0.json
-            const res = await fetch('https://cdn.free2aitools.com/cache/search/shard-0.json');
-            if (!res.ok) return;
-            const data = await res.json();
+            // V18.2: Support compressed search shards
+            const paths = ['https://cdn.free2aitools.com/cache/search/shard-0.json.gz', 'https://cdn.free2aitools.com/cache/search/shard-0.json'];
+            let data = null;
+
+            for (const p of paths) {
+                const response = await fetch(p);
+                if (response.ok) {
+                    const isGzip = p.endsWith('.gz');
+                    const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip';
+
+                    if (isGzip && !isAlreadyDecompressed) {
+                        try {
+                            const ds = new DecompressionStream('gzip');
+                            const decompressedStream = response.body.pipeThrough(ds);
+                            const decompressedRes = new Response(decompressedStream);
+                            data = await decompressedRes.json();
+                            break;
+                        } catch (e) { }
+                    } else {
+                        data = await response.json();
+                        break;
+                    }
+                }
+            }
+            if (!data) return;
 
             const coreEntities = (data.entities || []).filter(e => e.type === this.type || (this.type === 'model' && (!e.type || e.type === 'model')));
             const normalized = DataNormalizer.normalizeCollection(coreEntities, this.type);
@@ -112,6 +162,6 @@ export class CatalogDataSource {
             results.sort((a, b) => (scoreMap.get(b.id) || 0) - (scoreMap.get(a.id) || 0));
         }
 
-        return results.map(r => ({ ...r, fni_score: r.fni_score || 0 }));
+        return results.map(r => ({ ...r, fni_score: r.fni_score ?? r.fni ?? 0 }));
     }
 }
