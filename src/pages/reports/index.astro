@@ -67,65 +67,94 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
 
 <!-- V14.4 Art 5.6: News-style Reports Listing -->
 <Layout title={pageTitle} description={pageDescription}>
-  <div class="container mx-auto px-4 py-12">
-    <header class="text-center mb-12">
-      <h1 class="text-4xl font-extrabold text-gray-900 dark:text-white">AI Industry Daily Reports</h1>
-      <p class="mt-4 text-lg text-gray-500 dark:text-gray-400">
-        Your daily digest of breakthroughs and trends in the open-source AI world.
+  <div class="container mx-auto px-4 py-16">
+    <header class="text-center mb-16 max-w-2xl mx-auto">
+      <h1 class="text-4xl md:text-5xl font-black text-zinc-900 dark:text-white tracking-tighter mb-4">
+        AI Intelligence Reports
+      </h1>
+      <p class="text-lg text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mb-8">
+        Technical briefings, ecosystem trends, and model velocity analysis for decision-makers.
       </p>
-      <!-- V14.4 Art 5.5: Annual Reports link -->
-      <div class="mt-4 flex justify-center gap-4">
-        <a href="/reports/archive" class="text-blue-600 dark:text-blue-400 hover:underline">
-          📚 Daily Archive
+      
+      <div class="flex justify-center items-center gap-6">
+        <a href="/reports/archive" class="px-4 py-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs font-black uppercase tracking-widest border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-100 transition-colors">
+          Daily Archive
         </a>
-        <a href="/reports/annual" class="text-purple-600 dark:text-purple-400 hover:underline">
-          📊 Annual Reports
+        <a href="/reports/annual" class="px-4 py-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs font-black uppercase tracking-widest border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-100 transition-colors">
+          Annual Reports
         </a>
       </div>
     </header>
 
-    <!-- V4.8.1: Live Trending from L8 Cache -->
-    <DailyTrendingSection />
+    <!-- Live Pulse Section -->
+    <section class="mb-20">
+      <div class="flex items-center gap-4 mb-10">
+        <h2 class="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-tighter">Live Market Pulse</h2>
+        <div class="h-px flex-grow bg-zinc-100 dark:bg-zinc-800"></div>
+      </div>
+      <DailyTrendingSection />
+    </section>
 
-    <!-- V12: Trend Charts Section -->
-    <section class="mb-12">
-      <h2 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
-        📈 Model Ecosystem Trends
-      </h2>
-      <TrendChart type="line" height="350px" />
+    <!-- Trend Charts Section -->
+    <section class="mb-20">
+      <div class="flex items-center gap-4 mb-10">
+        <h2 class="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-tighter">Velocity Trends</h2>
+        <div class="h-px flex-grow bg-zinc-100 dark:bg-zinc-800"></div>
+      </div>
+      <div class="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm">
+        <TrendChart type="line" height="350px" />
+      </div>
     </section>
 
     {finalLatest ? (
-      <div class="space-y-12">
-        <!-- Latest Report -->
-        <section class="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
-          <h2 class="text-3xl font-bold mb-2">{finalLatest.title}</h2>
-          <p class="text-gray-500 dark:text-gray-400 mb-6">{new Date(finalLatest.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          <p class="mb-8">{finalLatest.summary}</p>
-          <a href={`/reports/${finalLatest.reportId}`} class="inline-block bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
-            Read Full Report
-          </a>
-        </section>
-
-        <!-- Older Reports -->
-        {olderReports.length > 0 && (
-          <section>
-            <h3 class="text-2xl font-bold mb-6 text-center">Recent Reports</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {olderReports.map(report => <ReportCard report={report} />)}
-            </div>
-            <div class="text-center mt-8">
-              <a href="/reports/archive" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">
-                View Full Archive &rarr;
+      <div class="space-y-20">
+        <!-- Latest Briefing -->
+        <section>
+          <div class="flex items-center gap-4 mb-10">
+            <h2 class="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-tighter text-indigo-600 dark:text-indigo-400">Featured Briefing</h2>
+            <div class="h-px flex-grow bg-zinc-100 dark:bg-zinc-800"></div>
+          </div>
+          
+          <div class="relative bg-zinc-900 dark:bg-black rounded-3xl p-10 md:p-12 text-white border border-zinc-800 overflow-hidden group">
+            <div class="absolute top-0 right-0 w-64 h-full bg-indigo-500/10 blur-[100px] pointer-events-none transition-opacity group-hover:opacity-100 opacity-50"></div>
+            
+            <div class="relative max-w-3xl">
+              <div class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-4">Latest Publication • {new Date(finalLatest.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+              <h2 class="text-3xl md:text-5xl font-black tracking-tighter mb-6">{finalLatest.title}</h2>
+              <p class="text-lg md:text-xl text-zinc-400 font-medium leading-relaxed mb-10 italic">"{finalLatest.summary}"</p>
+              
+              <a href={`/reports/${finalLatest.reportId}`} class="inline-flex items-center gap-4 px-8 py-4 bg-white text-black rounded-xl font-black text-sm uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95 shadow-xl">
+                Read Full Briefing <span>→</span>
               </a>
             </div>
-          </section>
-        )}
+          </div>
+        </section>
+
+        <!-- Intelligence Archive Grid -->
+        <section>
+          <div class="flex items-center gap-4 mb-10">
+            <h2 class="text-xl font-black text-zinc-900 dark:text-white uppercase tracking-tighter">Recent Intelligence</h2>
+            <div class="h-px flex-grow bg-zinc-100 dark:bg-zinc-800"></div>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {olderReports.map(report => <ReportCard report={report} />)}
+          </div>
+          
+          <div class="text-center mt-12">
+            <a href="/reports/archive" class="px-6 py-3 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+              View Full Archive &rarr;
+            </a>
+          </div>
+        </section>
       </div>
     ) : (
-      <p class="text-center text-gray-500 dark:text-gray-400 py-16">
-        No daily reports have been generated yet. Please check back later.
-      </p>
+      <div class="py-24 text-center">
+        <div class="text-4xl mb-6">📡</div>
+        <p class="text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-widest text-xs">
+          Neural Mesh Synchronizing... No daily reports available.
+        </p>
+      </div>
     )}
   </div>
 </Layout>

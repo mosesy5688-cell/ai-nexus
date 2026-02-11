@@ -90,12 +90,12 @@ const enrichedTags = (tagsArray || []).map((tagObj: any) => {
 }).filter(tag => !renderedNodes.has(tag.slug));
 ---
 
-<div class="space-y-12">
+<div class="space-y-20">
     <NeuralGraphExplorer currentModelId={entityId} entity={entity} type={type} meshTiers={tiers} />
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
         {/* Left: Benchmarks & Trends */}
-        <div class="space-y-8">
+        <div class="space-y-12">
            {hasBench && (
              <BenchmarkCard 
                umid={entityId}
@@ -103,56 +103,59 @@ const enrichedTags = (tagsArray || []).map((tagObj: any) => {
                mmlu={entity?.mmlu}
                humaneval={entity?.humaneval}
                hellaswag={entity?.hellaswag}
+               arc_challenge={entity?.arc_challenge}
+               gsm8k={entity?.gsm8k}
+               truthfulqa={entity?.truthfulqa}
+               winogrande={entity?.winogrande}
                avg_score={entity?.avg_score}
+               scores={entity?.meta_json?.benchmarks}
              />
            )}
 
-           <div class="p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-              <h3 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                 <span>📈</span> Interest Trend
-              </h3>
-              <div class="relative min-h-[140px] flex items-center justify-center">
-                <MiniTrendChart entityId={entityId} width={400} height={140} />
-                <div id="trend-fallback" class="hidden absolute inset-0 bg-gray-50/50 dark:bg-gray-800/50 backdrop-blur-[2px] flex items-center justify-center text-[10px] font-black text-gray-400 uppercase tracking-widest text-center px-8">
-                  <div class="space-y-2">
-                    <span class="text-xl block animate-pulse">📡</span>
-                    <span>Knowledge Mesh Synchronizing...<br/>Real-time Trend Indexing In-Progress</span>
-                  </div>
+           <div class="p-8 bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl border border-zinc-200 dark:border-zinc-800">
+              <div class="flex items-center gap-3 mb-8 pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                <span class="text-xl">📈</span>
+                <h3 class="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-[0.2em]">Market Interest Trend</h3>
+              </div>
+              <div class="relative min-h-[160px] flex items-center justify-center">
+                <MiniTrendChart entityId={entityId} width={400} height={160} />
+                <div id="trend-fallback" class="hidden absolute inset-0 bg-white/50 dark:bg-black/50 backdrop-blur-[2px] flex items-center justify-center text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center px-12">
+                   Synchronizing Intelligence Mesh...
                 </div>
               </div>
-              <p class="text-[10px] text-gray-400 mt-4 leading-tight uppercase font-bold tracking-tighter">
-                * Real-time activity index across HuggingFace, GitHub and Research citations.
+              <p class="text-[9px] text-zinc-400 dark:text-zinc-500 mt-6 leading-relaxed uppercase font-bold tracking-tight">
+                * Real-time activity index across HuggingFace, GitHub and Global Research Citations.
               </p>
            </div>
         </div>
         
         {/* Right: Relations & Knowledge Tags */}
-        <div class="space-y-10">
+        <div class="space-y-12">
             <MeshRelationMatrix relations={finalRelations} entityId={entityId} />
 
-            <div class="p-8 bg-gray-50/50 dark:bg-gray-800/20 rounded-2xl border border-gray-100 dark:border-gray-700/50">
-              <h3 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                 <span class="text-lg">🔍</span> Semantic Keywords
-              </h3>
-              <div class="flex flex-wrap gap-2">
+            <div class="p-8 bg-zinc-50/50 dark:bg-zinc-900/30 rounded-3xl border border-zinc-100 dark:border-zinc-800">
+              <div class="flex items-center gap-3 mb-8 pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                <span class="text-xl">🔍</span>
+                <h3 class="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-[0.2em]">Semantic Intelligence Anchors</h3>
+              </div>
+              <div class="flex flex-wrap gap-2.5">
                  {enrichedTags.map((tag: any) => (
                     <a 
                       href={`/search?q=${encodeURIComponent(tag.name)}`} 
-                      class="group relative px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-xl text-[11px] font-bold border border-gray-100 dark:border-gray-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm hover:shadow-md"
+                      class="group px-3 py-1.5 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-lg text-[11px] font-black uppercase tracking-tight border border-zinc-200 dark:border-zinc-700 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm"
                     >
-                       <span class="mr-1.5 opacity-60 group-hover:opacity-100">🏷️</span>
                        {tag.name}
                     </a>
                  ))}
-                 {enrichedTags.length === 0 && <span class="text-sm text-gray-400 italic">Semantic tags indexing in progress via Knowledge Mesh...</span>}
               </div>
            </div>
 
            {similarEntities.length > 0 && (
-             <div class="space-y-4">
-                <h3 class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] px-2">
-                   <span>🔄</span> Related Node Sync
-                </h3>
+             <div>
+                <div class="flex items-center gap-3 mb-8 pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                  <span class="text-xl">🔄</span>
+                  <h3 class="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-[0.2em]">Related Discoveries</h3>
+                </div>
                 <SimilarModels models={similarEntities} currentModelId={entityId} />
              </div>
            )}

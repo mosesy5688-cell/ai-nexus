@@ -1,64 +1,68 @@
 ---
 // src/components/home/HomeCategoryGrid.astro
 ---
-<section id="category-section" class="mb-8 mt-6 hide-on-search">
-    <h2 class="text-xl md:text-2xl font-bold text-center mb-4 text-gray-900 dark:text-white">
-        Explore AI Models by Category
-    </h2>
-    <div class="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 overflow-x-auto md:overflow-visible pb-4 md:pb-0 snap-x snap-mandatory scroll-smooth -mx-4 px-4 md:mx-0 md:px-0">
-        <!-- Hero Card: Text Generation -->
-        <a href="/text-generation" class="category-card group relative overflow-hidden rounded-2xl p-6 md:p-8 col-span-1 md:col-span-2 lg:col-span-2 transition-all duration-300 hover:scale-[1.02] hover:shadow-glow snap-start flex-shrink-0 min-w-[280px] md:min-w-0 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 glass-effect" data-category="text-generation">
-            <div class="text-5xl mb-4 transition-transform group-hover:scale-110">💬</div>
-            <h3 class="text-2xl font-bold text-theme-primary mb-2">Text Generation & Content Creation</h3>
-            <p class="text-theme-secondary mb-4">ChatGPT alternatives, code assistants, content writing, summarization</p>
-            <div class="flex items-center justify-between">
-                <span class="text-sm text-indigo-600 dark:text-indigo-400 font-medium group-hover:underline">Explore models →</span>
-                <span class="category-count text-xs px-2 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full" data-category="text-generation">Loading...</span>
+<section id="category-section" class="mb-16 mt-8 hide-on-search">
+    <div class="flex items-center gap-4 mb-8">
+        <h2 class="text-xl md:text-2xl font-black text-zinc-900 dark:text-white uppercase tracking-tighter">
+            Intelligence Segments
+        </h2>
+        <div class="h-px flex-grow bg-zinc-100 dark:bg-zinc-800"></div>
+    </div>
+    
+    <div class="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-x-auto md:overflow-visible pb-4 md:pb-0 snap-x snap-mandatory scroll-smooth -mx-4 px-4 md:mx-0 md:px-0">
+        <!-- Text Generation -->
+        <a href="/text-generation" class="group relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 transition-all hover:border-indigo-500/50 hover:shadow-sm snap-start flex-shrink-0 min-w-[280px] md:min-w-0" data-category="text-generation">
+            <div class="flex items-start justify-between mb-6">
+                <div class="w-12 h-12 flex items-center justify-center bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-100 dark:border-zinc-700 text-2xl group-hover:scale-105 transition-transform">💬</div>
+                <span class="category-count text-[10px] font-black px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded border border-zinc-200 dark:border-zinc-700" data-category="text-generation">...</span>
             </div>
+            <h3 class="text-lg font-black text-zinc-900 dark:text-white mb-2 tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Text Generation</h3>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mb-4">Core LLMs, code assistants, and reasoning engines.</p>
+            <div class="text-[10px] font-black text-indigo-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Explore segment →</div>
         </a>
         
         <!-- Knowledge Retrieval -->
-        <a href="/knowledge-retrieval" class="category-card group relative overflow-hidden rounded-2xl p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-glow snap-start flex-shrink-0 min-w-[200px] md:min-w-0 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 glass-effect" data-category="knowledge-retrieval">
-            <div class="text-4xl mb-3 transition-transform group-hover:scale-110">🔍</div>
-            <h3 class="text-lg font-bold text-theme-primary mb-2">Knowledge Retrieval</h3>
-            <p class="text-sm text-theme-secondary mb-3 line-clamp-2">RAG, embeddings, Q&A systems</p>
-            <div class="flex items-center justify-between">
-                <span class="text-sm text-emerald-600 dark:text-emerald-400 font-medium group-hover:underline">Explore →</span>
-                <span class="category-count text-xs px-2 py-1 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 rounded-full" data-category="knowledge-retrieval">Loading...</span>
+        <a href="/knowledge-retrieval" class="group relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 transition-all hover:border-emerald-500/50 hover:shadow-sm snap-start flex-shrink-0 min-w-[240px] md:min-w-0" data-category="knowledge-retrieval">
+            <div class="flex items-start justify-between mb-6">
+                <div class="w-12 h-12 flex items-center justify-center bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-100 dark:border-zinc-700 text-2xl group-hover:scale-105 transition-transform">🔍</div>
+                <span class="category-count text-[10px] font-black px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded border border-zinc-200 dark:border-zinc-700" data-category="knowledge-retrieval">...</span>
             </div>
+            <h3 class="text-lg font-black text-zinc-900 dark:text-white mb-2 tracking-tight group-hover:text-emerald-600 transition-colors">Knowledge Retrieval</h3>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mb-4">Embeddings, RAG components, and semantic search.</p>
+            <div class="text-[10px] font-black text-emerald-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Explore segment →</div>
         </a>
         
         <!-- Vision & Multimedia -->
-        <a href="/vision-multimedia" class="category-card group relative overflow-hidden rounded-2xl p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-glow snap-start flex-shrink-0 min-w-[200px] md:min-w-0 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 glass-effect" data-category="vision-multimedia">
-            <div class="text-4xl mb-3 transition-transform group-hover:scale-110">🎨</div>
-            <h3 class="text-lg font-bold text-theme-primary mb-2">Vision & Multimedia</h3>
-            <p class="text-sm text-theme-secondary mb-3 line-clamp-2">Image generation, video, speech</p>
-            <div class="flex items-center justify-between">
-                <span class="text-sm text-amber-600 dark:text-amber-400 font-medium group-hover:underline">Explore →</span>
-                <span class="category-count text-xs px-2 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-full" data-category="vision-multimedia">Loading...</span>
+        <a href="/vision-multimedia" class="group relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 transition-all hover:border-amber-500/50 hover:shadow-sm snap-start flex-shrink-0 min-w-[240px] md:min-w-0" data-category="vision-multimedia">
+            <div class="flex items-start justify-between mb-6">
+                <div class="w-12 h-12 flex items-center justify-center bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-100 dark:border-zinc-700 text-2xl group-hover:scale-105 transition-transform">🎨</div>
+                <span class="category-count text-[10px] font-black px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded border border-zinc-200 dark:border-zinc-700" data-category="vision-multimedia">...</span>
             </div>
+            <h3 class="text-lg font-black text-zinc-900 dark:text-white mb-2 tracking-tight group-hover:text-amber-500 transition-colors">Vision & Multimedia</h3>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mb-4">Diffusion, video processing, and audio synthesis.</p>
+            <div class="text-[10px] font-black text-amber-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Explore segment →</div>
         </a>
         
         <!-- Automation -->
-        <a href="/automation-workflow" class="category-card group relative overflow-hidden rounded-2xl p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-glow snap-start flex-shrink-0 min-w-[200px] md:min-w-0 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 glass-effect" data-category="automation-workflow">
-            <div class="text-4xl mb-3 transition-transform group-hover:scale-110">⚡</div>
-            <h3 class="text-lg font-bold text-theme-primary mb-2">Automation</h3>
-            <p class="text-sm text-theme-secondary mb-3 line-clamp-2">AI agents, workflow tools</p>
-            <div class="flex items-center justify-between">
-                <span class="text-sm text-violet-600 dark:text-violet-400 font-medium group-hover:underline">Explore →</span>
-                <span class="category-count text-xs px-2 py-1 bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300 rounded-full" data-category="automation-workflow">Loading...</span>
+        <a href="/automation-workflow" class="group relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 transition-all hover:border-violet-500/50 hover:shadow-sm snap-start flex-shrink-0 min-w-[240px] md:min-w-0" data-category="automation-workflow">
+            <div class="flex items-start justify-between mb-6">
+                <div class="w-12 h-12 flex items-center justify-center bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-100 dark:border-zinc-700 text-2xl group-hover:scale-105 transition-transform">⚡</div>
+                <span class="category-count text-[10px] font-black px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded border border-zinc-200 dark:border-zinc-700" data-category="automation-workflow">...</span>
             </div>
+            <h3 class="text-lg font-black text-zinc-900 dark:text-white mb-2 tracking-tight group-hover:text-violet-500 transition-colors">Automation</h3>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mb-4">Agents, task-specific pipelines, and orchestration.</p>
+            <div class="text-[10px] font-black text-violet-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Explore segment →</div>
         </a>
         
         <!-- Infrastructure -->
-        <a href="/infrastructure-ops" class="category-card group relative overflow-hidden rounded-2xl p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-glow snap-start flex-shrink-0 min-w-[200px] md:min-w-0 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 glass-effect" data-category="infrastructure-ops">
-            <div class="text-4xl mb-3 transition-transform group-hover:scale-110">🔧</div>
-            <h3 class="text-lg font-bold text-theme-primary mb-2">Infrastructure</h3>
-            <p class="text-sm text-theme-secondary mb-3 line-clamp-2">Fine-tuning, optimization</p>
-            <div class="flex items-center justify-between">
-                <span class="text-sm text-slate-600 dark:text-slate-400 font-medium group-hover:underline">Explore →</span>
-                <span class="category-count text-xs px-2 py-1 bg-slate-100 dark:bg-slate-900/50 text-slate-700 dark:text-slate-300 rounded-full" data-category="infrastructure-ops">Loading...</span>
+        <a href="/infrastructure-ops" class="group relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 transition-all hover:border-zinc-500/50 hover:shadow-sm snap-start flex-shrink-0 min-w-[240px] md:min-w-0" data-category="infrastructure-ops">
+            <div class="flex items-start justify-between mb-6">
+                <div class="w-12 h-12 flex items-center justify-center bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-100 dark:border-zinc-700 text-2xl group-hover:scale-105 transition-transform">🔧</div>
+                <span class="category-count text-[10px] font-black px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded border border-zinc-200 dark:border-zinc-700" data-category="infrastructure-ops">...</span>
             </div>
+            <h3 class="text-lg font-black text-zinc-900 dark:text-white mb-2 tracking-tight group-hover:text-zinc-600 transition-colors">Infrastructure</h3>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mb-4">Quantization, serving stacks, and optimization.</p>
+            <div class="text-[10px] font-black text-zinc-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Explore segment →</div>
         </a>
     </div>
 </section>
