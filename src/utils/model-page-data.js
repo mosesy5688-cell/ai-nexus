@@ -82,19 +82,18 @@ export async function prepareModelPageData(slug, slugStr, locals) {
                 model.knowledge_links = model.knowledge_links || [];
 
                 meshRelations.forEach(rel => {
-                    const isOut = rel.norm_source === normRoot;
-                    const tid = isOut ? rel.target_id : rel.source_id;
+                    const tid = rel.target_id;
                     if (!tid) return;
 
-                    // Updated prefixes for SPEC-ID-V2.0
+                    // SPEC-ID-V2.0 alignment: handle prefixes
                     if (tid.startsWith('arxiv--') || tid.startsWith('paper--')) {
                         const id = tid.replace(/^(arxiv|paper)--/, '');
                         if (!model.arxiv_refs.includes(id)) model.arxiv_refs.push(id);
                     } else if (tid.startsWith('hf-dataset--') || tid.startsWith('dataset--') || tid.startsWith('kaggle--')) {
-                        const id = tid.replace(/^(hf-dataset|dataset|kaggle)--/, '');
+                        const id = tid.replace(/^(hf-dataset|dataset|kaggle|hf)--/, '');
                         if (!model.datasets_used.includes(id)) model.datasets_used.push(id);
                     } else if (tid.startsWith('knowledge--') || tid.startsWith('concept--')) {
-                        const slug = tid.split('--').pop();
+                        const slug = tid.replace(/^(knowledge|concept)--/, '');
                         if (!model.knowledge_links.find(l => l.slug === slug)) {
                             model.knowledge_links.push({
                                 slug,
