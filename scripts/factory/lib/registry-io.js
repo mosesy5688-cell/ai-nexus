@@ -51,7 +51,6 @@ export async function loadGlobalRegistry() {
         let allEntities = [];
 
         // 1. Try Local Shards (Primary Source of Truth)
-        const shardDirPath = path.join('cache', 'registry');
         const shardFiles = await fs.readdir(shardDirPath).catch(() => []);
         const validShards = shardFiles.filter(f => f.startsWith('part-') && (f.endsWith('.json.gz') || f.endsWith('.json')));
 
@@ -80,41 +79,60 @@ export async function loadGlobalRegistry() {
                 return { entities: allEntities, count: allEntities.length, didLoadFromStorage: true };
             }
         }
-
-        // 2. R2 Fallback (Emergency Recovery)
-        if (process.env.ALLOW_R2_RECOVERY === 'true') {
-            console.log(`[CACHE] 🌐 Local Cache missed or incomplete. Attempting R2 Restoration...`);
-            try {
-                // Priority 1: Sharded R2 (V18.2.1+)
-                // Note: Cloudflare doesn't support globbing easily via wrangler here, 
-                // the factory-harvest workflow should have pre-synced these to cache/registry.
-                const registry = await loadWithFallback(MONOLITH_FILE, { entities: [] }, true);
-                if (registry.entities?.length >= REGISTRY_FLOOR) {
-                    console.log(`[CACHE] ✅ R2 Monolith restored: ${registry.entities.length} entities.`);
-                    return { entities: registry.entities, count: registry.entities.length, didLoadFromStorage: true };
-                }
-            } catch (e) {
-                console.error(`[CACHE] ❌ R2 Restoration failed: ${e.message}`);
-            }
-        }
-
-        return { entities: [], count: 0, didLoadFromStorage: false };
     }
+
+    // 2. R2 Fallback (Emergency Recovery)
+    if (allEntities.length < REGISTRY_FLOOR && (process.env.ALLOW_R2_RECOVERY === 'true' || process.env.FORCE_R2_RESTORE === 'true')) {
+        console.log(`[CACHE] 🌐 Local Cache missed or forced. Attempting R2 Restoration...`);
+        try {
+            // Priority 1: Sharded R2 (V18.2.1+)
+            let i = 0;
+            while (i < 1000) {
+                const shardName = `registry/part-${String(i).padStart(3, '0')}.json.gz`;
+                // loadWithFallback handles R2 download to local cache
+                const recovered = await loadWithFallback(shardName, null, false);
+                if (recovered && (recovered.entities || Array.isArray(recovered))) {
+                    const entities = recovered.entities || recovered;
+                    allEntities = allEntities.concat(entities);
+                    i++;
+                } else break;
+            }
+
+            if (allEntities.length >= REGISTRY_FLOOR) {
+                console.log(`[CACHE] ✅ R2 Shards restored: ${allEntities.length} entities.`);
+                return { entities: allEntities, count: allEntities.length, didLoadFromStorage: true };
+            }
+
+            // Priority 2: Monolith R2 (Legacy Fallback)
+            const registry = await loadWithFallback(MONOLITH_FILE, { entities: [] }, false);
+            if (registry.entities?.length >= REGISTRY_FLOOR) {
+                console.log(`[CACHE] ✅ R2 Monolith restored: ${registry.entities.length} entities.`);
+                return { entities: registry.entities, count: registry.entities.length, didLoadFromStorage: true };
+            }
+        } catch (e) {
+            console.error(`[CACHE] ❌ R2 Restoration failed: ${e.message}`);
+        }
+    }
+
+    return { entities: [], count: 0, didLoadFromStorage: false };
 }
 
 /**
  * SAVE: Global Registry (Sharded ONLY)
  * V18.2.1: Bypassing RangeError: Invalid string length
  */
-export async function saveGlobalRegistry(entities) {
+export async function saveGlobalRegistry(input) {
+    const entities = Array.isArray(input) ? input : (input?.entities || []);
     const count = entities.length;
     const timestamp = new Date().toISOString();
 
     console.log(`[CACHE] 💾 Persisting Registry (${count} entities)...`);
 
     // 1. Sharded Save (Atomic Chunks)
+    const cacheDir = process.env.CACHE_DIR || './cache';
+    const shardDirPath = path.join(cacheDir, REGISTRY_DIR);
     const shardCount = Math.ceil(count / SHARD_SIZE);
-    await fs.mkdir(path.join('cache', 'registry'), { recursive: true });
+    await fs.mkdir(shardDirPath, { recursive: true });
 
     for (let i = 0; i < shardCount; i++) {
         const shardData = entities.slice(i * SHARD_SIZE, (i + 1) * SHARD_SIZE);
