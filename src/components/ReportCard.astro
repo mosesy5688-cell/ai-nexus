@@ -1,11 +1,30 @@
+```
 ---
+// src/components/ReportCard.astro
+// V21.0: Professional Intelligence Briefing Card
 const { report } = Astro.props;
 ---
-
-<a href={`/reports/${report.reportId}`} class="block p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300">
-  <h4 class="font-bold text-xl text-blue-600 dark:text-blue-400 group-hover:underline">{report.title}</h4>
-  <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-    {new Date(report.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+<a href={`/reports/${report.reportId}`} class="group block p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl hover:border-indigo-500/50 transition-all shadow-sm">
+  <div class="flex items-center gap-3 mb-4">
+    <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
+    <p class="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em]">
+      {new Date(report.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+    </p>
+  </div>
+  
+  <h4 class="font-black text-xl text-zinc-900 dark:text-white mb-3 tracking-tighter group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+    {report.title}
+  </h4>
+  
+  <p class="text-zinc-600 dark:text-zinc-400 text-sm font-medium leading-relaxed mb-6 line-clamp-2">
+    {report.summary}
   </p>
-  <p class="text-gray-600 dark:text-gray-300 mt-3 text-sm line-clamp-2">{report.summary}</p>
+
+  <div class="flex items-center justify-between pt-4 border-t border-zinc-50 dark:border-zinc-800/50">
+    <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Read Briefing →</span>
+    {report.highlights > 0 && (
+      <span class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500">{report.highlights} Highlights</span>
+    )}
+  </div>
 </a>
+```

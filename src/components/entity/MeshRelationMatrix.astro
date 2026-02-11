@@ -1,9 +1,6 @@
 ---
-/**
- * MeshRelationMatrix.astro
- * V16.2 Knowledge Mesh Visualization
- * Groups and displays bidirectional relations between AI nodes.
- */
+// src/components/entity/MeshRelationMatrix.astro
+// V21.0: Professional Knowledge context matrix
 import { stripPrefix, getRouteFromId } from '../../utils/knowledge-cache-reader.js';
 
 interface Relation {
@@ -21,7 +18,6 @@ interface Props {
 
 const { relations = [], entityId } = Astro.props;
 
-// Categorize relations by their semantic meaning
 const categories: Record<string, { label: string, icon: string, relations: Relation[] }> = {
     STACK: { label: 'Technical Stack', icon: '🛠️', relations: [] },
     BASED_ON: { label: 'Lineage', icon: '🧬', relations: [] },
@@ -32,25 +28,19 @@ const categories: Record<string, { label: string, icon: string, relations: Relat
     EXPLAINS: { label: 'Knowledge Mesh', icon: '💡', relations: [] },
     FEATURED_IN: { label: 'Highlights', icon: '🌟', relations: [] },
     ALTERNATIVE: { label: 'Alternatives', icon: '🔄', relations: [] },
-    KNOWLEDGE: { label: 'Knowledge Articles', icon: '🎓', relations: [] },
-    REPORT: { label: 'Daily Reports', icon: '📰', relations: [] },
+    KNOWLEDGE: { label: 'Technical Articles', icon: '🎓', relations: [] },
+    REPORT: { label: 'Intelligence Reports', icon: '📰', relations: [] },
     RELATED: { label: 'Associations', icon: '🔗', relations: [] }
 };
 
-// Populate categories with target-level de-duplication (V16.4 Stability)
 const seenTargetsGlobal = new Set();
-
-// V16.4: Cross-Component Deduplication
 const renderedNodes = Astro.locals.meshRenderedNodes || new Set();
 
 relations.forEach(rel => {
     if (!rel || !rel.target_id) return;
-    
     const type = rel.relation_type || 'RELATED';
     const targetId = stripPrefix(rel.target_id);
-    const normTarget = targetId;
-    
-    if (renderedNodes.has(normTarget) && !['knowledge', 'report'].includes(rel.target_type || '')) return;
+    if (renderedNodes.has(targetId) && !['knowledge', 'report'].includes(rel.target_type || '')) return;
 
     let catKey = type;
     if (rel.target_type === 'knowledge') catKey = 'KNOWLEDGE';
@@ -62,7 +52,6 @@ relations.forEach(rel => {
     const catCheckKey = `${type}|${targetId}`;
     if (seenTargetsGlobal.has(catCheckKey)) return;
     seenTargetsGlobal.add(catCheckKey);
-
     cat.relations.push(rel);
 });
 
@@ -81,54 +70,40 @@ const typeIcons: Record<string, string> = {
 ---
 
 {activeCategories.length > 0 && (
-    <div class="mesh-relation-matrix space-y-10">
+    <div class="space-y-12">
         {activeCategories.map(([_, group]) => (
-            <div class="relation-category animate-fade-in">
-                <h4 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                    <span class="text-lg">{group.icon}</span>
-                    {group.label}
-                </h4>
+            <div class="animate-fade-in">
+                <div class="flex items-center gap-3 mb-6 pb-2 border-b border-zinc-100 dark:border-zinc-800">
+                    <span class="text-xl">{group.icon}</span>
+                    <h4 class="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-[0.2em]">{group.label}</h4>
+                </div>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id={`relation-grid-${group.label.replace(/\s+/g, '-')}`}>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id={`relation-grid-${group.label.replace(/\s+/g, '-')}`}>
                     {group.relations.map((rel, index) => (
                         <a 
                             href={getRouteFromId(rel.target_id, rel.target_type)}
-                            class={`group flex items-center justify-between p-4 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/50 hover:border-indigo-400 dark:hover:border-indigo-500/50 hover:shadow-md transition-all duration-300 ${index >= 6 ? 'hidden extra-relation' : ''}`}
+                            class={`group flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-indigo-500 transition-colors ${index >= 8 ? 'hidden extra-relation' : ''}`}
                         >
-                            <div class="flex items-center gap-3 min-w-0">
-                                <span class="text-xl group-hover:scale-125 transition-transform duration-300">
-                                    {typeIcons[rel.target_type] || '📎'}
-                                </span>
-                                <div class="flex flex-col truncate">
-                                    <span class="font-bold text-gray-900 dark:text-gray-100 truncate text-sm">
+                            <div class="flex items-center gap-4 min-w-0">
+                                <span class="text-xl grayscale group-hover:grayscale-0 transition-all">{typeIcons[rel.target_type] || '📎'}</span>
+                                <div class="flex flex-col min-w-0">
+                                    <span class="text-sm font-black text-zinc-900 dark:text-zinc-100 truncate">
                                         {rel.target_name || stripPrefix(rel.target_id).split('--').pop()?.replace(/-/g, ' ')}
                                     </span>
-                                    <span class="text-[10px] text-gray-500 uppercase font-bold tracking-wider opacity-60">
-                                        {rel.target_type}
-                                    </span>
+                                    <span class="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">{rel.target_type}</span>
                                 </div>
                             </div>
-                            
-                            <div class="flex items-center gap-3">
-                                {rel.confidence > 0.9 && (
-                                    <span class="flex h-2 w-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]"></span>
-                                )}
-                                <span class="text-indigo-600 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                                    </svg>
-                                </span>
-                            </div>
+                            <span class="text-zinc-300 group-hover:text-indigo-500 transition-colors">→</span>
                         </a>
                     ))}
                 </div>
 
-                {group.relations.length > 6 && (
+                {group.relations.length > 8 && (
                     <button 
-                        class="show-more-relations-btn mt-4 text-[11px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors flex items-center gap-2"
+                        class="show-more-relations-btn mt-6 px-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                         data-target={`relation-grid-${group.label.replace(/\s+/g, '-')}`}
                     >
-                        <span>+ View {group.relations.length - 6} More Relations</span>
+                        + View {group.relations.length - 8} Additional Nodes
                     </button>
                 )}
             </div>
@@ -136,27 +111,22 @@ const typeIcons: Record<string, string> = {
     </div>
 )}
 
-<script>
+<script is:inline>
     function initRelationFolding() {
         const buttons = document.querySelectorAll('.show-more-relations-btn');
         buttons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetId = (btn as HTMLElement).dataset.target;
-                const grid = document.getElementById(targetId!);
+            btn.onclick = () => {
+                const targetId = btn.dataset.target;
+                const grid = document.getElementById(targetId);
                 if (grid) {
                     const extra = grid.querySelectorAll('.extra-relation');
                     extra.forEach(el => el.classList.toggle('hidden'));
-                    
                     const isHidden = extra[0].classList.contains('hidden');
-                    const span = btn.querySelector('span');
-                    if (span) {
-                        span.textContent = isHidden ? `+ View ${extra.length} More Relations` : '- Show Less';
-                    }
+                    btn.textContent = isHidden ? `+ View ${extra.length} Additional Nodes` : '- Collapse View';
                 }
-            });
+            };
         });
     }
-
     initRelationFolding();
     document.addEventListener('astro:after-swap', initRelationFolding);
 </script>

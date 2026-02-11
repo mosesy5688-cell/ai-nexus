@@ -23,47 +23,37 @@ const { baseModel, datasetsUsed = [], arxivRefs = [], relatedSpaces = [], knowle
 const hasRelations = baseModel || datasetsUsed.length > 0 || arxivRefs.length > 0 || relatedSpaces.length > 0 || knowledgeLinks.length > 0;
 ---
 
-{hasRelations && (
-  <section class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
-    <div class="flex items-center gap-3 mb-6">
-      <div class="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400">
+<section class="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+    <div class="flex items-center gap-3 mb-6 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+      <div class="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />
         </svg>
       </div>
-      <h2 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">
-        Knowledge Context
+      <h2 class="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest">
+        Entity Lineage & Context
       </h2>
     </div>
     
-    <div class="divide-y divide-gray-50 dark:divide-gray-700/50">
+    <div class="space-y-6">
       {baseModel && (
-        <div class="py-4 first:pt-0">
-          <div class="flex items-center gap-2 mb-2">
-            <span class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Base Model</span>
-          </div>
+        <div>
+          <h4 class="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-2">Base Architecture</h4>
           <a href={getRouteFromId(baseModel, 'model')}
-             class="group flex items-center justify-between p-3 rounded-xl bg-indigo-50/30 dark:bg-indigo-900/10 border border-indigo-100/50 dark:border-indigo-800/50 hover:border-indigo-300 transition-all">
-            <div class="flex items-center gap-3">
-              <span class="text-lg">🧬</span>
-              <span class="text-sm font-bold text-gray-800 dark:text-gray-200">{baseModel}</span>
-            </div>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-400 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
+             class="group flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-indigo-500 transition-colors">
+            <span class="text-sm font-black text-zinc-900 dark:text-zinc-100 truncate">{baseModel}</span>
+            <span class="text-zinc-300 group-hover:text-indigo-500 transition-colors">→</span>
           </a>
         </div>
       )}
 
       {datasetsUsed.filter(Boolean).length > 0 && (
-        <div class="py-4">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Trained On</span>
-          </div>
+        <div class="pt-6 border-t border-zinc-100 dark:border-zinc-800">
+          <h4 class="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Trained On</h4>
           <div class="flex flex-wrap gap-2">
-            {datasetsUsed.filter(Boolean).map(ds => (
+            {datasetsUsed.filter(Boolean).slice(0, 8).map(ds => (
               <a href={getRouteFromId(ds, 'dataset')}
-                 class="px-3 py-1.5 bg-green-50/50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg text-xs font-bold border border-green-100/50 dark:border-green-800/30 hover:border-green-400 transition-all">
+                 class="px-3 py-1 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 rounded border border-zinc-200 dark:border-zinc-700 text-xs font-bold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
                 {ds}
               </a>
             ))}
@@ -72,53 +62,34 @@ const hasRelations = baseModel || datasetsUsed.length > 0 || arxivRefs.length > 
       )}
 
       {arxivRefs.filter(Boolean).length > 0 && (
-        <div class="py-4">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Scientific Papers</span>
-          </div>
-          <div class="flex flex-col gap-2" id="papers-container">
-            {arxivRefs.filter(Boolean).map(arxiv => (
+        <div class="pt-6 border-t border-zinc-100 dark:border-zinc-800">
+          <h4 class="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Scientific Papers</h4>
+          <div class="space-y-2" id="papers-container">
+            {arxivRefs.filter(Boolean).slice(0, 4).map(arxiv => (
               <a href={getRouteFromId(`arxiv--${arxiv}`, 'paper')}
-                 class="group flex items-center gap-3 p-3 rounded-xl bg-blue-50/30 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/50 hover:border-blue-300 transition-all"
+                 class="group flex items-center gap-3 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 hover:border-indigo-500 transition-colors"
                  data-arxiv={arxiv}>
-                <span class="text-lg">📄</span>
-                <span class="paper-title text-sm font-bold text-gray-800 dark:text-gray-200 truncate">{arxiv.startsWith('arxiv:') ? arxiv : `arXiv:${arxiv}`}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-auto text-blue-400 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7-7 7" />
-                </svg>
+                <span class="text-[13px] font-bold text-zinc-700 dark:text-zinc-300 paper-title truncate">{arxiv}</span>
               </a>
             ))}
           </div>
         </div>
       )}
 
-      {relatedSpaces.filter(Boolean).length > 0 && (
-        <div class="py-4">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Live Demos</span>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            {relatedSpaces.filter(Boolean).map(space => (
-              <a href={getRouteFromId(space, 'space')}
-                 class="px-3 py-1.5 bg-orange-50/50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg text-xs font-bold border border-orange-100/50 dark:border-orange-800/30 hover:border-orange-400 transition-all">
-                {space.split('/').pop()}
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {knowledgeLinks.filter(l => l && l.slug).length > 0 && (
-        <div class="py-4 last:pb-0">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Knowledge Base</span>
-          </div>
+      {(relatedSpaces.length > 0 || knowledgeLinks.length > 0) && (
+        <div class="pt-6 border-t border-zinc-100 dark:border-zinc-800">
+          <h4 class="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Linked Resources</h4>
           <div class="flex flex-wrap gap-2">
             {knowledgeLinks.filter(l => l && l.slug).map(link => (
               <a href={`/knowledge/${link.slug}`}
-                 class="px-3 py-1.5 bg-purple-50/50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-lg text-xs font-bold border border-purple-100/50 dark:border-purple-800/30 hover:border-purple-400 transition-all flex items-center gap-2">
-                <span class="text-sm">{link.icon}</span>
-                <span>{link.title}</span>
+                 class="px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded border border-zinc-200 dark:border-zinc-700 text-xs font-black uppercase tracking-tight hover:bg-zinc-200 transition-colors">
+                {link.title}
+              </a>
+            ))}
+            {relatedSpaces.filter(Boolean).slice(0, 3).map(space => (
+              <a href={getRouteFromId(space, 'space')}
+                 class="px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded border border-zinc-200 dark:border-zinc-700 text-xs font-bold transition-colors">
+                {space.split('/').pop()}
               </a>
             ))}
           </div>
@@ -127,22 +98,17 @@ const hasRelations = baseModel || datasetsUsed.length > 0 || arxivRefs.length > 
     </div>
 
     <script is:inline>
-      // Paper title hydration
       async function loadPaperTitles() {
         try {
           const res = await fetch('/cache/paper-titles.json');
           if (!res.ok) return;
           const data = await res.json();
-          
           document.querySelectorAll('[data-arxiv]').forEach(el => {
             const arxivId = el.getAttribute('data-arxiv');
             const title = data.titles?.[arxivId];
             if (title) {
               const titleEl = el.querySelector('.paper-title');
-              if (titleEl) {
-                titleEl.textContent = title;
-                titleEl.title = title;
-              }
+              if (titleEl) { titleEl.textContent = title; titleEl.title = title; }
             }
           });
         } catch (e) {}

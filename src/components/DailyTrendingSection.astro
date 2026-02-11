@@ -38,176 +38,36 @@ const topModels = hasTrending ? trendingData.results.slice(0, 10) : [];
 const generatedAt = trendingData?.generated_at ? new Date(trendingData.generated_at) : null;
 ---
 
-<section class="daily-trending bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg mb-8">
-    <div class="header">
-        <h2 class="title">📈 Today's Trending Models</h2>
-        {generatedAt && (
-            <span class="generated-date">
-                Updated: {generatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-            </span>
+<section class="mb-12">
+    <div class="flex flex-col gap-4">
+        {hasTrending ? (
+            <div class="flex flex-col border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden divide-y divide-zinc-100 dark:divide-zinc-800">
+                {topModels.map((model, index) => (
+                    <a href={generateEntityUrl(model, 'model')} class="group flex items-center gap-6 p-4 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                        <span class="w-8 text-xs font-black text-zinc-400 dark:text-zinc-600 tracking-tight">#{index + 1}</span>
+                        <div class="flex-grow min-w-0">
+                            <span class="block text-sm font-black text-zinc-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{model.name}</span>
+                            <span class="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">{model.author}</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            {model.fni_score > 0 && (
+                                <div class="flex flex-col items-end">
+                                    <span class="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Rank</span>
+                                    <span class="text-xs font-black text-zinc-900 dark:text-white">{model.fni_score.toFixed(0)}</span>
+                                </div>
+                            )}
+                            <div class="flex flex-col items-end border-l border-zinc-100 dark:border-zinc-800 pl-4">
+                                <span class="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Velocity</span>
+                                <span class="text-xs font-black text-zinc-900 dark:text-white">↓{model.downloads >= 1000 ? (model.downloads / 1000).toFixed(1) + 'K' : model.downloads}</span>
+                            </div>
+                        </div>
+                    </a>
+                ))}
+            </div>
+        ) : (
+            <div class="text-center py-12 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
+                <p class="text-sm font-bold text-zinc-500">Live trending metrics currently synchronizing...</p>
+            </div>
         )}
     </div>
-    
-    {hasTrending ? (
-        <div class="trending-list">
-            {topModels.map((model, index) => (
-                <a href={generateEntityUrl(model, 'model')} class="trending-item">
-                    <span class="rank">#{index + 1}</span>
-                    <div class="model-info">
-                        <span class="model-name">{model.name}</span>
-                        <span class="model-author">{model.author}</span>
-                    </div>
-                    <div class="stats">
-                        {model.fni_score > 0 && (
-                            <span class={`fni ${model.fni_score >= 70 ? 'high' : model.fni_score >= 50 ? 'mid' : 'low'}`}>
-                                FNI {model.fni_score.toFixed(0)}
-                            </span>
-                        )}
-                        <span class="downloads">
-                            ↓{model.downloads >= 1000 ? (model.downloads / 1000).toFixed(1) + 'K' : model.downloads}
-                        </span>
-                    </div>
-                </a>
-            ))}
-        </div>
-    ) : (
-        <div class="no-data">
-            <p>Trending data unavailable</p>
-            <span class="hint">Data will be generated at next backend cycle</span>
-        </div>
-    )}
-    
-    <div class="footer">
-        <a href="/ranking" class="view-all">View All Trending Models →</a>
-    </div>
 </section>
-
-<style>
-    .daily-trending {
-        border: 1px solid rgba(99, 102, 241, 0.2);
-    }
-    
-    .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-    }
-    
-    .title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--gray-900);
-        margin: 0;
-    }
-    
-    .generated-date {
-        font-size: 0.75rem;
-        color: var(--gray-500);
-        background: rgba(99, 102, 241, 0.1);
-        padding: 0.25rem 0.75rem;
-        border-radius: 9999px;
-    }
-    
-    .trending-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    
-    .trending-item {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 0.75rem 1rem;
-        background: var(--gray-50);
-        border-radius: 8px;
-        text-decoration: none;
-        transition: all 0.2s;
-    }
-    
-    .trending-item:hover {
-        background: rgba(99, 102, 241, 0.1);
-        transform: translateX(4px);
-    }
-    
-    .rank {
-        font-weight: 700;
-        color: var(--indigo-600);
-        font-size: 0.875rem;
-        min-width: 2.5rem;
-    }
-    
-    .model-info {
-        flex: 1;
-        min-width: 0;
-    }
-    
-    .model-name {
-        display: block;
-        font-weight: 600;
-        color: var(--gray-900);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    
-    .model-author {
-        font-size: 0.75rem;
-        color: var(--gray-500);
-    }
-    
-    .stats {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-    }
-    
-    .fni {
-        font-size: 0.7rem;
-        padding: 0.125rem 0.5rem;
-        border-radius: 9999px;
-        font-weight: 600;
-    }
-    
-    .fni.high { background: rgba(34, 197, 94, 0.2); color: #15803d; }
-    .fni.mid { background: rgba(234, 179, 8, 0.2); color: #854d0e; }
-    .fni.low { background: rgba(239, 68, 68, 0.2); color: #b91c1c; }
-    
-    .downloads {
-        font-size: 0.75rem;
-        color: var(--gray-500);
-    }
-    
-    .footer {
-        margin-top: 1.5rem;
-        text-align: center;
-    }
-    
-    .view-all {
-        color: var(--indigo-600);
-        text-decoration: none;
-        font-weight: 600;
-    }
-    
-    .view-all:hover {
-        text-decoration: underline;
-    }
-    
-    .no-data {
-        text-align: center;
-        padding: 2rem;
-        color: var(--gray-500);
-    }
-    
-    .hint {
-        font-size: 0.75rem;
-        color: var(--gray-400);
-    }
-    
-    /* Dark mode enhancements */
-    :global(.dark) .title { color: white; }
-    :global(.dark) .trending-item { background: rgba(31, 41, 55, 0.8); }
-    :global(.dark) .model-name { color: white; }
-    :global(.dark) .rank { color: #818cf8; }
-</style>
