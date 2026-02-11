@@ -17,7 +17,7 @@ import UniversalCore from '../../components/entity/UniversalCore.astro';
 import { getUseCases } from '../../utils/inference.js';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
-import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
+// V19.0: ModelNavigation removed — not applicable to agents
 import CiteEntity from '../../components/common/CiteEntity.astro';
 
 import { prepareAgentPageData } from '../../utils/agent-page-data.js';
@@ -155,10 +155,11 @@ const jsonLd = {
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">
        <div class="space-y-12">
-          <section class="mb-12">
-             <ModelNavigation />
-          </section>
-          <AgentDeepDive agent={agent} />
+          {agent?.body_content ? (
+            <article class="prose prose-lg dark:prose-invert max-w-none" set:html={agent.body_content} />
+          ) : (
+            <AgentDeepDive agent={agent} />
+          )}
        </div>
     </div>
 

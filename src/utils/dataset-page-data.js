@@ -55,10 +55,15 @@ export async function prepareDatasetPageData(slug, slugStr, locals) {
 
         tagsArray = Array.isArray(dataset.tags) ? dataset.tags : [];
 
-        // Mesh Relations Integration
+        // V19.0: Read pre-fused mesh data first, fallback to global fetch
         let meshRelations = [];
         try {
-            meshRelations = await fetchMeshRelations(locals, dataset.id || slugStr);
+            const fusedMesh = dataset?.mesh_profile?.relations || dataset?.meta_json?.mesh_profile?.relations;
+            if (fusedMesh && Array.isArray(fusedMesh) && fusedMesh.length > 0) {
+                meshRelations = fusedMesh;
+            } else {
+                meshRelations = await fetchMeshRelations(locals, dataset.id || slugStr);
+            }
             const dId = dataset.id || slugStr;
             const normRoot = stripPrefix(dId);
 

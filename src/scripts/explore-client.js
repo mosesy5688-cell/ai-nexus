@@ -4,7 +4,7 @@
  * Client-side logic for Explore page (V5.1.2 Hot Index)
  * Handles SearchWorker communication, Filters, and UI Updates
  */
-import { renderModelCard } from './render-model-card.js';
+import { createModelCardHTML } from './ui-utils.js';
 
 let searchWorker = null;
 let workerReady = false;
@@ -188,7 +188,7 @@ function renderModels(models) {
         return;
     }
     if (noResults) noResults.classList.add('hidden');
-    const html = models.map(model => renderModelCard(model)).join('');
+    const html = models.map(model => createModelCardHTML(model)).join('');
     if (grid) grid.innerHTML = html;
 }
 

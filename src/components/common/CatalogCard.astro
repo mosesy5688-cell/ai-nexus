@@ -4,9 +4,9 @@
 // V17.4: Zero-Entropy Compliant (Clean Tech)
 
 import { generateEntityUrl } from '../../utils/url-utils.js';
-import { extractAuthor } from '../../utils/entity-utils.js';
+import { extractAuthor, getSourceMetadata, isActive as isRecentlyActive } from '../../utils/entity-utils.js';
 
-const { item, type = 'model' } = Astro.props;
+const { item, type = 'model', isRisingStar = false } = Astro.props;
 
 // Normalization Logic for SSR - V19.5 Fixed
 const id = item.id || item.slug || '';
@@ -15,8 +15,9 @@ const author = extractAuthor(id, item.author || item.creator || item.organizatio
 const description = item.description || item.summary || 'Structural intelligence indexing in progress...';
 const truncatedDesc = description;
 
-// Routing logic - V5.0 Clean Rails
+// Routing & Metadata - V19.1 Unification
 const link = generateEntityUrl(item, type);
+const isActive = isRecentlyActive(item.last_updated || item.lastModified);
 
 const fni = Math.round(item.fni_score ?? item.fni ?? 0);
 const fniPercentile = item.fni_percentile || '';
@@ -37,17 +38,51 @@ if (type === 'paper') typeBadgeColor = 'bg-amber-50 dark:bg-amber-900/30 text-am
 if (type === 'space') typeBadgeColor = 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
 
 const typeLabel = (item.pipeline_tag || item.primary_category || type).replace(/-/g, ' ');
+
+// V19.1 Polymorphic Metrics Calculation
+const formatCompact = (num) => new Intl.NumberFormat('en-US', { notation: "compact" }).format(num || 0);
+
+const metrics = [];
+if (type === 'model' || type === 'dataset' || type === 'space') {
+    if (item.downloads > 0) metrics.push({ icon: '📥', value: formatCompact(item.downloads), label: 'Downloads' });
+    if (item.likes > 0) metrics.push({ icon: '❤️', value: formatCompact(item.likes), label: 'Likes' });
+    if (type === 'dataset' && item.size) metrics.push({ icon: '💾', value: item.size, label: 'Size' });
+    if (type === 'space' && item.runtime) metrics.push({ icon: '🚀', value: item.runtime, label: 'Runtime' });
+} else if (type === 'agent' || type === 'tool') {
+    const stars = item.github_stars || item.stars || 0;
+    const forks = item.github_forks || item.forks || 0;
+    if (stars > 0) metrics.push({ icon: '⭐', value: formatCompact(stars), label: 'Stars' });
+    if (forks > 0) metrics.push({ icon: '🍴', value: formatCompact(forks), label: 'Forks' });
+} else if (type === 'paper') {
+    const citations = item.citations || 0;
+    if (citations > 0) metrics.push({ icon: '📚', value: formatCompact(citations), label: 'Citations' });
+    const year = item.published_date ? new Date(item.published_date).getFullYear() : null;
+    if (year) metrics.push({ icon: '📅', value: year, label: 'Published' });
+}
+if (item.fni_score > 0) {
+    // FNI is already in the top badge, but we can add more if needed
+}
 ---
 
 <a href={link} class="entity-card group p-5 bg-white dark:bg-zinc-900 rounded-xl hover:shadow-md transition-all border border-gray-100 dark:border-zinc-800 hover:border-indigo-500/50 block h-full flex flex-col">
     <div class="flex items-center justify-between mb-3">
-         <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded {typeBadgeColor}">{typeLabel}</span>
-         {fni > 0 && (
-            <div class={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${fniBadgeClass}`}>
-                <span class="text-[10px] font-bold">🛡️ {fni}</span>
-                {(fniPercentile === 'top_1%' || fniPercentile === 'top_10%' || (typeof fniPercentile === 'number' && fniPercentile >= 90)) && <span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">TOP</span>}
-            </div>
-         )}
+         <div class="flex items-center gap-2">
+             <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded {typeBadgeColor}">{typeLabel}</span>
+             {isActive && <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Recently updated"></span>}
+         </div>
+         <div class="flex items-center gap-2">
+             {isRisingStar && <span class="text-[9px] font-black bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded uppercase tracking-tighter">🔥 Rising</span>}
+             {(fni > 0 || fniPercentile) && (
+                <div class={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${fniBadgeClass}`}>
+                    <span class="text-[10px] font-bold">🛡️ {fni > 0 ? fni : ''}</span>
+                    {fniPercentile && (typeof fniPercentile === 'string' && fniPercentile.startsWith('top_')) ? (
+                       <span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">{fniPercentile.replace('top_', 'Top ')}</span>
+                    ) : (fniPercentile && typeof fniPercentile === 'number' && fniPercentile >= 90) ? (
+                       <span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">Top {100 - fniPercentile}%</span>
+                    ) : null}
+                </div>
+             )}
+         </div>
     </div>
     
     <h3 class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1 mb-1" title={displayTitle}>
@@ -61,17 +96,11 @@ const typeLabel = (item.pipeline_tag || item.primary_category || type).replace(/
     </p>
 
     <div class="flex items-center gap-4 pt-4 border-t border-gray-50 dark:border-zinc-800 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-        {item.downloads > 0 && (
-            <div class="flex items-center gap-1">
-                <span>📥</span>
-                <span>{new Intl.NumberFormat('en-US', { notation: "compact" }).format(item.downloads)}</span>
+        {metrics.map(m => (
+            <div class="flex items-center gap-1" title={m.label}>
+                <span>{m.icon}</span>
+                <span>{m.value}</span>
             </div>
-        )}
-        {item.likes > 0 && (
-            <div class="flex items-center gap-1">
-                <span>❤️</span>
-                <span>{new Intl.NumberFormat('en-US', { notation: "compact" }).format(item.likes)}</span>
-            </div>
-        )}
+        ))}
     </div>
 </a>

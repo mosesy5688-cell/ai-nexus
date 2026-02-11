@@ -138,15 +138,21 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
   
     <div slot="deep-dive">
        <div class="space-y-12">
-          <section class="mb-12">
-             <ModelNavigation />
-          </section>
-          <ModelMainColumn 
-            model={model} 
-            modelId={modelId}
-            cleanDescription={cleanedDesc}
-            jsonld={jsonld}
-          />
+          {model?.body_content ? (
+            <article class="prose prose-lg dark:prose-invert max-w-none" set:html={model.body_content} />
+          ) : (
+            <>
+              <section class="mb-12">
+                 <ModelNavigation />
+              </section>
+              <ModelMainColumn 
+                model={model} 
+                modelId={modelId}
+                cleanDescription={cleanedDesc}
+                jsonld={jsonld}
+              />
+            </>
+          )}
        </div>
     </div>
 

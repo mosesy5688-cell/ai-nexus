@@ -112,23 +112,6 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
            </div>
         </section>
 
-        {/* Zone 5.0: COMMUNITY ENGAGEMENT (Re-homed) */}
-        <section id="community-engagement" class="animate-slide-up space-y-12" style="animation-delay: 0.35s;">
-          {hasEntity && (
-             <CommunityStats 
-                source={entity.source || 'huggingface'}
-                sourceUrl={entity.source_url}
-                likes={entity.likes || entity.github_stars}
-                downloads={entity.downloads}
-                stars={entity.github_stars || entity.stars}
-                forks={entity.github_forks || entity.forks}
-                openIssues={entity.github_issues}
-                fniScore={entity.fni_score}
-                fniPercentile={entity.fni_percentile}
-             />
-          )}
-        </section>
-
         {/* Zone 4: DEEP DIVE (Technical Documentation) */}
         <section id="deep-dive-section" class="pt-8 border-t border-gray-100 dark:border-gray-800">
           <details id="z4-details" open class="group">
@@ -148,7 +131,24 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
           </details>
         </section>
 
-        {/* Zone 5: COMMUNITY & LEGAL */}
+        {/* Zone 5.0: COMMUNITY ENGAGEMENT */}
+        <section id="community-engagement" class="animate-slide-up space-y-12" style="animation-delay: 0.35s;">
+          {hasEntity && (
+             <CommunityStats 
+                source={entity.source || 'huggingface'}
+                sourceUrl={entity.source_url}
+                likes={entity.likes || entity.github_stars}
+                downloads={entity.downloads}
+                stars={entity.github_stars || entity.stars}
+                forks={entity.github_forks || entity.forks}
+                openIssues={entity.github_issues}
+                fniScore={entity.fni_score}
+                fniPercentile={entity.fni_percentile}
+             />
+          )}
+        </section>
+
+        {/* Zone 5.1: COMMUNITY & LEGAL */}
         <div class="pt-12 border-t border-gray-100 dark:border-gray-800 space-y-8">
            <slot name="community" />
            <FullMetadata entity={entity} title={`${type.charAt(0).toUpperCase() + type.slice(1)} Transparency Report`} />

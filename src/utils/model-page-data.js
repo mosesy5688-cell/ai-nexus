@@ -69,10 +69,17 @@ export async function prepareModelPageData(slug, slugStr, locals) {
 
         tagsArray = Array.isArray(model.tags) ? model.tags : [];
 
-        // V16: Inject External Mesh Relations (Papers, Knowledge, etc.)
+        // V19.0: Read pre-fused mesh data first, fallback to global fetch
         let meshRelations = [];
         try {
-            meshRelations = await fetchMeshRelations(locals, model.id || slugStr);
+            // Prefer per-entity mesh_profile (already fused by master-fusion.js)
+            const fusedMesh = model?.mesh_profile?.relations || model?.meta_json?.mesh_profile?.relations;
+            if (fusedMesh && Array.isArray(fusedMesh) && fusedMesh.length > 0) {
+                meshRelations = fusedMesh;
+                console.log(`[ModelPageData] Using fused mesh_profile: ${fusedMesh.length} relations`);
+            } else {
+                meshRelations = await fetchMeshRelations(locals, model.id || slugStr);
+            }
             const mId = model.id || slugStr;
             const normRoot = stripPrefix(mId);
 

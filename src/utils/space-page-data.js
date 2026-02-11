@@ -55,10 +55,15 @@ export async function prepareSpacePageData(slug, slugStr, locals) {
 
         tagsArray = Array.isArray(space.tags) ? space.tags : [];
 
-        // Mesh Relations Integration
+        // V19.0: Read pre-fused mesh data first, fallback to global fetch
         let meshRelations = [];
         try {
-            meshRelations = await fetchMeshRelations(locals, space.id || slugStr);
+            const fusedMesh = space?.mesh_profile?.relations || space?.meta_json?.mesh_profile?.relations;
+            if (fusedMesh && Array.isArray(fusedMesh) && fusedMesh.length > 0) {
+                meshRelations = fusedMesh;
+            } else {
+                meshRelations = await fetchMeshRelations(locals, space.id || slugStr);
+            }
             const sId = space.id || slugStr;
             const normRoot = stripPrefix(sId);
 

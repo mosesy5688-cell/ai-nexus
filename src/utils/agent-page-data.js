@@ -60,10 +60,15 @@ export async function prepareAgentPageData(slug, slugStr, locals) {
 
         tagsArray = Array.isArray(agent.tags) ? agent.tags : [];
 
-        // Mesh Relations Integration
+        // V19.0: Read pre-fused mesh data first, fallback to global fetch
         let meshRelations = [];
         try {
-            meshRelations = await fetchMeshRelations(locals, agent.id || slugStr);
+            const fusedMesh = agent?.mesh_profile?.relations || agent?.meta_json?.mesh_profile?.relations;
+            if (fusedMesh && Array.isArray(fusedMesh) && fusedMesh.length > 0) {
+                meshRelations = fusedMesh;
+            } else {
+                meshRelations = await fetchMeshRelations(locals, agent.id || slugStr);
+            }
             const aId = agent.id || slugStr;
             const normRoot = stripPrefix(aId);
 
