@@ -67,8 +67,6 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
 
 <!-- V14.4 Art 5.6: News-style Reports Listing -->
 <Layout title={pageTitle} description={pageDescription}>
-  <div class="container mx-auto px-4 py-12">
-<Layout title={pageTitle} description={pageDescription}>
   <div class="container mx-auto px-4 py-16">
     <header class="text-center mb-16 max-w-2xl mx-auto">
       <h1 class="text-4xl md:text-5xl font-black text-zinc-900 dark:text-white tracking-tighter mb-4">
@@ -142,20 +140,21 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
           <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
             {olderReports.map(report => <ReportCard report={report} />)}
           </div>
+          
+          <div class="text-center mt-12">
+            <a href="/reports/archive" class="px-6 py-3 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+              View Full Archive &rarr;
+            </a>
+          </div>
         </section>
       </div>
-            <div class="text-center mt-8">
-              <a href="/reports/archive" class="text-blue-600 dark:text-blue-400 hover:underline font-semibold">
-                View Full Archive &rarr;
-              </a>
-            </div>
-          </section>
-        )}
-      </div>
     ) : (
-      <p class="text-center text-gray-500 dark:text-gray-400 py-16">
-        No daily reports have been generated yet. Please check back later.
-      </p>
+      <div class="py-24 text-center">
+        <div class="text-4xl mb-6">📡</div>
+        <p class="text-zinc-500 dark:text-zinc-400 font-medium uppercase tracking-widest text-xs">
+          Neural Mesh Synchronizing... No daily reports available.
+        </p>
+      </div>
     )}
   </div>
 </Layout>
