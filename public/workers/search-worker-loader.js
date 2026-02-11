@@ -55,9 +55,11 @@ export async function loadIndex(entityType = 'model') {
     const url = INDEX_URLS[entityType] || INDEX_URLS.model;
     try {
         const data = await tryFetchJson(url);
-        const items = (data.models || data.spaces || data.datasets || data || []).map((item, idx) => ({
+        const items = (data.entities || data.models || data.spaces || data.datasets || data || []).map((item, idx) => ({
             ...item,
-            id: item.id || `auto-${idx}`
+            id: item.id || `auto-${idx}`,
+            fni_score: item.fni_score ?? item.fni ?? item.fniScore ?? 0,
+            fni_percentile: item.fni_percentile || item.percentile || ''
         }));
 
         const miniSearch = new MiniSearch({
@@ -113,7 +115,9 @@ export async function loadFullIndex(onProgress) {
                         if (!itemsMap.has(e.id)) {
                             itemsMap.set(e.id, {
                                 id: e.id, name: e.name, type: e.type, author: e.author,
-                                fni_score: e.fni, description: e.description, slug: e.slug
+                                fni_score: e.fni ?? e.fni_score ?? 0,
+                                fni_percentile: e.percentile ?? e.fni_percentile ?? '',
+                                description: e.description, slug: e.slug
                             });
                         }
                     });

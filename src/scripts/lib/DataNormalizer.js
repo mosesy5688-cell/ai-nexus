@@ -42,8 +42,9 @@ export const DataNormalizer = {
             slug,
             author,
             category: item.category || item.primary_category || '',
-            // Handle both legacy 'fni' and current 'fni_score'
-            fni_score: item.fni || item.fni_score || 0
+            // Handle legacy 'fni', 'fniScore' and current 'fni_score'
+            fni_score: item.fni_score ?? item.fni ?? item.fniScore ?? 0,
+            fni_percentile: item.fni_percentile || item.percentile || ''
         };
     },
 

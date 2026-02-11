@@ -32,7 +32,8 @@ export function hydrateEntity(data, type, summaryData) {
         fni_commentary: computed.fni_commentary || entity.fni_commentary || meta.fni?.commentary || null,
         fni_metrics: computed.fni_metrics || entity.fni_metrics || meta.fni?.metrics || {},
         name: derivedName,
-        relations: computed.relations || entity.relations || meta.extended?.relations || {},
+        relations: computed.relations || entity.relations || meta.extended?.relations || meta.relations || {},
+        body_content: entity.body_content || meta.html_readme || meta.readme || null,
         _computed: computed,
         _seo: seo,
         _hydrated: true
@@ -42,6 +43,13 @@ export function hydrateEntity(data, type, summaryData) {
     if (summaryData) attemptWarmCacheFallback(hydrated, summaryData);
     extractTechSpecs(hydrated, entity, meta);
     mineRelations(hydrated, meta);
+
+    // V16.5: Deep Spec Inference from meta
+    if (meta.technical) {
+        if (!hydrated.params_billions) hydrated.params_billions = meta.technical.parameters_b || meta.technical.size_b;
+        if (!hydrated.context_length) hydrated.context_length = meta.technical.context_window || meta.technical.ctx;
+        if (!hydrated.architecture) hydrated.architecture = meta.technical.arch || meta.technical.type;
+    }
 
     // Type-specific logic moved to handlers
     if (type === 'model') handleModelType(hydrated, entity, computed, meta, derivedName);

@@ -110,7 +110,7 @@ self.onmessage = async (e) => {
                     'likes': (i) => i.likes || 0,
                     'downloads': (i) => i.downloads || 0,
                     'last_updated': (i) => new Date(i.last_updated || 0).getTime(),
-                    'fni': (i) => i.fni_score || 0
+                    'fni': (i) => i.fni_score ?? i.fni ?? 0
                 };
                 const getter = map[filters.sort] || map['likes'];
                 return getter(b) - getter(a);

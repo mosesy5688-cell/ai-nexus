@@ -13,8 +13,8 @@ export function renderModelCard(model) {
     const cleanDesc = description.substring(0, 150) + '...';
     const modelUrl = generateEntityUrl(model, entityType);
 
-    const fni = Math.round(model.fni_score || 0);
-    const fniPercentile = model.fni_percentile || 0;
+    const fni = Math.round(model.fni_score ?? model.fni ?? 0);
+    const fniPercentile = model.fni_percentile || '';
 
     let fniBadgeClass = "bg-gray-100 dark:bg-zinc-800 text-gray-500";
     if (fni >= 85) fniBadgeClass = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";

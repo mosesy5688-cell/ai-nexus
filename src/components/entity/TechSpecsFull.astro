@@ -121,7 +121,24 @@ if (type === 'model') {
   if (entity?.vocab_size) configSpecs.push({ label: 'Vocab', value: `${(entity.vocab_size / 1000).toFixed(0)}K` });
 }
 
-// 4. Cloud & Access Rights
+// 4. Academic & Lineage (V16.5 Structural Integration)
+const lineageSpecs = [];
+if (entity?.base_model) {
+  lineageSpecs.push({ 
+    label: 'Ancestry', 
+    value: String(entity.base_model).split('/').pop(), 
+    href: `/model/${String(entity.base_model).replace(/\//g, '--')}` 
+  });
+}
+if (entity?.arxiv_id || entity?.arxiv_ref) {
+  lineageSpecs.push({ 
+    label: 'Research', 
+    value: `arXiv:${entity.arxiv_ref || entity.arxiv_id}`, 
+    href: `https://arxiv.org/abs/${entity.arxiv_ref || entity.arxiv_id}` 
+  });
+}
+
+// 5. Cloud & Access Rights
 const cloudSpecs = [
   { label: 'Source', value: entity?.source || 'HuggingFace' },
   { label: 'License', value: entity?.license_spdx || entity?.license || 'Open Access' },
@@ -154,6 +171,10 @@ const cloudSpecs = [
 
     {configSpecs.length > 0 && (
       <SpecCard title="Structure" icon="⚙️" specs={configSpecs} accentColor="amber" />
+    )}
+    
+    {lineageSpecs.length > 0 && (
+      <SpecCard title="Lineage" icon="🧬" specs={lineageSpecs} accentColor="purple" />
     )}
 
     {cloudSpecs.length > 0 && (

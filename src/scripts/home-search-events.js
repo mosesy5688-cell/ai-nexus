@@ -81,7 +81,7 @@ export function renderResults(results) {
           ${badge}
         </div>
         <div class="text-xs text-gray-500 mt-0.5">
-          ${isKnowledge ? 'Concepts & Foundations' : `${r.author || 'Unknown'} · FNI: ${r.fni_score || 'N/A'}`}
+          ${isKnowledge ? 'Concepts & Foundations' : `${r.author || 'Unknown'} · FNI: ${r.fni_score ?? r.fni ?? 'N/A'}`}
         </div>
       </div>
       <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

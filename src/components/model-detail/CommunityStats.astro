@@ -53,12 +53,7 @@ const hasStats = (isHuggingFace && (likes > 0 || downloads > 0)) || (isGitHub &&
       <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">Social Proof</h3>
     </div>
 
-    {fniPercentile !== undefined && (
-      <div class="flex flex-col items-end">
-        <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">FNI Rank</span>
-        <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Top {(100 - fniPercentile).toFixed(0)}%</span>
-      </div>
-    )}
+    </div>
   </div>
   
   <div class="space-y-6">

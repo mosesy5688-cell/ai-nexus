@@ -16,13 +16,7 @@ import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import { getUseCases } from '../../utils/inference.js';
 import ShareButtons from '../../components/common/ShareButtons.astro';
-import TechSpecsFull from '../../components/entity/TechSpecsFull.astro';
-import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
-import BenchmarkCard from '../../components/benchmark/BenchmarkCard.astro';
-import ModelCarousel from '../../components/ModelCarousel.astro';
-import ModelInfoTable from '../../components/ModelInfoTable.astro';
-import QuickCommands from '../../components/common/QuickCommands.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 import CiteEntity from '../../components/common/CiteEntity.astro';
 
@@ -129,10 +123,16 @@ const jsonLd = {
     />
 
     {/* Zone 2: Insights Extra */}
-    <div slot="insights-extra" class="mt-4 space-y-6">
-       <QuickCommands entity={agent} type="agent" className="mb-6" />
-       <div class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
-          <TechSpecsFull entity={agent} type="agent" />
+    <div slot="insights-extra" class="mt-4 space-y-8">
+       <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
+          <ModelInfoTable 
+            type="agent"
+            model={{
+              ...(agent || {}),
+              displayName: agentName,
+              pipeline_tag: agent?.framework || agent?.pipeline_tag || 'Agent Framework'
+            }} 
+          />
        </div>
        {agent?.params_billions && <VramEstimator paramsB={agent?.params_billions} contextLen={agent?.context_length} />}
     </div>
@@ -141,25 +141,14 @@ const jsonLd = {
     <div slot="core-desktop" class="space-y-16">
        <UniversalCore entity={agent} type="agent" meshRelations={meshRelations} />
        
-       <div id="desktop-similar">
-           {similarEntities.length > 0 ? (
-              <ModelCarousel models={similarEntities} />
-           ) : (
-              <p class="text-gray-500 italic p-4 text-center">Finding related autonomous agents and frameworks...</p>
-           )}
-       </div>
-
-       <div id="desktop-benchmarks">
-           {agent && (agent.mmlu || agent.humaneval || agent.avg_score || agent.benchmark_avg) ? (
-               <BenchmarkCard 
-                 title={`${agentName} Benchmarks`} 
-                 scores={agent.meta_json?.benchmarks}
-               />
-           ) : (
-               <p class="text-gray-500 italic p-4 text-center border border-gray-100 dark:border-gray-800 rounded-xl p-8 bg-gray-50/50 dark:bg-gray-900/50">
-                 Benchmark metrics for this agent are currently being analyzed.
-               </p>
-           )}
+       <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
+          <CiteEntity 
+            id={agentId} 
+            name={agentName} 
+            author={agent?.author} 
+            url={agent?.source_url} 
+            type="agent" 
+          />
        </div>
     </div>
   
@@ -171,26 +160,6 @@ const jsonLd = {
           </section>
           <AgentDeepDive agent={agent} />
        </div>
-    </div>
-
-    {/* Zone Sidebar Slots */}
-    <div slot="sidebar" class="space-y-8">
-       <ModelInfoTable 
-         type="agent"
-         model={{
-           ...(agent || {}),
-           displayName: agentName,
-           pipeline_tag: agent?.framework || agent?.pipeline_tag || 'Agent Framework'
-         }} 
-       />
-
-       <CiteEntity 
-         id={agentId} 
-         name={agentName} 
-         author={agent?.author} 
-         url={agent?.source_url} 
-         type="agent" 
-       />
     </div>
 
     {/* Zone 5: Community */}

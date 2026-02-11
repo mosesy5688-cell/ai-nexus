@@ -24,9 +24,25 @@ export async function initModelsCatalog(initialData = []) {
     if (allModels.length > 0) return; // Skip if already hydrated
 
     try {
-      const res = await fetch('https://cdn.free2aitools.com/cache/trending.json');
-      if (!res.ok) throw new Error('Failed to fetch');
-      const data = await res.json();
+      // V18.2: Support compressed trending-data
+      const paths = ['https://cdn.free2aitools.com/cache/trending.json.gz', 'https://cdn.free2aitools.com/cache/trending.json'];
+      let data = null;
+      for (const p of paths) {
+        const res = await fetch(p);
+        if (res.ok) {
+          const isGzip = p.endsWith('.gz');
+          if (isGzip) {
+            const ds = new DecompressionStream('gzip');
+            const decompressedStream = res.body.pipeThrough(ds);
+            const response = new Response(decompressedStream);
+            data = await response.json();
+          } else {
+            data = await res.json();
+          }
+          break;
+        }
+      }
+      if (!data) throw new Error('Failed to fetch');
       allModels = data.models || [];
       filteredModels = [...allModels];
       render();
@@ -61,7 +77,7 @@ export async function initModelsCatalog(initialData = []) {
     // Sort
     filteredModels.sort((a, b) => {
       switch (sort) {
-        case 'fni': return (b.fni_score || 0) - (a.fni_score || 0);
+        case 'fni': return (b.fni_score ?? b.fni ?? 0) - (a.fni_score ?? a.fni ?? 0);
         case 'downloads': return (b.downloads || 0) - (a.downloads || 0);
         case 'likes': return (b.likes || 0) - (a.likes || 0);
         case 'recent': return new Date(b.lastModified || 0) - new Date(a.lastModified || 0);
@@ -121,12 +137,12 @@ export async function initModelsCatalog(initialData = []) {
           <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
             ${m.pipeline_tag || 'model'}
           </span>
-          ${m.fni_score > 0 ? `
-            <span class="text-xs font-bold px-2 py-0.5 rounded-full ${(m.fni_percentile || 0) >= 90 ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-white' :
-          (m.fni_percentile || 0) >= 75 ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' :
+          ${(m.fni_score > 0 || m.fni > 0 || m.fni_percentile || m.percentile) ? `
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full ${(m.fni_percentile === 'top_1%' || m.fni_percentile === 'top_10%' || m.percentile?.startsWith?.('top_') || (typeof m.fni_percentile === 'number' && m.fni_percentile >= 90)) ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-white' :
+          (m.fni_percentile === 'top_25%' || (typeof m.fni_percentile === 'number' && m.fni_percentile >= 75)) ? 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300' :
             'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
         }">
-              🛡️ ${m.fni_percentile >= 90 ? 'Top 10%' : Math.round(m.fni_score)}
+              🛡️ ${(m.fni_percentile || m.percentile)?.startsWith?.('top_') ? (m.fni_percentile || m.percentile).replace('top_', 'Top ') : Math.round(m.fni_score ?? m.fni ?? 0)}
             </span>
           ` : ''}
         </div>
