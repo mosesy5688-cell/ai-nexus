@@ -302,9 +302,8 @@ jobs:
             global-registry-
           # GitHub auto-selects the most recently created match
 
-      # V4.1: R2 Dual-Version Fallback (current → previous)
-      - name: R2 Fallback & Pre-validation
-        if: steps.cache-registry.outputs.cache-hit != 'true'
+      # V4.2: R2 Zero-Loss Restoration (Cache-Preservation V1.0)
+      - name: R2 Fail-Safe Restoration
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -312,48 +311,51 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
         run: |
-          echo "⚠️ Cache miss. Attempting R2 dual-version fallback..."
-          mkdir -p cache
+          echo "🌐 [V18.2.3] Auditing Registry Context..."
+          mkdir -p cache/registry cache/fni-history cache/daily-accum
           
-          # 1. Restore Registry (Current/Previous)
-          if npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json.gz --file=cache/global-registry.json.gz --remote 2>/dev/null; then
-            echo "✅ Restored from R2: global-registry.json.gz"
-          elif npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry-previous.json.gz --file=cache/global-registry.json.gz --remote 2>/dev/null; then
-            echo "⚠️ Restored from R2: global-registry-previous.json.gz (fallback)"
+          # 1. Monolith Recovery (Additive)
+          if [ ! -s "cache/global-registry.json.gz" ]; then
+             echo "  - Missing local monolith. Fetching from R2..."
+             npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json.gz --file=cache/global-registry.json.gz --remote 2>/dev/null || true
           fi
-          
-          # 2. Restore FNI History
-          npx -y wrangler r2 object get $R2_BUCKET/meta/backup/fni-history.json.gz --file=cache/fni-history.json.gz --remote 2>/dev/null && echo "✅ Restored FNI History from R2" || true
-          
-          # 3. Restore Daily Accum
-          npx -y wrangler r2 object get $R2_BUCKET/meta/backup/daily-accum.json.gz --file=cache/daily-accum.json.gz --remote 2>/dev/null && echo "✅ Restored Daily Accum from R2" || true
-          
-          # 4. Restore Entity Checksums
-          npx -y wrangler r2 object get $R2_BUCKET/meta/backup/entity-checksums.json.gz --file=cache/entity-checksums.json.gz --remote 2>/dev/null && echo "✅ Restored Checksums from R2" || true
 
-          # 5. Restore Shards (Robust Sharded Restoration V2.1)
-          echo "🧩 Fetching sharded registry baseline..."
-          # V16.96.2: Ensure clean directory for force restore compatibility
-          mkdir -p cache/registry
-          rm -rf cache/registry/*
+          # 2. Sharded Recovery (Hard Preservation)
+          # RULES: 
+          # - NEVER delete existing cache files.
+          # - ONLY download from R2 if local is missing or empty.
+          # - ABORT if R2 returns a 0B file to prevent corruption.
           
-          # Sync registry folder recursively (if monolith is corrupted/missing)
-          # V18.2: Removed '|| break' for robustness
+          echo "🧩 Auditing Shards (Registry)..."
           for i in {000..015}; do
-            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/registry/part-$i.json.gz --file=cache/registry/part-$i.json.gz --remote 2>/dev/null && echo "  - Registry Shard $i restored" || true
+            TARGET="cache/registry/part-$i.json.gz"
+            if [ ! -s "$TARGET" ]; then
+               echo "  - Shard $i missing/empty. Attemping R2 restoration..."
+               npx -y wrangler r2 object get $R2_BUCKET/meta/backup/registry/part-$i.json.gz --file=$TARGET --remote 2>/dev/null || true
+               
+               # Integrity Guard: If R2 returns a 0B file, delete it so it doesn't break zlib
+               if [ -f "$TARGET" ] && [ ! -s "$TARGET" ]; then
+                  rm "$TARGET"
+                  echo "  - ⚠️ Shard $i: R2 returned empty file. Skipped to prevent corruption."
+               fi
+            else
+               echo "  - ✅ Shard $i: Existing healthy cache found."
+            fi
           done
 
-          echo "🧩 Fetching sharded FNI history baseline..."
-          mkdir -p cache/fni-history
+          echo "🧩 Auditing Shards (FNI History)..."
           for i in {000..015}; do
-            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/fni-history/part-$i.json.gz --file=cache/fni-history/part-$i.json.gz --remote 2>/dev/null && echo "  - FNI Shard $i restored" || true
+            TARGET="cache/fni-history/part-$i.json.gz"
+            if [ ! -s "$TARGET" ]; then
+               npx -y wrangler r2 object get $R2_BUCKET/meta/backup/fni-history/part-$i.json.gz --file=$TARGET --remote 2>/dev/null || true
+               [ -f "$TARGET" ] && [ ! -s "$TARGET" ] && rm "$TARGET" || true
+            fi
           done
 
-          echo "🧩 Fetching sharded Accumulator baseline..."
-          mkdir -p cache/daily-accum
-          for i in {000..015}; do
-            npx -y wrangler r2 object get $R2_BUCKET/meta/backup/daily-accum/part-$i.json.gz --file=cache/daily-accum/part-$i.json.gz --remote 2>/dev/null && echo "  - Accum Shard $i restored" || true
-          done
+          # 3. Critical metadata (Checksums)
+          if [ ! -s "cache/entity-checksums.json.gz" ]; then
+             npx -y wrangler r2 object get $R2_BUCKET/meta/backup/entity-checksums.json.gz --file=cache/entity-checksums.json.gz --remote 2>/dev/null || true
+          fi
 
       - name: Merge Batches
         env:

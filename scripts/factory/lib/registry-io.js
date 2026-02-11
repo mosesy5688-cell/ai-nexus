@@ -46,100 +46,91 @@ export async function loadGlobalRegistry() {
             }
         } catch { }
 
-        // 2. Try Local Shards (Flexible Paths for CI)
-        try {
-            const shardSearchPaths = [
-                shardDirPath,
-                path.join(process.cwd(), 'artifacts'),
-                path.join(process.cwd(), 'output/cache/shards'),
-                path.join(process.cwd(), 'cache/registry'),
-                path.join(process.cwd(), 'output/registry'),
-                path.join(process.cwd(), 'output/meta/backup/registry')
-            ];
+        console.log(`[CACHE] 🧩 Initializing Zero-Loss Registry Restoration...`);
 
-            let shardFiles = [];
-            let foundPath = null;
+        let allEntities = [];
 
-            for (const p of shardSearchPaths) {
-                const files = await fs.readdir(p).catch(() => []);
-                const shards = files.filter(f => f.startsWith('part-') || f.startsWith('shard-') || f.startsWith('merged_shard_')).sort();
-                if (shards.length > 0) {
-                    shardFiles = shards;
-                    foundPath = p;
-                    break;
+        // 1. Try Local Shards (Primary Source of Truth)
+        const shardDirPath = path.join('cache', 'registry');
+        const shardFiles = await fs.readdir(shardDirPath).catch(() => []);
+        const validShards = shardFiles.filter(f => f.startsWith('part-') && (f.endsWith('.json.gz') || f.endsWith('.json')));
+
+        if (validShards.length > 0) {
+            console.log(`[CACHE] 🧩 Found ${validShards.length} shards in local cache. Merging...`);
+            for (const s of validShards.sort()) {
+                try {
+                    const recovered = await loadWithFallback(`registry/${s}`, null, false);
+                    if (recovered && (recovered.entities || Array.isArray(recovered))) {
+                        const entities = recovered.entities || recovered;
+                        allEntities = allEntities.concat(entities);
+                    } else {
+                        throw new Error(`Shard ${s} returned empty content`);
+                    }
+                } catch (e) {
+                    console.error(`[CACHE] ❌ CRITICAL: Shard corruption detected in ${s}: ${e.message}`);
+                    // Zero-Loss Integrity: Halt unless lossy recovery is explicitly allowed
+                    if (process.env.ALLOW_LOSSY_RECOVERY !== 'true') {
+                        throw new Error(`Registry integrity breach at ${s}. Build halted to prevent permanent data loss.`);
+                    }
                 }
             }
 
-            if (shardFiles.length > 0) {
-                console.log(`[CACHE] 🧩 Shards detected in ${foundPath} (${shardFiles.length} parts). Merging...`);
-                let allEntities = [];
-                for (const s of shardFiles) {
-                    const parsed = await tryLoad(path.join(foundPath, s));
-                    allEntities = allEntities.concat(parsed.entities || parsed || []);
-                }
-                if (allEntities.length >= REGISTRY_FLOOR) {
-                    console.log(`[CACHE] ✅ Shards hit: ${allEntities.length} entities.`);
-                    return { entities: allEntities, count: allEntities.length, lastUpdated: new Date().toISOString(), didLoadFromStorage: true };
-                }
+            if (allEntities.length >= REGISTRY_FLOOR) {
+                console.log(`[CACHE] ✅ Restored ${allEntities.length} entities from shards. (Baseline: 121,603)`);
+                return { entities: allEntities, count: allEntities.length, didLoadFromStorage: true };
             }
-        } catch (e) { console.warn(`[CACHE] Shard loading failed: ${e.message}`); }
-    }
-
-    // 3. R2 Fallback (Authoritative Monolith)
-    if (process.env.ALLOW_R2_RECOVERY === 'true') { // Added check for ALLOW_R2_RECOVERY
-        console.log(`[CACHE] 🌐 Local Cache missed or below floor. Attempting R2 Monolith Restoration...`);
-        try {
-            const registry = await loadWithFallback(MONOLITH_FILE, { entities: [] }, true);
-            const count = registry.entities?.length || 0;
-            if (count >= REGISTRY_FLOOR) {
-                console.log(`[CACHE] ✅ R2 Monolith restored: ${count} entities.`);
-                return { entities: registry.entities, count, lastUpdated: registry.lastUpdated, didLoadFromStorage: true };
-            }
-        } catch (e) {
-            console.error(`[CACHE] ❌ R2 Restoration failed: ${e.message}`);
         }
-    } else {
-        console.warn(`[CACHE] ⚠️ Local baseline not found. R2 recovery disabled for this stage.`);
+
+        // 2. R2 Fallback (Emergency Recovery)
+        if (process.env.ALLOW_R2_RECOVERY === 'true') {
+            console.log(`[CACHE] 🌐 Local Cache missed or incomplete. Attempting R2 Restoration...`);
+            try {
+                // Priority 1: Sharded R2 (V18.2.1+)
+                // Note: Cloudflare doesn't support globbing easily via wrangler here, 
+                // the factory-harvest workflow should have pre-synced these to cache/registry.
+                const registry = await loadWithFallback(MONOLITH_FILE, { entities: [] }, true);
+                if (registry.entities?.length >= REGISTRY_FLOOR) {
+                    console.log(`[CACHE] ✅ R2 Monolith restored: ${registry.entities.length} entities.`);
+                    return { entities: registry.entities, count: registry.entities.length, didLoadFromStorage: true };
+                }
+            } catch (e) {
+                console.error(`[CACHE] ❌ R2 Restoration failed: ${e.message}`);
+            }
+        }
+
+        console.warn(`[CACHE] ⚠️ Registry baseline not found or below floor. Starting fresh.`);
+        return { entities: [], count: 0, didLoadFromStorage: false };
     }
 
-    console.log('[CACHE] ❌ Integrity Breach: No valid registry found meeting 85k floor.');
-    return { entities: [], count: 0, didLoadFromStorage: false };
-}
+    /**
+     * SAVE: Global Registry (Sharded ONLY)
+     * V18.2.1: Bypassing RangeError: Invalid string length
+     */
+    export async function saveGlobalRegistry(entities) {
+        const count = entities.length;
+        const timestamp = new Date().toISOString();
 
-/**
- * Save Global Registry with Dual-Write Support (V2.0 Core)
- */
-export async function saveGlobalRegistry(registry) {
-    const entities = registry.entities || [];
-    const count = entities.length;
-    const timestamp = new Date().toISOString();
+        console.log(`[CACHE] 💾 Persisting Registry (${count} entities)...`);
 
-    console.log(`[CACHE] Saving ${count} entities to sharded registry...`);
+        // 1. Sharded Save (Atomic Chunks)
+        const shardCount = Math.ceil(count / SHARD_SIZE);
+        await fs.mkdir(path.join('cache', 'registry'), { recursive: true });
 
-    // 1. Save Shards with Gzip (V18.2 Stability)
-    const shardCount = Math.ceil(count / SHARD_SIZE);
-    for (let i = 0; i < shardCount; i++) {
-        const shardEntities = entities.slice(i * SHARD_SIZE, (i + 1) * SHARD_SIZE);
-        const shardData = {
-            entities: shardEntities,
-            count: shardEntities.length,
-            part: i,
-            total: shardCount,
-            lastUpdated: timestamp
-        };
-        await saveWithBackup(`${REGISTRY_DIR}/part-${String(i).padStart(3, '0')}.json.gz`, shardData, { compress: true });
+        for (let i = 0; i < shardCount; i++) {
+            const shardData = entities.slice(i * SHARD_SIZE, (i + 1) * SHARD_SIZE);
+            const shardName = `registry/part-${String(i).padStart(3, '0')}.json.gz`;
+            await saveWithBackup(shardName, { entities: shardData, count: shardData.length, lastUpdated: timestamp }, { compress: true });
+        }
+
+        // 2. Monolith save skipped to prevent V8 string length limit crash
+        console.log(`[CACHE] ✅ Sharded Registry saved (${shardCount} parts). Monolith skipped for V8 safety.`);
+
+        // 3. Purge stale shards from R2
+        await purgeStaleShards('registry', shardCount);
+
+        return { count, shardCount, lastUpdated: timestamp };
     }
 
-    // 2. Dual-Write Monolith (Gzip Only) - DISABLED (V18.2.1: Bypassing RangeError: Invalid string length)
-    // const monolithData = { entities, count, lastUpdated: timestamp };
-    // await saveWithBackup(MONOLITH_FILE, monolithData, { compress: true });
-    console.log(`[CACHE] Monolith save skipped. Sharded registry is now the primary Source of Truth.`);
-
-    // 3. Purge Stale Shards (V18.2.1 GA)
-    await purgeStaleShards(REGISTRY_DIR, shardCount);
-}
-
-
-export { loadFniHistory, saveFniHistory } from './registry-history.js';
-export { loadDailyAccum, saveDailyAccum } from './registry-accum.js';
-export { syncCacheState, purgeStaleShards };
+    export { loadFniHistory, saveFniHistory } from './registry-history.js';
+    export { loadDailyAccum, saveDailyAccum } from './registry-accum.js';
+    export { syncCacheState, purgeStaleShards };

@@ -56,15 +56,17 @@ async function main() {
     }
 
     let allEntities = [];
-    try {
-        console.log(`[AGGREGATOR] 🧩 Loading sharded baseline...`);
-        const registry = await loadGlobalRegistry();
-        allEntities = registry.entities || [];
-        console.log(`✓ Context loaded: ${allEntities.length} entities ready (via Shards/Monolith fallback)`);
-    } catch (e) {
-        console.warn(`[AGGREGATOR] ⚠️ Authoritative Baseline missing or corrupt. Proceeding with SHARDS-ONLY mode.`);
-        allEntities = []; // Reconstruct from shards
+    // 1. Load Authoritative Baseline (V18.2.3 Zero-Loss Hard Halt)
+    console.log(`[AGGREGATOR] 🧩 Loading sharded baseline...`);
+    // Note: No try-catch here. If registry-io.js throws (due to corruption/incomplete shards), 
+    // we WANT the entire aggregator to FAIL to prevent saving a truncated registry.
+    const registry = await loadGlobalRegistry();
+    allEntities = registry.entities || [];
+
+    if (allEntities.length < AGGREGATE_FLOOR) {
+        throw new Error(`[CRITICAL] Registry baseline empty or below floor (${allEntities.length}). Aborting to prevent data loss.`);
     }
+    console.log(`✓ Context loaded: ${allEntities.length} entities ready (via Zero-Loss Registry-IO)`);
 
     // Minimum data safety floor
     const AGGREGATE_FLOOR = 85000;
