@@ -98,39 +98,39 @@ export async function loadGlobalRegistry() {
             }
         }
 
-        console.warn(`[CACHE] ⚠️ Registry baseline not found or below floor. Starting fresh.`);
         return { entities: [], count: 0, didLoadFromStorage: false };
     }
+}
 
-    /**
-     * SAVE: Global Registry (Sharded ONLY)
-     * V18.2.1: Bypassing RangeError: Invalid string length
-     */
-    export async function saveGlobalRegistry(entities) {
-        const count = entities.length;
-        const timestamp = new Date().toISOString();
+/**
+ * SAVE: Global Registry (Sharded ONLY)
+ * V18.2.1: Bypassing RangeError: Invalid string length
+ */
+export async function saveGlobalRegistry(entities) {
+    const count = entities.length;
+    const timestamp = new Date().toISOString();
 
-        console.log(`[CACHE] 💾 Persisting Registry (${count} entities)...`);
+    console.log(`[CACHE] 💾 Persisting Registry (${count} entities)...`);
 
-        // 1. Sharded Save (Atomic Chunks)
-        const shardCount = Math.ceil(count / SHARD_SIZE);
-        await fs.mkdir(path.join('cache', 'registry'), { recursive: true });
+    // 1. Sharded Save (Atomic Chunks)
+    const shardCount = Math.ceil(count / SHARD_SIZE);
+    await fs.mkdir(path.join('cache', 'registry'), { recursive: true });
 
-        for (let i = 0; i < shardCount; i++) {
-            const shardData = entities.slice(i * SHARD_SIZE, (i + 1) * SHARD_SIZE);
-            const shardName = `registry/part-${String(i).padStart(3, '0')}.json.gz`;
-            await saveWithBackup(shardName, { entities: shardData, count: shardData.length, lastUpdated: timestamp }, { compress: true });
-        }
-
-        // 2. Monolith save skipped to prevent V8 string length limit crash
-        console.log(`[CACHE] ✅ Sharded Registry saved (${shardCount} parts). Monolith skipped for V8 safety.`);
-
-        // 3. Purge stale shards from R2
-        await purgeStaleShards('registry', shardCount);
-
-        return { count, shardCount, lastUpdated: timestamp };
+    for (let i = 0; i < shardCount; i++) {
+        const shardData = entities.slice(i * SHARD_SIZE, (i + 1) * SHARD_SIZE);
+        const shardName = `registry/part-${String(i).padStart(3, '0')}.json.gz`;
+        await saveWithBackup(shardName, { entities: shardData, count: shardData.length, lastUpdated: timestamp }, { compress: true });
     }
 
-    export { loadFniHistory, saveFniHistory } from './registry-history.js';
-    export { loadDailyAccum, saveDailyAccum } from './registry-accum.js';
-    export { syncCacheState, purgeStaleShards };
+    // 2. Monolith save skipped to prevent V8 string length limit crash
+    console.log(`[CACHE] ✅ Sharded Registry saved (${shardCount} parts). Monolith skipped for V8 safety.`);
+
+    // 3. Purge stale shards from R2
+    await purgeStaleShards('registry', shardCount);
+
+    return { count, shardCount, lastUpdated: timestamp };
+}
+
+export { loadFniHistory, saveFniHistory } from './registry-history.js';
+export { loadDailyAccum, saveDailyAccum } from './registry-accum.js';
+export { syncCacheState, purgeStaleShards };
