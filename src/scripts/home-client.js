@@ -1,5 +1,5 @@
 // src/scripts/home-client.js
-import { renderModelCard } from './render-model-card.js';
+import { createModelCardHTML } from './ui-utils.js';
 import { stripPrefix } from '../utils/mesh-routing-core.js';
 
 const CDN_BASE = 'https://cdn.free2aitools.com/cache';
@@ -47,7 +47,7 @@ export async function loadHotModels() {
         }
 
         // Render with UMID-compatible slugs
-        const html = models.filter(m => !!m).map(model => renderModelCard(model)).join('');
+        const html = models.filter(m => !!m).map(model => createModelCardHTML(model)).join('');
 
         if (gridEl) {
             gridEl.innerHTML = html;

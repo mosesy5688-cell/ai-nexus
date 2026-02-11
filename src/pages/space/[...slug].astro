@@ -14,7 +14,7 @@ import ZoneUseCases from '../../components/entity/ZoneUseCases.astro';
 import UniversalCore from '../../components/entity/UniversalCore.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
-import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
+// V19.0: ModelNavigation removed — not applicable to spaces
 import { getUseCases } from '../../utils/inference.js';
 import { prepareSpacePageData } from '../../utils/space-page-data.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
@@ -158,10 +158,11 @@ const jsonLd = space ? {
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">
        <div class="space-y-12">
-          <SpaceDeepDive space={space} />
-          <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
-             <ModelNavigation />
-          </section>
+          {space?.body_content ? (
+            <article class="prose prose-lg dark:prose-invert max-w-none" set:html={space.body_content} />
+          ) : (
+            <SpaceDeepDive space={space} />
+          )}
        </div>
     </div>
 

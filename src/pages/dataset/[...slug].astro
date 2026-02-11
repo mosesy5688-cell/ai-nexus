@@ -16,7 +16,7 @@ import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import CiteEntity from '../../components/common/CiteEntity.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
-import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
+// V19.0: ModelNavigation removed — not applicable to datasets
 import { getUseCases } from '../../utils/inference.js';
 import { prepareDatasetPageData } from '../../utils/dataset-page-data.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
@@ -150,10 +150,11 @@ const jsonLd = dataset ? {
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">
        <div class="space-y-12">
-          <DatasetDeepDive dataset={dataset} />
-          <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
-             <ModelNavigation />
-          </section>
+          {dataset?.body_content ? (
+            <article class="prose prose-lg dark:prose-invert max-w-none" set:html={dataset.body_content} />
+          ) : (
+            <DatasetDeepDive dataset={dataset} />
+          )}
        </div>
     </div>
 

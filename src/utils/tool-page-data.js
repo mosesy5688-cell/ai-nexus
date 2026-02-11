@@ -55,10 +55,15 @@ export async function prepareToolPageData(slug, slugStr, locals) {
 
         tagsArray = Array.isArray(tool.tags) ? tool.tags : [];
 
-        // Mesh Relations Integration
+        // V19.0: Read pre-fused mesh data first, fallback to global fetch
         let meshRelations = [];
         try {
-            meshRelations = await fetchMeshRelations(locals, tool.id || slugStr);
+            const fusedMesh = tool?.mesh_profile?.relations || tool?.meta_json?.mesh_profile?.relations;
+            if (fusedMesh && Array.isArray(fusedMesh) && fusedMesh.length > 0) {
+                meshRelations = fusedMesh;
+            } else {
+                meshRelations = await fetchMeshRelations(locals, tool.id || slugStr);
+            }
             const tId = tool.id || slugStr;
             const normRoot = stripPrefix(tId);
 

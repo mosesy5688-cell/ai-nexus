@@ -1,72 +1,61 @@
-/**
+/**import { createModelCardHTML } from './ui-utils.js';
  * V13 Category Filter Logic
  * Client-side filtering for size, GGUF, and license
  */
 
 export function applyFilters(data, totalPagesSpan) {
-    const url = new URL(window.location);
-    const sizeFilter = url.searchParams.get('size') || '';
-    const ggufFilter = url.searchParams.get('gguf') === 'true';
-    const licenseFilter = url.searchParams.get('license') || '';
+  const url = new URL(window.location);
+  const sizeFilter = url.searchParams.get('size') || '';
+  const ggufFilter = url.searchParams.get('gguf') === 'true';
+  const licenseFilter = url.searchParams.get('license') || '';
 
-    let filtered = [...data.models];
+  let filtered = [...data.models];
 
-    // Size filter
-    if (sizeFilter) {
-        filtered = filtered.filter(m => {
-            const params = m.params_billions || 0;
-            switch (sizeFilter) {
-                case 'small': return params < 7;
-                case 'medium': return params >= 7 && params <= 13;
-                case 'large': return params > 70;
-                default: return true;
-            }
-        });
-    }
+  // Size filter
+  if (sizeFilter) {
+    filtered = filtered.filter(m => {
+      const params = m.params_billions || 0;
+      switch (sizeFilter) {
+        case 'small': return params < 7;
+        case 'medium': return params >= 7 && params <= 13;
+        case 'large': return params > 70;
+        default: return true;
+      }
+    });
+  }
 
-    // GGUF filter
-    if (ggufFilter) {
-        filtered = filtered.filter(m => {
-            const tags = m.tags || [];
-            const hasGguf = tags.some(t => t.toLowerCase().includes('gguf'));
-            const hasLibrary = m.library_name === 'gguf';
-            return hasGguf || hasLibrary;
-        });
-    }
+  // GGUF filter
+  if (ggufFilter) {
+    filtered = filtered.filter(m => {
+      const tags = m.tags || [];
+      const hasGguf = tags.some(t => t.toLowerCase().includes('gguf'));
+      const hasLibrary = m.library_name === 'gguf';
+      return hasGguf || hasLibrary;
+    });
+  }
 
-    // License filter
-    if (licenseFilter) {
-        filtered = filtered.filter(m => {
-            const license = (m.license || m.license_spdx || '').toLowerCase();
-            if (licenseFilter === 'commercial') {
-                return license.includes('mit') || license.includes('apache') || license.includes('cc-by');
-            } else if (licenseFilter === 'open') {
-                return license.includes('mit') || license.includes('apache') || license.includes('gpl') || license.includes('bsd');
-            }
-            return true;
-        });
-    }
+  // License filter
+  if (licenseFilter) {
+    filtered = filtered.filter(m => {
+      const license = (m.license || m.license_spdx || '').toLowerCase();
+      if (licenseFilter === 'commercial') {
+        return license.includes('mit') || license.includes('apache') || license.includes('cc-by');
+      } else if (licenseFilter === 'open') {
+        return license.includes('mit') || license.includes('apache') || license.includes('gpl') || license.includes('bsd');
+      }
+      return true;
+    });
+  }
 
-    data.filteredModels = filtered;
-    data.totalPages = Math.ceil(filtered.length / data.itemsPerPage);
+  data.filteredModels = filtered;
+  data.totalPages = Math.ceil(filtered.length / data.itemsPerPage);
 
-    // Update UI
-    if (totalPagesSpan) totalPagesSpan.textContent = data.totalPages;
-    const modelCount = document.getElementById('model-count');
-    if (modelCount) modelCount.textContent = filtered.length.toLocaleString();
+  // Update UI
+  if (totalPagesSpan) totalPagesSpan.textContent = data.totalPages;
+  const modelCount = document.getElementById('model-count');
+  if (modelCount) modelCount.textContent = filtered.length.toLocaleString();
 
-    return filtered;
-}
-
-export function renderModelCard(model) {
-    const author = (model.author || 'unknown').toLowerCase();
-    const name = (model.name || model.id?.split('/').pop() || 'unknown').toLowerCase();
-    const modelUrl = `/model/${author}/${name}`;
-
-    return `
-    <a href="${modelUrl}" class="model-card group block bg-white dark:bg-gray-800 rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 dark:border-gray-700">
-      <div class="p-5">
-        <div class="flex items-start gap-3 mb-3">
+  return filtered;
           <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
             ${(model.name || 'M').charAt(0).toUpperCase()}
           </div>
@@ -78,7 +67,7 @@ export function renderModelCard(model) {
               ${model.author || 'Unknown'}
             </p>
           </div>
-        </div>
+        </div >
         <p class="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-3">
           ${model.description?.substring(0, 100) || 'No description available'}...
         </p>
@@ -92,7 +81,7 @@ export function renderModelCard(model) {
             ${model.downloads?.toLocaleString() || 0}
           </span>
         </div>
-      </div>
-    </a>
-  `;
+      </div >
+    </a >
+    `;
 }

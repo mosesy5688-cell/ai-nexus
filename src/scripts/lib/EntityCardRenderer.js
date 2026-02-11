@@ -4,7 +4,7 @@
  * Extracted to ensure CES Compliance (< 250 lines per file).
  */
 import { generateEntityUrl } from '../../utils/url-utils.js';
-import { extractAuthor } from '../../utils/entity-utils.js';
+import { extractAuthor, isActive as isRecentlyActive } from '../../utils/entity-utils.js';
 
 export class EntityCardRenderer {
     static formatNumber(num) {
@@ -24,6 +24,7 @@ export class EntityCardRenderer {
         const description = (item.description || item.summary || 'Structural intelligence indexing in progress...');
         const cleanDesc = this.cleanText(description);
         const link = generateEntityUrl(item, type);
+        const isActive = isRecentlyActive(item.last_updated || item.lastModified);
 
         const fni = Math.round(item.fni_score ?? item.fni ?? 0);
         const fniPercentile = item.fni_percentile || item.percentile || '';
@@ -43,14 +44,40 @@ export class EntityCardRenderer {
 
         const typeLabel = (item.pipeline_tag || item.primary_category || type).replace(/-/g, ' ');
 
+        // V19.1 Polymorphic Metrics Calculation
+        const metrics = [];
+        if (type === 'model' || type === 'dataset' || type === 'space') {
+            if (item.downloads > 0) metrics.push({ icon: '📥', value: this.formatNumber(item.downloads), label: 'Downloads' });
+            if (item.likes > 0) metrics.push({ icon: '❤️', value: this.formatNumber(item.likes), label: 'Likes' });
+            if (type === 'dataset' && item.size) metrics.push({ icon: '💾', value: item.size, label: 'Size' });
+            if (type === 'space' && item.runtime) metrics.push({ icon: '🚀', value: item.runtime, label: 'Runtime' });
+        } else if (type === 'agent' || type === 'tool') {
+            const stars = item.github_stars || item.stars || 0;
+            const forks = item.github_forks || item.forks || 0;
+            if (stars > 0) metrics.push({ icon: '⭐', value: this.formatNumber(stars), label: 'Stars' });
+            if (forks > 0) metrics.push({ icon: '🍴', value: this.formatNumber(forks), label: 'Forks' });
+        } else if (type === 'paper') {
+            const citations = item.citations || 0;
+            if (citations > 0) metrics.push({ icon: '📚', value: this.formatNumber(citations), label: 'Citations' });
+            const year = item.published_date ? new Date(item.published_date).getFullYear() : null;
+            if (year) metrics.push({ icon: '📅', value: year, label: 'Published' });
+        }
+
         return `
             <a href="${link}" class="entity-card group p-5 bg-white dark:bg-zinc-900 rounded-xl hover:shadow-md transition-all border border-gray-100 dark:border-zinc-800 hover:border-indigo-500/50 block h-full flex flex-col">
                 <div class="flex items-center justify-between mb-3">
-                     <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${typeBadgeColor}">${typeLabel}</span>
+                     <div class="flex items-center gap-2">
+                         <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${typeBadgeColor}">${typeLabel}</span>
+                         ${isActive ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Recently updated"></span>' : ''}
+                     </div>
                      ${(fni > 0 || fniPercentile) ? `
                         <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full ${fniBadgeClass}">
-                            <span class="text-[10px] font-bold">🛡️ ${fni}</span>
-                            ${(fniPercentile === 'top_1%' || fniPercentile === 'top_10%' || (typeof fniPercentile === 'number' && fniPercentile >= 90)) ? '<span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">TOP</span>' : ''}
+                            <span class="text-[10px] font-bold">🛡️ ${fni > 0 ? fni : ''}</span>
+                            ${(fniPercentile && typeof fniPercentile === 'string' && fniPercentile.startsWith('top_')) ?
+                    `<span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">${fniPercentile.replace('top_', 'Top ')}</span>`
+                    : (fniPercentile && typeof fniPercentile === 'number' && fniPercentile >= 90) ?
+                        `<span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">Top ${100 - fniPercentile}%</span>`
+                        : ''}
                         </div>
                      ` : ''}
                 </div>
@@ -66,21 +93,14 @@ export class EntityCardRenderer {
                 </p>
 
                 <div class="flex items-center gap-4 pt-4 border-t border-gray-50 dark:border-zinc-800 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
-                    ${item.downloads > 0 ? `
-                        <div class="flex items-center gap-1">
-                            <span>📥</span>
-                            <span>${this.formatNumber(item.downloads)}</span>
+                    ${metrics.map(m => `
+                        <div class="flex items-center gap-1" title="${m.label}">
+                            <span>${m.icon}</span>
+                            <span>${m.value}</span>
                         </div>
-                    ` : ''}
-                    ${item.likes > 0 ? `
-                        <div class="flex items-center gap-1">
-                            <span>❤️</span>
-                            <span>${this.formatNumber(item.likes)}</span>
-                        </div>
-                    ` : ''}
+                    `).join('')}
                 </div>
             </a>
         `;
     }
 }
-

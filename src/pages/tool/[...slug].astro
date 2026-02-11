@@ -15,7 +15,7 @@ import UniversalCore from '../../components/entity/UniversalCore.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import CiteEntity from '../../components/common/CiteEntity.astro';
 import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
-import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
+// V19.0: ModelNavigation removed — not applicable to tools
 import { getUseCases } from '../../utils/inference.js';
 import { prepareToolPageData } from '../../utils/tool-page-data.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
@@ -149,10 +149,11 @@ const jsonLd = tool ? {
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">
        <div class="space-y-12">
-          <ToolDeepDive tool={tool} />
-          <section class="pt-8 border-t border-gray-100 dark:border-gray-800">
-             <ModelNavigation />
-          </section>
+          {tool?.body_content ? (
+            <article class="prose prose-lg dark:prose-invert max-w-none" set:html={tool.body_content} />
+          ) : (
+            <ToolDeepDive tool={tool} />
+          )}
        </div>
     </div>
 
