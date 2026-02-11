@@ -39,6 +39,7 @@ const CONFIG = {
 const args = process.argv.slice(2);
 const taskArg = args.find(a => a.startsWith('--task=') || a.startsWith('-t='))?.split('=')[1];
 const CHECKPOINT_THRESHOLD = 5.5 * 3600; // 5.5 hours in seconds
+const AGGREGATE_FLOOR = 85000;
 
 // Main
 async function main() {
@@ -67,10 +68,6 @@ async function main() {
         throw new Error(`[CRITICAL] Registry baseline empty or below floor (${allEntities.length}). Aborting to prevent data loss.`);
     }
     console.log(`✓ Context loaded: ${allEntities.length} entities ready (via Zero-Loss Registry-IO)`);
-
-    // Minimum data safety floor
-    const AGGREGATE_FLOOR = 85000;
-    const currentCount = allEntities.length;
     // Note: If allEntities is empty, we MUST have shards to proceed.
 
     let fullSet = [];

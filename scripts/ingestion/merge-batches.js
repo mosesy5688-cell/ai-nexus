@@ -128,7 +128,7 @@ async function mergeBatches() {
     await finalizeMerge({
         manifestFile: MANIFEST_FILE,
         outputFile: OUTPUT_FILE,
-        mergedContent,
+        mergedContent: mergedContentRaw,
         mergedHash,
         allEntitiesCount: allEntities.length,
         batchManifests,
