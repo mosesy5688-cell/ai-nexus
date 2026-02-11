@@ -26,6 +26,7 @@ export function hydrateEntity(data, type, summaryData) {
     const hydrated = {
         ...entity,
         meta: meta,
+        meta_json: meta, // V18.2.1 Alignment: Ensure meta_json is an object for downstream components
         fni_score: computed.fni ?? entity.fni_score ?? entity.fni ?? 0,
         fni_percentile: computed.fni_percentile ?? entity.fni_percentile ?? entity.percentile,
         fni_commentary: computed.fni_commentary || entity.fni_commentary || meta.fni?.commentary || null,
