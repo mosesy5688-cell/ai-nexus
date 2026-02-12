@@ -89,8 +89,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            data/merged.json
-            data/merged_shard_*.json
+            data/merged.json.gz
+            data/merged_shard_*.json.gz
             data/manifest.json
             cache/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-harvest
@@ -109,13 +109,12 @@ jobs:
 
       - name: Validate Entity Data
         run: |
-          if [ ! -f "data/merged.json" ]; then
-            echo "❌ ERROR: data/merged.json not found in cache!"
-            echo "Expected cache key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-harvest"
+          if [ ! -f "data/manifest.json" ]; then
+            echo "❌ ERROR: data/manifest.json not found in cache!"
             exit 1
           fi
-          ENTITY_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/merged.json')).length)")
-          echo "✅ Found $ENTITY_COUNT entities in cache"
+          ENTITY_COUNT=$(jq -r '.allEntitiesCount' data/manifest.json)
+          echo "✅ Found $ENTITY_COUNT entities in cache (manifest)"
           
       # V4.1: Re-upload as Artifact for matrix jobs (same-workflow, no rate limit)
       - name: Upload for Matrix Jobs
@@ -163,29 +162,28 @@ jobs:
           mkdir -p data cache artifacts output
           
           echo "📂 Downloaded artifact structure:"
-          find . -name "*.json" -type f | head -20
+          find . -name "*.json*" -type f | head -20
           
           # Handle both flat and nested download structures
           # If files are at root, move them
-          [ -f merged.json ] && mv merged.json data/merged.json
-          [ -f fni-history.json ] && mv fni-history.json cache/fni-history.json
-          [ -f daily-accum.json ] && mv daily-accum.json cache/daily-accum.json
+          [ -f merged.json.gz ] && mv merged.json.gz data/merged.json.gz
+          [ -f manifest.json ] && mv manifest.json data/manifest.json
+          [ -f fni-history.json.gz ] && mv fni-history.json.gz cache/fni-history.json.gz
+          [ -f daily-accum.json.gz ] && mv daily-accum.json.gz cache/daily-accum.json.gz
           
           # Files may already be in correct paths from artifact
           echo "📂 Final data structure:"
           ls -la data/ || true
           ls -la cache/ || true
           
-          # Validate merged.json exists
-          if [ ! -f "data/merged.json" ]; then
-            echo "❌ ERROR: data/merged.json not found!"
-            echo "Available files:"
-            find . -name "*.json" -type f
+          # Validate manifest exists
+          if [ ! -f "data/manifest.json" ]; then
+            echo "❌ ERROR: data/manifest.json not found!"
             exit 1
           fi
           
-          ENTITY_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/merged.json')).length)")
-          echo "✅ Found $ENTITY_COUNT entities in merged.json"
+          ENTITY_COUNT=$(jq -r '.allEntitiesCount' data/manifest.json)
+          echo "✅ Found $ENTITY_COUNT entities in manifest"
           
           # V14.5: Fail if entity count is too low (prevents processing test data)
           if [ "$ENTITY_COUNT" -lt 1000 ]; then
@@ -198,7 +196,7 @@ jobs:
       - name: Restore Entity Checksums
         uses: actions/cache@v4
         with:
-          path: cache/entity-checksums.json
+          path: cache/entity-checksums.json.gz
           key: entity-checksums-${{ github.run_id }}
           restore-keys: |
             entity-checksums-
@@ -206,8 +204,9 @@ jobs:
       # Process shard
       - name: Process Shard ${{ matrix.shard }}
         env:
-          ENTITIES_PATH: data/merged.json
-          FNI_HISTORY_PATH: cache/fni-history.json
+          CACHE_DIR: data
+          ENTITIES_PATH: data/merged.json.gz
+          FNI_HISTORY_PATH: cache/fni-history.json.gz
           ARTIFACT_DIR: artifacts
         run: |
           echo "🔄 Processing Shard ${{ matrix.shard }}/20..."
