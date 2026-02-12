@@ -5,7 +5,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-export const SHARD_SIZE = 25000;
+export const SHARD_SIZE = 5000;
 
 /**
  * Purge stale sharded files from R2 to prevent baseline mutation
