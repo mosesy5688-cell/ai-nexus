@@ -369,19 +369,18 @@ jobs:
           echo "🔄 Merging batches with ID deduplication..."
           node scripts/ingestion/merge-batches.js
           
-          if [ -f "data/merged.json.gz" ]; then
-            ENTITY_COUNT=$(node -e "const zlib = require('zlib'); const fs = require('fs'); const data = zlib.gunzipSync(fs.readFileSync('data/merged.json.gz')); console.log(JSON.parse(data).length)")
-            echo "✅ Merged: $ENTITY_COUNT total entities"
+          if [ -f "data/manifest.json" ]; then
+            ENTITY_COUNT=$(jq -r '.allEntitiesCount' data/manifest.json)
+            echo "✅ Merged: $ENTITY_COUNT total entities (via manifest)"
             
             if [ "$ENTITY_COUNT" -lt 1000 ]; then
               echo "⚠️ Warning: Low entity count ($ENTITY_COUNT)"
             fi
           else
-            echo "❌ Error: merged.json not generated"
+            echo "❌ Error: manifest.json not generated"
             exit 1
           fi
 
-      # V4.1: Save Entity Data to Cache (Cycle-Specific Key)
       # V4.1: Save Entity Data to Cache (Cycle-Specific Key)
       - name: Save Entity Data to Cache
         uses: actions/cache/save@v4
@@ -396,7 +395,7 @@ jobs:
       # Pipeline Summary
       - name: Summary
         run: |
-          ENTITY_COUNT=$(node -e "const zlib = require('zlib'); const fs = require('fs'); const data = zlib.gunzipSync(fs.readFileSync('data/merged.json.gz')); console.log(JSON.parse(data).length)")
+          ENTITY_COUNT=$(jq -r '.allEntitiesCount' data/manifest.json)
           BATCH_COUNT=$(ls -1 data/raw_batch_*.json 2>/dev/null | wc -l)
           
           echo "## Factory 1/4 - Harvest Complete 🌾" >> $GITHUB_STEP_SUMMARY

@@ -302,7 +302,7 @@ jobs:
           # V17.4: Ensure directory hierarchy is preserved
           path: |
             output/cache/rankings/
-            output/cache/category_stats.json
+            output/cache/category_stats.json.gz
           if-no-files-found: warn
           retention-days: 1
 

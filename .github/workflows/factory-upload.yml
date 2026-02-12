@@ -202,7 +202,8 @@ jobs:
           echo "✅ aggregator.js has prepared baseline backups in output/meta/backup/"
       - name: Upload to R2 via S3 API
         env:
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities/,cache/entities/,cache/fused/,cache/html/,cache/rankings/,cache/search/,cache/trending.json,cache/category_stats.json,cache/search-core.json,cache/search-full.json,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml
+          # V18.2.4: Unified Filter with Gzip Mandate Support
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,global-registry.json.gz,entities/,cache/entities/,cache/fused/,cache/html/,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml
         run: node scripts/factory/r2-upload-s3.js
       - name: Purge & Warm CDN
         env:
@@ -213,7 +214,7 @@ jobs:
             echo "⚠️ [PURGE] Skipping CDN purge: CLOUDFLARE_ZONE_ID/TOKEN missing"
             exit 0
           fi
-          PURGE_PATHS='["https://cdn.free2aitools.com/cache/trending.json","https://cdn.free2aitools.com/cache/search-core.json","https://cdn.free2aitools.com/cache/relations.json","https://cdn.free2aitools.com/sitemap.xml"]'
+          PURGE_PATHS='["https://cdn.free2aitools.com/cache/trending.json","https://cdn.free2aitools.com/cache/trending.json.gz","https://cdn.free2aitools.com/cache/search-core.json","https://cdn.free2aitools.com/cache/search-core.json.gz","https://cdn.free2aitools.com/cache/relations.json","https://cdn.free2aitools.com/cache/relations.json.gz","https://cdn.free2aitools.com/sitemap.xml"]'
           echo "📡 Purging CDN cache for paths: $PURGE_PATHS"
           curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \
