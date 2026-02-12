@@ -157,6 +157,9 @@ jobs:
           # 2. Mirror BACK to root cache/ for persistent memory (Stage 1/4)
           if [ -d "output/meta/backup" ] && [ "$(ls -A output/meta/backup)" ]; then
             cp -r output/meta/backup/* cache/ 2>/dev/null || true
+            # V18.3 Fix: Populate output/cache for Satellite Jobs (Zero-Loss Handoff)
+            echo "📦 Populating output/cache/ for satellites..."
+            cp -r output/meta/backup/* output/cache/ 2>/dev/null || true
           fi
           
           echo "📦 Final output structure for R2:"
