@@ -25,6 +25,7 @@ export async function loadGlobalRegistry() {
     const shardDirPath = path.join(cacheDir, REGISTRY_DIR);
     const monolithPath = path.join(cacheDir, MONOLITH_FILE);
     const REGISTRY_FLOOR = 85000;
+    let allEntities = []; // V18.2.3: Hoisted to prevent ReferenceError in R2 fallback
 
     const zlib = await import('zlib');
     const tryLoad = async (filepath) => {
@@ -48,8 +49,6 @@ export async function loadGlobalRegistry() {
 
         console.log(`[CACHE] 🧩 Initializing Zero-Loss Registry Restoration...`);
 
-        let allEntities = [];
-
         // 1. Try Local Shards (Primary Source of Truth)
         const shardFiles = await fs.readdir(shardDirPath).catch(() => []);
         const validShards = shardFiles.filter(f => f.startsWith('part-') && (f.endsWith('.json.gz') || f.endsWith('.json')));
@@ -67,7 +66,6 @@ export async function loadGlobalRegistry() {
                     }
                 } catch (e) {
                     console.error(`[CACHE] ❌ CRITICAL: Shard corruption detected in ${s}: ${e.message}`);
-                    // Zero-Loss Integrity: Halt unless lossy recovery is explicitly allowed
                     if (process.env.ALLOW_LOSSY_RECOVERY !== 'true') {
                         throw new Error(`Registry integrity breach at ${s}. Build halted to prevent permanent data loss.`);
                     }
@@ -75,7 +73,7 @@ export async function loadGlobalRegistry() {
             }
 
             if (allEntities.length >= REGISTRY_FLOOR) {
-                console.log(`[CACHE] ✅ Restored ${allEntities.length} entities from shards. (Baseline: 121,603)`);
+                console.log(`[CACHE] ✅ Restored ${allEntities.length} entities from shards.`);
                 return { entities: allEntities, count: allEntities.length, didLoadFromStorage: true };
             }
         }
@@ -89,7 +87,6 @@ export async function loadGlobalRegistry() {
             let i = 0;
             while (i < 1000) {
                 const shardName = `registry/part-${String(i).padStart(3, '0')}.json.gz`;
-                // loadWithFallback handles R2 download to local cache
                 const recovered = await loadWithFallback(shardName, null, false);
                 if (recovered && (recovered.entities || Array.isArray(recovered))) {
                     const entities = recovered.entities || recovered;
@@ -118,30 +115,55 @@ export async function loadGlobalRegistry() {
 }
 
 /**
- * SAVE: Global Registry (Sharded ONLY)
- * V18.2.1: Bypassing RangeError: Invalid string length
+ * SAVE: Global Registry (Sharded + Monolith)
+ * V18.2.3: Uses streaming to bypass V8 string length limits for monolith
  */
 export async function saveGlobalRegistry(input) {
-    const entities = Array.isArray(input) ? input : (input?.entities || []);
-    const count = entities.length;
+    const inputEntities = Array.isArray(input) ? input : (input?.entities || []);
+    const count = inputEntities.length;
     const timestamp = new Date().toISOString();
 
     console.log(`[CACHE] 💾 Persisting Registry (${count} entities)...`);
 
-    // 1. Sharded Save (Atomic Chunks)
     const cacheDir = process.env.CACHE_DIR || './cache';
     const shardDirPath = path.join(cacheDir, REGISTRY_DIR);
+    const monolithPath = path.join(cacheDir, MONOLITH_FILE);
+
+    // 1. Sharded Save (Atomic Chunks)
     const shardCount = Math.ceil(count / SHARD_SIZE);
     await fs.mkdir(shardDirPath, { recursive: true });
 
     for (let i = 0; i < shardCount; i++) {
-        const shardData = entities.slice(i * SHARD_SIZE, (i + 1) * SHARD_SIZE);
+        const shardData = inputEntities.slice(i * SHARD_SIZE, (i + 1) * SHARD_SIZE);
         const shardName = `registry/part-${String(i).padStart(3, '0')}.json.gz`;
         await saveWithBackup(shardName, { entities: shardData, count: shardData.length, lastUpdated: timestamp }, { compress: true });
     }
 
-    // 2. Monolith save skipped to prevent V8 string length limit crash
-    console.log(`[CACHE] ✅ Sharded Registry saved (${shardCount} parts). Monolith skipped for V8 safety.`);
+    // 2. Monolith Save (Streaming to bypass V8 limits)
+    // V18.2.3: Restored for Zero-Loss architectural compliance
+    const zlib = await import('zlib');
+    const { createWriteStream } = await import('fs');
+
+    await new Promise((resolve, reject) => {
+        const output = createWriteStream(monolithPath);
+        const gzip = zlib.createGzip();
+        gzip.pipe(output);
+
+        output.on('error', reject);
+        gzip.on('error', reject);
+        output.on('finish', resolve);
+
+        // Manual streaming JSON write
+        gzip.write(`{"entities":[`);
+        for (let i = 0; i < count; i++) {
+            if (i > 0) gzip.write(',');
+            gzip.write(JSON.stringify(inputEntities[i]));
+        }
+        gzip.write(`],"count":${count},"lastUpdated":"${timestamp}"}`);
+        gzip.end();
+    });
+
+    console.log(`[CACHE] ✅ Registry persisted. Shards: ${shardCount}, Monolith: OK (Via Stream).`);
 
     // 3. Purge stale shards from R2
     await purgeStaleShards('registry', shardCount);

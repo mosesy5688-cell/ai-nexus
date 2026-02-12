@@ -15,10 +15,12 @@ export async function finalizeMerge(options) {
         batchFilesCount,
         fullSet,
         MAX_BATCH_SIZE_MB,
-        MAX_ENTITIES_PER_BATCH
+        MAX_ENTITIES_PER_BATCH,
+        byteLength // V18.2.3: Support for streaming export
     } = options;
 
     const avgVelocity = fullSet.reduce((sum, m) => sum + (m.velocity || 0), 0) / (fullSet.length || 1);
+    const finalByteLength = byteLength || (mergedContent ? Buffer.byteLength(mergedContent) : 0);
 
     const manifest = {
         version: 'INTEGRITY-V1.1',
@@ -31,7 +33,7 @@ export async function finalizeMerge(options) {
         output: {
             file: 'merged.json.gz',
             hash: `sha256:${mergedHash}`,
-            size: Buffer.byteLength(mergedContent)
+            size: finalByteLength
         },
         batches: batchManifests,
         validation: {
@@ -52,7 +54,7 @@ export async function finalizeMerge(options) {
             `|--------|-------|`,
             `| **Total Entities** | **${allEntitiesCount}** |`,
             `| Source Files | ${batchFilesCount} |`,
-            `| Total Size | ${(Buffer.byteLength(mergedContent) / 1024 / 1024).toFixed(2)} MB |`,
+            `| Total Size | ${(finalByteLength / 1024 / 1024).toFixed(2)} MB |`,
             ``,
             `### 🛡️ Integrity Check`,
             `- Manifest: \`INTEGRITY-V1.1\``,

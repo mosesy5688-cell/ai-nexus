@@ -118,28 +118,59 @@ async function mergeBatches() {
         await fs.writeFile(path.join(DATA_DIR, `merged_shard_${s}.json.gz`), compressedShard);
     }
 
-    const mergedContentRaw = JSON.stringify(dedupedSet);
-    const compressedMain = zlib.gzipSync(mergedContentRaw);
-    await fs.writeFile(OUTPUT_FILE, compressedMain);
-    const mergedHash = calculateHash(compressedMain);
+    // V18.2.3: Streaming Export to bypass V8 string length limit
+    const { createWriteStream } = await import('fs');
+    const hash = crypto.createHash('sha256');
+    let compressedSize = 0;
+
+    await new Promise((resolve, reject) => {
+        const output = createWriteStream(OUTPUT_FILE);
+        const gzip = zlib.createGzip();
+        gzip.pipe(output);
+
+        output.on('error', reject);
+        gzip.on('error', reject);
+        output.on('finish', resolve);
+
+        // Monitor stream for hash and size
+        gzip.on('data', chunk => {
+            compressedSize += chunk.length;
+            hash.update(chunk);
+        });
+
+        gzip.write('[');
+        for (let i = 0; i < dedupedSet.length; i++) {
+            if (i > 0) gzip.write(',');
+            gzip.write(JSON.stringify(dedupedSet[i]));
+        }
+        gzip.write(']');
+        gzip.end();
+    });
+
+    const mergedHash = hash.digest('hex');
 
     console.log(`\n✅ [Merge] Complete\n   Total: ${dedupedSet.length} unique entities`);
 
     await finalizeMerge({
         manifestFile: MANIFEST_FILE,
         outputFile: OUTPUT_FILE,
-        mergedContent: mergedContentRaw,
+        mergedContent: null, // No longer using full string
         mergedHash,
-        allEntitiesCount: allEntities.length,
+        allEntitiesCount: dedupedSet.length,
         batchManifests,
         sourceStats,
         batchFilesCount: batchFiles.length,
         fullSet: dedupedSet,
         MAX_BATCH_SIZE_MB,
-        MAX_ENTITIES_PER_BATCH
+        MAX_ENTITIES_PER_BATCH,
+        byteLength: compressedSize
     });
 
-    return { total: allEntities.length, sources: sourceStats };
+    // V18.2.3: Explicitly persist to sharded registry cache
+    console.log(`\n💾 [Merge] Updating sharded baseline...`);
+    await registryManager.save();
+
+    return { total: dedupedSet.length, sources: sourceStats };
 }
 
 mergeBatches().catch(err => {
