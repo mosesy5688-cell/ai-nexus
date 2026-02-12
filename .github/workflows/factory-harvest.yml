@@ -14,6 +14,16 @@ on:
   schedule:
     - cron: '0 3 * * *'  # Daily 03:00 UTC
   workflow_dispatch:
+    inputs:
+      skip_harvest:
+        description: 'Skip harvesting and use solidified batches from cache'
+        required: false
+        type: boolean
+        default: false
+      source_run_id:
+        description: 'Run ID to recover batches from (if skip_harvest is true)'
+        required: false
+        type: string
 
 concurrency:
   group: factory-harvest
@@ -37,6 +47,7 @@ jobs:
       - run: npm ci
       
       - name: Harvest HuggingFace Models
+        if: github.event.inputs.skip_harvest != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           NODE_OPTIONS: '--max-old-space-size=4096'
@@ -44,6 +55,13 @@ jobs:
           echo "📥 [Parallel] Harvesting HuggingFace Models..."
           node scripts/ingestion/harvest-single.js huggingface --limit 10000
           
+      - name: Solidify HuggingFace Batches (Cache)
+        if: github.event.inputs.skip_harvest != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: data/raw_batch_*.json
+          key: harvest-raw-huggingface-${{ github.run_id }}
+
       - name: Upload Batch Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -68,12 +86,20 @@ jobs:
       - run: npm ci
       
       - name: Harvest GitHub Repos
+        if: github.event.inputs.skip_harvest != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "📥 [Parallel] Harvesting GitHub..."
           node scripts/ingestion/harvest-single.js github --limit 5000
           
+      - name: Solidify GitHub Batches (Cache)
+        if: github.event.inputs.skip_harvest != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: data/raw_batch_*.json
+          key: harvest-raw-github-${{ github.run_id }}
+
       - name: Upload Batch Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -98,11 +124,13 @@ jobs:
       - run: npm ci
       
       - name: Harvest ArXiv Papers
+        if: github.event.inputs.skip_harvest != 'true'
         run: |
           echo "📥 [Parallel] Harvesting ArXiv..."
           node scripts/ingestion/harvest-single.js arxiv --limit 50000 || echo "ArXiv adapter skipped"
           
       - name: Harvest HuggingFace Papers
+        if: github.event.inputs.skip_harvest != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -110,12 +138,20 @@ jobs:
           node scripts/ingestion/harvest-single.js huggingface-papers --limit 3000 || echo "HF Papers adapter skipped"
 
       - name: Harvest HuggingFace Datasets
+        if: github.event.inputs.skip_harvest != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
           echo "📥 [Parallel] Harvesting HF Datasets..."
           node scripts/ingestion/harvest-single.js huggingface-datasets --limit 10000 || echo "HF Datasets adapter skipped"
+
+      - name: Solidify Academic Batches (Cache)
+        if: github.event.inputs.skip_harvest != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: data/raw_batch_*.json
+          key: harvest-raw-academic-${{ github.run_id }}
 
       - name: Upload Batch Artifacts
         uses: actions/upload-artifact@v4
@@ -141,16 +177,19 @@ jobs:
       - run: npm ci
       
       - name: Harvest Ollama Registry
+        if: github.event.inputs.skip_harvest != 'true'
         run: |
           echo "📥 Harvesting Ollama..."
           node scripts/ingestion/harvest-single.js ollama --limit 1000 || echo "Ollama adapter skipped"
           
       - name: Harvest MCP Servers
+        if: github.event.inputs.skip_harvest != 'true'
         run: |
           echo "📥 Harvesting MCP..."
           node scripts/ingestion/harvest-single.js mcp --limit 500 || echo "MCP adapter skipped"
 
       - name: Harvest Replicate
+        if: github.event.inputs.skip_harvest != 'true'
         env:
           REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
         run: |
@@ -159,14 +198,17 @@ jobs:
 
       # V14.5.2: Setup Python for Kaggle models sidecar (REST API deprecated)
       - name: Setup Python for Kaggle
+        if: github.event.inputs.skip_harvest != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           
       - name: Install Kaggle CLI
+        if: github.event.inputs.skip_harvest != 'true'
         run: pip install kaggle
 
       - name: Harvest Kaggle
+        if: github.event.inputs.skip_harvest != 'true'
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
@@ -175,16 +217,19 @@ jobs:
           node scripts/ingestion/harvest-single.js kaggle --limit 10000 || echo "Kaggle adapter skipped"
 
       - name: Harvest CivitAI
+        if: github.event.inputs.skip_harvest != 'true'
         run: |
           echo "📥 Harvesting CivitAI..."
           node scripts/ingestion/harvest-single.js civitai --limit 5000 || echo "CivitAI adapter skipped"
 
       - name: Harvest Semantic Scholar
+        if: github.event.inputs.skip_harvest != 'true'
         run: |
           echo "📥 Harvesting Semantic Scholar..."
           node scripts/ingestion/harvest-single.js semanticscholar --limit 3000 || echo "Semantic Scholar adapter skipped"
 
       - name: Harvest OpenLLM Benchmarks
+        if: github.event.inputs.skip_harvest != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -192,6 +237,7 @@ jobs:
           node scripts/ingestion/harvest-single.js openllm --limit 1000 || echo "OpenLLM adapter skipped"
 
       - name: Harvest DeepSpec Specifications
+        if: github.event.inputs.skip_harvest != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -199,6 +245,7 @@ jobs:
           node scripts/ingestion/harvest-single.js deepspec --limit 2000 || echo "DeepSpec adapter skipped"
 
       - name: Harvest HuggingFace Spaces
+        if: github.event.inputs.skip_harvest != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -206,11 +253,19 @@ jobs:
           node scripts/ingestion/harvest-single.js huggingface-spaces --limit 2000 || echo "Spaces adapter skipped"
 
       - name: Harvest AI Agents
+        if: github.event.inputs.skip_harvest != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "📥 Harvesting AI Agents..."
           node scripts/ingestion/harvest-single.js agents --limit 200 || echo "Agents adapter skipped"
+
+      - name: Solidify Ecosystem Batches (Cache)
+        if: github.event.inputs.skip_harvest != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: data/raw_batch_*.json
+          key: harvest-raw-ecosystem-${{ github.run_id }}
 
       - name: Upload Batch Artifacts
         uses: actions/upload-artifact@v4
@@ -246,17 +301,48 @@ jobs:
           echo "🧹 [V16.96.2] Purging stale shards to stay under 10GB limit..."
           node scripts/factory/cleanup-cache.js
       
-      # Download all batch artifacts
+      # V18.3: Solidification Recovery Logic
+      - name: Recover Solidified Batches (Cache Fallback)
+        if: github.event.inputs.skip_harvest == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: data/
+          key: harvest-raw-huggingface-${{ github.event.inputs.source_run_id }}
+          restore-keys: harvest-raw-huggingface-
+      - name: Recover Solidified Batches (GitHub)
+        if: github.event.inputs.skip_harvest == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: data/
+          key: harvest-raw-github-${{ github.event.inputs.source_run_id }}
+          restore-keys: harvest-raw-github-
+      - name: Recover Solidified Batches (Academic)
+        if: github.event.inputs.skip_harvest == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: data/
+          key: harvest-raw-academic-${{ github.event.inputs.source_run_id }}
+          restore-keys: harvest-raw-academic-
+      - name: Recover Solidified Batches (Ecosystem)
+        if: github.event.inputs.skip_harvest == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: data/
+          key: harvest-raw-ecosystem-${{ github.event.inputs.source_run_id }}
+          restore-keys: harvest-raw-ecosystem-
+
+      # Download current batch artifacts (if not skipping)
       - name: Download All Batch Artifacts
+        if: github.event.inputs.skip_harvest != 'true'
         uses: actions/download-artifact@v4
         with:
           path: data/
           pattern: batch-*
           merge-multiple: true
           
-      - name: List Downloaded Batches
+      - name: List Batches (Current or Recovered)
         run: |
-          echo "📦 Downloaded batches:"
+          echo "📦 Entity batches ready for merge:"
           ls -la data/raw_batch_*.json 2>/dev/null || echo "No batch files found"
           
       - name: Restore FNI History
