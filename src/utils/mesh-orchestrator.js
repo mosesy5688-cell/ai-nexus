@@ -103,6 +103,7 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
 
     // Merge back
     Object.assign(tiers, processedTiers);
+    const filteredRelations = [];
     processedRelations.forEach(r => filteredRelations.push(r));
     // Registry updated by reference, but ensuring sync
 
