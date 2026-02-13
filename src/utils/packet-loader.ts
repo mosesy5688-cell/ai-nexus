@@ -29,20 +29,25 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
                 const isGzipHeader = res.headers.get('Content-Encoding') === 'gzip';
                 const isGzipFile = url.endsWith('.gz');
 
+                // V16.5.10 FIX: Use ArrayBuffer to avoid "body stream already read" and allow retry
                 if (isGzipFile && !isGzipHeader) {
-                    if (!res.body) return null;
-                    // Clone BEFORE consuming body for decompression
-                    const clone = res.clone();
-
                     try {
-                        const ds = new DecompressionStream('gzip');
-                        const decompressedStream = res.body.pipeThrough(ds);
-                        const decompressedResponse = new Response(decompressedStream);
-                        return await decompressedResponse.json();
+                        const buffer = await res.arrayBuffer();
+                        try {
+                            // Attempt Gzip Decompression
+                            const ds = new DecompressionStream('gzip');
+                            const writer = ds.writable.getWriter();
+                            writer.write(buffer);
+                            writer.close();
+                            const output = new Response(ds.readable);
+                            return await output.json();
+                        } catch (e) {
+                            // Fallback: Buffer might be plain JSON (R2 auto-switched)
+                            const text = new TextDecoder().decode(buffer);
+                            return JSON.parse(text);
+                        }
                     } catch (e) {
-                        // Fallback: Use the clone to try parsing as plain JSON
-                        // (R2 sometimes decompresses automatically)
-                        try { return await clone.json(); } catch { }
+                        return null; // Binary read failed
                     }
                 }
 
