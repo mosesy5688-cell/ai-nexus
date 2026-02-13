@@ -26,13 +26,14 @@ export function getR2PathCandidates(type, normalizedSlug) {
     const candidates = [];
 
     // V18.2.1: Unified Prefix Map for all storage tiers
+    // V18.2.1: Unified Prefix Map for all storage tiers
     const prefixMap = {
-        'model': ['hf-model--', 'gh-model--', 'hf--', 'gh--'],
-        'dataset': ['hf-dataset--', 'dataset--', 'hf--'],
-        'paper': ['arxiv-paper--', 'arxiv--', 'paper--'],
+        'model': ['hf-model--', 'gh-model--', 'hf--', 'gh--', 'civitai--', 'replicate--', 'ollama--', 'kaggle--'],
+        'dataset': ['hf-dataset--', 'dataset--', 'hf--', 'kaggle--'],
+        'paper': ['arxiv-paper--', 'arxiv--', 'paper--', 'hf-paper--'],
         'space': ['hf-space--', 'space--', 'hf--'],
-        'agent': ['gh-agent--', 'hf-agent--', 'agent--'],
-        'tool': ['gh-tool--', 'hf-tool--', 'tool--']
+        'agent': ['gh-agent--', 'hf-agent--', 'agent--', 'replicate-agent--'],
+        'tool': ['gh-tool--', 'hf-tool--', 'tool--', 'github-tool--']
     };
     const prefixes = prefixMap[singular] || [];
 
