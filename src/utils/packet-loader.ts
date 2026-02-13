@@ -29,10 +29,11 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
                 const isGzipHeader = res.headers.get('Content-Encoding') === 'gzip';
                 const isGzipFile = url.endsWith('.gz');
 
-                // V16.5.10 FIX: Use ArrayBuffer to avoid "body stream already read" and allow retry
+                // V16.5.14 FIX: Use ArrayBuffer to avoid "body stream already read" and allow retry
                 if (isGzipFile && !isGzipHeader) {
+                    let buffer;
                     try {
-                        const buffer = await res.arrayBuffer();
+                        buffer = await res.arrayBuffer();
                         try {
                             // Attempt Gzip Decompression
                             const ds = new DecompressionStream('gzip');
@@ -43,8 +44,11 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
                             return await output.json();
                         } catch (e) {
                             // Fallback: Buffer might be plain JSON (R2 auto-switched)
-                            const text = new TextDecoder().decode(buffer);
-                            return JSON.parse(text);
+                            if (buffer) {
+                                const text = new TextDecoder().decode(buffer);
+                                return JSON.parse(text);
+                            }
+                            return null;
                         }
                     } catch (e) {
                         return null; // Binary read failed
