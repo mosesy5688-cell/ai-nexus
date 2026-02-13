@@ -31,15 +31,17 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
 
                 if (isGzipFile && !isGzipHeader) {
                     if (!res.body) return null;
+                    // Clone BEFORE consuming body for decompression
+                    const clone = res.clone();
+
                     try {
                         const ds = new DecompressionStream('gzip');
                         const decompressedStream = res.body.pipeThrough(ds);
                         const decompressedResponse = new Response(decompressedStream);
                         return await decompressedResponse.json();
                     } catch (e) {
-                        // Sometimes R2 returns auto-decompressed content even for .gz extension
-                        // Backup: Try parsing as plain JSON
-                        const clone = await res.clone();
+                        // Fallback: Use the clone to try parsing as plain JSON
+                        // (R2 sometimes decompresses automatically)
                         try { return await clone.json(); } catch { }
                     }
                 }
