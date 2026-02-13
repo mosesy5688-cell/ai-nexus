@@ -124,7 +124,11 @@ export async function fetchEntityFromR2(type, slug, locals) {
         const paths = getR2PathCandidates(type, normalized);
         for (const path of paths) {
             try {
-                const cdnUrl = `${R2_CACHE_URL}/${path}`;
+                // V16.8 FIX: Force relative path on client-side to avoid CORS with CDN
+                // SSR (no window) still uses R2_CACHE_URL if needed, but R2 runtime (r2 binding) is preferred.
+                const baseUrl = typeof window !== 'undefined' ? '' : R2_CACHE_URL;
+                const cdnUrl = `${baseUrl}/${path}`;
+
                 const res = await fetch(cdnUrl);
                 if (res.ok) {
                     let data;

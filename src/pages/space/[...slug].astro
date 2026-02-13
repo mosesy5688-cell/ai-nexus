@@ -58,7 +58,8 @@ try {
 } catch (e) {
   console.error("[SpacePage] Error loading space:", e);
   error = e;
-  Astro.response.status = 500;
+  // V16.8: Suppress 500 to allow "Mesh Node Building" fallback UI
+  // Astro.response.status = 500;
 }
 
 if (!space && !error) {
