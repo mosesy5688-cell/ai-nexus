@@ -14,11 +14,8 @@ import { getR2PathCandidates, normalizeEntitySlug } from './entity-cache-reader-
 export async function fetchCompressedJSON(path: string): Promise<any | null> {
     const fullUrl = path.startsWith('http') ? path : `${R2_CACHE_URL}/${path}`;
 
-    // V18.2: R2 Gzip Handling
-    // We attempt fetch. If 404, we try .gz.
-    // If it returns, we check Content-Encoding.
-
-    const candidates = [fullUrl, `${fullUrl}.gz`];
+    // V18.2: R2 Gzip Handling - PRIORITIZE .gz to eliminate 404 overhead
+    const candidates = fullUrl.endsWith('.gz') ? [fullUrl] : [`${fullUrl}.gz`, fullUrl];
 
     for (const url of candidates) {
         try {

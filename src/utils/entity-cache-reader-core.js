@@ -66,15 +66,10 @@ export function getR2PathCandidates(type, normalizedSlug) {
         replicas.push(path.replace('.json', '.v-2.json'));
     });
 
-    // 5. [V18.2 GZIP] Compressed variants
-    const gzipped = [];
-    [...candidates, ...replicas].forEach(path => {
-        if (path.endsWith('.json')) {
-            gzipped.push(path + '.gz');
-        }
-    });
+    // 5. [V18.2 GZIP] Compressed variants - PRIORITIZE GZIP to eliminate 404 overhead
+    const gzipped = [...candidates, ...replicas].map(path => path.endsWith('.json') ? path + '.gz' : null).filter(Boolean);
 
-    return [...new Set([...candidates, ...replicas, ...gzipped])];
+    return [...new Set([...gzipped, ...candidates, ...replicas])];
 }
 
 
