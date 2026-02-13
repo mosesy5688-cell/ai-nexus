@@ -43,6 +43,7 @@ try {
   }
 
   const { entity: resolvedPaper, html: resolvedHtml, mesh: resolvedMesh } = pack;
+  const isFallback = pack?._meta?.source === 'entities-fallback';
 
   paper = resolvedPaper;
   tagsArray = paper?.tags || [];
