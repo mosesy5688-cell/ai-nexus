@@ -31,8 +31,7 @@ async function main() {
             totalEntitiesFound += entities.length;
 
             for (const entityData of entities) {
-                if (!entityData.success) continue;
-                const id = entityData.id;
+                const id = entityData.id || entityData.slug;
                 if (!id) continue;
 
                 // Load mesh profile if exists (V16.6: Try .gz first, then fallback to .json)
@@ -52,12 +51,17 @@ async function main() {
                     }).catch(() => null);
 
                 // Perform Deep Fusion
+                // V16.6.5 Fix: If refinement failed, perform "Shallow Fusion" instead of skipping
+                // This ensures 100% data retention even if some enrichment logic fails.
+                const baseData = entityData.enriched || entityData;
                 const fusedEntity = {
-                    ...entityData.enriched,
-                    html_readme: entityData.html || '',
+                    ...baseData,
+                    id: id,
+                    html_readme: entityData.html || baseData.html_readme || '',
                     mesh_profile: meshData || { relations: [] },
                     _fused_at: new Date().toISOString(),
-                    _version: '16.11.0-master-fusion'
+                    _version: '16.11.0-master-fusion-resilient',
+                    _fusion_status: entityData.success ? 'refined' : 'raw'
                 };
 
                 // Save to ultimate fusion storage (with pre-compression logic in smartWriter)
