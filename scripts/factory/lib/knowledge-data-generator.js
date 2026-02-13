@@ -162,7 +162,7 @@ export async function generateKnowledgeData(outputDir = './output') {
     }
 
     // Generate index (V16.6: Gzip via SmartWriter)
-    await smartWriteWithVersioning('index.json', index, knowledgeDir, { compress: true });
+    await smartWriteWithVersioning('index.json', articles, knowledgeDir, { compress: true });
 
     // Generate stats
     const stats = {
