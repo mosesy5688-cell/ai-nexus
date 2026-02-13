@@ -5,13 +5,13 @@
  * V16.4: Unified Routing and 404 Stability.
  */
 
-import BenchmarkCard from '../benchmark/BenchmarkCard.astro';
-import MiniTrendChart from '../charts/MiniTrendChart.astro';
 import SimilarModels from '../model-detail/SimilarModels.astro';
 import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
 import MeshRelationMatrix from './MeshRelationMatrix.astro';
-import { getRouteFromId, normalizeSlug } from '../../utils/knowledge-cache-reader.js';
+import TechEvidenceSection from './TechEvidenceSection.astro';
+import { getRouteFromId, normalizeSlug, stripPrefix } from '../../utils/knowledge-cache-reader.js';
 import { getMeshProfile } from '../../utils/mesh-orchestrator.js';
+import { processRelationsIntoTiers } from '../../utils/mesh-processor.js';
 
 interface Props {
   entity: any;
@@ -41,7 +41,7 @@ try {
   tagsArray = [];
 }
 
-// 1. Centralized Mesh Orchestration (V16.7)
+// 1. Centralized Mesh Orchestration (V16.7) - Prop-Driven V16.5 Refactor
 let tiers = {
     explanation: { title: '🎓 Knowledge Base', nodes: [], icon: '🎓' },
     core: { title: '🔗 Core Ecosystem', nodes: [], icon: '⚡' }, 
@@ -51,17 +51,44 @@ let tiers = {
 let nodeRegistry = new Map();
 let finalRelations = propRelations;
 
-try {
-    const profile = await getMeshProfile(Astro.locals, entityId, entity, type);
-    if (profile) {
-        tiers = profile.tiers;
-        nodeRegistry = profile.nodeRegistry;
-        if (profile.filteredRelations) {
-            finalRelations = profile.filteredRelations;
-        }
+// V16.5: Single-Stream Hydration
+// If we have propRelations (from Fused Packet), hydrate tiers locally without R2 fetch.
+if (propRelations && propRelations.length > 0) {
+    try {
+        const normRoot = stripPrefix(entityId);
+        const seenIds = new Set();
+        if (normRoot) seenIds.add(normRoot);
+        
+        // Hydrate Tiers from Prop Relations (Metadata-Lite Mode)
+        // We pass empty graphMeta {} because propRelations (Fused) already contain target_name/type
+        const { tiers: hydratedTiers, nodeRegistry: hydratedRegistry } = processRelationsIntoTiers(
+            propRelations, 
+            nodeRegistry, 
+            seenIds, 
+            {}, // No external metadata needed
+            tiers, 
+            normRoot
+        );
+        tiers = hydratedTiers;
+        nodeRegistry = hydratedRegistry;
+        // finalRelations is already set to propRelations
+    } catch (e) {
+        console.error('[UniversalCore] Prop Hydration Failed:', e);
     }
-} catch (e) {
-    console.error('[UniversalCore] Mesh Orchestration Failed:', e);
+} else {
+    // Fallback: Fetch profile if no props provided (Legacy/SSR-Lite)
+    try {
+        const profile = await getMeshProfile(Astro.locals, entityId, entity, type);
+        if (profile) {
+            tiers = profile.tiers;
+            nodeRegistry = profile.nodeRegistry;
+            if (profile.filteredRelations) {
+                finalRelations = profile.filteredRelations;
+            }
+        }
+    } catch (e) {
+        console.error('[UniversalCore] Mesh Orchestration Failed:', e);
+    }
 }
 
 // Feature availability
@@ -117,77 +144,13 @@ const enrichedTags = (tagsArray || []).map((tagObj: any) => {
         </div>
 
         {/* Secondary Intelligence: Technical Evidence (Benchmarks, Trends, SOTA) */}
-        <div class="tech-evidence-section grid grid-cols-1 md:grid-cols-2 gap-10">
-           {/* Technical Stats Sidebar Re-homed as Dense Block */}
-           <div class="space-y-10">
-              {hasBench && (
-                <div class="benchmark-zone animate-slide-up">
-                  <div class="flex items-center gap-2 mb-4 px-2">
-                    <span class="text-indigo-500 font-black">⚖️</span>
-                    <h3 class="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em]">Verified Benchmarks</h3>
-                  </div>
-                  <BenchmarkCard 
-                    umid={entityId}
-                    name={entityName}
-                    mmlu={entity?.mmlu}
-                    humaneval={entity?.humaneval}
-                    hellaswag={entity?.hellaswag}
-                    arc_challenge={entity?.arc_challenge}
-                    gsm8k={entity?.gsm8k}
-                    truthfulqa={entity?.truthfulqa}
-                    winogrande={entity?.winogrande}
-                    avg_score={entity?.avg_score}
-                    scores={entity?.meta_json?.benchmarks}
-                  />
-                </div>
-              )}
-
-              {/* V16.96: Academic SOTA & Lineage Extra */}
-              {(entity.pwc_sota_count > 0 || entity.pwc_benchmarks?.length > 0) && (
-                <div class="px-5 py-4 bg-teal-50/30 dark:bg-teal-900/10 rounded-3xl border border-teal-100/50 dark:border-teal-800/20 animate-slide-up" style="animation-delay: 0.15s;">
-                   <div class="flex items-center gap-2 mb-3">
-                      <span class="text-teal-600 dark:text-teal-400">🏆</span>
-                      <span class="text-[10px] font-black text-teal-800 dark:text-teal-300 uppercase tracking-widest">SOTA Rank 1</span>
-                   </div>
-                   <div class="text-2xl font-black text-teal-900 dark:text-white leading-none mb-1">
-                      {entity.pwc_sota_count} Benchmarks
-                   </div>
-                   <div class="text-[10px] text-teal-600 dark:text-teal-400 font-bold">Verified via Papers With Code</div>
-                </div>
-              )}
-           </div>
-
-           <div class="space-y-10">
-              <div class="trend-zone p-6 bg-zinc-50 dark:bg-zinc-900/60 rounded-3xl border border-zinc-200 dark:border-zinc-800 animate-slide-up" style="animation-delay: 0.1s;">
-                 <div class="flex items-center gap-3 mb-6 pb-2 border-b border-zinc-100 dark:border-zinc-800">
-                    <span class="text-xl">📈</span>
-                    <h3 class="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">Momentum Index</h3>
-                 </div>
-                 <div class="relative min-h-[140px] flex items-center justify-center">
-                    <MiniTrendChart entityId={entityId} width={380} height={140} />
-                 </div>
-              </div>
-
-              {enrichedTags.length > 0 && (
-                <div class="tag-zone p-6 bg-zinc-50/50 dark:bg-zinc-900/40 rounded-3xl border border-zinc-100 dark:border-zinc-800/50 animate-slide-up" style="animation-delay: 0.2s;">
-                  <div class="flex items-center gap-3 mb-6 pb-2 border-b border-zinc-100 dark:border-zinc-800">
-                    <span class="text-xl">🏷️</span>
-                    <h3 class="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">Contextual Anchors</h3>
-                  </div>
-                  <div class="flex flex-wrap gap-2">
-                     {enrichedTags.slice(0, 12).map((tag: any) => (
-                        <a 
-                          href={`/search?q=${encodeURIComponent(tag.name)}`} 
-                          class="px-2.5 py-1 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 rounded-md text-[10px] font-bold border border-zinc-100 dark:border-zinc-700 hover:border-indigo-500 transition-all"
-                        >
-                           {tag.name}
-                        </a>
-                     ))}
-                  </div>
-                </div>
-              )}
-           </div>
-        </div>
+        <TechEvidenceSection 
+            entityId={entityId} 
+            entityName={entityName} 
+            entity={entity} 
+            hasBench={hasBench} 
+            enrichedTags={enrichedTags} 
+        />
 
         {/* Neural Discovery: Similar Entities */}
         {similarEntities.length > 0 && (

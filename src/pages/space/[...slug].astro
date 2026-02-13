@@ -16,16 +16,14 @@ import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
 // V19.0: ModelNavigation removed — not applicable to spaces
 import { getUseCases } from '../../utils/inference.js';
-import { prepareSpacePageData } from '../../utils/space-page-data.js';
-import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+// 2. Efficient Data Loading (Single-Stream V16.5)
+import { loadEntityPack } from '../../utils/packet-loader.js';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-const normalizedSlug = normalizeEntitySlug(slugStr);
 
 let space = null;
 let error = null;
-let similarEntities = [];
 let tagsArray = [];
 let pageTitle = "AI Demo Space - Free AI Tools";
 let pageDescription = "Explore interactive AI demos and prototype applications.";
@@ -33,22 +31,27 @@ let meshRelations = [];
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
-  const pageData = await prepareSpacePageData(slug, slugStr, Astro.locals);
   
-  if (!pageData) {
+  // V16.5: Usage of Prefix-Aware Single-Stream Loader
+  const pack = await loadEntityPack('space', slugStr);
+  
+  if (!pack.entity || !pack._meta.available) {
     Astro.response.status = 404;
     return Astro.redirect('/404?reason=space-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { space: resolvedSpace, isFallback, repoName, similarEntities: rSimilar, tagsArray: rTags, meshRelations: resolvedMesh } = pageData;
+  const { entity: resolvedSpace, html: resolvedHtml, mesh: resolvedMesh } = pack;
+
   space = resolvedSpace;
-  similarEntities = rSimilar;
-  tagsArray = rTags;
+  tagsArray = space?.tags || [];
   meshRelations = resolvedMesh || [];
 
-  const displaySpaceName = space?.title || space?.name || (isFallback ? repoName : space?.canonical_name);
+  const displaySpaceName = space?.title || space?.name || space?.canonical_name;
   pageTitle = `${displaySpaceName} - AI Demo Insight`;
   pageDescription = space?.seo_summary?.description || space?.description || `Deep dive into ${displaySpaceName} interactive space.`;
+  
+  // V16.5: Explicit HTML Assignment (Fused Priority)
+  space.body_content = resolvedHtml || space.body_content || null;
 
 } catch (e) {
   console.error("[SpacePage] Error loading space:", e);

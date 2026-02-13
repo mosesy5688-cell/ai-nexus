@@ -1,0 +1,86 @@
+---
+import BenchmarkCard from '../benchmark/BenchmarkCard.astro';
+import MiniTrendChart from '../charts/MiniTrendChart.astro';
+
+interface Props {
+  entityId: string;
+  entityName: string;
+  entity: any;
+  hasBench: boolean;
+  enrichedTags: any[];
+}
+
+const { entityId, entityName, entity, hasBench, enrichedTags } = Astro.props;
+---
+
+<div class="tech-evidence-section grid grid-cols-1 md:grid-cols-2 gap-10">
+   {/* Technical Stats Sidebar Re-homed as Dense Block */}
+   <div class="space-y-10">
+      {hasBench && (
+        <div class="benchmark-zone animate-slide-up">
+          <div class="flex items-center gap-2 mb-4 px-2">
+            <span class="text-indigo-500 font-black">⚖️</span>
+            <h3 class="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em]">Verified Benchmarks</h3>
+          </div>
+          <BenchmarkCard 
+            umid={entityId}
+            name={entityName}
+            mmlu={entity?.mmlu}
+            humaneval={entity?.humaneval}
+            hellaswag={entity?.hellaswag}
+            arc_challenge={entity?.arc_challenge}
+            gsm8k={entity?.gsm8k}
+            truthfulqa={entity?.truthfulqa}
+            winogrande={entity?.winogrande}
+            avg_score={entity?.avg_score}
+            scores={entity?.meta_json?.benchmarks}
+          />
+        </div>
+      )}
+
+      {/* V16.96: Academic SOTA & Lineage Extra */}
+      {(entity.pwc_sota_count > 0 || entity.pwc_benchmarks?.length > 0) && (
+        <div class="px-5 py-4 bg-teal-50/30 dark:bg-teal-900/10 rounded-3xl border border-teal-100/50 dark:border-teal-800/20 animate-slide-up" style="animation-delay: 0.15s;">
+           <div class="flex items-center gap-2 mb-3">
+              <span class="text-teal-600 dark:text-teal-400">🏆</span>
+              <span class="text-[10px] font-black text-teal-800 dark:text-teal-300 uppercase tracking-widest">SOTA Rank 1</span>
+           </div>
+           <div class="text-2xl font-black text-teal-900 dark:text-white leading-none mb-1">
+              {entity.pwc_sota_count} Benchmarks
+           </div>
+           <div class="text-[10px] text-teal-600 dark:text-teal-400 font-bold">Verified via Papers With Code</div>
+        </div>
+      )}
+   </div>
+
+   <div class="space-y-10">
+      <div class="trend-zone p-6 bg-zinc-50 dark:bg-zinc-900/60 rounded-3xl border border-zinc-200 dark:border-zinc-800 animate-slide-up" style="animation-delay: 0.1s;">
+         <div class="flex items-center gap-3 mb-6 pb-2 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="text-xl">📈</span>
+            <h3 class="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">Momentum Index</h3>
+         </div>
+         <div class="relative min-h-[140px] flex items-center justify-center">
+            <MiniTrendChart entityId={entityId} width={380} height={140} />
+         </div>
+      </div>
+
+      {enrichedTags.length > 0 && (
+        <div class="tag-zone p-6 bg-zinc-50/50 dark:bg-zinc-900/40 rounded-3xl border border-zinc-100 dark:border-zinc-800/50 animate-slide-up" style="animation-delay: 0.2s;">
+          <div class="flex items-center gap-3 mb-6 pb-2 border-b border-zinc-100 dark:border-zinc-800">
+            <span class="text-xl">🏷️</span>
+            <h3 class="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">Contextual Anchors</h3>
+          </div>
+          <div class="flex flex-wrap gap-2">
+             {enrichedTags.slice(0, 12).map((tag: any) => (
+                <a 
+                  href={`/search?q=${encodeURIComponent(tag.name)}`} 
+                  class="px-2.5 py-1 bg-white dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 rounded-md text-[10px] font-bold border border-zinc-100 dark:border-zinc-700 hover:border-indigo-500 transition-all"
+                >
+                   {tag.name}
+                </a>
+             ))}
+          </div>
+        </div>
+      )}
+   </div>
+</div>

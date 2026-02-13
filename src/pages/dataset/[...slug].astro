@@ -18,16 +18,14 @@ import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
 // V19.0: ModelNavigation removed — not applicable to datasets
 import { getUseCases } from '../../utils/inference.js';
-import { prepareDatasetPageData } from '../../utils/dataset-page-data.js';
-import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+// 2. Efficient Data Loading (Single-Stream V16.5)
+import { loadEntityPack } from '../../utils/packet-loader.js';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-const normalizedSlug = normalizeEntitySlug(slugStr);
 
 let dataset = null;
 let error = null;
-let similarEntities = [];
 let tagsArray = [];
 let pageTitle = "AI Dataset Details - Free AI Tools";
 let pageDescription = "Explore high-quality datasets for AI training and evaluation.";
@@ -35,20 +33,26 @@ let meshRelations = [];
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
-  const pageData = await prepareDatasetPageData(slug, slugStr, Astro.locals);
   
-  if (!pageData) {
+  // V16.5: Usage of Prefix-Aware Single-Stream Loader
+  const pack = await loadEntityPack('dataset', slugStr);
+  
+  if (!pack.entity || !pack._meta.available) {
     Astro.response.status = 404;
     return Astro.redirect('/404?reason=dataset-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { dataset: resolvedDataset, isFallback, repoName, similarEntities: rSimilar, tagsArray: rTags, meshRelations: resolvedMesh } = pageData;
+  const { entity: resolvedDataset, html: resolvedHtml, mesh: resolvedMesh } = pack;
+
   dataset = resolvedDataset;
-  similarEntities = rSimilar;
-  tagsArray = rTags;
+  tagsArray = dataset?.tags || [];
   meshRelations = resolvedMesh || [];
 
-  const displayDatasetName = dataset?.name || dataset?.title || (isFallback ? repoName : dataset?.canonical_name) || 'Unknown Dataset';
+  // V16.5: Explicit HTML Assignment (Fused Priority)
+  dataset.body_content = resolvedHtml || dataset.body_content || null;
+  dataset.html_readme = resolvedHtml || dataset.html_readme || null; // Datasets sometimes use html_readme too
+
+  const displayDatasetName = dataset?.name || dataset?.title || dataset?.canonical_name || 'Unknown Dataset';
   pageTitle = `${displayDatasetName} - AI Dataset Analysis`;
   pageDescription = dataset?.seo_summary?.description || dataset?.description || `Deep dive into ${displayDatasetName} dataset.`;
 
