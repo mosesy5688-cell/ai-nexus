@@ -9,7 +9,7 @@ import {
     loadIndex,
     loadIndex,
     loadFullIndex
-} from './search-worker-loader.js?v=16.5.15';
+} from './search-worker-loader.js?v=16.6.0';
 
 // Start loading models immediately and notify when ready
 loadIndex('model').then(() => {

@@ -1,5 +1,5 @@
 import { R2_CACHE_URL } from '../config/constants.js';
-import { getR2PathCandidates, normalizeEntitySlug } from './entity-cache-reader-core.js';
+import { getR2PathCandidates, normalizeEntitySlug, fetchEntityFromR2 } from './entity-cache-reader-core.js';
 
 /**
  * V16.5 Smart Packet Loader (Prefix-Aware Single-Stream)
@@ -68,59 +68,65 @@ export async function loadEntityPack(type: string, slug: string) {
     const normalized = normalizeEntitySlug(slug, type);
 
     // This handles the `hf-agent--` vs `gh-agent--` ambiguity automatically
-    // It returns paths like `cache/fused/gh-agent--...`, `cache/entities/...`
     const candidates = getR2PathCandidates(type, normalized);
-
-    console.log(`[PacketLoader] Loading ${type}/${slug}, candidates:`, candidates.length);
 
     let bestPacket = null;
     let loadedSource = 'missing';
 
-    // 2. Iterate and Fetch (First Match Wins)
-    for (const path of candidates) {
-        // We only want Fused (Primary) or Entities (Fallback)
-        // We skip replicas (.v-1) for speed unless main fails (implicit in order)
-        const pack = await fetchCompressedJSON(path);
+    try {
+        // 2. Iterate and Fetch (First Match Wins)
+        for (const path of candidates) {
+            const pack = await fetchCompressedJSON(path);
 
-        if (pack) {
-            // Unpack if wrapped (Fused/Entities often wrapped in { entity: ... })
-            const ent = pack.entity || pack;
+            if (pack) {
+                // Unpack if wrapped (Fused/Entities often wrapped in { entity: ... })
+                const ent = pack.entity || pack;
 
-            // Validate minimal integrity (must have ID)
-            if (ent && (ent.id || ent.slug)) {
-                bestPacket = pack;
-                loadedSource = path.includes('fused') ? 'fused' : 'entities-fallback';
-                console.log(`[PacketLoader] Locked on source: ${path}`);
-                break;
+                // Validate minimal integrity (must have ID)
+                if (ent && (ent.id || ent.slug)) {
+                    bestPacket = pack;
+                    loadedSource = path.includes('fused') ? 'fused' : 'entities-fallback';
+                    break;
+                }
             }
         }
-    }
 
-    // 3. Normalize Output for Frontend
-    if (!bestPacket) {
+        // 3. Normalize Output for Frontend
+        if (!bestPacket) {
+            console.warn(`[PacketLoader] Total 404 for ${type}/${slug}, trying legacy fallback...`);
+            // Fallback to direct entity fetch (unwrapped)
+            const entity = await fetchEntityFromR2(type, slug);
+            return {
+                entity,
+                html: entity?.html_readme || null,
+                mesh: [],
+                _meta: { available: !!entity, source: 'legacy-fallback' }
+            };
+        }
+
+        // Unpack fields (Fused packet has these top-level)
+        const finalEntity = bestPacket.entity || bestPacket;
+        const finalHtml = bestPacket.html || bestPacket.html_readme || finalEntity.html_readme || null;
+        const finalMesh = bestPacket.mesh || bestPacket.mesh_profile || finalEntity.mesh_profile || null;
+
+        return {
+            entity: finalEntity,
+            html: finalHtml,
+            mesh: finalMesh,
+            _meta: {
+                loadedAt: new Date().toISOString(),
+                source: loadedSource,
+                available: true,
+                isFused: loadedSource === 'fused'
+            }
+        };
+    } catch (e) {
+        console.error(`[PacketLoader] Global failure for ${slug}:`, e);
         return {
             entity: null,
             html: null,
             mesh: null,
-            _meta: { source: 'missing', available: false }
+            _meta: { available: false, source: 'error', error: e.message }
         };
     }
-
-    // Unpack fields (Fused packet has these top-level)
-    // Entities packet only has `entity` (and maybe `computed`)
-    const finalEntity = bestPacket.entity || bestPacket; // Flexible unwrap
-    const finalHtml = bestPacket.html || bestPacket.html_readme || null; // Fused usually has `html`
-    const finalMesh = bestPacket.mesh || bestPacket.mesh_profile || null; // Fused usually has `mesh` (if any)
-
-    return {
-        entity: finalEntity,
-        html: finalHtml,     // Will be null if using Entity Fallback
-        mesh: finalMesh,     // Will be null if using Entity Fallback
-        _meta: {
-            loadedAt: new Date().toISOString(),
-            source: loadedSource,
-            available: true,
-            isFused: loadedSource === 'fused'
-        }
-    };
 }
