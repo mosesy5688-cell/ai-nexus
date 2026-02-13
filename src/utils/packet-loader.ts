@@ -56,9 +56,12 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
 // Single-Stream Orchestrator
 export async function loadEntityPack(type: string, slug: string) {
     // 1. Generate Candidate Paths (Prefix-Aware)
+    // V16.5.2 HOTFIX: Must normalize slug (convert / to --) to match R2 keys!
+    const normalized = normalizeEntitySlug(slug, type);
+
     // This handles the `hf-agent--` vs `gh-agent--` ambiguity automatically
     // It returns paths like `cache/fused/gh-agent--...`, `cache/entities/...`
-    const candidates = getR2PathCandidates(type, slug);
+    const candidates = getR2PathCandidates(type, normalized);
 
     console.log(`[PacketLoader] Loading ${type}/${slug}, candidates:`, candidates.length);
 
