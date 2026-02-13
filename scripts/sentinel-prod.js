@@ -74,7 +74,13 @@ async function checkInfrastructure() {
 
     try {
         const statsUrl = `${TARGET_URL}/cache/category_stats.json`;
-        const statsRes = await fetch(statsUrl, { headers: HEADERS });
+        let statsRes = await fetch(statsUrl, { headers: HEADERS });
+
+        // V16.9: .gz Fallback 
+        if (!statsRes.ok) {
+            statsRes = await fetch(`${TARGET_URL}/cache/category_stats.json.gz`, { headers: HEADERS });
+        }
+
         if (!statsRes.ok) throw new Error(`Stats fetch failed (${statsRes.status})`);
 
         // Get stats last modified as a freshness baseline
