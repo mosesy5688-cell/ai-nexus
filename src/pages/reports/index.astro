@@ -45,10 +45,11 @@ try {
     }
 } catch (e) {
     console.warn('[Reports] CDN fetch failed, using fallback:', e.message);
-    // Fallback to static file if exists
+    // Fallback to static file if exists (Direct Import for Reliability)
+    // V16.5.14: Astro.glob fails in some SSR contexts for data assets
     try {
-        const fallback = await Astro.glob('../../data/reports.json');
-        reports = fallback[0]?.default || [];
+        const localData = await import('../../data/reports.json');
+        reports = localData.default || [];
     } catch {
         reports = [];
     }

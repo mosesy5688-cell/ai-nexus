@@ -39,9 +39,10 @@ async function tryFetchJson(url) {
     const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip' || response.headers.get('content-encoding') === 'gzip';
 
     if ((response.url.endsWith('.gz') || url.endsWith('.gz')) && !isAlreadyDecompressed) {
-        // V16.5.7 FIX: Use ArrayBuffer to avoid "body stream already read" lock
+        // V16.5.14 FIX: buffer scope must be outside try/catch to be used in fallback
+        let buffer;
         try {
-            const buffer = await response.arrayBuffer();
+            buffer = await response.arrayBuffer();
             const ds = new DecompressionStream('gzip');
             const writer = ds.writable.getWriter();
             writer.write(buffer);
@@ -49,11 +50,12 @@ async function tryFetchJson(url) {
             const output = new Response(ds.readable);
             return await output.json();
         } catch (e) {
-            // If manual decompression fails, it might be auto-decompressed transparently
-            // in which case response.arrayBuffer() consumed the body.
-            // We have 'buffer' from line 44. Use it!
+            // Buffer fallback safe now
             try {
-                return JSON.parse(new TextDecoder().decode(buffer));
+                if (buffer) {
+                    return JSON.parse(new TextDecoder().decode(buffer));
+                }
+                throw new Error('Buffer empty');
             } catch (e2) {
                 // Final fallback: Re-fetch non-gz (network request)
                 return await (await fetch(url)).json();
