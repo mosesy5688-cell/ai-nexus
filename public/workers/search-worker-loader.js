@@ -134,11 +134,18 @@ export async function loadFullIndex(onProgress) {
                 if (shard?.entities) {
                     shard.entities.forEach(e => {
                         if (!itemsMap.has(e.id)) {
+                            // V16.7.1 FIX: Include tags for 100% keyword coverage
+                            // Also ensure consistent naming (fni_score, fni_percentile)
                             itemsMap.set(e.id, {
-                                id: e.id, name: e.name, type: e.type, author: e.author,
-                                fni_score: e.fni ?? e.fni_score ?? 0,
-                                fni_percentile: e.percentile ?? e.fni_percentile ?? '',
-                                description: e.description, slug: e.slug
+                                id: e.id,
+                                name: e.name || e.id,
+                                type: e.type || 'model',
+                                author: e.author || 'Open Source',
+                                fni_score: Math.round(e.fni ?? e.fni_score ?? e.fniScore ?? 0),
+                                fni_percentile: e.percentile ?? e.fni_percentile ?? e.fniPercentile ?? '',
+                                description: e.description || '',
+                                slug: e.slug || e.id?.split(/[:/]/).pop(),
+                                tags: Array.isArray(e.tags) ? e.tags : (typeof e.tags === 'string' ? JSON.parse(e.tags || '[]') : [])
                             });
                         }
                     });
@@ -157,8 +164,8 @@ export async function loadFullIndex(onProgress) {
 
         const fullItems = Array.from(itemsMap.values());
         const miniSearch = new MiniSearch({
-            fields: ['name', 'author', 'description', 'tags'],
-            storeFields: ['id', 'name', 'type', 'fni_score', 'slug', 'author', 'description'],
+            fields: ['name', 'author', 'description', 'tags', 'slug'],
+            storeFields: ['id', 'name', 'type', 'fni_score', 'fni_percentile', 'slug', 'author', 'description', 'tags'],
             searchOptions: { boost: { name: 3, author: 1.5 }, fuzzy: 0.2, prefix: true }
         });
 

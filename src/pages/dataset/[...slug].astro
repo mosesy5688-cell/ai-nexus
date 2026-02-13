@@ -114,6 +114,7 @@ const jsonLd = dataset ? {
       sourceUrl={dataset?.source_url}
       entityId={datasetId}
       hasImage={Boolean(dataset?.image_url)}
+      trend_7d={dataset?.trend_7d}
     />
 
     {/* Zone 1.5: Use Cases */}
@@ -155,8 +156,8 @@ const jsonLd = dataset ? {
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">
        <div class="space-y-12">
-          {dataset?.body_content ? (
-            <article class="prose prose-lg dark:prose-invert max-w-none" set:html={dataset.body_content} />
+          {dataset?.html_readme ? (
+            <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={dataset.html_readme} />
           ) : (
             <DatasetDeepDive dataset={dataset} />
           )}

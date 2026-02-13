@@ -39,45 +39,51 @@ const hasData = estimatedVram !== null && params && params > 0;
 ---
 
 {hasData && (
-  <div class="vram-estimator bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl p-5 border border-purple-200 dark:border-purple-800 shadow-sm">
-    <div class="flex flex-col gap-4">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="text-xl">💾</div>
+  <div class="vram-estimator bg-white/40 dark:bg-zinc-900/40 backdrop-blur-xl rounded-2xl p-6 border border-zinc-200/50 dark:border-zinc-800/50 shadow-xl shadow-indigo-500/5 group transition-all hover:border-indigo-500/30">
+    <div class="flex flex-col gap-6">
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform">
+             <span class="text-2xl">💾</span>
+          </div>
           <div>
-            <p class="text-[9px] uppercase font-black text-purple-600/70 dark:text-purple-400/70 tracking-widest">Est. VRAM Benchmark</p>
-            <p class="text-2xl font-black text-purple-900 dark:text-purple-100 italic tracking-tighter">
-              ~<span id="vram-value">{estimatedVram}</span> <span class="text-xs font-normal not-italic opacity-50 ml-1">GB</span>
+            <p class="text-[10px] uppercase font-black text-indigo-500 dark:text-indigo-400 tracking-[0.2em] mb-1">Compute Threshold</p>
+            <p class="text-3xl font-black text-zinc-900 dark:text-white italic tracking-tighter leading-none">
+              ~<span id="vram-value">{estimatedVram}</span> <span class="text-xs font-normal not-italic opacity-40 ml-1 uppercase tracking-widest">GB VRAM</span>
             </p>
           </div>
         </div>
         
-        <div class="status-badge px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest bg-purple-200 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 border border-purple-300/50 dark:border-purple-700/50" id="compatibility-status">
-           Analyze Hardware
+        <div class="status-badge px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border border-zinc-200 dark:border-zinc-700 shadow-sm transition-colors" id="compatibility-status">
+           Neural Analysis
         </div>
       </div>
 
       <!-- GPU Interactive Selector -->
-      <div class="gpu-selector mt-2">
-        <label for="gpu-preset" class="text-[9px] font-mono text-gray-500 mb-1 block uppercase">Test Hardware Compatibility</label>
-        <select 
-          id="gpu-preset" 
-          class="w-full bg-white dark:bg-black/40 border border-purple-200 dark:border-purple-800 rounded-lg px-3 py-2 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 ring-purple-500/50 appearance-none cursor-pointer"
-          data-required={estimatedVram}
-        >
-          <option value="0">Select your GPU...</option>
-          <option value="8">RTX 3070 / 4060 Ti (8GB)</option>
-          <option value="12">RTX 3060 / 4070 (12GB)</option>
-          <option value="16">RTX 4080 / T4 / Mac (16GB)</option>
-          <option value="24">RTX 3090 / 4090 (24GB)</option>
-          <option value="48">RTX 6000 Ada / A6000 (48GB)</option>
-          <option value="80">A100 / H100 (80GB)</option>
-        </select>
+      <div class="gpu-selector">
+        <label for="gpu-preset" class="text-[9px] font-black text-zinc-400 mb-2 block uppercase tracking-widest">Hardware Compatibility Test</label>
+        <div class="relative">
+          <select 
+            id="gpu-preset" 
+            class="w-full bg-zinc-50 dark:bg-black/40 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-3 text-xs font-black text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 ring-indigo-500/20 appearance-none cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
+            data-required={estimatedVram}
+          >
+            <option value="0">Select GPU Architecture...</option>
+            <option value="8">RTX 3070 / 4060 Ti (8GB)</option>
+            <option value="12">RTX 3060 / 4070 (12GB)</option>
+            <option value="16">RTX 4080 / T4 / Mac (16GB)</option>
+            <option value="24">RTX 3090 / 4090 (24GB)</option>
+            <option value="48">RTX 6000 Ada / A6000 (48GB)</option>
+            <option value="80">A100 / H100 (80GB)</option>
+          </select>
+          <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
+             <span class="text-[10px]">▼</span>
+          </div>
+        </div>
       </div>
       
-      <p class="text-[9px] text-purple-600/60 dark:text-purple-400/60 font-medium leading-tight italic">
-        * Technical estimation for FP16/Q4 weights. Does not include OS overhead or long-context batching. 
-        <span class="block mt-1 font-bold text-red-500/80 uppercase">For Technical Reference Only.</span>
+      <p class="text-[9px] text-zinc-400 font-bold leading-relaxed uppercase tracking-tight">
+        * Estimated for <span class="text-indigo-500">4-Bit Quantization</span>. Actual usage varies by context length and parallel batching.
       </p>
     </div>
   </div>
