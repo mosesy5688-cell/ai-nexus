@@ -40,8 +40,10 @@ const {
   sourceUrl,
   entityId = '',
   hasImage = false,
-  trend_7d = []
+  trend_7d: rawTrend = []
 } = Astro.props;
+
+const trend_7d = rawTrend || [];
 
 // V16.7: High-Density Sparkline Generator (Server-Side SVG)
 function generateSvgPath(scores: number[], width: number, height: number, pad: number) {
