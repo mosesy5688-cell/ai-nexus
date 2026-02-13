@@ -50,16 +50,13 @@ async function tryFetchJson(url) {
             return await output.json();
         } catch (e) {
             // If manual decompression fails, it might be auto-decompressed transparently
-            // in which case response.arrayBuffer() consumed the body, so we need a fresh fetch?
-            // Actually, if arrayBuffer() succeeds, we have the data.
-            // If decompression fails, it might be plain JSON.
-            // Let's re-parse the buffer as text.
+            // in which case response.arrayBuffer() consumed the body.
+            // We have 'buffer' from line 44. Use it!
             try {
-                const text = new TextDecoder().decode(await response.clone().arrayBuffer()); // Wait, response is consumed.
-                // We need to store buffer first.
-                return JSON.parse(new TextDecoder().decode(buffer));
+                const text = new TextDecoder().decode(buffer);
+                return JSON.parse(text);
             } catch (e2) {
-                // Final fallback: Re-fetch non-gz
+                // Final fallback: Re-fetch non-gz (network request)
                 return await (await fetch(url)).json();
             }
         }
