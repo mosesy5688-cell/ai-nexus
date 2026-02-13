@@ -127,15 +127,8 @@ async function main() {
     console.log('');
     console.log(`✅ Saved to ${outputPath}`);
 
-    // Generate SQL update statements for D1
-    const sqlPath = path.join(__dirname, '../data/fni_updates.sql');
-    const sqlStatements = final.map(m => {
-        const flags = JSON.stringify(m.fni_anomaly_flags).replace(/'/g, "''");
-        const commentary = (m.fni_commentary || '').replace(/'/g, "''");
-        return `UPDATE models SET fni_score=${m.fni_score}, fni_p=${m.fni_p}, fni_v=${m.fni_v}, fni_c=${m.fni_c}, fni_percentile=${m.fni_percentile}, fni_commentary='${commentary}', fni_anomaly_flags='${flags}', fni_calculated_at='${m.fni_calculated_at}' WHERE id='${m.id}';`;
-    }).join('\n');
-    fs.writeFileSync(sqlPath, sqlStatements);
-    console.log(`✅ SQL updates saved to ${sqlPath}`);
+    // V16.9: D1/KV SQL Generation Removed (Zero-Runtime Pipeline)
+    console.log(`✅ FNI data processed for ${final.length} entities.`);
 
     console.log('');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

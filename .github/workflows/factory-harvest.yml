@@ -456,11 +456,13 @@ jobs:
           node scripts/ingestion/merge-batches.js
           
           if [ -f "data/manifest.json" ]; then
-            ENTITY_COUNT=$(jq -r '.allEntitiesCount' data/manifest.json)
+            ENTITY_COUNT=$(jq -r '.total_entities' data/manifest.json)
             echo "✅ Merged: $ENTITY_COUNT total entities (via manifest)"
             
-            if [ "$ENTITY_COUNT" -lt 1000 ]; then
-              echo "⚠️ Warning: Low entity count ($ENTITY_COUNT)"
+            if [ "$ENTITY_COUNT" -lt 80000 ]; then
+              echo "❌ ERROR: Only $ENTITY_COUNT entities found. Expected 80,000+."
+              echo "This indicates corrupted data or missing batches."
+              exit 1
             fi
           else
             echo "❌ Error: manifest.json not generated"
@@ -481,17 +483,13 @@ jobs:
       # Pipeline Summary
       - name: Summary
         run: |
-          ENTITY_COUNT=$(jq -r '.allEntitiesCount' data/manifest.json)
+          ENTITY_COUNT=$(jq -r '.total_entities' data/manifest.json)
           BATCH_COUNT=$(ls -1 data/raw_batch_*.json 2>/dev/null | wc -l)
           
-          echo "## Factory 1/4 - Harvest Complete 🌾" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### V18.2 Compressed Pipeline" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Total Entities | $ENTITY_COUNT |" >> $GITHUB_STEP_SUMMARY
-          echo "| Batch Files | $BATCH_COUNT |" >> $GITHUB_STEP_SUMMARY
-          echo "| Compression | Gzip Enabled (V18.2) |" >> $GITHUB_STEP_SUMMARY
+          echo "## Factory Stage 1/4 (Harvest) - Complete 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Ingestion Data Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Entities**: $ENTITY_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "- **Batch Files**: $BATCH_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "- **Manifest State**: Verified ✅" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Next: Factory 2/4 - Process" >> $GITHUB_STEP_SUMMARY
