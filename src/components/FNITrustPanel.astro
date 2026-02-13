@@ -16,11 +16,11 @@ interface Props {
   fniP: number;
   fniV: number;
   fniC: number;
-  fniU?: number;  // V3.3 Data Expansion
+  fniU?: number;
   fniCommentary?: string;
   fniCalculatedAt?: string;
   modelName: string;
-  modelId?: string;  // B.14: For Compare button
+  modelId?: string;
 }
 
 const { 
@@ -29,27 +29,23 @@ const {
   fniP = 0, 
   fniV = 0, 
   fniC = 0,
-  fniU = 0,  // V3.3 Data Expansion
+  fniU = 0,
   fniCommentary = '',
   fniCalculatedAt = '',
   modelName = '',
-  modelId = ''  // B.14
+  modelId = ''
 } = Astro.props;
 
-// Calculate bar chart percentages (simple CSS-based approach)
+// Calculate bar chart percentages
 const maxScore = 100;
 const pPercent = (fniP / maxScore) * 100;
 const vPercent = (fniV / maxScore) * 100;
 const cPercent = (fniC / maxScore) * 100;
-const uPercent = (fniU / maxScore) * 100;  // V3.3 Data Expansion
+const uPercent = (fniU / maxScore) * 100;
 
 // Format date
 const formattedDate = fniCalculatedAt 
-  ? new Date(fniCalculatedAt).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+  ? new Date(fniCalculatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   : 'Not calculated';
 ---
 
