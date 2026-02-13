@@ -121,16 +121,16 @@ export function mergeShardEntities(allEntities, shardResults) {
     for (const shard of shardResults) {
         if (shard?.entities) {
             for (const result of shard.entities) {
-                if (result.success) {
-                    const enriched = result.enriched || result;
-                    const update = {
-                        ...enriched,
-                        // V18.2.1 Restoration: Explicitly pull HTML for fusion
-                        html_readme: result.html || enriched.html_readme || '',
-                        htmlFragment: result.html || enriched.htmlFragment || ''
-                    };
-                    updatedEntitiesMap.set(result.id, update);
-                }
+                // V16.6.5 Fix: Resilient merge - even if success is false, we keep the raw entity
+                // to prevent 40% data loss (papers).
+                const enriched = result.enriched || result;
+                const update = {
+                    ...enriched,
+                    // V18.2.1 Restoration: Explicitly pull HTML for fusion
+                    html_readme: result.html || enriched.html_readme || '',
+                    htmlFragment: result.html || enriched.htmlFragment || ''
+                };
+                updatedEntitiesMap.set(result.id, update);
             }
         }
     }

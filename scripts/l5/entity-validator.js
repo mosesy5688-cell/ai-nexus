@@ -47,8 +47,11 @@ export function hasValidCachePath(entity) {
     }
 
     // HuggingFace/GitHub: must have author/name format (contains / or : or --)
-    // V16.96: accept colon or double-hyphen as a valid separator for multi-part IDs
-    const hasSeparator = id.includes('/') || id.includes(':') || id.includes('--');
+    // V16.96: accept colon, double-hyphen, or dot (for papers) as a valid separator for multi-part IDs
+    const hasSeparator = id.includes('/') || id.includes(':') || id.includes('--') || id.includes('.');
+
+    // V16.6.5: Explicitly allow anything with a paper type
+    if (entity.type === 'paper' || entity.entity_type === 'paper') return true;
 
     return hasSeparator;
 }
