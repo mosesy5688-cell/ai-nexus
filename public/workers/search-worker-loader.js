@@ -9,8 +9,8 @@ export let isFullSearchActive = false;
 
 const INDEX_URLS = {
     model: 'https://cdn.free2aitools.com/cache/trending.json.gz',
-    space: 'https://cdn.free2aitools.com/cache/trending_spaces.json.gz',
-    dataset: 'https://cdn.free2aitools.com/cache/trending_datasets.json.gz'
+    space: 'https://cdn.free2aitools.com/cache/trending.json.gz',
+    dataset: 'https://cdn.free2aitools.com/cache/trending.json.gz'
 };
 
 /**
@@ -20,15 +20,11 @@ async function tryFetchJson(url) {
     const gzUrl = url.endsWith('.gz') ? url : url + '.gz';
     let response = await fetch(gzUrl);
 
-    // V16.5.9 FIX: Fallback to uncompressed if .gz is missing
-    // Even if input url had .gz, try removing it.
+    // V16.6 Optimization: Prefer .gz but fallback to plain if needed
     if (!response.ok) {
-        // If we tried GZ and it failed, try the plain version
         const plainUrl = url.endsWith('.gz') ? url.slice(0, -3) : url;
-        // Only fetch if it's different from what we arguably just tried (gzUrl)
         if (plainUrl !== gzUrl) {
-            const resp2 = await fetch(plainUrl);
-            if (resp2.ok) response = resp2;
+            response = await fetch(plainUrl);
         }
     }
 
