@@ -7,57 +7,43 @@ export let isLoaded = false;
 export let loadError = null;
 export let isFullSearchActive = false;
 
+// Core indices are GZIP compressed
 const INDEX_URLS = {
-    model: 'https://cdn.free2aitools.com/cache/search-core.json.gz',
-    space: 'https://cdn.free2aitools.com/cache/search-core.json.gz',
-    dataset: 'https://cdn.free2aitools.com/cache/search-core.json.gz'
+    model: '/cache/search-core.json.gz',
+    space: '/cache/search-core.json.gz',
+    dataset: '/cache/search-core.json.gz'
 };
 
 /**
- * Robust JSON fetcher with .gz fallback
+ * Hybrid fetcher: Handles both GZIP and Plain JSON based on extension.
  */
 async function tryFetchJson(url) {
-    const gzUrl = url.endsWith('.gz') ? url : url + '.gz';
-    let response = await fetch(gzUrl);
+    // 1. GZIP Logic
+    if (url.endsWith('.gz')) {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Fetch failed: ${response.status} (${url})`);
 
-    // V16.6 Optimization: Prefer .gz but fallback to plain if needed
-    if (!response.ok) {
-        const plainUrl = url.endsWith('.gz') ? url.slice(0, -3) : url;
-        if (plainUrl !== gzUrl) {
-            response = await fetch(plainUrl);
-        }
-    }
+        // Check if browser already decompressed it transparently
+        const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip'
+            || response.headers.get('content-encoding') === 'gzip';
 
-    if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
-
-    // V18.2: Handle Gzip decompression in Worker/Browser environment
-    // Only decompress manually if the browser didn't do it transparently
-    const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip' || response.headers.get('content-encoding') === 'gzip';
-
-    if ((response.url.endsWith('.gz') || url.endsWith('.gz')) && !isAlreadyDecompressed) {
-        // V16.5.14 FIX: buffer scope must be outside try/catch to be used in fallback
-        let buffer;
-        try {
-            buffer = await response.arrayBuffer();
-            const ds = new DecompressionStream('gzip');
-            const writer = ds.writable.getWriter();
-            writer.write(buffer);
-            writer.close();
-            const output = new Response(ds.readable);
-            return await output.json();
-        } catch (e) {
-            // Buffer fallback safe now
+        if (!isAlreadyDecompressed) {
             try {
-                if (buffer) {
-                    return JSON.parse(new TextDecoder().decode(buffer));
-                }
-                throw new Error('Buffer empty');
-            } catch (e2) {
-                // Final fallback: Re-fetch non-gz (network request)
-                return await (await fetch(url)).json();
+                // Manual GZIP Decompression
+                const ds = new DecompressionStream('gzip');
+                const decompressedStream = response.body.pipeThrough(ds);
+                return await new Response(decompressedStream).json();
+            } catch (e) {
+                console.error('[SearchWorker] GZIP Decompression failed:', e);
+                throw new Error('Critical: Failed to decompress search index.');
             }
         }
+        return await response.json();
     }
+
+    // 2. Plain JSON Logic (for Manifest & Shards)
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Fetch failed: ${response.status} (${url})`);
     return await response.json();
 }
 
@@ -70,7 +56,7 @@ export async function loadIndex(entityType = 'model') {
 
     const url = INDEX_URLS[entityType] || INDEX_URLS.model;
     try {
-        const data = await tryFetchJson(url);
+        const data = await tryFetchJson(url); // Loads .json.gz
         const items = (data.entities || data.models || data.spaces || data.datasets || data || []).map((item, idx) => ({
             ...item,
             id: item.id || `auto-${idx}`,
@@ -104,7 +90,8 @@ export async function loadFullIndex(onProgress) {
     if (isFullSearchActive) return;
 
     try {
-        const manifest = await tryFetchJson('https://cdn.free2aitools.com/cache/search-manifest.json');
+        // Manifest is plain JSON
+        const manifest = await tryFetchJson('/cache/search-manifest.json');
         const totalShards = manifest.totalShards;
         const itemsMap = new Map();
 
@@ -112,13 +99,11 @@ export async function loadFullIndex(onProgress) {
             indexCache['model'].items.forEach(e => itemsMap.set(e.id, e));
         }
 
-        const ext = manifest.extension || (manifest.totalShards > 0 ? '.gz' : '.json');
-        // V16.6.2 FIX: shards are already named with .json, manifest.extension might be .gz
-        // Correct construction: name + ext (if ext is .json) OR name + .json + ext (if ext is .gz)
+        // Shards are plain JSON (as per User confirms: /cache/search/ is uncompressed)
         const shardUrls = Array.from({ length: totalShards }, (_, i) => {
-            const base = `https://cdn.free2aitools.com/cache/search/shard-${i}`;
-            return ext === '.json' ? `${base}.json` : `${base}.json${ext}`;
+            return `/cache/search/shard-${i}.json`;
         });
+
         const BATCH_SIZE = 5;
         let loadedShards = 0;
 
