@@ -67,7 +67,8 @@ try {
 } catch (e) {
   console.error("Error loading model:", e);
   error = e;
-  Astro.response.status = 500;
+  // V16.99: Suppress 500 to allow "Mesh Node Building" fallback UI
+  // Astro.response.status = 500; 
 }
 
 if (!model && !error) {
