@@ -42,7 +42,7 @@ export function initExplorePage() {
     if (!document.getElementById('explore-grid')) return;
 
     try {
-        searchWorker = new Worker('/workers/search-worker.js', { type: 'module' });
+        searchWorker = new Worker('/workers/search-worker.js?v=16.5.13', { type: 'module' });
 
         searchWorker.onmessage = (e) => {
             const { type, isLoaded, results, total, error } = e.data;
