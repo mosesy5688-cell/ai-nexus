@@ -19,7 +19,8 @@ import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
 // V19.0: ModelNavigation removed — not applicable to datasets
 import { getUseCases } from '../../utils/inference.js';
 // 2. Efficient Data Loading (Single-Stream V16.5)
-import { loadEntityPack } from '../../utils/packet-loader.js';
+import { loadEntityStreams } from '../../utils/packet-loader.js';
+import { getRouteFromId } from '../../utils/mesh-routing-core.js';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -34,24 +35,24 @@ let meshRelations = [];
 try {
   if (!slug) throw new Error("No slug/ID provided");
   
-  // V16.5: Usage of Prefix-Aware Single-Stream Loader
+  // V16.5: Usage of 3-Stream Parallel Loader
   const type = 'dataset';
-  const pack = await loadEntityPack(type, slugStr);
+  // V16.5: Static Assembly Architecture
+  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
   
-  if (!pack.entity || !pack._meta.available) {
+  if (!entity || !_meta.available) {
     Astro.response.status = 404;
     return Astro.redirect('/404?reason=dataset-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { entity: resolvedDataset, html: resolvedHtml, mesh: resolvedMesh } = pack;
-
-  dataset = resolvedDataset;
+  // 4. Transform & Prepare
+  dataset = entity;
   tagsArray = dataset?.tags || [];
-  meshRelations = resolvedMesh || [];
+  meshRelations = mesh || [];
 
-  // V16.5: Explicit HTML Assignment (Fused Priority)
-  dataset.body_content = resolvedHtml || dataset.body_content || null;
-  dataset.html_readme = resolvedHtml || dataset.html_readme || null; // Datasets sometimes use html_readme too
+  // V16.5: Explicit HTML Assignment (Stream B Priority)
+  dataset.body_content = html || dataset.body_content || null;
+  dataset.html_readme = html || dataset.html_readme || null; // Datasets sometimes use html_readme too
 
   const displayDatasetName = dataset?.name || dataset?.title || dataset?.canonical_name || 'Unknown Dataset';
   pageTitle = `${displayDatasetName} - AI Dataset Analysis`;
@@ -89,6 +90,7 @@ const jsonLd = dataset ? {
   },
   "license": dataset?.license_spdx || dataset?.license
 } : null;
+const canonicalPath = dataset ? getRouteFromId(dataset.id || datasetId, 'dataset') : undefined;
 ---
 
   <EntityLayout
@@ -97,76 +99,89 @@ const jsonLd = dataset ? {
     title={pageTitle}
     description={pageDescription}
     jsonld={jsonLd}
+    canonical={canonicalPath}
   >
     {/* Zone 1: Hero */}
-    <EntityHeader
-      slot="hero"
-      name={datasetName}
-      entityType="dataset"
-      entityIcon="📊"
-      entityLabel="Dataset"
-      verified={dataset?.verified}
-      author={displayAuthor}
-      lastUpdated={dataset?.last_updated}
-      description={dataset?.seo_summary?.description || dataset?.description}
-      fniScore={dataset?.fni_score}
-      fniPercentile={dataset?.fni_percentile}
-      fniCommentary={dataset?.fni_commentary}
-      sourceUrl={dataset?.source_url}
-      entityId={datasetId}
-      hasImage={Boolean(dataset?.image_url)}
-      trend_7d={dataset?.trend_7d}
-    />
+    {dataset && (
+      <EntityHeader
+        slot="hero"
+        name={datasetName}
+        entityType="dataset"
+        entityIcon="📊"
+        entityLabel="Dataset"
+        verified={dataset.verified}
+        author={displayAuthor}
+        lastUpdated={dataset.last_updated}
+        description={dataset.seo_summary?.description || dataset.description}
+        fniScore={dataset.fni_score}
+        fniPercentile={dataset.fni_percentile}
+        fniCommentary={dataset.fni_commentary}
+        sourceUrl={dataset.source_url}
+        entityId={datasetId}
+        hasImage={Boolean(dataset.image_url)}
+        trend_7d={dataset.trend_7d}
+      />
+    )}
 
     {/* Zone 1.5: Use Cases */}
-    <ZoneUseCases
-      slot="use-cases"
-      usecases={getUseCases(dataset)}
-    />
+    {dataset && (
+      <ZoneUseCases
+        slot="use-cases"
+        usecases={getUseCases(dataset)}
+      />
+    )}
 
     {/* Zone 2: Insights Extra */}
-    <div slot="insights-extra" class="mt-4 space-y-8">
-       <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
-          <ModelInfoTable 
-            type="dataset"
-            model={{
-              ...(dataset || {}),
-              displayName: datasetName,
-              pipeline_tag: dataset?.format || 'Dataset'
-            }} 
-          />
-       </div>
-    </div>
+    {dataset && (
+      <div slot="insights-extra" class="mt-4 space-y-8">
+         <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
+            <ModelInfoTable 
+              type="dataset"
+              model={{
+                ...dataset,
+                displayName: datasetName,
+                pipeline_tag: dataset.format || 'Dataset'
+              }} 
+            />
+         </div>
+      </div>
+    )}
 
     {/* Zone 3: Core (Knowledge Mesh & Relations) */}
-    <div slot="core-desktop" class="space-y-16">
-       <UniversalCore entity={dataset} type="dataset" meshRelations={meshRelations} />
-       
-       <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
-          <CiteEntity 
-            id={datasetId} 
-            name={datasetName} 
-            author={displayAuthor} 
-            url={dataset?.source_url} 
-            type="dataset" 
-          />
-       </div>
-       
-    </div>
+    {dataset && (
+      <div slot="core-desktop" class="space-y-16">
+         <UniversalCore entity={dataset} type="dataset" meshRelations={meshRelations} />
+         
+         <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
+            <CiteEntity 
+              id={datasetId} 
+              name={datasetName} 
+              author={displayAuthor} 
+              url={dataset.source_url} 
+              type="dataset" 
+            />
+         </div>
+         
+      </div>
+    )}
   
     {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive">
-       <div class="space-y-12">
-          {dataset?.html_readme ? (
-            <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={dataset.html_readme} />
-          ) : (
-            <DatasetDeepDive dataset={dataset} />
-          )}
-       </div>
-    </div>
+    {dataset && (
+      <div slot="deep-dive">
+         <div class="space-y-12">
+            {dataset.html_readme ? (
+              <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={dataset.html_readme} />
+            ) : (
+              <DatasetDeepDive dataset={dataset} />
+            )}
+         </div>
+      </div>
+    )}
 
     {/* Zone 5: Community */}
-    <div slot="community">
-        <AiDisclaimer source={dataset?.source} lastUpdated={dataset?.last_updated} />
-    </div>
+    {dataset && (
+      <div slot="community">
+          <AiDisclaimer source={dataset.source} lastUpdated={dataset.last_updated} />
+      </div>
+    )}
   </EntityLayout>

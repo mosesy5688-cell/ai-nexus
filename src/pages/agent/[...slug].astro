@@ -23,7 +23,8 @@ import CiteEntity from '../../components/common/CiteEntity.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 
 // 2. Efficient Data Loading (Single-Stream V16.5)
-import { loadEntityPack } from '../../utils/packet-loader.js';
+import { loadEntityStreams } from '../../utils/packet-loader.js';
+import { getRouteFromId } from '../../utils/mesh-routing-core.js';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -39,19 +40,20 @@ let cleanedDesc = "";
 try {
   if (!slug) throw new Error("No slug/ID provided");
   
-  // V16.5: Usage of Prefix-Aware Single-Stream Loader
+  // V16.5: Usage of 3-Stream Parallel Loader
   const type = 'agent';
-  const pack = await loadEntityPack(type, slugStr);
+  // V16.5: Static Assembly Architecture
+  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
 
-  if (!pack.entity || !pack._meta.available) {
+  // 3. Validation & 404 Handling (Zero-Entropy)
+  if (!entity || !_meta.available) {
      Astro.response.status = 404;
      return Astro.redirect('/404?reason=agent-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { entity: resolvedAgent, html: resolvedHtml, mesh: resolvedMesh } = pack;
-
-  agent = resolvedAgent;
-  meshRelations = resolvedMesh || [];
+  // 4. Transform & Prepare
+  agent = entity;
+  meshRelations = mesh || [];
   tagsArray = agent?.tags || [];
 
   const displayAgentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
@@ -59,8 +61,8 @@ try {
   cleanedDesc = cleanDescription(agent?.description || '');
   pageDescription = agent?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayAgentName}.`;
 
-  // V16.5: Explicit HTML Assignment (Fused Priority)
-  agent.html_readme = resolvedHtml || agent.html_readme || null;
+  // V16.5: Explicit HTML Assignment (Stream B Priority)
+  agent.html_readme = html || agent.html_readme || null;
 
 } catch (e) {
   console.error("Error loading agent:", e);
@@ -94,6 +96,7 @@ const jsonLd = {
     "name": displayAuthor
   }
 };
+const canonicalPath = agent ? getRouteFromId(agent.id || normalizedSlug, 'agent') : undefined;
 ---
 
   <EntityLayout
@@ -102,76 +105,89 @@ const jsonLd = {
     title={pageTitle}
     description={pageDescription}
     jsonld={jsonLd}
+    canonical={canonicalPath}
   >
     {/* Zone 1: Hero */}
-    <EntityHeader
-      slot="hero"
-      name={agentName}
-      entityType="agent"
-      entityIcon={agent?.entityDefinition?.display?.icon || '🤖'}
-      entityLabel={agent?.entityDefinition?.display?.labelSingular || 'Agent'}
-      verified={agent?.verified}
-      author={displayAuthor}
-      lastUpdated={agent?.last_updated}
-      description={agent?.seo_summary?.description || cleanedDesc}
-      fniScore={agent?.fni_score}
-      fniPercentile={agent?.fni_percentile}
-      fniCommentary={agent?.fni_commentary}
-      sourceUrl={agent?.source_url}
-      entityId={agentId}
-      hasImage={Boolean(agent?.image_url)}
-      trend_7d={agent?.trend_7d}
-    />
+    {agent && (
+      <EntityHeader
+        slot="hero"
+        name={agentName}
+        entityType="agent"
+        entityIcon={agent.entityDefinition?.display?.icon || '🤖'}
+        entityLabel={agent.entityDefinition?.display?.labelSingular || 'Agent'}
+        verified={agent.verified}
+        author={displayAuthor}
+        lastUpdated={agent.last_updated}
+        description={agent.seo_summary?.description || cleanedDesc}
+        fniScore={agent.fni_score}
+        fniPercentile={agent.fni_percentile}
+        fniCommentary={agent.fni_commentary}
+        sourceUrl={agent.source_url}
+        entityId={agentId}
+        hasImage={Boolean(agent.image_url)}
+        trend_7d={agent.trend_7d}
+      />
+    )}
 
     {/* Zone 1.5: Use Cases */}
-    <ZoneUseCases
-      slot="use-cases"
-      usecases={getUseCases(agent)}
-    />
+    {agent && (
+      <ZoneUseCases
+        slot="use-cases"
+        usecases={getUseCases(agent)}
+      />
+    )}
 
     {/* Zone 2: Insights Extra */}
-    <div slot="insights-extra" class="mt-4 space-y-8">
-       <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
-          <ModelInfoTable 
-            type="agent"
-            model={{
-              ...(agent || {}),
-              displayName: agentName,
-              pipeline_tag: agent?.framework || agent?.pipeline_tag || 'Agent Framework'
-            }} 
-          />
-       </div>
-       {agent?.params_billions && <VramEstimator paramsB={agent?.params_billions} contextLen={agent?.context_length} />}
-    </div>
+    {agent && (
+      <div slot="insights-extra" class="mt-4 space-y-8">
+         <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
+            <ModelInfoTable 
+              type="agent"
+              model={{
+                ...agent,
+                displayName: agentName,
+                pipeline_tag: agent.framework || agent.pipeline_tag || 'Agent Framework'
+              }} 
+            />
+         </div>
+         {agent.params_billions && <VramEstimator paramsB={agent.params_billions} contextLen={agent.context_length} />}
+      </div>
+    )}
 
     {/* Zone 3: Core (Knowledge Mesh & Relations) */}
-    <div slot="core-desktop" class="space-y-16">
-       <UniversalCore entity={agent} type="agent" meshRelations={meshRelations} />
-       
-       <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
-          <CiteEntity 
-            id={agentId} 
-            name={agentName} 
-            author={agent?.author} 
-            url={agent?.source_url} 
-            type="agent" 
-          />
-       </div>
-    </div>
+    {agent && (
+      <div slot="core-desktop" class="space-y-16">
+         <UniversalCore entity={agent} type="agent" meshRelations={meshRelations} />
+         
+         <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
+            <CiteEntity 
+              id={agentId} 
+              name={agentName} 
+              author={agent.author} 
+              url={agent.source_url} 
+              type="agent" 
+            />
+         </div>
+      </div>
+    )}
   
     {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive">
-       <div class="space-y-12">
-          {agent?.html_readme ? (
-            <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={agent.html_readme} />
-          ) : (
-            <AgentDeepDive agent={agent} />
-          )}
-       </div>
-    </div>
+    {agent && (
+      <div slot="deep-dive">
+         <div class="space-y-12">
+            {agent.html_readme ? (
+              <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={agent.html_readme} />
+            ) : (
+              <AgentDeepDive agent={agent} />
+            )}
+         </div>
+      </div>
+    )}
 
     {/* Zone 5: Community */}
-    <div slot="community">
-        <AiDisclaimer source={agent?.source} lastUpdated={agent?.last_updated} />
-    </div>
+    {agent && (
+      <div slot="community">
+          <AiDisclaimer source={agent.source} lastUpdated={agent.last_updated} />
+      </div>
+    )}
   </EntityLayout>

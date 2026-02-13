@@ -12,7 +12,8 @@ import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definiti
 import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers.ts';
 import { getModelFromCache } from '../../utils/entity-cache-reader.js';
 import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON.js';
-import { loadEntityPack } from '../../utils/packet-loader.js';
+import { loadEntityStreams } from '../../utils/packet-loader.js';
+import { getRouteFromId } from '../../utils/mesh-routing-core.js';
 
 // V16.7.0: Component Restoration for High-Density Display
 import UniversalCore from '../../components/entity/UniversalCore.astro';
@@ -35,22 +36,21 @@ let meshRelations = [];
 
 try {
   if (!slug) throw new Error("No slug provided");
-  // 2. Efficient Data Loading (Single-Stream V16.5)
+  // 2. Efficient Data Loading (3-Stream Parallel V16.5)
   const type = 'model';
-  const pack = await loadEntityPack(type, slugStr);
+  // V16.5: Static Assembly Architecture
+  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
   
   // 3. Validation & 404 Handling (Zero-Entropy)
-  if (!pack.entity || !pack._meta.available) {
+  if (!entity || !_meta.available) {
     // V15.12: Explicit 404 for unknown entities
     Astro.response.status = 404;
     return Astro.redirect('/404?reason=entity-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { entity: resolvedModel, html: resolvedHtml, mesh: resolvedMesh } = pack;
-
   // 4. Transform & Prepare
-  model = resolvedModel;
-  meshRelations = resolvedMesh || []; // Mesh is now inside the unified packet
+  model = entity;
+  meshRelations = mesh || []; 
   tagsArray = model?.tags || [];
 
   const displayModelName = model?.name || model?.canonical_name || 'Unknown Model';
@@ -58,11 +58,8 @@ try {
   cleanedDesc = cleanDescription(model?.description || '');
   pageDescription = model?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayModelName}.`;
   
-  // V16.5: Explicit HTML Assignment (Fused Priority)
-  // If `resolvedHtml` is present (from Fused), use it.
-  // Fallback to `entity.html_readme` only if needed (legacy path).
-  // Note: We do NOT use a separate `htmlPack` anymore.
-  model.html_readme = resolvedHtml || model.html_readme || null; 
+  // V16.5: Explicit HTML Assignment (Stream B Source)
+  model.html_readme = html || model.html_readme || null; 
 
 } catch (e) {
   console.error("Error loading model:", e);
@@ -87,8 +84,8 @@ const modelId = model?.umid || model?.id || '';
 
 // V15.0: Derived Use Cases and Limits
 const derivedUseCases = model ? getUseCases(tagsArray, model.pipeline_tag, 'model', model.fni_score) : { goodFor: [], limits: [] };
-
 const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') : slug, coverImage);
+const canonicalPath = model ? getRouteFromId(model.id || model.umid || slugStr, 'model') : undefined;
 ---
 
 <EntityLayout 
@@ -98,85 +95,98 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
   description={pageDescription}
   image={coverImage}
   jsonld={jsonld}
+  canonical={canonicalPath}
 >
     {/* Zone 1: Hero */}
-    <EntityHeader 
-      slot="hero"
-      name={modelName}
-      entityType="model"
-      entityIcon={model?.entityDefinition?.display?.icon || '🧠'}
-      entityLabel={model?.entityDefinition?.display?.labelSingular || 'Model'}
-      verified={false} 
-      author={model?.author}
-      lastUpdated={model?.last_updated}
-      description={model?.seo_summary?.description || cleanedDesc}
-      fniScore={model?.fni_score}
-      fniPercentile={model?.fni_percentile}
-      fniCommentary={model?.fni_commentary}
-      paramsB={model?.params_billions}
-      sourceUrl={model?.source_url}
-      entityId={modelId}
-      hasImage={Boolean(model?.image_url)}
-      trend_7d={model?.trend_7d}
-    />
+    {model && (
+      <EntityHeader 
+        slot="hero"
+        name={modelName}
+        entityType="model"
+        entityIcon={model.entityDefinition?.display?.icon || '🧠'}
+        entityLabel={model.entityDefinition?.display?.labelSingular || 'Model'}
+        verified={false} 
+        author={model.author}
+        lastUpdated={model.last_updated}
+        description={model.seo_summary?.description || cleanedDesc}
+        fniScore={model.fni_score}
+        fniPercentile={model.fni_percentile}
+        fniCommentary={model.fni_commentary}
+        paramsB={model.params_billions}
+        sourceUrl={model.source_url}
+        entityId={modelId}
+        hasImage={Boolean(model.image_url)}
+        trend_7d={model.trend_7d}
+      />
+    )}
 
     {/* Zone 2: Insights Extra */}
-    <div slot="insights-extra" class="mt-4 space-y-8">
-       <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
-          <ModelInfoTable 
-            type="model"
-            model={{
-              ...(model || {}),
-              displayName: modelName
-            }} 
-          />
-       </div>
-       {model?.params_billions && <VramEstimator paramsB={model?.params_billions} contextLen={model?.context_length} />}
-    </div>
+    {model && (
+      <div slot="insights-extra" class="mt-4 space-y-8">
+         <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
+            <ModelInfoTable 
+              type="model"
+              model={{
+                ...model,
+                displayName: modelName
+              }} 
+            />
+         </div>
+         {model.params_billions && <VramEstimator paramsB={model.params_billions} contextLen={model.context_length} />}
+      </div>
+    )}
     
     {/* Zone 1.5: Use Cases */}
-    <ZoneUseCases 
-      slot="use-cases" 
-      usecases={getUseCases(model)} 
-    />
+    {model && (
+      <ZoneUseCases 
+        slot="use-cases" 
+        usecases={getUseCases(model)} 
+      />
+    )}
 
     {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
-    <div slot="core-desktop" class="space-y-16">
-       <UniversalCore entity={model} type="model" meshRelations={meshRelations} />
-       
-       <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
-          <CiteEntity 
-            id={modelId} 
-            name={modelName} 
-            author={model?.author} 
-            url={model?.source_url} 
-            type="model" 
-          />
-       </div>
-    </div>
+    {model && (
+      <div slot="core-desktop" class="space-y-16">
+         <UniversalCore entity={model} type="model" meshRelations={meshRelations} />
+         
+         <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
+            <CiteEntity 
+              id={modelId} 
+              name={modelName} 
+              author={model.author} 
+              url={model.source_url} 
+              type="model" 
+            />
+         </div>
+      </div>
+    )}
   
-    <div slot="deep-dive">
-       <div class="space-y-12">
-          {model?.html_readme ? (
-            <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={model.html_readme} />
-          ) : (
-            <>
-              <section class="mb-12">
-                 <ModelNavigation />
-              </section>
-              <ModelMainColumn 
-                model={model} 
-                modelId={modelId}
-                cleanDescription={cleanedDesc}
-                jsonld={jsonld}
-              />
-            </>
-          )}
-       </div>
-    </div>
+    {model && (
+      <div slot="deep-dive">
+         <div class="space-y-12">
+            {model.html_readme ? (
+              <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={model.html_readme} />
+            ) : (
+              <>
+                <section class="mb-12">
+                   <ModelNavigation />
+                </section>
+                <ModelMainColumn 
+                  model={model} 
+                  modelId={modelId}
+                  cleanDescription={cleanedDesc}
+                  jsonld={jsonld}
+                />
+              </>
+            )}
+         </div>
+      </div>
+    )}
 
     {/* Zone 5: Community */}
-    <div slot="community">
-        <AiDisclaimer source={model?.source} lastUpdated={model?.last_updated} />
-    </div>
+    {model && (
+      <div slot="community">
+          <AiDisclaimer source={model.source} lastUpdated={model.last_updated} />
+      </div>
+    )}
 </EntityLayout>

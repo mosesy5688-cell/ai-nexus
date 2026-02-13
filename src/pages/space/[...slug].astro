@@ -18,7 +18,8 @@ import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
 // V19.0: ModelNavigation removed — not applicable to spaces
 import { getUseCases } from '../../utils/inference.js';
 // 2. Efficient Data Loading (Single-Stream V16.5)
-import { loadEntityPack } from '../../utils/packet-loader.js';
+import { loadEntityStreams } from '../../utils/packet-loader.js';
+import { getRouteFromId } from '../../utils/mesh-routing-core.js';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -33,27 +34,26 @@ let meshRelations = [];
 try {
   if (!slug) throw new Error("No slug/ID provided");
   
-  // V16.5: Usage of Prefix-Aware Single-Stream Loader
+  // V16.5: Usage of 3-Stream Parallel Loader
   const type = 'space';
-  const pack = await loadEntityPack(type, slugStr);
+  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
   
-  if (!pack.entity || !pack._meta.available) {
+  if (!entity || !_meta.available) {
     Astro.response.status = 404;
     return Astro.redirect('/404?reason=space-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { entity: resolvedSpace, html: resolvedHtml, mesh: resolvedMesh } = pack;
-
-  space = resolvedSpace;
+  // 4. Transform & Prepare
+  space = entity;
   tagsArray = space?.tags || [];
-  meshRelations = resolvedMesh || [];
+  meshRelations = mesh || [];
 
   const displaySpaceName = space?.title || space?.name || space?.canonical_name;
   pageTitle = `${displaySpaceName} - AI Demo Insight`;
   pageDescription = space?.seo_summary?.description || space?.description || `Deep dive into ${displaySpaceName} interactive space.`;
   
-  // V16.5: Explicit HTML Assignment (Fused Priority)
-  space.body_content = resolvedHtml || space.body_content || null;
+  // V16.5: Explicit HTML Assignment (Stream B Priority)
+  space.body_content = html || space.body_content || null;
 
 } catch (e) {
   console.error("[SpacePage] Error loading space:", e);
@@ -89,6 +89,7 @@ const jsonLd = space ? {
   },
   "license": space?.license_spdx || space?.license
 } : null;
+const canonicalPath = space ? getRouteFromId(space.id || normalizedSlug, 'space') : undefined;
 ---
 
   <EntityLayout
@@ -97,84 +98,90 @@ const jsonLd = space ? {
     title={pageTitle}
     description={pageDescription}
     jsonld={jsonLd}
+    canonical={canonicalPath}
   >
     {/* Zone 1: Hero */}
-    <EntityHeader
-      slot="hero"
-      name={spaceName}
-      entityType="space"
-      entityIcon="🎮"
-      entityLabel={space?.sdk || 'Demo Space'}
-      verified={space?.verified}
-      author={displayAuthor}
-      lastUpdated={space?.last_updated}
-      description={space?.seo_summary?.description || space?.description}
-      fniScore={space?.fni_score}
-      fniPercentile={space?.fni_percentile}
-      fniCommentary={space?.fni_commentary}
-      sourceUrl={space?.source_url}
-      entityId={spaceId}
-      hasImage={Boolean(space?.image_url)}
-      trend_7d={space?.trend_7d}
-    />
+    {space && (
+      <EntityHeader
+        slot="hero"
+        name={spaceName}
+        entityType="space"
+        entityIcon={space.entityDefinition?.display?.icon || '🌌'}
+        entityLabel={space.entityDefinition?.display?.labelSingular || 'Space'}
+        verified={space.verified}
+        author={space.author}
+        lastUpdated={space.last_updated}
+        description={space.seo_summary?.description || cleanedDesc}
+        fniScore={space.fni_score}
+        fniPercentile={space.fni_percentile}
+        fniCommentary={space.fni_commentary}
+        sourceUrl={space.source_url}
+        entityId={spaceId}
+        hasImage={Boolean(space.image_url)}
+        trend_7d={space.trend_7d}
+      />
+    )}
 
     {/* Zone 1.5: Use Cases */}
-    <ZoneUseCases
-      slot="use-cases"
-      usecases={getUseCases(space)}
-    />
+    {space && (
+       <ZoneUseCases
+         slot="use-cases"
+         usecases={getUseCases(space)}
+       />
+    )}
 
     {/* Zone 2: Insights Extra */}
-    <div slot="insights-extra" class="mt-4 space-y-8">
-       <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
-          <ModelInfoTable 
-            type="space"
-            model={{
-              ...(space || {}),
-              displayName: spaceName,
-              pipeline_tag: space?.sdk || 'AI SDK'
-            }} 
-          />
-       </div>
-    </div>
+    {space && (
+      <div slot="insights-extra" class="mt-4 space-y-8">
+         <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
+            <ModelInfoTable 
+              type="space"
+              model={{
+                ...space,
+                displayName: spaceName,
+                pipeline_tag: space.sdk || 'Space SDK'
+              }} 
+            />
+         </div>
+      </div>
+    )}
 
     {/* Zone 3: Core (Knowledge Mesh & Relations) */}
-    <div slot="core-desktop" class="space-y-16">
-       <div class="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-3xl border border-blue-100 dark:border-blue-800/50 animate-slide-up">
-          <h3 class="font-bold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
-            <span>🚀</span> Interactive Node
-          </h3>
-          <p class="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-            This entity is an experiential implementation in the AI Knowledge Mesh. 
-            All technical insights are aggregated via <strong>Factory Stage 3</strong>.
-          </p>
-       </div>
-
-       <UniversalCore entity={space} type="space" meshRelations={meshRelations} />
-       
-       <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
-          <CiteEntity 
-            id={spaceId} 
-            name={spaceName} 
-            author={displayAuthor} 
-            url={space?.source_url} 
-            type="space" 
-          />
-       </div>
-    </div>
+    {space && (
+      <div slot="core-desktop" class="space-y-16">
+         <UniversalCore entity={space} type="space" meshRelations={meshRelations} />
+         
+         <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
+            <CiteEntity 
+              id={spaceId} 
+              name={spaceName} 
+              author={space.author} 
+              url={space.source_url} 
+              type="space" 
+            />
+         </div>
+      </div>
+    )}
+  
     {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive">
-       <div class="space-y-12">
-          {space?.html_readme ? (
-            <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={space.html_readme} />
-          ) : (
-            <SpaceDeepDive space={space} />
-          )}
-       </div>
-    </div>
+    {space && (
+      <div slot="deep-dive">
+         <div class="space-y-12">
+            {space.html_readme ? (
+              <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={space.html_readme} />
+            ) : (
+               <div class="p-8 bg-gray-50 dark:bg-gray-900 rounded-2xl text-center">
+                  <p class="text-gray-500">No detailed documentation available.</p>
+               </div>
+            )}
+         </div>
+      </div>
+    )}
 
     {/* Zone 5: Community */}
-    <div slot="community">
-        <AiDisclaimer source={space?.source} lastUpdated={space?.last_updated} />
-    </div>
+    {space && (
+      <div slot="community">
+          <AiDisclaimer source={space.source} lastUpdated={space.last_updated} />
+      </div>
+    )}
   </EntityLayout>

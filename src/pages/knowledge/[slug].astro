@@ -102,7 +102,7 @@ try {
 import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
 ---
 
-<Layout title={pageTitle} description={pageDescription}>
+<Layout title={pageTitle} description={pageDescription} canonical={`/knowledge/${canonicalSlug}`}>
   <div class="article-container">
     {article ? (
       <>
