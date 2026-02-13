@@ -30,9 +30,9 @@ export class EntityCardRenderer {
         const fniPercentile = item.fni_percentile || item.percentile || '';
 
         let fniBadgeClass = "bg-gray-100 dark:bg-zinc-800 text-gray-500";
-        if (fni >= 85) fniBadgeClass = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
-        else if (fni >= 70) fniBadgeClass = "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
-        else if (fni > 0) fniBadgeClass = "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400";
+        if (fni >= 85) fniBadgeClass = "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 border border-emerald-400/20";
+        else if (fni >= 70) fniBadgeClass = "bg-amber-500 text-white shadow-lg shadow-amber-500/20 border border-amber-400/20";
+        else if (fni > 0) fniBadgeClass = "bg-rose-500 text-white shadow-lg shadow-rose-500/20 border border-rose-400/20";
 
         let typeBadgeColor = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
         if (type === 'model') typeBadgeColor = 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400';

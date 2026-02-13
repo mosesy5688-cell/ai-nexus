@@ -113,6 +113,7 @@ const jsonLd = space ? {
       sourceUrl={space?.source_url}
       entityId={spaceId}
       hasImage={Boolean(space?.image_url)}
+      trend_7d={space?.trend_7d}
     />
 
     {/* Zone 1.5: Use Cases */}
@@ -162,8 +163,8 @@ const jsonLd = space ? {
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">
        <div class="space-y-12">
-          {space?.body_content ? (
-            <article class="prose prose-lg dark:prose-invert max-w-none" set:html={space.body_content} />
+          {space?.html_readme ? (
+            <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={space.html_readme} />
           ) : (
             <SpaceDeepDive space={space} />
           )}

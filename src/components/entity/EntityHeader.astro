@@ -21,6 +21,7 @@ interface Props {
   sourceUrl?: string;
   entityId?: string;
   hasImage?: boolean;
+  trend_7d?: number[];
 }
 
 const {
@@ -38,8 +39,34 @@ const {
   paramsB,
   sourceUrl,
   entityId = '',
-  hasImage = false
+  hasImage = false,
+  trend_7d = []
 } = Astro.props;
+
+// V16.7: High-Density Sparkline Generator (Server-Side SVG)
+function generateSvgPath(scores: number[], width: number, height: number, pad: number) {
+  if (!scores || scores.length < 2) return "";
+  const max = Math.max(...scores);
+  const min = Math.min(...scores);
+  const range = (max - min) || 1;
+  const len = scores.length;
+  
+  return scores.map((s, i) => {
+    const x = pad + (i / (len - 1)) * (width - pad * 2);
+    const y = height - pad - ((s - min) / range) * (height - pad * 2);
+    return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(' ');
+}
+
+const firstScore = trend_7d[0] || 0;
+const lastScore = trend_7d[trend_7d.length - 1] || 0;
+const trendDiff = lastScore - firstScore;
+const trendPercent = firstScore !== 0 ? ((trendDiff / firstScore) * 100).toFixed(1) : "0.0";
+const trendDir = trendDiff > 0.05 ? 'up' : trendDiff < -0.05 ? 'down' : 'stable';
+const trendColor = trendDir === 'up' ? 'text-green-500' : trendDir === 'down' ? 'text-red-500' : 'text-zinc-400';
+const trendStroke = trendDir === 'up' ? '#22c55e' : trendDir === 'down' ? '#ef4444' : '#94a3b8';
+
+const svgPath = generateSvgPath(trend_7d, 80, 32, 4);
 
 // Type-specific colors
 const typeColors: Record<string, string> = {
@@ -131,26 +158,49 @@ const relativeTime = formatRelativeTime(lastUpdated);
     </div>
 
     <!-- Metric Block -->
-    <div class="flex flex-shrink-0 gap-4">
+     <div class="flex flex-wrap flex-shrink-0 gap-3">
       {paramsB && (
-        <div class="px-5 py-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center">
-           <span class="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Scale</span>
-           <span class="text-xl font-black text-zinc-900 dark:text-white leading-none">{paramsB}B</span>
+        <div class="px-4 py-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center">
+           <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Scale</span>
+           <span class="text-xl font-black text-zinc-900 dark:text-white leading-none tracking-tighter">{paramsB}B</span>
         </div>
       )}
-
+      
       {fniScore !== undefined && fniScore !== null && (
-        <div class="flex items-center bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          <div class="px-5 py-3 border-r border-zinc-200 dark:border-zinc-800 flex flex-col items-center">
-            <span class="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">FNI Rank</span>
-            <span class="text-3xl font-black text-zinc-900 dark:text-white leading-none">{fniScore}</span>
+        <div class="flex items-stretch bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
+          <!-- Rank -->
+          <div class="px-5 py-3 border-r border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center min-w-[90px]">
+            <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">FNI Rank</span>
+            <span class="text-3xl font-black text-zinc-900 dark:text-white leading-none tracking-tighter">{fniScore}</span>
           </div>
-          {fniPercentile !== undefined && fniPercentile !== null && !isNaN(Number(fniPercentile)) && (
-            <div class="px-5 py-3 flex flex-col items-center">
-              <span class="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Percentile</span>
-              <span class="text-sm font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">Top {100 - Math.round(Number(fniPercentile))}%</span>
+
+          <!-- Trend & Stats Multi-Block -->
+          <div class="flex flex-col">
+            <!-- Percentile (Top Row) -->
+            {fniPercentile !== undefined && fniPercentile !== null && !isNaN(Number(fniPercentile)) && (
+              <div class="px-4 py-1.5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-4 bg-zinc-100/50 dark:bg-zinc-800/30">
+                <span class="text-[8px] font-black text-zinc-500/70 uppercase tracking-widest">Percentile</span>
+                <span class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase">Top {100 - Math.round(Number(fniPercentile))}%</span>
+              </div>
+            )}
+            
+            <!-- Sparkline (Bottom Row) -->
+            <div class={`px-4 flex-grow flex items-center gap-4 ${fniPercentile ? 'py-1.5' : 'py-3'}`}>
+               <div class="flex flex-col">
+                 <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Activity</span>
+                 <div class="flex items-center gap-3">
+                    {svgPath && (
+                      <svg width="64" height="20" viewBox="0 0 80 32" class="opacity-90">
+                        <path d={svgPath} fill="none" stroke={trendStroke} stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    )}
+                    <span class={`text-xs font-black ${trendColor} tracking-tighter`}>
+                      {trendDiff > 0.01 ? '↗' : trendDiff < -0.01 ? '↘' : '→'} {trendPercent}%
+                    </span>
+                 </div>
+               </div>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

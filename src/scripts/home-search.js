@@ -51,6 +51,8 @@ export async function loadFullSearchIndex(onProgress) {
 
     return new Promise((resolve) => {
         const requestId = 'load-full-' + Date.now();
+        console.log(`[HomeSearch] Initializing full index load (Request: ${requestId})`);
+
         const handler = (e) => {
             if (e.data.id === requestId) {
                 if (e.data.type === 'PROGRESS' && pendingProgressCall) {
@@ -59,6 +61,7 @@ export async function loadFullSearchIndex(onProgress) {
                     searchWorker.removeEventListener('message', handler);
                     isFullSearchActive = true;
                     isFullSearchLoading = false;
+                    console.log(`[HomeSearch] Full index successfully loaded and indexed.`);
                     resolve(true);
                 } else if (e.data.type === 'ERROR') {
                     searchWorker.removeEventListener('message', handler);

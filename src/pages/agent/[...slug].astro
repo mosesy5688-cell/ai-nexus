@@ -118,6 +118,7 @@ const jsonLd = {
       sourceUrl={agent?.source_url}
       entityId={agentId}
       hasImage={Boolean(agent?.image_url)}
+      trend_7d={agent?.trend_7d}
     />
 
     {/* Zone 1.5: Use Cases */}
@@ -159,8 +160,8 @@ const jsonLd = {
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">
        <div class="space-y-12">
-          {agent?.body_content ? (
-            <article class="prose prose-lg dark:prose-invert max-w-none" set:html={agent.body_content} />
+          {agent?.html_readme ? (
+            <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={agent.html_readme} />
           ) : (
             <AgentDeepDive agent={agent} />
           )}

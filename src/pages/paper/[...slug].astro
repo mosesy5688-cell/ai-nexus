@@ -131,6 +131,7 @@ const jsonLd = paper ? {
       sourceUrl={paper?.source_url}
       entityId={paperId}
       hasImage={Boolean(paper?.image_url)}
+      trend_7d={paper?.trend_7d}
     />
 
     {/* Zone 1.5: Use Cases */}
@@ -171,8 +172,8 @@ const jsonLd = paper ? {
     {/* Zone 4: Deep Dive */}
     <div slot="deep-dive">
        <div class="space-y-12">
-          {paper?.body_content ? (
-            <article class="prose prose-lg dark:prose-invert max-w-none" set:html={paper.body_content} />
+          {paper?.html_readme ? (
+            <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={paper.html_readme} />
           ) : (
             <PaperDeepDive paper={paper} />
           )}

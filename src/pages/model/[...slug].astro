@@ -109,6 +109,7 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
       sourceUrl={model?.source_url}
       entityId={modelId}
       hasImage={Boolean(model?.image_url)}
+      trend_7d={model?.trend_7d}
     />
 
     {/* Zone 2: Insights Extra */}
@@ -148,8 +149,8 @@ const jsonld = generateModelJsonLd(model, Array.isArray(slug) ? slug.join('/') :
   
     <div slot="deep-dive">
        <div class="space-y-12">
-          {model?.body_content ? (
-            <article class="prose prose-lg dark:prose-invert max-w-none" set:html={model.body_content} />
+          {model?.html_readme ? (
+            <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={model.html_readme} />
           ) : (
             <>
               <section class="mb-12">
