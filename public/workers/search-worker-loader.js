@@ -20,9 +20,16 @@ async function tryFetchJson(url) {
     const gzUrl = url.endsWith('.gz') ? url : url + '.gz';
     let response = await fetch(gzUrl);
 
-    // Fallback to uncompressed if .gz is missing
-    if (!response.ok && !url.endsWith('.gz')) {
-        response = await fetch(url);
+    // V16.5.9 FIX: Fallback to uncompressed if .gz is missing
+    // Even if input url had .gz, try removing it.
+    if (!response.ok) {
+        // If we tried GZ and it failed, try the plain version
+        const plainUrl = url.endsWith('.gz') ? url.slice(0, -3) : url;
+        // Only fetch if it's different from what we arguably just tried (gzUrl)
+        if (plainUrl !== gzUrl) {
+            const resp2 = await fetch(plainUrl);
+            if (resp2.ok) response = resp2;
+        }
     }
 
     if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
