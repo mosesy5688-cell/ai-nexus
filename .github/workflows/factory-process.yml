@@ -113,7 +113,7 @@ jobs:
             echo "❌ ERROR: data/manifest.json not found in cache!"
             exit 1
           fi
-          ENTITY_COUNT=$(jq -r '.allEntitiesCount' data/manifest.json)
+          ENTITY_COUNT=$(jq -r '.total_entities' data/manifest.json)
           echo "✅ Found $ENTITY_COUNT entities in cache (manifest)"
           
       # V4.1: Re-upload as Artifact for matrix jobs (same-workflow, no rate limit)
@@ -182,12 +182,12 @@ jobs:
             exit 1
           fi
           
-          ENTITY_COUNT=$(jq -r '.allEntitiesCount' data/manifest.json)
+          ENTITY_COUNT=$(jq -r '.total_entities' data/manifest.json)
           echo "✅ Found $ENTITY_COUNT entities in manifest"
           
           # V14.5: Fail if entity count is too low (prevents processing test data)
-          if [ "$ENTITY_COUNT" -lt 1000 ]; then
-            echo "❌ ERROR: Only $ENTITY_COUNT entities found. Expected 1000+."
+          if [ "$ENTITY_COUNT" -lt 80000 ]; then
+            echo "❌ ERROR: Only $ENTITY_COUNT entities found. Expected 80000+."
             echo "This indicates corrupted data or test files in artifact."
             exit 1
           fi
