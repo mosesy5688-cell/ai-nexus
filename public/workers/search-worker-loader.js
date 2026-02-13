@@ -32,17 +32,29 @@ async function tryFetchJson(url) {
     const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip' || response.headers.get('content-encoding') === 'gzip';
 
     if ((response.url.endsWith('.gz') || url.endsWith('.gz')) && !isAlreadyDecompressed) {
-        // Clone BEFORE consumption to avoid "body stream already read"
-        const clone = response.clone();
-
+        // V16.5.7 FIX: Use ArrayBuffer to avoid "body stream already read" lock
         try {
+            const buffer = await response.arrayBuffer();
             const ds = new DecompressionStream('gzip');
-            const decompressedStream = response.body.pipeThrough(ds);
-            const decompressedRes = new Response(decompressedStream);
-            return await decompressedRes.json();
+            const writer = ds.writable.getWriter();
+            writer.write(buffer);
+            writer.close();
+            const output = new Response(ds.readable);
+            return await output.json();
         } catch (e) {
-            // Fallback: the browser might have decompressed it but kept the header/url
-            return await clone.json();
+            // If manual decompression fails, it might be auto-decompressed transparently
+            // in which case response.arrayBuffer() consumed the body, so we need a fresh fetch?
+            // Actually, if arrayBuffer() succeeds, we have the data.
+            // If decompression fails, it might be plain JSON.
+            // Let's re-parse the buffer as text.
+            try {
+                const text = new TextDecoder().decode(await response.clone().arrayBuffer()); // Wait, response is consumed.
+                // We need to store buffer first.
+                return JSON.parse(new TextDecoder().decode(buffer));
+            } catch (e2) {
+                // Final fallback: Re-fetch non-gz
+                return await (await fetch(url)).json();
+            }
         }
     }
     return await response.json();
