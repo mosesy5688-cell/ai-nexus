@@ -7,8 +7,7 @@
  * Outputs: explicit.json (V14.5.2) + relations.json (legacy)
  */
 
-import fs from 'fs/promises';
-import path from 'path';
+import { smartWriteWithVersioning } from './smart-writer.js';
 import { extractEntityRelations } from './relation-extractors.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 
@@ -151,10 +150,9 @@ export async function generateRelations(entities, outputDir = './output') {
         _generated: new Date().toISOString(),
     };
 
-    // Write both formats
-    const zlib = await import('zlib');
-    await fs.writeFile(path.join(relationsDir, 'explicit.json.gz'), zlib.gzipSync(JSON.stringify(v2Output)));
-    await fs.writeFile(path.join(cacheDir, 'relations.json.gz'), zlib.gzipSync(JSON.stringify(legacyOutput)));
+    // Write both formats (V16.6: Gzip via SmartWriter)
+    await smartWriteWithVersioning('relations/explicit.json', v2Output, cacheDir, { compress: true });
+    await smartWriteWithVersioning('relations.json', legacyOutput, cacheDir, { compress: true });
 
     console.log(`  [RELATIONS] ${allRelations.length} relations extracted`);
     for (const [type, count] of Object.entries(counts)) {

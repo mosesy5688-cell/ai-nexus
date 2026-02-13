@@ -58,10 +58,10 @@ export function getUseCases(tags = [], pipelineTag = '', entityType = 'model', f
         if (fniScore < 50 && fniScore > 0) limits.add('Experimental / High Latency');
         if (allTags.includes('small-model')) limits.add('Limited Complexity');
 
-        // V15.9 Trust Signal: Restrictive License Detection
-        const licenseStr = String(pipelineTag || '').toLowerCase(); // Fallback if no specific license arg
+        // V15.9 Trust Signal: Restrictive License Detection (V16.6 Fix: Use entity.license)
+        const licenseStr = String(entity.license || '').toLowerCase();
         const fullTags = allTags.join(' ');
-        if (fullTags.includes('non-commercial') || fullTags.includes('cc-by-nc') || fullTags.includes('research-only')) {
+        if (licenseStr.includes('non-commercial') || fullTags.includes('cc-by-nc') || fullTags.includes('research-only')) {
             limits.add('Non-Commercial Use');
         } else if (licenseStr.includes('apache') || licenseStr.includes('mit')) {
             // permissible
@@ -225,7 +225,10 @@ export function getQuickInsights(entity, type) {
         insights.push({ label: 'Citations', value: formatNum(entity.citations || entity.citation_count), highlight: true, badge: 'High Impact' });
         insights.push({ label: 'Year', value: entity.published_date ? new Date(entity.published_date).getFullYear() : (entity.year || '2024') });
         insights.push({ label: 'Venue', value: entity.venue || 'ArXiv', badge: entity.venue ? 'Peer-Reviewed' : null });
-        insights.push({ label: 'FNI Rank', value: (entity.fni_score || entity.fni_percentile) ? `Top ${100 - (entity.fni_percentile || 0)}%` : '-', highlight: true });
+
+        // V16.6 Fix: Correct percentile string
+        const percentile = entity.fni_percentile || 0;
+        insights.push({ label: 'FNI Rank', value: percentile > 0 ? `Top ${100 - percentile}%` : '-', highlight: true });
     }
 
     else if (safeType === 'space') {

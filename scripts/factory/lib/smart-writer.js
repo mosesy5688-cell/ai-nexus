@@ -68,29 +68,37 @@ async function writeToLocal(key, content, metadata, outputDir) {
  */
 export async function smartWriteWithVersioning(key, data, outputDir = './output', options = {}) {
     let content = JSON.stringify(data);
+    let finalKey = key;
 
     // V16.11: Support for pre-compression to align local MD5 with R2 ETag
     if (options.compress) {
         content = zlib.gzipSync(content);
+        // SPEC-FIX: Automatically append .gz if missing but compression is requested
+        if (!finalKey.endsWith('.gz')) {
+            finalKey += '.gz';
+        }
     }
 
     const localHash = generateHash(content);
 
     // Check if content changed (Art 2.2)
-    const remoteHash = await getRemoteHash(key, outputDir);
+    const remoteHash = await getRemoteHash(finalKey, outputDir);
     if (localHash === remoteHash) {
         return false; // No changes, skip silently
     }
 
-    const filePath = path.join(outputDir, key);
+    const filePath = path.join(outputDir, finalKey);
     const dir = path.dirname(filePath);
-    const base = path.basename(filePath, '.json');
+
+    // Determine base name for versioning, stripping either .json or .json.gz
+    const ext = finalKey.endsWith('.gz') ? '.json.gz' : '.json';
+    const base = path.basename(filePath, ext);
 
     await fs.mkdir(dir, { recursive: true });
 
     // Rotate versions (Art 2.4: Keep 3 versions max)
-    const v2Path = path.join(dir, `${base}.v-2.json`);
-    const v1Path = path.join(dir, `${base}.v-1.json`);
+    const v2Path = path.join(dir, `${base}.v-2${ext}`);
+    const v1Path = path.join(dir, `${base}.v-1${ext}`);
 
     // Delete v-2 (oldest)
     await fs.unlink(v2Path).catch(() => { });

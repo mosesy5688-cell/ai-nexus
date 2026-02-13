@@ -2,6 +2,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { smartWriteWithVersioning } from './smart-writer.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 
 const CONFIG = {
@@ -200,21 +201,8 @@ export async function generateMeshGraph(outputDir = './output') {
         stats.by_type[node.t] = (stats.by_type[node.t] || 0) + 1;
     }
 
-    // Generate graph.json
-    const graph = {
-        _v: CONFIG.VERSION,
-        _ts: new Date().toISOString(),
-        stats: {
-            nodes: stats.nodes,
-            edges: stats.edges
-        },
-        nodes,
-        edges
-    };
-
-    const zlib = await import('zlib');
-    const graphPath = path.join(meshDir, 'graph.json.gz');
-    await fs.writeFile(graphPath, zlib.gzipSync(JSON.stringify(graph)));
+    // Generate graph.json (V16.6: Gzip via SmartWriter)
+    await smartWriteWithVersioning('graph.json', graph, meshDir, { compress: true });
 
     // Generate stats.json
     const statsOutput = {
@@ -223,8 +211,7 @@ export async function generateMeshGraph(outputDir = './output') {
         ...stats
     };
 
-    const statsPath = path.join(meshDir, 'stats.json.gz');
-    await fs.writeFile(statsPath, zlib.gzipSync(JSON.stringify(statsOutput, null, 2)));
+    await smartWriteWithVersioning('stats.json', statsOutput, meshDir, { compress: true });
 
     console.log(`[MESH-GRAPH] Generated graph with ${stats.nodes} nodes, ${stats.edges} edges`);
     console.log(`  By type: ${JSON.stringify(stats.by_type)}`);

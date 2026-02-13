@@ -4,12 +4,10 @@
  */
 export function calculateFNI(entity) {
     let score = 0;
-    // V2.0: Protocol-safe ID extraction (supports either id or slug)
     const id = entity.id || entity.slug || '';
-    const stats = entity.stats || entity; // Entity might hold stats directly
+    const stats = entity.stats || entity;
 
     // --- 1. Source Routing ---
-    // Routing is strictly based on ID prefix per SPEC-FNI-V2.0
     if (id.startsWith('hf-')) {
         score = calcHuggingFace(entity.type || entity.entity_type, stats);
     }
@@ -20,13 +18,41 @@ export function calculateFNI(entity) {
         score = calcArXiv(stats, entity.published_at || entity.publishedAt);
     }
 
-    // --- 2. Time Decay ---
-    // Recency weighting per specification
+    // --- 2. Heavy Weighting (V16.6 UPGRADE) ---
+    // Add C (Completeness) and U (Utility) for core functional types
+    const type = entity.type || entity.entity_type || 'model';
+    if (type === 'model' || type === 'agent') {
+        const c = calcCompleteness(entity);
+        const u = calcUtility(entity);
+        // Blend: 70% Popularity/Velocity + 15% Completeness + 15% Utility
+        score = (score * 0.7) + (c * 0.15) + (u * 0.15);
+    } else if (type === 'tool') {
+        const c = calcCompleteness(entity);
+        // Blend: 85% Popularity + 15% Completeness
+        score = (score * 0.85) + (c * 0.15);
+    }
+
+    // --- 3. Time Decay ---
     const date = entity.last_modified || entity.pushed_at || entity.published_at || entity.updated_at || entity.updatedAt;
     score = applyTimeDecay(score, date);
 
-    // --- 3. Boundaries ---
     return Math.min(100, Math.max(0, Math.round(score)));
+}
+
+function calcCompleteness(entity) {
+    let s = 0;
+    if ((entity.body_content || '').length > 500) s += 40;
+    if (entity.params_billions || entity.params) s += 30;
+    if (entity.tags?.length > 0) s += 15;
+    if (entity.author && entity.author !== 'Community') s += 15;
+    return s;
+}
+
+function calcUtility(entity) {
+    let s = 30; // Base
+    if (entity.has_ollama || entity.has_gguf) s += 40;
+    if (entity.spaces_count > 0 || entity.has_demo) s += 30;
+    return Math.min(100, s);
 }
 
 // --- Internal Strategies ---

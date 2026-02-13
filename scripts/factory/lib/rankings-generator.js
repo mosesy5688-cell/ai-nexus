@@ -3,8 +3,8 @@
  * Constitution Reference: Art 3.1 (Aggregator)
  */
 
-import fs from 'fs/promises';
 import path from 'path';
+import { smartWriteWithVersioning } from './smart-writer.js';
 
 const CATEGORIES = [
     'text-generation',
@@ -21,49 +21,54 @@ const ENTITY_TYPES = ['model', 'paper', 'agent', 'space', 'dataset', 'tool'];
  */
 export async function generateRankings(entities, outputDir = './output') {
     console.log('[RANKINGS] Generating rankings...');
+    const cacheDir = path.join(outputDir, 'cache');
 
     // Global ranking
-    await generateCategoryRanking('all', entities, outputDir);
+    await generateCategoryRanking('all', entities, cacheDir);
 
     // Per-category rankings
     for (const category of CATEGORIES) {
         const categoryEntities = entities.filter(e => e.category === category);
-        await generateCategoryRanking(category, categoryEntities, outputDir);
+        await generateCategoryRanking(category, categoryEntities, cacheDir);
     }
 
     // Per-type rankings
     for (const type of ENTITY_TYPES) {
         const typeEntities = entities.filter(e => e.type === type);
-        await generateCategoryRanking(type, typeEntities, outputDir);
+        await generateCategoryRanking(type, typeEntities, cacheDir);
     }
 }
 
-async function generateCategoryRanking(category, entities, outputDir) {
+async function generateCategoryRanking(category, entities, cacheDir) {
     const pageSize = 50;
     const MAX_PAGES = 50; // Art 2.4 Constitution Limit
     const totalPages = Math.ceil(entities.length / pageSize) || 1;
     const effectivePages = Math.min(totalPages, MAX_PAGES);
 
-    // Write to cache/rankings to match CDN path expectations
-    const rankingDir = path.join(outputDir, 'cache', 'rankings', category);
-    await fs.mkdir(rankingDir, { recursive: true });
-
     for (let page = 1; page <= effectivePages; page++) {
         const start = (page - 1) * pageSize;
-        const pageEntities = entities.slice(start, start + pageSize);
+        const pageEntities = entities.slice(start, start + pageSize).map(e => ({
+            id: e.id,
+            name: e.name || e.slug || 'Unknown',
+            type: e.type || 'model',
+            author: e.author || '',
+            image_url: e.image_url || null,
+            fni_score: Math.round(e.fni_score || e.fni || 0),
+            tags: Array.isArray(e.tags) ? e.tags.slice(0, 3) : [],
+            slug: e.slug || e.id?.split(/[:/]/).pop()
+        }));
 
         const ranking = {
             category,
             page,
-            totalPages: effectivePages, // Report the capped total
+            totalPages: effectivePages,
             totalEntities: Math.min(entities.length, MAX_PAGES * pageSize),
             entities: pageEntities,
             generated: new Date().toISOString(),
         };
 
-        const zlib = await import('zlib');
-        const filePath = path.join(rankingDir, `p${page}.json.gz`);
-        await fs.writeFile(filePath, zlib.gzipSync(JSON.stringify(ranking)));
+        const targetKey = `rankings/${category}/p${page}.json`;
+        await smartWriteWithVersioning(targetKey, ranking, cacheDir, { compress: true });
     }
 
     console.log(`  [RANKING] ${category}: ${entities.length} entities, ${effectivePages} pages generated (Capped at ${MAX_PAGES})`);

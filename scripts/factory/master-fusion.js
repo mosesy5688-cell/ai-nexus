@@ -35,8 +35,12 @@ async function main() {
                 const id = entityData.id;
                 if (!id) continue;
 
-                // Load mesh profile if exists (V16.11: Handle potential Gzip buffer)
-                const meshData = await fs.readFile(path.join(MESH_DIR, `${id}.json`))
+                // Load mesh profile if exists (V16.6: Try .gz first, then fallback to .json)
+                const meshPath = path.join(MESH_DIR, `${id}.json.gz`);
+                const meshFallback = path.join(MESH_DIR, `${id}.json`);
+
+                const meshData = await fs.readFile(meshPath)
+                    .catch(() => fs.readFile(meshFallback))
                     .then(buf => {
                         try {
                             // Check for Gzip magic number (1f 8b)

@@ -7,6 +7,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { smartWriteWithVersioning } from './smart-writer.js';
 
 // V6 Category Mapping (per UX Strategy V2.0)
 const CATEGORY_MAP = {
@@ -177,10 +178,9 @@ export async function generateCategoryStats(entities, outputDir = './output') {
 
 
 
-    const zlib = await import('zlib');
-    const content = zlib.gzipSync(JSON.stringify(output, null, 2));
-    const filePath = path.join(cacheDir, 'category_stats.json.gz');
-    await fs.writeFile(filePath, content);
+    // V16.6 Gzip fix: Use standard smart writer
+    const targetKey = 'category_stats.json';
+    await smartWriteWithVersioning(targetKey, output, cacheDir, { compress: true });
 
     console.log(`  [CATEGORY] ${Object.keys(stats).length} categories, ${output.total_models} models`);
     for (const [key, data] of Object.entries(stats)) {

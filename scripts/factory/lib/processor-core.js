@@ -33,17 +33,17 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
 
         // 2. VRAM Estimation
         let vramEstimate = null;
-        if (finalType === 'model' && entity.params_billions) {
-            vramEstimate = estimateVRAM(entity.params_billions, 'q4', entity.context_length || 8192);
+        if (finalType === 'model' && (entity.params_billions || entity.params)) {
+            vramEstimate = estimateVRAM(entity.params_billions || entity.params, 'q4', entity.context_length || 8192);
         }
 
         // 3. 7-Day Trend Embedding
         const historyEntries = fniHistory[id] || fniHistory[entity.id] || [];
         const trend = Array.isArray(historyEntries) ? historyEntries.slice(-7).map(h => h.score) : [];
 
-        // 4. Semantic HTML Pre-rendering
-        const readme = entity.description || '';
-        const htmlFragment = readme ? marked.parse(readme) : '';
+        // 4. Semantic HTML Pre-rendering (V16.6 FIX: Use full content, not truncated description)
+        const fullContent = entity.body_content || entity.readme_content || entity.description || '';
+        const htmlFragment = fullContent ? marked.parse(fullContent) : '';
 
         // 5. Use Cases & Insights
         const tags = Array.isArray(entity.tags) ? entity.tags : [];
@@ -52,11 +52,11 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
 
         // 6. Metadata Normalization
         const normalizedAuthor = entity.author || (entity.id?.includes('/') ? entity.id.split('/')[0] : 'Community');
-        const displayDescription = entity.seo_summary?.description || (readme ? readme.slice(0, 200).replace(/\s+/g, ' ') + '...' : '');
+        const displayDescription = entity.seo_summary?.description || (fullContent ? fullContent.slice(0, 200).replace(/\s+/g, ' ') + '...' : '');
 
         // V14.5.2: Stable _updated detection
         const entityHash = crypto.createHash('sha256')
-            .update(JSON.stringify({ ...entity, type: finalType, fni: finalFni }))
+            .update(JSON.stringify({ ...entity, type: finalType, fni: finalFni, html_checksum: crypto.createHash('md5').update(htmlFragment).digest('hex') }))
             .digest('hex');
 
         const isChanged = entityChecksums[id] !== entityHash;
