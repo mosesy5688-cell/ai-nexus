@@ -2,12 +2,17 @@ import { R2_CACHE_URL } from '../config/constants.js';
 import { getR2PathCandidates, normalizeEntitySlug, fetchEntityFromR2 } from './entity-cache-reader-core.js';
 
 /**
- * V16.5 Smart Packet Loader (Prefix-Aware Single-Stream)
+ * V16.5 Smart Packet Loader (Entity-First Anchored Strategy)
  * 
- * Strategy:
- * 1. Generate robust candidates (e.g. `hf-agent--...`, `gh-agent--...`) using `getR2PathCandidates`.
- * 2. Fetch the "Fused Packet" (contains Metadata + HTML + Mesh) from `cache/fused`.
- * 3. Fallback to `cache/entities` (Metadata Only) if Fused is missing.
+ * Strategy (V16.8.3):
+ * 1. Generate robust candidates using `getR2PathCandidates`.
+ * 2. Find the ENTITY metadata first (The Anchor).
+ * 3. Use the Entity's authoritative ID to fetch Fused/Mesh streams.
+ * 
+ * This solves the "Prefix Mismatch" issue where:
+ * - URL: `meta-llama/llama-3-8b` (Short)
+ * - Storage: `hf-model--meta-llama--llama-3-8b` (Prefixed)
+ * - Loader was guessing wrong paths.
  */
 
 // Universal Gzip Fetcher (Robust Buffer Strategy)
@@ -76,97 +81,115 @@ export async function loadEntityStreams(type: string, slug: string) {
     // 1. Normalize Slug
     const normalized = normalizeEntitySlug(slug, type);
 
-    // 2. Robust Path Discovery (V16.8.2 Hotfix)
-    // Instead of enforcing a strict prefix (which caused 404s), we generate ALL possible candidates
-    // and try them in parallel or sequence. This honors "Stable URLs" by supporting legacy and new storage keys.
+    // 2. Initial Discovery (Broad)
     const candidates = getR2PathCandidates(type, normalized);
 
-    // We need to find:
-    // A. The Entity Data (Metadata)
-    // B. The Fused Data (HTML/Mesh) - often mixed with Entity in V18.2 "Fused" packets
+    // 3. Entity-First Discovery Strategy (V16.8.3 Stable)
+    // To prevent "Chaos" and 404s, we MUST find the Entity Metadata first.
+    // The Entity's internal ID is the Source of Truth for all other data streams.
 
-    // Helper to find the first existing path from a list of candidates
-    const findFirstExisting = async (pCandidates: string[]): Promise<{ data: any, path: string } | null> => {
-        for (const p of pCandidates) {
+    // Step A: Find the Entity Metadata (The Anchor)
+    const entityCandidates = candidates.filter(c => c.includes('/entities/'));
+
+    // Also try "fused" paths as entity sources because V18.2 packets often combine them
+    // But we strictly look for the "entity" property inside them if we go that route.
+    const fusedAsEntityCandidates = candidates.filter(c => c.includes('/fused/'));
+
+    let entityPack = null;
+    let entitySourcePath = null;
+
+    // A.1 Try Pure Entity Paths First (Fastest, Metadata Only)
+    // We iterate sequentially because we need the *correct* one, not just *any* one.
+    const findFirst = async (list: string[]) => {
+        for (const p of list) {
             const data = await fetchCompressedJSON(p);
             if (data) return { data, path: p };
         }
         return null;
     };
 
-    // Strategy:
-    // 1. Try "Fused" paths first (most efficient, contains E+H+M)
-    // 2. Try "Entity" paths second (metadata only)
-
-    const fusedCandidates = candidates.filter(c => c.includes('/fused/'));
-    const entityCandidates = candidates.filter(c => c.includes('/entities/'));
-    const meshCandidates = candidates.map(c => c.replace('/entities/', '/mesh/profiles/').replace('/fused/', '/mesh/profiles/'));
-
-    try {
-        // 3. Parallel Discovery (The "Dynamic Assembly" Core)
-        // We try to fetch the best available packet for each stream
-        const [fusedResult, entityResult, meshPack] = await Promise.all([
-            findFirstExisting(fusedCandidates),
-            findFirstExisting(entityCandidates),
-            findFirstExisting(meshCandidates.slice(0, 2)) // Only check top 2 mesh paths to save ops
-        ]);
-
-        const fusedPack = fusedResult?.data;
-        const entityPack = entityResult?.data || (fusedPack?.entity ? fusedPack.entity : (fusedPack?.id ? fusedPack : null));
-
-        // 4. Validate Core Entity
-        if (!entityPack) {
-            return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
-        }
-
-        // 5. Assemble Data
-        const entity = entityPack;
-
-        // Stream B Extraction (HTML)
-        // Prefer explicit HTML packet, fallback to entity's own field if missing
-        let html = null;
-        if (fusedPack) {
-            html = fusedPack.html || fusedPack.html_readme || (fusedPack.entity ? fusedPack.entity.html_readme : null);
-        }
-
-        // Stream C Extraction (Mesh)
-        // V16.8.2 FIX: Unwrap the 'data' property from findFirstExisting result
-        let mesh = [];
-        if (meshPack && meshPack.data && meshPack.data.nodes) {
-            mesh = meshPack.data.nodes;
-        } else if (fusedPack && fusedPack.mesh_profile) {
-            // Fallback to fused mesh if dedicated stream missing
-            mesh = fusedPack.mesh_profile.nodes || fusedPack.mesh_profile || [];
-        }
-
-        return {
-            entity,
-            html,
-            mesh,
-            _meta: {
-                available: true,
-                source: '3-stream-discovery', // Updated source name
-                streams: {
-                    entity: !!entityPack,
-                    html: !!fusedPack,
-                    mesh: !!meshPack
-                },
-                // V16.8.2: Debug Info - Report which paths were actually used
-                paths: {
-                    entity: entityResult?.path || 'fallback',
-                    fused: fusedResult?.path || 'missing',
-                    mesh: meshPack?.path || 'fallback'
-                }
-            }
-        };
-
-    } catch (e) {
-        console.error(`[PacketLoader] Stream Assembly Failed for ${slug}:`, e);
-        return {
-            entity: null,
-            html: null,
-            mesh: null,
-            _meta: { available: false, source: 'error', error: (e as any).message }
-        };
+    const entityResult = await findFirst(entityCandidates);
+    if (entityResult) {
+        entityPack = entityResult.data;
+        entitySourcePath = entityResult.path;
     }
+
+    // A.2 If not found, try Fused Paths (Fallback)
+    if (!entityPack) {
+        const fusedResult = await findFirst(fusedAsEntityCandidates);
+        if (fusedResult) {
+            const data = fusedResult.data;
+            if (data.entity || data.id) {
+                entityPack = data.entity || data;
+                entitySourcePath = fusedResult.path;
+            }
+        }
+    }
+
+    // 4. Validate Core Entity (The Gatekeeper)
+    if (!entityPack) {
+        return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
+    }
+
+    // --- ANCHOR ESTABLISHED ---
+    // We now have the Canonical ID from the Entity itself.
+    const canonicalId = entityPack.id || entityPack.slug || slug;
+
+    // Step B: Fetch Secondary Streams using Canonical ID
+    // We must re-normalize to ensure we generated the correct path for Fused/Mesh
+    const normalizedCanonical = normalizeEntitySlug(canonicalId, type);
+    const canonicalCandidates = getR2PathCandidates(type, normalizedCanonical);
+
+    const fusedCandidates = canonicalCandidates.filter(c => c.includes('/fused/'));
+    const meshCandidates = canonicalCandidates.map(c => c.replace('/entities/', '/mesh/profiles/').replace('/fused/', '/mesh/profiles/'));
+
+    // Parallel Fetch for Secondary Content (now targeted correctly)
+    const [fusedResult, meshResult] = await Promise.all([
+        findFirst(fusedCandidates),
+        findFirst(meshCandidates.slice(0, 2))
+    ]);
+
+    const fusedPack = fusedResult?.data;
+    const meshPack = meshResult?.data;
+
+    // 5. Assemble Data
+    const entity = entityPack;
+
+    // Stream B Extraction (HTML)
+    let html = null;
+    if (fusedPack) {
+        html = fusedPack.html || fusedPack.html_readme || (fusedPack.entity ? fusedPack.entity.html_readme : null);
+    }
+
+    // Stream C Extraction (Mesh)
+    // V16.8.3 FIX: Use raw nodes from mesh pack or fallback to fused
+    let mesh = [];
+    if (meshPack && meshPack.nodes) {
+        mesh = meshPack.nodes;
+    } else if (meshPack && meshPack.data && meshPack.data.nodes) {
+        // Handle wrapped format just in case
+        mesh = meshPack.data.nodes;
+    } else if (fusedPack && fusedPack.mesh_profile) {
+        mesh = fusedPack.mesh_profile.nodes || fusedPack.mesh_profile || [];
+    }
+
+    return {
+        entity,
+        html,
+        mesh,
+        _meta: {
+            available: true,
+            source: 'entity-first-anchored',
+            streams: {
+                entity: true,
+                html: !!fusedPack,
+                mesh: !!meshPack
+            },
+            paths: {
+                entity: entitySourcePath,
+                fused: fusedResult?.path || 'missing',
+                mesh: meshResult?.path || 'missing'
+            }
+        }
+    };
 }
