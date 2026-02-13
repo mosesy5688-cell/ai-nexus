@@ -14,6 +14,13 @@ import { getModelFromCache } from '../../utils/entity-cache-reader.js';
 import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON.js';
 import { loadEntityPack } from '../../utils/packet-loader.js';
 
+// V16.7.0: Component Restoration for High-Density Display
+import UniversalCore from '../../components/entity/UniversalCore.astro';
+import CiteEntity from '../../components/common/CiteEntity.astro';
+import ModelInfoTable from '../../components/ModelInfoTable.astro';
+import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
+import ModelMainColumn from '../../components/model-detail/ModelMainColumn.astro';
+
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
