@@ -14,6 +14,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { smartWriteWithVersioning } from './smart-writer.js';
 import { getCategory, parseFrontmatter, extractSections } from './knowledge-utils.js';
 
 const CONFIG = {
@@ -69,8 +70,7 @@ function countEntityRefs(knowledgeLinks, slug) {
 
     let count = 0;
     for (const link of knowledgeLinks.links) {
-        // Each link has: entity_id, entity_type, knowledge: [{slug, confidence}]
-        if (link.knowledge?.some(k => k.slug === slug || k.slug?.includes(slug))) {
+        if (link.knowledge?.some(k => k.slug === slug)) {
             count++;
         }
     }
@@ -135,10 +135,9 @@ export async function generateKnowledgeData(outputDir = './output') {
                     disclaimer: frontmatter.disclaimer || 'Content based on official documentation.'
                 };
 
-                // Write individual article
-                const zlib = await import('zlib');
-                const articlePath = path.join(articlesDir, `${slug}.json.gz`);
-                await fs.writeFile(articlePath, zlib.gzipSync(JSON.stringify(article, null, 2)));
+                // Write individual article (V16.6: Gzip via SmartWriter)
+                const articleKey = `articles/${slug}.json`;
+                await smartWriteWithVersioning(articleKey, article, knowledgeDir, { compress: true });
 
                 // Add to index
                 articles.push({
@@ -162,18 +161,8 @@ export async function generateKnowledgeData(outputDir = './output') {
         console.warn(`  [WARN] Markdown directory not found: ${e.message}`);
     }
 
-    // Generate index
-    const index = {
-        _v: CONFIG.VERSION,
-        _ts: new Date().toISOString(),
-        total: articles.length,
-        categories: categorized,
-        articles: articles.sort((a, b) => b.refs - a.refs)
-    };
-
-    const zlib = await import('zlib');
-    const indexPath = path.join(knowledgeDir, 'index.json.gz');
-    await fs.writeFile(indexPath, zlib.gzipSync(JSON.stringify(index, null, 2)));
+    // Generate index (V16.6: Gzip via SmartWriter)
+    await smartWriteWithVersioning('index.json', index, knowledgeDir, { compress: true });
 
     // Generate stats
     const stats = {
@@ -186,8 +175,7 @@ export async function generateKnowledgeData(outputDir = './output') {
         )
     };
 
-    const statsPath = path.join(knowledgeDir, 'stats.json.gz');
-    await fs.writeFile(statsPath, zlib.gzipSync(JSON.stringify(stats, null, 2)));
+    await smartWriteWithVersioning('stats.json', stats, knowledgeDir, { compress: true });
 
     console.log(`[KNOWLEDGE-DATA] Generated ${articles.length} articles`);
 

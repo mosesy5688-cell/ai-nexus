@@ -8,9 +8,9 @@ export let loadError = null;
 export let isFullSearchActive = false;
 
 const INDEX_URLS = {
-    model: 'https://cdn.free2aitools.com/cache/trending.json',
-    space: 'https://cdn.free2aitools.com/cache/trending_spaces.json',
-    dataset: 'https://cdn.free2aitools.com/cache/trending_datasets.json'
+    model: 'https://cdn.free2aitools.com/cache/trending.json.gz',
+    space: 'https://cdn.free2aitools.com/cache/trending_spaces.json.gz',
+    dataset: 'https://cdn.free2aitools.com/cache/trending_datasets.json.gz'
 };
 
 /**

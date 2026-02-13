@@ -22,7 +22,7 @@ function getCachePath(entity) {
     // V11: Unified Constitutional Cache Path
     // All entities use cache/entities/{type}/{slug}.json structure
     const type = entity.type || 'model';
-    return `cache/entities/${type}/${slug}.json`;
+    return `cache/entities/${type}/${slug}.json.gz`;
 }
 
 /**
@@ -60,7 +60,7 @@ function uploadToR2(r2Path, data) {
     fs.writeFileSync(tempFile, compressed);
 
     try {
-        execSync(`npx -y wrangler r2 object put ${R2_BUCKET}/${r2Path} --file ${tempFile} --remote`, {
+        execSync(`npx -y wrangler r2 object put ${R2_BUCKET}/${r2Path} --file ${tempFile} --remote --content-encoding gzip --content-type application/json`, {
             stdio: 'pipe'
         });
         return true;

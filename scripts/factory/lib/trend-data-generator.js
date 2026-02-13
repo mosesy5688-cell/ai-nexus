@@ -10,6 +10,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { smartWriteWithVersioning } from './smart-writer.js';
 
 /**
  * Generate trend data from FNI history
@@ -69,10 +70,8 @@ export async function generateTrendData(fniHistory, outputDir = 'output/cache') 
     const trendPath = path.join(outputDir, 'trend-data.json.gz');
     await fs.mkdir(path.dirname(trendPath), { recursive: true });
 
-    // Write trend data (Gzipped)
-    const zlib = await import('zlib');
-    const compressed = zlib.gzipSync(JSON.stringify(trendData, null, 0));
-    await fs.writeFile(trendPath, compressed);
+    // Write trend data (Gzipped via SmartWriter)
+    await smartWriteWithVersioning('trend-data.json', trendData, outputDir, { compress: true });
 
     const fileSize = (await fs.stat(trendPath)).size;
 

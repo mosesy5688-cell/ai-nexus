@@ -79,8 +79,9 @@ async function main() {
                     { encoding: 'buffer', maxBuffer: 1024 * 1024 }
                 );
                 const entity = JSON.parse(data.toString('utf8'));
-                const sourceId = entity.id || entity.entity?.id || path.basename(obj.key, '.json');
-                const relations = extractRelations(entity.entity || entity, sourceId);
+                // V16.6 Fix: Strip extensions agnostic of .gz
+                const sourceId = entity.id || entity.entity?.id || path.basename(obj.key).replace(/\.json(\.gz)?$/, '');
+                const relations = extractEntityRelations(entity.entity || entity, sourceId);
                 allRelations.push(...relations);
                 typeRelations += relations.length;
             } catch (e) { /* skip */ }

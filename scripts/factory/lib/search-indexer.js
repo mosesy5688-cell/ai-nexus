@@ -5,6 +5,8 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { smartWriteWithVersioning } from './smart-writer.js';
+import zlib from 'zlib';
 
 const SEARCH_CORE_SIZE = 5000; // Art 6.3: Top 5000 for core index
 
@@ -18,16 +20,15 @@ export async function generateSearchIndices(entities, outputDir = './output') {
     const searchDir = path.join(outputDir, 'cache');
     await fs.mkdir(searchDir, { recursive: true });
 
-    // Core index: Top N by FNI (Art 6.3: <500KB)
+    // Core index: Top N by FNI (Art 6.3: < 500KB)
     const coreEntities = entities.slice(0, SEARCH_CORE_SIZE).map(e => ({
-        ...e, // V18.2.1 GA: Inclusion by default
         id: e.id,
-        name: e.name || e.slug,
-        type: e.type,
-        description: (e.description || '').substring(0, 250),
-        fni_score: e.fni_score || 0,
-        author: e.author,
-        tags: Array.isArray(e.tags) ? e.tags : (typeof e.tags === 'string' ? JSON.parse(e.tags || '[]') : []),
+        name: e.name || e.slug || 'Unknown',
+        type: e.type || 'model',
+        author: e.author || '',
+        description: (e.description || '').substring(0, 150), // Truncated for size
+        tags: Array.isArray(e.tags) ? e.tags.slice(0, 5) : (typeof e.tags === 'string' ? JSON.parse(e.tags || '[]').slice(0, 5) : []),
+        fni_score: Math.round(e.fni_score || 0),
         image_url: e.image_url || null,
         slug: e.slug || e.id?.split(/[:/]/).pop()
     }));
@@ -39,23 +40,20 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         _generated: new Date().toISOString(),
     };
 
-    const zlib = await import('zlib');
-    const coreContent = zlib.gzipSync(JSON.stringify(coreIndex));
-    const coreSizeKB = (coreContent.length / 1024).toFixed(0);
-    console.log(`  [SEARCH] Core index: ${coreEntities.length} entities, ${coreSizeKB}KB (Compressed)`);
+    // Write indices (V16.6: Use fixed SmartWriter for Core)
+    const targetCoreKey = 'search-core.json';
+    await smartWriteWithVersioning(targetCoreKey, coreEntities, searchDir, { compress: true });
 
-    await fs.writeFile(path.join(searchDir, 'search-core.json.gz'), coreContent);
+    console.log(`  [SEARCH] Core index generated: ${coreEntities.length} entities`);
 
     // Full index: All entities (V14.5.3 Sharding)
     const fullEntities = entities.map(e => ({
-        ...e, // V18.2.1 GA: Inclusion by default
         id: e.id,
-        name: e.name || e.slug,
-        type: e.type,
-        fni_score: e.fni_score || 0,
-        author: e.author,
-        description: (e.description || '').substring(0, 250),
-        tags: Array.isArray(e.tags) ? e.tags : (typeof e.tags === 'string' ? JSON.parse(e.tags || '[]') : []),
+        name: e.name || e.slug || 'Unknown',
+        type: e.type || 'model',
+        author: e.author || '',
+        tags: Array.isArray(e.tags) ? e.tags.slice(0, 5) : (typeof e.tags === 'string' ? JSON.parse(e.tags || '[]').slice(0, 5) : []),
+        fni_score: Math.round(e.fni_score || 0),
         image_url: e.image_url || null,
         slug: e.slug || e.id?.split(/[:/]/).pop()
     }));
