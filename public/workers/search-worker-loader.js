@@ -53,8 +53,7 @@ async function tryFetchJson(url) {
             // in which case response.arrayBuffer() consumed the body.
             // We have 'buffer' from line 44. Use it!
             try {
-                const text = new TextDecoder().decode(buffer);
-                return JSON.parse(text);
+                return JSON.parse(new TextDecoder().decode(buffer));
             } catch (e2) {
                 // Final fallback: Re-fetch non-gz (network request)
                 return await (await fetch(url)).json();
