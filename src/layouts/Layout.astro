@@ -13,6 +13,7 @@ interface Props {
 	description?: string;
     image?: string;
     jsonld?: object;
+    canonical?: string;
 }
 
 // V3.1 Phase 7: Enhanced SEO defaults
@@ -20,10 +21,11 @@ const {
     title, 
     description = 'The Definitive Open-Source AI Index. VRAM calculator, precision tech specs, neural discovery, and actionable toolchains powered by Free2AI.', 
     image = '/og-image.jpg', 
-    jsonld 
+    jsonld,
+    canonical
 } = Astro.props;
 const resolvedImage = new URL(image, Astro.site || Astro.url.origin);
-const canonicalURL = new URL(Astro.url.pathname, Astro.site || Astro.url.origin);
+const canonicalURL = canonical ? new URL(canonical, Astro.site || Astro.url.origin) : new URL(Astro.url.pathname, Astro.site || Astro.url.origin);
 
 // V3.1 Phase 7: Schema.org Organization + WebSite with SearchAction
 const defaultSchema = {
@@ -96,7 +98,7 @@ const schemaToUse = jsonld || defaultSchema;
     <meta name="description" content={description}>
     <title>{title}</title>
 
-    <link rel="canonical" href={Astro.url.href} />
+    <link rel="canonical" href={canonicalURL.href} />
 
     <meta property="article:published_time" content={new Date().toISOString()} />
     <meta property="article:modified_time" content={new Date().toISOString()} />

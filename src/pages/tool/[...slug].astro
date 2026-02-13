@@ -18,7 +18,8 @@ import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
 // V19.0: ModelNavigation removed — not applicable to tools
 import { getUseCases } from '../../utils/inference.js';
 // 2. Efficient Data Loading (Single-Stream V16.5)
-import { loadEntityPack } from '../../utils/packet-loader.js';
+import { loadEntityStreams } from '../../utils/packet-loader.js';
+import { getRouteFromId } from '../../utils/mesh-routing-core.js';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -26,39 +27,41 @@ const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
 let tool = null;
 let error = null;
 let tagsArray = [];
-let pageTitle = "AI Development Tool - Free AI Tools";
-let pageDescription = "Explore high-performance AI frameworks, CLI tools, and libraries.";
+let pageTitle = "AI Developer Tool - Free AI Tools";
+let pageDescription = "Explore development tools and utilities for AI engineering.";
 let meshRelations = [];
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
   
-  // V16.5: Usage of Prefix-Aware Single-Stream Loader
+  // V16.5: Usage of 3-Stream Parallel Loader
   const type = 'tool';
-  const pack = await loadEntityPack(type, slugStr);
+  // V16.5: Static Assembly Architecture
+  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
   
-  if (!pack.entity || !pack._meta.available) {
+  if (!entity || !_meta.available) {
     Astro.response.status = 404;
     return Astro.redirect('/404?reason=tool-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { entity: resolvedTool, html: resolvedHtml, mesh: resolvedMesh } = pack;
-
-  tool = resolvedTool;
+  // 4. Transform & Prepare
+  tool = entity;
   tagsArray = tool?.tags || [];
-  meshRelations = resolvedMesh || [];
+  meshRelations = mesh || [];
 
-  const displayToolName = tool?.name || tool?.canonical_name;
-  pageTitle = `${displayToolName} - AI Tool Architecture`;
-  pageDescription = tool?.seo_summary?.description || tool?.description || `Deep dive into ${displayToolName} development tool.`;
+  const displayToolName = tool?.name || tool?.title || tool?.canonical_name || 'Unknown Tool';
+  pageTitle = `${displayToolName} - AI Tool Insight`;
+  const cleanedDesc = cleanDescription(tool?.description || '');
+  pageDescription = tool?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayToolName}.`;
   
-  // V16.5: Explicit HTML Assignment (Fused Priority)
-  tool.body_content = resolvedHtml || tool.body_content || null; // Tool uses `body_content` sometimes
+  // V16.5: Explicit HTML Assignment (Stream B Priority)
+  tool.html_readme = html || tool.html_readme || null; // Tool uses `body_content` sometimes
 
 } catch (e) {
   console.error("[ToolPage] Error loading tool:", e);
   error = e;
-  Astro.response.status = 500;
+  // V16.8: Suppress 500 to allow "Mesh Node Building" fallback UI
+  // Astro.response.status = 500;
 }
 
 if (!tool && !error) {
@@ -87,6 +90,7 @@ const jsonLd = tool ? {
     "name": displayAuthor
   }
 } : null;
+const canonicalPath = tool ? getRouteFromId(tool.id || normalizedSlug, 'tool') : undefined;
 ---
 
   <EntityLayout
@@ -95,75 +99,90 @@ const jsonLd = tool ? {
     title={pageTitle}
     description={pageDescription}
     jsonld={jsonLd}
+    canonical={canonicalPath}
   >
     {/* Zone 1: Hero */}
-    <EntityHeader
-      slot="hero"
-      name={toolName}
-      entityType="tool"
-      entityIcon="🛠️"
-      entityLabel={tool?.language || 'Dev Tool'}
-      verified={tool?.verified}
-      author={displayAuthor}
-      lastUpdated={tool?.last_updated}
-      description={tool?.seo_summary?.description || tool?.description}
-      fniScore={tool?.fni_score}
-      fniPercentile={tool?.fni_percentile}
-      fniCommentary={tool?.fni_commentary}
-      sourceUrl={tool?.source_url}
-      entityId={toolId}
-      hasImage={Boolean(tool?.image_url)}
-      trend_7d={tool?.trend_7d}
-    />
+    {tool && (
+      <EntityHeader
+        slot="hero"
+        name={toolName}
+        entityType="tool"
+        entityIcon={tool.entityDefinition?.display?.icon || '🛠️'}
+        entityLabel={tool.entityDefinition?.display?.labelSingular || 'Tool'}
+        verified={tool.verified}
+        author={tool.author}
+        lastUpdated={tool.last_updated}
+        description={tool.seo_summary?.description || tool.description}
+        fniScore={tool.fni_score}
+        fniPercentile={tool.fni_percentile}
+        fniCommentary={tool.fni_commentary}
+        sourceUrl={tool.source_url}
+        entityId={toolId}
+        hasImage={Boolean(tool.image_url)}
+        trend_7d={tool.trend_7d}
+      />
+    )}
 
     {/* Zone 1.5: Use Cases */}
-    <ZoneUseCases
-      slot="use-cases"
-      usecases={getUseCases(tool)}
-    />
+    {tool && (
+      <ZoneUseCases
+        slot="use-cases"
+        usecases={getUseCases(tool)}
+      />
+    )}
 
     {/* Zone 2: Insights Extra */}
-    <div slot="insights-extra" class="mt-4 space-y-8">
-       <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
-          <ModelInfoTable 
-            type="tool"
-            model={{
-              ...(tool || {}),
-              displayName: toolName,
-              pipeline_tag: tool?.language || tool?.category || 'AI Tool'
-            }} 
-          />
-       </div>
-    </div>
+    {tool && (
+      <div slot="insights-extra" class="mt-4 space-y-8">
+         <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
+            <ModelInfoTable 
+              type="tool"
+              model={{
+                ...tool,
+                displayName: toolName,
+                pipeline_tag: tool.language || 'Tool Logic'
+              }} 
+            />
+         </div>
+      </div>
+    )}
     
     {/* Zone 3: Core (Knowledge Mesh & Relations) */}
-    <div slot="core-desktop" class="space-y-16">
-       <UniversalCore entity={tool} type="tool" meshRelations={meshRelations} />
-       
-       <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
-          <CiteEntity 
-            id={toolId} 
-            name={toolName} 
-            author={displayAuthor} 
-            url={tool?.source_url} 
-            type="tool" 
-          />
-       </div>
-    </div>
+    {tool && (
+      <div slot="core-desktop" class="space-y-16">
+         <UniversalCore entity={tool} type="tool" meshRelations={meshRelations} />
+         
+         <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
+            <CiteEntity 
+              id={toolId} 
+              name={toolName} 
+              author={tool.author} 
+              url={tool.source_url} 
+              type="tool" 
+            />
+         </div>
+      </div>
+    )}
   
     {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive">
-       <div class="space-y-12">
-          {tool?.html_readme ? (
-            <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={tool.html_readme} />
-          ) : (
-            <ToolDeepDive tool={tool} />
-          )}
-       </div>
-    </div>
+    {tool && (
+      <div slot="deep-dive">
+         <div class="space-y-12">
+            {tool.html_readme ? (
+              <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={tool.html_readme} />
+            ) : (
+               <div class="p-8 bg-gray-50 dark:bg-gray-900 rounded-2xl text-center">
+                  <p class="text-gray-500">No detailed documentation available.</p>
+               </div>
+            )}
+         </div>
+      </div>
+    )}
 
     {/* Zone 5: Community */}
-    <div slot="community">
-        <AiDisclaimer source={tool?.source} lastUpdated={tool?.last_updated} />
-    </div>
+    {tool && (
+      <div slot="community">
+          <AiDisclaimer source={tool.source} lastUpdated={tool.last_updated} />
+      </div>
+    )}
   </EntityLayout>

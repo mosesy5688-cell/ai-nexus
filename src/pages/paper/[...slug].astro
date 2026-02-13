@@ -18,7 +18,8 @@ import PaperDeepDive from '../../components/paper-detail/PaperDeepDive.astro';
 // V19.0: ModelNavigation removed — not applicable to papers
 import { getUseCases } from '../../utils/inference.js';
 // 2. Efficient Data Loading (Single-Stream V16.5)
-import { loadEntityPack } from '../../utils/packet-loader.js';
+import { loadEntityStreams } from '../../utils/packet-loader.js';
+import { getRouteFromId } from '../../utils/mesh-routing-core.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
 
 const { slug } = Astro.params;
@@ -34,24 +35,27 @@ let meshRelations = [];
 try {
   if (!slug) throw new Error("No slug/ID provided");
   
-  // V16.5: Usage of Prefix-Aware Single-Stream Loader
+  // V16.5: Usage of 3-Stream Parallel Loader
   const type = 'paper';
-  const pack = await loadEntityPack(type, slugStr);
+  // V16.5: Static Assembly Architecture
+  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
   
-  if (!pack.entity || !pack._meta.available) {
+  if (!entity || !_meta.available) {
     Astro.response.status = 404;
     return Astro.redirect('/404?reason=paper-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { entity: resolvedPaper, html: resolvedHtml, mesh: resolvedMesh } = pack;
-  const isFallback = pack?._meta?.source === 'entities-fallback';
+  const isFallback = _meta?.source === 'entities-fallback' || _meta?.source === 'fused-fallback';
 
-  paper = resolvedPaper;
+  // 4. Transform & Prepare
+  paper = entity;
   tagsArray = paper?.tags || [];
-  meshRelations = resolvedMesh || [];
+  meshRelations = mesh || [];
 
-  // V16.5: Explicit HTML Assignment (Fused Priority)
-  paper.body_content = resolvedHtml || paper.body_content || null;
+  // V16.5: Explicit HTML Assignment (Stream B Priority)
+  paper.body_content = html || paper.body_content || null;
+  // Deep Dive sometimes uses html_readme too
+  paper.html_readme = html || paper.html_readme || null;
 
   // V16.96: Canonical Redirection Guard (Art.III URL Stability)
   // 1. Catch legacy /paper/arxiv/ID and redirect to clean /paper/ID
@@ -80,7 +84,8 @@ try {
 } catch (e) {
   console.error("[PaperPage] Error loading paper:", e);
   error = e;
-  Astro.response.status = 500;
+  // V16.8: Suppress 500 to allow "Mesh Node Building" fallback UI
+  // Astro.response.status = 500;
 }
 
 if (!paper && !error) {
@@ -105,6 +110,7 @@ const jsonLd = paper ? {
   "url": `https://free2aitools.com/paper/${slugStr}`,
   "author": Array.isArray(paper.authors) ? paper.authors.map(a => ({ "@type": "Person", "name": a })) : [{ "@type": "Person", "name": displayAuthor }]
 } : null;
+const canonicalPath = paper ? getRouteFromId(paper.id || slugStr, 'paper') : undefined; // Changed normalizedSlug to slugStr
 ---
 
   <EntityLayout
@@ -113,75 +119,88 @@ const jsonLd = paper ? {
     title={pageTitle}
     description={pageDescription}
     jsonld={jsonLd}
+    canonical={canonicalPath}
   >
     {/* Zone 1: Hero */}
-    <EntityHeader
-      slot="hero"
-      name={paperTitle}
-      entityType="paper"
-      entityIcon="📄"
-      entityLabel="Research Paper"
-      verified={paper?.verified}
-      author={displayAuthor}
-      lastUpdated={paper?.last_updated || paper?.published_date}
-      description={paper?.seo_summary?.description || paper?.abstract}
-      fniScore={paper?.fni_score}
-      fniPercentile={paper?.fni_percentile}
-      fniCommentary={paper?.fni_commentary}
-      sourceUrl={paper?.source_url}
-      entityId={paperId}
-      hasImage={Boolean(paper?.image_url)}
-      trend_7d={paper?.trend_7d}
-    />
+    {paper && (
+      <EntityHeader
+        slot="hero"
+        name={paperTitle}
+        entityType="paper"
+        entityIcon="📄"
+        entityLabel="Research Paper"
+        verified={paper.verified}
+        author={displayAuthor}
+        lastUpdated={paper.last_updated || paper.published_date}
+        description={paper.seo_summary?.description || paper.abstract}
+        fniScore={paper.fni_score}
+        fniPercentile={paper.fni_percentile}
+        fniCommentary={paper.fni_commentary}
+        sourceUrl={paper.source_url}
+        entityId={paperId}
+        hasImage={Boolean(paper.image_url)}
+        trend_7d={paper.trend_7d}
+      />
+    )}
 
     {/* Zone 1.5: Use Cases */}
-    <ZoneUseCases
-      slot="use-cases"
-      usecases={getUseCases(paper)}
-    />
+    {paper && (
+      <ZoneUseCases
+        slot="use-cases"
+        usecases={getUseCases(paper)}
+      />
+    )}
 
     {/* Zone 2: Insights Extra */}
-    <div slot="insights-extra" class="mt-4 space-y-8">
-       <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
-          <ModelInfoTable 
-            type="paper"
-            model={{
-              ...(paper || {}),
-              displayName: paperTitle,
-              pipeline_tag: paper?.arxiv_category || 'Research Paper'
-            }} 
-          />
-       </div>
-    </div>
+    {paper && (
+      <div slot="insights-extra" class="mt-4 space-y-8">
+         <div class="passport-block animate-slide-up" style="animation-delay: 0.2s;">
+            <ModelInfoTable 
+              type="paper"
+              model={{
+                ...paper,
+                displayName: paperTitle,
+                pipeline_tag: paper.arxiv_category || 'Research Paper'
+              }} 
+            />
+         </div>
+      </div>
+    )}
 
     {/* Zone 3: Core (Knowledge Mesh & Relations) */}
-    <div slot="core-desktop" class="space-y-16">
-       <UniversalCore entity={paper} type="paper" meshRelations={meshRelations} />
-       
-       <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
-          <CiteEntity 
-            id={paperId} 
-            name={paperTitle} 
-            author={displayAuthor} 
-            url={paper?.source_url} 
-            type="paper" 
-          />
-       </div>
-    </div>
+    {paper && (
+      <div slot="core-desktop" class="space-y-16">
+         <UniversalCore entity={paper} type="paper" meshRelations={meshRelations} />
+         
+         <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
+            <CiteEntity 
+              id={paperId} 
+              name={paperTitle} 
+              author={displayAuthor} 
+              url={paper.source_url} 
+              type="paper" 
+            />
+         </div>
+      </div>
+    )}
   
     {/* Zone 4: Deep Dive */}
-    <div slot="deep-dive">
-       <div class="space-y-12">
-          {paper?.html_readme ? (
-            <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={paper.html_readme} />
-          ) : (
-            <PaperDeepDive paper={paper} />
-          )}
-       </div>
-    </div>
+    {paper && (
+      <div slot="deep-dive">
+         <div class="space-y-12">
+            {paper.html_readme ? (
+              <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={paper.html_readme} />
+            ) : (
+              <PaperDeepDive paper={paper} />
+            )}
+         </div>
+      </div>
+    )}
 
     {/* Zone 5: Community */}
-    <div slot="community">
-        <AiDisclaimer source={paper?.source} lastUpdated={paper?.last_updated} />
-    </div>
+    {paper && (
+      <div slot="community">
+          <AiDisclaimer source={paper.source} lastUpdated={paper.last_updated} />
+      </div>
+    )}
   </EntityLayout>

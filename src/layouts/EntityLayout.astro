@@ -23,9 +23,10 @@ export interface Props {
   description: string;
   image?: string;
   jsonld?: object;
+  canonical?: string;
 }
 
-const { entity, type, title, description, image, jsonld } = Astro.props;
+const { entity, type, title, description, image, jsonld, canonical } = Astro.props;
 const hasEntity = !!entity;
 
 // Safe derivation of values
@@ -53,7 +54,7 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
      </div>
   </Layout>
 ) : (
-  <Layout title={title} description={description} image={image} jsonld={jsonld}>
+  <Layout title={title} description={description} image={image} jsonld={jsonld} canonical={canonical}>
     <EntityStickyHeader 
       type={type} 
       entity={entity} 
