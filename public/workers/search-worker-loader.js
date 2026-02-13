@@ -112,7 +112,9 @@ export async function loadFullIndex(onProgress) {
         }
 
         const ext = manifest.extension || (manifest.totalShards > 0 ? '.gz' : '.json');
-        const shardUrls = Array.from({ length: totalShards }, (_, i) => `https://cdn.free2aitools.com/cache/search/shard-${i}.json${ext === '.gz' ? '.gz' : ''}`);
+        // V16.5.8 FIX: manifest.extension already includes dot (e.g. ".gz")
+        // Don't append it again!
+        const shardUrls = Array.from({ length: totalShards }, (_, i) => `https://cdn.free2aitools.com/cache/search/shard-${i}.json${ext}`);
         const BATCH_SIZE = 5;
         let loadedShards = 0;
 
