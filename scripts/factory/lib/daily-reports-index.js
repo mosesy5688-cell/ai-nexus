@@ -61,9 +61,12 @@ export async function generateDailyReportsIndex(outputDir = './output') {
                         highlights: highlightsCount
                     });
 
-                    // Sync to cache location (V17.9: Direct into reportsDir)
+                    // Sync to cache location (V17.9: Direct into reportsDir/daily)
                     const zlib = await import('zlib');
-                    const newPath = path.join(reportsDir, `${reportId}.json.gz`);
+                    const dailyReportsDir = path.join(reportsDir, 'daily');
+                    await fs.mkdir(dailyReportsDir, { recursive: true });
+
+                    const newPath = path.join(dailyReportsDir, `${reportId}.json.gz`);
                     await fs.writeFile(newPath, zlib.gzipSync(JSON.stringify({
                         _v: CONFIG.VERSION,
                         ...reportData,
