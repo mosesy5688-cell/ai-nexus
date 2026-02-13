@@ -76,58 +76,46 @@ export async function loadEntityStreams(type: string, slug: string) {
     // 1. Normalize Slug
     const normalized = normalizeEntitySlug(slug, type);
 
-    // 2. Define Stream Paths (SPEC-ID-PREFIX-V16.5 Standard)
-    // Logic: URL is clean (Short), Storage is prefixes (Full ID).
-    // Formula: {source_prefix}-{type_prefix}--{owner}--{name}
+    // 2. Robust Path Discovery (V16.8.2 Hotfix)
+    // Instead of enforcing a strict prefix (which caused 404s), we generate ALL possible candidates
+    // and try them in parallel or sequence. This honors "Stable URLs" by supporting legacy and new storage keys.
+    const candidates = getR2PathCandidates(type, normalized);
 
-    // Prefix Mapping Table (Source: SPEC-ID-PREFIX-V16.5)
-    const prefixMap: Record<string, string> = {
-        'model': 'hf-model--',
-        'space': 'hf-space--',
-        'dataset': 'hf-dataset--',
-        'agent': 'gh-agent--',   // Standardizing on GitHub for Agents per Spec
-        'tool': 'gh-tool--',     // Standardizing on GitHub for Tools per Spec
-        'paper': 'arxiv-paper--'
+    // We need to find:
+    // A. The Entity Data (Metadata)
+    // B. The Fused Data (HTML/Mesh) - often mixed with Entity in V18.2 "Fused" packets
+
+    // Helper to find the first existing path from a list of candidates
+    const findFirstExisting = async (pCandidates: string[]): Promise<{ data: any, path: string } | null> => {
+        for (const p of pCandidates) {
+            const data = await fetchCompressedJSON(p);
+            if (data) return { data, path: p };
+        }
+        return null;
     };
 
-    // Ensure slug has the correct prefix for storage lookups
-    // normalizeEntitySlug() strips prefixes, so we must re-attach the authoritative one.
-    const prefix = prefixMap[type] || '';
-    const storageSlug = normalized.startsWith(prefix) ? normalized : `${prefix}${normalized}`;
+    // Strategy:
+    // 1. Try "Fused" paths first (most efficient, contains E+H+M)
+    // 2. Try "Entity" paths second (metadata only)
 
-    // Stream A: Entity Metadata
-    // Path: entities/{type}/{storage_id}.json
-    const entityPath = `entities/${type}/${storageSlug}.json`;
-
-    // Stream B: Fused Content
-    // Fused packets use the Flattened ID: fused/{storage_id}.json
-    const fusedPath = `fused/${storageSlug}.json`;
-
-    // Stream C: Mesh Profile
-    // Mesh profiles use the Flattened ID: mesh/profiles/{storage_id}.json
-    const meshPath = `mesh/profiles/${storageSlug}.json`;
+    const fusedCandidates = candidates.filter(c => c.includes('/fused/'));
+    const entityCandidates = candidates.filter(c => c.includes('/entities/'));
+    const meshCandidates = candidates.map(c => c.replace('/entities/', '/mesh/profiles/').replace('/fused/', '/mesh/profiles/'));
 
     try {
-        // 3. Parallel Fetch (The "Static Assembly" Core)
-        const [entityPack, fusedPack, meshPack] = await Promise.all([
-            fetchCompressedJSON(entityPath),  // Stream A
-            fetchCompressedJSON(fusedPath),   // Stream B
-            fetchCompressedJSON(meshPath)     // Stream C
+        // 3. Parallel Discovery (The "Dynamic Assembly" Core)
+        // We try to fetch the best available packet for each stream
+        const [fusedResult, entityResult, meshPack] = await Promise.all([
+            findFirstExisting(fusedCandidates),
+            findFirstExisting(entityCandidates),
+            findFirstExisting(meshCandidates.slice(0, 2)) // Only check top 2 mesh paths to save ops
         ]);
 
-        // 4. Validate Core Entity (Stream A)
-        // If Stream A fails, the page cannot exist.
+        const fusedPack = fusedResult?.data;
+        const entityPack = entityResult?.data || (fusedPack?.entity ? fusedPack.entity : (fusedPack?.id ? fusedPack : null));
+
+        // 4. Validate Core Entity
         if (!entityPack) {
-            // Fallback: Try Fused Packet as Entity Source (Migration Phase Compat)
-            if (fusedPack && (fusedPack.entity || fusedPack.id)) {
-                const entity = fusedPack.entity || fusedPack;
-                return {
-                    entity,
-                    html: fusedPack.html || fusedPack.html_readme || entity.html_readme || null,
-                    mesh: meshPack?.nodes || fusedPack.mesh_profile?.nodes || [],
-                    _meta: { available: true, source: 'fused-fallback', isFused: true }
-                };
-            }
             return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
         }
 
@@ -142,9 +130,10 @@ export async function loadEntityStreams(type: string, slug: string) {
         }
 
         // Stream C Extraction (Mesh)
+        // V16.8.2 FIX: Unwrap the 'data' property from findFirstExisting result
         let mesh = [];
-        if (meshPack && meshPack.nodes) {
-            mesh = meshPack.nodes;
+        if (meshPack && meshPack.data && meshPack.data.nodes) {
+            mesh = meshPack.data.nodes;
         } else if (fusedPack && fusedPack.mesh_profile) {
             // Fallback to fused mesh if dedicated stream missing
             mesh = fusedPack.mesh_profile.nodes || fusedPack.mesh_profile || [];
@@ -156,11 +145,17 @@ export async function loadEntityStreams(type: string, slug: string) {
             mesh,
             _meta: {
                 available: true,
-                source: '3-stream-assembly',
+                source: '3-stream-discovery', // Updated source name
                 streams: {
                     entity: !!entityPack,
                     html: !!fusedPack,
                     mesh: !!meshPack
+                },
+                // V16.8.2: Debug Info - Report which paths were actually used
+                paths: {
+                    entity: entityResult?.path || 'fallback',
+                    fused: fusedResult?.path || 'missing',
+                    mesh: meshPack?.path || 'fallback'
                 }
             }
         };
