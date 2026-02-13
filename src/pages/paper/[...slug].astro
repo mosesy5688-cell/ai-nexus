@@ -19,6 +19,7 @@ import PaperDeepDive from '../../components/paper-detail/PaperDeepDive.astro';
 import { getUseCases } from '../../utils/inference.js';
 // 2. Efficient Data Loading (Single-Stream V16.5)
 import { loadEntityPack } from '../../utils/packet-loader.js';
+import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
