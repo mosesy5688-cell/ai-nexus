@@ -15,10 +15,20 @@ try {
         if (res.ok) {
             let data;
             if (p.endsWith('.gz')) {
-                const ds = new DecompressionStream('gzip');
-                const decompressedStream = res.body.pipeThrough(ds);
-                const response = new Response(decompressedStream);
-                data = await response.json();
+                // V16.5.12: Use ArrayBuffer strategy (Robust for SSR/Node)
+                const buffer = await res.arrayBuffer();
+                try {
+                    const ds = new DecompressionStream('gzip');
+                    const writer = ds.writable.getWriter();
+                    writer.write(buffer);
+                    writer.close();
+                    const output = new Response(ds.readable);
+                    data = await output.json();
+                } catch (e) {
+                    // Fallback: Buffer might be plain JSON
+                    const text = new TextDecoder().decode(buffer);
+                    data = JSON.parse(text);
+                }
             } else {
                 data = await res.json();
             }
