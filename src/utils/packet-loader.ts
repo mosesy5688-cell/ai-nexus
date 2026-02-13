@@ -31,24 +31,32 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
                     let buffer;
                     try {
                         buffer = await res.arrayBuffer();
-                        try {
-                            // Attempt Gzip Decompression
-                            const ds = new DecompressionStream('gzip');
-                            const writer = ds.writable.getWriter();
-                            writer.write(buffer);
-                            writer.close();
-                            const output = new Response(ds.readable);
-                            return await output.json();
-                        } catch (e) {
-                            // Fallback: Buffer might be plain JSON (R2 auto-switched)
-                            if (buffer) {
+
+                        // V16.6.2: Isomorphic Decompression (SSR Compatibility)
+                        if (typeof globalThis.DecompressionStream === 'undefined' && typeof process !== 'undefined') {
+                            const { gunzipSync } = await import('node:zlib');
+                            const decompressed = gunzipSync(new Uint8Array(buffer));
+                            return JSON.parse(new TextDecoder().decode(decompressed));
+                        }
+
+                        // Browser/Worker path
+                        const ds = new DecompressionStream('gzip');
+                        const writer = ds.writable.getWriter();
+                        writer.write(buffer);
+                        writer.close();
+                        const output = new Response(ds.readable);
+                        return await output.json();
+                    } catch (e) {
+                        // Fallback: Buffer might be plain JSON (R2 auto-switched or decompression failed)
+                        if (buffer) {
+                            try {
                                 const text = new TextDecoder().decode(buffer);
                                 return JSON.parse(text);
+                            } catch (e2: any) {
+                                console.error(`[PacketLoader] Decompression/Parse failed for ${url}:`, e2.message);
                             }
-                            return null;
                         }
-                    } catch (e) {
-                        return null; // Binary read failed
+                        return null;
                     }
                 }
 
