@@ -32,6 +32,9 @@ async function tryFetchJson(url) {
     const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip' || response.headers.get('content-encoding') === 'gzip';
 
     if ((response.url.endsWith('.gz') || url.endsWith('.gz')) && !isAlreadyDecompressed) {
+        // Clone BEFORE consumption to avoid "body stream already read"
+        const clone = response.clone();
+
         try {
             const ds = new DecompressionStream('gzip');
             const decompressedStream = response.body.pipeThrough(ds);
@@ -39,7 +42,7 @@ async function tryFetchJson(url) {
             return await decompressedRes.json();
         } catch (e) {
             // Fallback: the browser might have decompressed it but kept the header/url
-            return await response.json();
+            return await clone.json();
         }
     }
     return await response.json();
