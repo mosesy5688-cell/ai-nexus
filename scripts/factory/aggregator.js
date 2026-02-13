@@ -32,7 +32,7 @@ const CONFIG = {
     MIN_SUCCESS_RATE: 0.8,
     OUTPUT_DIR: './output',
     ARTIFACT_DIR: './artifacts',
-    CODE_VERSION: 'v16.11.1', // Increment this to bust incremental task cache
+    CODE_VERSION: 'v16.11.2', // Increment this to bust incremental task cache
 };
 
 // Configuration & Argument Parsing
@@ -150,7 +150,11 @@ async function main() {
             }
             console.log(`[AGGREGATOR] Task ${task.id} logic completed.`);
             if (task.id) await updateTaskChecksum(task.id, rankedEntities, CONFIG.CODE_VERSION);
-        } catch (e) { console.error(`[AGGREGATOR] ❌ Task ${task.name} failed: ${e.message}`); }
+        } catch (e) {
+            console.error(`[AGGREGATOR] ❌ Task ${task.name} failed: ${e.message}`);
+            // V16.6.4 Fix: If a specific task was requested, fail hard so CI detects it
+            if (taskArg) process.exit(1);
+        }
     }
 
     // V18.2.1: Monolith save removed to prevent RangeError: Invalid string length.

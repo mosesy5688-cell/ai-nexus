@@ -7,6 +7,8 @@
  * Outputs: explicit.json (V14.5.2) + relations.json (legacy)
  */
 
+import fs from 'fs/promises';
+import path from 'path';
 import { smartWriteWithVersioning } from './smart-writer.js';
 import { extractEntityRelations } from './relation-extractors.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';

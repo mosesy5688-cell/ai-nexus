@@ -202,6 +202,13 @@ export async function generateMeshGraph(outputDir = './output') {
     }
 
     // Generate graph.json (V16.6: Gzip via SmartWriter)
+    const graph = {
+        _v: CONFIG.VERSION,
+        _ts: new Date().toISOString(),
+        nodes,
+        edges,
+        stats
+    };
     await smartWriteWithVersioning('graph.json', graph, meshDir, { compress: true });
 
     // Generate stats.json
