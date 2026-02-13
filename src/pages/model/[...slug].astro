@@ -12,7 +12,7 @@ import { deriveEntityType, ENTITY_DEFINITIONS } from '../../data/entity-definiti
 import { cleanDescription, generateModelJsonLd, hasCapability } from '../../utils/model-page-helpers.ts';
 import { getModelFromCache } from '../../utils/entity-cache-reader.js';
 import { loadSpecs, loadBenchmarks } from '../../utils/loadCachedJSON.js';
-import { prepareModelPageData } from '../../utils/model-page-data.js';
+import { loadEntityPack } from '../../utils/packet-loader.js';
 
 
 const { slug } = Astro.params;
@@ -28,24 +28,33 @@ let meshRelations = [];
 
 try {
   if (!slug) throw new Error("No slug provided");
-  const pageData = await prepareModelPageData(slug, slugStr, Astro.locals);
+  // 2. Efficient Data Loading (Single-Stream V16.5)
+  const pack = await loadEntityPack(type, slugStr);
   
-  if (!pageData) {
+  // 3. Validation & 404 Handling (Zero-Entropy)
+  if (!pack.entity || !pack._meta.available) {
     // V15.12: Explicit 404 for unknown entities
     Astro.response.status = 404;
     return Astro.redirect('/404?reason=entity-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { model: resolvedModel, isFallback, repoName, similarModels: resolvedSimilar, tagsArray: resolvedTags, meshRelations: resolvedMesh } = pageData;
-  model = resolvedModel;
-  similarModels = resolvedSimilar;
-  tagsArray = resolvedTags;
-  meshRelations = resolvedMesh || [];
+  const { entity: resolvedModel, html: resolvedHtml, mesh: resolvedMesh } = pack;
 
-  const displayModelName = model?.name || (isFallback ? repoName : model?.canonical_name) || 'Unknown Model';
+  // 4. Transform & Prepare
+  model = resolvedModel;
+  meshRelations = resolvedMesh || []; // Mesh is now inside the unified packet
+  tagsArray = model?.tags || [];
+
+  const displayModelName = model?.name || model?.canonical_name || 'Unknown Model';
   pageTitle = `${displayModelName} - AI Model Insights & Benchmarks`;
   cleanedDesc = cleanDescription(model?.description || '');
   pageDescription = model?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayModelName}.`;
+  
+  // V16.5: Explicit HTML Assignment (Fused Priority)
+  // If `resolvedHtml` is present (from Fused), use it.
+  // Fallback to `entity.html_readme` only if needed (legacy path).
+  // Note: We do NOT use a separate `htmlPack` anymore.
+  model.html_readme = resolvedHtml || model.html_readme || null; 
 
 } catch (e) {
   console.error("Error loading model:", e);

@@ -4,6 +4,7 @@
  * V16.11: Restricted to R2 Source only. No dynamic tag promotion.
  */
 import { fetchMeshRelations, fetchGraphMetadata, fetchConceptMetadata, stripPrefix, isMatch, getTypeFromId, normalizeSlug, KNOWLEDGE_ALIAS_MAP } from './knowledge-cache-reader.js';
+import { processRelationsIntoTiers } from './mesh-processor.js';
 import { loadCachedJSON, loadSpecs } from './loadCachedJSON.js';
 import { articles as knowledgeArticles } from '../data/knowledge-articles.js';
 
@@ -98,39 +99,12 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
     };
 
     // 1. Process Relations (Strict Aggregate from R2)
-    const filteredRelations = [];
-    rawRelations.forEach(rel => {
-        if (!rel) return;
-        const neighborId = isMatch(rel.norm_source, normRoot) ? rel.target_id : rel.source_id;
-        if (!neighborId) return;
+    const { tiers: processedTiers, processedRelations, nodeRegistry: registry } = processRelationsIntoTiers(rawRelations, nodeRegistry, seenIds, graphMeta, tiers, normRoot);
 
-        const normNeighbor = stripPrefix(neighborId);
-        if (normNeighbor === normRoot || seenIds.has(normNeighbor)) return;
-
-        seenIds.add(normNeighbor);
-
-        let node = ensureNode(neighborId, rel.target_type || rel.source_type);
-        if (!node) return;
-
-        const relType = (rel.relation_type || 'RELATED').toUpperCase();
-        node.relation = relType;
-
-        if (!node._mapped) {
-            node._mapped = true;
-            // 4-Tier Magnetic Alignment
-            if (node.type === 'knowledge') tiers.explanation.nodes.push(node);
-            else if (['model', 'agent', 'tool', 'space'].includes(node.type)) tiers.core.nodes.push(node);
-            else if (['dataset', 'paper'].includes(node.type)) tiers.utility.nodes.push(node);
-            else if (node.type === 'report') tiers.digest.nodes.push(node);
-
-            filteredRelations.push({
-                ...rel,
-                target_id: neighborId,
-                target_type: node.type,
-                target_name: node.name
-            });
-        }
-    });
+    // Merge back
+    Object.assign(tiers, processedTiers);
+    processedRelations.forEach(r => filteredRelations.push(r));
+    // Registry updated by reference, but ensuring sync
 
     // 2. High-Confidence Structural Injections (ArXiv & Explicit Relations)
     if (entity) {
@@ -228,3 +202,5 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
 
     return { tiers, nodeRegistry, filteredRelations };
 }
+
+// Logic extracted to mesh-processor.js

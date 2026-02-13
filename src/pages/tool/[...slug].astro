@@ -17,16 +17,14 @@ import CiteEntity from '../../components/common/CiteEntity.astro';
 import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
 // V19.0: ModelNavigation removed — not applicable to tools
 import { getUseCases } from '../../utils/inference.js';
-import { prepareToolPageData } from '../../utils/tool-page-data.js';
-import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+// 2. Efficient Data Loading (Single-Stream V16.5)
+import { loadEntityPack } from '../../utils/packet-loader.js';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-const normalizedSlug = normalizeEntitySlug(slugStr);
 
 let tool = null;
 let error = null;
-let similarEntities = [];
 let tagsArray = [];
 let pageTitle = "AI Development Tool - Free AI Tools";
 let pageDescription = "Explore high-performance AI frameworks, CLI tools, and libraries.";
@@ -34,22 +32,27 @@ let meshRelations = [];
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
-  const pageData = await prepareToolPageData(slug, slugStr, Astro.locals);
   
-  if (!pageData) {
+  // V16.5: Usage of Prefix-Aware Single-Stream Loader
+  const pack = await loadEntityPack('tool', slugStr);
+  
+  if (!pack.entity || !pack._meta.available) {
     Astro.response.status = 404;
     return Astro.redirect('/404?reason=tool-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { tool: resolvedTool, isFallback, repoName, similarEntities: rSimilar, tagsArray: rTags, meshRelations: resolvedMesh } = pageData;
+  const { entity: resolvedTool, html: resolvedHtml, mesh: resolvedMesh } = pack;
+
   tool = resolvedTool;
-  similarEntities = rSimilar;
-  tagsArray = rTags;
+  tagsArray = tool?.tags || [];
   meshRelations = resolvedMesh || [];
 
-  const displayToolName = tool?.name || (isFallback ? repoName : tool?.canonical_name);
+  const displayToolName = tool?.name || tool?.canonical_name;
   pageTitle = `${displayToolName} - AI Tool Architecture`;
   pageDescription = tool?.seo_summary?.description || tool?.description || `Deep dive into ${displayToolName} development tool.`;
+  
+  // V16.5: Explicit HTML Assignment (Fused Priority)
+  tool.body_content = resolvedHtml || tool.body_content || null; // Tool uses `body_content` sometimes
 
 } catch (e) {
   console.error("[ToolPage] Error loading tool:", e);

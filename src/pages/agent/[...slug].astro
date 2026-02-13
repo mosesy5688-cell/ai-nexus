@@ -20,42 +20,44 @@ import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 // V19.0: ModelNavigation removed — not applicable to agents
 import CiteEntity from '../../components/common/CiteEntity.astro';
 
-import { prepareAgentPageData } from '../../utils/agent-page-data.js';
-import { cleanDescription } from '../../utils/model-page-helpers.ts';
-import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+// 2. Efficient Data Loading (Single-Stream V16.5)
+import { loadEntityPack } from '../../utils/packet-loader.js';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-const normalizedSlug = normalizeEntitySlug(slugStr);
 
 let agent = null;
 let error = null;
-let similarEntities = [];
+let meshRelations = [];
 let tagsArray = [];
 let pageTitle = "AI Agent Details - Free AI Tools";
 let pageDescription = "Explore comprehensive information about this AI agent.";
 let cleanedDesc = "";
-let meshRelations = [];
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
-  const pageData = await prepareAgentPageData(slug, slugStr, Astro.locals);
   
-  if (!pageData) {
-    Astro.response.status = 404;
-    return Astro.redirect('/404?reason=agent-not-found&id=' + encodeURIComponent(slugStr));
+  // V16.5: Usage of Prefix-Aware Single-Stream Loader
+  const pack = await loadEntityPack('agent', slugStr);
+
+  if (!pack.entity || !pack._meta.available) {
+     Astro.response.status = 404;
+     return Astro.redirect('/404?reason=agent-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { agent: resolvedAgent, isFallback, repoName, similarEntities: resolvedSimilar, tagsArray: resolvedTags, meshRelations: resolvedMesh } = pageData;
-  agent = resolvedAgent;
-  similarEntities = resolvedSimilar;
-  tagsArray = resolvedTags;
-  meshRelations = resolvedMesh || [];
+  const { entity: resolvedAgent, html: resolvedHtml, mesh: resolvedMesh } = pack;
 
-  const displayAgentName = agent?.name || (isFallback ? repoName : agent?.canonical_name) || 'Unknown Agent';
+  agent = resolvedAgent;
+  meshRelations = resolvedMesh || [];
+  tagsArray = agent?.tags || [];
+
+  const displayAgentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
   pageTitle = `${displayAgentName} - AI Agent Insights & Frameworks`;
   cleanedDesc = cleanDescription(agent?.description || '');
   pageDescription = agent?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayAgentName}.`;
+
+  // V16.5: Explicit HTML Assignment (Fused Priority)
+  agent.html_readme = resolvedHtml || agent.html_readme || null;
 
 } catch (e) {
   console.error("Error loading agent:", e);

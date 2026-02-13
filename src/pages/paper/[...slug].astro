@@ -17,16 +17,14 @@ import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import PaperDeepDive from '../../components/paper-detail/PaperDeepDive.astro';
 // V19.0: ModelNavigation removed — not applicable to papers
 import { getUseCases } from '../../utils/inference.js';
-import { preparePaperPageData } from '../../utils/paper-page-data.js';
-import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+// 2. Efficient Data Loading (Single-Stream V16.5)
+import { loadEntityPack } from '../../utils/packet-loader.js';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
-const normalizedSlug = normalizeEntitySlug(slugStr);
 
 let paper = null;
 let error = null;
-let similarEntities = [];
 let tagsArray = [];
 let pageTitle = "AI Research Paper - Free AI Tools";
 let pageDescription = "Explore the latest breakthroughs in AI research and architectures.";
@@ -34,18 +32,23 @@ let meshRelations = [];
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
-  const pageData = await preparePaperPageData(slug, slugStr, Astro.locals);
   
-  if (!pageData) {
+  // V16.5: Usage of Prefix-Aware Single-Stream Loader
+  const pack = await loadEntityPack('paper', slugStr);
+  
+  if (!pack.entity || !pack._meta.available) {
     Astro.response.status = 404;
     return Astro.redirect('/404?reason=paper-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const { paper: resolvedPaper, isFallback, similarEntities: rSimilar, tagsArray: rTags, meshRelations: resolvedMesh } = pageData;
+  const { entity: resolvedPaper, html: resolvedHtml, mesh: resolvedMesh } = pack;
+
   paper = resolvedPaper;
-  similarEntities = rSimilar;
-  tagsArray = rTags;
+  tagsArray = paper?.tags || [];
   meshRelations = resolvedMesh || [];
+
+  // V16.5: Explicit HTML Assignment (Fused Priority)
+  paper.body_content = resolvedHtml || paper.body_content || null;
 
   // V16.96: Canonical Redirection Guard (Art.III URL Stability)
   // 1. Catch legacy /paper/arxiv/ID and redirect to clean /paper/ID
