@@ -29,6 +29,7 @@ let meshRelations = [];
 try {
   if (!slug) throw new Error("No slug provided");
   // 2. Efficient Data Loading (Single-Stream V16.5)
+  const type = 'model';
   const pack = await loadEntityPack(type, slugStr);
   
   // 3. Validation & 404 Handling (Zero-Entropy)

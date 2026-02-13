@@ -35,7 +35,8 @@ try {
   if (!slug) throw new Error("No slug/ID provided");
   
   // V16.5: Usage of Prefix-Aware Single-Stream Loader
-  const pack = await loadEntityPack('dataset', slugStr);
+  const type = 'dataset';
+  const pack = await loadEntityPack(type, slugStr);
   
   if (!pack.entity || !pack._meta.available) {
     Astro.response.status = 404;
