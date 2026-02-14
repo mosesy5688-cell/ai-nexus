@@ -12,4 +12,4 @@ import { marked } from 'marked';
 const htmlContent = marked.parse(content || '');
 ---
 
-<article class="article-content" set:html={htmlContent} />
+<article class="article-content prose prose-indigo dark:prose-invert max-w-none [&_a]:text-blue-600 [&_a]:font-bold [&_a]:underline" set:html={htmlContent} />
