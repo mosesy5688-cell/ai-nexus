@@ -13,59 +13,35 @@ import { getR2PathCandidates, normalizeEntitySlug } from './entity-cache-reader-
 // Universal Gzip Fetcher (Robust Buffer Strategy)
 export async function fetchCompressedJSON(path: string): Promise<any | null> {
     const fullUrl = path.startsWith('http') ? path : `${R2_CACHE_URL}/${path}`;
-    // V18.2: R2 Gzip Handling - PRIORITIZE .gz to eliminate 404 overhead
     const candidates = fullUrl.endsWith('.gz') ? [fullUrl] : [`${fullUrl}.gz`, fullUrl];
 
     for (const url of candidates) {
         try {
             const res = await fetch(url);
-            if (!res.ok) {
-                continue;
-            }
+            if (!res.ok) continue;
 
-            // V16.8.4 FIX: Improved Safe Decode Strategy for SSR/Client Consistency
-            const buffer = await res.arrayBuffer();
-            const uint8 = new Uint8Array(buffer);
+            // V16.9.2: Streaming Decompression - Optimized for Workers/Browsers
+            const isGzip = url.endsWith('.gz') || res.headers.get('content-type')?.includes('gzip') || res.headers.get('content-encoding')?.includes('gzip');
 
-            // AUTO-DETECT: Check for GZIP Magic Bytes (0x1f 0x8b)
-            const isActuallyGzip = uint8.length > 2 && uint8[0] === 0x1f && uint8[1] === 0x8b;
-
-            if (isActuallyGzip) {
+            if (isGzip) {
                 try {
-                    // Try decompression using available API
-                    if (typeof globalThis.DecompressionStream === 'undefined' && typeof process !== 'undefined') {
-                        const { gunzipSync } = await import('node:zlib');
-                        const decompressed = gunzipSync(uint8);
-                        return JSON.parse(new TextDecoder().decode(decompressed));
-                    } else {
-                        const ds = new DecompressionStream('gzip');
-                        const writer = ds.writable.getWriter();
-                        writer.write(buffer);
-                        writer.close();
-                        const output = new Response(ds.readable);
-                        return await output.json();
-                    }
+                    const ds = new DecompressionStream('gzip');
+                    const response = new Response(res.body?.pipeThrough(ds));
+                    const data = await response.json();
+                    if (data) return data;
                 } catch (gzipError) {
-                    console.warn(`[SSR] Decompression failed for ${url} despite Gzip header. Falling back to text parse.`);
-                    // Fallback: If decompression fails, it might be a corrupted or fake Gzip
-                    try {
-                        const text = new TextDecoder().decode(buffer);
-                        return JSON.parse(text);
-                    } catch (jsonError) {
-                        return null;
-                    }
+                    console.warn(`[Loader] Streaming decompression failed for ${url}, trying direct buffer fallback.`);
+                    // Fallback for environments where pipeThrough is restricted on fetch body
+                    const buffer = await res.arrayBuffer();
+                    const ds = new DecompressionStream('gzip');
+                    const output = new Response(new Response(buffer).body?.pipeThrough(ds));
+                    return await output.json();
                 }
             } else {
-                // Not GZIP: Parse as Plain JSON
-                try {
-                    const text = new TextDecoder().decode(buffer);
-                    return JSON.parse(text);
-                } catch (jsonError) {
-                    // Fail silently, try next candidate
-                }
+                return await res.json();
             }
-        } catch (e) {
-            // Network or fetch error
+        } catch (e: any) {
+            console.error(`[Loader] Fetch error for ${url}:`, e.message);
         }
     }
     return null;
