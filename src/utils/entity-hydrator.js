@@ -1,7 +1,4 @@
-/**
- * Unified Entity Hydrator (V16.5)
- * CES Compliance: Refactored to honor < 250 lines rule.
- */
+/** Unified Entity Hydrator (V16.5) */
 import { applyVramLogic } from './entity-vram-logic.js';
 import { handleModelType, handlePaperType, handleGenericType, heuristicMining, mineRelations } from './entity-type-handlers.js';
 
@@ -71,7 +68,6 @@ export function hydrateEntity(data, type, summaryData) {
     if (type === 'model') applyVramLogic(hydrated);
     return hydrated;
 }
-
 function beautifyName(hydrated) {
     // V16.8.30 FIX: If we already have a human-readable name (from data unwrap), PROTECT IT.
     // Only beautify if it's missing, looks like a lone ID, or is a terminal "Unknown".
@@ -107,10 +103,7 @@ function beautifyName(hydrated) {
     }
 }
 
-/**
- * V16.8.31: Identity Reconstruction Logic
- * Reconstructs Provider/Author from ID segments (formula: source-type--author--name)
- */
+/** Reconstructs Provider/Author from ID segments */
 function beautifyAuthor(hydrated) {
     const id = hydrated.id || '';
     const parts = id.split('--');

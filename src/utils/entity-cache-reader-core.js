@@ -88,13 +88,8 @@ export function getR2PathCandidates(type, normalizedSlug) {
     return [...new Set(candidates)];
 }
 
-
 import { hydrateEntity, augmentEntity } from './entity-hydrator.js';
 export { hydrateEntity, augmentEntity };
-
-
-
-
 /**
  * Base fetcher for R2 assets with local FS shim for development
  */
