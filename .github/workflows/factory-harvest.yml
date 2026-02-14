@@ -419,10 +419,12 @@ jobs:
                echo "  - Shard $i missing/empty. Attemping R2 restoration..."
                npx -y wrangler r2 object get $R2_BUCKET/meta/backup/registry/part-$i.json.gz --file=$TARGET --remote 2>/dev/null || true
                
-               # Integrity Guard: If R2 returns a 0B file, delete it so it doesn't break zlib
-               if [ -f "$TARGET" ] && [ ! -s "$TARGET" ]; then
-                  rm "$TARGET"
-                  echo "  - ⚠️ Shard $i: R2 returned empty file. Skipped to prevent corruption."
+               # Integrity Guard (V18.2.3): Check magic number (1f 8b)
+               if [ -f "$TARGET" ] && [ -s "$TARGET" ]; then
+                  if ! node -e "const b=require('fs').readFileSync('$TARGET'); if(b[0]!==0x1f || b[1]!==0x8b) process.exit(1)" 2>/dev/null; then
+                     echo "  - ⚠️ Shard $i: Fake .gz detected (missing magic bytes). Purging."
+                     rm "$TARGET"
+                  fi
                fi
             else
                echo "  - ✅ Shard $i: Existing healthy cache found."
@@ -434,7 +436,9 @@ jobs:
             TARGET="cache/fni-history/part-$i.json.gz"
             if [ ! -s "$TARGET" ]; then
                npx -y wrangler r2 object get $R2_BUCKET/meta/backup/fni-history/part-$i.json.gz --file=$TARGET --remote 2>/dev/null || true
-               [ -f "$TARGET" ] && [ ! -s "$TARGET" ] && rm "$TARGET" || true
+               if [ -f "$TARGET" ] && [ -s "$TARGET" ]; then
+                  node -e "const b=require('fs').readFileSync('$TARGET'); if(b[0]!==0x1f || b[1]!==0x8b) process.exit(1)" 2>/dev/null || rm "$TARGET"
+               fi
             fi
           done
 

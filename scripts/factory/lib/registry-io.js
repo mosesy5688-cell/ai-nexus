@@ -30,8 +30,15 @@ export async function loadGlobalRegistry() {
     const zlib = await import('zlib');
     const tryLoad = async (filepath) => {
         const data = await fs.readFile(filepath);
-        if (filepath.endsWith('.gz') || (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b)) {
-            return JSON.parse(zlib.gunzipSync(data).toString('utf-8'));
+        const isGzip = (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b);
+        if (filepath.endsWith('.gz') || isGzip) {
+            try {
+                return JSON.parse(zlib.gunzipSync(data).toString('utf-8'));
+            } catch (e) {
+                if (!isGzip) {
+                    console.warn(`[CACHE] ⚠️ Fake .gz detected in registry: ${filepath}. Parsing as raw JSON.`);
+                } else throw e;
+            }
         }
         return JSON.parse(data.toString('utf-8'));
     };

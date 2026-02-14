@@ -101,12 +101,26 @@ jobs:
           if [ -d "output/shards" ]; then
             SHARD_COUNT=$(find output/shards -name "shard-*.json.gz" | wc -l)
             echo "📦 Preparing $SHARD_COUNT shards for aggregation..."
-            cp output/shards/shard-*.json.gz artifacts/ 2>/dev/null || true
+            
+            # V18.2.3: Integrity Check (Sniff Magic Bytes)
+            for f in output/shards/shard-*.json.gz; do
+              [ -e "$f" ] || continue
+              if ! node -e "const b=require('fs').readFileSync('$f'); if(b[0]!==0x1f || b[1]!==0x8b) process.exit(1)" 2>/dev/null; then
+                echo "  - ⚠️ Fake .gz detected: $f. Removing to prevent crash."
+                rm "$f"
+              else
+                cp "$f" artifacts/
+              fi
+            done
           fi
           
-          if [ $(find artifacts -name "shard-*.json.gz" | wc -l) -eq 0 ]; then
-            echo "❌ ERROR: No compressed shard files found!"
-            ls -R output/shards
+          # Final validation
+          FINAL_COUNT=$(ls artifacts/shard-*.json.gz 2>/dev/null | wc -l)
+          echo "✅ Final compressed shards for aggregator: $FINAL_COUNT"
+          
+          if [ "$FINAL_COUNT" -eq 0 ]; then
+            echo "❌ ERROR: No valid compressed shard files found!"
+            ls -R output/shards || echo "output/shards is empty"
             exit 1
           fi
 

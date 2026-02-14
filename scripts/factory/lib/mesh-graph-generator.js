@@ -21,9 +21,16 @@ const CONFIG = {
 async function loadJson(filePath) {
     try {
         let content = await fs.readFile(filePath);
-        if (filePath.endsWith('.gz') || (content[0] === 0x1f && content[1] === 0x8b)) {
+        const isGzip = (content.length > 2 && content[0] === 0x1f && content[1] === 0x8b);
+        if (filePath.endsWith('.gz') || isGzip) {
             const zlib = await import('zlib');
-            content = zlib.gunzipSync(content);
+            try {
+                content = zlib.gunzipSync(content);
+            } catch (e) {
+                if (!isGzip) {
+                    console.warn(`[MESH-GRAPH] ⚠️ Fake .gz detected: ${filePath}. Parsing raw.`);
+                } else throw e;
+            }
         }
         return JSON.parse(content.toString('utf-8'));
     } catch (e) {
