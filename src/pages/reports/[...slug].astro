@@ -11,6 +11,8 @@ const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
 
 let report = null;
 
+const reportSlug = slugStr.replace(/^daily\//, '');
+
 // V16.7.2: Hybrid Loading - CDN First (Unified Loader)
 try {
     const { entity, _meta } = await loadEntityStreams('report', slugStr);
@@ -25,7 +27,6 @@ try {
 
 if (!report) {
     // Fallback: Check build-time local modules (Legacy/Initial reports)
-    const reportSlug = slugStr.replace(/^daily\//, '');
     const reportModules = import.meta.glob('../../data/report-archives/*.json', { eager: true });
     for (const path in reportModules) {
         if (path.includes(reportSlug)) {
@@ -38,12 +39,12 @@ if (!report) {
 
 if (!report) {
     Astro.response.status = 404;
-    return Astro.redirect('/404?reason=report-not-found');
+    return Astro.redirect('/404?reason=report-not-found&id=' + encodeURIComponent(slugStr));
 }
 
-const pageTitle = report.title || `AI Daily Report - ${slug}`;
+const pageTitle = report.title || `AI Daily Report - ${slugStr}`;
 const pageDescription = (report.summary || report.subtitle || "").substring(0, 160);
-const contentHtml = marked.parse(report.content);
+const contentHtml = marked.parse(report.content || "");
 ---
 
 <Layout title={pageTitle} description={pageDescription} canonical={`/reports/${reportSlug}`}>

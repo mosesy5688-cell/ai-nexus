@@ -46,9 +46,12 @@ export function handleModelType(hydrated, entity, computed, meta, derivedName) {
 }
 
 export function handlePaperType(hydrated, entity, meta, derivedName) {
-    hydrated.title = derivedName;
+    // V16.9.4: ArXiv Identity Resilience
+    const isRawID = /^\d{4}\.\d{4,5}$/.test(derivedName);
+    hydrated.title = isRawID ? `ArXiv ${derivedName} Technical Profile` : derivedName;
+
     hydrated.abstract = entity.abstract || entity.description || meta.abstract || meta.description;
-    hydrated.arxiv_id = entity.arxiv_id || meta.arxiv_id || meta.extended?.arxiv_id;
+    hydrated.arxiv_id = entity.arxiv_id || meta.arxiv_id || meta.extended?.arxiv_id || (isRawID ? derivedName : null);
     hydrated.citations = entity.citations || entity.citation_count || meta.citations || meta.extended?.citations;
     hydrated.published_date = entity.published_date || meta.published_date || meta.extended?.published_date;
     hydrated.authors = entity.authors || meta.authors || meta.extended?.authors || [];
