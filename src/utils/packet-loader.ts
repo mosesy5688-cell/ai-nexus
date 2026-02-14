@@ -118,7 +118,8 @@ export async function loadEntityStreams(type: string, slug: string) {
 
     // --- ANCHOR ESTABLISHED ---
     // 4. Secondary Stream Discovery (Fused & Mesh)
-    const canonicalId = entityPack.id || entityPack.slug || slug;
+    const rawId = entityPack.id || entityPack.slug || slug;
+    const canonicalId = normalizeEntitySlug(rawId, type);
     const singular = type.endsWith('s') ? type.slice(0, -1) : type;
 
     // We try to fetch Fused (HTML) and Mesh (Relations) using the canonical ID
@@ -128,6 +129,11 @@ export async function loadEntityStreams(type: string, slug: string) {
     // Attempt to fetch Fused Pack (README/HTML)
     let fusedPack = await fetchCompressedJSON(fusedPath);
     if (!fusedPack) fusedPack = await fetchCompressedJSON(fusedPath.replace('.gz', ''));
+    if (!fusedPack) {
+        // Fallback: Try with type prefix if not already present
+        const altFusedPath = `cache/fused/${singular}--${canonicalId}.json.gz`;
+        fusedPack = await fetchCompressedJSON(altFusedPath);
+    }
 
     const html = fusedPack?.html_readme || entityPack.html_readme || null;
 

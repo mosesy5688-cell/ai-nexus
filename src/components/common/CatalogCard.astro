@@ -10,9 +10,9 @@ const { item, type = 'model', isRisingStar = false } = Astro.props;
 
 // Normalization Logic for SSR - V19.5 Fixed
 const id = item.id || item.slug || '';
-const displayTitle = item.name || id.split('/').pop()?.replace(/--/g, '/') || 'Untitled Entity';
-const author = extractAuthor(id, item.author || item.creator || item.organization);
-const description = item.description || item.summary || 'Structural intelligence indexing in progress...';
+const displayTitle = item.title || item.name || item.displayName || id.split('/').pop()?.replace(/--/g, '/') || 'Untitled Entity';
+const author = extractAuthor(id, item.author || item.creator || item.organization || 'Community');
+const description = item.description || item.summary || item.seo_summary?.description || 'Structural intelligence indexing in progress...';
 const truncatedDesc = description;
 
 // Routing & Metadata - V19.1 Unification
