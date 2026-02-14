@@ -35,15 +35,20 @@ export const USE_CASE_MAP = {
  * Get distinct use cases for Zone 1.5
  * V15.0: "What can this be used for?" (3-5 second evaluation)
  */
-export function getUseCases(tags = [], pipelineTag = '', entityType = 'model', fniScore = 0) {
+export function getUseCases(tagsOrEntity = [], pipelineTag = '', entityType = 'model', fniScore = 0) {
     const goodFor = new Set();
     const limits = new Set();
 
-    // Defensive check for tags
-    const safeTags = Array.isArray(tags) ? tags : [];
-    const allTags = [...safeTags, pipelineTag].filter(Boolean).map(t => String(t).toLowerCase());
+    // V16.8.4: Robust Argument Handling (Supports tags array or full entity object)
+    const isEntityObject = tagsOrEntity && !Array.isArray(tagsOrEntity) && typeof tagsOrEntity === 'object';
+    const entity = isEntityObject ? tagsOrEntity : null;
 
-    const safeType = entityType || 'model';
+    const safeTags = isEntityObject ? (entity.tags || []) : (Array.isArray(tagsOrEntity) ? tagsOrEntity : []);
+    const safePipelineTag = pipelineTag || entity?.pipeline_tag || '';
+    const safeType = entityType || entity?.type || 'model';
+    const safeScore = fniScore || entity?.fni_score || 0;
+
+    const allTags = [...safeTags, safePipelineTag].filter(Boolean).map(t => String(t).toLowerCase());
 
     // 1. Entity Type Logic
     if (safeType === 'model') {
@@ -55,11 +60,11 @@ export function getUseCases(tags = [], pipelineTag = '', entityType = 'model', f
         if (allTags.includes('text-to-image')) goodFor.add('AI Art Gen');
 
         // Limits
-        if (fniScore < 50 && fniScore > 0) limits.add('Experimental / High Latency');
+        if (safeScore < 50 && safeScore > 0) limits.add('Experimental / High Latency');
         if (allTags.includes('small-model')) limits.add('Limited Complexity');
 
-        // V15.9 Trust Signal: Restrictive License Detection (V16.6 Fix: Use entity.license)
-        const licenseStr = String(entity.license || '').toLowerCase();
+        // V15.9 Trust Signal: Restrictive License Detection (V16.8.4 Fix: Use safe entity check)
+        const licenseStr = String(entity?.license || '').toLowerCase();
         const fullTags = allTags.join(' ');
         if (licenseStr.includes('non-commercial') || fullTags.includes('cc-by-nc') || fullTags.includes('research-only')) {
             limits.add('Non-Commercial Use');
