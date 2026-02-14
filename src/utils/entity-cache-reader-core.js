@@ -51,6 +51,8 @@ export function getR2PathCandidates(type, normalizedSlug) {
     });
 
     // 3. [FALLBACK] Direct / Flat Paths (No prefix)
+    candidates.push(`cache/fused/${lowerSlug}.json.gz`);
+    candidates.push(`cache/fused/${lowerSlug}.json`);
     candidates.push(`cache/entities/${singular}/${lowerSlug}.json.gz`);
     candidates.push(`cache/entities/${singular}/${lowerSlug}.json`);
 
@@ -59,6 +61,12 @@ export function getR2PathCandidates(type, normalizedSlug) {
         const hyphenated = lowerSlug.replace(/\./g, '-');
         candidates.push(`cache/entities/paper/${hyphenated}.json.gz`);
         candidates.push(`cache/entities/paper/${hyphenated}.json`);
+    }
+
+    // V16.9.1: Reports Daily Subfolder Alignment
+    if (singular === 'report') {
+        candidates.push(`cache/reports/daily/${lowerSlug}.json.gz`);
+        candidates.push(`cache/reports/daily/${lowerSlug}.json`);
     }
 
     candidates.push(`cache/${singular}/${lowerSlug}.json.gz`);

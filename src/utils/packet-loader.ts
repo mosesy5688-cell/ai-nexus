@@ -113,6 +113,16 @@ export async function loadEntityStreams(type: string, slug: string) {
         }
     }
 
+    // A.3 [NEW BUGFIX R5] Fallback to ALL candidates for non-primary types (e.g. Reports)
+    if (!entityPack) {
+        const otherCandidates = candidates.filter(c => !c.includes('/entities/') && !c.includes('/fused/'));
+        const otherResult = await findFirst(otherCandidates);
+        if (otherResult) {
+            entityPack = otherResult.data.entity || otherResult.data;
+            entitySourcePath = otherResult.path;
+        }
+    }
+
     if (!entityPack) {
         return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
     }

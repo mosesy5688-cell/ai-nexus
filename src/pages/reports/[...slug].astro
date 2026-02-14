@@ -3,58 +3,42 @@
 import Layout from '@/layouts/Layout.astro';
 import { marked } from 'marked';
 
-const { slug } = Astro.params;
+import { loadEntityStreams } from '../../utils/packet-loader.js';
+import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 
-const CDN_BASE = 'https://cdn.free2aitools.com';
+const { slug } = Astro.params;
+const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
+
 let report = null;
 
-const reportSlug = slug.replace(/^daily\//, '');
-
-// V16.7.2: Hybrid Loading - CDN First (Static Fallback)
+// V16.7.2: Hybrid Loading - CDN First (Unified Loader)
 try {
-    // V18.2: Support gzipped reports at root cache/reports/
-    const paths = [
-        `${CDN_BASE}/cache/reports/daily/${reportSlug}.json.gz`, // Added daily/ directory path
-        `${CDN_BASE}/cache/reports/daily/${reportSlug}.json`,   // Added daily/ directory path
-        `${CDN_BASE}/cache/reports/${reportSlug}.json.gz`,
-        `${CDN_BASE}/cache/reports/${reportSlug}.json`
-    ];
-    
-    for (const p of paths) {
-        const res = await fetch(p);
-        if (res.ok) {
-            if (p.endsWith('.gz')) {
-                const ds = new DecompressionStream('gzip');
-                const decompressedStream = res.body.pipeThrough(ds);
-                const response = new Response(decompressedStream);
-                report = await response.json();
-            } else {
-                report = await res.json();
-            }
-            if (report) {
-                // V16.8.30: Defensive Title Restoration
-                report.title = report.title || report.name || `Daily Technical Briefing: ${reportSlug}`;
-                break;
-            }
-        }
+    const { entity, _meta } = await loadEntityStreams('report', slugStr);
+    if (entity) {
+        report = hydrateEntity(entity, 'report');
+        // V16.8.30: Defensive Title Restoration
+        report.title = report.title || report.name || `Daily Technical Briefing: ${slugStr}`;
     }
 } catch (e) {
-    console.warn(`[Report Detail] CDN fetch failed for ${slug}, relying on build-time bundle.`);
+    console.warn(`[Report Detail] Unified loader failed for ${slugStr}:`, e.message);
 }
 
 if (!report) {
     // Fallback: Check build-time local modules (Legacy/Initial reports)
+    const reportSlug = slugStr.replace(/^daily\//, '');
     const reportModules = import.meta.glob('../../data/report-archives/*.json', { eager: true });
     for (const path in reportModules) {
         if (path.includes(reportSlug)) {
-            report = reportModules[path].default;
+            report = (reportModules[path] as any).default;
+            if (report) report = hydrateEntity(report, 'report');
             break;
         }
     }
 }
 
 if (!report) {
-  return Astro.redirect('/404');
+    Astro.response.status = 404;
+    return Astro.redirect('/404?reason=report-not-found');
 }
 
 const pageTitle = report.title || `AI Daily Report - ${slug}`;

@@ -24,7 +24,7 @@ import FNITrustPanel from '../../components/FNITrustPanel.astro';
 import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
-import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+import { normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 
 
 const { slug } = Astro.params;
@@ -49,7 +49,7 @@ try {
      return Astro.redirect('/404?reason=agent-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  agent = entity;
+  agent = hydrateEntity(entity, type);
   meshRelations = mesh || [];
   tagsArray = agent?.tags || [];
 
