@@ -2,9 +2,9 @@
 export const prerender = false;
 
 /**
- * Dataset Detail Page V16.5
- * Core Feature: Zero-Limit Data Transparency
- * Architecture: Unified 5-Zone Layout
+ * Dataset Detail Page V16.8.14
+ * High-Fidelity Emergency Reconstruction
+ * Architecture: Unified 5-Zone High-Density Layout
  */
 
 import Layout from '../../layouts/Layout.astro';
@@ -16,11 +16,13 @@ import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import CiteEntity from '../../components/common/CiteEntity.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import DatasetDeepDive from '../../components/dataset/DatasetDeepDive.astro';
-// V19.0: ModelNavigation removed — not applicable to datasets
 import { getUseCases } from '../../utils/inference.js';
-// 2. Efficient Data Loading (Single-Stream V16.5)
+import QuickCommands from '../../components/common/QuickCommands.astro';
+import FNITrustPanel from '../../components/FNITrustPanel.astro';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
+import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+import { cleanDescription } from '../../utils/model-page-helpers.ts';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -31,13 +33,12 @@ let tagsArray = [];
 let pageTitle = "AI Dataset Details - Free AI Tools";
 let pageDescription = "Explore high-quality datasets for AI training and evaluation.";
 let meshRelations = [];
+let cleanedDesc = "";
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
   
-  // V16.5: Usage of 3-Stream Parallel Loader
   const type = 'dataset';
-  // V16.5: Static Assembly Architecture
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
   
   if (!entity || !_meta.available) {
@@ -45,24 +46,21 @@ try {
     return Astro.redirect('/404?reason=dataset-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  // 4. Transform & Prepare
   dataset = entity;
   tagsArray = dataset?.tags || [];
   meshRelations = mesh || [];
-
-  // V16.5: Explicit HTML Assignment (Stream B Priority)
-  dataset.body_content = html || dataset.body_content || null;
-  dataset.html_readme = html || dataset.html_readme || null; // Datasets sometimes use html_readme too
-
-  const displayDatasetName = dataset?.name || dataset?.title || dataset?.canonical_name || 'Unknown Dataset';
-  pageTitle = `${displayDatasetName} - AI Dataset Analysis`;
-  pageDescription = dataset?.seo_summary?.description || dataset?.description || `Deep dive into ${displayDatasetName} dataset.`;
+  
+  const normalizedSlug = normalizeEntitySlug(slugStr, type);
+  const displayDatasetName = dataset?.name || dataset?.title || 'Unknown Dataset';
+  pageTitle = `${displayDatasetName} - AI Dataset Insights`;
+  cleanedDesc = cleanDescription(dataset?.description || '');
+  pageDescription = dataset?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayDatasetName}.`;
+  
+  dataset.html_readme = html || dataset.html_readme || null;
 
 } catch (e) {
   console.error("[DatasetPage] Error loading dataset:", e);
   error = e;
-  // V16.8: Suppress 500 to allow "Mesh Node Building" fallback UI
-  // Astro.response.status = 500;
 }
 
 if (!dataset && !error) {
@@ -74,60 +72,52 @@ const datasetName = dataset?.name || dataset?.title || 'Unknown Dataset';
 const datasetId = dataset?.id || normalizedSlug || '';
 const displayAuthor = dataset?.author || 'Community';
 
-// V15.0: Derived Use Cases and Limits
-const derivedUseCases = dataset ? getUseCases(tagsArray, '', 'dataset', dataset.fni_score || 0) : { goodFor: [], limits: [] };
+const hasFNI = dataset?.fni_score !== undefined || dataset?.fni_percentile !== undefined;
+const placeholderImage = '/images/models/default-model.jpg';
+const coverImage = dataset?.image_url || placeholderImage;
 
-// Generate JSON-LD
-const jsonLd = dataset ? {
+const jsonld = dataset ? {
   "@context": "https://schema.org",
   "@type": "Dataset",
   "name": datasetName,
   "description": pageDescription,
-  "url": `https://free2aitools.com/dataset/${slugStr}`,
   "creator": {
     "@type": "Organization",
     "name": displayAuthor
   },
   "license": dataset?.license_spdx || dataset?.license
 } : null;
+
 const canonicalPath = dataset ? getRouteFromId(dataset.id || datasetId, 'dataset') : undefined;
 ---
 
-  <EntityLayout
-    entity={dataset}
-    type="dataset"
-    title={pageTitle}
-    description={pageDescription}
-    jsonld={jsonLd}
-    canonical={canonicalPath}
-  >
+<EntityLayout 
+  entity={dataset} 
+  type="dataset" 
+  title={pageTitle} 
+  description={pageDescription}
+  image={coverImage}
+  jsonld={jsonld}
+  canonical={canonicalPath}
+>
     {/* Zone 1: Hero */}
     {dataset && (
-      <EntityHeader
+      <EntityHeader 
         slot="hero"
         name={datasetName}
         entityType="dataset"
         entityIcon="📊"
         entityLabel="Dataset"
-        verified={dataset.verified}
+        verified={false} 
         author={displayAuthor}
         lastUpdated={dataset.last_updated}
-        description={dataset.seo_summary?.description || dataset.description}
+        description={dataset.seo_summary?.description || cleanedDesc}
         fniScore={dataset.fni_score}
         fniPercentile={dataset.fni_percentile}
         fniCommentary={dataset.fni_commentary}
         sourceUrl={dataset.source_url}
         entityId={datasetId}
         hasImage={Boolean(dataset.image_url)}
-        trend_7d={dataset.trend_7d}
-      />
-    )}
-
-    {/* Zone 1.5: Use Cases */}
-    {dataset && (
-      <ZoneUseCases
-        slot="use-cases"
-        usecases={getUseCases(dataset)}
       />
     )}
 
@@ -139,15 +129,22 @@ const canonicalPath = dataset ? getRouteFromId(dataset.id || datasetId, 'dataset
               type="dataset"
               model={{
                 ...dataset,
-                displayName: datasetName,
-                pipeline_tag: dataset.format || 'Dataset'
+                displayName: datasetName
               }} 
             />
          </div>
       </div>
     )}
+    
+    {/* Zone 1.5: Use Cases */}
+    {dataset && (
+      <ZoneUseCases 
+        slot="use-cases" 
+        usecases={getUseCases(dataset)} 
+      />
+    )}
 
-    {/* Zone 3: Core (Knowledge Mesh & Relations) */}
+    {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
     {dataset && (
       <div slot="core-desktop" class="space-y-16">
          <UniversalCore entity={dataset} type="dataset" meshRelations={meshRelations} />
@@ -161,19 +158,28 @@ const canonicalPath = dataset ? getRouteFromId(dataset.id || datasetId, 'dataset
               type="dataset" 
             />
          </div>
-         
       </div>
     )}
   
-    {/* Zone 4: Deep Dive */}
     {dataset && (
-      <div slot="deep-dive">
-         <div class="space-y-12">
-            {dataset.html_readme ? (
-              <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={dataset.html_readme} />
-            ) : (
-              <DatasetDeepDive dataset={dataset} />
+      <div slot="deep-dive" class="space-y-12">
+         {/* Zone 4.1: Developer Quick Tools (Always-On) */}
+         <div class="space-y-8">
+            <QuickCommands entity={dataset} type="dataset" />
+            {hasFNI && (
+              <FNITrustPanel 
+                fniScore={dataset.fni_score}
+                fniPercentile={dataset.fni_percentile}
+                fniCommentary={dataset.fni_commentary}
+                modelName={datasetName}
+                modelId={datasetId}
+              />
             )}
+         </div>
+
+         {/* Zone 4.2: Primary Documentation / Technical Content */}
+         <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
+            <DatasetDeepDive dataset={dataset} />
          </div>
       </div>
     )}
@@ -184,4 +190,4 @@ const canonicalPath = dataset ? getRouteFromId(dataset.id || datasetId, 'dataset
           <AiDisclaimer source={dataset.source} lastUpdated={dataset.last_updated} />
       </div>
     )}
-  </EntityLayout>
+</EntityLayout>

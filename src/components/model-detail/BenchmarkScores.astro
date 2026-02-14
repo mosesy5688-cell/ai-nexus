@@ -60,9 +60,11 @@ const BENCHMARK_INFO: Record<string, { name: string; icon: string; hint: string 
 const hasBenchmarks = benchmarks && Object.values(benchmarks).some(b => b?.score !== undefined);
 
 // Format score as percentage
-function formatScore(score: number): string {
-  if (score > 1) return `${score.toFixed(1)}%`;
-  return `${(score * 100).toFixed(1)}%`;
+function formatScore(score: any): string {
+  const val = typeof score === 'object' ? score?.score : score;
+  if (val === undefined || val === null) return 'N/A';
+  if (val > 1) return `${Number(val).toFixed(1)}%`;
+  return `${(Number(val) * 100).toFixed(1)}%`;
 }
 
 // Get confidence badge
@@ -82,7 +84,9 @@ function getConfidenceBadge(confidence?: string): string {
     
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
       {Object.entries(benchmarks || {}).map(([key, value]) => {
-        if (!value?.score) return null;
+        const scoreVal = typeof value === 'object' ? (value as any)?.score : value;
+        if (scoreVal === undefined || scoreVal === null) return null;
+        
         const info = BENCHMARK_INFO[key] || { name: key, icon: '📈', hint: 'Benchmark score' };
         
         return (
@@ -93,7 +97,7 @@ function getConfidenceBadge(confidence?: string): string {
                 <span class="font-semibold text-gray-900 dark:text-white">{info.name}</span>
               </span>
               <span class="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                {formatScore(value.score)}
+                {formatScore(scoreVal)}
               </span>
             </div>
             <p class="text-xs text-gray-500 dark:text-gray-400">

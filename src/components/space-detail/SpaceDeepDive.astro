@@ -5,14 +5,12 @@ interface Props {
 
 const { space } = Astro.props;
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
-import QuickCommands from '../common/QuickCommands.astro';
 import ModelGallery from '../model-detail/ModelGallery.astro';
 ---
 
 <div class="space-y-12">
   {/* V16.2: Universal Enhancements (Promoted to Top) */}
   <section class="grid grid-cols-1 lg:grid-cols-1 gap-8">
-     <QuickCommands entity={space} type="space" />
      <ModelGallery content={space.body_content || space.description} title="Space Interface & Visuals" />
   </section>
 

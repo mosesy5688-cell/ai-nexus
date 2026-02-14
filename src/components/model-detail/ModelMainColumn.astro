@@ -1,33 +1,24 @@
 ---
 // src/components/model-detail/ModelMainColumn.astro
-import FNITrustPanel from '../FNITrustPanel.astro';
-import BenchmarkRawTable from '../benchmark/BenchmarkRawTable.astro';
-import NeuralExplorer from '../NeuralExplorer.astro';
 import ModelNotices from './ModelNotices.astro';
 
-import TechSpecsFull from '../entity/TechSpecsFull.astro';
 import FullReadmeSection from './FullReadmeSection.astro';
 // Phase B.8: New components for user understanding
 import BenchmarkScores from './BenchmarkScores.astro';
-import CodeExample from './CodeExample.astro';
 import GGUFList from './GGUFList.astro';
-import QuickCommands from '../common/QuickCommands.astro';
 import ModelGallery from './ModelGallery.astro';
 import ArchitectureSchema from './ArchitectureSchema.astro';
-import HardwareMatrix from './HardwareMatrix.astro';
-import CiteEntity from '../common/CiteEntity.astro';
 import MarkdownRenderer from './MarkdownRenderer.astro';
 
 
 interface Props {
   model: any;
-  hasFNI: boolean;
-  hasBenchmarkCap: boolean;
-  modelName: string;
   modelId: string;
+  cleanDescription: string;
+  jsonld: any;
 }
 
-const { model, hasFNI, hasBenchmarkCap, modelName, modelId } = Astro.props;
+const { model, modelName, modelId, cleanDescription, jsonld } = Astro.props;
 
 // V8.0: Safely extract meta_json fields (may be string or object)
 let metaJson: Record<string, any> = {};
@@ -45,27 +36,6 @@ try {
 <div class="lg:col-span-2 space-y-8">
   {/* V16.2: Visual First - Auto Gallery */}
   {model.gallery_images?.length > 0 && <ModelGallery images={model.gallery_images} />}
-
-  {/* V16.2: Developer First - Quick Commands */}
-  <QuickCommands entity={model} type="model" />
-
-  <!-- FNI Trust Panel -->
-  {hasFNI && (
-    <FNITrustPanel 
-      fniScore={model.fni_score || 0}
-      fniPercentile={model.fni_percentile || 0}
-      fniP={model.fni_p || 0}
-      fniV={model.fni_v || 0}
-      fniC={model.fni_c || 0}
-      fniU={model.fni_u || 0}
-      fniCommentary={model.fni_commentary || null}
-      modelName={modelName}
-      modelId={modelId}
-    />
-  )}
-  
-  {/* V8.0: Hardware Compatibility Matrix (Replacing standalone VRAM) */}
-  <HardwareMatrix vramRequired={model.vram_estimate || 0} />
 
   {/* V15.8: GGUF File List (Zone 4) */}
   <GGUFList files={model.siblings} modelId={modelId} />
@@ -91,6 +61,9 @@ try {
                hiddenSize={model.hidden_size}
                architecture={model.architecture}
              />
+             
+             {/* V16.8.12: Semantic Benchmark Scores (Signal Restoration) */}
+             <BenchmarkScores benchmarks={model.benchmarks || metaJson.benchmarks} />
           </div>
 
           <div class="space-y-8">
@@ -151,15 +124,7 @@ try {
     hasDescription={!!model.description}
     hasSeoSummary={!!model.seo_summary}
   />
-
-  {/* V16.10 Academic Authority */}
-  <CiteEntity 
-    id={modelId} 
-    name={modelName} 
-    author={model.author} 
-    url={model.source_url} 
-    type="model" 
-  />
   
   {/* Legacy ModelResources & EntityLinks removed - redundant with Neural Mesh Hub (V16) */}
+  {/* CiteEntity removed here to avoid duplication with UniversalCore rendering */}
 </div>

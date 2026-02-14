@@ -2,9 +2,9 @@
 export const prerender = false;
 
 /**
- * Tool Detail Page V16.5
- * Core Feature: Developer Ecosystem Integration
- * Architecture: Unified 5-Zone Layout
+ * Tool Detail Page V16.8.14
+ * High-Fidelity Emergency Reconstruction
+ * Architecture: Unified 5-Zone High-Density Layout
  */
 
 import Layout from '../../layouts/Layout.astro';
@@ -15,11 +15,13 @@ import UniversalCore from '../../components/entity/UniversalCore.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import CiteEntity from '../../components/common/CiteEntity.astro';
 import ToolDeepDive from '../../components/tool-detail/ToolDeepDive.astro';
-// V19.0: ModelNavigation removed — not applicable to tools
-import { getUseCases } from '../../utils/inference.js';
-// 2. Efficient Data Loading (Single-Stream V16.5)
+import QuickCommands from '../../components/common/QuickCommands.astro';
+import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
+import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+import { cleanDescription } from '../../utils/model-page-helpers.ts';
+import { getUseCases } from '../../utils/inference.js';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -30,13 +32,12 @@ let tagsArray = [];
 let pageTitle = "AI Developer Tool - Free AI Tools";
 let pageDescription = "Explore development tools and utilities for AI engineering.";
 let meshRelations = [];
+let cleanedDesc = "";
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
   
-  // V16.5: Usage of 3-Stream Parallel Loader
   const type = 'tool';
-  // V16.5: Static Assembly Architecture
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
   
   if (!entity || !_meta.available) {
@@ -44,24 +45,21 @@ try {
     return Astro.redirect('/404?reason=tool-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  // 4. Transform & Prepare
   tool = entity;
   tagsArray = tool?.tags || [];
   meshRelations = mesh || [];
-
+  
+  const normalizedSlug = normalizeEntitySlug(slugStr, type);
   const displayToolName = tool?.name || tool?.title || tool?.canonical_name || 'Unknown Tool';
-  pageTitle = `${displayToolName} - AI Tool Insight`;
-  const cleanedDesc = cleanDescription(tool?.description || '');
+  pageTitle = `${displayToolName} - AI Tool Insights`;
+  cleanedDesc = cleanDescription(tool?.description || '');
   pageDescription = tool?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayToolName}.`;
   
-  // V16.5: Explicit HTML Assignment (Stream B Priority)
-  tool.html_readme = html || tool.html_readme || null; // Tool uses `body_content` sometimes
+  tool.html_readme = html || tool.html_readme || null;
 
 } catch (e) {
   console.error("[ToolPage] Error loading tool:", e);
   error = e;
-  // V16.8: Suppress 500 to allow "Mesh Node Building" fallback UI
-  // Astro.response.status = 500;
 }
 
 if (!tool && !error) {
@@ -69,65 +67,52 @@ if (!tool && !error) {
   return Astro.redirect('/404?source=tool-not-found');
 }
 
-const toolName = tool?.name || 'Unknown Tool';
+const toolName = tool?.name || tool?.title || 'Unknown Tool';
 const toolId = tool?.id || normalizedSlug || '';
 const displayAuthor = tool?.author || 'Community';
 
-// V15.0: Derived Use Cases and Limits
-const derivedUseCases = tool ? getUseCases(tagsArray, '', 'tool', tool.fni_score || 0) : { goodFor: [], limits: [] };
+const placeholderImage = '/images/models/default-model.jpg';
+const coverImage = tool?.image_url || placeholderImage;
 
-// Generate JSON-LD
-const jsonLd = tool ? {
+const jsonld = tool ? {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": toolName,
   "description": pageDescription,
-  "url": `https://free2aitools.com/tool/${slugStr}`,
-  "applicationCategory": "DeveloperApplication",
-  "operatingSystem": "Cross-platform",
-  "creator": {
+  "applicationCategory": "AI Developer Tool",
+  "author": {
     "@type": "Organization",
     "name": displayAuthor
   }
 } : null;
-const canonicalPath = tool ? getRouteFromId(tool.id || normalizedSlug, 'tool') : undefined;
+
+const canonicalPath = tool ? getRouteFromId(tool.id || toolId, 'tool') : undefined;
 ---
 
-  <EntityLayout
-    entity={tool}
-    type="tool"
-    title={pageTitle}
-    description={pageDescription}
-    jsonld={jsonLd}
-    canonical={canonicalPath}
-  >
+<EntityLayout 
+  entity={tool} 
+  type="tool" 
+  title={pageTitle} 
+  description={pageDescription}
+  image={coverImage}
+  jsonld={jsonld}
+  canonical={canonicalPath}
+>
     {/* Zone 1: Hero */}
     {tool && (
-      <EntityHeader
+      <EntityHeader 
         slot="hero"
         name={toolName}
         entityType="tool"
-        entityIcon={tool.entityDefinition?.display?.icon || '🛠️'}
-        entityLabel={tool.entityDefinition?.display?.labelSingular || 'Tool'}
-        verified={tool.verified}
-        author={tool.author}
+        entityIcon="🛠️"
+        entityLabel="Tool"
+        verified={false} 
+        author={displayAuthor}
         lastUpdated={tool.last_updated}
-        description={tool.seo_summary?.description || tool.description}
-        fniScore={tool.fni_score}
-        fniPercentile={tool.fni_percentile}
-        fniCommentary={tool.fni_commentary}
+        description={tool.seo_summary?.description || cleanedDesc}
         sourceUrl={tool.source_url}
         entityId={toolId}
         hasImage={Boolean(tool.image_url)}
-        trend_7d={tool.trend_7d}
-      />
-    )}
-
-    {/* Zone 1.5: Use Cases */}
-    {tool && (
-      <ZoneUseCases
-        slot="use-cases"
-        usecases={getUseCases(tool)}
       />
     )}
 
@@ -139,15 +124,22 @@ const canonicalPath = tool ? getRouteFromId(tool.id || normalizedSlug, 'tool') :
               type="tool"
               model={{
                 ...tool,
-                displayName: toolName,
-                pipeline_tag: tool.language || 'Tool Logic'
+                displayName: toolName
               }} 
             />
          </div>
       </div>
     )}
     
-    {/* Zone 3: Core (Knowledge Mesh & Relations) */}
+    {/* Zone 1.5: Use Cases */}
+    {tool && (
+      <ZoneUseCases 
+        slot="use-cases" 
+        usecases={getUseCases(tool)} 
+      />
+    )}
+
+    {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
     {tool && (
       <div slot="core-desktop" class="space-y-16">
          <UniversalCore entity={tool} type="tool" meshRelations={meshRelations} />
@@ -156,7 +148,7 @@ const canonicalPath = tool ? getRouteFromId(tool.id || normalizedSlug, 'tool') :
             <CiteEntity 
               id={toolId} 
               name={toolName} 
-              author={tool.author} 
+              author={displayAuthor} 
               url={tool.source_url} 
               type="tool" 
             />
@@ -164,17 +156,16 @@ const canonicalPath = tool ? getRouteFromId(tool.id || normalizedSlug, 'tool') :
       </div>
     )}
   
-    {/* Zone 4: Deep Dive */}
     {tool && (
-      <div slot="deep-dive">
-         <div class="space-y-12">
-            {tool.html_readme ? (
-              <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={tool.html_readme} />
-            ) : (
-               <div class="p-8 bg-gray-50 dark:bg-gray-900 rounded-2xl text-center">
-                  <p class="text-gray-500">No detailed documentation available.</p>
-               </div>
-            )}
+      <div slot="deep-dive" class="space-y-12">
+         {/* Zone 4.1: Developer Quick Tools (Always-On) */}
+         <div class="space-y-8">
+            <QuickCommands entity={tool} type="tool" />
+         </div>
+
+         {/* Zone 4.2: Primary Documentation / Technical Content */}
+         <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
+            <ToolDeepDive tool={tool} />
          </div>
       </div>
     )}
@@ -185,4 +176,4 @@ const canonicalPath = tool ? getRouteFromId(tool.id || normalizedSlug, 'tool') :
           <AiDisclaimer source={tool.source} lastUpdated={tool.last_updated} />
       </div>
     )}
-  </EntityLayout>
+</EntityLayout>

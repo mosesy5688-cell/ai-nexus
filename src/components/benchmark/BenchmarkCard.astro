@@ -37,14 +37,14 @@ const {
 
 // Aggregate all available scores
 const allMetrics = [
-  { id: 'avg', label: 'Average', value: avg_score || scores.avg || scores.average },
-  { id: 'mmlu', label: 'MMLU', value: mmlu || scores.mmlu },
-  { id: 'humaneval', label: 'HumanEval', value: humaneval || scores.humaneval },
-  { id: 'hellaswag', label: 'HellaSwag', value: hellaswag || scores.hellaswag },
-  { id: 'arc', label: 'ARC-C', value: arc_challenge || scores.arc_challenge || scores.arc },
-  { id: 'gsm8k', label: 'GSM8K', value: gsm8k || scores.gsm8k },
-  { id: 'truthfulqa', label: 'TruthfulQA', value: truthfulqa || scores.truthfulqa },
-  { id: 'winogrande', label: 'Winogrande', value: winogrande || scores.winogrande },
+  { id: 'avg', label: 'Average', value: avg_score || scores?.avg?.score || scores?.avg || scores?.average?.score || scores?.average },
+  { id: 'mmlu', label: 'MMLU', value: mmlu || scores?.mmlu?.score || scores?.mmlu },
+  { id: 'humaneval', label: 'HumanEval', value: humaneval || scores?.humaneval?.score || scores?.humaneval || scores?.human_eval?.score || scores?.human_eval },
+  { id: 'hellaswag', label: 'HellaSwag', value: hellaswag || scores?.hellaswag?.score || scores?.hellaswag },
+  { id: 'arc', label: 'ARC-C', value: arc_challenge || scores?.arc_challenge?.score || scores?.arc_challenge || scores?.arc?.score || scores?.arc },
+  { id: 'gsm8k', label: 'GSM8K', value: gsm8k || scores?.gsm8k?.score || scores?.gsm8k },
+  { id: 'truthfulqa', label: 'TruthfulQA', value: truthfulqa || scores?.truthfulqa?.score || scores?.truthfulqa },
+  { id: 'winogrande', label: 'Winogrande', value: winogrande || scores?.winogrande?.score || scores?.winogrande },
 ].filter(m => m.value !== undefined && m.value !== null);
 
 function getScoreColor(val: number): string {
