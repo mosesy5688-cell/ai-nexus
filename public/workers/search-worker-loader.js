@@ -18,11 +18,16 @@ const INDEX_URLS = {
  * Hybrid fetcher: Handles both GZIP and Plain JSON based on extension.
  */
 async function tryFetchJson(url) {
-    // 1. GZIP Logic
-    if (url.endsWith('.gz')) {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Fetch failed: ${response.status} (${url})`);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Fetch failed: ${response.status} (${url})`);
 
+    // V16.8.4: Safe Buffer Detection
+    const buffer = await response.clone().arrayBuffer();
+    const uint8 = new Uint8Array(buffer);
+    const isActuallyGzip = uint8[0] === 0x1f && uint8[1] === 0x8b;
+
+    // 1. GZIP Logic
+    if (url.endsWith('.gz') && isActuallyGzip) {
         // Check if browser already decompressed it transparently
         const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip'
             || response.headers.get('content-encoding') === 'gzip';
@@ -34,17 +39,27 @@ async function tryFetchJson(url) {
                 const decompressedStream = response.body.pipeThrough(ds);
                 return await new Response(decompressedStream).json();
             } catch (e) {
-                console.error('[SearchWorker] GZIP Decompression failed:', e);
-                throw new Error('Critical: Failed to decompress search index.');
+                console.warn('[SearchWorker] GZIP stream failed, trying buffer fallback:', e);
+                // Last ditch: if stream fails, maybe the clone buffer can be parsed
+                try {
+                    const text = new TextDecoder().decode(buffer);
+                    return JSON.parse(text);
+                } catch (e2) {
+                    throw new Error('Critical: Failed to decompress search index.');
+                }
             }
         }
         return await response.json();
     }
 
-    // 2. Plain JSON Logic (for Manifest & Shards)
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Fetch failed: ${response.status} (${url})`);
-    return await response.json();
+    // 2. Plain JSON Logic (for Manifest, Shards, or fake .gz files)
+    try {
+        return await response.json();
+    } catch (e) {
+        // If response.json() fails, try decoding the buffer
+        const text = new TextDecoder().decode(buffer);
+        return JSON.parse(text);
+    }
 }
 
 export async function loadIndex(entityType = 'model') {

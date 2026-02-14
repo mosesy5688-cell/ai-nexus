@@ -37,40 +37,39 @@ export function getR2PathCandidates(type, normalizedSlug) {
     };
     const prefixes = prefixMap[singular] || [];
 
-    // 1. [V18.2 PRIMARY] Fused Storage: cache/fused/[ID].json
-    // Contains fused specs, benchmarks, and mesh profiles for 121k scalability
-    candidates.push(`cache/fused/${lowerSlug}.json`);
+    // 1. [V18.2 PRIMARY] Fused & Tiered GZIP Variants (Highest Likelihood)
+    // We prioritize .gz to eliminate 404 overhead on modern R2 caches
+    const primaryGz = [
+        `cache/fused/${lowerSlug}.json.gz`,
+        ...prefixes.map(p => `cache/fused/${p}${lowerSlug}.json.gz`),
+        `cache/entities/${singular}/${lowerSlug}.json.gz`,
+        `cache/entities/${lowerSlug}.json.gz`
+    ];
 
+    // 2. [V18.2] Plan B: Fused Plain JSON
+    const primaryJson = [
+        `cache/fused/${lowerSlug}.json`,
+        ...prefixes.map(p => `cache/fused/${p}${lowerSlug}.json`),
+        `cache/entities/${singular}/${lowerSlug}.json`,
+        `cache/entities/${lowerSlug}.json`
+    ];
+
+    // 3. [LEGACY] Long-tail prefixes and tiered fallbacks
+    const legacy = [];
     prefixes.forEach(p => {
         if (!lowerSlug.startsWith(p)) {
-            candidates.push(`cache/fused/${p}${lowerSlug}.json`);
+            const prefixedSlug = `${p}${lowerSlug}`;
+            legacy.push(`cache/entities/${prefixedSlug}.json.gz`);
+            legacy.push(`cache/entities/${singular}/${prefixedSlug}.json.gz`);
+            legacy.push(`cache/entities/${prefixedSlug}.json`);
+            legacy.push(`cache/entities/${singular}/${prefixedSlug}.json`);
         }
     });
 
-    // 2. [V16.5 FALLBACK] Tiered/Flat Storage: cache/entities/
-    candidates.push(`cache/entities/${lowerSlug}.json`);
-    candidates.push(`cache/entities/${singular}/${lowerSlug}.json`);
+    // 4. [REPLICAS]
+    const replicas = [...primaryGz, ...primaryJson].map(p => p.replace('.json', '.v-1.json'));
 
-    // 3. [LEGACY COMPAT] Prefix Injection (Mapping 'pretty' IDs to possible prefixed keys)
-    prefixes.forEach(mandatoryPrefix => {
-        if (!lowerSlug.startsWith(mandatoryPrefix)) {
-            const prefixedSlug = `${mandatoryPrefix}${lowerSlug}`;
-            candidates.push(`cache/entities/${prefixedSlug}.json`); // Flat
-            candidates.push(`cache/entities/${singular}/${prefixedSlug}.json`); // Tiered
-        }
-    });
-
-    // 4. [V16.4 REPLICAS] Core resilience (.v-1, .v-2)
-    const replicas = [];
-    candidates.forEach(path => {
-        replicas.push(path.replace('.json', '.v-1.json'));
-        replicas.push(path.replace('.json', '.v-2.json'));
-    });
-
-    // 5. [V18.2 GZIP] Compressed variants - PRIORITIZE GZIP to eliminate 404 overhead
-    const gzipped = [...candidates, ...replicas].map(path => path.endsWith('.json') ? path + '.gz' : null).filter(Boolean);
-
-    return [...new Set([...gzipped, ...candidates, ...replicas])];
+    return [...new Set([...primaryGz, ...primaryJson, ...legacy, ...replicas])];
 }
 
 
