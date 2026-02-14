@@ -107,6 +107,21 @@ async function main() {
         rankedEntities = percentiledEntities.map(e => ({ ...e, category: getV6Category(e) }));
     }
 
+    // V18.2.3: Data Slimming (SPEC-SATELLITE-OOM-FIX)
+    // Satellite tasks (Search, Rankings, etc.) do NOT need heavy HTML READMEs (content field).
+    // Stripping this field in memory can save 1GB+ of heap for 100K+ entities.
+    if (taskArg && taskArg !== 'core' && taskArg !== 'health') {
+        const preSlimSize = rankedEntities.length;
+        console.log(`[AGGREGATOR] ✂️ Applying Data Slimming for satellite task: ${taskArg}...`);
+        for (let i = 0; i < rankedEntities.length; i++) {
+            // Keep: name, tags, metrics, id, slug, fni_score, description (truncated)
+            // Strip: full content (HTML), large buffers, or legacy artifacts
+            if (rankedEntities[i].content) delete rankedEntities[i].content;
+            if (rankedEntities[i].readme) delete rankedEntities[i].readme;
+        }
+        console.log(`[AGGREGATOR] ✅ Slimming complete. Optimized ${preSlimSize} entities.`);
+    }
+
     const tasks = [
         { name: 'Trending', id: 'trending', fn: () => generateTrending(rankedEntities, CONFIG.OUTPUT_DIR) },
         { name: 'Rankings', id: 'rankings', fn: () => generateRankings(rankedEntities, CONFIG.OUTPUT_DIR) },
