@@ -23,25 +23,20 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
                 continue;
             }
 
-            // V16.8.2 FIX: Always use ArrayBuffer to handle ambiguous GZIP/JSON states
+            // V16.8.4 FIX: Improved Safe Decode Strategy for SSR/Client Consistency
             const buffer = await res.arrayBuffer();
             const uint8 = new Uint8Array(buffer);
 
             // AUTO-DETECT: Check for GZIP Magic Bytes (0x1f 0x8b)
-            const isActuallyGzip = uint8[0] === 0x1f && uint8[1] === 0x8b;
+            const isActuallyGzip = uint8.length > 2 && uint8[0] === 0x1f && uint8[1] === 0x8b;
 
             if (isActuallyGzip) {
                 try {
-                    // 1. Try GZIP Decompression
+                    // Try decompression using available API
                     if (typeof globalThis.DecompressionStream === 'undefined' && typeof process !== 'undefined') {
-                        const { gunzipSync, unzipSync } = await import('node:zlib');
-                        try {
-                            const decompressed = gunzipSync(uint8);
-                            return JSON.parse(new TextDecoder().decode(decompressed));
-                        } catch (e1) {
-                            const decompressed2 = unzipSync(uint8);
-                            return JSON.parse(new TextDecoder().decode(decompressed2));
-                        }
+                        const { gunzipSync } = await import('node:zlib');
+                        const decompressed = gunzipSync(uint8);
+                        return JSON.parse(new TextDecoder().decode(decompressed));
                     } else {
                         const ds = new DecompressionStream('gzip');
                         const writer = ds.writable.getWriter();
@@ -51,7 +46,8 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
                         return await output.json();
                     }
                 } catch (gzipError) {
-                    // If decompression fails despite magic bytes, try text fallback
+                    console.warn(`[SSR] Decompression failed for ${url} despite Gzip header. Falling back to text parse.`);
+                    // Fallback: If decompression fails, it might be a corrupted or fake Gzip
                     try {
                         const text = new TextDecoder().decode(buffer);
                         return JSON.parse(text);
@@ -60,16 +56,16 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
                     }
                 }
             } else {
-                // 2. Not GZIP: Parse as Plain JSON
+                // Not GZIP: Parse as Plain JSON
                 try {
                     const text = new TextDecoder().decode(buffer);
                     return JSON.parse(text);
                 } catch (jsonError) {
-                    // Fail silently
+                    // Fail silently, try next candidate
                 }
             }
         } catch (e) {
-            // Network error
+            // Network or fetch error
         }
     }
     return null;
