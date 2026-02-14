@@ -1,7 +1,4 @@
-/**
- * Unified Entity Hydrator (V16.5)
- * CES Compliance: Refactored to honor < 250 lines rule.
- */
+/** Unified Entity Hydrator (V16.5) */
 import { applyVramLogic } from './entity-vram-logic.js';
 import { handleModelType, handlePaperType, handleGenericType, heuristicMining, mineRelations } from './entity-type-handlers.js';
 
@@ -71,28 +68,33 @@ export function hydrateEntity(data, type, summaryData) {
     if (type === 'model') applyVramLogic(hydrated);
     return hydrated;
 }
-
 function beautifyName(hydrated) {
     // V16.8.30 FIX: If we already have a human-readable name (from data unwrap), PROTECT IT.
     // Only beautify if it's missing, looks like a lone ID, or is a terminal "Unknown".
     // V16.9.2: Reinforced trigger - always beautify if it's a slug, contains double hyphens or matches raw ID
     const isSlug = hydrated.name && !hydrated.name.includes(' ') && (hydrated.name.includes('-') || hydrated.name.includes('_') || hydrated.name.includes('--'));
+    const isArXivID = /^\d{4}\.\d{4,5}$/.test(hydrated.name || '');
     const matchesId = hydrated.name === hydrated.id;
-    const hasValidName = hydrated.name && hydrated.name !== 'Unknown' && hydrated.name !== 'Unknown Model';
+    const hasValidName = hydrated.name && hydrated.name !== 'Unknown' && hydrated.name !== 'Unknown Model' && hydrated.name !== 'Unknown Entity';
 
-    if (!hasValidName || isSlug || matchesId) {
+    if (!hasValidName || isSlug || matchesId || isArXivID) {
         // V16.7: Handle SPEC-ID-V2.0 depth (e.g. hf-model--author--name)
         const id = hydrated.id || '';
         const parts = id.split('--');
         const rawName = parts[parts.length - 1] || id || 'Unknown Entity';
 
-        // Clean and Title Case
-        hydrated.name = rawName
-            .replace(/[-_]/g, ' ')
-            .split(' ')
-            .filter(Boolean)
-            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-            .join(' ');
+        if (isArXivID || /^\d{4}\.\d{4,5}$/.test(rawName)) {
+            // Paper Identity Protection: Keep the ID but prefix it for clarity if Title is missing
+            hydrated.name = `Paper ${rawName}`;
+        } else {
+            // Clean and Title Case
+            hydrated.name = rawName
+                .replace(/[-_]/g, ' ')
+                .split(' ')
+                .filter(Boolean)
+                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(' ');
+        }
 
         // Final sanity check for empty or nonsense names
         if (!hydrated.name || hydrated.name === 'Model' || hydrated.name === 'Agent') {
@@ -101,10 +103,7 @@ function beautifyName(hydrated) {
     }
 }
 
-/**
- * V16.8.31: Identity Reconstruction Logic
- * Reconstructs Provider/Author from ID segments (formula: source-type--author--name)
- */
+/** Reconstructs Provider/Author from ID segments */
 function beautifyAuthor(hydrated) {
     const id = hydrated.id || '';
     const parts = id.split('--');
