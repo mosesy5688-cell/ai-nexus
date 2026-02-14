@@ -24,7 +24,7 @@ export async function loadGlobalRegistry() {
     const cacheDir = process.env.CACHE_DIR || './cache';
     const shardDirPath = path.join(cacheDir, REGISTRY_DIR);
     const monolithPath = path.join(cacheDir, MONOLITH_FILE);
-    const REGISTRY_FLOOR = 85000;
+    const REGISTRY_FLOOR = parseInt(process.env.REGISTRY_FLOOR || '85000');
     let allEntities = []; // V18.2.3: Hoisted to prevent ReferenceError in R2 fallback
 
     const zlib = await import('zlib');
@@ -43,20 +43,9 @@ export async function loadGlobalRegistry() {
         return JSON.parse(data.toString('utf-8'));
     };
 
-    // 1. Try Local Monolith (GZ Preferred)
+    // V18.2.3: Shard-First Restoration (Performance & V8 Safety)
+    // We try shards first because they represent a distributed, memory-safe source of truth.
     if (process.env.FORCE_R2_RESTORE !== 'true') {
-        try {
-            const registry = await tryLoad(monolithPath);
-            const count = registry.entities?.length || 0;
-            if (count >= REGISTRY_FLOOR) {
-                console.log(`[CACHE] ✅ Local Monolith hit: ${count} entities.`);
-                return { entities: registry.entities, count, lastUpdated: registry.lastUpdated, didLoadFromStorage: true };
-            }
-        } catch { }
-
-        console.log(`[CACHE] 🧩 Initializing Zero-Loss Registry Restoration...`);
-
-        // 1. Try Local Shards (Primary Source of Truth)
         const shardFiles = await fs.readdir(shardDirPath).catch(() => []);
         const validShards = shardFiles.filter(f => f.startsWith('part-') && (f.endsWith('.json.gz') || f.endsWith('.json')));
 
@@ -80,10 +69,21 @@ export async function loadGlobalRegistry() {
             }
 
             if (allEntities.length >= REGISTRY_FLOOR) {
-                console.log(`[CACHE] ✅ Restored ${allEntities.length} entities from shards.`);
+                console.log(`[CACHE] ✅ Restored ${allEntities.length} entities from shards. Bypassing monolith.`);
                 return { entities: allEntities, count: allEntities.length, didLoadFromStorage: true };
             }
         }
+
+        // 2. Try Local Monolith (Fallback if shards missing/insufficient)
+        try {
+            console.log(`[CACHE] 🧩 Shards insufficient. Trying Local Monolith...`);
+            const registry = await tryLoad(monolithPath);
+            const count = registry.entities?.length || 0;
+            if (count >= REGISTRY_FLOOR) {
+                console.log(`[CACHE] ✅ Local Monolith hit: ${count} entities.`);
+                return { entities: registry.entities, count, lastUpdated: registry.lastUpdated, didLoadFromStorage: true };
+            }
+        } catch { }
     }
 
     // 2. R2 Fallback (Emergency Recovery)
