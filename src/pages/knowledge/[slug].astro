@@ -41,6 +41,22 @@ if (contentData || configResult) {
     effort: configResult?.article.effort || contentData?.effort || '5 min',
     slug: slug
   };
+} else {
+    // V16.8.15 R5.7.3: Category Fallback (Prevent 404 for mapping nodes like 'organizations')
+    import { getCategoryById } from '../../data/knowledge-base-config';
+    const cat = getCategoryById(slug);
+    if (cat) {
+        article = {
+            title: cat.title,
+            description: cat.description,
+            category: cat.id,
+            content: `## ${cat.title}\n\n${cat.description}\n\n### Articles in this Category\n` + 
+                     cat.articles.map(a => `- [${a.title}](/knowledge/${a.slug})`).join('\n'),
+            difficulty: 'Beginner',
+            effort: 'Diverse',
+            slug: slug
+        };
+    }
 }
 
 // R2 Live Fetch (Constitutional SSOT - R2 is the master source)
