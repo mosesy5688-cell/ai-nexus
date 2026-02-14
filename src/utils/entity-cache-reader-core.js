@@ -15,7 +15,7 @@ export function normalizeEntitySlug(id, type = 'model') {
     return base;
 }
 
-// V16.9.25: SPEC-ID-V2.0 Alignment - "What you see is what you fetch"
+// V16.8.5: SPEC-ID-V2.1 Alignment - "Robust Tri-Stream Discovery"
 export function getR2PathCandidates(type, normalizedSlug) {
     const typeMap = {
         'datasets': 'dataset', 'models': 'model', 'agents': 'agent',
@@ -23,54 +23,53 @@ export function getR2PathCandidates(type, normalizedSlug) {
     };
     const singular = typeMap[type] || (type.endsWith('s') ? type.slice(0, -1) : type);
     const lowerSlug = normalizedSlug.toLowerCase();
-    const candidates = [];
 
     // V18.2.1: Unified Prefix Map for all storage tiers
-    // V18.2.1: Unified Prefix Map for all storage tiers
     const prefixMap = {
-        'model': ['hf-model--', 'gh-model--', 'hf--', 'gh--', 'civitai--', 'replicate--', 'ollama--', 'kaggle--'],
-        'dataset': ['hf-dataset--', 'dataset--', 'hf--', 'kaggle--'],
+        'model': ['hf-model--', 'gh-model--', 'civitai--', 'ollama--', 'replicate--', 'kaggle--', 'hf--', 'gh--'],
+        'dataset': ['hf-dataset--', 'kaggle-dataset--', 'dataset--', 'hf--'],
         'paper': ['arxiv-paper--', 'arxiv--', 'paper--', 'hf-paper--'],
-        'space': ['hf-space--', 'space--', 'hf--'],
-        'agent': ['gh-agent--', 'hf-agent--', 'agent--', 'replicate-agent--'],
+        'space': ['hf-space--', 'space--'],
+        'agent': ['gh-agent--', 'hf-agent--', 'agent--'],
         'tool': ['gh-tool--', 'hf-tool--', 'tool--', 'github-tool--']
     };
     const prefixes = prefixMap[singular] || [];
 
-    // 1. [V18.2 PRIMARY] Fused Storage: cache/fused/[ID].json
-    // Contains fused specs, benchmarks, and mesh profiles for 121k scalability
-    candidates.push(`cache/fused/${lowerSlug}.json`);
+    const candidates = [];
 
+    // 1. [PRIMARY] Fused Storage (High Fidelity)
+    // We've confirmed hf-model--meta-llama--meta-llama-3-8b.json.gz exists here.
     prefixes.forEach(p => {
-        if (!lowerSlug.startsWith(p)) {
-            candidates.push(`cache/fused/${p}${lowerSlug}.json`);
+        const fullSlug = lowerSlug.includes('--') ? lowerSlug : `${p}${lowerSlug}`;
+        candidates.push(`cache/fused/${fullSlug}.json.gz`);
+        candidates.push(`cache/fused/${fullSlug}.json`);
+
+        // Check if the input lowerSlug ALREADY has the prefix
+        if (lowerSlug.startsWith(p)) {
+            candidates.push(`cache/fused/${lowerSlug}.json.gz`);
+            candidates.push(`cache/fused/${lowerSlug}.json`);
+        } else {
+            const prefixed = `${p}${lowerSlug}`;
+            candidates.push(`cache/fused/${prefixed}.json.gz`);
+            candidates.push(`cache/fused/${prefixed}.json`);
         }
     });
 
-    // 2. [V16.5 FALLBACK] Tiered/Flat Storage: cache/entities/
-    candidates.push(`cache/entities/${lowerSlug}.json`);
+    // 2. [SECONDARY] Entity Storage (The Anchor)
+    // confirmed: hf-dataset--... , gh-agent--...
+    prefixes.forEach(p => {
+        const fullSlug = lowerSlug.startsWith(p) ? lowerSlug : `${p}${lowerSlug}`;
+        candidates.push(`cache/entities/${singular}/${fullSlug}.json.gz`);
+        candidates.push(`cache/entities/${singular}/${fullSlug}.json`);
+    });
+
+    // 3. [FALLBACK] Direct / Flat Paths
+    candidates.push(`cache/entities/${singular}/${lowerSlug}.json.gz`);
     candidates.push(`cache/entities/${singular}/${lowerSlug}.json`);
+    candidates.push(`cache/entities/${lowerSlug}.json.gz`);
+    candidates.push(`cache/entities/${lowerSlug}.json`);
 
-    // 3. [LEGACY COMPAT] Prefix Injection (Mapping 'pretty' IDs to possible prefixed keys)
-    prefixes.forEach(mandatoryPrefix => {
-        if (!lowerSlug.startsWith(mandatoryPrefix)) {
-            const prefixedSlug = `${mandatoryPrefix}${lowerSlug}`;
-            candidates.push(`cache/entities/${prefixedSlug}.json`); // Flat
-            candidates.push(`cache/entities/${singular}/${prefixedSlug}.json`); // Tiered
-        }
-    });
-
-    // 4. [V16.4 REPLICAS] Core resilience (.v-1, .v-2)
-    const replicas = [];
-    candidates.forEach(path => {
-        replicas.push(path.replace('.json', '.v-1.json'));
-        replicas.push(path.replace('.json', '.v-2.json'));
-    });
-
-    // 5. [V18.2 GZIP] Compressed variants - PRIORITIZE GZIP to eliminate 404 overhead
-    const gzipped = [...candidates, ...replicas].map(path => path.endsWith('.json') ? path + '.gz' : null).filter(Boolean);
-
-    return [...new Set([...gzipped, ...candidates, ...replicas])];
+    return [...new Set(candidates)];
 }
 
 

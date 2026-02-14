@@ -97,8 +97,9 @@ export function getRouteFromId(id, type = null) {
         }
     } else {
         // For primary types (model, agent, etc.), strip the source-type-- prefix
-        // and convert author--name to author/name
-        slug = stripPrefix(id).replace(/--/g, '/');
+        // V16.8.4 Fix: If the ID contains slashes already (pure HF style), don't inject extra -- logic
+        const stripped = stripPrefix(id);
+        slug = stripped.includes('/') ? stripped : stripped.replace(/--/g, '/');
     }
 
     const routeMap = {

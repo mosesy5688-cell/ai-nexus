@@ -18,11 +18,16 @@ const INDEX_URLS = {
  * Hybrid fetcher: Handles both GZIP and Plain JSON based on extension.
  */
 async function tryFetchJson(url) {
-    // 1. GZIP Logic
-    if (url.endsWith('.gz')) {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Fetch failed: ${response.status} (${url})`);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Fetch failed: ${response.status} (${url})`);
 
+    // V16.8.4: Safe Buffer Detection
+    const buffer = await response.clone().arrayBuffer();
+    const uint8 = new Uint8Array(buffer);
+    const isActuallyGzip = uint8[0] === 0x1f && uint8[1] === 0x8b;
+
+    // 1. GZIP Logic
+    if (url.endsWith('.gz') && isActuallyGzip) {
         // Check if browser already decompressed it transparently
         const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip'
             || response.headers.get('content-encoding') === 'gzip';
@@ -34,17 +39,27 @@ async function tryFetchJson(url) {
                 const decompressedStream = response.body.pipeThrough(ds);
                 return await new Response(decompressedStream).json();
             } catch (e) {
-                console.error('[SearchWorker] GZIP Decompression failed:', e);
-                throw new Error('Critical: Failed to decompress search index.');
+                console.warn('[SearchWorker] GZIP stream failed, trying buffer fallback:', e);
+                // Last ditch: if stream fails, maybe the clone buffer can be parsed
+                try {
+                    const text = new TextDecoder().decode(buffer);
+                    return JSON.parse(text);
+                } catch (e2) {
+                    throw new Error('Critical: Failed to decompress search index.');
+                }
             }
         }
         return await response.json();
     }
 
-    // 2. Plain JSON Logic (for Manifest & Shards)
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Fetch failed: ${response.status} (${url})`);
-    return await response.json();
+    // 2. Plain JSON Logic (for Manifest, Shards, or fake .gz files)
+    try {
+        return await response.json();
+    } catch (e) {
+        // If response.json() fails, try decoding the buffer
+        const text = new TextDecoder().decode(buffer);
+        return JSON.parse(text);
+    }
 }
 
 export async function loadIndex(entityType = 'model') {
@@ -57,18 +72,27 @@ export async function loadIndex(entityType = 'model') {
     const url = INDEX_URLS[entityType] || INDEX_URLS.model;
     try {
         const data = await tryFetchJson(url); // Loads .json.gz
-        const items = (data.entities || data.models || data.spaces || data.datasets || data || []).map((item, idx) => ({
-            ...item,
-            id: item.id || `auto-${idx}`,
-            fni_score: item.fni_score ?? item.fni ?? item.fniScore ?? 0,
-            fni_percentile: item.fni_percentile || item.percentile || ''
-        }));
+        const items = (data.entities || data.models || data.spaces || data.datasets || data || []).map((item, idx) => {
+            // SPEC-V18.2 Alignment: Map abbreviated fields to standard internal names
+            return {
+                ...item,
+                id: item.id || `auto-${idx}`,
+                name: item.n || item.name || item.title || 'Unknown',
+                author: item.o || item.author || item.owner || 'Open Source',
+                type: item.t || item.type || entityType,
+                description: item.d || item.description || '',
+                fni_score: item.s ?? item.fni_score ?? item.fni ?? item.fniScore ?? 0,
+                fni_percentile: item.fni_percentile || item.percentile || '',
+                slug: item.slug || item.id?.split(/[:/]/).pop() || ''
+            };
+        });
 
         const miniSearch = new MiniSearch({
             fields: ['name', 'author', 'tags', 'description', 'slug'],
             storeFields: ['name', 'author', 'tags', 'description', 'id', 'slug', 'likes', 'downloads', 'last_updated', 'fni_score', 'pwc_benchmarks', 'verified', 'type'],
             searchOptions: {
-                boost: { name: 2, author: 1.5 },
+                // SPEC-V18.2 Weighting Alignment
+                boost: { name: 10, author: 5, description: 1 },
                 fuzzy: 0.2,
                 prefix: true
             }
@@ -120,16 +144,16 @@ export async function loadFullIndex(onProgress) {
                     shard.entities.forEach(e => {
                         if (!itemsMap.has(e.id)) {
                             // V16.7.1 FIX: Include tags for 100% keyword coverage
-                            // Also ensure consistent naming (fni_score, fni_percentile)
+                            // SPEC-V18.2: Support abbreviated shard fields
                             itemsMap.set(e.id, {
                                 id: e.id,
-                                name: e.name || e.id,
-                                type: e.type || 'model',
-                                author: e.author || 'Open Source',
-                                fni_score: Math.round(e.fni ?? e.fni_score ?? e.fniScore ?? 0),
+                                name: e.n || e.name || e.title || e.id,
+                                type: e.t || e.type || 'model',
+                                author: e.o || e.author || e.owner || 'Open Source',
+                                fni_score: Math.round(e.s ?? e.fni ?? e.fni_score ?? e.fniScore ?? 0),
                                 fni_percentile: e.percentile ?? e.fni_percentile ?? e.fniPercentile ?? '',
-                                description: e.description || '',
-                                slug: e.slug || e.id?.split(/[:/]/).pop(),
+                                description: e.d || e.description || '',
+                                slug: e.slug || e.id?.split(/[:/]/).pop() || '',
                                 tags: Array.isArray(e.tags) ? e.tags : (typeof e.tags === 'string' ? JSON.parse(e.tags || '[]') : [])
                             });
                         }
