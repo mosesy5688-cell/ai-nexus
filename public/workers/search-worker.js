@@ -7,12 +7,14 @@ import {
     loadError,
     isFullSearchActive,
     loadIndex,
-    loadIndex,
     loadFullIndex
 } from './search-worker-loader.js?v=16.6.0';
 
-// Start loading models immediately and notify when ready
+// SPEC-SEARCH-V18.2: Immediate status ping capability
+console.log('[SearchWorker] Bootstrapping v16.8.15-R5.6');
+
 loadIndex('model').then(() => {
+    console.log('[SearchWorker] Core index ready.');
     self.postMessage({ type: 'STATUS', isLoaded: true, count: indexCache['model']?.items?.length || 0 });
 }).catch(err => {
     console.error('[SearchWorker] Initial load failed:', err);
@@ -21,6 +23,12 @@ loadIndex('model').then(() => {
 
 self.onmessage = async (e) => {
     const { id, type, filters } = e.data;
+
+    // Ping for heartbeat
+    if (type === 'ping') {
+        self.postMessage({ type: 'pong' });
+        return;
+    }
 
     if (type === 'LOAD_FULL') {
         try {
