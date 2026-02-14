@@ -19,20 +19,29 @@ export class EntityCardRenderer {
 
     static createCardHTML(item, type) {
         const id = item.id || item.slug || '';
-        const displayTitle = item.name || id.split('/').pop()?.replace(/--/g, '/') || 'Untitled Entity';
+        let baseName = item.name || '';
+        if (!baseName || baseName.toLowerCase() === 'unknown') {
+            baseName = id.split('/').pop()?.split('--').pop()?.replace(/--/g, '/') || 'Untitled Entity';
+        }
+        const displayTitle = baseName;
+
         const author = extractAuthor(id, item.author || item.creator || item.organization);
         const description = (item.description || item.summary || 'Structural intelligence indexing in progress...');
-        const cleanDesc = this.cleanText(description);
+
+        // R5.7.1 High Density description cleaning
+        const cleanDesc = (description || "").replace(/<img[^>]*>/gi, "").replace(/<p[^>]*>/gi, "").replace(/<\/p>/gi, " ").trim().substring(0, 120);
+
         const link = generateEntityUrl(item, type);
         const isActive = isRecentlyActive(item.last_updated || item.lastModified);
 
         const fni = Math.round(item.fni_score ?? item.fni ?? 0);
         const fniPercentile = item.fni_percentile || item.percentile || '';
 
+        // R5.7.1 Minimalism Tokens
         let fniBadgeClass = "bg-gray-100 dark:bg-zinc-800 text-gray-500";
-        if (fni >= 85) fniBadgeClass = "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 border border-emerald-400/20";
-        else if (fni >= 70) fniBadgeClass = "bg-amber-500 text-white shadow-lg shadow-amber-500/20 border border-amber-400/20";
-        else if (fni > 0) fniBadgeClass = "bg-rose-500 text-white shadow-lg shadow-rose-500/20 border border-rose-400/20";
+        if (fni >= 85) fniBadgeClass = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
+        else if (fni >= 70) fniBadgeClass = "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
+        else if (fni > 0) fniBadgeClass = "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400";
 
         let typeBadgeColor = 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400';
         if (type === 'model') typeBadgeColor = 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400';
@@ -44,18 +53,13 @@ export class EntityCardRenderer {
 
         const typeLabel = (item.pipeline_tag || item.primary_category || type).replace(/-/g, ' ');
 
-        // V19.1 Polymorphic Metrics Calculation
         const metrics = [];
         if (type === 'model' || type === 'dataset' || type === 'space') {
             if (item.downloads > 0) metrics.push({ icon: '📥', value: this.formatNumber(item.downloads), label: 'Downloads' });
             if (item.likes > 0) metrics.push({ icon: '❤️', value: this.formatNumber(item.likes), label: 'Likes' });
-            if (type === 'dataset' && item.size) metrics.push({ icon: '💾', value: item.size, label: 'Size' });
-            if (type === 'space' && item.runtime) metrics.push({ icon: '🚀', value: item.runtime, label: 'Runtime' });
         } else if (type === 'agent' || type === 'tool') {
             const stars = item.github_stars || item.stars || 0;
-            const forks = item.github_forks || item.forks || 0;
             if (stars > 0) metrics.push({ icon: '⭐', value: this.formatNumber(stars), label: 'Stars' });
-            if (forks > 0) metrics.push({ icon: '🍴', value: this.formatNumber(forks), label: 'Forks' });
         } else if (type === 'paper') {
             const citations = item.citations || 0;
             if (citations > 0) metrics.push({ icon: '📚', value: this.formatNumber(citations), label: 'Citations' });
@@ -64,39 +68,39 @@ export class EntityCardRenderer {
         }
 
         return `
-            <a href="${link}" class="entity-card group p-5 bg-white dark:bg-zinc-900 rounded-xl hover:shadow-md transition-all border border-gray-100 dark:border-zinc-800 hover:border-indigo-500/50 block h-full flex flex-col">
-                <div class="flex items-center justify-between mb-3">
+            <a href="${link}" class="entity-card group p-3 bg-white dark:bg-zinc-900 rounded-md transition-all border border-zinc-100 dark:border-zinc-800 hover:border-blue-500/50 block h-full flex flex-col">
+                <div class="flex items-center justify-between mb-2">
                      <div class="flex items-center gap-2">
-                         <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${typeBadgeColor}">${typeLabel}</span>
-                         ${isActive ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="Recently updated"></span>' : ''}
+                         <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${typeBadgeColor}">${typeLabel}</span>
+                         ${isActive ? '<span class="w-1 h-1 rounded-full bg-emerald-500 shrink-0" title="Recently updated"></span>' : ''}
                      </div>
                      ${(fni > 0 || fniPercentile) ? `
-                        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full ${fniBadgeClass}">
-                            <span class="text-[10px] font-bold">🛡️ ${fni > 0 ? fni : ''}</span>
+                        <div class="flex items-center gap-1 px-1.5 py-0.5 rounded ${fniBadgeClass} border border-black/5 dark:border-white/5">
+                            <span class="text-[9px] font-bold">${fni > 0 ? fni : ''}</span>
                             ${(fniPercentile && typeof fniPercentile === 'string' && fniPercentile.startsWith('top_')) ?
-                    `<span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">${fniPercentile.replace('top_', 'Top ')}</span>`
+                    `<span class="text-[8px] opacity-80 font-bold border-l border-current/20 pl-1">${fniPercentile.replace('top_', 'Top ')}</span>`
                     : (fniPercentile && typeof fniPercentile === 'number' && fniPercentile >= 90) ?
-                        `<span class="text-[9px] opacity-80 font-bold border-l border-current/20 pl-1.5">Top ${100 - fniPercentile}%</span>`
+                        `<span class="text-[8px] opacity-80 font-bold border-l border-current/20 pl-1">Top ${100 - fniPercentile}%</span>`
                         : ''}
                         </div>
                      ` : ''}
                 </div>
                 
-                <h3 class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1 mb-1" title="${displayTitle}">
+                <h3 class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1 mb-0.5" title="${displayTitle}">
                     ${displayTitle}
                 </h3>
                 
-                <p class="text-[11px] text-gray-400 dark:text-zinc-500 mb-3 uppercase tracking-wider font-medium">by ${author}</p>
+                <p class="text-[10px] text-gray-400 dark:text-zinc-500 mb-2 uppercase tracking-tight font-bold">by ${author}</p>
                 
-                <p class="text-xs text-gray-600 dark:text-zinc-400 line-clamp-3 mb-4 flex-grow leading-relaxed">
+                <p class="text-[11px] text-gray-600 dark:text-zinc-400 line-clamp-2 mb-3 flex-grow leading-snug">
                     ${cleanDesc}
                 </p>
 
-                <div class="flex items-center gap-4 pt-4 border-t border-gray-50 dark:border-zinc-800 text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                <div class="flex items-center gap-3 pt-2 border-t border-zinc-50 dark:border-zinc-800 text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">
                     ${metrics.map(m => `
                         <div class="flex items-center gap-1" title="${m.label}">
-                            <span>${m.icon}</span>
                             <span>${m.value}</span>
+                            <span class="opacity-60">${m.label.charAt(0)}</span>
                         </div>
                     `).join('')}
                 </div>
