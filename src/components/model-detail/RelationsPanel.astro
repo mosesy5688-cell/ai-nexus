@@ -100,7 +100,7 @@ const hasRelations = baseModel || datasetsUsed.length > 0 || arxivRefs.length > 
     <script is:inline>
       async function loadPaperTitles() {
         try {
-          const res = await fetch('/cache/paper-titles.json');
+          const res = await fetch('https://cdn.free2aitools.com/cache/paper-titles.json');
           if (!res.ok) return;
           const data = await res.json();
           document.querySelectorAll('[data-arxiv]').forEach(el => {

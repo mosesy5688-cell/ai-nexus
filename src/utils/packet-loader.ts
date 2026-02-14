@@ -117,29 +117,28 @@ export async function loadEntityStreams(type: string, slug: string) {
     }
 
     // --- ANCHOR ESTABLISHED ---
-    // 4. Secondary Stream Discovery (Fused & Mesh)
+    // 4. Secondary Stream Discovery (Fused & Mesh) - V16.8.6 Prefix-Aware Pathing
     const rawId = entityPack.id || entityPack.slug || slug;
     const canonicalId = normalizeEntitySlug(rawId, type);
-    const singular = type.endsWith('s') ? type.slice(0, -1) : type;
 
-    // We try to fetch Fused (HTML) and Mesh (Relations) using the canonical ID
-    const fusedPath = `cache/fused/${canonicalId}.json.gz`;
+    // Use getR2PathCandidates to get prefix-aware paths for Fused and Mesh
+    const secondaryCandidates = getR2PathCandidates(type, canonicalId);
+
+    const fusedPath = secondaryCandidates.find(c => c.includes('/fused/')) || `cache/fused/${canonicalId}.json.gz`;
     const meshPath = `cache/mesh/profiles/${canonicalId}.json.gz`;
 
     // Attempt to fetch Fused Pack (README/HTML)
     let fusedPack = await fetchCompressedJSON(fusedPath);
-    if (!fusedPack) fusedPack = await fetchCompressedJSON(fusedPath.replace('.gz', ''));
-    if (!fusedPack) {
-        // Fallback: Try with type prefix if not already present
-        const altFusedPath = `cache/fused/${singular}--${canonicalId}.json.gz`;
-        fusedPack = await fetchCompressedJSON(altFusedPath);
+    if (!fusedPack && !fusedPath.endsWith('.gz')) {
+        fusedPack = await fetchCompressedJSON(`${fusedPath}.gz`);
     }
 
     const html = fusedPack?.html_readme || entityPack.html_readme || null;
 
     // Attempt to fetch Mesh Pack (Relations)
     let meshPack = await fetchCompressedJSON(meshPath);
-    if (!meshPack) meshPack = await fetchCompressedJSON(meshPath.replace('.gz', ''));
+    if (!meshPack) meshPack = await fetchCompressedJSON(`${meshPath.replace('.gz', '')}`);
+    if (!meshPack && !meshPath.endsWith('.gz')) meshPack = await fetchCompressedJSON(`${meshPath}.gz`);
 
     const mesh = meshPack?.relations || meshPack?.nodes || entityPack.relations || [];
 

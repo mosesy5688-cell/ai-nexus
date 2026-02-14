@@ -106,13 +106,23 @@ async function loadTrendData(): Promise<Record<string, any>> {
     if (_trendCache) return _trendCache;
     if (_loadPromise) return _loadPromise;
     
-    _loadPromise = fetch(`${R2_CACHE_URL}/cache/trend-data.json`)
+    _loadPromise = fetch(`${R2_CACHE_URL}/cache/trend-data.json.gz`)
         .then(async (res) => {
             if (!res.ok) {
-                const fallback = await fetch('/cache/trend-data.json');
-                return fallback.ok ? fallback.json() : {};
+                const fallback = await fetch(`${R2_CACHE_URL}/cache/trend-data.json`);
+                return fallback.ok ? fallback : null;
             }
-            return res.json();
+            return res;
+        })
+        .then(async (res) => {
+            if (!res) return {};
+            const url = res.url;
+            if (url.endsWith('.gz')) {
+                const ds = new DecompressionStream('gzip');
+                const stream = res.body.pipeThrough(ds);
+                return await new Response(stream).json();
+            }
+            return await res.json();
         })
         .then(data => { _trendCache = data; return data; })
         .catch(() => ({}));
