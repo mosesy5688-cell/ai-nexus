@@ -21,10 +21,11 @@ import CiteEntity from '../../components/common/CiteEntity.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import QuickCommands from '../../components/common/QuickCommands.astro';
 import FNITrustPanel from '../../components/FNITrustPanel.astro';
+import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
-import { normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
+import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
 
 
 const { slug } = Astro.params;
@@ -73,6 +74,8 @@ if (!agent && !error) {
 
 const agentName = agent?.name || 'Unknown Agent';
 const entityId = agent?.id || slugStr;
+const modelId = entityId;
+const agentId = entityId;
 const displayAuthor = agent?.author || 'Independent / Community';
 
 const hasFNI = agent?.fni_score !== undefined || agent?.fni_percentile !== undefined;

@@ -19,7 +19,7 @@ import QuickCommands from '../../components/common/QuickCommands.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
-import { normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
+import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import { cleanDescription } from '../../utils/model-page-helpers.ts';
 import { getUseCases } from '../../utils/inference.js';
 
@@ -49,7 +49,6 @@ try {
   tagsArray = tool?.tags || [];
   meshRelations = mesh || [];
   
-  const normalizedSlug = normalizeEntitySlug(slugStr, type);
   const displayToolName = tool?.name || tool?.title || tool?.canonical_name || 'Unknown Tool';
   pageTitle = `${displayToolName} - AI Tool Insights`;
   cleanedDesc = cleanDescription(tool?.description || '');
@@ -69,6 +68,8 @@ if (!tool && !error) {
 
 const toolName = tool?.name || 'Unknown Tool';
 const entityId = tool?.id || slugStr;
+const modelId = entityId;
+const toolId = entityId;
 const displayAuthor = tool?.author || 'Independent / Community';
 
 const placeholderImage = '/images/models/default-model.jpg';

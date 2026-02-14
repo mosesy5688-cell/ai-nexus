@@ -21,13 +21,14 @@ import QuickCommands from '../../components/common/QuickCommands.astro';
 import FNITrustPanel from '../../components/FNITrustPanel.astro';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
-import { normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
+import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import { cleanDescription } from '../../utils/model-page-helpers.ts';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
 
 let dataset = null;
+let model = null; // Added model variable
 let error = null;
 let tagsArray = [];
 let pageTitle = "AI Dataset Details - Free AI Tools";
@@ -46,11 +47,12 @@ try {
     return Astro.redirect('/404?reason=dataset-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  dataset = hydrateEntity(entity, type);
+  model = hydrateEntity(entity, type); // Changed to model
+  dataset = model; // Assign model to dataset for backward compatibility with existing code
   tagsArray = dataset?.tags || [];
   meshRelations = mesh || [];
   
-  const normalizedSlug = normalizeEntitySlug(slugStr, type);
+  const normalizedSlug = slugStr; // Removed normalizeEntitySlug as it's no longer imported
   const displayDatasetName = dataset?.name || dataset?.title || 'Unknown Dataset';
   pageTitle = `${displayDatasetName} - AI Dataset Insights`;
   cleanedDesc = cleanDescription(dataset?.description || '');
@@ -69,7 +71,9 @@ if (!dataset && !error) {
 }
 
 const datasetName = dataset?.name || 'Unknown Dataset';
-const entityId = dataset?.id || slugStr;
+const entityId = model?.id || slugStr;
+const modelId = entityId;
+const datasetId = entityId;
 const displayAuthor = dataset?.author || 'Independent / Community';
 
 const hasFNI = dataset?.fni_score !== undefined || dataset?.fni_percentile !== undefined;
