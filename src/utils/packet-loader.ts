@@ -20,25 +20,33 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
             const res = await fetch(url);
             if (!res.ok) continue;
 
-            // V16.9.2: Streaming Decompression - Optimized for Workers/Browsers
-            const isGzip = url.endsWith('.gz') || res.headers.get('content-type')?.includes('gzip') || res.headers.get('content-encoding')?.includes('gzip');
+            // V16.9.4: Resilient Decompression - Handle "Fake .gz" (uncompressed text in .gz file)
+            const isGzipURL = url.endsWith('.gz');
+            const buffer = await res.arrayBuffer();
+            const uint8 = new Uint8Array(buffer);
+            const isActuallyGzip = uint8.length > 2 && uint8[0] === 0x1f && uint8[1] === 0x8b;
 
-            if (isGzip) {
+            if (isActuallyGzip) {
                 try {
                     const ds = new DecompressionStream('gzip');
-                    const response = new Response(res.body?.pipeThrough(ds));
-                    const data = await response.json();
+                    const decompressedRes = new Response(new Response(buffer).body?.pipeThrough(ds));
+                    const data = await decompressedRes.json();
                     if (data) return data;
-                } catch (gzipError) {
-                    console.warn(`[Loader] Streaming decompression failed for ${url}, trying direct buffer fallback.`);
-                    // Fallback for environments where pipeThrough is restricted on fetch body
-                    const buffer = await res.arrayBuffer();
-                    const ds = new DecompressionStream('gzip');
-                    const output = new Response(new Response(buffer).body?.pipeThrough(ds));
-                    return await output.json();
+                } catch (e: any) {
+                    console.warn(`[Loader] Decompression failed for ${url}, trying text fallback.`);
+                    try {
+                        return JSON.parse(new TextDecoder().decode(buffer));
+                    } catch (err) { return null; }
                 }
             } else {
-                return await res.json();
+                // Not Gzip or already decompressed by CDN edge
+                try {
+                    const text = new TextDecoder().decode(buffer);
+                    return JSON.parse(text);
+                } catch (e: any) {
+                    if (isGzipURL) console.warn(`[Loader] Failed to parse .gz file ${url} as JSON/Gzip.`);
+                    return null;
+                }
             }
         } catch (e: any) {
             console.error(`[Loader] Fetch error for ${url}:`, e.message);

@@ -10,7 +10,18 @@ export function normalizeEntitySlug(id, type = 'model') {
     // V15.12: Handle array inputs from Astro [...slug] routes
     let slug = Array.isArray(id) ? id.join('/') : id;
 
-    // V16.9.22: Strip any legacy or current prefixes before normalizing for slug/path
+    // V16.9.4: Protect date formats (Reports)
+    if (type === 'report' && /^\d{4}[-\/]\d{2}[-\/]\d{2}$/.test(slug)) {
+        return slug.replace(/\//g, '-');
+    }
+
+    // V16.9.22: Internal ID Alignment - If it's already a valid R2-style prefixed ID, keep it.
+    // Otherwise, normalize it (strip legacy, replace slashes with double hyphens).
+    const validPrefixes = ['hf-model--', 'gh-model--', 'arxiv-paper--', 'hf-dataset--', 'hf-space--', 'gh-agent--', 'gh-tool--'];
+    if (validPrefixes.some(p => slug.startsWith(p))) {
+        return slug;
+    }
+
     const base = stripPrefix(slug).replace(/[:\/]/g, '--');
     return base;
 }

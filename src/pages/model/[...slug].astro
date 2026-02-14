@@ -84,6 +84,7 @@ const coverImage = model?.cover_image_url || placeholderImage;
 const modelName = model?.name || 'Unknown Model';
 const displayAuthor = model?.author || 'Independent / Community';
 const entityId = model?.id || slugStr;
+const modelId = entityId;
 
 // V15.0: Derived Use Cases and Limits
 const derivedUseCases = model ? getUseCases(tagsArray, model.pipeline_tag, 'model', model.fni_score) : { goodFor: [], limits: [] };
