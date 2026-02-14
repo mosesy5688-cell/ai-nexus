@@ -29,7 +29,11 @@ try {
             } else {
                 report = await res.json();
             }
-            if (report) break;
+            if (report) {
+                // V16.8.30: Defensive Title Restoration
+                report.title = report.title || report.name || `Daily Technical Briefing: ${reportSlug}`;
+                break;
+            }
         }
     }
 } catch (e) {

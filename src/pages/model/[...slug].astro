@@ -51,7 +51,7 @@ try {
   }
 
   // 4. Transform & Prepare
-  model = entity;
+  model = hydrateEntity(entity, type);
   meshRelations = mesh || []; 
   tagsArray = model?.tags || [];
 
