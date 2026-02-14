@@ -34,7 +34,7 @@ const relatedModels = tiers?.core?.nodes || [];
   <div class="used-in-grid">
     {relatedModels.length > 0 ? (
       relatedModels.slice(0, 10).map((node: any) => (
-        <a href={getRouteFromId(node.id, node.type)} class="used-in-card">
+        <a href={getRouteFromId(node.id, node.type || 'model')} class="used-in-card">
           {node.icon} {node.name}
         </a>
       ))

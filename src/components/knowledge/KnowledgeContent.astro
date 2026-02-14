@@ -6,12 +6,10 @@ interface Props {
 
 const { content } = Astro.props;
 
-// Current simple markdown parser from original file
-const htmlContent = content
-  .replace(/\n/g, '<br>')
-  .replace(/## /g, '<h2>')
-  .replace(/<br><h2>/g, '</p><h2>')
-  .replace(/<h2>([^<]+)/g, '<h2>$1</h2><p>');
+import { marked } from 'marked';
+
+// Configure marked for information density styling
+const htmlContent = marked.parse(content || '');
 ---
 
 <article class="article-content" set:html={htmlContent} />

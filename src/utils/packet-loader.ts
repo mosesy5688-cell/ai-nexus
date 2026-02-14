@@ -136,17 +136,20 @@ export async function loadEntityStreams(type: string, slug: string) {
     // --- DATA FUSION (V16.8.8) ---
     // Merge fused metadata into entity metadata (Fidelity Restoration)
     if (fusedPack) {
-        const { html_readme, ...fusedMeta } = fusedPack;
+        // V16.8.15 FIX: Use protective destructuring to avoid overwriting valid fields with undefined
+        const { html_readme, name: fusedName, description: fusedDesc, ...fusedMeta } = fusedPack;
 
         // Aliases for HTML content (Normalize Stream B)
         const html = html_readme || fusedPack.body || fusedPack.content_html || fusedPack.readme_html || entityPack.html_readme || null;
 
-        // Perform Shallow Merge (Favouring Fused for technical metrics)
+        // Perform Shallow Merge (Favouring Fused for technical metrics, but protecting Identity)
         Object.assign(entityPack, {
             ...fusedMeta,
             html_readme: html,
+            // Guard: Never let fusedPack overwrite a valid name with something missing
+            name: entityPack.name || fusedName || entityPack.title || fusedPack.title,
             // Guard: Never let a tiny summary overwrite a real README
-            description: entityPack.description?.length > 500 ? entityPack.description : (fusedMeta.description || entityPack.description)
+            description: entityPack.description?.length > 500 ? entityPack.description : (fusedDesc || entityPack.description)
         });
     }
 
