@@ -15,13 +15,14 @@ try {
   if (response.ok) {
     meshStats = await response.json();
   } else {
-    // Fallback stats for V16.2 launch
+    // Fallback stats for V16.8.15 R5.7.3 (Unified Factory Sync)
     meshStats = { 
-      nodes: 62000, 
-      edges: 150000, 
+      nodes: 125152, 
+      edges: 47685, 
       by_type: { 
-        model: 60000, paper: 50000, agent: 1200, space: 1500, 
-        dataset: 1200, tool: 800, knowledge: 30, report: 6 
+        model: 51502, paper: 55257, agent: 148, space: 1022, 
+        dataset: 16140, tool: 1050, knowledge: 29, report: 1,
+        concept: 3
       } 
     };
   }
