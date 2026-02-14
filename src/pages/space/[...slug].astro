@@ -66,6 +66,9 @@ try {
 
 if (!space && !error) {
   Astro.response.status = 404;
+  return Astro.redirect('/404?source=space-not-found');
+}
+
 const normalizedSlug = normalizeEntitySlug(slugStr, type);
 const spaceName = space?.title || space?.name || space?.canonical_name || 'Unknown Demo Space';
 const spaceId = space?.id || normalizedSlug || '';
