@@ -100,10 +100,9 @@ export function getRouteFromId(id, type = null) {
             slug = KNOWLEDGE_ALIAS_MAP[slug];
         }
     } else {
-        // For primary types (model, agent, etc.), strip the source-type-- prefix
-        // V16.8.4 Fix: If the ID contains slashes already (pure HF style), don't inject extra -- logic
-        const stripped = stripPrefix(id);
-        slug = stripped.includes('/') ? stripped : stripped.replace(/--/g, '/');
+        // For primary types (model, agent, etc.), use the canonical double-hyphenated ID
+        // V16.8.30 RESTORATION: Always use double-hyphens for R2 paths (e.g. /tool/huggingface--transformers)
+        slug = stripPrefix(id);
     }
 
     const routeMap = {

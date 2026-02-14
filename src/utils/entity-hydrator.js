@@ -72,8 +72,12 @@ export function hydrateEntity(data, type, summaryData) {
 }
 
 function beautifyName(hydrated) {
+    // V16.8.30 FIX: If we already have a human-readable name (from data unwrap), PROTECT IT.
+    // Only beautify if it's missing, looks like a lone ID, or is a terminal "Unknown".
+    const hasValidName = hydrated.name && hydrated.name !== 'Unknown' && hydrated.name !== 'Unknown Model' && hydrated.name !== hydrated.id;
     const isSlug = hydrated.name && !hydrated.name.includes(' ') && (hydrated.name.includes('-') || hydrated.name.includes('_'));
-    if (!hydrated.name || hydrated.name === hydrated.id || isSlug) {
+
+    if (!hasValidName || isSlug) {
         // V16.7: Handle SPEC-ID-V2.0 depth (e.g. hf-model--author--name)
         const id = hydrated.id || '';
         const parts = id.split('--');
