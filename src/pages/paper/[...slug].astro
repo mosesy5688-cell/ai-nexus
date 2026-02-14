@@ -36,7 +36,7 @@ try {
   const type = 'paper';
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
   
-  paper = entity;
+  paper = hydrateEntity(entity, type);
   tagsArray = paper?.tags || [];
   meshRelations = mesh || [];
 

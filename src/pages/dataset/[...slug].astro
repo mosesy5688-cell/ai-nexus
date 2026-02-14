@@ -21,7 +21,7 @@ import QuickCommands from '../../components/common/QuickCommands.astro';
 import FNITrustPanel from '../../components/FNITrustPanel.astro';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
-import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+import { normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import { cleanDescription } from '../../utils/model-page-helpers.ts';
 
 const { slug } = Astro.params;
@@ -46,7 +46,7 @@ try {
     return Astro.redirect('/404?reason=dataset-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  dataset = entity;
+  dataset = hydrateEntity(entity, type);
   tagsArray = dataset?.tags || [];
   meshRelations = mesh || [];
   

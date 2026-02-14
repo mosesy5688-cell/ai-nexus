@@ -17,7 +17,7 @@ import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import { getUseCases } from '../../utils/inference.js';
-import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+import { normalizeEntitySlug, hydrateEntity } from '../../utils/entity-cache-reader-core.js';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
 import { cleanDescription } from '../../utils/model-page-helpers.ts';
@@ -44,7 +44,7 @@ try {
     return Astro.redirect('/404?reason=space-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  space = entity;
+  space = hydrateEntity(entity, type);
   tagsArray = space?.tags || [];
   meshRelations = mesh || [];
 
