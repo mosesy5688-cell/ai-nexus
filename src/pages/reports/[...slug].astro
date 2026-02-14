@@ -44,13 +44,40 @@ if (!report) {
 
 const pageTitle = report.title || `AI Daily Report - ${slugStr}`;
 const pageDescription = (report.summary || report.subtitle || "").substring(0, 160);
-const contentHtml = marked.parse(report.content || "");
+const contentHtml = report.content ? marked.parse(report.content) : "";
 ---
 
 <Layout title={pageTitle} description={pageDescription} canonical={`/reports/${reportSlug}`}>
   <div class="container mx-auto px-4 py-12">
     <article class="prose dark:prose-invert max-w-4xl mx-auto">
-      <Fragment set:html={contentHtml} />
+      {contentHtml ? (
+        <Fragment set:html={contentHtml} />
+      ) : (
+        <div class="space-y-12 not-prose">
+          {report.highlights?.map((item) => (
+            <div class="group border-b border-gray-100 dark:border-zinc-800 pb-10 last:border-0">
+              <div class="flex items-center gap-3 mb-4">
+                <span class="px-2 py-0.5 text-[10px] font-black bg-indigo-500 text-white rounded uppercase tracking-widest">
+                  {item.type || 'Highlight'}
+                </span>
+                {item.fni_score && (
+                  <span class="text-[10px] font-bold text-emerald-500">
+                    FNI: {Math.round(item.fni_score)}
+                  </span>
+                )}
+              </div>
+              <h2 class="text-3xl font-black text-gray-900 dark:text-white mb-4 tracking-tight group-hover:text-indigo-600 transition-colors">
+                <a href={`/model/${item.id?.replace(/^(hf-model|gh-model)--/, '').replace(/--/g, '/')}`}>
+                  {item.name || item.id}
+                </a>
+              </h2>
+              <p class="text-lg text-gray-600 dark:text-gray-400 leading-relaxed mb-6">
+                {item.description || item.body_content || item.summary || "Technical specifications and benchmarking details are available on the entity page."}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </article>
   </div>
 </Layout>
