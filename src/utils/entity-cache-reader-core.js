@@ -147,22 +147,28 @@ export async function fetchEntityFromR2(type, slug, locals) {
 
                 const res = await fetch(cdnUrl);
                 if (res.ok) {
-                    let data;
-                    const isGzip = path.endsWith('.gz');
-                    const isAlreadyDecompressed = res.headers.get('Content-Encoding') === 'gzip' || res.headers.get('content-encoding') === 'gzip';
+                    const isGzipURL = path.endsWith('.gz');
+                    const buffer = await res.arrayBuffer();
+                    const uint8 = new Uint8Array(buffer);
+                    const isActuallyGzip = uint8.length > 2 && uint8[0] === 0x1f && uint8[1] === 0x8b;
 
-                    if (isGzip && !isAlreadyDecompressed) {
+                    let data;
+                    if (isActuallyGzip) {
                         try {
                             const ds = new DecompressionStream('gzip');
-                            const decompressedStream = res.body.pipeThrough(ds);
-                            const decompressedRes = new Response(decompressedStream);
+                            const decompressedRes = new Response(new Response(buffer).body?.pipeThrough(ds));
                             data = await decompressedRes.json();
                         } catch (e) {
-                            // If manual decompression fails, try direct JSON (might have been transparently decompressed after all)
-                            data = await res.json();
+                            console.warn(`[Reader] Decompression failed for ${cdnUrl}, trying text.`);
+                            try { data = JSON.parse(new TextDecoder().decode(buffer)); } catch (err) { data = null; }
                         }
                     } else {
-                        data = await res.json();
+                        try {
+                            data = JSON.parse(new TextDecoder().decode(buffer));
+                        } catch (e) {
+                            if (isGzipURL) console.warn(`[Reader] Failed to parse ${cdnUrl} as JSON.`);
+                            continue;
+                        }
                     }
 
                     return {
