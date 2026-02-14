@@ -67,9 +67,10 @@ if (!space && !error) {
   return Astro.redirect('/404?source=space-not-found');
 }
 
-const spaceName = space?.title || space?.name || 'Unknown Demo Space';
-const spaceId = space?.id || normalizedSlug || '';
+const spaceName = space?.title || space?.name || space?.canonical_name || 'Unknown Demo Space';
+const spaceId = space?.id || slugStr || '';
 const displayAuthor = space?.author || 'Community';
+const cleanedDesc = space?.description || '';
 
 // V15.0: Derived Use Cases and Limits
 const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space?.fni_score || 0) : { goodFor: [], limits: [] };

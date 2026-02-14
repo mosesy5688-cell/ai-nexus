@@ -8,10 +8,11 @@ export let loadError = null;
 export let isFullSearchActive = false;
 
 // Core indices are GZIP compressed
+const CDN_URL = 'https://cdn.free2aitools.com';
 const INDEX_URLS = {
-    model: '/cache/search-core.json.gz',
-    space: '/cache/search-core.json.gz',
-    dataset: '/cache/search-core.json.gz'
+    model: `${CDN_URL}/cache/search-core.json.gz`,
+    space: `${CDN_URL}/cache/search-core.json.gz`,
+    dataset: `${CDN_URL}/cache/search-core.json.gz`
 };
 
 /**
@@ -115,7 +116,7 @@ export async function loadFullIndex(onProgress) {
 
     try {
         // Manifest is plain JSON
-        const manifest = await tryFetchJson('/cache/search-manifest.json');
+        const manifest = await tryFetchJson(`${CDN_URL}/cache/search-manifest.json`);
         const totalShards = manifest.totalShards;
         const itemsMap = new Map();
 
@@ -125,7 +126,7 @@ export async function loadFullIndex(onProgress) {
 
         // Shards are plain JSON (as per User confirms: /cache/search/ is uncompressed)
         const shardUrls = Array.from({ length: totalShards }, (_, i) => {
-            return `/cache/search/shard-${i}.json`;
+            return `${CDN_URL}/cache/search/shard-${i}.json`;
         });
 
         const BATCH_SIZE = 5;
