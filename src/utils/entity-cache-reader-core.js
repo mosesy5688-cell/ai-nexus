@@ -37,33 +37,20 @@ export function getR2PathCandidates(type, normalizedSlug) {
 
     const candidates = [];
 
-    // 1. [PRIMARY] Fused Storage (High Fidelity)
-    // We've confirmed hf-model--meta-llama--meta-llama-3-8b.json.gz exists here.
+    // V18.2.5 FIX: Always try prefixes regardless of hyphens (google--gemma needs hf-model-- prefix)
     prefixes.forEach(p => {
-        const fullSlug = lowerSlug.includes('--') ? lowerSlug : `${p}${lowerSlug}`;
-        candidates.push(`cache/fused/${fullSlug}.json.gz`);
-        candidates.push(`cache/fused/${fullSlug}.json`);
+        const prefixed = lowerSlug.startsWith(p) ? lowerSlug : `${p}${lowerSlug}`;
 
-        // Check if the input lowerSlug ALREADY has the prefix
-        if (lowerSlug.startsWith(p)) {
-            candidates.push(`cache/fused/${lowerSlug}.json.gz`);
-            candidates.push(`cache/fused/${lowerSlug}.json`);
-        } else {
-            const prefixed = `${p}${lowerSlug}`;
-            candidates.push(`cache/fused/${prefixed}.json.gz`);
-            candidates.push(`cache/fused/${prefixed}.json`);
-        }
+        // 1. [PRIMARY] Fused Storage (High Fidelity)
+        candidates.push(`cache/fused/${prefixed}.json.gz`);
+        candidates.push(`cache/fused/${prefixed}.json`);
+
+        // 2. [SECONDARY] Entity Storage (The Anchor)
+        candidates.push(`cache/entities/${singular}/${prefixed}.json.gz`);
+        candidates.push(`cache/entities/${singular}/${prefixed}.json`);
     });
 
-    // 2. [SECONDARY] Entity Storage (The Anchor)
-    // confirmed: hf-dataset--... , gh-agent--...
-    prefixes.forEach(p => {
-        const fullSlug = lowerSlug.startsWith(p) ? lowerSlug : `${p}${lowerSlug}`;
-        candidates.push(`cache/entities/${singular}/${fullSlug}.json.gz`);
-        candidates.push(`cache/entities/${singular}/${fullSlug}.json`);
-    });
-
-    // 3. [FALLBACK] Direct / Flat Paths
+    // 3. [FALLBACK] Direct / Flat Paths (No prefix)
     candidates.push(`cache/entities/${singular}/${lowerSlug}.json.gz`);
     candidates.push(`cache/entities/${singular}/${lowerSlug}.json`);
     candidates.push(`cache/entities/${lowerSlug}.json.gz`);

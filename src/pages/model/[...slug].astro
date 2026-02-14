@@ -21,6 +21,8 @@ import CiteEntity from '../../components/common/CiteEntity.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import ModelNavigation from '../../components/model-detail/ModelNavigation.astro';
 import ModelMainColumn from '../../components/model-detail/ModelMainColumn.astro';
+import QuickCommands from '../../components/common/QuickCommands.astro';
+import FNITrustPanel from '../../components/FNITrustPanel.astro';
 
 
 const { slug } = Astro.params;
@@ -162,23 +164,36 @@ const canonicalPath = model ? getRouteFromId(model.id || model.umid || slugStr, 
     )}
   
     {model && (
-      <div slot="deep-dive">
-         <div class="space-y-12">
-            {model.html_readme ? (
-              <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={model.html_readme} />
-            ) : (
-              <>
-                <section class="mb-12">
-                   <ModelNavigation />
-                </section>
-                <ModelMainColumn 
-                  model={model} 
-                  modelId={modelId}
-                  cleanDescription={cleanedDesc}
-                  jsonld={jsonld}
-                />
-              </>
+      <div slot="deep-dive" class="space-y-12">
+         {/* Zone 4.1: Developer Quick Tools (Always-On) */}
+         <div class="space-y-8">
+            <QuickCommands entity={model} type="model" />
+            {hasFNI && (
+              <FNITrustPanel 
+                fniScore={model.fni_score}
+                fniPercentile={model.fni_percentile}
+                fniCommentary={model.fni_commentary}
+                modelName={modelName}
+                modelId={modelId}
+              />
             )}
+            {model.vram_estimate > 0 && <VramEstimator paramsB={model.params_billions} contextLen={model.context_length} />}
+         </div>
+
+         {/* Zone 4.2: Primary Documentation / Technical Content */}
+         <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
+            <div class="space-y-12">
+              <section class="mb-12">
+                 <ModelNavigation />
+              </section>
+              <ModelMainColumn 
+                model={model} 
+                modelId={modelId}
+                modelName={modelName}
+                cleanDescription={cleanedDesc}
+                jsonld={jsonld}
+              />
+            </div>
          </div>
       </div>
     )}

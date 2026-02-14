@@ -33,7 +33,7 @@ const { entityId, entityName, entity, hasBench, enrichedTags } = Astro.props;
             truthfulqa={entity?.truthfulqa}
             winogrande={entity?.winogrande}
             avg_score={entity?.avg_score}
-            scores={entity?.meta_json?.benchmarks}
+            scores={entity?.benchmarks || entity?.meta_json?.benchmarks}
           />
         </div>
       )}

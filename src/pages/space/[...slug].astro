@@ -2,9 +2,9 @@
 export const prerender = false;
 
 /**
- * Space Detail Page V16.5
- * Core Feature: Interactive Demo Presentation
- * Architecture: Unified 5-Zone Layout
+ * Space Detail Page V16.8.14
+ * High-Fidelity Emergency Reconstruction
+ * Architecture: Unified 5-Zone High-Density Layout
  */
 
 import Layout from '../../layouts/Layout.astro';
@@ -16,12 +16,11 @@ import CiteEntity from '../../components/common/CiteEntity.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
-// V19.0: ModelNavigation removed — not applicable to spaces
 import { getUseCases } from '../../utils/inference.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
-// 2. Efficient Data Loading (Single-Stream V16.5)
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
+import { cleanDescription } from '../../utils/model-page-helpers.ts';
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -32,11 +31,11 @@ let tagsArray = [];
 let pageTitle = "AI Demo Space - Free AI Tools";
 let pageDescription = "Explore interactive AI demos and prototype applications.";
 let meshRelations = [];
+let cleanedDesc = "";
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
   
-  // V16.5: Usage of 3-Stream Parallel Loader
   const type = 'space';
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
   
@@ -45,23 +44,21 @@ try {
     return Astro.redirect('/404?reason=space-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  // 4. Transform & Prepare
   space = entity;
   tagsArray = space?.tags || [];
   meshRelations = mesh || [];
 
+  const normalizedSlug = normalizeEntitySlug(slugStr, type);
   const displaySpaceName = space?.title || space?.name || space?.canonical_name;
   pageTitle = `${displaySpaceName} - AI Demo Insight`;
-  pageDescription = space?.seo_summary?.description || space?.description || `Deep dive into ${displaySpaceName} interactive space.`;
+  cleanedDesc = cleanDescription(space?.description || '');
+  pageDescription = space?.seo_summary?.description || cleanedDesc || `Deep dive into ${displaySpaceName} interactive space.`;
   
-  // V16.5: Explicit HTML Assignment (Stream B Priority)
-  space.body_content = html || space.body_content || null;
+  space.html_readme = html || space.html_readme || null;
 
 } catch (e) {
   console.error("[SpacePage] Error loading space:", e);
   error = e;
-  // V16.8: Suppress 500 to allow "Mesh Node Building" fallback UI
-  // Astro.response.status = 500;
 }
 
 if (!space && !error) {
@@ -69,69 +66,53 @@ if (!space && !error) {
   return Astro.redirect('/404?source=space-not-found');
 }
 
-const normalizedSlug = normalizeEntitySlug(slugStr, type);
 const spaceName = space?.title || space?.name || space?.canonical_name || 'Unknown Demo Space';
 const spaceId = space?.id || normalizedSlug || '';
 const displayAuthor = space?.author || 'Community';
-const cleanedDesc = space?.description || space?.summary || '';
 
-// V15.0: Derived Use Cases and Limits
-const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space?.fni_score || 0) : { goodFor: [], limits: [] };
+const placeholderImage = '/images/models/default-model.jpg';
+const coverImage = space?.image_url || placeholderImage;
 
-// Generate JSON-LD
-const jsonLd = space ? {
+const jsonld = space ? {
   "@context": "https://schema.org",
   "@type": "WebApplication",
   "name": spaceName,
   "description": pageDescription,
-  "url": `https://free2aitools.com/space/${slugStr}`,
-  "applicationCategory": "AI Demo",
-  "operatingSystem": "Web",
   "creator": {
     "@type": "Organization",
     "name": displayAuthor
   },
   "license": space?.license_spdx || space?.license
 } : null;
-const canonicalPath = space ? getRouteFromId(space.id || normalizedSlug, 'space') : undefined;
+
+const canonicalPath = space ? getRouteFromId(space.id || spaceId, 'space') : undefined;
 ---
 
-  <EntityLayout
-    entity={space}
-    type="space"
-    title={pageTitle}
-    description={pageDescription}
-    jsonld={jsonLd}
-    canonical={canonicalPath}
-  >
+<EntityLayout 
+  entity={space} 
+  type="space" 
+  title={pageTitle} 
+  description={pageDescription}
+  image={coverImage}
+  jsonld={jsonld}
+  canonical={canonicalPath}
+>
     {/* Zone 1: Hero */}
     {space && (
-      <EntityHeader
+      <EntityHeader 
         slot="hero"
         name={spaceName}
         entityType="space"
-        entityIcon={space.entityDefinition?.display?.icon || '🌌'}
-        entityLabel={space.entityDefinition?.display?.labelSingular || 'Space'}
-        verified={space.verified}
-        author={space.author}
+        entityIcon="🚀"
+        entityLabel="Space"
+        verified={false} 
+        author={displayAuthor}
         lastUpdated={space.last_updated}
         description={space.seo_summary?.description || cleanedDesc}
-        fniScore={space.fni_score}
-        fniPercentile={space.fni_percentile}
-        fniCommentary={space.fni_commentary}
         sourceUrl={space.source_url}
         entityId={spaceId}
         hasImage={Boolean(space.image_url)}
-        trend_7d={space.trend_7d}
       />
-    )}
-
-    {/* Zone 1.5: Use Cases */}
-    {space && (
-       <ZoneUseCases
-         slot="use-cases"
-         usecases={getUseCases(space)}
-       />
     )}
 
     {/* Zone 2: Insights Extra */}
@@ -142,15 +123,22 @@ const canonicalPath = space ? getRouteFromId(space.id || normalizedSlug, 'space'
               type="space"
               model={{
                 ...space,
-                displayName: spaceName,
-                pipeline_tag: space.sdk || 'Space SDK'
+                displayName: spaceName
               }} 
             />
          </div>
       </div>
     )}
+    
+    {/* Zone 1.5: Use Cases */}
+    {space && (
+      <ZoneUseCases 
+        slot="use-cases" 
+        usecases={getUseCases(space)} 
+      />
+    )}
 
-    {/* Zone 3: Core (Knowledge Mesh & Relations) */}
+    {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
     {space && (
       <div slot="core-desktop" class="space-y-16">
          <UniversalCore entity={space} type="space" meshRelations={meshRelations} />
@@ -159,7 +147,7 @@ const canonicalPath = space ? getRouteFromId(space.id || normalizedSlug, 'space'
             <CiteEntity 
               id={spaceId} 
               name={spaceName} 
-              author={space.author} 
+              author={displayAuthor} 
               url={space.source_url} 
               type="space" 
             />
@@ -167,17 +155,11 @@ const canonicalPath = space ? getRouteFromId(space.id || normalizedSlug, 'space'
       </div>
     )}
   
-    {/* Zone 4: Deep Dive */}
     {space && (
-      <div slot="deep-dive">
-         <div class="space-y-12">
-            {space.html_readme ? (
-              <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={space.html_readme} />
-            ) : (
-               <div class="p-8 bg-gray-50 dark:bg-gray-900 rounded-2xl text-center">
-                  <p class="text-gray-500">No detailed documentation available.</p>
-               </div>
-            )}
+      <div slot="deep-dive" class="space-y-12">
+         {/* Zone 4.2: Primary Documentation / Technical Content */}
+         <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
+            <SpaceDeepDive space={space} />
          </div>
       </div>
     )}
@@ -188,4 +170,4 @@ const canonicalPath = space ? getRouteFromId(space.id || normalizedSlug, 'space'
           <AiDisclaimer source={space.source} lastUpdated={space.last_updated} />
       </div>
     )}
-  </EntityLayout>
+</EntityLayout>

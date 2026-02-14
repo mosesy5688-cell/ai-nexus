@@ -15,7 +15,7 @@ const { entity, type } = Astro.props;
 const insights = getQuickInsights(entity, type) || [];
 ---
 
-<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8">
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
   {insights.length > 0 ? insights.map((item) => (
     <div class={`
       relative flex flex-col items-center justify-center p-4 rounded-xl border transition-all duration-300

@@ -5,8 +5,6 @@ interface Props {
 
 const { agent } = Astro.props;
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
-import TechSpecsFull from '../entity/TechSpecsFull.astro';
-import QuickCommands from '../common/QuickCommands.astro';
 import ModelGallery from '../model-detail/ModelGallery.astro';
 import MarkdownRenderer from '../model-detail/MarkdownRenderer.astro';
 
@@ -52,7 +50,6 @@ const likes = agent?.likes ? Number(agent.likes) : null;
 
       {/* V16.2: Visual & Developer Enhancements */}
       <ModelGallery content={agent.body_content || agent.description} title="Agent Framework Visuals" />
-      <QuickCommands entity={agent} type="agent" />
 
 
       {/* V16.2: Real Data Deep Dive */}

@@ -11,12 +11,12 @@ export function processRelationsIntoTiers(rawRelations, nodeRegistry, seenIds, g
         'paper': '📄', 'space': '🚀', 'knowledge': '🎓', 'report': '📰'
     };
 
-    const ensureNode = (id, typeHint = 'model') => {
+    const ensureNode = (id, typeHint = 'model', optionalMeta = {}) => {
         if (!id || typeof id !== 'string') return null;
         let norm = stripPrefix(id);
         if (nodeRegistry.has(norm)) return nodeRegistry.get(norm);
 
-        const meta = graphMeta[id] || {};
+        const meta = graphMeta[id] || optionalMeta || {};
         let nodeType = meta.t || typeHint || getTypeFromId(id);
 
         if (nodeType === 'knowledge' && KNOWLEDGE_ALIAS_MAP[norm]) {
@@ -27,11 +27,12 @@ export function processRelationsIntoTiers(rawRelations, nodeRegistry, seenIds, g
         const parts = id.split('--');
         const nodeAuthor = meta.author || (parts.length > 2 ? parts[parts.length - 2].replace(/-/g, ' ') : (id.startsWith('arxiv--') ? 'Research Paper' : 'Ecosystem Node'));
 
+        // V16.8.8: High-Fidelity naming from mesh stream data
         const node = {
             id, norm,
-            name: meta.n || id.split('--').pop()?.replace(/-/g, ' ')?.toUpperCase() || 'UNKNOWN',
+            name: meta.n || meta.target_name || id.split('--').pop()?.replace(/-/g, ' ')?.toUpperCase() || 'UNKNOWN',
             type: nodeType,
-            icon: meta.icon || UNIVERSAL_ICONS[nodeType] || '📦',
+            icon: meta.icon || meta.target_icon || UNIVERSAL_ICONS[nodeType] || '📦',
             author: nodeAuthor,
             relation: '',
             _mapped: false
@@ -60,7 +61,8 @@ export function processRelationsIntoTiers(rawRelations, nodeRegistry, seenIds, g
 
         seenIds.add(normNeighbor);
 
-        let node = ensureNode(neighborId, rel.target_type || rel.source_type);
+        // V16.8.8: Passthrough rich metadata from relation itself
+        let node = ensureNode(neighborId, rel.target_type || rel.source_type, rel);
         if (!node) return;
 
         const relType = (rel.relation_type || 'RELATED').toUpperCase();

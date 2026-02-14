@@ -2,9 +2,9 @@
 export const prerender = false;
 
 /**
- * Paper Detail Page V16.5
- * Core Feature: Knowledge Mesh Centrality
- * Architecture: Unified 5-Zone Layout
+ * Paper Detail Page V16.8.14
+ * High-Fidelity Emergency Reconstruction
+ * Architecture: Unified 5-Zone High-Density Layout
  */
 
 import Layout from '../../layouts/Layout.astro';
@@ -15,9 +15,7 @@ import UniversalCore from '../../components/entity/UniversalCore.astro';
 import CiteEntity from '../../components/common/CiteEntity.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import PaperDeepDive from '../../components/paper-detail/PaperDeepDive.astro';
-// V19.0: ModelNavigation removed — not applicable to papers
 import { getUseCases } from '../../utils/inference.js';
-// 2. Efficient Data Loading (Single-Stream V16.5)
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
 import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
@@ -35,9 +33,7 @@ let meshRelations = [];
 try {
   if (!slug) throw new Error("No slug/ID provided");
   
-  // V16.5: Usage of 3-Stream Parallel Loader
   const type = 'paper';
-  // V16.5: Static Assembly Architecture
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
   
   if (!entity || !_meta.available) {
@@ -45,47 +41,20 @@ try {
     return Astro.redirect('/404?reason=paper-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  const isFallback = _meta?.source === 'entities-fallback' || _meta?.source === 'fused-fallback';
-
-  // 4. Transform & Prepare
   paper = entity;
   tagsArray = paper?.tags || [];
   meshRelations = mesh || [];
 
-  // V16.5: Explicit HTML Assignment (Stream B Priority)
-  paper.body_content = html || paper.body_content || null;
-  // Deep Dive sometimes uses html_readme too
-  paper.html_readme = html || paper.html_readme || null;
-
-  // V16.96: Canonical Redirection Guard (Art.III URL Stability)
-  // 1. Catch legacy /paper/arxiv/ID and redirect to clean /paper/ID
-  // V16.96.9: Defensive wrap to prevent loop if data contains the prefix
-  if (slugStr.startsWith('arxiv/') && !paper?.slug?.startsWith('arxiv/')) {
-    const cleanSlug = slugStr.replace('arxiv/', '');
-    return Astro.redirect(`/paper/${cleanSlug}`, 301);
-  }
-
-  // 2. Catch descriptive slug mismatches if paper metadata provides a better slug
-  const currentNorm = normalizeEntitySlug(slugStr);
-  const canonicalNorm = paper?.slug ? normalizeEntitySlug(paper.slug) : null;
+  const normalizedSlug = normalizeEntitySlug(slugStr, type);
+  const displayPaperName = paper?.title || paper?.name || 'Unknown Research Paper';
+  pageTitle = `${displayPaperName} - AI Research Insight`;
+  pageDescription = paper?.seo_summary?.description || paper?.abstract || `Deep dive into ${displayPaperName} research and architecture.`;
   
-  if (canonicalNorm && currentNorm !== canonicalNorm) {
-    // Only redirect if the target doesn't lead back to the prefix loop
-    const targetSlug = paper.slug.replace(/^arxiv[\/-]/, '');
-    if (normalizeEntitySlug(targetSlug) !== currentNorm) {
-      return Astro.redirect(`/paper/${targetSlug}`, 301);
-    }
-  }
-
-  const displayPaperTitle = paper?.title || (isFallback ? (slugStr.split('/').pop() || 'Unknown Paper') : paper?.canonical_name);
-  pageTitle = `${displayPaperTitle} - AI Research Insight`;
-  pageDescription = paper?.seo_summary?.description || paper?.abstract || `Deep dive into ${displayPaperTitle} research paper.`;
+  paper.html_readme = html || paper.html_readme || null;
 
 } catch (e) {
   console.error("[PaperPage] Error loading paper:", e);
   error = e;
-  // V16.8: Suppress 500 to allow "Mesh Node Building" fallback UI
-  // Astro.response.status = 500;
 }
 
 if (!paper && !error) {
@@ -93,61 +62,48 @@ if (!paper && !error) {
   return Astro.redirect('/404?source=paper-not-found');
 }
 
-const paperTitle = paper?.title || 'Unknown Research Paper';
+const paperTitle = paper?.title || paper?.name || 'Unknown Research Paper';
 const paperId = paper?.id || normalizedSlug || '';
 const displayAuthor = (Array.isArray(paper?.authors) && paper.authors[0]) || paper?.author || 'Research Community';
 
-// V15.0: Derived Use Cases and Limits
-const derivedUseCases = paper ? getUseCases(tagsArray, '', 'paper', paper.fni_score || 0) : { goodFor: [], limits: [] };
+const placeholderImage = '/images/models/default-model.jpg';
+const coverImage = paper?.image_url || placeholderImage;
 
-// Generate JSON-LD
-const jsonLd = paper ? {
+const jsonld = paper ? {
   "@context": "https://schema.org",
   "@type": "ScholarlyArticle",
-  "name": paperTitle,
   "headline": paperTitle,
   "description": pageDescription,
-  "url": `https://free2aitools.com/paper/${slugStr}`,
   "author": Array.isArray(paper.authors) ? paper.authors.map(a => ({ "@type": "Person", "name": a })) : [{ "@type": "Person", "name": displayAuthor }]
 } : null;
-const canonicalPath = paper ? getRouteFromId(paper.id || slugStr, 'paper') : undefined; // Changed normalizedSlug to slugStr
+
+const canonicalPath = paper ? getRouteFromId(paper.id || paperId, 'paper') : undefined;
 ---
 
-  <EntityLayout
-    entity={paper}
-    type="paper"
-    title={pageTitle}
-    description={pageDescription}
-    jsonld={jsonLd}
-    canonical={canonicalPath}
-  >
+<EntityLayout 
+  entity={paper} 
+  type="paper" 
+  title={pageTitle} 
+  description={pageDescription}
+  image={coverImage}
+  jsonld={jsonld}
+  canonical={canonicalPath}
+>
     {/* Zone 1: Hero */}
     {paper && (
-      <EntityHeader
+      <EntityHeader 
         slot="hero"
         name={paperTitle}
         entityType="paper"
         entityIcon="📄"
-        entityLabel="Research Paper"
-        verified={paper.verified}
+        entityLabel="Paper"
+        verified={false} 
         author={displayAuthor}
-        lastUpdated={paper.last_updated || paper.published_date}
+        lastUpdated={paper.last_updated}
         description={paper.seo_summary?.description || paper.abstract}
-        fniScore={paper.fni_score}
-        fniPercentile={paper.fni_percentile}
-        fniCommentary={paper.fni_commentary}
         sourceUrl={paper.source_url}
         entityId={paperId}
         hasImage={Boolean(paper.image_url)}
-        trend_7d={paper.trend_7d}
-      />
-    )}
-
-    {/* Zone 1.5: Use Cases */}
-    {paper && (
-      <ZoneUseCases
-        slot="use-cases"
-        usecases={getUseCases(paper)}
       />
     )}
 
@@ -159,15 +115,22 @@ const canonicalPath = paper ? getRouteFromId(paper.id || slugStr, 'paper') : und
               type="paper"
               model={{
                 ...paper,
-                displayName: paperTitle,
-                pipeline_tag: paper.arxiv_category || 'Research Paper'
+                displayName: paperTitle
               }} 
             />
          </div>
       </div>
     )}
+    
+    {/* Zone 1.5: Use Cases */}
+    {paper && (
+      <ZoneUseCases 
+        slot="use-cases" 
+        usecases={getUseCases(paper)} 
+      />
+    )}
 
-    {/* Zone 3: Core (Knowledge Mesh & Relations) */}
+    {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
     {paper && (
       <div slot="core-desktop" class="space-y-16">
          <UniversalCore entity={paper} type="paper" meshRelations={meshRelations} />
@@ -184,15 +147,11 @@ const canonicalPath = paper ? getRouteFromId(paper.id || slugStr, 'paper') : und
       </div>
     )}
   
-    {/* Zone 4: Deep Dive */}
     {paper && (
-      <div slot="deep-dive">
-         <div class="space-y-12">
-            {paper.html_readme ? (
-              <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={paper.html_readme} />
-            ) : (
-              <PaperDeepDive paper={paper} />
-            )}
+      <div slot="deep-dive" class="space-y-12">
+         {/* Zone 4.2: Primary Documentation / Technical Content */}
+         <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
+            <PaperDeepDive paper={paper} />
          </div>
       </div>
     )}
@@ -203,4 +162,4 @@ const canonicalPath = paper ? getRouteFromId(paper.id || slugStr, 'paper') : und
           <AiDisclaimer source={paper.source} lastUpdated={paper.last_updated} />
       </div>
     )}
-  </EntityLayout>
+</EntityLayout>

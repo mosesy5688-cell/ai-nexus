@@ -133,7 +133,22 @@ export async function loadEntityStreams(type: string, slug: string) {
         fusedPack = await fetchCompressedJSON(`${fusedPath}.gz`);
     }
 
-    const html = fusedPack?.html_readme || entityPack.html_readme || null;
+    // --- DATA FUSION (V16.8.8) ---
+    // Merge fused metadata into entity metadata (Fidelity Restoration)
+    if (fusedPack) {
+        const { html_readme, ...fusedMeta } = fusedPack;
+
+        // Aliases for HTML content (Normalize Stream B)
+        const html = html_readme || fusedPack.body || fusedPack.content_html || fusedPack.readme_html || entityPack.html_readme || null;
+
+        // Perform Shallow Merge (Favouring Fused for technical metrics)
+        Object.assign(entityPack, {
+            ...fusedMeta,
+            html_readme: html,
+            // Guard: Never let a tiny summary overwrite a real README
+            description: entityPack.description?.length > 500 ? entityPack.description : (fusedMeta.description || entityPack.description)
+        });
+    }
 
     // Attempt to fetch Mesh Pack (Relations)
     let meshPack = await fetchCompressedJSON(meshPath);
@@ -141,22 +156,23 @@ export async function loadEntityStreams(type: string, slug: string) {
     if (!meshPack && !meshPath.endsWith('.gz')) meshPack = await fetchCompressedJSON(`${meshPath}.gz`);
 
     const mesh = meshPack?.relations || meshPack?.nodes || entityPack.relations || [];
+    const finalHtml = entityPack.html_readme || null;
 
     return {
         entity: entityPack,
-        html,
+        html: finalHtml,
         mesh,
         _meta: {
             available: true,
             source: 'entity-first-anchored',
             streams: {
                 entity: true,
-                html: !!html,
+                html: !!finalHtml,
                 mesh: !!mesh
             },
             paths: {
                 entity: entitySourcePath,
-                fused: html ? fusedPath : 'missing',
+                fused: finalHtml ? fusedPath : 'missing',
                 mesh: mesh ? meshPath : 'missing'
             }
         }

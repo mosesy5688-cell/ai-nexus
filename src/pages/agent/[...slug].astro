@@ -2,10 +2,9 @@
 export const prerender = false;
 
 /**
- * Agent Detail Page V16.5
- * Core Feature: 8 Core Value Pillars Integration
- * Architecture: Zero-Limit Content Disclosure
- * Unified: Synchronized with Model page standards
+ * Agent Detail Page V16.8.14
+ * High-Fidelity Emergency Reconstruction
+ * Architecture: Unified 5-Zone High-Density Layout
  */
 
 import Layout from '../../layouts/Layout.astro';
@@ -18,13 +17,15 @@ import { getUseCases } from '../../utils/inference.js';
 import ShareButtons from '../../components/common/ShareButtons.astro';
 import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 import { cleanDescription } from '../../utils/model-page-helpers.ts';
-// V19.0: ModelNavigation removed — not applicable to agents
 import CiteEntity from '../../components/common/CiteEntity.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
-
-// 2. Efficient Data Loading (Single-Stream V16.5)
+import QuickCommands from '../../components/common/QuickCommands.astro';
+import FNITrustPanel from '../../components/FNITrustPanel.astro';
+import VramEstimator from '../../components/model-detail/VramEstimator.astro';
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';
+import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
+
 
 const { slug } = Astro.params;
 const slugStr = Array.isArray(slug) ? slug.join('/') : (slug || '');
@@ -40,35 +41,29 @@ let cleanedDesc = "";
 try {
   if (!slug) throw new Error("No slug/ID provided");
   
-  // V16.5: Usage of 3-Stream Parallel Loader
   const type = 'agent';
-  // V16.5: Static Assembly Architecture
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
 
-  // 3. Validation & 404 Handling (Zero-Entropy)
   if (!entity || !_meta.available) {
      Astro.response.status = 404;
      return Astro.redirect('/404?reason=agent-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  // 4. Transform & Prepare
   agent = entity;
   meshRelations = mesh || [];
   tagsArray = agent?.tags || [];
 
+  const normalizedSlug = normalizeEntitySlug(slugStr, type);
   const displayAgentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
-  pageTitle = `${displayAgentName} - AI Agent Insights & Frameworks`;
+  pageTitle = `${displayAgentName} - AI Agent Insights`;
   cleanedDesc = cleanDescription(agent?.description || '');
-  pageDescription = agent?.seo_summary?.description || cleanedDesc || `Deep dive into ${displayAgentName}.`;
-
-  // V16.5: Explicit HTML Assignment (Stream B Priority)
+  pageDescription = agent?.seo_summary?.description || cleanedDesc || `Details for ${displayAgentName}.`;
+  
   agent.html_readme = html || agent.html_readme || null;
 
 } catch (e) {
-  console.error("Error loading agent:", e);
+  console.error("[AgentPage] Error loading agent:", e);
   error = e;
-  // V16.8: Suppress 500 to allow "Mesh Node Building" fallback UI
-  // Astro.response.status = 500;
 }
 
 if (!agent && !error) {
@@ -80,42 +75,43 @@ const agentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
 const agentId = agent?.id || normalizedSlug || '';
 const displayAuthor = agent?.author || 'Community';
 
-// V15.0: Derived Use Cases and Limits
-const derivedUseCases = agent ? getUseCases(tagsArray, agent?.pipeline_tag, 'agent', agent?.fni_score) : { goodFor: [], limits: [] };
+const hasFNI = agent?.fni_score !== undefined || agent?.fni_percentile !== undefined;
+const placeholderImage = '/images/models/default-model.jpg';
+const coverImage = agent?.image_url || placeholderImage;
 
-// Generate JSON-LD
-const jsonLd = {
+const jsonld = agent ? {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": agentName,
   "description": pageDescription,
   "applicationCategory": "AI Agent",
-  "operatingSystem": "Cross-platform",
   "author": {
     "@type": "Organization",
     "name": displayAuthor
   }
-};
+} : null;
+
 const canonicalPath = agent ? getRouteFromId(agent.id || normalizedSlug, 'agent') : undefined;
 ---
 
-  <EntityLayout
-    entity={agent}
-    type="agent"
-    title={pageTitle}
-    description={pageDescription}
-    jsonld={jsonLd}
-    canonical={canonicalPath}
-  >
+<EntityLayout 
+  entity={agent} 
+  type="agent" 
+  title={pageTitle} 
+  description={pageDescription}
+  image={coverImage}
+  jsonld={jsonld}
+  canonical={canonicalPath}
+>
     {/* Zone 1: Hero */}
     {agent && (
-      <EntityHeader
+      <EntityHeader 
         slot="hero"
         name={agentName}
         entityType="agent"
-        entityIcon={agent.entityDefinition?.display?.icon || '🤖'}
-        entityLabel={agent.entityDefinition?.display?.labelSingular || 'Agent'}
-        verified={agent.verified}
+        entityIcon="🤖"
+        entityLabel="Agent"
+        verified={false} 
         author={displayAuthor}
         lastUpdated={agent.last_updated}
         description={agent.seo_summary?.description || cleanedDesc}
@@ -125,15 +121,6 @@ const canonicalPath = agent ? getRouteFromId(agent.id || normalizedSlug, 'agent'
         sourceUrl={agent.source_url}
         entityId={agentId}
         hasImage={Boolean(agent.image_url)}
-        trend_7d={agent.trend_7d}
-      />
-    )}
-
-    {/* Zone 1.5: Use Cases */}
-    {agent && (
-      <ZoneUseCases
-        slot="use-cases"
-        usecases={getUseCases(agent)}
       />
     )}
 
@@ -145,16 +132,23 @@ const canonicalPath = agent ? getRouteFromId(agent.id || normalizedSlug, 'agent'
               type="agent"
               model={{
                 ...agent,
-                displayName: agentName,
-                pipeline_tag: agent.framework || agent.pipeline_tag || 'Agent Framework'
+                displayName: agentName
               }} 
             />
          </div>
          {agent.params_billions && <VramEstimator paramsB={agent.params_billions} contextLen={agent.context_length} />}
       </div>
     )}
+    
+    {/* Zone 1.5: Use Cases */}
+    {agent && (
+      <ZoneUseCases 
+        slot="use-cases" 
+        usecases={getUseCases(agent)} 
+      />
+    )}
 
-    {/* Zone 3: Core (Knowledge Mesh & Relations) */}
+    {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
     {agent && (
       <div slot="core-desktop" class="space-y-16">
          <UniversalCore entity={agent} type="agent" meshRelations={meshRelations} />
@@ -163,7 +157,7 @@ const canonicalPath = agent ? getRouteFromId(agent.id || normalizedSlug, 'agent'
             <CiteEntity 
               id={agentId} 
               name={agentName} 
-              author={agent.author} 
+              author={displayAuthor} 
               url={agent.source_url} 
               type="agent" 
             />
@@ -171,15 +165,25 @@ const canonicalPath = agent ? getRouteFromId(agent.id || normalizedSlug, 'agent'
       </div>
     )}
   
-    {/* Zone 4: Deep Dive */}
     {agent && (
-      <div slot="deep-dive">
-         <div class="space-y-12">
-            {agent.html_readme ? (
-              <article class="prose prose-lg dark:prose-invert max-w-none prose-a:text-indigo-600 dark:prose-a:text-indigo-400 prose-img:rounded-2xl shadow-none" set:html={agent.html_readme} />
-            ) : (
-              <AgentDeepDive agent={agent} />
+      <div slot="deep-dive" class="space-y-12">
+         {/* Zone 4.1: Developer Quick Tools (Always-On) */}
+         <div class="space-y-8">
+            <QuickCommands entity={agent} type="agent" />
+            {hasFNI && (
+              <FNITrustPanel 
+                fniScore={agent.fni_score}
+                fniPercentile={agent.fni_percentile}
+                fniCommentary={agent.fni_commentary}
+                modelName={agentName}
+                modelId={agentId}
+              />
             )}
+         </div>
+
+         {/* Zone 4.2: Primary Documentation / Technical Content */}
+         <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
+            <AgentDeepDive agent={agent} />
          </div>
       </div>
     )}
@@ -190,4 +194,4 @@ const canonicalPath = agent ? getRouteFromId(agent.id || normalizedSlug, 'agent'
           <AiDisclaimer source={agent.source} lastUpdated={agent.last_updated} />
       </div>
     )}
-  </EntityLayout>
+</EntityLayout>
