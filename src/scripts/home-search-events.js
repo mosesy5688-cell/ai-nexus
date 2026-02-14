@@ -64,6 +64,9 @@ export function renderResults(results) {
         const path = getRouteFromId(r.id || r.slug, r.type || 'model');
         const isKnowledge = (r.type || 'model') === 'knowledge';
 
+        // V16.8.15 R5.7: Clean thumbnails from dropdown if present
+        const cleanDesc = (r.description || "").replace(/<img[^>]*>/gi, "").replace(/<p[^>]*>/gi, "").replace(/<\/p>/gi, " ").trim();
+
         const typeLabel = isKnowledge ? 'Guide' : (r.type || 'Model').toUpperCase();
         const badgeClass = isKnowledge ?
             'bg-indigo-100 text-indigo-700' :
