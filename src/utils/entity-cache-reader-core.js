@@ -53,6 +53,8 @@ export function getR2PathCandidates(type, normalizedSlug) {
     // 3. [FALLBACK] Direct / Flat Paths (No prefix)
     candidates.push(`cache/entities/${singular}/${lowerSlug}.json.gz`);
     candidates.push(`cache/entities/${singular}/${lowerSlug}.json`);
+    candidates.push(`cache/${singular}/${lowerSlug}.json.gz`);
+    candidates.push(`cache/${singular}/${lowerSlug}.json`);
     candidates.push(`cache/entities/${lowerSlug}.json.gz`);
     candidates.push(`cache/entities/${lowerSlug}.json`);
 
