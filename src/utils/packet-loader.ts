@@ -96,7 +96,8 @@ export async function loadEntityStreams(type: string, slug: string) {
     // A.1 Try Entity Paths
     const entityResult = await findFirst(entityCandidates);
     if (entityResult) {
-        entityPack = entityResult.data;
+        // V16.8.15 FIX: Ensure we unwrap { entity: ... } if present
+        entityPack = entityResult.data.entity || entityResult.data;
         entitySourcePath = entityResult.path;
     }
 
