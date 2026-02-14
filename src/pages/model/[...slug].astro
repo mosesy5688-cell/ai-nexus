@@ -81,8 +81,9 @@ const hasBenchmarks = hasCapability(model, 'benchmarks');
 const hasBench = Boolean(model?.mmlu || model?.benchmark_mmlu || model?.benchmark_hellaswag || model?.benchmark_arc);
 const placeholderImage = '/images/models/default-model.jpg';
 const coverImage = model?.cover_image_url || placeholderImage;
-const modelName = model?.name || model?.canonical_name || 'Unknown Model';
-const modelId = model?.umid || model?.id || '';
+const modelName = model?.name || 'Unknown Model';
+const displayAuthor = model?.author || 'Independent / Community';
+const entityId = model?.id || slugStr;
 
 // V15.0: Derived Use Cases and Limits
 const derivedUseCases = model ? getUseCases(tagsArray, model.pipeline_tag, 'model', model.fni_score) : { goodFor: [], limits: [] };

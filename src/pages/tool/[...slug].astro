@@ -67,9 +67,9 @@ if (!tool && !error) {
   return Astro.redirect('/404?source=tool-not-found');
 }
 
-const toolName = tool?.name || tool?.title || 'Unknown Tool';
-const toolId = tool?.id || normalizedSlug || '';
-const displayAuthor = tool?.author || 'Community';
+const toolName = tool?.name || 'Unknown Tool';
+const entityId = tool?.id || slugStr;
+const displayAuthor = tool?.author || 'Independent / Community';
 
 const placeholderImage = '/images/models/default-model.jpg';
 const coverImage = tool?.image_url || placeholderImage;

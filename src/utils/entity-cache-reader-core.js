@@ -53,6 +53,14 @@ export function getR2PathCandidates(type, normalizedSlug) {
     // 3. [FALLBACK] Direct / Flat Paths (No prefix)
     candidates.push(`cache/entities/${singular}/${lowerSlug}.json.gz`);
     candidates.push(`cache/entities/${singular}/${lowerSlug}.json`);
+
+    // V16.8.31: ArXiv Dotted Fallbacks (R2 reality check)
+    if (singular === 'paper' && lowerSlug.includes('.')) {
+        const hyphenated = lowerSlug.replace(/\./g, '-');
+        candidates.push(`cache/entities/paper/${hyphenated}.json.gz`);
+        candidates.push(`cache/entities/paper/${hyphenated}.json`);
+    }
+
     candidates.push(`cache/${singular}/${lowerSlug}.json.gz`);
     candidates.push(`cache/${singular}/${lowerSlug}.json`);
     candidates.push(`cache/entities/${lowerSlug}.json.gz`);

@@ -68,9 +68,9 @@ if (!dataset && !error) {
   return Astro.redirect('/404?source=dataset-not-found');
 }
 
-const datasetName = dataset?.name || dataset?.title || 'Unknown Dataset';
-const datasetId = dataset?.id || normalizedSlug || '';
-const displayAuthor = dataset?.author || 'Community';
+const datasetName = dataset?.name || 'Unknown Dataset';
+const entityId = dataset?.id || slugStr;
+const displayAuthor = dataset?.author || 'Independent / Community';
 
 const hasFNI = dataset?.fni_score !== undefined || dataset?.fni_percentile !== undefined;
 const placeholderImage = '/images/models/default-model.jpg';

@@ -40,6 +40,7 @@ export function hydrateEntity(data, type, summaryData) {
     };
 
     beautifyName(hydrated);
+    beautifyAuthor(hydrated); // V16.8.31: Identity reconstruction (SPEC-ID-V2.1)
     if (summaryData) attemptWarmCacheFallback(hydrated, summaryData);
     extractTechSpecs(hydrated, entity, meta);
     mineRelations(hydrated, meta);
@@ -94,6 +95,37 @@ function beautifyName(hydrated) {
         // Final sanity check for empty or nonsense names
         if (!hydrated.name || hydrated.name === 'Model' || hydrated.name === 'Agent') {
             hydrated.name = rawName || 'Deep Insight Node';
+        }
+    }
+}
+
+/**
+ * V16.8.31: Identity Reconstruction Logic
+ * Reconstructs Provider/Author from ID segments (formula: source-type--author--name)
+ */
+function beautifyAuthor(hydrated) {
+    const id = hydrated.id || '';
+    const parts = id.split('--');
+
+    // If author is missing or looks like a raw slug, reconstruct
+    const hasValidAuthor = hydrated.author && hydrated.author !== 'Unknown' && !hydrated.author.includes('-') && hydrated.author !== '';
+
+    if (!hasValidAuthor && parts.length >= 2) {
+        // Source is usually the first part, author is the middle part(s)
+        // SPEC-ID-V2.1 Formula: {source_prefix}-{type_prefix}--{owner}--{name}
+        // hf-model--meta-llama--llama-3-8b -> author is meta-llama
+        const rawAuthor = (parts.length > 2) ? parts[parts.length - 2] : parts[0];
+
+        hydrated.author = rawAuthor
+            .replace(/[-_]/g, ' ')
+            .split(' ')
+            .filter(Boolean)
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
+
+        // Final fallback for standalone IDs
+        if (!hydrated.author || hydrated.author === 'Hf' || hydrated.author === 'Gh') {
+            hydrated.author = 'Independent / Community';
         }
     }
 }

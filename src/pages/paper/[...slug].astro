@@ -36,17 +36,11 @@ try {
   const type = 'paper';
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
   
-  if (!entity || !_meta.available) {
-    Astro.response.status = 404;
-    return Astro.redirect('/404?reason=paper-not-found&id=' + encodeURIComponent(slugStr));
-  }
-
   paper = entity;
   tagsArray = paper?.tags || [];
   meshRelations = mesh || [];
 
-  const normalizedSlug = normalizeEntitySlug(slugStr, type);
-  const displayPaperName = paper?.title || paper?.name || 'Unknown Research Paper';
+  const displayPaperName = paper?.name || paper?.title || 'Unknown Research Paper';
   pageTitle = `${displayPaperName} - AI Research Insight`;
   pageDescription = paper?.seo_summary?.description || paper?.abstract || `Deep dive into ${displayPaperName} research and architecture.`;
   
@@ -62,9 +56,9 @@ if (!paper && !error) {
   return Astro.redirect('/404?source=paper-not-found');
 }
 
-const paperTitle = paper?.title || paper?.name || 'Unknown Research Paper';
-const paperId = paper?.id || normalizedSlug || '';
-const displayAuthor = (Array.isArray(paper?.authors) && paper.authors[0]) || paper?.author || 'Research Community';
+const paperTitle = paper?.name || paper?.title || 'Unknown Research Paper';
+const paperId = paper?.id || '';
+const displayAuthor = paper?.author || (Array.isArray(paper?.authors) && paper.authors[0]) || 'Research Community';
 
 const placeholderImage = '/images/models/default-model.jpg';
 const coverImage = paper?.image_url || placeholderImage;

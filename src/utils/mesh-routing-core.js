@@ -34,7 +34,7 @@ export function stripPrefix(id) {
         }
     }
 
-    // Standardize separators to dual-dash
+    // V16.8.31: Dual-separator normalization (Support both -- and /)
     return result.replace(/[:\/]/g, '--').replace(/^--|--$/g, '');
 }
 
@@ -88,21 +88,24 @@ export function getRouteFromId(id, type = null) {
     let resolvedType = type || getTypeFromId(id);
     const lowId = id.toLowerCase();
 
-    // V2.1 Rule: Clean SEO URL. Strip redundant technical prefixes and convert -- to /
+    // V2.1 Rule: Clean SEO URL. Hierarchical format /type/author/name
     let slug = lowId;
     if (resolvedType === 'knowledge' || resolvedType === 'report') {
         slug = stripPrefix(id).replace(/--/g, '/');
-        // V16.8.15: Fix double slash or redundant technical segments for reports
         if (resolvedType === 'report') {
             slug = slug.replace(/\/+/g, '-');
         }
         if (resolvedType === 'knowledge' && KNOWLEDGE_ALIAS_MAP[slug]) {
             slug = KNOWLEDGE_ALIAS_MAP[slug];
         }
+    } else if (resolvedType === 'paper') {
+        // V16.8.31 Paper Spec: /paper/ID.version
+        // If it starts with arxiv-paper-- or arxiv--, strip it and keep the rest (R2 often keeps dots)
+        slug = stripPrefix(id).replace(/--/g, '.');
     } else {
-        // For primary types (model, agent, etc.), use the canonical double-hyphenated ID
-        // V16.8.30 RESTORATION: Always use double-hyphens for R2 paths (e.g. /tool/huggingface--transformers)
-        slug = stripPrefix(id);
+        // V16.8.31 SEO RESTORATION: Use hierarchical / separator for all primary types
+        // Example: hf-model--meta-llama--llama-3-8b -> meta-llama/llama-3-8b
+        slug = stripPrefix(id).replace(/--/g, '/');
     }
 
     const routeMap = {
