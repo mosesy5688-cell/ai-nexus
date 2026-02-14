@@ -23,12 +23,21 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
         if (stats.size === 0) throw new Error(`Empty file: ${filepath}`);
 
         let data = await fs.readFile(filepath);
-        if (filepath.endsWith('.gz') || (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b)) {
+        // V18.2.3: Gzip Magic Number Sniffing (Reliable detection)
+        const isGzip = (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b);
+
+        if (filepath.endsWith('.gz') || isGzip) {
             const zlib = await import('zlib');
             try {
                 data = zlib.gunzipSync(data);
             } catch (e) {
-                throw new Error(`Gzip decompression failed for ${filepath}: ${e.message}`);
+                // Defensive: If it failed but wasn't actually a Gzip (sniffing lied or corrupted), 
+                // and it ends with .gz, this is a "Fake .gz" situation.
+                if (!isGzip) {
+                    console.warn(`[CACHE] ⚠️ Fake .gz detected: ${filepath}. Parsing as raw JSON.`);
+                } else {
+                    throw new Error(`Gzip decompression failed for ${filepath}: ${e.message}`);
+                }
             }
         }
         try {
@@ -113,7 +122,11 @@ export async function saveWithBackup(filename, data, options = {}) {
     const localPath = path.join(getCacheDir(), filename);
     let content = JSON.stringify(data);
 
-    if (options.compress) {
+    // V18.2.3: Mandatory Compression Check
+    // If filename ends with .gz, we MUST compress to prevent "Fake .gz" artifacts
+    const shouldCompress = options.compress || filename.endsWith('.gz');
+
+    if (shouldCompress) {
         const zlib = await import('zlib');
         content = zlib.gzipSync(Buffer.from(content));
     }
@@ -155,8 +168,8 @@ export async function saveWithBackup(filename, data, options = {}) {
                 Bucket: getR2Bucket(),
                 Key: r2Key,
                 Body: content,
-                ContentType: options.compress ? 'application/x-gzip' : 'application/json',
-                ContentEncoding: options.compress ? 'gzip' : undefined
+                ContentType: shouldCompress ? 'application/x-gzip' : 'application/json',
+                ContentEncoding: shouldCompress ? 'gzip' : undefined
             }));
         } catch (err) {
             console.warn(`[CACHE] ⚠️ R2 backup failed: ${err.message}`);

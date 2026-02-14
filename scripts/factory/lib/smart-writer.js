@@ -70,10 +70,12 @@ export async function smartWriteWithVersioning(key, data, outputDir = './output'
     let content = JSON.stringify(data);
     let finalKey = key;
 
-    // V16.11: Support for pre-compression to align local MD5 with R2 ETag
-    if (options.compress) {
+    // V18.2.3: Unified Compression Logic
+    // If extension is .gz OR options.compress is true, we MUST compress.
+    const shouldCompress = options.compress || key.endsWith('.gz');
+
+    if (shouldCompress) {
         content = zlib.gzipSync(content);
-        // SPEC-FIX: Automatically append .gz if missing but compression is requested
         if (!finalKey.endsWith('.gz')) {
             finalKey += '.gz';
         }

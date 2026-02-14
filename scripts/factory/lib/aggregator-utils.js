@@ -40,9 +40,13 @@ export async function loadShardArtifacts(defaultArtifactDir, totalShards) {
 
                 let data;
                 if (await fs.access(mergedGzPath).then(() => true).catch(() => false)) {
-                    data = zlib.gunzipSync(await fs.readFile(mergedGzPath)).toString('utf-8');
+                    const buffer = await fs.readFile(mergedGzPath);
+                    const isGzip = buffer[0] === 0x1f && buffer[1] === 0x8b;
+                    data = isGzip ? zlib.gunzipSync(buffer).toString('utf-8') : buffer.toString('utf-8');
                 } else if (await fs.access(gzPath).then(() => true).catch(() => false)) {
-                    data = zlib.gunzipSync(await fs.readFile(gzPath)).toString('utf-8');
+                    const buffer = await fs.readFile(gzPath);
+                    const isGzip = buffer[0] === 0x1f && buffer[1] === 0x8b;
+                    data = isGzip ? zlib.gunzipSync(buffer).toString('utf-8') : buffer.toString('utf-8');
                 } else if (await fs.access(jsonPath).then(() => true).catch(() => false)) {
                     data = await fs.readFile(jsonPath, 'utf-8');
                 } else {
