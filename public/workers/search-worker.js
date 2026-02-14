@@ -14,6 +14,9 @@ import {
 // Start loading models immediately and notify when ready
 loadIndex('model').then(() => {
     self.postMessage({ type: 'STATUS', isLoaded: true, count: indexCache['model']?.items?.length || 0 });
+}).catch(err => {
+    console.error('[SearchWorker] Initial load failed:', err);
+    self.postMessage({ type: 'STATUS', isLoaded: false, loadError: err.message, count: 0 });
 });
 
 self.onmessage = async (e) => {
