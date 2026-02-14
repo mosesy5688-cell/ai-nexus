@@ -64,13 +64,11 @@ try {
 
 if (!space && !error) {
   Astro.response.status = 404;
-  return Astro.redirect('/404?source=space-not-found');
-}
-
+const normalizedSlug = normalizeEntitySlug(slugStr, type);
 const spaceName = space?.title || space?.name || space?.canonical_name || 'Unknown Demo Space';
-const spaceId = space?.id || slugStr || '';
+const spaceId = space?.id || normalizedSlug || '';
 const displayAuthor = space?.author || 'Community';
-const cleanedDesc = space?.description || '';
+const cleanedDesc = space?.description || space?.summary || '';
 
 // V15.0: Derived Use Cases and Limits
 const derivedUseCases = space ? getUseCases(tagsArray, '', 'space', space?.fni_score || 0) : { goodFor: [], limits: [] };

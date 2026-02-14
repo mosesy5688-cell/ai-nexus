@@ -9,28 +9,22 @@ const CDN_BASE = 'https://cdn.free2aitools.com';
 let reports = [];
 
 try {
-    const paths = [`${CDN_BASE}/cache/reports/index.json.gz`, `${CDN_BASE}/cache/reports/index.json` || []];
+    const paths = [`${CDN_BASE}/cache/reports/index.json.gz`, `${CDN_BASE}/cache/reports/index.json`];
     for (const p of paths) {
         const res = await fetch(p);
         if (res.ok) {
             let data;
-            if (p.endsWith('.gz')) {
-                // V16.5.12: Use ArrayBuffer strategy (Robust for SSR/Node)
-                const buffer = await res.arrayBuffer();
-                try {
-                    const ds = new DecompressionStream('gzip');
-                    const writer = ds.writable.getWriter();
-                    writer.write(buffer);
-                    writer.close();
-                    const output = new Response(ds.readable);
-                    data = await output.json();
-                } catch (e) {
-                    // Fallback: Buffer might be plain JSON
-                    const text = new TextDecoder().decode(buffer);
-                    data = JSON.parse(text);
-                }
-            } else {
-                data = await res.json();
+            const buffer = await res.arrayBuffer();
+            try {
+                const ds = new DecompressionStream('gzip');
+                const writer = ds.writable.getWriter();
+                writer.write(buffer);
+                writer.close();
+                const output = new Response(ds.readable);
+                data = await output.json();
+            } catch (e) {
+                const text = new TextDecoder().decode(buffer);
+                data = JSON.parse(text);
             }
             
             reports = (data.reports || []).map(r => ({
@@ -44,44 +38,38 @@ try {
         }
     }
 } catch (e) {
-    console.warn('[Reports] CDN fetch failed, using fallback:', e.message);
-    // Fallback to static file if exists (Direct Import for Reliability)
-    // V16.5.14: Astro.glob fails in some SSR contexts for data assets
-    try {
-        const localData = await import('../../data/reports.json');
-        reports = localData.default || [];
-    } catch {
-        reports = [];
-    }
+    console.warn('[Reports] CDN fetch failed, attempting daily recovery:', e.message);
 }
 
-const latestReport = reports.length > 0 ? reports[0] : null;
-
 // V16.2.5: Fallback to Daily Reports if index.json is empty
-if (!latestReport) {
+if (!reports || reports.length === 0) {
     const now = new Date();
     for (let i = 0; i < 7; i++) {
         const d = new Date(now);
         d.setDate(now.getDate() - i);
         const dateKey = d.toISOString().split('T')[0];
         try {
-            // V18.2: Support compressed daily reports directly in reports/
+            // V18.2: Consistent CDN pathing for daily blocks
             const paths = [
-                `${CDN_BASE}/cache/reports/${dateKey}.json.gz`,
-                `${CDN_BASE}/cache/reports/${dateKey}.json`
+                `${CDN_BASE}/cache/reports/daily/${dateKey}.json.gz`,
+                `${CDN_BASE}/cache/reports/daily/${dateKey}.json`
             ];
             
             for (const p of paths) {
                 const dRes = await fetch(p);
                 if (dRes.ok) {
                     let dData;
-                    if (p.endsWith('.gz')) {
+                    const buffer = await dRes.arrayBuffer();
+                    try {
                         const ds = new DecompressionStream('gzip');
-                        const decompressedStream = dRes.body.pipeThrough(ds);
-                        const response = new Response(decompressedStream);
-                        dData = await response.json();
-                    } else {
-                        dData = await dRes.json();
+                        const writer = ds.writable.getWriter();
+                        writer.write(buffer);
+                        writer.close();
+                        const output = new Response(ds.readable);
+                        dData = await output.json();
+                    } catch (e) {
+                        const text = new TextDecoder().decode(buffer);
+                        dData = JSON.parse(text);
                     }
 
                     reports.push({
