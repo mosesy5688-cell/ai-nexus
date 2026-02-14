@@ -45,7 +45,7 @@ try {
     return Astro.redirect('/404?reason=tool-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  tool = entity;
+  tool = hydrate(entity, type);
   tagsArray = tool?.tags || [];
   meshRelations = mesh || [];
   
