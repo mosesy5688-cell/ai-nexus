@@ -15,8 +15,10 @@ import UniversalCore from '../../components/entity/UniversalCore.astro';
 import CiteEntity from '../../components/common/CiteEntity.astro';
 import ModelInfoTable from '../../components/ModelInfoTable.astro';
 import SpaceDeepDive from '../../components/space-detail/SpaceDeepDive.astro';
+import AiDisclaimer from '../../components/model-detail/AiDisclaimer.astro';
 // V19.0: ModelNavigation removed — not applicable to spaces
 import { getUseCases } from '../../utils/inference.js';
+import { normalizeEntitySlug } from '../../utils/entity-cache-reader-core.js';
 // 2. Efficient Data Loading (Single-Stream V16.5)
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { getRouteFromId } from '../../utils/mesh-routing-core.js';

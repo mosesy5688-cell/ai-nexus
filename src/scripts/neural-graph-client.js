@@ -59,9 +59,10 @@ export function initNeuralGraph(containerId) {
         // Hydration Logic
         try {
             loading.style.display = 'flex';
+            const CDN = 'https://cdn.free2aitools.com';
             const [resp1, resp2] = await Promise.all([
-                fetch('/cache/relations/explicit.json').then(r => r.ok ? r.json() : null),
-                fetch('/cache/relations/knowledge-links.json').then(r => r.ok ? r.json() : null)
+                fetch(`${CDN}/cache/relations/explicit.json`).then(r => r.ok ? r.json() : null),
+                fetch(`${CDN}/cache/relations/knowledge-links.json`).then(r => r.ok ? r.json() : null)
             ]);
 
             if (resp1 || resp2) {
