@@ -92,9 +92,6 @@ export function getRouteFromId(id, type = null) {
     let slug = lowId;
     if (resolvedType === 'knowledge' || resolvedType === 'report') {
         slug = stripPrefix(id).replace(/--/g, '/');
-        if (resolvedType === 'report') {
-            slug = slug.replace(/\/+/g, '-');
-        }
         if (resolvedType === 'knowledge' && KNOWLEDGE_ALIAS_MAP[slug]) {
             slug = KNOWLEDGE_ALIAS_MAP[slug];
         }
