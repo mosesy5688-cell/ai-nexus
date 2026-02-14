@@ -10,6 +10,10 @@ export const DataNormalizer = {
         const id = item.id;
         const type = item.type || defaultType;
         let name = item.name || '';
+
+        // V16.8.15 R5.7.2: Treat "Unknown" as empty to trigger derivation fallback
+        if (name.toLowerCase() === 'unknown') name = '';
+
         let slug = item.slug || '';
         let author = item.author || '';
 
