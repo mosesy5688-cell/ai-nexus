@@ -15,7 +15,7 @@ export function normalizeEntitySlug(id, type = 'model') {
     return base;
 }
 
-// V16.9.25: SPEC-ID-V2.0 Alignment - "What you see is what you fetch"
+// V16.8.5: SPEC-ID-V2.1 Alignment - "Robust Tri-Stream Discovery"
 export function getR2PathCandidates(type, normalizedSlug) {
     const typeMap = {
         'datasets': 'dataset', 'models': 'model', 'agents': 'agent',
@@ -23,53 +23,53 @@ export function getR2PathCandidates(type, normalizedSlug) {
     };
     const singular = typeMap[type] || (type.endsWith('s') ? type.slice(0, -1) : type);
     const lowerSlug = normalizedSlug.toLowerCase();
-    const candidates = [];
 
     // V18.2.1: Unified Prefix Map for all storage tiers
-    // V18.2.1: Unified Prefix Map for all storage tiers
     const prefixMap = {
-        'model': ['hf-model--', 'gh-model--', 'hf--', 'gh--', 'civitai--', 'replicate--', 'ollama--', 'kaggle--'],
-        'dataset': ['hf-dataset--', 'dataset--', 'hf--', 'kaggle--'],
+        'model': ['hf-model--', 'gh-model--', 'civitai--', 'ollama--', 'replicate--', 'kaggle--', 'hf--', 'gh--'],
+        'dataset': ['hf-dataset--', 'kaggle-dataset--', 'dataset--', 'hf--'],
         'paper': ['arxiv-paper--', 'arxiv--', 'paper--', 'hf-paper--'],
-        'space': ['hf-space--', 'space--', 'hf--'],
-        'agent': ['gh-agent--', 'hf-agent--', 'agent--', 'replicate-agent--'],
+        'space': ['hf-space--', 'space--'],
+        'agent': ['gh-agent--', 'hf-agent--', 'agent--'],
         'tool': ['gh-tool--', 'hf-tool--', 'tool--', 'github-tool--']
     };
     const prefixes = prefixMap[singular] || [];
 
-    // 1. [V18.2 PRIMARY] Fused & Tiered GZIP Variants (Highest Likelihood)
-    // We prioritize .gz to eliminate 404 overhead on modern R2 caches
-    const primaryGz = [
-        `cache/fused/${lowerSlug}.json.gz`,
-        ...prefixes.map(p => `cache/fused/${p}${lowerSlug}.json.gz`),
-        `cache/entities/${singular}/${lowerSlug}.json.gz`,
-        `cache/entities/${lowerSlug}.json.gz`
-    ];
+    const candidates = [];
 
-    // 2. [V18.2] Plan B: Fused Plain JSON
-    const primaryJson = [
-        `cache/fused/${lowerSlug}.json`,
-        ...prefixes.map(p => `cache/fused/${p}${lowerSlug}.json`),
-        `cache/entities/${singular}/${lowerSlug}.json`,
-        `cache/entities/${lowerSlug}.json`
-    ];
-
-    // 3. [LEGACY] Long-tail prefixes and tiered fallbacks
-    const legacy = [];
+    // 1. [PRIMARY] Fused Storage (High Fidelity)
+    // We've confirmed hf-model--meta-llama--meta-llama-3-8b.json.gz exists here.
     prefixes.forEach(p => {
-        if (!lowerSlug.startsWith(p)) {
-            const prefixedSlug = `${p}${lowerSlug}`;
-            legacy.push(`cache/entities/${prefixedSlug}.json.gz`);
-            legacy.push(`cache/entities/${singular}/${prefixedSlug}.json.gz`);
-            legacy.push(`cache/entities/${prefixedSlug}.json`);
-            legacy.push(`cache/entities/${singular}/${prefixedSlug}.json`);
+        const fullSlug = lowerSlug.includes('--') ? lowerSlug : `${p}${lowerSlug}`;
+        candidates.push(`cache/fused/${fullSlug}.json.gz`);
+        candidates.push(`cache/fused/${fullSlug}.json`);
+
+        // Check if the input lowerSlug ALREADY has the prefix
+        if (lowerSlug.startsWith(p)) {
+            candidates.push(`cache/fused/${lowerSlug}.json.gz`);
+            candidates.push(`cache/fused/${lowerSlug}.json`);
+        } else {
+            const prefixed = `${p}${lowerSlug}`;
+            candidates.push(`cache/fused/${prefixed}.json.gz`);
+            candidates.push(`cache/fused/${prefixed}.json`);
         }
     });
 
-    // 4. [REPLICAS]
-    const replicas = [...primaryGz, ...primaryJson].map(p => p.replace('.json', '.v-1.json'));
+    // 2. [SECONDARY] Entity Storage (The Anchor)
+    // confirmed: hf-dataset--... , gh-agent--...
+    prefixes.forEach(p => {
+        const fullSlug = lowerSlug.startsWith(p) ? lowerSlug : `${p}${lowerSlug}`;
+        candidates.push(`cache/entities/${singular}/${fullSlug}.json.gz`);
+        candidates.push(`cache/entities/${singular}/${fullSlug}.json`);
+    });
 
-    return [...new Set([...primaryGz, ...primaryJson, ...legacy, ...replicas])];
+    // 3. [FALLBACK] Direct / Flat Paths
+    candidates.push(`cache/entities/${singular}/${lowerSlug}.json.gz`);
+    candidates.push(`cache/entities/${singular}/${lowerSlug}.json`);
+    candidates.push(`cache/entities/${lowerSlug}.json.gz`);
+    candidates.push(`cache/entities/${lowerSlug}.json`);
+
+    return [...new Set(candidates)];
 }
 
 

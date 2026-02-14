@@ -19,7 +19,9 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
     for (const url of candidates) {
         try {
             const res = await fetch(url);
-            if (!res.ok) continue;
+            if (!res.ok) {
+                continue;
+            }
 
             // V16.8.2 FIX: Always use ArrayBuffer to handle ambiguous GZIP/JSON states
             const buffer = await res.arrayBuffer();
@@ -63,7 +65,7 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
                     const text = new TextDecoder().decode(buffer);
                     return JSON.parse(text);
                 } catch (jsonError) {
-                    // console.warn(`[PacketLoader] Failed to parse ${url}: Not GZIP and Not JSON.`);
+                    // Fail silently
                 }
             }
         } catch (e) {
@@ -119,35 +121,25 @@ export async function loadEntityStreams(type: string, slug: string) {
     }
 
     // --- ANCHOR ESTABLISHED ---
+    // 4. Secondary Stream Discovery (Fused & Mesh)
     const canonicalId = entityPack.id || entityPack.slug || slug;
-    const normalizedCanonical = normalizeEntitySlug(canonicalId, type);
-    const canonicalCandidates = getR2PathCandidates(type, normalizedCanonical);
+    const singular = type.endsWith('s') ? type.slice(0, -1) : type;
 
-    const fusedCandidates = canonicalCandidates.filter(c => c.includes('/fused/'));
-    const meshCandidates = canonicalCandidates.map(c => c.replace('/entities/', '/mesh/profiles/').replace('/fused/', '/mesh/profiles/'));
+    // We try to fetch Fused (HTML) and Mesh (Relations) using the canonical ID
+    const fusedPath = `cache/fused/${canonicalId}.json.gz`;
+    const meshPath = `cache/mesh/profiles/${canonicalId}.json.gz`;
 
-    // Parallel Fetch for Content
-    const [fusedResult, meshResult] = await Promise.all([
-        findFirst(fusedCandidates),
-        findFirst(meshCandidates.slice(0, 2))
-    ]);
+    // Attempt to fetch Fused Pack (README/HTML)
+    let fusedPack = await fetchCompressedJSON(fusedPath);
+    if (!fusedPack) fusedPack = await fetchCompressedJSON(fusedPath.replace('.gz', ''));
 
-    const fusedPack = fusedResult?.data;
-    const meshPack = meshResult?.data;
+    const html = fusedPack?.html_readme || entityPack.html_readme || null;
 
-    // Stream B (HTML)
-    let html = null;
-    if (fusedPack) {
-        html = fusedPack.html || fusedPack.html_readme || (fusedPack.entity ? fusedPack.entity.html_readme : null);
-    }
+    // Attempt to fetch Mesh Pack (Relations)
+    let meshPack = await fetchCompressedJSON(meshPath);
+    if (!meshPack) meshPack = await fetchCompressedJSON(meshPath.replace('.gz', ''));
 
-    // Stream C (Mesh)
-    let mesh = [];
-    if (meshPack && (meshPack.nodes || meshPack.data?.nodes)) {
-        mesh = meshPack.nodes || meshPack.data?.nodes;
-    } else if (fusedPack && fusedPack.mesh_profile) {
-        mesh = fusedPack.mesh_profile.nodes || fusedPack.mesh_profile || [];
-    }
+    const mesh = meshPack?.relations || meshPack?.nodes || entityPack.relations || [];
 
     return {
         entity: entityPack,
@@ -158,13 +150,13 @@ export async function loadEntityStreams(type: string, slug: string) {
             source: 'entity-first-anchored',
             streams: {
                 entity: true,
-                html: !!fusedPack,
-                mesh: !!meshPack
+                html: !!html,
+                mesh: !!mesh
             },
             paths: {
                 entity: entitySourcePath,
-                fused: fusedResult?.path || 'missing',
-                mesh: meshResult?.path || 'missing'
+                fused: html ? fusedPath : 'missing',
+                mesh: mesh ? meshPath : 'missing'
             }
         }
     };

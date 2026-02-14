@@ -72,18 +72,27 @@ export async function loadIndex(entityType = 'model') {
     const url = INDEX_URLS[entityType] || INDEX_URLS.model;
     try {
         const data = await tryFetchJson(url); // Loads .json.gz
-        const items = (data.entities || data.models || data.spaces || data.datasets || data || []).map((item, idx) => ({
-            ...item,
-            id: item.id || `auto-${idx}`,
-            fni_score: item.fni_score ?? item.fni ?? item.fniScore ?? 0,
-            fni_percentile: item.fni_percentile || item.percentile || ''
-        }));
+        const items = (data.entities || data.models || data.spaces || data.datasets || data || []).map((item, idx) => {
+            // SPEC-V18.2 Alignment: Map abbreviated fields to standard internal names
+            return {
+                ...item,
+                id: item.id || `auto-${idx}`,
+                name: item.n || item.name || item.title || 'Unknown',
+                author: item.o || item.author || item.owner || 'Open Source',
+                type: item.t || item.type || entityType,
+                description: item.d || item.description || '',
+                fni_score: item.s ?? item.fni_score ?? item.fni ?? item.fniScore ?? 0,
+                fni_percentile: item.fni_percentile || item.percentile || '',
+                slug: item.slug || item.id?.split(/[:/]/).pop() || ''
+            };
+        });
 
         const miniSearch = new MiniSearch({
             fields: ['name', 'author', 'tags', 'description', 'slug'],
             storeFields: ['name', 'author', 'tags', 'description', 'id', 'slug', 'likes', 'downloads', 'last_updated', 'fni_score', 'pwc_benchmarks', 'verified', 'type'],
             searchOptions: {
-                boost: { name: 2, author: 1.5 },
+                // SPEC-V18.2 Weighting Alignment
+                boost: { name: 10, author: 5, description: 1 },
                 fuzzy: 0.2,
                 prefix: true
             }
@@ -135,16 +144,16 @@ export async function loadFullIndex(onProgress) {
                     shard.entities.forEach(e => {
                         if (!itemsMap.has(e.id)) {
                             // V16.7.1 FIX: Include tags for 100% keyword coverage
-                            // Also ensure consistent naming (fni_score, fni_percentile)
+                            // SPEC-V18.2: Support abbreviated shard fields
                             itemsMap.set(e.id, {
                                 id: e.id,
-                                name: e.name || e.id,
-                                type: e.type || 'model',
-                                author: e.author || 'Open Source',
-                                fni_score: Math.round(e.fni ?? e.fni_score ?? e.fniScore ?? 0),
+                                name: e.n || e.name || e.title || e.id,
+                                type: e.t || e.type || 'model',
+                                author: e.o || e.author || e.owner || 'Open Source',
+                                fni_score: Math.round(e.s ?? e.fni ?? e.fni_score ?? e.fniScore ?? 0),
                                 fni_percentile: e.percentile ?? e.fni_percentile ?? e.fniPercentile ?? '',
-                                description: e.description || '',
-                                slug: e.slug || e.id?.split(/[:/]/).pop(),
+                                description: e.d || e.description || '',
+                                slug: e.slug || e.id?.split(/[:/]/).pop() || '',
                                 tags: Array.isArray(e.tags) ? e.tags : (typeof e.tags === 'string' ? JSON.parse(e.tags || '[]') : [])
                             });
                         }

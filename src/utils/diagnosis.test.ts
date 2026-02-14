@@ -5,7 +5,7 @@ import { loadEntityStreams } from './packet-loader.ts';
 describe('Packet Loader Diagnosis', () => {
     it('should load a meta-llama model correctly', async () => {
         const type = 'model';
-        const slug = 'meta-llama/llama-3-8b';
+        const slug = 'hf-model--meta-llama--meta-llama-3-8b';
         const result = await loadEntityStreams(type, slug);
 
         console.log('--- REPRO RESULT ---');
@@ -19,14 +19,12 @@ describe('Packet Loader Diagnosis', () => {
     }, 30000);
 
     it('should load a civitai model correctly', async () => {
-        const type = 'model';
-        const slug = 'civitai/123456';
-        const result = await loadEntityStreams(type, slug);
+        const result = await loadEntityStreams('model', 'civitai--100056');
+        expect(result.entity).not.toBeNull();
+        expect(result._meta.available).toBe(true);
 
         console.log('--- CIVITAI REPRO RESULT ---');
         console.log('Available:', result._meta.available);
         console.log('Paths:', JSON.stringify(result._meta.paths, null, 2));
-
-        expect(result._meta.available).toBe(true);
     }, 30000);
 });
