@@ -135,8 +135,8 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
     if (nodes.length <= 1) {
       console.log('[NeuralMesh] Hydration triggered for:', rootId);
       try {
-        const { getMeshProfile } = await import('/src/utils/mesh-orchestrator.js');
-        const { getRouteFromId } = await import('/src/utils/mesh-routing-core.js');
+        const { getMeshProfile } = await import('../utils/mesh-orchestrator.js');
+        const { getRouteFromId } = await import('../utils/mesh-routing-core.js');
         
         const profile = await getMeshProfile(null, rootId);
         if (profile && profile.tiers) {

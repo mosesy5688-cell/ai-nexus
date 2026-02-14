@@ -21,13 +21,8 @@ export function handleModelType(hydrated, entity, computed, meta, derivedName) {
         hydrated.context_length = hydrated.context_length || entity.config.max_position_embeddings || entity.config.n_ctx;
     }
 
-    if (entity.id && (!entity.name || entity.name.includes('--') || entity.name.includes(':') || entity.name.includes('/'))) {
-        const normalizedId = entity.id.replace(/:/g, '--').replace(/\//g, '--');
-        const parts = normalizedId.split('--').filter(p => p);
-        const namePart = parts[parts.length - 1] || entity.id;
-        hydrated.name = entity.pretty_name || namePart || derivedName;
-        hydrated.author = entity.author || (parts.length > 1 ? parts[parts.length - 2] : 'Unknown');
-    }
+    // V16.8.31: Identity protection - beautifyName and beautifyAuthor handle this now.
+    // Removed raw segment injection that was causing "--" to appear in UI.
 
     // V16.22-26: Robust Source URL Construction
     if (!hydrated.source_url && hydrated.id) {
@@ -66,13 +61,8 @@ export function handlePaperType(hydrated, entity, meta, derivedName) {
 }
 
 export function handleGenericType(hydrated, entity, type, meta, derivedName) {
-    if (entity.id && (!entity.name || entity.name.includes('--'))) {
-        const parts = entity.id.split('--');
-        const namePart = parts.length > 2 ? parts.slice(2).join('/') : parts[parts.length - 1];
-        hydrated.name = entity.pretty_name || namePart || derivedName;
-        if (type === 'space' || type === 'dataset') hydrated.title = hydrated.name;
-    }
-    hydrated.author = entity.author || (entity.id && entity.id.split('--').length > 1 ? entity.id.split('--')[1] : 'Unknown');
+    // V16.8.31: Identity protection for generic types
+    hydrated.author = hydrated.author || entity.author || (entity.id && entity.id.split('--').length > 1 ? entity.id.split('--')[1] : 'Unknown');
 
     // V16.24-26: Robust Generic Source URL Construction (Datasets, Spaces, Tools, Agents)
     if (!hydrated.source_url && hydrated.id) {
@@ -110,7 +100,6 @@ export function handleGenericType(hydrated, entity, type, meta, derivedName) {
         hydrated.running_status = entity.running_status || meta.running_status || meta.extended?.runtime_stage || 'RUNNING';
     }
 
-    // Default source mapping if missing
     if (!hydrated.source && hydrated.id) {
         if (hydrated.id.includes('hf-') || hydrated.id.includes('huggingface')) hydrated.source = 'huggingface';
         else if (hydrated.id.includes('github') || hydrated.id.includes('gh-')) hydrated.source = 'github';

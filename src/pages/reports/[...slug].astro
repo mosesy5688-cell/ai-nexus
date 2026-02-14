@@ -14,6 +14,8 @@ const reportSlug = slug.replace(/^daily\//, '');
 try {
     // V18.2: Support gzipped reports at root cache/reports/
     const paths = [
+        `${CDN_BASE}/cache/reports/daily/${reportSlug}.json.gz`, // Added daily/ directory path
+        `${CDN_BASE}/cache/reports/daily/${reportSlug}.json`,   // Added daily/ directory path
         `${CDN_BASE}/cache/reports/${reportSlug}.json.gz`,
         `${CDN_BASE}/cache/reports/${reportSlug}.json`
     ];

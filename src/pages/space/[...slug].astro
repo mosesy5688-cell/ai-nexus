@@ -66,9 +66,9 @@ if (!space && !error) {
   return Astro.redirect('/404?source=space-not-found');
 }
 
-const spaceName = space?.title || space?.name || space?.canonical_name || 'Unknown Demo Space';
-const spaceId = space?.id || normalizedSlug || '';
-const displayAuthor = space?.author || 'Community';
+const spaceName = space?.name || 'Unknown Demo Space';
+const entityId = space?.id || slugStr;
+const displayAuthor = space?.author || 'Independent / Community';
 
 const placeholderImage = '/images/models/default-model.jpg';
 const coverImage = space?.image_url || placeholderImage;

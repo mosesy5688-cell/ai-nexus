@@ -71,9 +71,9 @@ if (!agent && !error) {
   return Astro.redirect('/404?source=agent-not-found');
 }
 
-const agentName = agent?.name || agent?.canonical_name || 'Unknown Agent';
-const agentId = agent?.id || normalizedSlug || '';
-const displayAuthor = agent?.author || 'Community';
+const agentName = agent?.name || 'Unknown Agent';
+const entityId = agent?.id || slugStr;
+const displayAuthor = agent?.author || 'Independent / Community';
 
 const hasFNI = agent?.fni_score !== undefined || agent?.fni_percentile !== undefined;
 const placeholderImage = '/images/models/default-model.jpg';
