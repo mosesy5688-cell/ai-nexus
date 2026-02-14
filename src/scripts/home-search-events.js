@@ -64,32 +64,18 @@ export function renderResults(results) {
         const path = getRouteFromId(r.id || r.slug, r.type || 'model');
         const isKnowledge = (r.type || 'model') === 'knowledge';
 
-        // V16.8.15 R5.7: Clean thumbnails from dropdown if present
-        const cleanDesc = (r.description || "").replace(/<img[^>]*>/gi, "").replace(/<p[^>]*>/gi, "").replace(/<\/p>/gi, " ").trim();
-
+        // V16.8.15 R5.7.1: Minimalist Dropdown Row
         const typeLabel = isKnowledge ? 'Guide' : (r.type || 'Model').toUpperCase();
-        const badgeClass = isKnowledge ?
-            'bg-indigo-100 text-indigo-700' :
-            (r.type === 'agent' ? 'bg-purple-100 text-purple-700' :
-                (r.type === 'paper' ? 'bg-amber-100 text-amber-700' :
-                    (r.type === 'dataset' ? 'bg-sky-100 text-sky-700' : 'bg-blue-100 text-blue-700')));
-
-        const badge = `<span class="px-2 py-0.5 ${badgeClass} rounded text-[10px] font-bold uppercase tracking-wider">${typeLabel}</span>`;
 
         return `
-    <a href="${path}" class="flex items-center p-3 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0">
-      <div class="flex-1">
-        <div class="flex items-center gap-2">
-          <div class="font-medium text-gray-900 dark:text-white">${r.name}</div>
-          ${badge}
-        </div>
-        <div class="text-xs text-gray-500 mt-0.5">
-          ${isKnowledge ? 'Concepts & Foundations' : `${r.author || 'Unknown'} · FNI: ${r.fni_score ?? r.fni ?? 'N/A'}`}
-        </div>
+    <a href="${path}" class="flex items-center justify-between p-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-700/50 last:border-0 group">
+      <div class="flex items-center gap-2 overflow-hidden">
+        <span class="text-[8px] font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 rounded uppercase tracking-tighter">${typeLabel}</span>
+        <div class="font-bold text-xs text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 truncate">${r.name}</div>
       </div>
-      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-      </svg>
+      <div class="text-[10px] text-zinc-400 font-black ml-2 tabular-nums">
+        ${r.fni_score ?? r.fni ?? '-'}
+      </div>
     </a>
   `}).join('');
 
