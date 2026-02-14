@@ -47,8 +47,8 @@ try {
     return Astro.redirect('/404?reason=dataset-not-found&id=' + encodeURIComponent(slugStr));
   }
 
-  model = hydrateEntity(entity, type); // Changed to model
-  dataset = model; // Assign model to dataset for backward compatibility with existing code
+  dataset = hydrateEntity(entity, type);
+  model = dataset; // Align with expectation in other components
   tagsArray = dataset?.tags || [];
   meshRelations = mesh || [];
   

@@ -23,8 +23,8 @@ const truncatedDesc = description;
 const link = generateEntityUrl(item, type);
 const isActive = isRecentlyActive(item.last_updated || item.lastModified);
 
-const fni = Math.round(item.fni_score ?? item.fni ?? 0);
-const fniPercentile = item.fni_percentile || '';
+const fni = Math.round(item.fni_score ?? item.fni ?? item.fniScore ?? 0);
+const fniPercentile = item.fni_percentile || item.percentile || '';
 
 // FNI Color Semantics (SPEC-CORE-FEATURES V1.0)
 let fniBadgeClass = "bg-gray-100 dark:bg-zinc-800 text-gray-500";
