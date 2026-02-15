@@ -50,15 +50,19 @@ export function generateEntityUrl(entity, type) {
 export function parseEntityUrl(pathname) {
     if (!pathname || pathname === '/') return { type: 'model', slug: '' };
 
-    // Handle listing roots (/model, /agent, etc.)
-    const rootMatch = pathname.match(/^\/(model|dataset|paper|agent|benchmark|tool|space)\/?$/);
+    // Handle listing roots (/model, /models, /agent, /agents, etc.)
+    const rootMatch = pathname.match(/^\/(model|models|dataset|datasets|paper|papers|agent|agents|benchmark|benchmarks|tool|tools|space|spaces)\/?$/);
     if (rootMatch) {
-        return { type: rootMatch[1], slug: '' };
+        // Normalize back to singular for internal type consistency if needed, 
+        // but for listing roots we mostly care about the type.
+        const type = rootMatch[1].replace(/s$/, '');
+        return { type: type === 'benchmark' ? 'tool' : type, slug: '' };
     }
 
-    const match = pathname.match(/^\/(model|dataset|paper|agent|benchmark|tool|space)\/(.+)$/);
+    const match = pathname.match(/^\/(model|models|dataset|datasets|paper|papers|agent|agents|benchmark|benchmarks|tool|tools|space|spaces)\/(.+)$/);
     if (match) {
-        return { type: match[1], slug: match[2] };
+        const type = match[1].replace(/s$/, '');
+        return { type: type === 'benchmark' ? 'tool' : type, slug: match[2] };
     }
 
     // Fallback: treat as model if no other match

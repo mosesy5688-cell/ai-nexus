@@ -116,10 +116,16 @@ async function main() {
         const preSlimSize = rankedEntities.length;
         console.log(`[AGGREGATOR] ✂️ Applying Data Slimming for satellite task: ${taskArg}...`);
         for (let i = 0; i < rankedEntities.length; i++) {
-            // Keep: name, tags, metrics, id, slug, fni_score, description (truncated)
-            // Strip: full content (HTML), large buffers, or legacy artifacts
-            if (rankedEntities[i].content) delete rankedEntities[i].content;
-            if (rankedEntities[i].readme) delete rankedEntities[i].readme;
+            const e = rankedEntities[i];
+            // V18.2.11 Fix: Recover summary before deletion if loadGlobalRegistry didn't already
+            if (!e.description || e.description.length < 5) {
+                const source = e.readme || e.content || '';
+                if (source) {
+                    e.description = source.slice(0, 300).replace(/<[^>]+>/g, ' ').replace(/[#*`]/g, '').trim().slice(0, 250);
+                }
+            }
+            if (e.content) delete e.content;
+            if (e.readme) delete e.readme;
         }
         console.log(`[AGGREGATOR] ✅ Slimming complete. Optimized ${preSlimSize} entities.`);
     }

@@ -353,7 +353,9 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: output/cache
-        run: node scripts/factory/aggregator.js --task=trending
+        run: |
+          export NODE_OPTIONS="--max-old-space-size=6144"
+          node scripts/factory/aggregator.js --task=trending
       - name: Upload Trending Artifacts
         uses: actions/upload-artifact@v4
         with:
