@@ -150,7 +150,7 @@ export async function loadDailyReport() {
 
         // Final fallback: Use trending.json
         try {
-            const trendingRes = await fetch('https://cdn.free2aitools.com/cache/trending.json');
+            const trendingRes = await fetch(`${CDN_BASE}/trending.json`);
             if (trendingRes.ok) {
                 const trendingData = await trendingRes.json();
                 const topModel = trendingData.models?.[0];

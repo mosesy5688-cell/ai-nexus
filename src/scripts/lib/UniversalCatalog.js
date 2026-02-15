@@ -18,7 +18,7 @@ export class UniversalCatalog {
         this.itemsPerPage = config.itemsPerPage || 24;
 
         // DOM Elements
-        this.grid = document.getElementById(config.gridId || 'models-grid');
+        this.grid = document.getElementById(config.gridId || 'models-catalog-grid');
         this.countLabel = document.getElementById(config.countId || 'results-count');
         this.paginationContainer = document.getElementById(config.paginationId || 'pagination');
         this.searchInput = document.getElementById(config.searchId || 'models-search');
