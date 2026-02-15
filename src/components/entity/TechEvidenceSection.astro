@@ -60,7 +60,12 @@ const { entityId, entityName, entity, hasBench, enrichedTags } = Astro.props;
             <h3 class="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">Momentum Index</h3>
          </div>
          <div class="relative min-h-[140px] flex items-center justify-center">
-            <MiniTrendChart entityId={entityId} width={380} height={140} />
+            <MiniTrendChart 
+               entityId={entityId} 
+               width={380} 
+               height={140} 
+               initialData={entity?.fni_trend_7d}
+            />
          </div>
       </div>
 

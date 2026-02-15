@@ -140,7 +140,7 @@ async function main() {
         {
             name: 'TrendData', id: 'trend', fn: async () => {
                 const history = await loadFniHistory();
-                return generateTrendData(history, path.join(CONFIG.OUTPUT_DIR, 'cache'));
+                await generateTrendData(history, path.join(CONFIG.OUTPUT_DIR, 'cache'));
             }
         }
     ];
@@ -186,6 +186,18 @@ async function main() {
 
             if (shouldGenerateReport()) await generateDailyReport(CONFIG.OUTPUT_DIR);
             await generateDailyReportsIndex(CONFIG.OUTPUT_DIR);
+
+            // V18.2.4: Global Trend Injection (100% Detail Page Coverage)
+            // Ensure every entity shard carries its own 7-day sparkline data
+            console.log(`[AGGREGATOR] 💉 Injecting global trend data into shards...`);
+            const history = await loadFniHistory();
+            const entitiesMap = history.entities || {};
+            for (const e of rankedEntities) {
+                const h = entitiesMap[e.id];
+                if (h && h.length >= 2) {
+                    e.fni_trend_7d = h.map(point => point.score).slice(-7);
+                }
+            }
 
             // V16.11 Persistence Refactor (CES Compliance)
             await persistRegistry(rankedEntities, CONFIG.OUTPUT_DIR, process.env.CACHE_DIR);

@@ -52,13 +52,14 @@ export class ArXivAdapter extends BaseAdapter {
             return this.fetchByCategories({
                 limitsPerCategory: Math.floor(limit / AI_CATEGORIES.length),
                 sortBy,
-                sortOrder
+                sortOrder,
+                offset: options.offset || 0 // V18.2.4: Support rotation
             });
         }
 
         // Default: fetch from combined categories
         const category = 'cs.AI OR cs.LG OR cs.CL OR cs.CV';
-        return this.fetchFromCategory({ category, limit, sortBy, sortOrder });
+        return this.fetchFromCategory({ category, limit, sortBy, sortOrder, offset: options.offset || 0 });
     }
 
     /**
@@ -68,7 +69,8 @@ export class ArXivAdapter extends BaseAdapter {
         const {
             limitsPerCategory = 8000,
             sortBy = 'submittedDate',
-            sortOrder = 'descending'
+            sortOrder = 'descending',
+            offset = 0
         } = options;
 
         console.log(`📥 [ArXiv] Fetching ~${limitsPerCategory * AI_CATEGORIES.length} papers...`);
@@ -82,7 +84,8 @@ export class ArXivAdapter extends BaseAdapter {
                 category: cat,
                 limit: limitsPerCategory,
                 sortBy,
-                sortOrder
+                sortOrder,
+                offset // Pass through
             });
 
             // Deduplicate across categories
@@ -107,7 +110,8 @@ export class ArXivAdapter extends BaseAdapter {
             category = 'cs.AI',
             limit = 200,
             sortBy = 'submittedDate',
-            sortOrder = 'descending'
+            sortOrder = 'descending',
+            offset = 0
         } = options;
 
         const batchSize = 50;  // V14.5.2: Reduced batch size for gentler crawling
@@ -117,8 +121,9 @@ export class ArXivAdapter extends BaseAdapter {
         let consecutiveErrors = 0;
         const MAX_CONSECUTIVE_ERRORS = 8;  // V14.5.2: More patience
 
-        for (let start = 0; start < limit; start += batchSize) {
-            const currentLimit = Math.min(batchSize, limit - start);
+        for (let i = 0; i < limit; i += batchSize) {
+            const currentLimit = Math.min(batchSize, limit - i);
+            const start = offset + i; // V18.2.4: Rotate the window
             const query = encodeURIComponent(`cat:${category}`);
             const url = `${ARXIV_API_BASE}?search_query=${query}&start=${start}&max_results=${currentLimit}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
 

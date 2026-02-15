@@ -21,7 +21,14 @@ const TASK_OUTPUT_MAP = {
  */
 export async function checkIncrementalProgress(taskId, entities, logicHash = '') {
     const checksumFile = './cache/task-checksums.json.gz';
-    const dataHash = crypto.createHash('md5').update(JSON.stringify(entities.map(e => ({ id: e.id, fni: e.fni_score }))).substring(0, 1000000)).digest('hex');
+    const dataHash = crypto.createHash('md5').update(
+        JSON.stringify(entities.slice(0, 100000).map(e => ({
+            id: e.id,
+            fni: e.fni_score,
+            up: e._updated, // V18.2.4: Capture metadata changes
+            chk: e._checksum // Optional content hash
+        })))
+    ).digest('hex');
     const combinedHash = crypto.createHash('md5').update(dataHash + logicHash).digest('hex');
 
     try {
@@ -68,7 +75,14 @@ export async function checkIncrementalProgress(taskId, entities, logicHash = '')
  */
 export async function updateTaskChecksum(taskId, entities, logicHash = '') {
     const checksumFile = './cache/task-checksums.json.gz';
-    const dataHash = crypto.createHash('md5').update(JSON.stringify(entities.map(e => ({ id: e.id, fni: e.fni_score }))).substring(0, 1000000)).digest('hex');
+    const dataHash = crypto.createHash('md5').update(
+        JSON.stringify(entities.slice(0, 100000).map(e => ({
+            id: e.id,
+            fni: e.fni_score,
+            up: e._updated, // V18.2.4: Capture metadata changes
+            chk: e._checksum // Optional content hash
+        })))
+    ).digest('hex');
     const combinedHash = crypto.createHash('md5').update(dataHash + logicHash).digest('hex');
 
     let checksums = {};

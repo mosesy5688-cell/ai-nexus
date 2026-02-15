@@ -34,7 +34,7 @@ export async function generateTrendData(fniHistory, outputDir = 'output/cache') 
             const bLatest = b[1][b[1].length - 1]?.score || 0;
             return bLatest - aLatest;
         })
-        .slice(0, 5000); // Top 5000 entities only
+        .slice(0, 50000); // Top 50,000 entities for high-density listing coverage
 
     for (const [id, history] of sortedEntities) {
         const scores = history.map(h => h.score);
