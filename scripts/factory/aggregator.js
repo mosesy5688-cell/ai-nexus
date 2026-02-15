@@ -59,9 +59,11 @@ async function main() {
     let allEntities = [];
     // 1. Load Authoritative Baseline (V18.2.3 Zero-Loss Hard Halt)
     console.log(`[AGGREGATOR] 🧩 Loading sharded baseline...`);
-    // Note: No try-catch here. If registry-io.js throws (due to corruption/incomplete shards), 
-    // we WANT the entire aggregator to FAIL to prevent saving a truncated registry.
-    const registry = await loadGlobalRegistry();
+    // V18.2.5 Optimization (OOM-GUARD): Enable slim mode for satellite tasks
+    // Satellite tasks don't need heavy content/readme fields.
+    const registry = await loadGlobalRegistry({
+        slim: !!taskArg && taskArg !== 'core' && taskArg !== 'health'
+    });
     allEntities = registry.entities || [];
 
     if (allEntities.length < AGGREGATE_FLOOR) {

@@ -1,131 +1,19 @@
 {
-  "version": "INTEGRITY-V1.1",
-  "job_id": "local",
-  "timestamp": "2026-01-23T09:44:29.967Z",
-  "total_entities": 805,
-  "output": {
-    "file": "merged.json",
-    "hash": "sha256:fadc65051ba8e215562a73549765a242182e9e3023061fad59307037e0a0b974",
-    "size": 9322715
-  },
+  "job_id": "local-1771137595019",
+  "started_at": "2026-02-15T06:39:55.020Z",
+  "completed_at": "2026-02-15T06:39:55.028Z",
+  "status": "complete",
   "batches": [
     {
-      "name": "raw_batch_000.json",
-      "size": 646640,
-      "count": 50,
-      "hash": "sha256:9e2337ac47fd28c48ce291bef59ec3a10a3ba49407d0fb8990111c0f57541744"
-    },
-    {
-      "name": "raw_batch_001.json",
-      "size": 750956,
-      "count": 50,
-      "hash": "sha256:0ef545c9536f4916f714845a749e5c5dfe75280ca9ad573a368043935ee66ed7"
-    },
-    {
-      "name": "raw_batch_002.json",
-      "size": 738249,
-      "count": 50,
-      "hash": "sha256:6607b8fcc9928c3e29283570717317da8889b050bd94ba45c4a9b76545788a65"
-    },
-    {
-      "name": "raw_batch_003.json",
-      "size": 808031,
-      "count": 50,
-      "hash": "sha256:fcc71f255661440b9688be021fbb730fa2d585911c1f591199b522c06d133ad7"
-    },
-    {
-      "name": "raw_batch_004.json",
-      "size": 583215,
-      "count": 50,
-      "hash": "sha256:6237791c219c8030de9e94f9ff72b1a844c0a25de603a3c8340696199c4e4fc1"
-    },
-    {
-      "name": "raw_batch_005.json",
-      "size": 769223,
-      "count": 50,
-      "hash": "sha256:bb2db1e5f9db2b78bfb71d964573136fdc22f562c53bbcc63994cb610712f953"
-    },
-    {
-      "name": "raw_batch_006.json",
-      "size": 967001,
-      "count": 50,
-      "hash": "sha256:6ff5db9634a4e1d5c1e516d2c6493f74227561f62f8bf3f5851ecae7c7573024"
-    },
-    {
-      "name": "raw_batch_007.json",
-      "size": 623868,
-      "count": 50,
-      "hash": "sha256:181d101594c49d13a84f04515dac93b17503e4d0c3b71021d3424ce6b89616ac"
-    },
-    {
-      "name": "raw_batch_008.json",
-      "size": 892912,
-      "count": 50,
-      "hash": "sha256:baca6596ebaf20a0ecf65170b9b10a40226c3680ed078817f5c437ae73a535b5"
-    },
-    {
-      "name": "raw_batch_009.json",
-      "size": 1047660,
-      "count": 50,
-      "hash": "sha256:e6252dbbe10cc4bfcaa2a833be64b3f80d296bb5478baaa9f460e726dec896e1"
-    },
-    {
-      "name": "raw_batch_010.json",
-      "size": 640666,
-      "count": 50,
-      "hash": "sha256:5cd224f05d401dac55cd7eddfe1afbb656112d95fb0ce7f0a486ae344024a914"
-    },
-    {
-      "name": "raw_batch_011.json",
-      "size": 175050,
-      "count": 50,
-      "hash": "sha256:6976589b5063cc6ef4a78476a4544efe81f0ceb8d996f21ebe9c2de90c7a3450"
-    },
-    {
-      "name": "raw_batch_012.json",
-      "size": 174563,
-      "count": 50,
-      "hash": "sha256:c92113b13a3d4853a988aa39068caaf694f23d5036ce37f23f6e43f36353f6fe"
-    },
-    {
-      "name": "raw_batch_013.json",
-      "size": 173023,
-      "count": 50,
-      "hash": "sha256:77393f03735086f6a2e92c0c7ebd61309aaadaa3525f74882d7afcc8f3a1e723"
-    },
-    {
-      "name": "raw_batch_014.json",
-      "size": 177000,
-      "count": 50,
-      "hash": "sha256:b35399b6db0fe248f70cc231032e18898dfec93b2418956d20497b36f76134b0"
-    },
-    {
-      "name": "raw_batch_015.json",
-      "size": 174306,
-      "count": 50,
-      "hash": "sha256:49439ac06c26007e0393320b5050e46da3f897da43629df09d2fba3ba7ba062a"
-    },
-    {
-      "name": "raw_batch_016.json",
-      "size": 13898,
-      "count": 4,
-      "hash": "sha256:7edb86264f5cda15c2ee33a1aaaf3ee106a4d66b375a077550bcdb94978769d0"
-    },
-    {
-      "name": "raw_batch_test_hf.json",
-      "size": 420,
-      "count": 1,
-      "hash": "sha256:8c288ff21f7757bc4d21e30b1bf841ba32309c2e1e492e45620c63fe26263942"
-    },
-    {
-      "name": "raw_batch_test_replicate.json",
-      "size": 549,
-      "count": 1,
-      "hash": "sha256:5a9f9f91685558623275f124c7c187025977181fa4de1efa391872bcc7d0e569"
+      "index": 0,
+      "key": "computed/fni_batch_0.json",
+      "hash": "db5f91408f7004be0aac05909d373b3a696a41709dbb9511f3400a1c3bf138b1",
+      "entities_count": 3,
+      "completed_at": "2026-02-15T06:39:55.025Z",
+      "status": "complete"
     }
   ],
-  "validation": {
-    "max_batch_size_mb": 50,
-    "max_entities_per_batch": 15000
-  }
+  "total_entities": 3,
+  "resume_from": 1,
+  "version": "INTEGRITY-V1.1"
 }

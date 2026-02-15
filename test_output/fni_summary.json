@@ -1,0 +1,44 @@
+{
+  "total_entities": 3,
+  "batches": 1,
+  "computed_at": "2026-02-15T06:39:55.027Z",
+  "elapsed_seconds": 0,
+  "percentile_thresholds": {
+    "top_0_1": 31,
+    "top_1": 31,
+    "top_5": 31,
+    "top_10": 31,
+    "top_25": 31
+  },
+  "top_10": [
+    {
+      "id": "space:demo-app",
+      "fni_score": 31,
+      "fni_breakdown": {
+        "P": 40,
+        "F": 0,
+        "M": 0
+      },
+      "name": "Cool Demo"
+    },
+    {
+      "id": "model:llama-3",
+      "fni_score": 25,
+      "fni_breakdown": {
+        "P": 64,
+        "F": 0,
+        "M": 0
+      }
+    },
+    {
+      "id": "arxiv:2401.00001",
+      "fni_score": 17,
+      "fni_breakdown": {
+        "P": 44,
+        "F": 0,
+        "M": 0
+      },
+      "name": "Revolutionary AI Paper"
+    }
+  ]
+}

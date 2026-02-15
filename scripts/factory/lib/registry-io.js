@@ -20,11 +20,12 @@ const MONOLITH_FILE = 'global-registry.json.gz';
  * Load Global Registry with Cache-First Integrity (V18.2.1)
  * Priority: Local Monolith -> Local Shards -> R2 Monolith Backup
  */
-export async function loadGlobalRegistry() {
+export async function loadGlobalRegistry(options = {}) {
     const cacheDir = process.env.CACHE_DIR || './cache';
     const shardDirPath = path.join(cacheDir, REGISTRY_DIR);
     const monolithPath = path.join(cacheDir, MONOLITH_FILE);
     const REGISTRY_FLOOR = parseInt(process.env.REGISTRY_FLOOR || '85000');
+    const { slim = false } = options;
     let allEntities = []; // V18.2.3: Hoisted to prevent ReferenceError in R2 fallback
 
     const zlib = await import('zlib');
@@ -56,7 +57,22 @@ export async function loadGlobalRegistry() {
                     const recovered = await loadWithFallback(`registry/${s}`, null, false);
                     if (recovered && (recovered.entities || Array.isArray(recovered))) {
                         const entities = recovered.entities || recovered;
-                        allEntities = allEntities.concat(entities);
+
+                        // V18.2.5: In-Memory Slimming (Kill OOM at source)
+                        if (slim) {
+                            for (const e of entities) {
+                                if (e.content) delete e.content;
+                                if (e.readme) delete e.readme;
+                                if (e.html_readme) delete e.html_readme;
+                                if (e.htmlFragment) delete e.htmlFragment;
+                                if (e.body_content) delete e.body_content;
+                            }
+                        }
+
+                        // V18.2.5: In-place Merge (Safely bypass Node.js arg stack limits)
+                        for (let i = 0; i < entities.length; i++) {
+                            allEntities.push(entities[i]);
+                        }
                     } else {
                         throw new Error(`Shard ${s} returned empty content`);
                     }
@@ -97,7 +113,22 @@ export async function loadGlobalRegistry() {
                 const recovered = await loadWithFallback(shardName, null, false);
                 if (recovered && (recovered.entities || Array.isArray(recovered))) {
                     const entities = recovered.entities || recovered;
-                    allEntities = allEntities.concat(entities);
+
+                    // V18.2.5: R2 Emergency Slimming
+                    if (slim) {
+                        for (const e of entities) {
+                            if (e.content) delete e.content;
+                            if (e.readme) delete e.readme;
+                            if (e.html_readme) delete e.html_readme;
+                            if (e.htmlFragment) delete e.htmlFragment;
+                            if (e.body_content) delete e.body_content;
+                        }
+                    }
+
+                    // V18.2.5: In-place Merge
+                    for (let j = 0; j < entities.length; j++) {
+                        allEntities.push(entities[j]);
+                    }
                     i++;
                 } else break;
             }

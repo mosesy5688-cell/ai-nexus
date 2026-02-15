@@ -1,246 +1,86 @@
 /**
- * L5 FNI Compute Script
- * 
- * B.11 Heavy Computation Migration
- * Runs in GitHub Actions Sidecar for 500K-1M scale
- * 
- * @module l5/fni-compute
+ * L5 FNI Compute Script - V16.5 Consolidated
+ * CES Compliant (Art 5.1): Split into modules to stay under 250 lines.
  */
-
 import fs from 'fs';
 import path from 'path';
-import * as manifest from './manifest-utils.js';
 import * as percentile from './fni-percentile.js';
+import { processBatches } from './fni-processor.js';
 
-const BATCH_SIZE = 50000; // 50K entities per batch
+/** FNI Calculation Weights (V16.5) */
+const FNI_WEIGHTS = { popularity: 0.40, freshness: 0.35, mesh: 0.25 };
 
-/** FNI Calculation Weights (V6.0) */
-const FNI_WEIGHTS = {
-    popularity: 0.30, velocity: 0.20, completeness: 0.25, utility: 0.25
-};
-
-/**
- * Calculate Popularity Score (0-100)
- */
-function calculatePopularity(entity) {
-    const likes = entity.likes || 0;
-    const downloads = entity.downloads || 0;
-
-    // Log scale for wide range
-    const likeScore = Math.min(100, Math.log10(Math.max(1, likes)) * 25);
-    const downloadScore = Math.min(100, Math.log10(Math.max(1, downloads)) * 15);
-
-    return (likeScore * 0.4 + downloadScore * 0.6);
+function calculateMeshImpact(entity) {
+    const inboundCount = entity.mesh_data?.referenced_by?.length || 0;
+    return Math.min(100, inboundCount * 5);
 }
 
-/**
- * Calculate Velocity Score (0-100)
- */
-function calculateVelocity(entity) {
-    const lastModified = entity.last_modified ? new Date(entity.last_modified) : null;
-    if (!lastModified) return 30; // Default for unknown
+export function calculateFNI(entity) {
+    const type = entity.entity_type || entity.type || 'model';
+    const ONE_DAY = 86400000;
 
-    const daysSinceUpdate = (Date.now() - lastModified.getTime()) / (1000 * 60 * 60 * 24);
+    let rawPop = 0;
+    if (type === 'model' || type === 'dataset') {
+        rawPop = (entity.likes || 0) + ((entity.downloads || 0) * 0.01);
+    } else if (type === 'agent' || type === 'tool') {
+        rawPop = (entity.stars || entity.likes || 0);
+    } else if (type === 'paper') {
+        rawPop = (entity.citations || entity.likes || 0);
+    } else if (type === 'space') {
+        rawPop = (entity.likes || 0) * 2;
+    }
+    const scoreP = Math.log10(rawPop + 1) * 20;
 
-    if (daysSinceUpdate < 7) return 100;
-    if (daysSinceUpdate < 30) return 80;
-    if (daysSinceUpdate < 90) return 60;
-    if (daysSinceUpdate < 365) return 40;
-    return 20;
-}
+    const lastUpdate = entity.last_modified || entity.last_updated || entity.published_date || entity._updated;
+    const daysSinceUpdate = (Date.now() - new Date(lastUpdate).getTime()) / ONE_DAY;
+    const decayFactor = Math.exp(-0.01 * (isNaN(daysSinceUpdate) ? 30 : daysSinceUpdate));
+    let scoreF = 100 * decayFactor;
+    if (daysSinceUpdate < 7) scoreF *= 1.2;
 
-/**
- * Calculate Completeness Score (0-100)
- */
-function calculateCompleteness(entity) {
-    let score = 0;
+    const scoreM = calculateMeshImpact(entity);
+    let fni = (scoreP * FNI_WEIGHTS.popularity) + (scoreF * FNI_WEIGHTS.freshness) + (scoreM * FNI_WEIGHTS.mesh);
 
-    // Has description/body
-    if (entity.body_content && entity.body_content.length > 100) score += 30;
-    else if (entity.description && entity.description.length > 50) score += 15;
-
-    // Has parameters info
-    if (entity.params_billions) score += 20;
-
-    // Has tags
-    if (entity.tags && entity.tags.length > 0) score += 15;
-
-    // Has source URL
-    if (entity.source_url) score += 10;
-
-    // Has category
-    if (entity.primary_category) score += 15;
-
-    // Has author
-    if (entity.author) score += 10;
-
-    return Math.min(100, score);
-}
-
-/**
- * Calculate Utility Score (0-100)
- */
-function calculateUtility(entity) {
-    let score = 30; // Base score
-
-    // Has GGUF (easy deployment)
-    if (entity.has_gguf) score += 25;
-
-    // Has permissive license
-    const permissiveLicenses = ['mit', 'apache', 'apache-2.0', 'bsd', 'cc0', 'unlicense'];
-    if (entity.license && permissiveLicenses.some(l => entity.license.toLowerCase().includes(l))) {
-        score += 20;
+    if (type === 'space') {
+        const runtime = entity.runtime || {};
+        const stage = (runtime.stage || 'STOPPED').toUpperCase();
+        const kStatus = stage === 'RUNNING' ? 1.0 : (stage === 'SLEEPING' ? 0.5 : (stage === 'BUILDING' ? 0.1 : 0));
+        fni *= kStatus;
     }
 
-    // Has spaces/demos
-    if (entity.spaces_count > 0) score += 15;
-
-    // Source reputation
-    if (entity.source === 'huggingface') score += 10;
-
-    return Math.min(100, score);
-}
-
-/**
- * Calculate FNI Score for single entity
- */
-function calculateFNI(entity) {
-    const P = calculatePopularity(entity);
-    const V = calculateVelocity(entity);
-    const C = calculateCompleteness(entity);
-    const U = calculateUtility(entity);
-
-    const fni = (
-        FNI_WEIGHTS.popularity * P +
-        FNI_WEIGHTS.velocity * V +
-        FNI_WEIGHTS.completeness * C +
-        FNI_WEIGHTS.utility * U
-    );
-
     return {
-        fni_score: Math.round(fni * 10) / 10,
-        fni_breakdown: { P: Math.round(P), V: Math.round(V), C: Math.round(C), U: Math.round(U) }
+        fni_score: Math.min(100, Math.round(fni)),
+        fni_breakdown: { P: Math.round(scoreP), F: Math.round(scoreF), M: Math.round(scoreM) }
     };
 }
 
-/**
- * Process all entities and compute FNI
- * B11: With manifest checkpoint/resume support
- */
 export async function computeAllFNI(inputFile, outputDir) {
-    console.log(`📊 Loading entities from ${inputFile}...`);
+    if (!fs.existsSync(inputFile)) throw new Error(`Input file not found: ${inputFile}`);
     const allEntities = JSON.parse(fs.readFileSync(inputFile, 'utf8'));
-    console.log(`📦 Loaded ${allEntities.length} total entities`);
+    const FNI_ENTITY_TYPES = ['model', 'agent', 'paper', 'space', 'tool', 'dataset'];
+    const entities = allEntities.filter(e => FNI_ENTITY_TYPES.includes(e.entity_type) || FNI_ENTITY_TYPES.includes(e.type));
 
-    // FNI only applies to models and agents (not papers, datasets)
-    const FNI_ENTITY_TYPES = ['model', 'agent'];
-    const entities = allEntities.filter(e =>
-        FNI_ENTITY_TYPES.includes(e.entity_type) || !e.entity_type
-    );
-    console.log(`🎯 Filtering for FNI: ${entities.length} models/agents (excluded ${allEntities.length - entities.length} papers/datasets)`);
+    if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
-    // Ensure output directory exists
-    if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-    }
-
-    // B11: Load or create manifest for checkpoint resume
-    const mf = manifest.loadManifest();
-    const resumeFrom = manifest.getResumePoint(mf);
-    if (resumeFrom > 0) {
-        console.log(`🔄 Resuming from batch ${resumeFrom}`);
-    }
-
-    const results = [];
     const startTime = Date.now();
-    const totalBatches = Math.ceil(entities.length / BATCH_SIZE);
+    const { results, totalBatches } = await processBatches(entities, outputDir, calculateFNI);
 
-    try {
-        // Process in batches
-        for (let i = 0; i < entities.length; i += BATCH_SIZE) {
-            const batchNum = Math.floor(i / BATCH_SIZE);
+    const thresholds = percentile.calculatePercentileThresholds(results);
+    const enriched = percentile.enrichWithPercentiles(results);
 
-            // B11: Skip already completed batches (checkpoint resume)
-            if (manifest.isBatchComplete(mf, batchNum)) {
-                console.log(`⏭️ Skipping batch ${batchNum + 1}/${totalBatches} (already complete)`);
-                continue;
-            }
+    fs.writeFileSync(path.join(outputDir, 'fni_summary.json'), JSON.stringify({
+        total_entities: results.length, batches: totalBatches,
+        percentile_thresholds: thresholds,
+        top_10: [...results].sort((a, b) => b.fni_score - a.fni_score).slice(0, 10)
+    }, null, 2));
 
-            const batch = entities.slice(i, i + BATCH_SIZE);
-            console.log(`\n🔄 Processing batch ${batchNum + 1}/${totalBatches}...`);
-
-            const batchResults = batch.map(entity => {
-                const { fni_score, fni_breakdown } = calculateFNI(entity);
-                return {
-                    id: entity.id,
-                    entity_type: entity.entity_type,
-                    fni_score,
-                    fni_breakdown,
-                    // Include minimal fields for ranking
-                    name: entity.name,
-                    source: entity.source,
-                    primary_category: entity.primary_category
-                };
-            });
-
-            results.push(...batchResults);
-
-            // Save batch file
-            const batchFile = path.join(outputDir, `fni_batch_${batchNum}.json`);
-            fs.writeFileSync(batchFile, JSON.stringify(batchResults, null, 2));
-            console.log(`   ✅ Saved: ${batchFile} (${batchResults.length} entities)`);
-
-            // B11: Record batch in manifest (checkpoint)
-            manifest.recordBatch(mf, {
-                index: batchNum,
-                key: `computed/fni_batch_${batchNum}.json`,
-                entitiesCount: batchResults.length,
-                filePath: batchFile
-            });
-        }
-
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        console.log(`\n✅ FNI computation complete: ${results.length} entities in ${elapsed}s`);
-
-        // Phase 9: Calculate FNI percentile thresholds using utility
-        const percentileThresholds = percentile.calculatePercentileThresholds(results);
-        percentile.logPercentileThresholds(percentileThresholds);
-
-        // Add percentile to each entity using utility
-        const enrichedResults = percentile.enrichWithPercentiles(results);
-        const sortedByFNI = [...results].sort((a, b) => b.fni_score - a.fni_score);
-
-        // Save summary with percentile thresholds
-        const summary = {
-            total_entities: results.length, batches: totalBatches,
-            computed_at: new Date().toISOString(), elapsed_seconds: parseFloat(elapsed),
-            percentile_thresholds: percentileThresholds, top_10: sortedByFNI.slice(0, 10)
-        };
-        fs.writeFileSync(path.join(outputDir, 'fni_summary.json'), JSON.stringify(summary, null, 2));
-
-        // Save enriched results with percentiles
-        fs.writeFileSync(path.join(outputDir, 'fni_with_percentiles.json'), JSON.stringify(enrichedResults, null, 2));
-        console.log(`   ✅ Saved: ${path.join(outputDir, 'fni_with_percentiles.json')}`);
-
-        // B11: Mark manifest complete
-        manifest.completeManifest(mf);
-        console.log(`📋 Manifest: ${JSON.stringify(manifest.getSummary(mf))}`);
-
-        return summary;
-
-    } catch (err) {
-        // B11: Mark partial for resume on next run
-        manifest.markPartial(mf, err);
-        throw err;
-    }
+    fs.writeFileSync(path.join(outputDir, 'fni_with_percentiles.json'), JSON.stringify(enriched, null, 2));
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    return { total_entities: results.length, batches: totalBatches, elapsed_seconds: parseFloat(elapsed) };
 }
 
-// CLI execution
-if (process.argv[1].includes('fni-compute')) {
-    const inputFile = process.argv[2] || 'data/entities.json';
-    const outputDir = process.argv[3] || 'data/computed';
-    computeAllFNI(inputFile, outputDir)
-        .then(s => console.log(`\n📊 Summary: ${s.total_entities} entities, ${s.batches} batches, ${s.elapsed_seconds}s`))
+if (process.argv[1]?.includes('fni-compute')) {
+    computeAllFNI(process.argv[2] || 'data/entities.json', process.argv[3] || 'data/computed')
+        .then(s => console.log(`✅ FNI Complete: ${s.total_entities} entities, ${s.batches} batches, ${s.elapsed_seconds}s`))
         .catch(err => { console.error('❌ Error:', err.message); process.exit(1); });
 }
 

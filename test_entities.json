@@ -1,0 +1,28 @@
+[
+    {
+        "id": "arxiv:2401.00001",
+        "type": "paper",
+        "name": "Revolutionary AI Paper",
+        "citations": 150,
+        "published_date": "2024-01-01",
+        "summary": "This is a summary of the revolutionary paper."
+    },
+    {
+        "id": "space:demo-app",
+        "type": "space",
+        "name": "Cool Demo",
+        "likes": 50,
+        "last_modified": "2024-02-14",
+        "runtime": {
+            "stage": "RUNNING",
+            "hardware": "a10g"
+        }
+    },
+    {
+        "id": "model:llama-3",
+        "type": "model",
+        "likes": 1000,
+        "downloads": 50000,
+        "last_modified": "2024-02-15"
+    }
+]

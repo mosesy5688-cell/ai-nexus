@@ -51,10 +51,13 @@ if (type === 'model' || type === 'dataset' || type === 'space') {
     if (item.downloads > 0) metrics.push({ icon: '📥', value: formatCompact(item.downloads), label: 'Downloads' });
     if (item.likes > 0) metrics.push({ icon: '❤️', value: formatCompact(item.likes), label: 'Likes' });
     if (type === 'dataset' && item.size) metrics.push({ icon: '💾', value: item.size, label: 'Size' });
-    if (type === 'space' && item.runtime) metrics.push({ icon: '🚀', value: item.runtime, label: 'Runtime' });
+    if (type === 'space' && item.runtime) {
+        const stage = typeof item.runtime === 'object' ? (item.runtime.stage || 'Live') : item.runtime;
+        metrics.push({ icon: '🚀', value: stage, label: 'Runtime' });
+    }
 } else if (type === 'agent' || type === 'tool') {
-    const stars = item.github_stars || item.stars || 0;
-    const forks = item.github_forks || item.forks || 0;
+    const stars = item.stars || item.github_stars || 0;
+    const forks = item.forks || item.github_forks || 0;
     if (stars > 0) metrics.push({ icon: '⭐', value: formatCompact(stars), label: 'Stars' });
     if (forks > 0) metrics.push({ icon: '🍴', value: formatCompact(forks), label: 'Forks' });
 } else if (type === 'paper') {
