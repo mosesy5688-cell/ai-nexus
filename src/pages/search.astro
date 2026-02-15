@@ -166,27 +166,29 @@ const entityTypes = [
                         const fni = Math.round(item.fni_score || item.fni || 0);
                         
                         return `
-                        <a href="${path}" class="flex flex-col sm:flex-row sm:items-center gap-3 py-3 px-2 border-b border-zinc-100 dark:border-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group">
-                            <div class="flex items-center gap-3 min-w-[200px]">
-                                <span class="text-[9px] font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded uppercase tracking-tighter border border-zinc-200/50 dark:border-zinc-700/50">
+                        <a href="${path}" class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 py-3 px-2 border-b border-zinc-100 dark:border-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group">
+                            <!-- Type & Name -->
+                            <div class="flex items-center gap-2 min-w-[200px] max-w-full">
+                                <span class="text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded uppercase tracking-tighter border border-zinc-200/50 dark:border-zinc-700/50 flex-shrink-0">
                                     ${type}
                                 </span>
-                                <h3 class="text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 truncate">
+                                <h3 class="text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 truncate">
                                     ${item.name}
                                 </h3>
                             </div>
                             
-                            <div class="flex items-center gap-4 flex-1">
-                                <span class="text-[11px] text-zinc-400 font-medium truncate hidden md:inline">
+                            <!-- Metadata Shell -->
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 flex-1 min-w-0">
+                                <span class="text-[10px] sm:text-[11px] text-zinc-400 font-medium truncate">
                                     by ${item.author || 'Open Source'}
                                 </span>
                                 
-                                <p class="text-[11px] text-zinc-500 line-clamp-1 flex-1 hidden lg:inline">
+                                <p class="text-[10px] sm:text-[11px] text-zinc-500 line-clamp-1 flex-1 opacity-70 sm:opacity-100">
                                     ${item.description || ''}
                                 </p>
                                 
                                 ${fni > 0 ? `
-                                    <div class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-black text-[11px] ml-auto">
+                                    <div class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-black text-[10px] sm:text-[11px] sm:ml-auto">
                                         FNI ${fni}
                                     </div>
                                 ` : ''}
