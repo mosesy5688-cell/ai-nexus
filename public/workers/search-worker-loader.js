@@ -24,13 +24,14 @@ async function tryFetchJson(url) {
 
     // V16.8.6: Robust Decompression for Worker Context
     if (url.endsWith('.gz')) {
+        const clonedResponse = response.clone();
         try {
             const ds = new DecompressionStream('gzip');
             const stream = response.body.pipeThrough(ds);
             return await new Response(stream).json();
         } catch (e) {
             console.warn('[SearchWorker] Stream decompression failed, falling back to buffer:', e);
-            const buffer = await response.arrayBuffer();
+            const buffer = await clonedResponse.arrayBuffer();
             try {
                 // If stream fails, check if browser already handled it or try manual parse
                 const text = new TextDecoder().decode(buffer);
