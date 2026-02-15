@@ -26,10 +26,11 @@ export class EntityCardRenderer {
         const displayTitle = baseName;
 
         const author = extractAuthor(id, item.author || item.creator || item.organization);
-        const description = (item.description || item.summary || 'Structural intelligence indexing in progress...');
+        const description = item.description || item.summary || item.d || '';
+        const fallbackDesc = description || 'Structural intelligence indexing in progress...';
 
         // R5.7.1 High Density description cleaning
-        const cleanDesc = (description || "").replace(/<img[^>]*>/gi, "").replace(/<p[^>]*>/gi, "").replace(/<\/p>/gi, " ").trim().substring(0, 120);
+        const cleanDesc = (fallbackDesc || "").replace(/<img[^>]*>/gi, "").replace(/<p[^>]*>/gi, "").replace(/<\/p>/gi, " ").trim().substring(0, 120);
 
         const link = generateEntityUrl(item, type);
         const isActive = isRecentlyActive(item.last_updated || item.lastModified);
