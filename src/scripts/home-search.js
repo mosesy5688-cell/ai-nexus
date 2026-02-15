@@ -5,7 +5,7 @@
 // Worker Instance (Single source of truth for search)
 let searchWorker = null;
 if (typeof window !== 'undefined') {
-    searchWorker = new Worker('/workers/search-worker.js?v=16.6.0', { type: 'module' });
+    searchWorker = new Worker('/workers/search-worker.js?v=18.10.7', { type: 'module' });
 }
 
 let isLoaded = false;

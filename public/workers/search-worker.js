@@ -8,7 +8,7 @@ import {
     isFullSearchActive,
     loadIndex,
     loadFullIndex
-} from './search-worker-loader.js?v=16.6.0';
+} from './search-worker-loader.js?v=18.10.7';
 
 // SPEC-SEARCH-V18.2: Immediate status ping capability
 console.log('[SearchWorker] Bootstrapping v16.8.15-R5.6');
