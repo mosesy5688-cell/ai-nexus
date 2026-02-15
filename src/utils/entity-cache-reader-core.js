@@ -15,15 +15,17 @@ export function normalizeEntitySlug(id, type = 'model') {
         return slug.replace(/\//g, '-');
     }
 
-    // V16.9.22: Internal ID Alignment - If it's already a valid R2-style prefixed ID, keep it.
-    // Otherwise, normalize it (strip legacy, replace slashes with double hyphens).
-    const validPrefixes = ['hf-model--', 'gh-model--', 'arxiv-paper--', 'hf-dataset--', 'hf-space--', 'gh-agent--', 'gh-tool--'];
-    if (validPrefixes.some(p => slug.startsWith(p))) {
-        return slug;
-    }
+    // V16.9.22: Internal ID Alignment - Use improved stripPrefix to handle all variants (--, :, /)
+    const base = stripPrefix(slug);
 
-    const base = stripPrefix(slug).replace(/[:\/]/g, '--');
-    return base;
+    // If it was already a valid prefixed R2 string (returned by stripPrefix as raw, but we want the canonical form)
+    // Actually, normalizeEntitySlug should return the "path-safe" ID used in the mesh.
+    // In our architecture, the mesh IDs often STILL have prefixes to avoid collisions between gh/hf.
+
+    // V16.8.15: If the input HAD a prefix, we might want to preserve the CANONICAL prefix.
+    // But usually, normalizeEntitySlug is used for R2 path generation where prefixes are handled by candidates.
+
+    return base.replace(/[:\/]/g, '--');
 }
 
 // V16.8.5: SPEC-ID-V2.1 Alignment - "Robust Tri-Stream Discovery"
