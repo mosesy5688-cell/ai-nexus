@@ -139,6 +139,10 @@ export function setupSearchEvents() {
                 fullSearchContainer?.classList.remove('hidden');
             } else {
                 fullSearchContainer?.classList.add('hidden');
+                if (results.length > 0) {
+                    const resultsGrid = document.getElementById('models-grid');
+                    resultsGrid?.classList.remove('hidden');
+                }
             }
         }, 300);
     });
