@@ -28,16 +28,14 @@ const { models = [], title = "Similar Models" } = Astro.props;
       {models.slice(0, 6).map((model) => {
         const slug = model.slug || model.id.replace(/\//g, '--');
         return (
-          <a href={`/model/${slug}`} class="related-model-card group">
-            <div class="card-content">
-              <span class="model-name group-hover:text-blue-500 transition-colors uppercase tracking-tight">{model.name}</span>
-              <div class="flex items-center justify-between mt-1">
-                {model.author && <span class="model-author">by {model.author}</span>}
-                {model.fni_score && (
-                  <span class="model-fni bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">FNI: {Math.round(model.fni_score)}</span>
-                )}
-              </div>
+          <a href={`/model/${slug}`} class="related-model-card group p-2.5 sm:p-3 border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors flex flex-col gap-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-500 transition-colors truncate">{model.name}</span>
+              {model.fni_score && (
+                <span class="text-emerald-600 dark:text-emerald-400 font-black text-[9px] sm:text-[10px] flex-shrink-0">FNI {Math.round(model.fni_score)}</span>
+              )}
             </div>
+            {model.author && <span class="text-[10px] sm:text-[11px] text-zinc-400 font-medium truncate italic">by {model.author}</span>}
           </a>
         );
       })}
@@ -62,62 +60,14 @@ const { models = [], title = "Similar Models" } = Astro.props;
   }
 
   .related-models-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    dark:border-color: rgba(255, 255, 255, 0.05);
   }
 
   .related-model-card {
-    display: flex;
-    flex-direction: column;
-    padding: 0.75rem;
-    background: white;
-    dark:background: #18181b;
-    border-radius: 8px;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    dark:border-color: rgba(255, 255, 255, 0.05);
     text-decoration: none;
     color: inherit;
-    transition: all 0.2s ease;
-  }
-
-  .related-model-card:hover {
-    border-color: rgba(59, 130, 246, 0.3);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  }
-
-  .card-content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .model-name {
-    font-weight: 800;
-    font-size: 0.75rem;
-    color: var(--text-primary, #111);
-    dark:color: #fff;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .model-author {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: -0.02em;
-    color: #9ca3af;
-  }
-
-  .model-fni {
-    color: #6366f1;
-  }
-
-  @media (max-width: 640px) {
-    .related-models-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
   }
 </style>
