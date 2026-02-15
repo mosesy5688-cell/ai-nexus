@@ -79,8 +79,9 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
                                                 {node.icon || '📦'}
                                             </span>
                                             {node.relation && (
-                                                <span class="relation-badge absolute -top-2 -right-2 px-1.5 py-0.5 bg-indigo-500 text-[8px] font-black text-white rounded shadow-sm uppercase tracking-tighter">
+                                                <span class="relation-badge absolute -top-2 -right-2 px-1.5 py-0.5 bg-indigo-500 text-[8px] font-black text-white rounded shadow-sm uppercase tracking-tighter overflow-hidden">
                                                     {node.relation}
+                                                    {node.match_score > 0 && <span class="ml-1 opacity-70 border-l border-white/20 pl-1">{node.match_score}%</span>}
                                                 </span>
                                             )}
                                         </div>
@@ -159,8 +160,9 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
                         ${node.icon || '📦'}
                       </span>
                       ${node.relation ? `
-                        <span class="relation-badge absolute -top-2 -right-2 px-1.5 py-0.5 bg-indigo-500 text-[8px] font-black text-white rounded shadow-sm uppercase tracking-tighter">
+                        <span class="relation-badge absolute -top-2 -right-2 px-1.5 py-0.5 bg-indigo-500 text-[8px] font-black text-white rounded shadow-sm uppercase tracking-tighter overflow-hidden">
                           ${node.relation}
+                          ${node.match_score ? `<span class="ml-1 opacity-70 border-l border-white/20 pl-1">${node.match_score}%</span>` : ''}
                         </span>
                       ` : ''}
                     </div>

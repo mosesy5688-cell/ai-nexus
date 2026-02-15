@@ -154,8 +154,6 @@ const canonicalPath = agent ? getRouteFromId(agent.id || normalizedSlug, 'agent'
     {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
     {agent && (
       <div slot="core-desktop" class="space-y-16">
-         <UniversalCore entity={agent} type="agent" meshRelations={meshRelations} />
-         
          <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
             <CiteEntity 
               id={agentId} 
@@ -166,7 +164,8 @@ const canonicalPath = agent ? getRouteFromId(agent.id || normalizedSlug, 'agent'
             />
          </div>
       </div>
-    )}
+    )
+    }
   
     {agent && (
       <div slot="deep-dive" class="space-y-12">
@@ -188,8 +187,14 @@ const canonicalPath = agent ? getRouteFromId(agent.id || normalizedSlug, 'agent'
          <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
             <AgentDeepDive agent={agent} />
          </div>
+
+         {/* Zone 4.3: Intelligence Hive & Neural Discovery (Repositioned V18.12) */}
+         <div class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
+            <UniversalCore entity={agent} type="agent" meshRelations={meshRelations} />
+         </div>
       </div>
-    )}
+    )
+    }
 
     {/* Zone 5: Community */}
     {agent && (

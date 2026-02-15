@@ -144,8 +144,6 @@ const canonicalPath = space ? getRouteFromId(space.id || spaceId, 'space') : und
     {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
     {space && (
       <div slot="core-desktop" class="space-y-16">
-         <UniversalCore entity={space} type="space" meshRelations={meshRelations} />
-         
          <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
             <CiteEntity 
               id={spaceId} 
@@ -163,6 +161,11 @@ const canonicalPath = space ? getRouteFromId(space.id || spaceId, 'space') : und
          {/* Zone 4.2: Primary Documentation / Technical Content */}
          <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
             <SpaceDeepDive space={space} />
+         </div>
+
+         {/* Zone 4.3: Intelligence Hive & Neural Discovery (Repositioned V18.12) */}
+         <div class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
+            <UniversalCore entity={space} type="space" meshRelations={meshRelations} />
          </div>
       </div>
     )}

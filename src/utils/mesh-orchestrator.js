@@ -1,12 +1,8 @@
-/**
- * Mesh Orchestrator (V16.11) - Compliance Optimized
- * Centralizes node extraction, tiering, and deduplication.
- * V16.11: Restricted to R2 Source only. No dynamic tag promotion.
- */
-import { fetchMeshRelations, fetchGraphMetadata, fetchConceptMetadata, stripPrefix, isMatch, getTypeFromId, normalizeSlug, KNOWLEDGE_ALIAS_MAP } from './knowledge-cache-reader.js';
+import { fetchMeshRelations, fetchGraphMetadata, fetchConceptMetadata, fetchCategoryAlts, stripPrefix, isMatch, getTypeFromId, normalizeSlug, KNOWLEDGE_ALIAS_MAP } from './knowledge-cache-reader.js';
 import { processRelationsIntoTiers } from './mesh-processor.js';
 import { loadCachedJSON, loadSpecs } from './loadCachedJSON.js';
 import { articles as knowledgeArticles } from '../data/knowledge-articles.js';
+import { UNIVERSAL_ICONS, DEFAULT_TIERS } from './mesh-constants.js';
 
 export async function getMeshProfile(locals, rootId, entity, type = 'model') {
     const normRoot = stripPrefix(rootId);
@@ -14,61 +10,61 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
     // V18.2.5: SSR Lite Protection
     const isSSR = Boolean(locals?.runtime?.env);
 
+    // V18.12.0: Resolve category for alt-discovery
+    const category = entity?.primary_category || entity?.pipeline_tag || '';
+
     // V16.12: Fetch all relevant indices for cross-validation
-    // V18.2.5: SSR Protection - Do not load specs/mesh-stats during SSR orchestration
-    // V18.2.7: Use loadCachedJSON for consistent .gz handling
-    const [rawRelations, graphMeta, knowledgeIndex, specsResult, meshStatsResult] = await Promise.all([
+    const [rawRelations, graphMeta, knowledgeIndex, specsResult, meshStatsResult, categoryAlts] = await Promise.all([
         fetchMeshRelations(locals, rootId, { ssrOnly: true }).catch(() => []),
         fetchGraphMetadata(locals).catch(() => ({})),
         fetchConceptMetadata(locals).catch(() => ([])),
         isSSR ? Promise.resolve(null) : loadSpecs(locals).catch(() => null),
-        isSSR ? Promise.resolve(null) : loadCachedJSON('cache/mesh/stats.json', { locals }).catch(() => null)
+        isSSR ? Promise.resolve(null) : loadCachedJSON('cache/mesh/stats.json', { locals }).catch(() => null),
+        category ? fetchCategoryAlts(locals, category).catch(() => []) : Promise.resolve([])
     ]);
-
-    // Normalize results
-    const specsData = specsResult?.data || specsResult;
-    const meshStats = meshStatsResult?.data || meshStatsResult;
 
     const nodeRegistry = new Map();
     const seenIds = new Set();
     if (normRoot) seenIds.add(normRoot);
 
-    const tiers = {
-        explanation: { title: '🎓 Knowledge Base', nodes: [], icon: '🎓' },
-        core: { title: '🔗 Core Ecosystem', nodes: [], icon: '⚡' },
-        utility: { title: '🔬 Research & Data', nodes: [], icon: '🔬' },
-        digest: { title: '📰 Timeline & Reports', nodes: [], icon: '📰' }
-    };
+    // Deep clone tiers to prevent reference leaks
+    const tiers = JSON.parse(JSON.stringify(DEFAULT_TIERS));
 
-    const UNIVERSAL_ICONS = {
-        'model': '🧠',
-        'agent': '🤖',
-        'tool': '⚙️',
-        'dataset': '📊',
-        'paper': '📄',
-        'space': '🚀',
-        'knowledge': '🎓',
-        'report': '📰'
-    };
-
-    // V16.14: Multi-Source Knowledge SSOT (Normalized)
+    // V16.14: Multi-Source Knowledge SSOT
     const validKnowledgeSlugs = new Set([
         ...Object.keys(knowledgeArticles),
         ...(Array.isArray(knowledgeIndex) ? knowledgeIndex : (knowledgeIndex?.articles || [])).map(a => a?.slug || a?.id?.split('--')?.pop())
     ].filter(Boolean).map(s => stripPrefix(s)));
 
-    // Model validation index (normalized for easy matching)
-    const validSpecIds = new Set();
-    if (specsResult && Array.isArray(specsResult.data)) {
-        specsResult.data.forEach(s => {
-            if (s.umid) validSpecIds.add(stripPrefix(s.umid));
-            if (s.id) validSpecIds.add(stripPrefix(s.id));
-        });
-    }
 
+    // V18.12.0: Integrity Guard - Pre-check candidates for existence
+    const validIds = new Set(Object.keys(graphMeta));
+    if (specsResult?.data) specsResult.data.forEach(s => {
+        if (s.id) validIds.add(s.id);
+        if (s.umid) validIds.add(s.umid);
+    });
+
+    const isNodeValid = (id) => {
+        if (!id) return false;
+        // TRUST internal routing for core site features
+        if (id.startsWith('knowledge--') || id.startsWith('report--')) return true;
+
+        // V18.12.0: Repair - Relaxed filtering for local development or empty index
+        // If we have very few nodes in the index, it's likely a fragmented local clone
+        if (validIds.size < 50) return true; // Fail-open to allow mesh exploration manually
+
+        return validIds.has(id) || validIds.has(stripPrefix(id));
+    };
 
     const ensureNode = (id, typeHint = 'model') => {
         if (!id || typeof id !== 'string') return null;
+
+        // Zero 404 Guard: Filter out unregistered external nodes
+        if (!isNodeValid(id)) {
+            console.warn(`[IntegrityGuard] Dropped node ${id} to prevent 404`);
+            return null;
+        }
+
         let norm = stripPrefix(id);
         if (nodeRegistry.has(norm)) return nodeRegistry.get(norm);
 
@@ -175,6 +171,8 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
                 seenIds.add(norm);
 
                 let node = ensureNode(tid, r.target_type || getTypeFromId(tid));
+                if (!node) return; // Dropped by IntegrityGuard
+
                 let relType = (r.relation_type || r.type || 'RELATED').toUpperCase();
 
                 // Semantic Normalization
@@ -198,6 +196,39 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
                     });
                 }
             });
+        }
+
+        // V18.12.0: Inject Category Alts (Smart Similarity)
+        if (Array.isArray(categoryAlts)) {
+            // Find relations for "this" entity
+            const myAltsRecord = categoryAlts.find(r => isMatch(r.source_id, rootId));
+            if (myAltsRecord && Array.isArray(myAltsRecord.alts)) {
+                myAltsRecord.alts.forEach(([tid, score]) => {
+                    const norm = stripPrefix(tid);
+                    if (norm === normRoot || seenIds.has(norm)) return;
+
+                    let node = ensureNode(tid, getTypeFromId(tid));
+                    if (!node) return; // Dropped by IntegrityGuard
+
+                    seenIds.add(norm);
+                    node.relation = 'ALTERNATIVE';
+                    node.match_score = score; // Transparency: Attach match %
+
+                    if (!node._mapped) {
+                        node._mapped = true;
+                        if (['model', 'agent', 'tool', 'space'].includes(node.type)) tiers.core.nodes.push(node);
+                        else if (['dataset', 'paper'].includes(node.type)) tiers.utility.nodes.push(node);
+
+                        filteredRelations.push({
+                            target_id: tid,
+                            target_type: node.type,
+                            target_name: node.name,
+                            relation_type: 'ALTERNATIVE',
+                            confidence: score / 100
+                        });
+                    }
+                });
+            }
         }
     }
 
