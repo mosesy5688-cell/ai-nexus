@@ -49,6 +49,19 @@ try {
 
   dataset = hydrateEntity(entity, type);
   model = dataset; // Align with expectation in other components
+  
+  // 3. Validation & 404 Handling (Zero-Entropy V16.8.15.2)
+  // Ensure we have a valid entity and not just a metadata stub (fused fallback with no detail)
+  const hasIdentity = dataset.name || dataset.title || 'Unknown Dataset';
+  const hasContent = dataset.source_url || dataset.description?.length > 10 || dataset.fni_score > 0;
+  const isValidEntity = dataset && hasIdentity && hasContent;
+  
+  if (!dataset || !_meta.available || !isValidEntity) {
+    console.warn(`[Astro] 404 Triggered for Dataset ${slugStr}: Metadata available: ${_meta.available}, Valid Entity: ${!!isValidEntity}`);
+    Astro.response.status = 404;
+    return Astro.redirect('/404?reason=dataset-not-found&id=' + encodeURIComponent(slugStr));
+  }
+
   tagsArray = dataset?.tags || [];
   meshRelations = mesh || [];
   

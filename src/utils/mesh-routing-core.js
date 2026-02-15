@@ -9,27 +9,32 @@ export function stripPrefix(id) {
     if (!id || typeof id !== 'string') return '';
     let result = id.toLowerCase();
 
-    // V2.0 Standard Prefixes - Supporting both current -- and legacy : formats
+    // V2.0 Standard Prefixes - Supporting both current -- and legacy : or / formats
     const prefixes = [
         // Source-Specific Prefixes (SPEC-ID-V2.1)
-        'hf-model--', 'hf-agent--', 'hf-tool--', 'hf-dataset--', 'hf-space--', 'hf-paper--', 'hf-collection--',
-        'gh-model--', 'gh-agent--', 'gh-tool--', 'gh-repo--',
-        'arxiv-paper--', 'arxiv--', 'paper--',
-        'replicate-model--', 'replicate-agent--', 'replicate-space--',
-        'civitai-model--', 'ollama-model--',
-        'kaggle-dataset--', 'kaggle-model--',
+        'hf-model', 'hf-agent', 'hf-tool', 'hf-dataset', 'hf-space', 'hf-paper', 'hf-collection',
+        'gh-model', 'gh-agent', 'gh-tool', 'gh-repo',
+        'arxiv-paper', 'arxiv', 'paper',
+        'replicate-model', 'replicate-agent', 'replicate-space',
+        'civitai-model', 'ollama-model',
+        'kaggle-dataset', 'kaggle-model',
 
         // Standardized Dual-Dash Legacy (SPEC-URL-V15.0/V16.2 Support)
-        'huggingface--', 'github--', 'arxiv--', 'kaggle--', 'civitai--', 'ollama--', 'replicate--',
+        'huggingface', 'github', 'arxiv', 'kaggle', 'civitai', 'ollama', 'replicate',
 
         // Legacy/Direct Format Mapping
-        'huggingface:', 'github:', 'arxiv:', 'kaggle:', 'civitai:', 'ollama:', 'replicate:',
-        'knowledge--', 'concept--', 'report--', 'dataset--', 'model--', 'agent--', 'tool--', 'space--'
+        'knowledge', 'concept', 'report', 'dataset', 'model', 'agent', 'tool', 'space'
     ];
 
     for (const p of prefixes) {
-        if (result.startsWith(p)) {
-            result = result.slice(p.length);
+        // Match prefix followed by --, :, /, or ending exactly with prefix
+        const pLow = p.toLowerCase();
+        if (result.startsWith(`${pLow}--`) || result.startsWith(`${pLow}:`) || result.startsWith(`${pLow}/`)) {
+            result = result.slice(pLow.length + (result[pLow.length] === '-' ? 2 : 1));
+            break;
+        } else if (result.startsWith(`${pLow}-`) && !result.startsWith(`${pLow}--`)) {
+            // Handle single dash edge case
+            result = result.slice(pLow.length + 1);
             break;
         }
     }
