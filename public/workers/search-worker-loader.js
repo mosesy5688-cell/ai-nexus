@@ -22,18 +22,20 @@ async function tryFetchJson(url) {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Fetch failed: ${response.status} (${url})`);
 
+    // V18.10.7: ArrayBuffer-First Strategy to avoid Chrome Worker stream lock
+    const buffer = await response.arrayBuffer();
     const isGzip = url.endsWith('.gz');
+
+    // Check if browser already decompressed it (Content-Encoding: gzip)
     const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip' || response.headers.get('content-encoding') === 'gzip';
 
     if (isGzip && !isAlreadyDecompressed) {
-        const clonedResponse = response.clone();
         try {
             const ds = new DecompressionStream('gzip');
-            const stream = response.body.pipeThrough(ds);
+            const stream = new Response(buffer).body.pipeThrough(ds);
             return await new Response(stream).json();
         } catch (e) {
-            console.warn('[SearchWorker] Stream decompression failed, falling back to buffer:', e);
-            const buffer = await clonedResponse.arrayBuffer();
+            console.warn('[SearchWorker] Stream decompression failed, falling back to TextDecoder:', e);
             try {
                 const text = new TextDecoder().decode(buffer);
                 return JSON.parse(text);
@@ -43,7 +45,8 @@ async function tryFetchJson(url) {
         }
     }
 
-    return await response.json();
+    const text = new TextDecoder().decode(buffer);
+    return JSON.parse(text);
 }
 
 export async function loadIndex(entityType = 'model') {

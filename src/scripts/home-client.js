@@ -19,10 +19,11 @@ export async function loadHotModels() {
         return;
     }
 
+    let response;
     try {
         const path = 'trending.json';
         const gzPath = path + '.gz';
-        let response = await fetch(`${CDN_BASE}/${gzPath}`);
+        response = await fetch(`${CDN_BASE}/${gzPath}`);
         if (!response.ok) response = await fetch(`${CDN_BASE}/trend-data.json.gz`);
         if (!response.ok) response = await fetch(`${CDN_BASE}/${path}`);
         if (!response.ok) response = await fetch(`${CDN_BASE}/trend-data.json`);
