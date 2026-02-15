@@ -156,11 +156,9 @@ const canonicalPath = model ? getRouteFromId(model.id || model.umid || slugStr, 
       />
     )}
 
-    {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
+    {/* Zone 3: CORE (Primary Relations Hub) */}
     {model && (
       <div slot="core-desktop" class="space-y-16">
-         <UniversalCore entity={model} type="model" meshRelations={meshRelations} />
-         
          <div class="cite-block animate-slide-up" style="animation-delay: 0.4s;">
             <CiteEntity 
               id={modelId} 
@@ -204,6 +202,11 @@ const canonicalPath = model ? getRouteFromId(model.id || model.umid || slugStr, 
                 jsonld={jsonld}
               />
             </div>
+         </div>
+
+         {/* Zone 4.3: Intelligence Hive & Neural Discovery (Repositioned V18.12) */}
+         <div class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
+            <UniversalCore entity={model} type="model" meshRelations={meshRelations} />
          </div>
       </div>
     )}

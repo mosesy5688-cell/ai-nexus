@@ -5,6 +5,23 @@ import { loadCachedJSON } from './loadCachedJSON.js';
 
 // Bidirectional matching and ingestion logic
 
+/**
+ * Fetch categorized alternative relations (Jaccard similarity data)
+ */
+export async function fetchCategoryAlts(locals, category) {
+    if (!category) return [];
+    const safeCategory = String(category).replace(/[^a-z0-9-]/gi, '-').toLowerCase();
+    const key = `cache/relations/alt-by-category/${safeCategory}.json.gz`;
+
+    try {
+        const { data } = await loadCachedJSON(key, { locals });
+        return data?.relations || [];
+    } catch (e) {
+        console.warn(`[KnowledgeReader] Failed to load alts for ${category}`);
+        return [];
+    }
+}
+
 export async function fetchMeshRelations(locals, entityId = null, options = { ssrOnly: true }) {
     const R2 = locals?.runtime?.env?.R2_ASSETS;
 
@@ -166,7 +183,14 @@ export async function fetchGraphMetadata(locals) {
         // V16.96: Skip heavy graph metadata during SSR to preserve memory
         // V18.2.7: Allow if NOT in SSR (client-side) or explicit override
         const isSSR = Boolean(locals?.runtime?.env);
-        if (isSSR) return {};
+
+        // V18.12.0: If in SSR, we still need a tiny "existence index" to prevent 404s
+        // We will try to use the provided locals context if available
+        if (isSSR && !locals?.mesh_full_access) {
+            // Optional: Return a curated subset if memory allows, for now return empty to avoid OOM
+            // But we will use fetchMeshRelations which is lighter
+            return {};
+        }
 
         // V16.10: Use loadCachedJSON for environment-aware fetching
         const { data } = await loadCachedJSON('cache/mesh/graph.json', { locals });
