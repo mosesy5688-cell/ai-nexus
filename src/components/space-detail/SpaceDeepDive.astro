@@ -5,14 +5,9 @@ interface Props {
 
 const { space } = Astro.props;
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
-import ModelGallery from '../model-detail/ModelGallery.astro';
 ---
 
 <div class="space-y-12">
-  {/* V16.2: Universal Enhancements (Promoted to Top) */}
-  <section class="grid grid-cols-1 lg:grid-cols-1 gap-8">
-     <ModelGallery content={space.body_content || space.description} title="Space Interface & Visuals" />
-  </section>
 
   <!-- Section: Demo Preview -->
   <section class="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">

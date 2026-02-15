@@ -107,26 +107,40 @@ export function setupSearchEvents() {
         if (query?.length > 0) renderResults(performSearch(query));
     });
 
-    searchBox?.addEventListener('input', async (e) => {
+    let searchDebounceTimer;
+
+    searchBox?.addEventListener('input', (e) => {
         const query = e.target.value.trim();
         const fullSearchContainer = document.getElementById('full-search-container');
 
         if (query.length < 1) {
+            clearTimeout(searchDebounceTimer);
             if (!renderHistory()) dropdown?.classList.add('hidden');
             fullSearchContainer?.classList.add('hidden');
             return;
         }
 
-        await initSearch();
-        const results = await performSearch(query);
-        renderResults(results);
+        // V18.2.12: Instant init + Debounced search
+        initSearch();
 
+        // V18.2.12: Silent Full Load on first interaction
         const status = getSearchStatus();
-        if (results.length === 0 && !status.isFullSearchActive && !status.isFullSearchLoading) {
-            fullSearchContainer?.classList.remove('hidden');
-        } else {
-            fullSearchContainer?.classList.add('hidden');
+        if (!status.isFullSearchActive && !status.isFullSearchLoading) {
+            loadFullSearchIndex();
         }
+
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(async () => {
+            const results = await performSearch(query);
+            renderResults(results);
+
+            const updatedStatus = getSearchStatus();
+            if (results.length === 0 && !updatedStatus.isFullSearchActive && !updatedStatus.isFullSearchLoading) {
+                fullSearchContainer?.classList.remove('hidden');
+            } else {
+                fullSearchContainer?.classList.add('hidden');
+            }
+        }, 300);
     });
 
     document.getElementById('smartFullSearchBtn')?.addEventListener('click', async () => {

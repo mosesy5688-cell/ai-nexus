@@ -79,8 +79,8 @@ const formattedDate = fniCalculatedAt
             <span class="text-gray-600 dark:text-gray-400">🔥 Popularity (P)</span>
             <span class="font-semibold text-blue-600">{fniP.toFixed(0)}</span>
           </div>
-          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div class="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-500" style={`width: ${pPercent}%`}></div>
+          <div class="h-2 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+            <div class="h-full bg-zinc-600 dark:bg-zinc-400 rounded-full transition-all duration-500" style={`width: ${pPercent}%`}></div>
           </div>
         </div>
 
@@ -90,8 +90,8 @@ const formattedDate = fniCalculatedAt
             <span class="text-gray-600 dark:text-gray-400">🚀 Velocity (V)</span>
             <span class="font-semibold text-green-600">{fniV.toFixed(0)}</span>
           </div>
-          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div class="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all duration-500" style={`width: ${vPercent}%`}></div>
+          <div class="h-2 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+            <div class="h-full bg-zinc-600 dark:bg-zinc-400 rounded-full transition-all duration-500" style={`width: ${vPercent}%`}></div>
           </div>
         </div>
 
@@ -101,8 +101,8 @@ const formattedDate = fniCalculatedAt
             <span class="text-gray-600 dark:text-gray-400">🛡️ Credibility (C)</span>
             <span class="font-semibold text-purple-600">{fniC.toFixed(0)}</span>
           </div>
-          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div class="h-full bg-gradient-to-r from-purple-400 to-purple-600 rounded-full transition-all duration-500" style={`width: ${cPercent}%`}></div>
+          <div class="h-2 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+            <div class="h-full bg-zinc-600 dark:bg-zinc-400 rounded-full transition-all duration-500" style={`width: ${cPercent}%`}></div>
           </div>
         </div>
 
@@ -112,8 +112,8 @@ const formattedDate = fniCalculatedAt
             <span class="text-gray-600 dark:text-gray-400">🔧 Utility (U)</span>
             <span class="font-semibold text-orange-600">{fniU.toFixed(0)}</span>
           </div>
-          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div class="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full transition-all duration-500" style={`width: ${uPercent}%`}></div>
+          <div class="h-2 bg-gray-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+            <div class="h-full bg-zinc-600 dark:bg-zinc-400 rounded-full transition-all duration-500" style={`width: ${uPercent}%`}></div>
           </div>
         </div>
       </div>
@@ -134,7 +134,7 @@ const formattedDate = fniCalculatedAt
           <span>💬</span> Why this score?
         </h4>
         <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-          {fniCommentary || `This ${modelName} has a P score of ${fniP.toFixed(0)} (popularity from downloads/likes), V of ${fniV.toFixed(0)} (growth velocity), C of ${fniC.toFixed(0)} (credibility from citations), and U of ${fniU.toFixed(0)} (utility/deploy support).`}
+          {fniCommentary || `The Nexus Index for ${modelName} aggregates Popularity (P:${fniP.toFixed(0)}), Velocity (V:${fniV.toFixed(0)}), and Credibility (C:${fniC.toFixed(0)}). The Utility score (U:${fniU.toFixed(0)}) represents deployment readiness, context efficiency, and structural reliability within the Nexus ecosystem.`}
         </p>
       </div>
 

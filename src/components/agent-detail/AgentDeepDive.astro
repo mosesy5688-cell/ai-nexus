@@ -5,7 +5,6 @@ interface Props {
 
 const { agent } = Astro.props;
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
-import ModelGallery from '../model-detail/ModelGallery.astro';
 import MarkdownRenderer from '../model-detail/MarkdownRenderer.astro';
 
 // V19: Removed dead mockConfig variable (fabricated YAML never rendered)
@@ -48,8 +47,6 @@ const likes = agent?.likes ? Number(agent.likes) : null;
         maxPreviewLength={5000}
       />
 
-      {/* V16.2: Visual & Developer Enhancements */}
-      <ModelGallery content={agent.body_content || agent.description} title="Agent Framework Visuals" />
 
 
       {/* V16.2: Real Data Deep Dive */}

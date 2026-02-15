@@ -71,7 +71,7 @@ if (item.fni_score > 0) {
 }
 ---
 
-<a href={link} class="entity-card group p-3 bg-white dark:bg-zinc-900 rounded-md transition-all border border-zinc-100 dark:border-zinc-800 hover:border-blue-500/50 block h-full flex flex-col">
+<a href={link} data-astro-prefetch class="entity-card group p-3 bg-white dark:bg-zinc-900 rounded-md transition-all border border-zinc-100 dark:border-zinc-800 hover:border-blue-500/50 block h-full flex flex-col" data-entity-id={id} data-entity-type={type}>
     <div class="flex items-center justify-between mb-2">
          <div class="flex items-center gap-2">
              <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded {typeBadgeColor}">{typeLabel}</span>
@@ -111,3 +111,35 @@ if (item.fni_score > 0) {
         ))}
     </div>
 </a>
+
+<script>
+    /**
+     * V18.1 Speculative JSON Prefetch
+     * Prefetches the entity's JSON stream from CDN/R2 when hovered for >100ms.
+     */
+    document.addEventListener('astro:page-load', () => {
+        const cards = document.querySelectorAll('.entity-card');
+        const prefetched = new Set();
+
+        cards.forEach(card => {
+            let hoverTimer;
+            card.addEventListener('mouseenter', () => {
+                hoverTimer = setTimeout(() => {
+                    const id = card.getAttribute('data-entity-id');
+                    const type = card.getAttribute('data-entity-type');
+                    if (id && type && !prefetched.has(id)) {
+                        const url = `https://cdn.free2aitools.com/cache/entities/${type}/${id.split('/').pop()}.json.gz`;
+                        const link = document.createElement('link');
+                        link.rel = 'prefetch';
+                        link.href = url;
+                        link.as = 'fetch';
+                        document.head.appendChild(link);
+                        prefetched.add(id);
+                        console.debug(`[Prefetch] Speculatively loaded ${id}`);
+                    }
+                }, 100);
+            });
+            card.addEventListener('mouseleave', () => clearTimeout(hoverTimer));
+        });
+    });
+</script>

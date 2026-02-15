@@ -78,12 +78,15 @@ const hasData = estimatedVram !== null && params && params > 0;
             data-required={estimatedVram}
           >
             <option value="0">Select GPU Architecture...</option>
-            <option value="8">RTX 3070 / 4060 Ti (8GB)</option>
+            <option value="8">RTX 3070 / 4060 Ti / Mac 8GB</option>
             <option value="12">RTX 3060 / 4070 (12GB)</option>
-            <option value="16">RTX 4080 / T4 / Mac (16GB)</option>
-            <option value="24">RTX 3090 / 4090 (24GB)</option>
-            <option value="48">RTX 6000 Ada / A6000 (48GB)</option>
+            <option value="16">RTX 4080 / T4 / Mac 16GB</option>
+            <option value="24">RTX 3090 / 4090 / Mac 24GB</option>
+            <option value="32">Mac M1/M2/M3 (32GB Unified)</option>
+            <option value="48">RTX 6000 Ada / Mac 48GB</option>
+            <option value="64">Mac M2/M3 (64GB Unified)</option>
             <option value="80">A100 / H100 (80GB)</option>
+            <option value="128">Mac Ultra (128GB Unified)</option>
           </select>
           <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
              <span class="text-[10px]">▼</span>
@@ -92,7 +95,8 @@ const hasData = estimatedVram !== null && params && params > 0;
       </div>
       
       <p class="text-[9px] text-zinc-400 font-bold leading-relaxed uppercase tracking-tight">
-        * Estimated for <span class="text-indigo-500">4-Bit Quantization</span>. Actual usage varies by context length and parallel batching.
+        * Static estimation for <span class="text-indigo-500">4-Bit Quantization</span>. 
+        {estimatedVram > 40 && <span class="text-amber-500 font-black ml-1">[Multi-GPU / Unified Memory Required]</span>}
       </p>
     </div>
   </div>

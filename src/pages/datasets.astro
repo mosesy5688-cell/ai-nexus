@@ -14,6 +14,9 @@ const datasets = allDatasets.slice(0, 48).map(truncateListingItem);
 
 const pageTitle = "AI Datasets Catalog | Open Data Index";
 const pageDescription = "Explore 50,000+ open-source AI datasets for training, evaluation, and fine-tuning.";
+
+// V18.10.2: Explicit Edge Caching
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
 ---
 
 <Layout title={pageTitle} description={pageDescription}>

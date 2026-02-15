@@ -3,7 +3,6 @@ import fs from 'fs/promises';
 import path from 'path';
 import zlib from 'zlib';
 import { PutObjectCommand, ListObjectsV2Command, S3Client, HeadObjectCommand } from '@aws-sdk/client-s3';
-import { rotateEntityVersions } from './entity-versioner.js';
 
 /**
  * Shared R2 Client Creator
@@ -107,9 +106,6 @@ export async function uploadFile(s3, bucket, localPath, remotePath, remoteETag, 
         const ext = path.extname(remotePath).toLowerCase();
         const contentType = mimeMap[ext] || 'application/octet-stream';
 
-        if (remotePath.includes('cache/') || remotePath.includes('entities/')) {
-            await rotateEntityVersions(s3, bucket, remotePath).catch(() => { });
-        }
 
         await s3.send(new PutObjectCommand({
             Bucket: bucket,

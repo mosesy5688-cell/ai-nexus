@@ -27,7 +27,12 @@ export interface Props {
 }
 
 const { entity, type, title, description, image, jsonld, canonical } = Astro.props;
-const hasEntity = !!entity;
+const hasEntity = !!entity && !!entity.id;
+
+// V18.9: Edge-Caching Strategy (1h Public, 24h Stale)
+if (hasEntity) {
+    Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+}
 
 // Safe derivation of values
 const displayId = hasEntity ? (entity.id || entity.name || 'Unknown Entity') : '';
@@ -35,21 +40,25 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
 ---
 
 { !hasEntity ? (
-  <Layout title={title || "Mesh Node In Sync"} description="The knowledge graph is currently indexing this entity.">
-     <div class="py-24 text-center">
-        <div class="inline-flex items-center justify-center w-20 h-20 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 rounded-full mb-8 animate-pulse">
-           <span class="text-4xl text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-500">🕸️</span>
+  <Layout title={title || "Technical Snapshot"} description="The knowledge graph is currently indexing this entity.">
+     <div class="py-32 text-center max-w-2xl mx-auto px-4">
+        <div class="inline-flex items-center gap-3 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-full mb-8">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <span class="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">Technical Snapshot Mode</span>
         </div>
-        <h1 class="text-3xl font-black text-gray-900 dark:text-gray-100 mb-4 tracking-tight">Mesh Node Building...</h1>
-        <p class="text-base text-gray-600 dark:text-gray-400 mb-2 max-w-md mx-auto">
-          The <span class="font-bold text-indigo-600 dark:text-indigo-400">Neural Mesh Hub</span> has identified this link, but the full technical profile is still being synchronized from the production pipeline.
+        <h1 class="text-3xl font-black text-gray-900 dark:text-gray-100 mb-4 tracking-tighter uppercase italic">Deep Hive Sync in Progress</h1>
+        <p class="text-base text-gray-600 dark:text-gray-400 mb-6 font-bold leading-relaxed">
+           The <span class="text-indigo-600 dark:text-indigo-400">Nexus Knowledge Mesh</span> has identified this node, but the full technical profile is currently being re-fused. 
         </p>
-        <p class="text-xs text-gray-400 dark:text-gray-500 mb-10">
-          Sync Status: Verified Connectivity | Data Refresh In-Progress
-        </p>
+        <div class="p-6 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 text-left mb-10">
+            <p class="text-[10px] text-zinc-400 uppercase font-black tracking-widest mb-2">Resilience Protocol V18.8</p>
+            <p class="text-xs text-zinc-500 font-medium leading-relaxed">
+                If this node persists in snapshot mode for more than 5 minutes, it may indicate a shard-level propagation delay. Primary catalog data remains accessible via the global index.
+            </p>
+        </div>
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="/" class="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-all">Return Home</a>
-            <a href="/ranking" class="px-8 py-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">Explore Rankings</a>
+            <a href="/ranking" class="px-8 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-lg font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-transform">Return to Catalog</a>
+            <button onclick="window.location.reload()" class="px-8 py-3 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-lg font-black uppercase text-[10px] tracking-widest hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all">Retry Sync</button>
         </div>
      </div>
   </Layout>
