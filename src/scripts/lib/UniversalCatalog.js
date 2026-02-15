@@ -60,7 +60,12 @@ export class UniversalCatalog {
         this.setupInfiniteScroll();
         this.updateStats();
 
-        if (this.config.dataUrl) this.loadFullData();
+        // V18.7: Zero-Jump Hydration - Skip shard 1 if initial data is sufficient
+        if (this.config.dataUrl && this.source.items.length < this.itemsPerPage) {
+            this.loadFullData();
+        } else {
+            this.source.currentShard = 1; // Align shard counter with SSR initial state
+        }
     }
 
     updateUrlParam(key, value) {
@@ -95,7 +100,8 @@ export class UniversalCatalog {
     }
 
     async loadMore() {
-        if ((this.currentPage * this.itemsPerPage) >= this.filtered.length - 10 && !this.source.fullDataLoaded) {
+        // V18.7: Predictive Prefetching (Threshold-based)
+        if ((this.currentPage * this.itemsPerPage) >= this.filtered.length - 12 && !this.source.fullDataLoaded) {
             await this.loadFullData();
         }
         this.currentPage++;

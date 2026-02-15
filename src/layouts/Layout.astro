@@ -3,6 +3,7 @@
 import Header from '@/components/Header.astro';
 import Footer from '@/components/Footer.astro';
 import OnboardingTour from '@/components/common/OnboardingTour.astro';
+import { ViewTransitions } from 'astro:transitions';
 
 // V9.70: Ensure global Tailwind CSS is ALWAYS included
 // This import MUST be at layout level to ensure all pages get Tailwind
@@ -24,6 +25,12 @@ const {
     jsonld,
     canonical
 } = Astro.props;
+
+// V18.10.2: Site-Wide Edge Caching Strategy (SWR)
+// If a page hasn't set a specific header, apply the global standard.
+if (!Astro.response.headers.has('Cache-Control')) {
+    Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+}
 const resolvedImage = new URL(image, Astro.site || Astro.url.origin);
 const canonicalURL = canonical ? new URL(canonical, Astro.site || Astro.url.origin) : new URL(Astro.url.pathname, Astro.site || Astro.url.origin);
 
@@ -110,8 +117,20 @@ const schemaToUse = jsonld || defaultSchema;
     <!-- Global Alpine.js loaded for TabbedContent & ModelCarousel -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-    <!-- V3.1 JSON-LD Schema (Phase 7 SEO Enhancement) -->
-    <script type="application/ld+json" set:html={JSON.stringify(schemaToUse)} />
+    <ViewTransitions fallback="swap" />
+    
+    <!-- V18.1: Extreme Prefetching & Visual Stability -->
+    <style is:global>
+        @font-face {
+            font-display: swap;
+        }
+        
+        /* Eliminate CLS via aspect-ratio containment */
+        .listing-card-grid {
+            content-visibility: auto;
+            contain-intrinsic-size: 1px 1000px;
+        }
+    </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans antialiased flex flex-col min-h-screen">
     <!-- Google Tag Manager (noscript) -->

@@ -1,14 +1,27 @@
 import { R2_CACHE_URL } from '../config/constants.js';
 import { getR2PathCandidates, normalizeEntitySlug } from './entity-cache-reader-core.js';
 
+const CDN_SECONDARY = 'https://ai-nexus-assets.pages.dev/cache';
+
 /**
- * V16.5 Smart Packet Loader (Entity-First Anchored Strategy)
- * 
- * Strategy (V16.8.3):
- * 1. Generate robust candidates using `getR2PathCandidates`.
- * 2. Find the ENTITY metadata first (The Anchor).
- * 3. Use the Entity's authoritative ID to fetch Fused/Mesh streams.
+ * Resilient fetching with timeout and secondary fallback
  */
+async function fetchWithResilience(url: string, timeout = 5000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+
+    try {
+        const response = await fetch(url.replace('cdn.free2aitools.com', 'cdn.free2aitools.com'), { signal: controller.signal });
+        clearTimeout(id);
+        if (response.ok) return response;
+        throw new Error(`HTTP ${response.status}`);
+    } catch (e: any) {
+        clearTimeout(id);
+        const secondaryUrl = url.replace('https://cdn.free2aitools.com', CDN_SECONDARY);
+        console.warn(`[Resilience] Primary fetch failed for ${url}, trying secondary: ${secondaryUrl}`);
+        return fetch(secondaryUrl, { signal: AbortSignal.timeout(timeout) });
+    }
+}
 
 // Universal Gzip Fetcher (Robust Buffer Strategy)
 export async function fetchCompressedJSON(path: string): Promise<any | null> {
@@ -17,7 +30,7 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
 
     for (const url of candidates) {
         try {
-            const res = await fetch(url);
+            const res = await fetchWithResilience(url);
             if (!res.ok) continue;
 
             // V16.9.4: Resilient Decompression - Handle "Fake .gz" (uncompressed text in .gz file)

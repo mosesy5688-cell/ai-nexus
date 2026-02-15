@@ -66,6 +66,16 @@ export function getQuickInsights(entity, type) {
             });
         }
 
+        // V18.5: Expose Architecture Metadata
+        if (entity.architecture) {
+            insights.push({
+                label: 'Architecture',
+                value: String(entity.architecture).toUpperCase(),
+                highlight: true,
+                badge: String(entity.architecture).includes('moe') ? 'MoE Expert' : 'Dense'
+            });
+        }
+
         if (entity.has_gguf) insights.push({ label: 'Format', value: 'GGUF ✓', highlight: true, badge: 'Local' });
 
         if (entity.license) {

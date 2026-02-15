@@ -15,15 +15,10 @@ const downloads = tool?.downloads ? Number(tool.downloads) : null;
 const likes = tool?.likes ? Number(tool.likes) : null;
 
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
-import ModelGallery from '../model-detail/ModelGallery.astro';
 import MarkdownRenderer from '../model-detail/MarkdownRenderer.astro';
 ---
 
 <div class="space-y-12">
-  {/* V16.2: Universal Enhancements (Promoted Top) */}
-  <section class="space-y-6">
-     <ModelGallery content={tool.body_content || tool.description} title="Tool Documentation & Demos" />
-  </section>
 
   {/* V19: Popularity Metrics (if available) */}
   {(downloads || likes) && (

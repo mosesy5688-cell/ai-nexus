@@ -86,8 +86,9 @@ if (!model && !error) {
 const hasFNI = hasCapability(model, 'fni_score') && (model?.fni_score !== undefined || model?.fni_percentile !== undefined);
 const hasBenchmarks = hasCapability(model, 'benchmarks');
 const hasBench = Boolean(model?.mmlu || model?.benchmark_mmlu || model?.benchmark_hellaswag || model?.benchmark_arc);
-const placeholderImage = '/images/models/default-model.jpg';
-const coverImage = model?.cover_image_url || placeholderImage;
+// V18.2.15: Zero-Image Policy enforcement
+const placeholderImage = ''; 
+const coverImage = '';
 const modelName = model?.name || 'Unknown Model';
 const displayAuthor = model?.author || 'Independent / Community';
 const entityId = model?.id || slugStr;
@@ -104,7 +105,7 @@ const canonicalPath = model ? getRouteFromId(model.id || model.umid || slugStr, 
   type="model" 
   title={pageTitle} 
   description={pageDescription}
-  image={coverImage}
+  image={undefined}
   jsonld={jsonld}
   canonical={canonicalPath}
 >

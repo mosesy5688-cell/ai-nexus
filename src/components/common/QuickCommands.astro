@@ -31,7 +31,7 @@ if (type === 'model') {
   // 1. Ollama (if likely compatible)
   const pCount = entity.params_billions || 0;
   if (pCount > 0 && pCount < 100) {
-    commands.push({
+    commands.unshift({ // V18.5 Priority: Ollama first
       label: 'Ollama Run',
       cmd: `ollama run ${cleanId.includes('/') ? cleanId.split('/').pop() : cleanId}`,
       icon: '🦙'
@@ -109,20 +109,20 @@ if (commands.length === 0) return null;
   
   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
     {commands.map(item => (
-      <div class="command-box group relative bg-black border border-gray-800 rounded-xl overflow-hidden transition-all hover:border-indigo-500/50 shadow-2xl">
-        <div class="flex items-center justify-between px-3 py-1.5 bg-[#0a0a0a] border-b border-gray-800">
-           <span class="text-[10px] font-bold text-gray-500 flex items-center gap-1">
+      <div class="command-box group relative bg-zinc-950 border border-zinc-800 rounded-sm overflow-hidden transition-all hover:border-zinc-500 shadow-none">
+        <div class="flex items-center justify-between px-3 py-1 bg-zinc-900 border-b border-zinc-800">
+           <span class="text-[9px] font-black text-zinc-500 flex items-center gap-1 uppercase tracking-widest">
              <span>{item.icon}</span> {item.label}
            </span>
         </div>
-        <div class="p-3 flex items-center justify-between gap-4">
-          <code class="text-xs text-indigo-300 font-mono truncate">{item.cmd}</code>
+        <div class="p-3 flex items-center justify-between gap-4 font-mono">
+          <code class="text-[11px] text-zinc-300 truncate">{item.cmd}</code>
           <button 
-            class="copy-btn p-1.5 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors active:scale-95"
+            class="copy-btn p-1 rounded hover:bg-zinc-800 text-zinc-600 hover:text-zinc-300 transition-colors active:scale-95"
             data-cmd={item.cmd}
             title="Copy to clipboard"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
             </svg>
           </button>

@@ -111,7 +111,7 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
     if (items.length === 0 && typeOrCategory === 'tool') {
         try {
             const indexUrl = `${CDN_BASE}/search/shard-0.json`;
-            const res = await fetch(indexUrl);
+            const res = await fetch(indexUrl, { signal: AbortSignal.timeout(5000) });
             if (res.ok) {
                 const data = await res.json();
                 const allRaw = extractItems(data);

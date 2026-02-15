@@ -20,14 +20,9 @@ const generateBibTeX = (p: any) => {
 
 const bibtex = generateBibTeX(paper);
 import FullReadmeSection from '../model-detail/FullReadmeSection.astro';
-import ModelGallery from '../model-detail/ModelGallery.astro';
 ---
 
 <div class="space-y-12">
-  {/* V16.2: Visual First - Auto Gallery */}
-  {(paper.image_url || paper.body_content || paper.abstract) && (
-    <ModelGallery content={paper.body_content || paper.abstract} title="Paper Figures & Visuals" />
-  )}
 
   <!-- Section: Abstract & Citation (Grid) -->
   <div class="grid grid-cols-1 lg:grid-cols-1 gap-12">

@@ -6,7 +6,6 @@ import FullReadmeSection from './FullReadmeSection.astro';
 // Phase B.8: New components for user understanding
 import BenchmarkScores from './BenchmarkScores.astro';
 import GGUFList from './GGUFList.astro';
-import ModelGallery from './ModelGallery.astro';
 import ArchitectureSchema from './ArchitectureSchema.astro';
 import MarkdownRenderer from './MarkdownRenderer.astro';
 
@@ -34,8 +33,6 @@ try {
 ---
 
 <div class="lg:col-span-2 space-y-8">
-  {/* V16.2: Visual First - Auto Gallery */}
-  {model.gallery_images?.length > 0 && <ModelGallery images={model.gallery_images} />}
 
   {/* V15.8: GGUF File List (Zone 4) */}
   <GGUFList files={model.siblings} modelId={modelId} />

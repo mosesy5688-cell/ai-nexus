@@ -19,8 +19,11 @@ interface Props {
 const { relations = [], entityId } = Astro.props;
 
 const categories: Record<string, { label: string, icon: string, relations: Relation[] }> = {
+    // V18.6 Priority: Technical Lineage
+    BASED_ON: { label: 'Lineage / Base', icon: '🧬', relations: [] },
     STACK: { label: 'Technical Stack', icon: '🛠️', relations: [] },
-    BASED_ON: { label: 'Lineage', icon: '🧬', relations: [] },
+    
+    // Other relations
     USES: { label: 'Dependencies', icon: '🔌', relations: [] },
     TRAINED_ON: { label: 'Knowledge Base', icon: '📚', relations: [] },
     CITES: { label: 'Academic Impact', icon: '📄', relations: [] },
@@ -94,7 +97,7 @@ const typeIcons: Record<string, string> = {
                                     </span>
                                     <div class="flex items-center gap-1.5">
                                        <span class="text-[8px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">{rel.target_type}</span>
-                                       {rel.confidence > 0.8 && <span class="w-1 h-1 rounded-full bg-green-500"></span>}
+                                       {rel.confidence > 0.8 && <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 border border-emerald-400/30" title="Nexus Verified Relation"></span>}
                                     </div>
                                 </div>
                             </div>

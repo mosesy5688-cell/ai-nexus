@@ -28,28 +28,15 @@ const { models = [], title = "Similar Models" } = Astro.props;
       {models.slice(0, 6).map((model) => {
         const slug = model.slug || model.id.replace(/\//g, '--');
         return (
-          <a href={`/model/${slug}`} class="related-model-card">
-            <div class="card-image">
-              {model.cover_image_url ? (
-                <img 
-                  src={model.cover_image_url} 
-                  alt={model.name}
-                  loading="lazy"
-                  width="120"
-                  height="80"
-                />
-              ) : (
-                <div class="placeholder-image">
-                  <span>🤖</span>
-                </div>
-              )}
-            </div>
+          <a href={`/model/${slug}`} class="related-model-card group">
             <div class="card-content">
-              <span class="model-name">{model.name}</span>
-              {model.author && <span class="model-author">by {model.author}</span>}
-              {model.fni_score && (
-                <span class="model-fni">FNI: {Math.round(model.fni_score)}</span>
-              )}
+              <span class="model-name group-hover:text-blue-500 transition-colors uppercase tracking-tight">{model.name}</span>
+              <div class="flex items-center justify-between mt-1">
+                {model.author && <span class="model-author">by {model.author}</span>}
+                {model.fni_score && (
+                  <span class="model-fni bg-gray-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">FNI: {Math.round(model.fni_score)}</span>
+                )}
+              </div>
             </div>
           </a>
         );
@@ -76,50 +63,28 @@ const { models = [], title = "Similar Models" } = Astro.props;
 
   .related-models-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
   }
 
   .related-model-card {
     display: flex;
     flex-direction: column;
-    padding: 1rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.75rem;
+    background: white;
+    dark:background: #18181b;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    dark:border-color: rgba(255, 255, 255, 0.05);
     text-decoration: none;
     color: inherit;
     transition: all 0.2s ease;
   }
 
   .related-model-card:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(59, 130, 246, 0.5);
-    transform: translateY(-2px);
-  }
-
-  .card-image {
-    width: 100%;
-    height: 80px;
-    border-radius: 8px;
-    overflow: hidden;
-    margin-bottom: 0.75rem;
-    background: rgba(0, 0, 0, 0.2);
-  }
-
-  .card-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .placeholder-image {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
+    border-color: rgba(59, 130, 246, 0.3);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   }
 
   .card-content {
@@ -129,23 +94,25 @@ const { models = [], title = "Similar Models" } = Astro.props;
   }
 
   .model-name {
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--text-primary, #fff);
+    font-weight: 800;
+    font-size: 0.75rem;
+    color: var(--text-primary, #111);
+    dark:color: #fff;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .model-author {
-    font-size: 0.8rem;
-    color: var(--text-secondary, #9ca3af);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    color: #9ca3af;
   }
 
   .model-fni {
-    font-size: 0.75rem;
-    color: var(--accent, #60a5fa);
-    font-weight: 500;
+    color: #6366f1;
   }
 
   @media (max-width: 640px) {

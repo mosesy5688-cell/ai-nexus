@@ -26,6 +26,9 @@ const items = (rawItems || []).slice(0, 100).map(truncateListingItem).filter(Boo
 
 const pageTitle = `${meta.label} - AI Technical Index | Free2AI`;
 const pageDescription = `Discover the best ${meta.label} AI models, agents, tools and research. Updated daily.`;
+
+// V18.10.2: Explicit Edge Caching
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
 ---
 
 <Layout title={pageTitle} description={pageDescription}>

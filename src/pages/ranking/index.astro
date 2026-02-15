@@ -38,6 +38,9 @@ const CATEGORY_META: Record<string, { label: string; icon: string; description: 
     href: '/infrastructure-ops' 
   }
 };
+
+// V18.10.2: Explicit Edge Caching
+Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
 ---
 
 <Layout title={title} description={description}>

@@ -40,15 +40,15 @@ const { initialQuery = '' } = Astro.props;
         </div>
         <!-- V14.5 Phase 5: Full Search Toggle -->
         <div id="full-search-container" class="mt-4 flex flex-col items-center gap-2 hidden">
-            <div class="text-sm text-gray-500 dark:text-gray-400">Zero top results. Explore more?</div>
+            <div class="text-[10px] text-zinc-400 uppercase font-black tracking-widest flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                Extending search to full technical index...
+            </div>
             <button 
                 id="smartFullSearchBtn" 
-                class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-full shadow-lg transition-transform hover:scale-105 flex items-center gap-2"
+                class="hidden opacity-0"
             >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
-                <span>Search all 150K+ models (~30MB)</span>
+                Search all 150K+ models
             </button>
         </div>
 

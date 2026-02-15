@@ -33,12 +33,18 @@ export class CatalogDataSource {
         }
     }
 
-    async loadNextShard() {
+    async loadNextShard(direction = 1) {
         if (this.isLoadingShard || this.currentShard >= this.totalPages) return null;
         this.isLoadingShard = true;
 
         try {
-            this.currentShard++;
+            this.currentShard += direction;
+            // V18.7: Persist page state to URL for deep-linking
+            if (typeof window !== 'undefined') {
+                const url = new URL(window.location.href);
+                url.searchParams.set('page', String(this.currentShard));
+                window.history.replaceState({ page: this.currentShard }, '', url);
+            }
             // V16.5: SSOT Tier 2 - /lists/{type}/page-{n}.json
             // V18.2: Support compressed shards (.gz) with local decompression
             const paths = [
