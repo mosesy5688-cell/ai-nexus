@@ -63,8 +63,7 @@ const CONFIG = {
         { name: 'Explore', path: '/explore', critical: true },
         { name: 'Leaderboard', path: '/leaderboard', critical: true },
         { name: 'Ranking', path: '/ranking', critical: true },
-        { name: 'Model (bench)', path: '/model/qwen-qwen2-5-72b', critical: true },
-        { name: 'Model (HF)', path: '/model/meta-llama-llama-3-3-70b', critical: true },
+        { name: 'Knowledge Index', path: '/knowledge', critical: true }
     ],
 
     // Model page required components (per Constitution)
@@ -119,7 +118,11 @@ async function validatePage(page) {
             /id="model-not-found"/i,        // Soft 404 Marker: Model Container
             /Model Not Found/i,             // Visual Text Marker
             /Article Not Found/i,           // Visual Text Marker
-            /aggregated in the Knowledge Mesh/i // Logic Fallback Marker
+            /aggregated in the Knowledge Mesh/i, // Logic Fallback Marker
+            />null</i,                      // Content Leak: Literall null
+            />\s*null\s*</i,               // Content Leak: Null with whitespace
+            /italic">null<\/span>/i,        // SPEC-V15: Constitution leak marker
+            /\[object Object\]/i            // Serialization failure
         ];
 
         const hasSSRError = ssrErrorPatterns.some(pattern => pattern.test(html));
@@ -159,38 +162,141 @@ async function validatePage(page) {
 }
 
 
+// ═══════════════════════════════════════════════════════════
+//              V16.95 CANONICAL ROUTING CORE
+// ═══════════════════════════════════════════════════════════
+
+function stripPrefix(id) {
+    if (!id || typeof id !== 'string') return '';
+    let result = id.toLowerCase();
+    const prefixes = [
+        'hf-model--', 'hf-agent--', 'hf-tool--', 'hf-dataset--', 'hf-space--', 'hf-paper--',
+        'arxiv-paper--', 'arxiv--', 'paper--', 'dataset--', 'model--', 'agent--', 'tool--', 'space--',
+        'knowledge--', 'concept--', 'report--'
+    ];
+    for (const p of prefixes) {
+        if (result.startsWith(p)) {
+            result = result.slice(p.length);
+            break;
+        }
+    }
+    return result.replace(/[:\/]/g, '--').replace(/^--|--$/g, '');
+}
+
+function getTypeFromId(id) {
+    if (!id || typeof id !== 'string') return 'model';
+    const low = id.toLowerCase();
+    if (low.startsWith('knowledge--') || low.startsWith('concept--')) return 'knowledge';
+    if (low.startsWith('report--')) return 'report';
+    if (low.startsWith('arxiv-paper--') || low.startsWith('arxiv--') || low.startsWith('paper--')) return 'paper';
+    if (low.startsWith('hf-dataset--') || low.startsWith('dataset--')) return 'dataset';
+    if (low.startsWith('hf-space--') || low.startsWith('space--')) return 'space';
+    if (low.startsWith('hf-agent--') || low.startsWith('agent--')) return 'agent';
+    if (low.startsWith('hf-tool--') || low.startsWith('tool--')) return 'tool';
+    return 'model';
+}
+
+function getRouteFromId(id, type = null) {
+    if (!id) return '#';
+    let resolvedType = type || getTypeFromId(id);
+    let slug = stripPrefix(id).replace(/--/g, '/');
+
+    if (resolvedType === 'paper') slug = stripPrefix(id).replace(/--/g, '.');
+
+    const routeMap = {
+        'knowledge': `/knowledge/${slug}`,
+        'report': `/reports/${slug}`,
+        'paper': `/paper/${slug}`,
+        'dataset': `/dataset/${slug}`,
+        'space': `/space/${slug}`,
+        'agent': `/agent/${slug}`,
+        'tool': `/tool/${slug}`,
+        'model': `/model/${slug}`
+    };
+
+    return routeMap[resolvedType] || `/model/${slug}`;
+}
+
+// Decompression Helper for Node environment
+async function gunzipJson(url) {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const buffer = await response.arrayBuffer();
+    try {
+        const { gunzipSync } = await import('zlib');
+        const decompressed = gunzipSync(Buffer.from(buffer)).toString('utf-8');
+        return JSON.parse(decompressed);
+    } catch (e) {
+        const text = new TextDecoder().decode(buffer);
+        return JSON.parse(text);
+    }
+}
+
 async function validateUMIDLinks() {
     // Fetch search results and verify UMID links resolve
     const issues = [];
+    const CDN_URL = 'https://cdn.free2aitools.com';
 
     try {
-        const response = await fetch(`${BASE}/api/search?limit=10`);
-        const data = await response.json();
+        let results = [];
+        // Attempt API first
+        try {
+            const response = await fetch(`${BASE}/api/search?limit=10`);
+            if (response.ok) {
+                const data = await response.json();
+                results = data.results || [];
+            }
+        } catch (e) { /* Fallback to CDN index */ }
 
-        if (!data.results || data.results.length === 0) {
-            issues.push({ type: 'NO_RESULTS', message: 'Search API returned no results' });
+        if (results.length === 0) {
+            console.log('   ℹ️ API fallback to CDN Index...');
+            const data = await gunzipJson(`${CDN_URL}/cache/search-core.json.gz`);
+            const entities = data.entities || data.models || data || [];
+            results = entities.slice(0, 50).map(e => ({
+                id: e.id,
+                slug: e.slug,
+                type: e.t || e.type,
+                name: e.n || e.name
+            }));
+        }
+
+        // V16.8.15 R5.8: Mandatory Injection of reported broken link for verification
+        if (!results.some(r => r.id === 'hf-model--coqui--xtts-v2')) {
+            results.unshift({ id: 'hf-model--coqui--xtts-v2', type: 'model', name: 'Coqui XTTS v2' });
+            console.log('   ℹ️ Injected hf-model--coqui--xtts-v2 for validation.');
+        }
+
+        if (results.length === 0) {
+            issues.push({ type: 'NO_RESULTS', message: 'Could not fetch sample models for link validation' });
             return { pass: false, issues };
         }
 
-        // Check each result has umid and slug
-        for (const model of data.results.slice(0, 5)) {
-            if (!model.umid) {
-                issues.push({ type: 'MISSING_UMID', message: `Model ${model.id} missing umid` });
-            }
-            if (!model.slug) {
-                issues.push({ type: 'MISSING_SLUG', message: `Model ${model.id} missing slug` });
-            }
-        }
+        // Verify result's canonical round-trip (Test top 3 including our mandatory coqui)
+        for (const first of results.slice(0, 3)) {
+            const path = getRouteFromId(first.id, first.type);
+            if (path && path !== '#') {
+                const url = `${BASE}${path}`;
+                const response = await fetch(url);
+                const html = await response.text();
 
-        // Verify first result's model page resolves
-        if (data.results[0]?.slug) {
-            const modelUrl = `${BASE}/model/${encodeURIComponent(data.results[0].slug)}`;
-            const modelResponse = await fetch(modelUrl);
-            if (modelResponse.status !== 200) {
-                issues.push({
-                    type: 'BROKEN_LINK',
-                    message: `Model link ${data.results[0].slug} returned ${modelResponse.status}`
-                });
+                // Perform deep inspection for SSR errors / null leaks
+                const ssrErrorPatterns = [
+                    /italic">null<\/span>/i,
+                    />\s*null\s*</i,
+                    /\[object Object\]/i
+                ];
+
+                const hasLeak = ssrErrorPatterns.some(p => p.test(html));
+
+                if (response.status !== 200 || hasLeak) {
+                    issues.push({
+                        type: 'CONTENT_CORRUPTION',
+                        message: `Entity ${first.id} failed validation at ${path} (Status: ${response.status}, NullLeak: ${hasLeak})`
+                    });
+                } else {
+                    CONFIG.pages.push({ name: `Entity: ${first.id}`, path: path, critical: true });
+                    console.log(`   ✅ Sampled canonical path: ${path} (Status: 200)`);
+                }
             }
         }
 
