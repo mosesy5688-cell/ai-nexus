@@ -94,7 +94,7 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
         
         {/* Zone 2: QUICK INSIGHTS & Technical Specs */}
         <section id="insights-zone" class="animate-slide-up" style="animation-delay: 0.25s;">
-           <div class="grid grid-cols-1 md:grid-cols-1 gap-8">
+           <div class="flex flex-col gap-8">
               <QuickInsights entity={entity} type={type} />
               <slot name="insights-extra" />
            </div>

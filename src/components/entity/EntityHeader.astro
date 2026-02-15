@@ -124,34 +124,35 @@ const relativeTime = formatRelativeTime(lastUpdated);
 ---
 
 <header class="mb-12 border-b border-zinc-100 dark:border-zinc-800 pb-12">
-  <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
-    <div class="flex-grow min-w-0 flex items-start gap-8">
-      <div class="hidden md:flex flex-shrink-0 w-24 h-24 items-center justify-center bg-zinc-50 dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 text-5xl shadow-sm select-none">
+  <div class="flex flex-col gap-8">
+    <!-- Identity Block -->
+    <div class="flex items-start gap-4 sm:gap-6">
+      <div class="flex flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 items-center justify-center bg-zinc-50 dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 text-3xl sm:text-4xl shadow-sm select-none">
         {entityIcon}
       </div>
       
       <div class="min-w-0">
-        <div class="flex items-center gap-3 mb-4">
-          <span class={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${colors}`}>
+        <div class="flex items-center gap-3 mb-3">
+          <span class={`px-2 py-0.5 rounded text-[8px] sm:text-[10px] font-black uppercase tracking-widest border ${colors}`}>
             {entityLabel}
           </span>
           {relativeTime && (
-            <span class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+            <span class="text-[8px] sm:text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
               {relativeTime}
             </span>
           )}
         </div>
         
-        <h1 class="text-4xl lg:text-5xl font-black text-zinc-900 dark:text-white tracking-tighter leading-none mb-4">
+        <h1 class="text-2xl sm:text-4xl lg:text-5xl font-black text-zinc-900 dark:text-white tracking-tighter leading-tight mb-3">
           {name}
         </h1>
         
-        <div class="flex flex-wrap items-center gap-6 text-sm font-bold text-zinc-500">
+        <div class="flex flex-wrap items-center gap-4 text-xs sm:text-sm font-bold text-zinc-500">
           <span class="flex items-center gap-2">
             by <strong class="text-zinc-900 dark:text-white font-black uppercase tracking-tight">{displayAuthor}</strong>
           </span>
           {entityId && (
-            <span class="font-mono text-[11px] opacity-40 truncate max-w-[300px]" title={entityId}>
+            <span class="font-mono text-[9px] sm:text-[11px] opacity-40 truncate max-w-[250px]" title={entityId}>
               ID: {entityId}
             </span>
           )}
@@ -159,8 +160,8 @@ const relativeTime = formatRelativeTime(lastUpdated);
       </div>
     </div>
 
-    <!-- Metric Block -->
-     <div class="flex flex-wrap flex-shrink-0 gap-3">
+    <!-- Metric Block (Strict Vertical Below Identity) -->
+    <div class="flex flex-wrap gap-3">
       {paramsB && (
         <div class="px-4 py-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center">
            <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Scale</span>
