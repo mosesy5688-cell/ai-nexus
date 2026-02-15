@@ -152,9 +152,22 @@ export async function loadDailyReport() {
 
         // Final fallback: Use trending.json
         try {
-            const trendingRes = await fetch(`${CDN_BASE}/trending.json`);
+            let trendingRes = await fetch(`${CDN_BASE}/trending.json.gz`);
+            if (!trendingRes.ok) trendingRes = await fetch(`${CDN_BASE}/trending.json`);
+            if (!trendingRes.ok) trendingRes = await fetch(`${CDN_BASE}/trend-data.json.gz`);
+
             if (trendingRes.ok) {
-                const trendingData = await trendingRes.json();
+                let trendingData;
+                const isGz = trendingRes.url.endsWith('.gz');
+                const isAlreadyDec = trendingRes.headers.get('Content-Encoding') === 'gzip' || trendingRes.headers.get('content-encoding') === 'gzip';
+
+                if (isGz && !isAlreadyDec) {
+                    const ds = new DecompressionStream('gzip');
+                    const decompressedStream = trendingRes.body.pipeThrough(ds);
+                    trendingData = await new Response(decompressedStream).json();
+                } else {
+                    trendingData = await trendingRes.json();
+                }
                 const topModel = trendingData.models?.[0];
 
                 if (topModel) {
