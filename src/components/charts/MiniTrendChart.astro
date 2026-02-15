@@ -17,17 +17,23 @@ interface Props {
     showBadge?: boolean;
     width?: number;
     height?: number;
+    initialData?: number[];
 }
 
 const { 
     entityId, 
     showBadge = true,
     width = 80,
-    height = 28
+    height = 28,
+    initialData
 } = Astro.props;
 ---
 
-<div class="mini-trend-container" data-entity-id={entityId}>
+<div 
+    class="mini-trend-container" 
+    data-entity-id={entityId}
+    data-initial={initialData ? JSON.stringify(initialData) : undefined}
+>
     <div class="mini-trend" data-w={width} data-h={height}>
         <canvas 
             class="mini-trend-canvas" 
@@ -134,17 +140,49 @@ async function initMiniTrends() {
     const containers = document.querySelectorAll('.mini-trend-container:not(.inited)');
     if (!containers.length) return;
     
-    const data = await loadTrendData();
-    const dataKeys = Object.keys(data);
-    const dataKeysLower = dataKeys.map(k => k.toLowerCase());
+    // V18.2.4: Optimization - Check for initial data before loading central index
+    const hasCentralNeeded = Array.from(containers).some(c => !(c as HTMLElement).dataset.initial);
+    if (!hasCentralNeeded) {
+        // All containers have pre-injected data, skip central loading!
+    } else {
+        await loadTrendData();
+    }
     
-    containers.forEach(container => {
-        const id = (container as HTMLElement).dataset.entityId;
+    containers.forEach(async (container) => {
+        const el = container as HTMLElement;
+        const id = el.dataset.entityId;
         if (!id) return;
-        
-        const targetId = findTrendMatch(id, data, dataKeys, dataKeysLower);
+
+        // V18.2.4: Priority 1 - Injected Initial Data (Instant)
+        const initialStr = el.dataset.initial;
+        let entityTrend = null;
+
+        if (initialStr) {
+            try {
+                const scores = JSON.parse(initialStr);
+                if (Array.isArray(scores) && scores.length > 0) {
+                    const latest = scores[scores.length - 1];
+                    const oldest = scores[0];
+                    const change7d = oldest > 0 ? parseFloat(((latest - oldest) / oldest * 100).toFixed(1)) : 0;
+                    let direction = 'stable';
+                    if (change7d > 1) direction = 'up';
+                    else if (change7d < -1) direction = 'down';
+
+                    entityTrend = { scores, change7d, direction };
+                }
+            } catch (e) { console.error('Initial trend parse fail', e); }
+        }
+
+        // Priority 2 - Central Index (Fallback for lists)
+        if (!entityTrend) {
+            const data = await loadTrendData();
+            const dataKeys = Object.keys(data);
+            const dataKeysLower = dataKeys.map(k => k.toLowerCase());
+            const targetId = findTrendMatch(id, data, dataKeys, dataKeysLower);
+            entityTrend = targetId ? data[targetId] : null;
+        }
+
         const fallback = container.parentElement?.querySelector('#trend-fallback');
-        const entityTrend = targetId ? data[targetId] : null;
         
         if (!entityTrend || !Array.isArray(entityTrend.scores) || entityTrend.scores.length === 0) {
             console.log(`[MiniTrend] No trend record for ${id} (final target: ${targetId})`);

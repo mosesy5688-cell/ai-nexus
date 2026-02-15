@@ -54,24 +54,18 @@ export const ALL_PREFIXES = Object.values(PREFIX_MAP).flatMap(source => Object.v
  */
 function getKnownPrefixes() {
     const prefixes = {
-        'huggingface-deepspec--': { s: 'hf' },
-        'huggingface_deepspec--': { s: 'hf' },
-        'huggingface--': { s: 'hf' },
-        'github--': { s: 'gh' },
-        'arxiv--': { s: 'arxiv' },
-        'paper--': { t: 'paper' },
-        'model--': { t: 'model' },
-        'dataset--': { t: 'dataset' },
-        'space--': { t: 'space' },
-        'agent--': { t: 'agent' },
-        'tool--': { t: 'tool' },
-        'prompt--': { t: 'prompt' },
         'hf--': { s: 'hf' },
         'gh--': { s: 'gh' },
         'replicate--': { s: 'replicate' },
         'civitai--': { s: 'civitai' },
         'kaggle--': { s: 'kaggle' },
-        'ollama--': { s: 'ollama' }
+        'ollama--': { s: 'ollama' },
+        'model--': { t: 'model' },
+        'dataset--': { t: 'dataset' },
+        'space--': { t: 'space' },
+        'agent--': { t: 'agent' },
+        'tool--': { t: 'tool' },
+        'paper--': { t: 'paper' }
     };
 
     // Auto-add from PREFIX_MAP
@@ -107,27 +101,40 @@ export function normalizeId(id, source, type) {
         cleanId = cleanId.replace(/v\d+$/, '');
     }
 
-    // 2. Identify and Strip ALL known prefixes (Recursive/Multi-pass)
-    // V16.96.2: Robust prefix removal to prevent 'hf-agent--gh-agent--'
+    // 2. Identify and Strip known prefixes (Prioritized One-Pass)
+    // V16.96.3: Refined to prevent over-stripping author names (e.g. user "model")
     let hintS = null;
     let hintT = null;
-    let stripped = true;
+    let finalInput = cleanId;
 
-    while (stripped) {
-        stripped = false;
-        // Sort keys by length DESC to ensure longest match (canonical) is preferred
-        const keys = Object.keys(KNOWN_PREFIXES).sort((a, b) => b.length - a.length);
+    // Sort prefixes by length DESC to ensure longest match is preferred
+    const keys = Object.keys(KNOWN_PREFIXES).sort((a, b) => b.length - a.length);
+
+    // V18.2.5 Strategy: Attempt to strip valid prefixes, but don't loop indefinitely
+    // Unless it's a known "source-only" prefix like hf-- followed by t--
+    let iterations = 0;
+    while (iterations < 2) { // Max 2 passes (Source then Type, or just one Full)
+        let matched = false;
         for (const p of keys) {
-            if (cleanId.startsWith(p)) {
+            if (finalInput.startsWith(p)) {
                 const hint = KNOWN_PREFIXES[p];
                 if (hint.s) hintS = hint.s;
                 if (hint.t) hintT = hint.t;
-                cleanId = cleanId.slice(p.length);
-                stripped = true;
+                finalInput = finalInput.slice(p.length);
+                matched = true;
+
+                // If we matched a FULL source+type prefix, we are done. Stop stripping.
+                // This prevents stripping an author named "model" after "hf-model--"
+                if (hint.s && hint.t) {
+                    iterations = 2; // Break outer loop
+                }
                 break;
             }
         }
+        if (!matched) break;
+        iterations++;
     }
+    cleanId = finalInput;
 
     // 3. Resolve Final Source and Type
     let s = (source || hintS || '').toLowerCase();
@@ -145,18 +152,8 @@ export function normalizeId(id, source, type) {
         else s = 'hf'; // System default
     }
 
-    // FINAL SAFETY: Iterate once more through all known prefixes to ensure no nesting remains
-    // This handles cases where unconventional prefix strings might exist (e.g. hf-model--gh-model--)
-    let safetyCheck = true;
-    while (safetyCheck) {
-        safetyCheck = false;
-        for (const p of Object.keys(KNOWN_PREFIXES)) {
-            if (cleanId.startsWith(p)) {
-                cleanId = cleanId.slice(p.length);
-                safetyCheck = true;
-            }
-        }
-    }
+    // FINAL SAFETY: Removed recursive loop that caused over-stripping.
+    // We trust the one-pass/two-pass logic above.
 
     if (!t) {
         if (s === 'arxiv') t = 'paper';

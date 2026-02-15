@@ -22,6 +22,7 @@ const STATE_FILE = path.join(OUTPUT_DIR, '.harvest-state.json');  // V16.4.3 Res
 import { DEFAULT_CONFIG } from './ingestion-config.js';
 import { saveOutput } from './output-mapper.js';
 import { RegistryManager } from '../factory/lib/registry-manager.js';
+import { loadState, saveState } from './state-helper.js'; // V16.4.4: Art 5.1 Compliance Extraction
 
 /** Orchestrator Class */
 export class Orchestrator {
@@ -29,7 +30,7 @@ export class Orchestrator {
         this.config = { ...DEFAULT_CONFIG, ...config };
         // V6.2: Support incremental mode
         this.mode = config.mode || 'full';  // 'full' | 'incremental'
-        this.state = this.loadState();
+        this.state = loadState(STATE_FILE);
         this.stats = {
             fetched: {},
             normalized: 0,
@@ -39,26 +40,7 @@ export class Orchestrator {
         };
     }
 
-    /** V6.2: Load harvest state */
-    loadState() {
-        try {
-            if (fs.existsSync(STATE_FILE)) {
-                return JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
-            }
-        } catch (e) {
-            console.warn('   ⚠️ Could not load harvest state');
-        }
-        return { lastRun: {}, version: '16.4.3' };
-    }
 
-    /** V6.2: Save harvest state */
-    saveState() {
-        try {
-            fs.writeFileSync(STATE_FILE, JSON.stringify(this.state, null, 2));
-        } catch (e) {
-            console.warn('   ⚠️ Could not save harvest state');
-        }
-    }
 
     /**
      * Run the complete ingestion pipeline
@@ -70,18 +52,21 @@ export class Orchestrator {
 
         const startTime = Date.now();
 
+        // Phase 0: Load Global Registry (V18.2.4: Load before fetch for pre-comparison)
+        console.log('\n🧠 Phase 0: Loading Global Registry...');
+        const registryManager = new RegistryManager();
+        await registryManager.load();
+
         // Phase 1: Fetch from all sources
         console.log('\n📥 Phase 1: Fetching from sources...');
-        const rawEntities = await this.fetchAll();
+        const rawEntities = await this.fetchAll(registryManager);
 
         // Phase 2: Normalize to unified schema
         console.log('\n🔄 Phase 2: Normalizing to unified schema...');
         const normalizedEntities = this.normalizeAll(rawEntities);
 
-        // Phase 2.5: Registry Integration (V16.3 Registry-First)
-        console.log('\n🧠 Phase 2.5: Loading Global Registry...');
-        const registryManager = new RegistryManager();
-        await registryManager.load();
+        // Phase 2.5: Registry Integration (Already loaded in Phase 0)
+        console.log('\n🧠 Phase 2.5: Registry Ready.');
 
         // Phase 3: Deduplicate
         console.log('\n✨ Phase 3: Deduplicating...');
@@ -108,7 +93,7 @@ export class Orchestrator {
 
         // V6.2: Save harvest state for incremental mode
         this.state.lastRun.global = new Date().toISOString();
-        this.saveState();
+        saveState(STATE_FILE, this.state);
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 
@@ -124,7 +109,7 @@ export class Orchestrator {
     }
 
     /** Fetch from all enabled sources */
-    async fetchAll() {
+    async fetchAll(registryManager) {
         const results = [];
 
         for (const [sourceName, sourceConfig] of Object.entries(this.config.sources)) {
@@ -140,18 +125,36 @@ export class Orchestrator {
                     continue;
                 }
 
+                // V18.2.4: Rotational Sampling (Prevent Timeout, Achieve Coverage)
+                const currentOffset = this.state.lastRun[sourceName]?.offset || 0;
+                const limit = sourceConfig.options.limit || 5000;
+                const nextOffset = (currentOffset + limit > 150000) ? 0 : currentOffset + limit;
+
+                console.log(`   🔄 Rotational Offset [${sourceName}]: ${currentOffset} → next: ${nextOffset}`);
+
                 // V6.2: Use multi-strategy for HuggingFace to bypass 1K API limit
                 let entities;
                 if (sourceName === 'huggingface' && sourceConfig.options.limit > 1000 && adapter.fetchMultiStrategy) {
                     console.log(`   📊 Using multi-strategy for HuggingFace (limit: ${sourceConfig.options.limit})...`);
                     const result = await adapter.fetchMultiStrategy({
                         limitPerStrategy: Math.ceil(sourceConfig.options.limit / 4),
-                        full: sourceConfig.options.full !== false
+                        full: sourceConfig.options.full !== false,
+                        registryManager,
+                        offset: currentOffset // Enable wheel rotation
                     });
                     entities = result.models;
                 } else {
-                    entities = await adapter.fetch(sourceConfig.options);
+                    entities = await adapter.fetch({
+                        ...sourceConfig.options,
+                        registryManager,
+                        offset: currentOffset // Enable wheel rotation
+                    });
                 }
+
+                // Update state
+                if (!this.state.lastRun[sourceName]) this.state.lastRun[sourceName] = {};
+                this.state.lastRun[sourceName].offset = nextOffset;
+                this.state.lastRun[sourceName].timestamp = new Date().toISOString();
 
                 this.stats.fetched[sourceName] = entities.length;
 

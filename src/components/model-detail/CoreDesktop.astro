@@ -46,7 +46,12 @@ const { model, tagsArray, hasBench, modelId, modelName, similarModels } = Astro.
            )}
            <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
               <h3 class="font-bold mb-4 text-gray-900 dark:text-white">7-Day Trend</h3>
-              <MiniTrendChart entityId={modelId} width={400} height={100} />
+              <MiniTrendChart 
+                entityId={modelId} 
+                width={400} 
+                height={100} 
+                initialData={model?.fni_trend_7d}
+              />
            </div>
         </div>
     </div>

@@ -41,7 +41,8 @@ export class HuggingFaceAdapter extends BaseAdapter {
             console.log(`📥 [HuggingFace] Using PIPELINE TAGS for ${limit}+ models (B.1 expansion)...`);
             const result = await this.fetchByPipelineTags({
                 limitPerTag: Math.ceil(limit / 21),  // Distribute across 21 tags
-                full: false  // Skip full details for speed
+                full: false,  // Skip full details for speed
+                offset: options.offset || 0 // V18.2.4: Support rotational offset
             });
             return result.models;
         }
@@ -56,9 +57,11 @@ export class HuggingFaceAdapter extends BaseAdapter {
             return result.models;
         }
 
-        console.log(`📥 [HuggingFace] Fetching top ${limit} models by ${sort}...`);
+        console.log(`📥 [HuggingFace] Fetching top ${limit} models (offset: ${options.offset || 0}) by ${sort}...`);
         // V6.4: Add expand params for safetensors (params_billions) and config (context_length, architecture)
-        const response = await fetch(`${HF_API_BASE}/models?sort=${sort}&direction=${direction}&limit=${limit}&expand[]=safetensors&expand[]=config`, { headers: this.getHeaders() });
+        // V18.2.4: Respect rotation offset
+        const skip = options.offset || 0;
+        const response = await fetch(`${HF_API_BASE}/models?sort=${sort}&direction=${direction}&limit=${limit}&skip=${skip}&expand[]=safetensors&expand[]=config`, { headers: this.getHeaders() });
         if (!response.ok) throw new Error(`HuggingFace API error: ${response.status}`);
 
         const models = await response.json();
@@ -72,7 +75,19 @@ export class HuggingFaceAdapter extends BaseAdapter {
         const fullModels = [];
         for (let i = 0; i < models.length; i += batchSize) {
             const batch = models.slice(i, i + batchSize);
-            const batchResults = await Promise.all(batch.map(m => this.fetchFullModel(m.modelId || m.id)));
+            const batchResults = await Promise.all(batch.map(m => {
+                const modelId = m.modelId || m.id;
+                // V18.2.4: Pre-comparison optimization
+                if (options.registryManager) {
+                    const normId = this.generateId(null, modelId, 'model');
+                    const existing = options.registryManager.registry.entities.find(e => e.id === normId);
+                    if (existing && m.lastModified && new Date(existing._last_seen || 0) > new Date(m.lastModified)) {
+                        console.log(`   ⏭️ Skipping detail fetch for ${modelId} (No change)`);
+                        return existing;
+                    }
+                }
+                return this.fetchFullModel(modelId);
+            }));
             fullModels.push(...batchResults.filter(m => m !== null && this.isSafeForWork(m)));
             if ((i + batchSize) % 50 === 0) console.log(`   Progress: ${Math.min(i + batchSize, models.length)}/${models.length}`);
             if (i + batchSize < models.length) await delay(delayMs);
@@ -119,7 +134,18 @@ export class HuggingFaceAdapter extends BaseAdapter {
                 if (full && newModels.length > 0) {
                     for (let i = 0; i < newModels.length; i += batchSize) {
                         const batch = newModels.slice(i, i + batchSize);
-                        const batchResults = await Promise.all(batch.map(m => this.fetchFullModel(m.modelId || m.id)));
+                        const batchResults = await Promise.all(batch.map(m => {
+                            const modelId = m.modelId || m.id;
+                            // V18.2.4: Pre-comparison optimization
+                            if (options.registryManager) {
+                                const normId = this.generateId(null, modelId, 'model');
+                                const existing = options.registryManager.registry.entities.find(e => e.id === normId);
+                                if (existing && m.lastModified && new Date(existing._last_seen || 0) > new Date(m.lastModified)) {
+                                    return existing;
+                                }
+                            }
+                            return this.fetchFullModel(modelId);
+                        }));
                         allModels.push(...batchResults.filter(m => m !== null && this.isSafeForWork(m)));
                         if (i + batchSize < newModels.length) await delay(delayMs);
                     }
@@ -132,15 +158,15 @@ export class HuggingFaceAdapter extends BaseAdapter {
     }
 
     async fetchByPipelineTags(options = {}) {
-        const { limitPerTag = 5000, tags = PIPELINE_TAGS, existingIds = new Set(), full = false } = options;
+        const { limitPerTag = 5000, tags = PIPELINE_TAGS, existingIds = new Set(), full = false, offset = 0 } = options;
         const collectedIds = new Set(existingIds);
         const allModels = [];
         const PAGE_SIZE = 1000; // HuggingFace API max per request
 
         for (const tag of tags) {
-            console.log(`\n📥 [HuggingFace] Pipeline tag: ${tag}`);
+            console.log(`\n📥 [HuggingFace] Pipeline tag: ${tag} (Start Offset: ${offset})`);
             let tagModels = 0;
-            let skip = 0;
+            let skip = offset; // V18.2.4: Start from rotation offset
             let hasMore = true;
 
             try {

@@ -10,9 +10,19 @@ export function mergeEntities(existing, incoming) {
     // 1. Base Inclusive Merge (V18.2.1 GA: Stop whitelisting to prevent data loss)
     const mergedObj = { ...existing, ...incoming };
 
-    // 2. Content Quality Guard (Readme)
-    // Only prefer incoming description/body if it's substantially longer or existing is missing
-    if ((incoming.body_content?.length || 0) < (existing.body_content?.length || 0)) {
+    // 2. Content Quality Guard (Readme) - V18.2.4: Freshness Priority
+    // Prefer incoming if it's newer, even if slightly shorter (down to 80% of existing length)
+    const existingLen = existing.body_content?.length || 0;
+    const incomingLen = incoming.body_content?.length || 0;
+    const isNewer = new Date(incoming._updated || 0) > new Date(existing._updated || 0);
+
+    let useIncoming = true;
+    if (existingLen > incomingLen * 1.2 && !isNewer) {
+        // Only stick to existing if it's significantly longer and NOT older
+        useIncoming = false;
+    }
+
+    if (!useIncoming) {
         mergedObj.body_content = existing.body_content;
         mergedObj.description = existing.description;
     }

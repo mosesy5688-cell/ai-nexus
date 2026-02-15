@@ -7,6 +7,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { normalizeId, getNodeSource, ALL_PREFIXES } from '../utils/id-normalizer.js';
 import { smartWriteWithVersioning } from './lib/smart-writer.js';
+import { getRouteFromId } from '../../src/utils/mesh-routing-core.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './cache';
 const GRAPH_PATH = path.join(CACHE_DIR, 'mesh/graph.json.gz');
@@ -21,18 +22,7 @@ const TYPE_TO_ROUTE = {
     'tool': '/tool'
 };
 
-function stripPrefix(id) {
-    if (!id) return '';
-    let clean = id;
-    const sortedPrefixes = [...ALL_PREFIXES].sort((a, b) => b.length - a.length);
-    for (const p of sortedPrefixes) {
-        if (clean.startsWith(p)) {
-            clean = clean.slice(p.length);
-            break;
-        }
-    }
-    return clean;
-}
+
 
 async function main() {
     console.log('[BAKER V16.5.1] Baking atomized Mesh Profiles...');
@@ -68,29 +58,26 @@ async function main() {
             if (!node || !typeValue) continue;
 
             const baseType = typeValue.toLowerCase();
-            const route = TYPE_TO_ROUTE[baseType] || '/knowledge';
-            const slug = stripPrefix(nodeId);
-            const canonUrl = `${route}/${slug}`;
+            const canonUrl = getRouteFromId(nodeId, baseType);
 
             // 3. Process relations with baked URLs
             const bakedRelations = entityRelations.map(rel => {
                 const targetId = rel.target || rel.target_id || rel.id;
                 const targetType = (rel.type || rel.t || 'model').toLowerCase();
-                const targetRoute = TYPE_TO_ROUTE[targetType] || '/knowledge';
-                const targetSlug = stripPrefix(targetId);
+                const bakedUrl = getRouteFromId(targetId, targetType);
 
                 return {
                     ...rel,
-                    url: `${targetRoute}/${targetSlug}`,
+                    url: bakedUrl,
                     target_id: targetId,
-                    target_name: rel.name || rel.target_name || targetSlug
+                    target_name: rel.name || rel.target_name || (targetId.includes('--') ? targetId.split('--').pop() : targetId)
                 };
             });
 
             // 4. Construct Atomized Profile
             const profile = {
                 id: nodeId,
-                name: node.name || slug,
+                name: node.name || (nodeId.includes('--') ? nodeId.split('--').pop() : nodeId),
                 type: typeValue,
                 url: canonUrl,
                 icon: node.icon || '📦',
