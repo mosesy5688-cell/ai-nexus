@@ -1,3 +1,7 @@
+import { fetchMeshRelations, fetchGraphMetadata, fetchConceptMetadata, fetchCategoryAlts, stripPrefix, isMatch, getTypeFromId, normalizeSlug, KNOWLEDGE_ALIAS_MAP } from './knowledge-cache-reader.js';
+import { processRelationsIntoTiers } from './mesh-processor.js';
+import { loadCachedJSON, loadSpecs } from './loadCachedJSON.js';
+import { articles as knowledgeArticles } from '../data/knowledge-articles.js';
 import { UNIVERSAL_ICONS, DEFAULT_TIERS } from './mesh-constants.js';
 
 export async function getMeshProfile(locals, rootId, entity, type = 'model') {
