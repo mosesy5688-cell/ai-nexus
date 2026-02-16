@@ -32,7 +32,7 @@ export function initializeFilters() {
 
         // Reset filters
         document.getElementById('reset-filters')?.addEventListener('click', () => {
-            window.location.href = '/explore';
+            window.location.href = '/models';
         });
 
         // Apply filters
@@ -80,7 +80,7 @@ export function initializeFilters() {
             }
 
             // Navigate
-            window.location.href = `/explore?${params.toString()}`;
+            window.location.href = `/models?${params.toString()}`;
         });
     }
 }

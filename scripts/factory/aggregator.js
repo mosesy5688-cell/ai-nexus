@@ -16,8 +16,8 @@ import { loadFniHistory, loadEntityChecksums, saveEntityChecksums } from './lib/
 import { generateTrendData } from './lib/trend-data-generator.js';
 import { persistRegistry } from './lib/aggregator-persistence.js';
 import {
-    loadShardArtifacts, calculatePercentiles,
-    updateFniHistory, mergeShardEntities
+    calculatePercentiles, updateFniHistory,
+    processShardsIteratively, mergeShardEntitiesIteratively
 } from './lib/aggregator-utils.js';
 import {
     getWeekNumber, generateHealthReport, backupStateFiles
@@ -73,25 +73,22 @@ async function main() {
     console.log(`✓ Context loaded: ${allEntities.length} entities ready (via Zero-Loss Registry-IO)`);
     // Note: If allEntities is empty, we MUST have shards to proceed.
 
-    let fullSet = [];
-    let shardResults = null;
-    const isSatellite = !!taskArg && taskArg !== 'core' && taskArg !== 'health';
-
+    let successCount = 0;
     if (isSatellite) {
         fullSet = allEntities;
     } else {
-        // V18.12.5.10: Pass slim flag to loader (Health and Non-Core tasks can be slimmed)
-        shardResults = await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: needsSlimming });
-        fullSet = mergeShardEntities(allEntities, shardResults);
+        // V18.12.5.12: Iterative Memory-Safe Merge (OOM Guard)
+        fullSet = await mergeShardEntitiesIteratively(allEntities, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: needsSlimming });
 
         const checksums = await loadEntityChecksums();
-        for (const shard of shardResults) {
+        await processShardsIteratively(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: true }, async (shard) => {
+            if (shard) successCount++;
             if (shard?.entities) {
                 for (const result of shard.entities) {
                     if (result.success && result._checksum) checksums[result.id] = result._checksum;
                 }
             }
-        }
+        });
         await saveEntityChecksums(checksums);
     }
 
@@ -101,8 +98,12 @@ async function main() {
     }
 
     if (!taskArg || taskArg === 'health') {
-        const resultsForHealth = shardResults || await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: true });
-        await generateHealthReport(resultsForHealth, fullSet, CONFIG.TOTAL_SHARDS, CONFIG.MIN_SUCCESS_RATE, CONFIG.OUTPUT_DIR);
+        if (successCount === 0 && !isSatellite) { // Ensure we have counts even if not core merge
+            await processShardsIteratively(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: true }, async (shard) => {
+                if (shard) successCount++;
+            });
+        }
+        await generateHealthReport(successCount, fullSet, CONFIG.TOTAL_SHARDS, CONFIG.MIN_SUCCESS_RATE, CONFIG.OUTPUT_DIR);
     }
 
     let rankedEntities = [];

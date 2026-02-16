@@ -30,14 +30,25 @@ Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-
             </p>
         </header>
 
+        {error && (
+            <div class="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8 text-amber-800">
+                <p class="font-bold">📡 Catalog Synchronization in Progress</p>
+                <p class="text-sm">We are currently updating the technical index. Some results may be temporarily cached.</p>
+            </div>
+        )}
+
         <ListingControls type="model" searchId="models-search" />
 
         <div id="models-catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {models.map((model: any) => (
+            {models.length > 0 ? models.map((model: any) => (
                 <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <CatalogCard item={model} type="model" />
                 </div>
-            ))}
+            )) : !error && (
+                <div class="col-span-full py-20 text-center">
+                    <p class="text-gray-400 font-bold uppercase tracking-widest text-sm">Loading Catalog Index...</p>
+                </div>
+            )}
         </div>
 
         <div id="pagination" class="mt-16 flex justify-center items-center gap-4"></div>

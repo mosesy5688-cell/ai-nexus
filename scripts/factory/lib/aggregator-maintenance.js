@@ -23,9 +23,9 @@ export function getWeekNumber() {
 /**
  * Generate health report (Art 8.3)
  */
-export async function generateHealthReport(shardResults, entities, totalShards, minSuccessRate, outputDir) {
+export async function generateHealthReport(successfulCount, entities, totalShards, minSuccessRate, outputDir) {
     const today = new Date().toISOString().split('T')[0];
-    const successful = shardResults.filter(s => s !== null).length;
+    const successful = typeof successfulCount === 'number' ? successfulCount : (successfulCount ? successfulCount.filter(s => s !== null).length : 0);
 
     const health = {
         date: today,
