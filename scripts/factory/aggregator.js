@@ -74,6 +74,9 @@ async function main() {
     // Note: If allEntities is empty, we MUST have shards to proceed.
 
     let successCount = 0;
+    const isSatellite = !!taskArg && taskArg !== 'core' && taskArg !== 'health';
+    let fullSet = [];
+
     if (isSatellite) {
         fullSet = allEntities;
     } else {
