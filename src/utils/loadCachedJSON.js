@@ -70,16 +70,21 @@ export async function loadCachedJSON(path, options = {}) {
             headers: { 'Accept': 'application/json' }
         });
 
+        let isGzip = fetchUrl.endsWith('.gz');
+
         // V18.2: Transparent .gz fallback for CDN
-        if (!res.ok && !fetchUrl.endsWith('.gz')) {
+        if (!res.ok && !isGzip) {
             const gzUrl = fetchUrl + '.gz';
             const gzRes = await fetch(gzUrl);
-            if (gzRes.ok) res = gzRes;
+            if (gzRes.ok) {
+                res = gzRes;
+                isGzip = true;
+            }
         }
 
         if (res.ok) {
             let data;
-            if (fetchUrl.endsWith('.gz')) {
+            if (isGzip) {
                 // V18.12.0: Client-side decompression for Gzip assets with missing headers
                 try {
                     const ds = new DecompressionStream('gzip');

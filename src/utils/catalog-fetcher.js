@@ -4,165 +4,74 @@
  * Handles R2 (internal) -> CDN (public) fallback with Tiered Recovery.
  */
 import { DataNormalizer } from '../scripts/lib/DataNormalizer.js';
-
-const CDN_BASE = 'https://cdn.free2aitools.com/cache';
+import { loadCachedJSON } from './loadCachedJSON.js';
 
 /**
  * Fetches catalog data with tiered fallback
  * @param {string} typeOrCategory - Entity type (model, agent...) or Category ID
- * @param {object} runtimeEnv - Optional environment for R2 direct access (Astro context)
+ * @param {object} runtime - Optional environment for R2 direct access (Astro context)
  */
 export async function fetchCatalogData(typeOrCategory, runtime = null) {
     const isType = ['model', 'agent', 'dataset', 'paper', 'space', 'tool'].includes(typeOrCategory);
-    const env = runtime?.env || runtime || null;
+    const locals = runtime?.locals || runtime || null;
 
-    // V16.9.23: Dual-Mode Path Discovery (Legacy vs V16.2 Paginated)
-    const legacyPath = `rankings/${typeOrCategory}-fni-top.json`;
-    const paginatedPath = `rankings/${typeOrCategory}/p1.json`;
-
-    const pathsToTry = [paginatedPath, legacyPath];
+    // V16.9.23: Dual-Mode Path Discovery
+    const paginatedPath = `cache/rankings/${typeOrCategory}/p1.json`;
+    const legacyPath = `cache/rankings/${typeOrCategory}-fni-top.json`;
 
     let items = [];
     let source = 'none';
 
-    // Tier 0: Local Dev Bypassing (CORS Strategy)
-    // Uses the local data-mirror proxy to avoid CORS on localhost
-    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-        try {
-            console.log(`[CatalogFetcher] Dev Mode: Fetching via data-mirror for ${typeOrCategory}`);
-            const localRes = await fetch(`/data-mirror/${paginatedPath}`);
-            if (localRes.ok) {
-                const data = await localRes.json();
-                items = extractItems(data);
-                source = 'localhost-mirror';
-            }
-        } catch (e) {
-            console.warn(`[CatalogFetcher] Local mirror miss: ${e.message}`);
-        }
+    // Tier 1: Primary Rankings (loadCachedJSON handles R2/CDN and .gz)
+    const { data: rankData, source: rankSource } = await loadCachedJSON(paginatedPath, { locals });
+    if (rankData) {
+        items = extractItems(rankData);
+        source = `rankings-p1-${rankSource}`;
     }
 
-    // Tier 1: Try R2 Internal (Direct O(1) access)
-    if (items.length === 0 && env?.R2_ASSETS) {
-        for (const rankingPath of pathsToTry) {
-            try {
-                const paths = [rankingPath.endsWith('.gz') ? rankingPath : rankingPath + '.gz', rankingPath];
-                for (const p of paths) {
-                    const obj = await env.R2_ASSETS.get(`cache/${p}`);
-                    if (obj) {
-                        let data;
-                        if (p.endsWith('.gz')) {
-                            const ds = new DecompressionStream('gzip');
-                            const decompressedStream = obj.body.pipeThrough(ds);
-                            const response = new Response(decompressedStream);
-                            data = await response.json();
-                        } else {
-                            data = await obj.json();
-                        }
-                        items = extractItems(data);
-                        if (items.length > 0) {
-                            source = `r2-internal-${p}`;
-                            break;
-                        }
-                    }
-                }
-                if (items.length > 0) break;
-            } catch (e) {
-                console.warn(`[CatalogFetcher] R2 error for ${rankingPath}: ${e.message}`);
-            }
-        }
-    }
-
-    // Tier 2: Try CDN Rankings
+    // Tier 2: Legacy Fallback
     if (items.length === 0) {
-        for (const rankingPath of pathsToTry) {
-            try {
-                const paths = [rankingPath.endsWith('.gz') ? rankingPath : rankingPath + '.gz', rankingPath];
-                for (const p of paths) {
-                    const res = await fetch(`${CDN_BASE}/${p}`, { signal: AbortSignal.timeout(5000) });
-                    if (res.ok) {
-                        let data;
-                        const isGzip = p.endsWith('.gz');
-                        const isAlreadyDecompressed = res.headers.get('Content-Encoding') === 'gzip';
-
-                        if (isGzip && !isAlreadyDecompressed) {
-                            const ds = new DecompressionStream('gzip');
-                            const decompressedStream = res.body.pipeThrough(ds);
-                            const response = new Response(decompressedStream);
-                            data = await response.json();
-                        } else {
-                            data = await res.json();
-                        }
-
-                        items = extractItems(data);
-                        if (items.length > 0) {
-                            source = `cdn-rankings-${p}`;
-                            break;
-                        }
-                    }
-                }
-                if (items.length > 0) break;
-            } catch (e) {
-                console.warn(`[CatalogFetcher] CDN fail for ${rankingPath}: ${e.message}`);
-            }
+        const { data: legacyData, source: legacySource } = await loadCachedJSON(legacyPath, { locals });
+        if (legacyData) {
+            items = extractItems(legacyData);
+            source = `rankings-legacy-${legacySource}`;
         }
     }
 
-    // Tier 3: Anti-Crash Fallback (Tool-specific search-shard-0.json)
+    // Tier 3: Tool-specific search-shard-0.json fallback
     if (items.length === 0 && typeOrCategory === 'tool') {
-        try {
-            const indexUrl = `${CDN_BASE}/search/shard-0.json.gz`;
-            const res = await fetch(indexUrl, { signal: AbortSignal.timeout(5000) });
-            if (res.ok) {
-                const data = await res.json();
-                const allRaw = extractItems(data);
-                items = allRaw.filter(i => i.type === 'tool');
-                source = 'search-index-fallback';
-            }
-        } catch (e) {
-            console.error(`[CatalogFetcher] Tool Fallback Failed:`, e.message);
+        const { data: toolData } = await loadCachedJSON('cache/search/shard-0.json', { locals });
+        if (toolData) {
+            const allRaw = extractItems(toolData);
+            items = allRaw.filter(i => i.type === 'tool' || i.t === 'tool');
+            source = 'search-index-fallback';
         }
     }
 
-    // Tier 4: Trending Fallback (Legacy/Emergency)
+    // Tier 4: Trending Fallback (Emergency)
     if (items.length === 0) {
-        try {
-            const paths = ['trending.json', 'trending.json.gz'];
-            for (const p of paths) {
-                const trendUrl = `${CDN_BASE}/${p}`;
-                const res = await fetch(trendUrl, { signal: AbortSignal.timeout(5000) });
-                if (res.ok) {
-                    let data;
-                    const isGzip = p.endsWith('.gz');
-                    const isAlreadyDecompressed = res.headers.get('Content-Encoding') === 'gzip';
+        // Parallel check for trending/trend-data
+        const [trend1, trend2] = await Promise.all([
+            loadCachedJSON('cache/trending.json', { locals }),
+            loadCachedJSON('cache/trend-data.json', { locals })
+        ]);
 
-                    if (isGzip && !isAlreadyDecompressed) {
-                        const ds = new DecompressionStream('gzip');
-                        const decompressedStream = res.body.pipeThrough(ds);
-                        const response = new Response(decompressedStream);
-                        data = await response.json();
-                    } else {
-                        data = await res.json();
-                    }
-
-                    const allRaw = extractItems(data);
-                    if (isType) {
-                        items = allRaw.filter(i => i.type === typeOrCategory || (typeOrCategory === 'model' && !i.type));
-                    } else {
-                        items = allRaw.filter(i => (i.category === typeOrCategory || i.primary_category === typeOrCategory));
-                    }
-                    items = items.slice(0, 50);
-                    source = `trending-fallback-${p}`;
-                    if (items.length > 0) break;
-                }
+        const trendData = trend1.data || trend2.data;
+        if (trendData) {
+            const allRaw = extractItems(trendData);
+            if (isType) {
+                items = allRaw.filter(i => (i.type || i.t) === typeOrCategory || (typeOrCategory === 'model' && !(i.type || i.t)));
+            } else {
+                items = allRaw.filter(i => (i.category === typeOrCategory || i.primary_category === typeOrCategory));
             }
-        } catch (e) {
-            console.error(`[CatalogFetcher] Critical Fallback Failed:`, e.message);
+            items = items.slice(0, 50);
+            source = `trending-fallback-${trend1.data ? 'trending' : 'trend-data'}`;
         }
     }
 
     // SSR Optimization: Cap the total number of items to normalize to prevent Error 1102
     // V18.2.5: Aggressive reduction for SSR (24 items) to avoid OOM in Workers
-    const isSSR = Boolean(runtime?.env || (typeof process !== 'undefined' && process.env.AGGREGATOR_MODE));
+    const isSSR = Boolean(locals?.env || (typeof process !== 'undefined' && process.env.AGGREGATOR_MODE));
     const finalItems = items.slice(0, isSSR ? 24 : 100);
 
     const normalized = DataNormalizer.normalizeCollection(finalItems, isType ? typeOrCategory : 'model');

@@ -1,0 +1,152 @@
+---
+/**
+ * UniversalCoreIsland - V18.12.5 (Server Island)
+ * Optimized for isolated SSR and resilience.
+ */
+import SimilarModels from '../model-detail/SimilarModels.astro';
+import NeuralGraphExplorer from '../NeuralGraphExplorer.astro';
+import MeshRelationMatrix from './MeshRelationMatrix.astro';
+import TechEvidenceSection from './TechEvidenceSection.astro';
+import { normalizeSlug, stripPrefix } from '../../utils/knowledge-cache-reader.js';
+import { getMeshProfile } from '../../utils/mesh-orchestrator.js';
+import { processRelationsIntoTiers } from '../../utils/mesh-processor.js';
+
+interface Props {
+  entityId: string;
+  type: 'model' | 'agent' | 'space' | 'tool' | 'dataset' | 'paper';
+  // Optional: If parent already has entity, we can pass a slim version
+  entity?: any; 
+  meshRelations?: any[];
+}
+
+const { entityId, type, entity: propEntity, meshRelations: propRelations = [] } = Astro.props;
+
+// Identification
+const entity = propEntity; 
+const entityName = entity?.name || entity?.title || 'Unknown';
+let tagsArray = [];
+try {
+  if (entity?.tags) {
+    if (typeof entity.tags === 'string') {
+      if (entity.tags.trim().startsWith('[')) {
+        tagsArray = JSON.parse(entity.tags);
+      } else {
+        tagsArray = entity.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+      }
+    } else if (Array.isArray(entity.tags)) {
+      tagsArray = entity.tags;
+    }
+  }
+} catch (e) {
+  tagsArray = [];
+}
+
+let tiers = {
+    explanation: { title: '🎓 Knowledge Base', nodes: [], icon: '🎓' },
+    core: { title: '🔗 Core Ecosystem', nodes: [], icon: '⚡' }, 
+    utility: { title: '🔬 Research & Data', nodes: [], icon: '🔬' }, 
+    digest: { title: '📰 Timeline & Reports', nodes: [], icon: '📰' }
+};
+let nodeRegistry = new Map();
+let finalRelations = propRelations;
+
+// Hydration logic
+if (propRelations && propRelations.length > 0) {
+    try {
+        const normRoot = stripPrefix(entityId);
+        const seenIds = new Set();
+        if (normRoot) seenIds.add(normRoot);
+        
+        const { tiers: hydratedTiers, nodeRegistry: hydratedRegistry } = processRelationsIntoTiers(
+            propRelations, 
+            nodeRegistry, 
+            seenIds, 
+            {}, 
+            tiers, 
+            normRoot
+        );
+        tiers = hydratedTiers;
+        nodeRegistry = hydratedRegistry;
+    } catch (e) {
+        console.error('[UniversalCoreIsland] Prop Hydration Failed:', e);
+    }
+} else {
+    try {
+        const profile = await getMeshProfile(Astro.locals, entityId, entity, type);
+        if (profile) {
+            tiers = profile.tiers;
+            nodeRegistry = profile.nodeRegistry;
+            if (profile.filteredRelations) {
+                finalRelations = profile.filteredRelations;
+            }
+        }
+    } catch (e) {
+        console.error('[UniversalCoreIsland] Mesh Orchestration Failed:', e);
+    }
+}
+
+const hasBench = !!(entity?.mmlu || entity?.humaneval || entity?.avg_score || entity?.benchmark_avg);
+const similarEntities = entity?.similar_models || entity?.similar_entities || entity?.relations?.links || [];
+const renderedNodes = new Set();
+if (tiers) {
+    Object.values(tiers).forEach((t: any) => {
+        if (t?.nodes) t.nodes.forEach((n: any) => renderedNodes.add(n.norm));
+    });
+}
+
+const enrichedTags = (tagsArray || []).map((tagObj: any) => {
+   const tag = typeof tagObj === 'string' ? tagObj : (tagObj?.id || tagObj?.name || tagObj?.label || 'unknown');
+   const normalizedTag = normalizeSlug(tag);
+   return {
+      name: tag,
+      slug: normalizedTag,
+      refs: 0,
+      icon: '🏷️'
+   };
+}).filter(tag => !renderedNodes.has(tag.slug));
+---
+
+<div class="space-y-16">
+    <NeuralGraphExplorer currentModelId={entityId} entity={entity} type={type} meshTiers={tiers} />
+
+    <div class="flex flex-col gap-16">
+        <div class="mesh-hub-section">
+           <div class="flex items-center justify-between mb-8">
+              <div class="flex items-center gap-3">
+                 <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <span class="text-xl text-white">🕸️</span>
+                 </div>
+                 <div>
+                    <h3 class="text-lg font-black text-zinc-900 dark:text-white tracking-tighter uppercase">Intelligence Hive</h3>
+                    <p class="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Multi-source Relation Matrix</p>
+                 </div>
+              </div>
+              <div class="h-px flex-1 mx-8 bg-zinc-100 dark:bg-zinc-800 hidden md:block"></div>
+              <div class="flex items-center gap-1">
+                 <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                 <span class="text-[8px] font-black text-zinc-500 uppercase">Live Index</span>
+              </div>
+           </div>
+           
+           <MeshRelationMatrix relations={finalRelations} entityId={entityId} />
+        </div>
+
+        <TechEvidenceSection 
+            entityId={entityId} 
+            entityName={entityName} 
+            entity={entity} 
+            hasBench={hasBench} 
+            enrichedTags={enrichedTags} 
+        />
+
+        {similarEntities.length > 0 && (
+          <div class="related-discovery-zone pt-12 border-t border-zinc-100 dark:border-zinc-800">
+             <div class="flex items-center gap-3 mb-8">
+               <span class="text-xl">🔄</span>
+               <h3 class="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-[0.2em]">Neural Associations</h3>
+             </div>
+             <SimilarModels models={similarEntities} currentModelId={entityId} />
+          </div>
+        )}
+    </div>
+</div>

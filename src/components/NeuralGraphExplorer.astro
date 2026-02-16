@@ -16,6 +16,10 @@ interface Props {
 }
 
 const { currentModelId, entity, type = 'model', meshTiers } = Astro.props;
+
+// CHAOS TEST V18.12.5: Deliberate SSR Error (Disabled)
+// throw new Error("Chaos Test: Simulated Component Failure");
+
 const rootId = currentModelId || entity?.id;
 const normRoot = stripPrefix(rootId);
 

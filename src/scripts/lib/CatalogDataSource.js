@@ -45,41 +45,39 @@ export class CatalogDataSource {
                 url.searchParams.set('page', String(this.currentShard));
                 window.history.replaceState({ page: this.currentShard }, '', url);
             }
-            // V16.5: SSOT Tier 2 - /lists/{type}/page-{n}.json
-            // V18.2: Support compressed shards (.gz) with local decompression
+            // V18.12.0: Optimized resilient fetch logic
             const paths = [
-                `https://cdn.free2aitools.com/cache/lists/${this.type}/page-${this.currentShard}.json.gz`,
-                `https://cdn.free2aitools.com/cache/rankings/${this.type}/p${this.currentShard}.json`
+                `https://cdn.free2aitools.com/cache/rankings/${this.type}/p${this.currentShard}.json`,
+                `https://cdn.free2aitools.com/cache/lists/${this.type}/page-${this.currentShard}.json`
             ];
-            let res = null;
+
             let data = null;
+            let successPath = null;
 
             for (const p of paths) {
-                const response = await fetch(p);
-                if (response.ok) {
-                    const isGzip = p.endsWith('.gz');
-                    const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip';
+                try {
+                    // Try .json.gz first (Production Standard)
+                    let response = await fetch(p + '.gz');
+                    if (!response.ok) response = await fetch(p);
 
-                    if (isGzip && !isAlreadyDecompressed) {
-                        try {
+                    if (response.ok) {
+                        const isGzip = response.url.endsWith('.gz');
+                        const isEnc = response.headers.get('Content-Encoding') === 'gzip' || response.headers.get('content-encoding') === 'gzip';
+
+                        if (isGzip && !isEnc) {
                             const ds = new DecompressionStream('gzip');
                             const decompressedStream = response.body.pipeThrough(ds);
-                            const decompressedRes = new Response(decompressedStream);
-                            data = await decompressedRes.json();
-                            res = response;
-                            break;
-                        } catch (e) {
-                            console.warn(`[CatalogDataSource] Decompression failed for ${p}:`, e);
+                            data = await new Response(decompressedStream).json();
+                        } else {
+                            data = await response.json();
                         }
-                    } else {
-                        data = await response.json();
-                        res = response;
+                        successPath = response.url;
                         break;
                     }
-                }
+                } catch (e) { continue; }
             }
 
-            if (!res || !data) throw new Error(`Fetch failed for all paths`);
+            if (!data) throw new Error(`Fetch failed for all candidates`);
 
             if (this.currentShard === 1) {
                 this.totalPages = data.totalPages || 1;
@@ -100,7 +98,6 @@ export class CatalogDataSource {
             });
 
             this.items = Array.from(map.values());
-
             return validItems;
         } catch (e) {
             console.error(`[CatalogDataSource] Shard ${this.currentShard} Load Failed:`, e);
@@ -113,31 +110,23 @@ export class CatalogDataSource {
 
     async augmentSearch() {
         try {
-            // V18.2: Support compressed search shards
-            const paths = ['https://cdn.free2aitools.com/cache/search/shard-0.json.gz', 'https://cdn.free2aitools.com/cache/search/shard-0.json'];
-            let data = null;
+            // V18.12.0: Resilient fallback for search augmentation
+            const path = 'https://cdn.free2aitools.com/cache/search/shard-0.json';
+            let resp = await fetch(path + '.gz');
+            if (!resp.ok) resp = await fetch(path);
 
-            for (const p of paths) {
-                const response = await fetch(p);
-                if (response.ok) {
-                    const isGzip = p.endsWith('.gz');
-                    const isAlreadyDecompressed = response.headers.get('Content-Encoding') === 'gzip';
+            if (!resp.ok) return [];
 
-                    if (isGzip && !isAlreadyDecompressed) {
-                        try {
-                            const ds = new DecompressionStream('gzip');
-                            const decompressedStream = response.body.pipeThrough(ds);
-                            const decompressedRes = new Response(decompressedStream);
-                            data = await decompressedRes.json();
-                            break;
-                        } catch (e) { }
-                    } else {
-                        data = await response.json();
-                        break;
-                    }
-                }
+            let data;
+            const isGz = resp.url.endsWith('.gz');
+            const isEnc = resp.headers.get('Content-Encoding') === 'gzip' || resp.headers.get('content-encoding') === 'gzip';
+
+            if (isGz && !isEnc) {
+                const ds = new DecompressionStream('gzip');
+                data = await new Response(resp.body.pipeThrough(ds)).json();
+            } else {
+                data = await resp.json();
             }
-            if (!data) return;
 
             const coreEntities = (data.entities || []).filter(e => e.type === this.type || (this.type === 'model' && (!e.type || e.type === 'model')));
             const normalized = DataNormalizer.normalizeCollection(coreEntities, this.type);
