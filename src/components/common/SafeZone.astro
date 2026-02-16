@@ -1,0 +1,53 @@
+---
+/**
+ * SafeZone.astro (V18.12.5)
+ * SSR Error Isolation Boundary
+ * 
+ * Uses Astro.slots.render() to catch component failures during SSR
+ * and prevent them from crashing the entire page.
+ */
+interface Props {
+  fallbackTitle?: string;
+  fallbackMessage?: string;
+}
+
+const { 
+  fallbackTitle = "Data Connectivity Lag", 
+  fallbackMessage = "This component is currently unavailable due to edge sync latency. Please refresh." 
+} = Astro.props;
+
+let content = "";
+let hasError = false;
+
+try {
+  // Attempt to render the default slot safely
+  content = await Astro.slots.render('default');
+} catch (e) {
+  console.error("[SafeZone] SSR Render Error:", e);
+  hasError = true;
+}
+---
+
+{hasError ? (
+  <div class="p-6 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-900/50 text-center animate-fade-in">
+    <div class="flex flex-col items-center justify-center space-y-3">
+      <div class="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-full text-amber-600 dark:text-amber-400">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </div>
+      <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{fallbackTitle}</h3>
+      <p class="text-xs text-zinc-500 dark:text-zinc-400 max-w-xs mx-auto">
+        {fallbackMessage}
+      </p>
+      <button 
+        onclick="window.location.reload()" 
+        class="mt-2 text-xs text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
+      >
+        Retry Connection
+      </button>
+    </div>
+  </div>
+) : (
+  <Fragment set:html={content} />
+)}

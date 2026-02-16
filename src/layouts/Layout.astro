@@ -26,10 +26,10 @@ const {
     canonical
 } = Astro.props;
 
-// V18.10.2: Site-Wide Edge Caching Strategy (SWR)
-// If a page hasn't set a specific header, apply the global standard.
+// V18.12.5: Extreme Edge Resilience Strategy (SWR)
+// Allow Cloudflare to serve stale content for up to 7 days if origin/R2 is unstable.
 if (!Astro.response.headers.has('Cache-Control')) {
-    Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+    Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=604800');
 }
 const resolvedImage = new URL(image, Astro.site || Astro.url.origin);
 const canonicalURL = canonical ? new URL(canonical, Astro.site || Astro.url.origin) : new URL(Astro.url.pathname, Astro.site || Astro.url.origin);
