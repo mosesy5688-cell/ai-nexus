@@ -16,8 +16,8 @@ export async function loadHotModels() {
     }
 
     try {
-        // V18.12.5: Safety timeout for R2 fetch
-        const loadPromise = loadCachedJSON('cache/trending.json');
+        // V18.12.5.3: Use trend-data instead of legacy trending.json (404)
+        const loadPromise = loadCachedJSON('cache/trend-data.json.gz');
         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
 
         const { data } = await Promise.race([loadPromise, timeoutPromise]);
