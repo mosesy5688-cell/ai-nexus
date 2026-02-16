@@ -4,7 +4,8 @@ import { loadCachedJSON, loadSpecs } from './loadCachedJSON.js';
 import { articles as knowledgeArticles } from '../data/knowledge-articles.js';
 import { UNIVERSAL_ICONS, DEFAULT_TIERS } from './mesh-constants.js';
 
-export async function getMeshProfile(locals, rootId, entity, type = 'model') {
+export async function getMeshProfile(locals, rootId, entity, options = {}) {
+    const { type = 'model', ssrOnly = true } = options;
     const normRoot = stripPrefix(rootId);
 
     // V18.2.5: SSR Lite Protection
@@ -15,7 +16,7 @@ export async function getMeshProfile(locals, rootId, entity, type = 'model') {
 
     // V16.12: Fetch all relevant indices for cross-validation
     const [rawRelations, graphMeta, knowledgeIndex, specsResult, meshStatsResult, categoryAlts] = await Promise.all([
-        fetchMeshRelations(locals, rootId, { ssrOnly: true }).catch(() => []),
+        fetchMeshRelations(locals, rootId, { ssrOnly: isSSR ? true : ssrOnly }).catch(() => []),
         fetchGraphMetadata(locals).catch(() => ({})),
         fetchConceptMetadata(locals).catch(() => ([])),
         isSSR ? Promise.resolve(null) : loadSpecs(locals).catch(() => null),

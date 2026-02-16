@@ -139,7 +139,7 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
         const { getMeshProfile } = await import('../utils/mesh-orchestrator.js');
         const { getRouteFromId } = await import('../utils/mesh-routing-core.js');
         
-        const profile = await getMeshProfile(null, rootId);
+        const profile = await getMeshProfile(null, rootId, null, { ssrOnly: false });
         if (profile && profile.tiers) {
           Object.entries(profile.tiers).forEach(([key, tier]) => {
             if (tier.nodes.length === 0) return;

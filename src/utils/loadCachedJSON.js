@@ -78,7 +78,22 @@ export async function loadCachedJSON(path, options = {}) {
         }
 
         if (res.ok) {
-            const data = await res.json();
+            let data;
+            if (fetchUrl.endsWith('.gz')) {
+                // V18.12.0: Client-side decompression for Gzip assets with missing headers
+                try {
+                    const ds = new DecompressionStream('gzip');
+                    const decompressedStream = res.body.pipeThrough(ds);
+                    const decompressedRes = new Response(decompressedStream);
+                    data = await decompressedRes.json();
+                } catch (decompressError) {
+                    console.error('[loadCachedJSON] Client-side decompression failed:', decompressError);
+                    data = await res.json(); // Fallback to raw parse
+                }
+            } else {
+                data = await res.json();
+            }
+
             return {
                 data,
                 source: 'cdn',
