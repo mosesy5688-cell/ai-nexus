@@ -42,8 +42,8 @@ try {
 const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
 ---
 
-{hasRelations && (
-<div class="neural-graph-wrapper bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+{/* V18.12.0: Always render wrapper to allow client-side hydration for deep mesh discovery */}
+<div class={`neural-graph-wrapper bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden ${hasRelations ? 'block' : 'hidden'}`}>
     <section class="neural-graph-explorer" id="neural-mesh-hub" data-root-id={rootId}>
         <div class="header">
             <div class="title-group">
@@ -120,7 +120,6 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
         </div>
     </section>
 </div>
-)}
 
 <script>
   // V16.34: Neural Mesh Hub Stability Guard
@@ -139,7 +138,7 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
         const { getMeshProfile } = await import('../utils/mesh-orchestrator.js');
         const { getRouteFromId } = await import('../utils/mesh-routing-core.js');
         
-        const profile = await getMeshProfile(null, rootId);
+        const profile = await getMeshProfile(null, rootId, null, { ssrOnly: false });
         if (profile && profile.tiers) {
           Object.entries(profile.tiers).forEach(([key, tier]) => {
             if (tier.nodes.length === 0) return;
