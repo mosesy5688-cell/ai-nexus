@@ -283,8 +283,8 @@ jobs:
     needs: [harvest-huggingface, harvest-github, harvest-academic, harvest-ecosystem]
     timeout-minutes: 30
     env:
-      # V17.2: Increased heap for 200K+ entity merge (default 512MB insufficient)
-      NODE_OPTIONS: '--max-old-space-size=6144'
+      # V18.12.5.1: 10GB Heap to handle 168k registry merge (V8 peak safety)
+      NODE_OPTIONS: '--max-old-space-size=10240'
     
     steps:
       - uses: actions/checkout@v4

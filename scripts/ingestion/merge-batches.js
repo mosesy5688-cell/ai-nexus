@@ -93,12 +93,11 @@ async function mergeBatches() {
     const registryState = await registryManager.mergeCurrentBatch(allEntities);
     const fullSet = registryState.entities;
 
-    console.log(`\n🔐 [Merge] Syncing global checksum cache for ${fullSet.length} entities...`);
-    const checksums = await loadEntityChecksums();
-    for (const e of fullSet) {
-        if (e._checksum && !checksums[e.id]) checksums[e.id] = e._checksum;
-    }
     await saveEntityChecksums(checksums);
+
+    // V18.12.5.1: Memory Relief - Clear batch entities from heap
+    console.log(`   💡 [Merge] Disposing batch intermediate objects...`);
+    seenIds.clear(); // Free references held in the deduplication Map
 
     if (!registryState.didLoadFromStorage && process.env.GITHUB_ACTIONS) {
         throw new Error(`Registry Load Failure - Emergency Abort to Protect 85k Baseline`);
@@ -111,12 +110,11 @@ async function mergeBatches() {
     const dedupedSet = scrubIdentities(fullSet);
     dedupedSet.sort((a, b) => a.id.localeCompare(b.id));
 
-    const zlib = await import('zlib');
-    for (let s = 0; s < TOTAL_SHARDS; s++) {
-        const shardSlice = dedupedSet.filter((_, idx) => idx % TOTAL_SHARDS === s);
-        const compressedShard = zlib.gzipSync(JSON.stringify(shardSlice));
-        await fs.writeFile(path.join(DATA_DIR, `merged_shard_${s}.json.gz`), compressedShard);
-    }
+    // V18.12.5.1: Memory Relief - Dispose full registry array before heavy IO
+    console.log(`   💡 [Merge] Disposing registry source array...`);
+    for (let i = 0; i < allEntities.length; i++) allEntities[i] = null;
+    allEntities.length = 0;
+    // Note: fullSet is still needed for manifest, but will be nulled at end of function
 
     // V18.2.3: Streaming Export to bypass V8 string length limit
     const { createWriteStream } = await import('fs');

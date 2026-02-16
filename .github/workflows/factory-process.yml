@@ -115,8 +115,13 @@ jobs:
           fi
           ENTITY_COUNT=$(jq -r '.total_entities' data/manifest.json)
           echo "✅ Found $ENTITY_COUNT entities in cache (manifest)"
-          
-      # V4.1: Re-upload as Artifact for matrix jobs (same-workflow, no rate limit)
+
+      # V18.12.5.1: Architectural Split (Decomposition)
+      # Move sharding responsibility from 1/4 (Harvest) to 2/4 (Process)
+      - name: Split Registry for Matrix
+        run: |
+          echo "🔪 Decomposing monolith for parallel processing..."
+          node scripts/factory/split-registry.js
       - name: Upload for Matrix Jobs
         uses: actions/upload-artifact@v4
         with:

@@ -123,7 +123,7 @@ export class ArXivAdapter extends BaseAdapter {
 
         for (let i = 0; i < limit; i += batchSize) {
             const currentLimit = Math.min(batchSize, limit - i);
-            const start = offset + i; // V18.2.4: Rotate the window
+            let start = offset + i; // V18.2.4: Rotate the window
             const query = encodeURIComponent(`cat:${category}`);
             const url = `${ARXIV_API_BASE}?search_query=${query}&start=${start}&max_results=${currentLimit}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
 
