@@ -50,10 +50,16 @@ try {
             const res = await fetch(`${CDN_BASE}/${p}`);
             if (res.ok) {
                 if (p.endsWith('.gz')) {
-                    const ds = new DecompressionStream('gzip');
-                    const decompressedStream = res.body.pipeThrough(ds);
-                    const response = new Response(decompressedStream);
-                    trendingData = await response.json();
+                    try {
+                        const resClone = res.clone();
+                        const ds = new DecompressionStream('gzip');
+                        const decompressedStream = resClone.body.pipeThrough(ds);
+                        const response = new Response(decompressedStream);
+                        trendingData = await response.json();
+                    } catch (decompressError) {
+                        console.warn(`[DailyTrendingSection] Gzip failed for ${res.url}, falling back to plain JSON.`);
+                        trendingData = await res.json();
+                    }
                 } else {
                     trendingData = await res.json();
                 }

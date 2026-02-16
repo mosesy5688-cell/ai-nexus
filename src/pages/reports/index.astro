@@ -14,17 +14,19 @@ try {
         const res = await fetch(p);
         if (res.ok) {
             let data;
-            const buffer = await res.arrayBuffer();
-            try {
-                const ds = new DecompressionStream('gzip');
-                const writer = ds.writable.getWriter();
-                writer.write(buffer);
-                writer.close();
-                const output = new Response(ds.readable);
-                data = await output.json();
-            } catch (e) {
-                const text = new TextDecoder().decode(buffer);
-                data = JSON.parse(text);
+            if (p.endsWith('.gz')) {
+                try {
+                    const resClone = res.clone();
+                    const ds = new DecompressionStream('gzip');
+                    const decompressedStream = resClone.body.pipeThrough(ds);
+                    const response = new Response(decompressedStream);
+                    data = await response.json();
+                } catch (decompressError) {
+                    console.warn(`[Reports] Gzip failed for ${res.url}, falling back to plain JSON.`);
+                    data = await res.json();
+                }
+            } else {
+                data = await res.json();
             }
             
             reports = (data.reports || []).map(r => ({
@@ -59,17 +61,19 @@ if (!reports || reports.length === 0) {
                 const dRes = await fetch(p);
                 if (dRes.ok) {
                     let dData;
-                    const buffer = await dRes.arrayBuffer();
-                    try {
-                        const ds = new DecompressionStream('gzip');
-                        const writer = ds.writable.getWriter();
-                        writer.write(buffer);
-                        writer.close();
-                        const output = new Response(ds.readable);
-                        dData = await output.json();
-                    } catch (e) {
-                        const text = new TextDecoder().decode(buffer);
-                        dData = JSON.parse(text);
+                    if (p.endsWith('.gz')) {
+                        try {
+                            const resClone = dRes.clone();
+                            const ds = new DecompressionStream('gzip');
+                            const decompressedStream = resClone.body.pipeThrough(ds);
+                            const response = new Response(decompressedStream);
+                            dData = await response.json();
+                        } catch (decompressError) {
+                            console.warn(`[Reports] Daily Gzip failed for ${dRes.url}, falling back to plain JSON.`);
+                            dData = await dRes.json();
+                        }
+                    } else {
+                        dData = await dRes.json();
                     }
 
                     reports.push({

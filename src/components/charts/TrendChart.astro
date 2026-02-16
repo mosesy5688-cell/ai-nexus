@@ -59,15 +59,14 @@ const {
               
               if (isGzip && !isAlreadyDecompressed) {
                   try {
+                      const resClone = res.clone();
                       const ds = new (window as any).DecompressionStream('gzip');
-                      const decompressedStream = res.body.pipeThrough(ds);
+                      const decompressedStream = resClone.body.pipeThrough(ds);
                       const response = new Response(decompressedStream);
                       rawData = await response.json();
                   } catch (e) {
-                      console.warn('[TrendChart] Manual decompression failed:', e);
-                      // Fallback: maybe it's actually raw text despite no header
-                      const text = await res.text();
-                      rawData = JSON.parse(text);
+                      console.warn('[TrendChart] Manual decompression failed, falling back to plain JSON:', e);
+                      rawData = await res.json();
                   }
               } else {
                   rawData = await res.json();
