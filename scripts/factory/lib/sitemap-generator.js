@@ -22,15 +22,15 @@ const MAX_URLS_PER_FILE = 45000;
 // Static pages configuration
 const STATIC_PAGES = [
     { path: '/', priority: '1.0', changefreq: 'daily' },
+    { path: '/ranking', priority: '0.9', changefreq: 'daily' },
     { path: '/models', priority: '0.9', changefreq: 'daily' },
     { path: '/search', priority: '0.8', changefreq: 'daily' },
     { path: '/knowledge', priority: '0.7', changefreq: 'daily' },
-    { path: '/agent', priority: '0.7', changefreq: 'daily' },
-    { path: '/space', priority: '0.7', changefreq: 'daily' },
-    { path: '/dataset', priority: '0.7', changefreq: 'daily' },
-    { path: '/paper', priority: '0.7', changefreq: 'daily' },
+    { path: '/agents', priority: '0.7', changefreq: 'daily' },
+    { path: '/spaces', priority: '0.7', changefreq: 'daily' },
+    { path: '/datasets', priority: '0.7', changefreq: 'daily' },
+    { path: '/papers', priority: '0.7', changefreq: 'daily' },
     { path: '/reports', priority: '0.6', changefreq: 'daily' },
-    { path: '/compare', priority: '0.6', changefreq: 'daily' },
     { path: '/methodology', priority: '0.5', changefreq: 'monthly' },
     { path: '/about', priority: '0.4', changefreq: 'monthly' },
     // Category pages
