@@ -74,10 +74,13 @@ async function main() {
 
     let fullSet = [];
     let shardResults = null;
-    if (taskArg && taskArg !== 'core' && taskArg !== 'health') {
+    const isSatellite = taskArg && taskArg !== 'core' && taskArg !== 'health';
+
+    if (isSatellite) {
         fullSet = allEntities;
     } else {
-        shardResults = await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+        // V18.12.5.10: Pass slim flag to loader to prevent OOM
+        shardResults = await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: isSatellite });
         fullSet = mergeShardEntities(allEntities, shardResults);
 
         const checksums = await loadEntityChecksums();
