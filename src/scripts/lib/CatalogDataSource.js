@@ -122,8 +122,14 @@ export class CatalogDataSource {
             const isEnc = resp.headers.get('Content-Encoding') === 'gzip' || resp.headers.get('content-encoding') === 'gzip';
 
             if (isGz && !isEnc) {
-                const ds = new DecompressionStream('gzip');
-                data = await new Response(resp.body.pipeThrough(ds)).json();
+                try {
+                    const resClone = resp.clone();
+                    const ds = new DecompressionStream('gzip');
+                    data = await new Response(resClone.body.pipeThrough(ds)).json();
+                } catch (decompressError) {
+                    console.warn(`[CatalogDataSource] AugmentSearch Gzip failed, falling back to plain JSON.`);
+                    data = await resp.json();
+                }
             } else {
                 data = await resp.json();
             }

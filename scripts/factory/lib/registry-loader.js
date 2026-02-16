@@ -19,57 +19,22 @@ export async function loadGlobalRegistry(options = {}) {
 
     const zlib = await import('zlib');
     const tryLoad = async (filepath) => {
-        const stats = await fs.stat(filepath);
-        // V18.12.5.5: Use streaming for massive monoliths to bypass 4GB Buffer limit
-        if (stats.size > 20 * 1024 * 1024) {
-            console.log(`   💿 [Loader] Large file detected (${(stats.size / 1024 / 1024).toFixed(1)}MB), using streaming...`);
-            const entities = [];
-            const fileStream = (await import('fs')).createReadStream(filepath);
-            const gunzip = zlib.createGunzip();
-            const rl = (await import('readline')).createInterface({
-                input: fileStream.pipe(gunzip),
-                crlfDelay: Infinity
-            });
-
-            for await (const line of rl) {
-                if (!line.trim()) continue;
-                try {
-                    // Detect if it's a legacy array start/end or NDJSON
-                    const trimmed = line.trim();
-                    if (trimmed === '[' || trimmed === ']' || trimmed === '},') {
-                        continue;
-                    }
-                    const cleanLine = trimmed.endsWith(',') ? trimmed.slice(0, -1) : trimmed;
-                    const entity = JSON.parse(cleanLine);
-                    entities.push(projectEntity(entity));
-                } catch (e) { /* skip non-object lines */ }
-            }
-            return { entities, count: entities.length };
-        }
-
         const data = await fs.readFile(filepath);
         const isGzip = (data.length > 2 && data[0] === 0x1f && data[1] === 0x8b);
-        let content;
         if (filepath.endsWith('.gz') || isGzip) {
-            content = zlib.gunzipSync(data).toString('utf-8');
-        } else {
-            content = data.toString('utf-8');
+            try {
+                const decompressed = zlib.gunzipSync(data).toString('utf-8');
+                const parsed = JSON.parse(decompressed);
+                const entities = Array.isArray(parsed) ? parsed : (parsed.entities || []);
+                return { entities, count: entities.length };
+            } catch (e) {
+                if (!isGzip) console.warn(`[CACHE] Fake .gz detected: ${filepath}`);
+                throw e;
+            }
         }
-
-        try {
-            const parsed = JSON.parse(content);
-            const entities = Array.isArray(parsed) ? parsed : (parsed.entities || []);
-            return { entities: entities.map(projectEntity), count: entities.length };
-        } catch (e) {
-            // NDJSON Fallback for smaller files
-            const entities = content.split('\n')
-                .filter(l => l.trim())
-                .map(l => {
-                    try { return projectEntity(JSON.parse(l)); } catch { return null; }
-                })
-                .filter(e => e !== null);
-            return { entities, count: entities.length };
-        }
+        const parsed = JSON.parse(data.toString('utf-8'));
+        const entities = Array.isArray(parsed) ? parsed : (parsed.entities || []);
+        return { entities, count: entities.length };
     };
 
     const projectEntity = (e) => {
