@@ -110,6 +110,7 @@ export async function loadFullIndex(onProgress) {
 
         const extension = manifest.extension || '';
         const shardUrls = Array.from({ length: totalShards }, (_, i) => {
+            // V18.12.5: Resilient Shard Pathing (handles shard-N.json.gz)
             return `${CDN_URL}/cache/search/shard-${i}.json${extension}`;
         });
 
