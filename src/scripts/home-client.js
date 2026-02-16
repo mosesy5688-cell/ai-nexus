@@ -16,8 +16,8 @@ export async function loadHotModels() {
     }
 
     try {
-        // V18.12.5.3: Use trend-data instead of legacy trending.json (404)
-        const loadPromise = loadCachedJSON('cache/trend-data.json.gz');
+        // V18.12.5.4: Restore trending.json path (loadCachedJSON handles .gz fallback)
+        const loadPromise = loadCachedJSON('cache/trending.json');
         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
 
         const { data } = await Promise.race([loadPromise, timeoutPromise]);
