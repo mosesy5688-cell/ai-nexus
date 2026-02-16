@@ -12,6 +12,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import zlib from 'zlib';
 import { mergeEntities } from './lib/entity-merger.js';
 import { loadEntityChecksums, saveEntityChecksums } from '../factory/lib/cache-manager.js';
 import { RegistryManager } from '../factory/lib/registry-manager.js';
@@ -93,6 +94,7 @@ async function mergeBatches() {
     const registryState = await registryManager.mergeCurrentBatch(allEntities);
     const fullSet = registryState.entities;
 
+    const checksums = await loadEntityChecksums();
     await saveEntityChecksums(checksums);
 
     // V18.12.5.1: Memory Relief - Clear batch entities from heap
