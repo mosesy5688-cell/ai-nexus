@@ -57,6 +57,7 @@ async function main() {
     }
 
     let allEntities = [];
+    let fullSet = [];
     // 1. Load Authoritative Baseline (V18.2.3 Zero-Loss Hard Halt)
     console.log(`[AGGREGATOR] 🧩 Loading sharded baseline...`);
     // V18.2.5 Optimization (OOM-GUARD): Enable slim mode for satellite/maintenance tasks
@@ -75,7 +76,6 @@ async function main() {
 
     let successCount = 0;
     const isSatellite = !!taskArg && taskArg !== 'core' && taskArg !== 'health';
-    let fullSet = [];
 
     if (isSatellite) {
         fullSet = allEntities;
