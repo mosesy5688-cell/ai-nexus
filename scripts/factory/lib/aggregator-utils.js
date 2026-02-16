@@ -13,76 +13,53 @@ import { mergeEntities } from '../../ingestion/lib/entity-merger.js';
 
 
 /**
- * Load shard artifacts from parallel harvester jobs (V16.11 Compressed support)
- * V18.12.5.10 Optimization: Iterative Field Stripping (Slimming) to prevent OOM
+ * Iterative Shard Processor (V18.12.5.12 OOM Guard)
+ * Loads and processes shards one by one to keep heap footprint low.
  */
-export async function loadShardArtifacts(defaultArtifactDir, totalShards, options = {}) {
-    const artifacts = [];
+export async function processShardsIteratively(defaultArtifactDir, totalShards, options = {}, callback) {
     const { slim = false } = options;
+    const searchPaths = [defaultArtifactDir, './artifacts', './output/cache/shards', './cache/registry', './output/registry'];
 
-    // V18.2.2: Search in multiple potential CI context directories
-    const searchPaths = [
-        defaultArtifactDir,
-        './artifacts',
-        './output/cache/shards',
-        './cache/registry',
-        './output/registry'
-    ];
-
-    console.log(`[AGGREGATOR] Searching for ${totalShards} shards in: ${searchPaths.join(', ')} (Slim Mode: ${slim})`);
+    console.log(`[AGGREGATOR] Iterative processing ${totalShards} shards... (Slim Mode: ${slim})`);
 
     for (let i = 0; i < totalShards; i++) {
         let shardData = null;
         for (const p of searchPaths) {
             try {
-                // Priority: .json.gz (V16.11)
                 const gzPath = path.join(p, `shard-${i}.json.gz`);
                 const jsonPath = path.join(p, `shard-${i}.json`);
-                const mergedGzPath = path.join(p, `merged_shard_${i}.json.gz`); // Harvester V18.2.1 format
+                const mergedGzPath = path.join(p, `merged_shard_${i}.json.gz`);
 
                 let data;
                 if (await fs.access(mergedGzPath).then(() => true).catch(() => false)) {
-                    const buffer = await fs.readFile(mergedGzPath);
-                    const isGzip = buffer[0] === 0x1f && buffer[1] === 0x8b;
-                    data = isGzip ? zlib.gunzipSync(buffer).toString('utf-8') : buffer.toString('utf-8');
+                    data = zlib.gunzipSync(await fs.readFile(mergedGzPath)).toString('utf-8');
                 } else if (await fs.access(gzPath).then(() => true).catch(() => false)) {
-                    const buffer = await fs.readFile(gzPath);
-                    const isGzip = buffer[0] === 0x1f && buffer[1] === 0x8b;
-                    data = isGzip ? zlib.gunzipSync(buffer).toString('utf-8') : buffer.toString('utf-8');
+                    data = zlib.gunzipSync(await fs.readFile(gzPath)).toString('utf-8');
                 } else if (await fs.access(jsonPath).then(() => true).catch(() => false)) {
                     data = await fs.readFile(jsonPath, 'utf-8');
-                } else {
-                    continue; // Check next path
-                }
+                } else continue;
 
                 const parsed = JSON.parse(data);
-
-                // V18.12.5.10: Early Slimming Rule (Art 1.11 Safeguard)
-                // If slim mode is active, strip massive HTML/Content fields IMMEDIATELY before pushing to array
                 if (slim && parsed.entities) {
-                    for (let j = 0; j < parsed.entities.length; j++) {
-                        const ent = parsed.entities[j].enriched || parsed.entities[j];
-                        if (ent.html_readme) delete ent.html_readme;
-                        if (ent.htmlFragment) delete ent.htmlFragment;
-                        if (ent.content) delete ent.content;
-                        if (ent.readme) delete ent.readme;
-                        // Preserve only critical satellite fields
+                    for (const result of parsed.entities) {
+                        const ent = result.enriched || result;
+                        delete ent.html_readme; delete ent.htmlFragment;
+                        delete ent.content; delete ent.readme;
                     }
                 }
-
                 shardData = parsed;
-                break; // Found it!
+                break;
             } catch (e) { continue; }
         }
 
         if (shardData) {
-            artifacts.push(shardData);
+            await callback(shardData, i);
         } else {
-            console.warn(`[WARN] Shard ${i} not found in any search path.`);
-            artifacts.push(null);
+            console.warn(`[WARN] Shard ${i} missing.`);
         }
+        // Force GC hint or at least clear reference
+        shardData = null;
     }
-    return artifacts;
 }
 
 /**
@@ -129,34 +106,27 @@ export async function updateFniHistory(entities) {
 
 
 /**
- * Merge shard updates into base entities (Memory-Efficient V2.0)
- * V16.7.2: Process in smaller chunks to maintain ~300MB footprint
+ * Iterative version of mergeShardEntities to prevent OOM
  */
-export function mergeShardEntities(allEntities, shardResults) {
-    console.log('[AGGREGATOR] Performing memory-efficient merge...');
-
-    // Build update map from shards
+export async function mergeShardEntitiesIteratively(allEntities, artifactDir, totalShards, options = {}) {
+    console.log('[AGGREGATOR] Performing iterative memory-safe merge...');
     const updatedEntitiesMap = new Map();
     const processedIds = new Set();
+    const { slim = false } = options;
 
-    for (const shard of shardResults) {
+    // 1. Build update map ITERATIVELY
+    await processShardsIteratively(artifactDir, totalShards, options, async (shard) => {
         if (shard?.entities) {
             for (const result of shard.entities) {
-                // V16.6.5 Fix: Resilient merge - even if success is false, we keep the raw entity
                 const enriched = result.enriched || result;
-
-                // V18.12.5.10: Memory Safeguard - only carry HTML if it won't trigger monolith overflow
-                // NOTE: Satellite tasks (Rankings/Search) ALREADY have these stripped by loadShardArtifacts
-                const update = {
+                updatedEntitiesMap.set(result.id, {
                     ...enriched,
                     html_readme: enriched.html_readme || result.html || '',
                     htmlFragment: enriched.htmlFragment || result.html || ''
-                };
-                updatedEntitiesMap.set(result.id, update);
+                });
             }
         }
-    }
-
+    });
     const merged = [];
     const BATCH_SIZE = 50000;
 
