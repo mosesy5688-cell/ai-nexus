@@ -50,7 +50,7 @@ export async function loadCachedJSON(path, options = {}) {
                 return {
                     data,
                     source: 'r2-internal',
-                    freshness: data.generated_at || new Date().toISOString()
+                    freshness: data?.generated_at || new Date().toISOString()
                 };
             }
         } catch (e) {
@@ -103,7 +103,7 @@ export async function loadCachedJSON(path, options = {}) {
             return {
                 data,
                 source: 'cdn',
-                freshness: data.generated_at || new Date().toISOString()
+                freshness: data?.generated_at || new Date().toISOString()
             };
         }
     } catch (e) {

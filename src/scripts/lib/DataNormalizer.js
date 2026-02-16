@@ -7,6 +7,7 @@ import { stripPrefix } from '../../utils/mesh-routing-core.js';
 
 export const DataNormalizer = {
     normalize(item, defaultType = 'model') {
+        if (!item) return null;
         const id = item.id;
         const type = item.type || defaultType;
         let name = item.name || '';
@@ -57,7 +58,7 @@ export const DataNormalizer = {
      */
     normalizeCollection(items, defaultType = 'model') {
         if (!Array.isArray(items)) return [];
-        return items.map(item => this.normalize(item, defaultType));
+        return items.map(item => this.normalize(item, defaultType)).filter(Boolean);
     },
 
     /**
