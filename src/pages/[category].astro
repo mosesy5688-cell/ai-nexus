@@ -14,6 +14,12 @@ import { CATEGORY_METADATA } from '../utils/category-mapping.js';
 
 const { category } = Astro.params;
 
+// V18.12.5.10: Route Guard - Prevent collision with system routes
+const RESERVED_ROUTES = ['models', 'ranking', 'agents', 'spaces', 'datasets', 'papers', 'tools', 'search', 'about', 'compliance'];
+if (RESERVED_ROUTES.includes(category!)) {
+    return Astro.redirect('/404?source=routing-clash&id=' + category);
+}
+
 const meta = CATEGORY_METADATA[category!] || {
   label: category!.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '),
   icon: '📁',

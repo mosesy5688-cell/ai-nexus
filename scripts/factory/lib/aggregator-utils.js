@@ -14,9 +14,11 @@ import { mergeEntities } from '../../ingestion/lib/entity-merger.js';
 
 /**
  * Load shard artifacts from parallel harvester jobs (V16.11 Compressed support)
+ * V18.12.5.10 Optimization: Iterative Field Stripping (Slimming) to prevent OOM
  */
-export async function loadShardArtifacts(defaultArtifactDir, totalShards) {
+export async function loadShardArtifacts(defaultArtifactDir, totalShards, options = {}) {
     const artifacts = [];
+    const { slim = false } = options;
 
     // V18.2.2: Search in multiple potential CI context directories
     const searchPaths = [
@@ -27,7 +29,7 @@ export async function loadShardArtifacts(defaultArtifactDir, totalShards) {
         './output/registry'
     ];
 
-    console.log(`[AGGREGATOR] Searching for ${totalShards} shards in: ${searchPaths.join(', ')}`);
+    console.log(`[AGGREGATOR] Searching for ${totalShards} shards in: ${searchPaths.join(', ')} (Slim Mode: ${slim})`);
 
     for (let i = 0; i < totalShards; i++) {
         let shardData = null;
@@ -53,7 +55,22 @@ export async function loadShardArtifacts(defaultArtifactDir, totalShards) {
                     continue; // Check next path
                 }
 
-                shardData = JSON.parse(data);
+                const parsed = JSON.parse(data);
+
+                // V18.12.5.10: Early Slimming Rule (Art 1.11 Safeguard)
+                // If slim mode is active, strip massive HTML/Content fields IMMEDIATELY before pushing to array
+                if (slim && parsed.entities) {
+                    for (let j = 0; j < parsed.entities.length; j++) {
+                        const ent = parsed.entities[j].enriched || parsed.entities[j];
+                        if (ent.html_readme) delete ent.html_readme;
+                        if (ent.htmlFragment) delete ent.htmlFragment;
+                        if (ent.content) delete ent.content;
+                        if (ent.readme) delete ent.readme;
+                        // Preserve only critical satellite fields
+                    }
+                }
+
+                shardData = parsed;
                 break; // Found it!
             } catch (e) { continue; }
         }
@@ -126,13 +143,14 @@ export function mergeShardEntities(allEntities, shardResults) {
         if (shard?.entities) {
             for (const result of shard.entities) {
                 // V16.6.5 Fix: Resilient merge - even if success is false, we keep the raw entity
-                // to prevent 40% data loss (papers).
                 const enriched = result.enriched || result;
+
+                // V18.12.5.10: Memory Safeguard - only carry HTML if it won't trigger monolith overflow
+                // NOTE: Satellite tasks (Rankings/Search) ALREADY have these stripped by loadShardArtifacts
                 const update = {
                     ...enriched,
-                    // V18.2.1 Restoration: Explicitly pull HTML for fusion
-                    html_readme: result.html || enriched.html_readme || '',
-                    htmlFragment: result.html || enriched.htmlFragment || ''
+                    html_readme: enriched.html_readme || result.html || '',
+                    htmlFragment: enriched.htmlFragment || result.html || ''
                 };
                 updatedEntitiesMap.set(result.id, update);
             }
