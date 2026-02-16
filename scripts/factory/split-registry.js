@@ -1,12 +1,12 @@
 /**
- * Registry Splitter Utility V18.12.5.8 (Streaming Edition)
+ * Registry Splitter Utility V18.12.5.9 (True Streaming Edition)
  * 
  * Responsibilities:
  * 1. Load the monolithic merged.json.gz (Standard JSON Array).
- * 2. Split it into 20 shards using a streaming parser (Zero-OOM).
- * 3. Perform a mandatory count integrity check.
+ * 2. Split it into 20 shards using a streaming parser (Zero-Heap Accumulation).
+ * 3. Each entity is immediately written to its destination Gzip stream.
  * 
- * V18.12.5.8: Fixed ERR_BUFFER_TOO_LARGE by implementing native stream-based partitioner.
+ * V18.12.5.9: Fixed OOM (Ineffective mark-compacts) by eliminating the 'shards' in-memory array.
  */
 
 import fs from 'node:fs';
@@ -37,7 +37,6 @@ class JsonArraySplitter extends Writable {
     }
 
     _write(chunk, encoding, callback) {
-        // V18.12.5.8: Use StringDecoder to prevent corruption of multi-byte UTF-8 chars split across chunks
         const str = this.decoder.write(chunk);
         for (let i = 0; i < str.length; i++) {
             const char = str[i];
@@ -85,7 +84,7 @@ class JsonArraySplitter extends Writable {
 }
 
 async function splitRegistry() {
-    console.log(`\n🔪 [Splitter] Starting monolithic registry decomposition (Streaming)...`);
+    console.log(`\n🔪 [Splitter] Starting monolithic registry decomposition (Zero-Heap Streaming)...`);
 
     const targetFile = fs.existsSync(INPUT_FILE) ? INPUT_FILE : INPUT_FILE_PLAIN;
 
@@ -96,18 +95,32 @@ async function splitRegistry() {
 
     const startTime = Date.now();
     let totalCount = 0;
-    const shards = Array.from({ length: TOTAL_SHARDS }, () => []);
 
-    console.log(`   💿 Streaming ${targetFile}...`);
+    // Initialize Shard Write Streams
+    console.log(`   📂 Initializing ${TOTAL_SHARDS} shard streams...`);
+    const shardCounts = new Array(TOTAL_SHARDS).fill(0);
+    const shardStreams = Array.from({ length: TOTAL_SHARDS }, (_, i) => {
+        const gz = zlib.createGzip();
+        const ws = fs.createWriteStream(path.join(DATA_DIR, `merged_shard_${i}.json.gz`));
+        gz.pipe(ws);
+        gz.write('['); // Start JSON array
+        return gz;
+    });
 
     const splitter = new JsonArraySplitter((entity) => {
         const shardIdx = totalCount % TOTAL_SHARDS;
-        shards[shardIdx].push(entity);
+        const countInShard = shardCounts[shardIdx];
+
+        // Write to respective shard stream immediately
+        const prefix = countInShard === 0 ? '' : ',';
+        shardStreams[shardIdx].write(prefix + JSON.stringify(entity));
+
+        shardCounts[shardIdx]++;
         totalCount++;
 
         // Periodic progress log
         if (totalCount % 5000 === 0) {
-            process.stdout.write(`\r   🔄 Processed ${totalCount} entities...`);
+            process.stdout.write(`\r   🔄 Streamed ${totalCount} entities... (Memory Usage: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(0)}MB)`);
         }
     });
 
@@ -125,25 +138,18 @@ async function splitRegistry() {
         process.exit(1);
     }
 
-    console.log(`\n   ✓ Streamed ${totalCount} entities from monolith.`);
-
-    // 3. Write shards and verify integrity
-    console.log(`   💾 Compressing and writing ${TOTAL_SHARDS} shards...`);
-    let sumCount = 0;
+    // Close all shard streams
+    console.log(`\n   ✓ Finalizing shard streams...`);
     for (let i = 0; i < TOTAL_SHARDS; i++) {
-        const shardData = shards[i];
-        const shardSize = shardData.length;
-        sumCount += shardSize;
-
-        const compressedShard = zlib.gzipSync(JSON.stringify(shardData));
-        const outPath = path.join(DATA_DIR, `merged_shard_${i}.json.gz`);
-        fs.writeFileSync(outPath, compressedShard);
-
-        // Dispose shard early
-        shards[i] = null;
+        shardStreams[i].write(']'); // End JSON array
+        shardStreams[i].end();
     }
 
-    // 4. Final Integrity Check
+    // Wait for all streams to finish writing
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Final Integrity Check
+    const sumCount = shardCounts.reduce((a, b) => a + b, 0);
     console.log(`\n⚖️ [Splitter] Integrity Verification:`);
     console.log(`   - Total Entities Processed: ${totalCount}`);
     console.log(`   - Total Entities Sharded: ${sumCount}`);

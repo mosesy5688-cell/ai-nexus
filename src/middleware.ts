@@ -18,6 +18,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     try {
         // V18.12.5: Global Resilience Wrap
         const response = await next();
+        if (!response) throw new Error("Astro next() returned null response");
 
         // Add essential guardian/timing headers for observability
         response.headers.set('X-Guardian-Time', `${(performance.now() - startTime).toFixed(2)}ms`);
@@ -25,23 +26,27 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
         return response;
     } catch (e: any) {
-        console.error("[Middleware] Critical SSR Failure:", e);
+        console.error("[Middleware] Critical SSR Failure:", e.message);
 
-        // V18.12.5: Disaster Recovery Redirect
-        // If a 500 occurs on a critical detail page, redirect to a static fallback or 
-        // return a custom "Soft 500" page that doesn't trigger the Cloudflare generic error.
-
-        const errorUrl = new URL('/404?source=ssr-crash&error=' + encodeURIComponent(e.message || 'unknown'), context.url.origin);
+        // V18.12.5.9: Disaster Recovery Redirect (Zero-Image Policy Compliant)
+        // Ensure the error URL is safe and doesn't trigger secondary loops
+        const errorUrl = new URL('/404', context.url.origin);
+        errorUrl.searchParams.set('source', 'ssr-crash');
+        errorUrl.searchParams.set('path', context.url.pathname);
 
         // If it's an API request or internal server island, return a small error fragment
         if (context.url.pathname.includes('/_server-islands/') || context.url.pathname.startsWith('/api/')) {
             return new Response(
-                JSON.stringify({ error: 'Resilience Triggered: Island Failure', message: e.message }),
+                JSON.stringify({ error: 'Resilience Triggered: SSR Crash', reason: e.message }),
                 { status: 500, headers: { 'Content-Type': 'application/json' } }
             );
         }
 
-        // For full page crashes, redirect to 404 with custom query
+        // Prevent recursive redirection if we're already on 404
+        if (context.url.pathname === '/404') {
+            return new Response("Critical System Failure: 404 Rendering Crashed", { status: 500 });
+        }
+
         return context.redirect(errorUrl.toString());
     }
 });
