@@ -124,9 +124,15 @@ async function loadTrendData(): Promise<Record<string, any>> {
             if (!res) return {};
             const url = res.url;
             if (url.endsWith('.gz')) {
-                const ds = new DecompressionStream('gzip');
-                const stream = res.body.pipeThrough(ds);
-                return await new Response(stream).json();
+                try {
+                    const resClone = res.clone();
+                    const ds = new DecompressionStream('gzip');
+                    const stream = resClone.body.pipeThrough(ds);
+                    return await new Response(stream).json();
+                } catch (decompressError) {
+                    console.warn(`[MiniTrendChart] Gzip failed for ${url}, falling back to plain JSON.`);
+                    return await res.json();
+                }
             }
             return await res.json();
         })
