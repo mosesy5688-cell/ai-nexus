@@ -80,11 +80,13 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
     return {
         items: normalized,
         error: normalized.length === 0 ? 'No entities found' : null,
+        data_missing: normalized.length === 0,
         source
     };
 }
 
 function extractItems(data) {
+    if (!data) return [];
     if (Array.isArray(data)) return data;
     return data.entities || data.models || data.items || [];
 }

@@ -16,8 +16,11 @@ export async function loadHotModels() {
     }
 
     try {
-        // V18.12.0: Optimized parallel/resilient loading via loadCachedJSON
-        const { data } = await loadCachedJSON('cache/trending.json');
+        // V18.12.5: Safety timeout for R2 fetch
+        const loadPromise = loadCachedJSON('cache/trending.json');
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
+
+        const { data } = await Promise.race([loadPromise, timeoutPromise]);
 
         const models = (data?.models || data || []).slice(0, 12);
 
