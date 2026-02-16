@@ -59,10 +59,11 @@ async function main() {
     let allEntities = [];
     // 1. Load Authoritative Baseline (V18.2.3 Zero-Loss Hard Halt)
     console.log(`[AGGREGATOR] 🧩 Loading sharded baseline...`);
-    // V18.2.5 Optimization (OOM-GUARD): Enable slim mode for satellite tasks
-    // Satellite tasks don't need heavy content/readme fields.
+    // V18.2.5 Optimization (OOM-GUARD): Enable slim mode for satellite/maintenance tasks
+    // Satellite and health tasks don't need heavy content/readme fields.
+    const needsSlimming = !!taskArg && taskArg !== 'core';
     const registry = await loadGlobalRegistry({
-        slim: !!taskArg && taskArg !== 'core' && taskArg !== 'health'
+        slim: needsSlimming
     });
     allEntities = registry.entities || [];
 
@@ -74,13 +75,13 @@ async function main() {
 
     let fullSet = [];
     let shardResults = null;
-    const isSatellite = taskArg && taskArg !== 'core' && taskArg !== 'health';
+    const isSatellite = !!taskArg && taskArg !== 'core' && taskArg !== 'health';
 
     if (isSatellite) {
         fullSet = allEntities;
     } else {
-        // V18.12.5.10: Pass slim flag to loader to prevent OOM
-        shardResults = await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: isSatellite });
+        // V18.12.5.10: Pass slim flag to loader (Health and Non-Core tasks can be slimmed)
+        shardResults = await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: needsSlimming });
         fullSet = mergeShardEntities(allEntities, shardResults);
 
         const checksums = await loadEntityChecksums();
@@ -100,7 +101,7 @@ async function main() {
     }
 
     if (!taskArg || taskArg === 'health') {
-        const resultsForHealth = shardResults || await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+        const resultsForHealth = shardResults || await loadShardArtifacts(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: true });
         await generateHealthReport(resultsForHealth, fullSet, CONFIG.TOTAL_SHARDS, CONFIG.MIN_SUCCESS_RATE, CONFIG.OUTPUT_DIR);
     }
 
@@ -113,9 +114,8 @@ async function main() {
     }
 
     // V18.2.3: Data Slimming (SPEC-SATELLITE-OOM-FIX)
-    // Satellite tasks (Search, Rankings, etc.) do NOT need heavy HTML READMEs (content field).
-    // Stripping this field in memory can save 1GB+ of heap for 100K+ entities.
-    if (taskArg && taskArg !== 'core' && taskArg !== 'health') {
+    // Satellite tasks (Search, Rankings, etc.) and Health checks do NOT need heavy HTML READMEs.
+    if (taskArg && taskArg !== 'core') {
         const preSlimSize = rankedEntities.length;
         console.log(`[AGGREGATOR] ✂️ Applying Data Slimming for satellite task: ${taskArg}...`);
         for (let i = 0; i < rankedEntities.length; i++) {
