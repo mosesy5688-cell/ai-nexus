@@ -39,6 +39,8 @@ export function initRankingInfiniteScroll() {
             try {
                 const path = `/cache/rankings/${category}/p${nextPage}.json`;
                 const gzPath = path + '.gz';
+
+                // V18.12.0: Resilient fetch with .gz fallback
                 let res = await fetch(path);
                 if (!res.ok) res = await fetch(gzPath);
 
@@ -56,7 +58,7 @@ export function initRankingInfiniteScroll() {
                         data = await res.json();
                     }
 
-                    const models = data.items || data.entities || data;
+                    const models = data.items || data.entities || data.models || [];
                     const fragment = document.createDocumentFragment();
 
                     models.forEach(model => {
