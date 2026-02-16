@@ -110,7 +110,7 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
     // Tier 3: Anti-Crash Fallback (Tool-specific search-shard-0.json)
     if (items.length === 0 && typeOrCategory === 'tool') {
         try {
-            const indexUrl = `${CDN_BASE}/search/shard-0.json`;
+            const indexUrl = `${CDN_BASE}/search/shard-0.json.gz`;
             const res = await fetch(indexUrl, { signal: AbortSignal.timeout(5000) });
             if (res.ok) {
                 const data = await res.json();

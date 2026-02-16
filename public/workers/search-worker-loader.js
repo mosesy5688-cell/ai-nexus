@@ -109,7 +109,8 @@ export async function loadFullIndex(onProgress) {
         }
 
         const shardUrls = Array.from({ length: totalShards }, (_, i) => {
-            return `${CDN_URL}/cache/search/shard-${i}.json`;
+            const ext = manifest.extension || '.json';
+            return `${CDN_URL}/cache/search/shard-${i}${ext}`;
         });
 
         const BATCH_SIZE = 5;
