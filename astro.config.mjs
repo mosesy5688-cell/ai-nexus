@@ -21,7 +21,8 @@ export default defineConfig({
     '/space': '/spaces',
     '/tool': '/tools',
     '/dataset': '/datasets',
-    '/paper': '/papers'
+    '/paper': '/papers',
+    '/compare': '/ranking'
   },
   adapter: cloudflare({
     runtime: { mode: 'local', type: 'pages' },

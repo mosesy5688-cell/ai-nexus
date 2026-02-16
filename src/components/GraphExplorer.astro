@@ -166,7 +166,9 @@ const buildTime = import.meta.env.PUBLIC_BUILD_TIME || Date.now().toString();
             // Click Event - Navigate to related models
             node.on("click", function(event, d) {
                 if (d.group === 'model' && d.slug) {
-                    window.location.href = '/model/' + d.slug;
+                    // V18.12.5.8: Ensure clean canonical routing without internal prefixes
+                    var cleanSlug = d.slug.replace(/^(hf-model|gh-model|replicate-model)--/, '').replace(/--/g, '/');
+                    window.location.href = '/model/' + cleanSlug;
                 } else if (d.group === 'main') {
                     // Already on this page, do nothing
                 } else if (d.url) {
