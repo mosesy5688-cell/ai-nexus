@@ -110,99 +110,57 @@ export async function updateFniHistory(entities) {
  * Build a light index of which IDs are in which shards
  * Returns Map<ID, shardIndex>
  */
-async function buildShardIndex(artifactDir, totalShards) {
-    console.log(`[AGGREGATOR] Building shard update index for ${totalShards} shards...`);
-    const index = new Map();
-    const searchPaths = [artifactDir, './artifacts', './output/cache/shards', './cache/registry', './output/registry'];
-
-    for (let i = 0; i < totalShards; i++) {
-        for (const p of searchPaths) {
-            try {
-                const gzPath = path.join(p, `shard-${i}.json.gz`);
-                const jsonPath = path.join(p, `shard-${i}.json`);
-                const mergedGzPath = path.join(p, `merged_shard_${i}.json.gz`);
-
-                let data;
-                if (await fs.access(mergedGzPath).then(() => true).catch(() => false)) {
-                    data = zlib.gunzipSync(await fs.readFile(mergedGzPath)).toString('utf-8');
-                } else if (await fs.access(gzPath).then(() => true).catch(() => false)) {
-                    data = zlib.gunzipSync(await fs.readFile(gzPath)).toString('utf-8');
-                } else if (await fs.access(jsonPath).then(() => true).catch(() => false)) {
-                    data = await fs.readFile(jsonPath, 'utf-8');
-                } else continue;
-
-                const parsed = JSON.parse(data);
-                if (parsed.entities) {
-                    for (const e of parsed.entities) {
-                        index.set(e.id, i);
-                    }
-                }
-                break;
-            } catch (e) { continue; }
-        }
-    }
-    console.log(`  [INDEX] Indexed ${index.size} updates.`);
-    return index;
-}
+// buildShardIndex removed (V18.12.5.13: Redundant & OOM-prone)
 
 /**
- * Iterative version of mergeShardEntities to prevent OOM
- * V18.12.5.12: Stateless Shard-by-Shard Merge (Method A)
+ * Zero-Copy In-Place Merge (V18.12.5.13 FINAL OOM FIX)
+ * Uses a single Baseline Index Map to perform O(1) lookups.
+ * Directly mutates the passed array to allow GC of old objects immediately.
  */
-export async function mergeShardEntitiesIteratively(allEntities, artifactDir, totalShards, options = {}) {
-    console.log('[AGGREGATOR] Performing Stateless Shard-by-Shard merge...');
+export async function mergeShardEntitiesIteratively(baselineArray, artifactDir, totalShards, options = {}) {
+    console.log(`[AGGREGATOR] Performing Zero-Copy In-Place merge on ${baselineArray.length} entities...`);
     const { slim = false } = options;
 
-    // 1. Build light index (ID -> shardIndex)
-    const shardIndex = await buildShardIndex(artifactDir, totalShards);
-    const processedIds = new Set();
-    const finalSet = [...allEntities]; // Primary working set (references only)
+    // 1. Build Baseline Index Map (O(N) - once)
+    const idToIndex = new Map();
+    for (let i = 0; i < baselineArray.length; i++) {
+        idToIndex.set(baselineArray[i].id, i);
+    }
+    console.log(`  [BASELINE] Indexed ${idToIndex.size} existing entities.`);
 
-    // 2. Process Shards one by one and apply updates to finalSet
+    // 2. Process Shards and Merge In-Place
     for (let i = 0; i < totalShards; i++) {
-        let shardEntitiesMap = new Map();
+        let updateCount = 0;
+        let newCount = 0;
 
-        // Load single shard
         await processShardsIteratively(artifactDir, totalShards, { slim }, async (shard, idx) => {
             if (idx === i && shard?.entities) {
                 for (const result of shard.entities) {
-                    const enriched = result.enriched || result;
-                    shardEntitiesMap.set(result.id, {
-                        ...enriched,
-                        html_readme: enriched.html_readme || result.html || '',
-                        htmlFragment: enriched.htmlFragment || result.html || ''
-                    });
+                    const incoming = result.enriched || result;
+                    const bIdx = idToIndex.get(incoming.id);
+
+                    if (bIdx !== undefined) {
+                        // In-Place Reference Replacement: Baseline[idx] reference is updated,
+                        // allowing the old object to be GC'd if no other refs exist.
+                        baselineArray[bIdx] = processEntity(baselineArray[bIdx], incoming);
+                        updateCount++;
+                    } else {
+                        // Append New Entities
+                        const processed = processEntity(incoming, null);
+                        baselineArray.push(processed);
+                        idToIndex.set(processed.id, baselineArray.length - 1);
+                        newCount++;
+                    }
                 }
             }
-        }, i, i + 1); // Helper needs to support range or we skip in callback
+        }, i, i + 1);
 
-        if (shardEntitiesMap.size === 0) continue;
-
-        console.log(`  [Merge] Applying ${shardEntitiesMap.size} updates from Shard ${i}...`);
-
-        // Apply updates to Baseline in place
-        for (let j = 0; j < finalSet.length; j++) {
-            const e = finalSet[j];
-            const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
-            const update = shardEntitiesMap.get(id);
-            if (update) {
-                finalSet[j] = processEntity(e, update);
-                processedIds.add(id);
-            }
+        if (updateCount > 0 || newCount > 0) {
+            console.log(`  [Merge] Shard ${i}: Applied ${updateCount} updates, added ${newCount} new entities.`);
         }
 
-        // Add "New" entities from this shard that weren't in baseline
-        for (const [id, update] of shardEntitiesMap) {
-            if (!processedIds.has(id)) {
-                // Double check if it's truly new or just processed in a previous shard
-                // (Though IDs should be unique per shard, it's safer)
-                finalSet.push(processEntity(update, null));
-                processedIds.add(id);
-            }
-        }
-
-        shardEntitiesMap.clear();
-        shardEntitiesMap = null;
+        // Hint GC after heavy shard processing
+        if (global.gc) global.gc();
     }
 
     // Helper: Standard Entity Processor (V16.11 CES)
@@ -210,10 +168,9 @@ export async function mergeShardEntitiesIteratively(allEntities, artifactDir, to
         let entity = update ? mergeEntities(e, update) : e;
         const id = normalizeId(entity.id, getNodeSource(entity.id, entity.type), entity.type);
 
-        if (entity.meta_json) {
+        if (entity.meta_json && typeof entity.meta_json === 'object') {
             try {
-                const meta = typeof entity.meta_json === 'string' ? JSON.parse(entity.meta_json) : entity.meta_json;
-                entity.meta_json = JSON.stringify(meta);
+                entity.meta_json = JSON.stringify(entity.meta_json);
             } catch (err) { /* ignore */ }
         }
 
@@ -225,12 +182,13 @@ export async function mergeShardEntitiesIteratively(allEntities, artifactDir, to
         if (!entity.image_url) {
             entity.image_url = entity.raw_image_url || entity.preview_url || null;
         }
+
+        // Return a fresh object with normalized ID
         return { ...entity, id };
     }
 
-    shardIndex.clear();
-    processedIds.clear();
-    return finalSet;
+    idToIndex.clear();
+    return baselineArray;
 }
 
 

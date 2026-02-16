@@ -66,22 +66,24 @@ async function main() {
     const registry = await loadGlobalRegistry({
         slim: needsSlimming
     });
-    allEntities = registry.entities || [];
+    const baseline = registry.entities || [];
+    registry.entities = null; // CRITICAL: Release registry reference immediately
 
-    if (allEntities.length < AGGREGATE_FLOOR) {
-        throw new Error(`[CRITICAL] Registry baseline empty or below floor (${allEntities.length}). Aborting to prevent data loss.`);
+    if (baseline.length < AGGREGATE_FLOOR) {
+        throw new Error(`[CRITICAL] Registry baseline empty or below floor (${baseline.length}). Aborting to prevent data loss.`);
     }
-    console.log(`✓ Context loaded: ${allEntities.length} entities ready (via Zero-Loss Registry-IO)`);
+    console.log(`✓ Context loaded: ${baseline.length} entities ready (via Zero-Loss Registry-IO)`);
     // Note: If allEntities is empty, we MUST have shards to proceed.
 
     let successCount = 0;
     const isSatellite = !!taskArg && taskArg !== 'core' && taskArg !== 'health';
 
     if (isSatellite) {
-        fullSet = allEntities;
+        fullSet = baseline;
     } else {
-        // V18.12.5.12: Iterative Memory-Safe Merge (OOM Guard)
-        fullSet = await mergeShardEntitiesIteratively(allEntities, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: needsSlimming });
+        // V18.12.5.13: Zero-Copy In-Place Merge (FINAL OOM FIX)
+        // Passes the array directly and mutates it to avoid object doubling.
+        fullSet = await mergeShardEntitiesIteratively(baseline, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: needsSlimming });
 
         const checksums = await loadEntityChecksums();
         await processShardsIteratively(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: true }, async (shard) => {
