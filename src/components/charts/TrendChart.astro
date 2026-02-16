@@ -43,7 +43,9 @@ const {
     
     try {
       const type = container.dataset.type || 'bar';
-      const paths = [`${R2_CACHE_URL}/cache/trend-data.json.gz`, `${R2_CACHE_URL}/cache/trend-data.json`];
+      const paths = type === 'line' 
+        ? [`${R2_CACHE_URL}/cache/trend-data.json.gz`, `${R2_CACHE_URL}/cache/trend-data.json`]
+        : [`${R2_CACHE_URL}/cache/trending.json.gz`, `${R2_CACHE_URL}/cache/trending.json`];
       
       let res = null;
       let rawData = null;
@@ -77,7 +79,7 @@ const {
       if (!rawData) {
           console.warn(`[TrendChart] Fetch failed for ${type}, trying local fallback...`);
           const CDN = 'https://cdn.free2aitools.com';
-          const localPaths = [`${CDN}/cache/trend-data.json.gz`, `${CDN}/cache/trend-data.json`];
+          const localPaths = type === 'line' ? [`${CDN}/cache/trend-data.json.gz`, `${CDN}/cache/trend-data.json`] : [`${CDN}/cache/trending.json.gz`, `${CDN}/cache/trending.json`];
           for (const lp of localPaths) {
               const res2 = await fetch(lp);
               if (res2.ok) {
