@@ -138,10 +138,13 @@ async function mergeBatches() {
             hash.update(chunk);
         });
 
-        // V18.12.5.5: Switch to NDJSON for streaming support (Bypasses 4GB Buffer limit)
+        // V18.12.5.6: Revert to standard JSON Array output for compatibility
+        gzip.write('[');
         for (let i = 0; i < dedupedSet.length; i++) {
-            gzip.write(JSON.stringify(dedupedSet[i]) + '\n');
+            if (i > 0) gzip.write(',');
+            gzip.write(JSON.stringify(dedupedSet[i]));
         }
+        gzip.write(']');
         gzip.end();
     });
 
