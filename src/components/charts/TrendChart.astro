@@ -44,7 +44,7 @@ const {
     try {
       const type = container.dataset.type || 'bar';
       const paths = type === 'line' 
-        ? [`${R2_CACHE_URL}/cache/trends.json.gz`, `${R2_CACHE_URL}/cache/trends.json`]
+        ? [`${R2_CACHE_URL}/cache/trend-data.json.gz`, `${R2_CACHE_URL}/cache/trend-data.json`]
         : [`${R2_CACHE_URL}/cache/trending.json.gz`, `${R2_CACHE_URL}/cache/trending.json`];
       
       let res = null;

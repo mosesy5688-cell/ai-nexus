@@ -111,7 +111,7 @@ export class CatalogDataSource {
     async augmentSearch() {
         try {
             // V18.12.0: Resilient fallback for search augmentation
-            const path = 'https://cdn.free2aitools.com/cache/search/shard-0.json';
+            const path = 'https://cdn.free2aitools.com/cache/search-core.json';
             let resp = await fetch(path + '.gz');
             if (!resp.ok) resp = await fetch(path);
 

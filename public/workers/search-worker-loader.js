@@ -110,8 +110,9 @@ export async function loadFullIndex(onProgress) {
 
         const extension = manifest.extension || '';
         const shardUrls = Array.from({ length: totalShards }, (_, i) => {
-            // V18.12.5: Resilient Shard Pathing (handles shard-N.json.gz)
-            return `${CDN_URL}/cache/search/shard-${i}.json${extension}`;
+            // V18.12.5: Resilient Shard Pathing (handles shard-N.json.gz with .json fallback)
+            const base = `${CDN_URL}/cache/search/shard-${i}.json`;
+            return extension === '.gz' ? [base + '.gz', base] : [base];
         });
 
         const BATCH_SIZE = 5;
@@ -119,10 +120,13 @@ export async function loadFullIndex(onProgress) {
 
         for (let i = 0; i < shardUrls.length; i += BATCH_SIZE) {
             const batch = shardUrls.slice(i, i + BATCH_SIZE);
-            const results = await Promise.all(batch.map(async (url) => {
-                try {
-                    return await tryFetchJson(url);
-                } catch { return null; }
+            const results = await Promise.all(batch.map(async (urls) => {
+                for (const url of urls) {
+                    try {
+                        return await tryFetchJson(url);
+                    } catch { continue; }
+                }
+                return null;
             }));
 
             for (const shard of results) {

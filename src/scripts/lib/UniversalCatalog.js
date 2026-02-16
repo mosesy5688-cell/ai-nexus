@@ -111,6 +111,18 @@ export class UniversalCatalog {
 
     async loadFullData() {
         const newItems = await this.source.loadNextShard();
+
+        if (newItems === null && this.source.fullDataLoaded) {
+            this.reachedEnd = true;
+            if (this.grid) { // Changed gridEl to grid
+                const existingEmpty = this.grid.querySelector('.empty-state-msg');
+                if (!existingEmpty && this.source.items.length === 0) { // Changed this.items to this.source.items
+                    this.grid.innerHTML = '<div class="empty-state-msg col-span-full text-center py-20 bg-gray-900/50 rounded-xl border border-gray-800"><p class="text-xl text-gray-400 font-medium">Ecosystem Syncing...</p><p class="text-gray-500 mt-2">The AI leaderboard is rebuilding. Please check back in a moment.</p></div>';
+                }
+            }
+            return; // Halt loading if data_missing
+        }
+
         if (newItems) {
             this.handleSearch(this.searchInput?.value || '', null, true);
         }
