@@ -42,10 +42,24 @@ export async function processShardsIteratively(defaultArtifactDir, totalShards, 
 
                 const parsed = JSON.parse(data);
                 if (slim && parsed.entities) {
-                    for (const result of parsed.entities) {
-                        const ent = result.enriched || result;
-                        delete ent.html_readme; delete ent.htmlFragment;
-                        delete ent.content; delete ent.readme;
+                    // V18.12.5.14: Use Projection instead of delete to avoid Dictionary Mode
+                    const slimFields = [
+                        'id', 'umid', 'slug', 'name', 'type', 'author', 'description',
+                        'tags', 'metrics', 'stars', 'forks', 'downloads', 'likes',
+                        'citations', 'size', 'runtime', 'fni_score', 'fni_percentile',
+                        'fni_trend_7d', 'is_rising_star', 'primary_category',
+                        'pipeline_tag', 'published_date', 'last_modified',
+                        'last_updated', 'lastModified', '_updated'
+                    ];
+                    for (let j = 0; j < parsed.entities.length; j++) {
+                        const ent = parsed.entities[j].enriched || parsed.entities[j];
+                        const projected = {};
+                        for (const f of slimFields) {
+                            if (ent[f] !== undefined) projected[f] = ent[f];
+                        }
+                        // Replace reference with slim object immediately
+                        if (parsed.entities[j].enriched) parsed.entities[j].enriched = projected;
+                        else parsed.entities[j] = projected;
                     }
                 }
                 shardData = parsed;
@@ -140,13 +154,12 @@ export async function mergeShardEntitiesIteratively(baselineArray, artifactDir, 
                     const bIdx = idToIndex.get(incoming.id);
 
                     if (bIdx !== undefined) {
-                        // In-Place Reference Replacement: Baseline[idx] reference is updated,
-                        // allowing the old object to be GC'd if no other refs exist.
-                        baselineArray[bIdx] = processEntity(baselineArray[bIdx], incoming);
+                        // In-Place Reference Replacement
+                        baselineArray[bIdx] = processEntity(baselineArray[bIdx], incoming, { slim });
                         updateCount++;
                     } else {
                         // Append New Entities
-                        const processed = processEntity(incoming, null);
+                        const processed = processEntity(incoming, null, { slim });
                         baselineArray.push(processed);
                         idToIndex.set(processed.id, baselineArray.length - 1);
                         newCount++;
@@ -164,11 +177,12 @@ export async function mergeShardEntitiesIteratively(baselineArray, artifactDir, 
     }
 
     // Helper: Standard Entity Processor (V16.11 CES)
-    function processEntity(e, update) {
-        let entity = update ? mergeEntities(e, update) : e;
+    function processEntity(e, update, mOptions = {}) {
+        let entity = update ? mergeEntities(e, update, mOptions) : e;
         const id = normalizeId(entity.id, getNodeSource(entity.id, entity.type), entity.type);
 
-        if (entity.meta_json && typeof entity.meta_json === 'object') {
+        // V18.12.5.14: Skip meta_json stringification in slim mode if it's already there
+        if (!mOptions.slim && entity.meta_json && typeof entity.meta_json === 'object') {
             try {
                 entity.meta_json = JSON.stringify(entity.meta_json);
             } catch (err) { /* ignore */ }
