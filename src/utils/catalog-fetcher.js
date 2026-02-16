@@ -111,9 +111,22 @@ export async function fetchCatalogData(typeOrCategory, runtime = null) {
     if (items.length === 0 && typeOrCategory === 'tool') {
         try {
             const indexUrl = `${CDN_BASE}/search/shard-0.json`;
-            const res = await fetch(indexUrl, { signal: AbortSignal.timeout(5000) });
+            let res = await fetch(indexUrl, { signal: AbortSignal.timeout(5000) });
+
+            if (!res.ok) {
+                const gzRes = await fetch(indexUrl + '.gz', { signal: AbortSignal.timeout(5000) });
+                if (gzRes.ok) res = gzRes;
+            }
+
             if (res.ok) {
-                const data = await res.json();
+                let data;
+                if (res.url.endsWith('.gz')) {
+                    const ds = new DecompressionStream('gzip');
+                    const stream = res.body.pipeThrough(ds);
+                    data = await new Response(stream).json();
+                } else {
+                    data = await res.json();
+                }
                 const allRaw = extractItems(data);
                 items = allRaw.filter(i => i.type === 'tool');
                 source = 'search-index-fallback';

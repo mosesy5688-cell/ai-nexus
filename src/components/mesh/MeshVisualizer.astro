@@ -1,6 +1,8 @@
 ---
+import { loadCachedJSON } from '../../utils/loadCachedJSON.js';
+
 /**
- * MeshVisualizer V16.2
+ * MeshVisualizer V18.12.0
  * Visualizes the 8-node knowledge graph from cache/mesh/graph.json
  * Displays nodes and edges in a navigable format
  */
@@ -11,9 +13,10 @@ const CDN_BASE = 'https://cdn.free2aitools.com';
 let meshStats = { nodes: 0, edges: 0, by_type: {} };
 
 try {
-  const response = await fetch(`${CDN_BASE}/cache/mesh/stats.json`);
-  if (response.ok) {
-    meshStats = await response.json();
+  // V18.12.0: Use loadCachedJSON for transparent .gz fallback and decompression
+  const { data } = await loadCachedJSON('cache/mesh/stats.json', { locals: Astro.locals });
+  if (data) {
+    meshStats = data;
   } else {
     // Fallback stats for V16.8.15 R5.7.3 (Unified Factory Sync)
     meshStats = { 

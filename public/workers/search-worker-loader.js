@@ -108,8 +108,9 @@ export async function loadFullIndex(onProgress) {
             indexCache['model'].items.forEach(e => itemsMap.set(e.id, e));
         }
 
+        const extension = manifest.extension || '';
         const shardUrls = Array.from({ length: totalShards }, (_, i) => {
-            return `${CDN_URL}/cache/search/shard-${i}.json`;
+            return `${CDN_URL}/cache/search/shard-${i}.json${extension}`;
         });
 
         const BATCH_SIZE = 5;

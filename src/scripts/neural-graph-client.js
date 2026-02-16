@@ -60,9 +60,24 @@ export function initNeuralGraph(containerId) {
         try {
             loading.style.display = 'flex';
             const CDN = 'https://cdn.free2aitools.com';
+
+            // V18.12.0: Resilient fetch with .gz fallback
+            const resFetch = async (url) => {
+                let r = await fetch(url);
+                if (!r.ok && !url.endsWith('.gz')) r = await fetch(url + '.gz');
+                if (!r.ok) return null;
+
+                if (r.url.endsWith('.gz')) {
+                    const ds = new DecompressionStream('gzip');
+                    const decompressedStream = r.body.pipeThrough(ds);
+                    return await new Response(decompressedStream).json();
+                }
+                return await r.json();
+            };
+
             const [resp1, resp2] = await Promise.all([
-                fetch(`${CDN}/cache/relations/explicit.json`).then(r => r.ok ? r.json() : null),
-                fetch(`${CDN}/cache/relations/knowledge-links.json`).then(r => r.ok ? r.json() : null)
+                resFetch(`${CDN}/cache/relations/explicit.json`),
+                resFetch(`${CDN}/cache/relations/knowledge-links.json`)
             ]);
 
             if (resp1 || resp2) {
