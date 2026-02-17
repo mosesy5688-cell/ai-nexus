@@ -66,41 +66,46 @@ async function main() {
     // ALWAYS use sharded loader for Pass 1 to prevent Buffer Too Large errors on indexing.
     const rankingsAndIndices = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
 
-
     const { rankingsMap, registryMap } = rankingsAndIndices;
     console.log(`✓ Global rankings and registry mapping aligned for ${rankingsMap.size} entities.`);
 
-    // 1.5. Pass 1.5: Pre-process updates (O(1) Streaming)
-    // Align updates with registry shards BEFORE passing to merge. Supports monolith or shards.
-    const harvesterExists = await fs.access(entitiesInputPath).then(() => true).catch(() => false);
-    await preProcessDeltas(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, registryMap, harvesterExists ? entitiesInputPath : null);
-
     let successCount = 0;
-    let fullSet = []; // We will accumulate this ONLY for satellite tasks (slimmed)
+    let fullSet = [];
 
-    // 2. Pass 2: Shard-Centric Merge (Heavyweight)
-    // V18.12.5.21: Unified Merge Flow. Baseline shards are merged with partitioned updates (from monolith or local dist).
-    console.log(`[AGGREGATOR] Pass 2/2: Performing Partitioned Shard Merge (Hash-Join)...`);
+    if (needsSlimming) {
+        // V18.12.5.24: Satellite Fast Path — Skip Pass 1.5 & Pass 2
+        // Satellites don't have deltas (merge-core already merged). Loading full
+        // entities just to slim them wastes 5GB+ of heap. Instead, collect slim
+        // entities directly from the sequential loader (already projected by
+        // projectEntity). Only ~34MB for 168K slim entities.
+        console.log(`[AGGREGATOR] Satellite Fast Path: Collecting slim entities (skipping merge)...`);
+        await loadRegistryShardsSequentially(async (slimEntities, shardIdx) => {
+            for (const e of slimEntities) {
+                e.fni_percentile = rankingsMap.get(e.id) || 0;
+                fullSet.push(e);
+            }
+            successCount++;
+        }, { slim: true });
+    } else {
+        // Core path: Full merge + save
+        // 1.5. Pre-process updates (O(1) Streaming)
+        const harvesterExists = await fs.access(entitiesInputPath).then(() => true).catch(() => false);
+        await preProcessDeltas(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, registryMap, harvesterExists ? entitiesInputPath : null);
 
-    await loadRegistryShardsSequentially(async (baselineEntities, shardIdx) => {
-        const mergedShard = await mergePartitionedShard(
-            baselineEntities,
-            shardIdx,
-            rankingsMap,
-            { slim: needsSlimming }
-        );
-
-        if (!needsSlimming) {
+        // 2. Pass 2: Shard-Centric Merge (Heavyweight)
+        console.log(`[AGGREGATOR] Pass 2/2: Performing Partitioned Shard Merge (Hash-Join)...`);
+        await loadRegistryShardsSequentially(async (baselineEntities, shardIdx) => {
+            const mergedShard = await mergePartitionedShard(
+                baselineEntities, shardIdx, rankingsMap, { slim: false }
+            );
             await saveRegistryShard(shardIdx, mergedShard.entities);
-        }
-
-        if (needsSlimming || !taskArg || taskArg === 'health') {
-            for (const e of mergedShard.entities) fullSet.push(e);
-        }
-
-        successCount++;
-        mergedShard.entities = null;
-    }, { slim: needsSlimming });
+            if (!taskArg || taskArg === 'health') {
+                for (const e of mergedShard.entities) fullSet.push(e);
+            }
+            successCount++;
+            mergedShard.entities = null;
+        }, { slim: false });
+    }
 
     if (fullSet.length === 0 && !needsSlimming) {
         // If we didn't accumulate fullSet, we need to load it slimly for health/final stats
