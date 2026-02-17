@@ -5,26 +5,26 @@
   - banner [ref=e2]:
     - navigation [ref=e3]:
       - generic [ref=e4]:
-        - link "Free AI Tools" [ref=e5] [cursor=pointer]:
+        - link "Free2AITools" [ref=e5] [cursor=pointer]:
           - /url: /
-          - generic [ref=e6]: Free AI Tools
+          - generic [ref=e6]: Free2AITools
         - generic [ref=e8]:
           - link "Home" [ref=e9] [cursor=pointer]:
             - /url: /
-          - link "Models" [ref=e10] [cursor=pointer]:
+          - link "Rankings" [ref=e10] [cursor=pointer]:
+            - /url: /ranking
+          - link "Models" [ref=e11] [cursor=pointer]:
             - /url: /models
-          - link "Agents" [ref=e11] [cursor=pointer]:
+          - link "Agents" [ref=e12] [cursor=pointer]:
             - /url: /agents
-          - link "Spaces" [ref=e12] [cursor=pointer]:
+          - link "Spaces" [ref=e13] [cursor=pointer]:
             - /url: /spaces
-          - link "Tools" [ref=e13] [cursor=pointer]:
+          - link "Tools" [ref=e14] [cursor=pointer]:
             - /url: /tools
-          - link "Datasets" [ref=e14] [cursor=pointer]:
+          - link "Datasets" [ref=e15] [cursor=pointer]:
             - /url: /datasets
-          - link "Papers" [ref=e15] [cursor=pointer]:
+          - link "Papers" [ref=e16] [cursor=pointer]:
             - /url: /papers
-          - link "Compare" [ref=e16] [cursor=pointer]:
-            - /url: /compare
           - link "Reports" [ref=e17] [cursor=pointer]:
             - /url: /reports
           - link "Knowledge" [ref=e18] [cursor=pointer]:
@@ -51,243 +51,477 @@
     - generic [ref=e42]:
       - button "Skip tour" [ref=e43] [cursor=pointer]
       - button "Next" [ref=e45] [cursor=pointer]
-  - generic [ref=e46]:
-    - generic [ref=e47]:
-      - heading "AI Models Catalog" [level=1] [ref=e48]
-      - paragraph [ref=e49]: Browse and discover 70,000+ open-source AI models
-    - generic [ref=e50]:
-      - textbox "Search models..." [ref=e52]
-      - combobox [ref=e53]:
-        - option "All Categories" [selected]
-        - option "💬 Text Generation"
-        - option "🎨 Image Generation"
-        - option "📋 Classification"
-        - option "❓ Question Answering"
-        - option "📝 Summarization"
-        - option "🌐 Translation"
-        - option "🔍 Embeddings"
-      - combobox [ref=e54]:
-        - option "🛡️ FNI Score" [selected]
-        - option "📥 Downloads"
-        - option "❤️ Likes"
-        - option "🕐 Recently Updated"
-    - generic [ref=e55]:
-      - generic [ref=e56]: 12604 models visible
-      - generic [ref=e57]: •
-      - generic [ref=e58]: Updated Mon/Thu at 03:00 UTC
-    - generic [ref=e59]:
-      - link "model gpt-4.1-mini Fast, affordable version of GPT-4.1 📥 1.3M" [ref=e60] [cursor=pointer]:
-        - /url: /model/openai/gpt-4.1-mini
-        - generic [ref=e62]: model
-        - heading "gpt-4.1-mini" [level=3] [ref=e63]
-        - paragraph [ref=e64]: Fast, affordable version of GPT-4.1
-        - generic [ref=e66]: 📥 1.3M
-      - link "model llama-2-70b-chat A 70 billion parameter language model from Meta, fine tuned for chat completions 📥 10M" [ref=e67] [cursor=pointer]:
-        - /url: /model/meta/llama-2-70b-chat
-        - generic [ref=e69]: model
-        - heading "llama-2-70b-chat" [level=3] [ref=e70]
-        - paragraph [ref=e71]: A 70 billion parameter language model from Meta, fine tuned for chat completions
-        - generic [ref=e73]: 📥 10M
-      - link "model claude-3.7-sonnet The most intelligent Claude model and the first hybrid reasoning model on the market (claude-3-7-sonnet-20250219) 📥 3.6M" [ref=e74] [cursor=pointer]:
-        - /url: /model/anthropic/claude-3.7-sonnet
-        - generic [ref=e76]: model
-        - heading "claude-3.7-sonnet" [level=3] [ref=e77]
-        - paragraph [ref=e78]: The most intelligent Claude model and the first hybrid reasoning model on the market (claude-3-7-sonnet-20250219)
-        - generic [ref=e80]: 📥 3.6M
-      - link "model stable-diffusion-inpainting Fill in masked parts of images with Stable Diffusion 📥 20.9M" [ref=e81] [cursor=pointer]:
-        - /url: /model/stability-ai/stable-diffusion-inpainting
-        - generic [ref=e83]: model
-        - heading "stable-diffusion-inpainting" [level=3] [ref=e84]
-        - paragraph [ref=e85]: Fill in masked parts of images with Stable Diffusion
-        - generic [ref=e87]: 📥 20.9M
-      - link "model llama-2-13b-chat A 13 billion parameter language model from Meta, fine tuned for chat completions 📥 4.9M" [ref=e88] [cursor=pointer]:
-        - /url: /model/meta/llama-2-13b-chat
-        - generic [ref=e90]: model
-        - heading "llama-2-13b-chat" [level=3] [ref=e91]
-        - paragraph [ref=e92]: A 13 billion parameter language model from Meta, fine tuned for chat completions
-        - generic [ref=e94]: 📥 4.9M
-      - link "model gpt-5-nano Fastest, most cost-effective GPT-5 model from OpenAI 📥 3.4M" [ref=e95] [cursor=pointer]:
-        - /url: /model/openai/gpt-5-nano
-        - generic [ref=e97]: model
-        - heading "gpt-5-nano" [level=3] [ref=e98]
-        - paragraph [ref=e99]: Fastest, most cost-effective GPT-5 model from OpenAI
-        - generic [ref=e101]: 📥 3.4M
-      - link "model stable-diffusion A latent text-to-image diffusion model capable of generating photo-realistic images given any text input 📥 110.9M" [ref=e102] [cursor=pointer]:
-        - /url: /model/stability-ai/stable-diffusion
-        - generic [ref=e104]: model
-        - heading "stable-diffusion" [level=3] [ref=e105]
-        - paragraph [ref=e106]: A latent text-to-image diffusion model capable of generating photo-realistic images given any text input
-        - generic [ref=e108]: 📥 110.9M
-      - link "model llama-4-maverick-instruct A 17 billion parameter model with 128 experts 📥 2M" [ref=e109] [cursor=pointer]:
-        - /url: /model/meta/llama-4-maverick-instruct
-        - generic [ref=e111]: model
-        - heading "llama-4-maverick-instruct" [level=3] [ref=e112]
-        - paragraph [ref=e113]: A 17 billion parameter model with 128 experts
-        - generic [ref=e115]: 📥 2M
-      - link "model gpt-4o-mini Low latency, low cost version of OpenAI's GPT-4o model 📥 14.1M" [ref=e116] [cursor=pointer]:
-        - /url: /model/openai/gpt-4o-mini
-        - generic [ref=e118]: model
-        - heading "gpt-4o-mini" [level=3] [ref=e119]
-        - paragraph [ref=e120]: Low latency, low cost version of OpenAI's GPT-4o model
-        - generic [ref=e122]: 📥 14.1M
-      - link "model mistral-7b-v0.1 A 7 billion parameter language model from Mistral. 📥 1.9M" [ref=e123] [cursor=pointer]:
-        - /url: /model/mistralai/mistral-7b-v0.1
-        - generic [ref=e125]: model
-        - heading "mistral-7b-v0.1" [level=3] [ref=e126]
-        - paragraph [ref=e127]: A 7 billion parameter language model from Mistral.
-        - generic [ref=e129]: 📥 1.9M
-      - link "model imagen-4 Google's Imagen 4 flagship model 📥 7M" [ref=e130] [cursor=pointer]:
-        - /url: /model/google/imagen-4
-        - generic [ref=e132]: model
-        - heading "imagen-4" [level=3] [ref=e133]
-        - paragraph [ref=e134]: Google's Imagen 4 flagship model
-        - generic [ref=e136]: 📥 7M
-      - link "model clip Official CLIP models, generate CLIP (clip-vit-large-patch14) text & image embeddings 📥 2.5M" [ref=e137] [cursor=pointer]:
-        - /url: /model/openai/clip
-        - generic [ref=e139]: model
-        - heading "clip" [level=3] [ref=e140]
-        - paragraph [ref=e141]: Official CLIP models, generate CLIP (clip-vit-large-patch14) text & image embeddings
-        - generic [ref=e143]: 📥 2.5M
-      - link "model llama-2-7b-chat A 7 billion parameter language model from Meta, fine tuned for chat completions 📥 18.5M" [ref=e144] [cursor=pointer]:
-        - /url: /model/meta/llama-2-7b-chat
-        - generic [ref=e146]: model
-        - heading "llama-2-7b-chat" [level=3] [ref=e147]
-        - paragraph [ref=e148]: A 7 billion parameter language model from Meta, fine tuned for chat completions
-        - generic [ref=e150]: 📥 18.5M
-      - link "model gpt-image-1 A multimodal image generation model that creates high-quality images. You need to bring your own verified OpenAI key to use this model. Your OpenAI account will be charged for usage. 📥 1.4M" [ref=e151] [cursor=pointer]:
-        - /url: /model/openai/gpt-image-1
-        - generic [ref=e153]: model
-        - heading "gpt-image-1" [level=3] [ref=e154]
-        - paragraph [ref=e155]: A multimodal image generation model that creates high-quality images. You need to bring your own verified OpenAI key to use this model. Your OpenAI account will be charged for usage.
-        - generic [ref=e157]: 📥 1.4M
-      - link "model nano-banana Google's latest image editing model in Gemini 2.5 📥 68.9M" [ref=e158] [cursor=pointer]:
-        - /url: /model/google/nano-banana
-        - generic [ref=e160]: model
-        - heading "nano-banana" [level=3] [ref=e161]
-        - paragraph [ref=e162]: Google's latest image editing model in Gemini 2.5
-        - generic [ref=e164]: 📥 68.9M
-      - 'link "model sana-sprint-1.6b SANA-Sprint: One-Step Diffusion with Continuous-Time Consistency Distillation 📥 1M" [ref=e165] [cursor=pointer]':
-        - /url: /model/nvidia/sana-sprint-1.6b
-        - generic [ref=e167]: model
-        - heading "sana-sprint-1.6b" [level=3] [ref=e168]
-        - paragraph [ref=e169]: "SANA-Sprint: One-Step Diffusion with Continuous-Time Consistency Distillation"
-        - generic [ref=e171]: 📥 1M
-      - link "model imagen-4-fast Use this fast version of Imagen 4 when speed and cost are more important than quality 📥 3.4M" [ref=e172] [cursor=pointer]:
-        - /url: /model/google/imagen-4-fast
-        - generic [ref=e174]: model
-        - heading "imagen-4-fast" [level=3] [ref=e175]
-        - paragraph [ref=e176]: Use this fast version of Imagen 4 when speed and cost are more important than quality
-        - generic [ref=e178]: 📥 3.4M
-      - link "model imagen-3 Google's highest quality text-to-image model, capable of generating images with detail, rich lighting and beauty 📥 1.9M" [ref=e179] [cursor=pointer]:
-        - /url: /model/google/imagen-3
-        - generic [ref=e181]: model
-        - heading "imagen-3" [level=3] [ref=e182]
-        - paragraph [ref=e183]: Google's highest quality text-to-image model, capable of generating images with detail, rich lighting and beauty
-        - generic [ref=e185]: 📥 1.9M
-      - link "model claude-4-sonnet Claude Sonnet 4 is a significant upgrade to 3.7, delivering superior coding and reasoning while responding more precisely to your instructions 📥 1.6M" [ref=e186] [cursor=pointer]:
-        - /url: /model/anthropic/claude-4-sonnet
-        - generic [ref=e188]: model
-        - heading "claude-4-sonnet" [level=3] [ref=e189]
-        - paragraph [ref=e190]: Claude Sonnet 4 is a significant upgrade to 3.7, delivering superior coding and reasoning while responding more precisely to your instructions
-        - generic [ref=e192]: 📥 1.6M
-      - link "model claude-3.5-haiku Anthropic's fastest, most cost-effective model, with a 200K token context window (claude-3-5-haiku-20241022) 📥 2.9M" [ref=e193] [cursor=pointer]:
-        - /url: /model/anthropic/claude-3.5-haiku
-        - generic [ref=e195]: model
-        - heading "claude-3.5-haiku" [level=3] [ref=e196]
-        - paragraph [ref=e197]: Anthropic's fastest, most cost-effective model, with a 200K token context window (claude-3-5-haiku-20241022)
-        - generic [ref=e199]: 📥 2.9M
-      - link "model whisper Accelerated transcription, word-level timestamps and diarization with whisperX large-v3 for large audio files 📥 143M" [ref=e200] [cursor=pointer]:
-        - /url: /model/openai/whisper
-        - generic [ref=e202]: model
-        - heading "whisper" [level=3] [ref=e203]
-        - paragraph [ref=e204]: Accelerated transcription, word-level timestamps and diarization with whisperX large-v3 for large audio files
-        - generic [ref=e206]: 📥 143M
-      - link "model sdxl A text-to-image generative AI model that creates beautiful images 📥 83.4M" [ref=e207] [cursor=pointer]:
-        - /url: /model/stability-ai/sdxl
-        - generic [ref=e209]: model
-        - heading "sdxl" [level=3] [ref=e210]
-        - paragraph [ref=e211]: A text-to-image generative AI model that creates beautiful images
-        - generic [ref=e213]: 📥 83.4M
-      - link "model llama-4-scout-instruct A 17 billion parameter model with 16 experts 📥 3.4M" [ref=e214] [cursor=pointer]:
-        - /url: /model/meta/llama-4-scout-instruct
-        - generic [ref=e216]: model
-        - heading "llama-4-scout-instruct" [level=3] [ref=e217]
-        - paragraph [ref=e218]: A 17 billion parameter model with 16 experts
-        - generic [ref=e220]: 📥 3.4M
-      - link "model meta-llama-3-8b-instruct An 8 billion parameter language model from Meta, fine tuned for chat completions 📥 395.9M" [ref=e221] [cursor=pointer]:
-        - /url: /model/meta/meta-llama-3-8b-instruct
-        - generic [ref=e223]: model
-        - heading "meta-llama-3-8b-instruct" [level=3] [ref=e224]
-        - paragraph [ref=e225]: An 8 billion parameter language model from Meta, fine tuned for chat completions
-        - generic [ref=e227]: 📥 395.9M
-    - navigation [ref=e229]:
-      - button "←" [disabled] [ref=e230]
-      - generic [ref=e231]: Page 1 of 526
-      - button "→" [ref=e232] [cursor=pointer]
-    - generic [ref=e233]:
-      - heading "Quick Navigation" [level=2] [ref=e234]
-      - generic [ref=e235]:
-        - link "🏆 FNI Leaderboard" [ref=e236] [cursor=pointer]:
-          - /url: /ranking
-          - generic [ref=e237]: 🏆
-          - text: FNI Leaderboard
-        - link "🛠️ Dev Tools" [ref=e238] [cursor=pointer]:
-          - /url: /tools
-          - generic [ref=e239]: 🛠️
-          - text: Dev Tools
-        - link "📄 Research Papers" [ref=e240] [cursor=pointer]:
-          - /url: /papers
-          - generic [ref=e241]: 📄
-          - text: Research Papers
-        - link "🚀 AI Spaces" [ref=e242] [cursor=pointer]:
-          - /url: /spaces
-          - generic [ref=e243]: 🚀
-          - text: AI Spaces
-  - contentinfo [ref=e244]:
-    - generic [ref=e245]:
-      - generic [ref=e246]:
-        - generic [ref=e247]:
-          - heading "Free2AITools" [level=3] [ref=e248]
-          - paragraph [ref=e249]: Open-Source AI Model Selection Hub. Find the best LLM for your needs with our VRAM calculator and one-click deploy guides.
-          - paragraph [ref=e250]: Powered by the Fair Nexus Index (methodology-based, non-commercial)
-        - generic [ref=e251]:
-          - heading "Resources" [level=4] [ref=e252]
-          - list [ref=e253]:
-            - listitem [ref=e254]:
-              - link "Model Rankings" [ref=e255] [cursor=pointer]:
+  - main [ref=e46]:
+    - main [ref=e47]:
+      - generic [ref=e48]:
+        - heading "AI Models Catalog" [level=1] [ref=e49]
+        - paragraph [ref=e50]: The authoritative index of open-weights intelligence. Sharded, verified, and ranked by FNI.
+      - generic [ref=e51]:
+        - generic [ref=e53]:
+          - generic [ref=e54]: 🔍
+          - textbox "Search models..." [ref=e55]
+        - generic [ref=e56]:
+          - generic [ref=e57]:
+            - generic [ref=e58]: "Category:"
+            - combobox [ref=e59] [cursor=pointer]:
+              - option "All Categories" [selected]
+              - option "💬 Text Generation & Content Creation"
+              - option "🔍 Knowledge Retrieval & Data Analysis"
+              - option "🎨 Vision & Multimedia Processing"
+              - option "⚡ Automation & Workflow Integration"
+              - option "🔧 Infrastructure & Optimization"
+              - option "📦 Uncategorized"
+          - generic [ref=e60]: 48 models indexed in Professional Intelligence Database
+          - generic [ref=e61]:
+            - generic [ref=e62]: "Sort:"
+            - combobox [ref=e63] [cursor=pointer]:
+              - option "🛡️ FNI Score" [selected]
+              - option "📥 Downloads"
+              - option "❤️ Likes"
+              - option "🕐 Updated"
+              - option "🔤 Name"
+      - generic [ref=e64]:
+        - 'link "model 52 paraphrase-multilingual-MiniLM-L12-v2 by sentence-transformers --- language: - multilingual - ar - bg - ca - cs - da - de - el - en - es - et - fa - fi - fr - gl - gu - he - hi - hr - hu - hy - id - it - ja - ka - ko - ku - lt - lv - mk - mn - mr - ms - my - nb - nl - pl - pt - ro - ru - sk - sl - sq - sr - sv - th - tr - uk - ur - vi license: apache-2.0 library_name: sentence-transformers tags: - sentence-transformers - feature-extraction - sentence-similarity - transformers language_bcp47: - fr-ca - pt-br - zh-cn - zh-tw pipeline_tag: sentence-similari... 17M 📥" [ref=e66] [cursor=pointer]':
+          - /url: /model/sentence-transformers/paraphrase-multilingual-minilm-l12-v2
+          - generic [ref=e67]:
+            - generic [ref=e69]: model
+            - generic [ref=e72]: "52"
+          - heading "paraphrase-multilingual-MiniLM-L12-v2" [level=3] [ref=e73]
+          - paragraph [ref=e74]: by sentence-transformers
+          - paragraph [ref=e75]: "--- language: - multilingual - ar - bg - ca - cs - da - de - el - en - es - et - fa - fi - fr - gl - gu - he - hi - hr - hu - hy - id - it - ja - ka - ko - ku - lt - lv - mk - mn - mr - ms - my - nb - nl - pl - pt - ro - ru - sk - sl - sq - sr - sv - th - tr - uk - ur - vi license: apache-2.0 library_name: sentence-transformers tags: - sentence-transformers - feature-extraction - sentence-similarity - transformers language_bcp47: - fr-ca - pt-br - zh-cn - zh-tw pipeline_tag: sentence-similari..."
+          - generic [ref=e77]: 17M 📥
+        - link "model 51 speaker-diarization-3.1 by pyannote Structural intelligence indexing in progress... 16M 📥" [ref=e79] [cursor=pointer]:
+          - /url: /model/pyannote/speaker-diarization-3.1
+          - generic [ref=e80]:
+            - generic [ref=e82]: model
+            - generic [ref=e85]: "51"
+          - heading "speaker-diarization-3.1" [level=3] [ref=e86]
+          - paragraph [ref=e87]: by pyannote
+          - paragraph [ref=e88]: Structural intelligence indexing in progress...
+          - generic [ref=e90]: 16M 📥
+        - 'link "model 50 gpt2 by openai-community --- language: en tags: - exbert license: mit --- Test the whole generation capabilities here: https://transformer.huggingface.co/doc/gpt2-large Pretrained model on English language using a causal language modeling (CLM) objective. It was introduced in this paper and first released at this page. Disclaimer: The team releasing GPT-2 also wrote a model card for their model. Content from this model card has been written by the Hugging Face team to complete the information they provided and give s... 9.6M 📥" [ref=e92] [cursor=pointer]':
+          - /url: /model/openai-community/gpt2
+          - generic [ref=e93]:
+            - generic [ref=e95]: model
+            - generic [ref=e98]: "50"
+          - heading "gpt2" [level=3] [ref=e99]
+          - paragraph [ref=e100]: by openai-community
+          - paragraph [ref=e101]: "--- language: en tags: - exbert license: mit --- Test the whole generation capabilities here: https://transformer.huggingface.co/doc/gpt2-large Pretrained model on English language using a causal language modeling (CLM) objective. It was introduced in this paper and first released at this page. Disclaimer: The team releasing GPT-2 also wrote a model card for their model. Content from this model card has been written by the Hugging Face team to complete the information they provided and give s..."
+          - generic [ref=e103]: 9.6M 📥
+        - link "model 49 segmentation-3.0 by pyannote Structural intelligence indexing in progress... 18M 📥" [ref=e105] [cursor=pointer]:
+          - /url: /model/pyannote/segmentation-3.0
+          - generic [ref=e106]:
+            - generic [ref=e108]: model
+            - generic [ref=e111]: "49"
+          - heading "segmentation-3.0" [level=3] [ref=e112]
+          - paragraph [ref=e113]: by pyannote
+          - paragraph [ref=e114]: Structural intelligence indexing in progress...
+          - generic [ref=e116]: 18M 📥
+        - 'link "model 49 clip-vit-base-patch32 by openai --- tags: - vision widget: - src: https://huggingface.co/datasets/mishig/sample_images/resolve/main/cat-dog-music.png candidate_labels: playing music, playing sports example_title: Cat & Dog --- Disclaimer: The model card is taken and modified from the official CLIP repository, it can be found here. The CLIP model was developed by researchers at OpenAI to learn about what contributes to robustness in computer vision tasks. The model was also developed to test the ability of models to generali... 20M 📥" [ref=e118] [cursor=pointer]':
+          - /url: /model/openai/clip-vit-base-patch32
+          - generic [ref=e119]:
+            - generic [ref=e121]: model
+            - generic [ref=e124]: "49"
+          - heading "clip-vit-base-patch32" [level=3] [ref=e125]
+          - paragraph [ref=e126]: by openai
+          - paragraph [ref=e127]: "--- tags: - vision widget: - src: https://huggingface.co/datasets/mishig/sample_images/resolve/main/cat-dog-music.png candidate_labels: playing music, playing sports example_title: Cat & Dog --- Disclaimer: The model card is taken and modified from the official CLIP repository, it can be found here. The CLIP model was developed by researchers at OpenAI to learn about what contributes to robustness in computer vision tasks. The model was also developed to test the ability of models to generali..."
+          - generic [ref=e129]: 20M 📥
+        - 'link "model 49 xlm-roberta-base by FacebookAI --- tags: - exbert language: - multilingual - af - am - ar - as - az - be - bg - bn - br - bs - ca - cs - cy - da - de - el - en - eo - es - et - eu - fa - fi - fr - fy - ga - gd - gl - gu - ha - he - hi - hr - hu - hy - id - is - it - ja - jv - ka - kk - km - kn - ko - ku - ky - la - lo - lt - lv - mg - mk - ml - mn - mr - ms - my - ne - nl - no - om - or - pa - pl - ps - pt - ro - ru - sa - sd - si - sk - sl - so - sq - sr - su - sv - sw - ta - te - th - tl - tr - ug - uk - ur - uz - vi - x... 7.3M 📥" [ref=e131] [cursor=pointer]':
+          - /url: /model/facebookai/xlm-roberta-base
+          - generic [ref=e132]:
+            - generic [ref=e134]: model
+            - generic [ref=e137]: "49"
+          - heading "xlm-roberta-base" [level=3] [ref=e138]
+          - paragraph [ref=e139]: by FacebookAI
+          - paragraph [ref=e140]: "--- tags: - exbert language: - multilingual - af - am - ar - as - az - be - bg - bn - br - bs - ca - cs - cy - da - de - el - en - eo - es - et - eu - fa - fi - fr - fy - ga - gd - gl - gu - ha - he - hi - hr - hu - hy - id - is - it - ja - jv - ka - kk - km - kn - ko - ku - ky - la - lo - lt - lv - mg - mk - ml - mn - mr - ms - my - ne - nl - no - om - or - pa - pl - ps - pt - ro - ru - sa - sd - si - sk - sl - so - sq - sr - su - sv - sw - ta - te - th - tl - tr - ug - uk - ur - uz - vi - x..."
+          - generic [ref=e142]: 7.3M 📥
+        - 'link "model 49 XTTS-v2 by coqui --- license: other license_name: coqui-public-model-license license_link: https://coqui.ai/cpml library_name: coqui pipeline_tag: text-to-speech widget: - text: \"Once when I was six years old I saw a magnificent picture\" --- ⓍTTS is a Voice generation model that lets you clone voices into different languages by using just a quick 6-second audio clip. There is no need for an excessive amount of training data that spans countless hours. This is the same or similar model to what powers Coqui Stu... 6.4M 📥" [ref=e144] [cursor=pointer]':
+          - /url: /model/coqui/xtts-v2
+          - generic [ref=e145]:
+            - generic [ref=e147]: model
+            - generic [ref=e150]: "49"
+          - heading "XTTS-v2" [level=3] [ref=e151]
+          - paragraph [ref=e152]: by coqui
+          - paragraph [ref=e153]: "--- license: other license_name: coqui-public-model-license license_link: https://coqui.ai/cpml library_name: coqui pipeline_tag: text-to-speech widget: - text: \"Once when I was six years old I saw a magnificent picture\" --- ⓍTTS is a Voice generation model that lets you clone voices into different languages by using just a quick 6-second audio clip. There is no need for an excessive amount of training data that spans countless hours. This is the same or similar model to what powers Coqui Stu..."
+          - generic [ref=e155]: 6.4M 📥
+        - 'link "model 49 Qwen3-4B-Instruct-2507 by Qwen --- library_name: transformers license: apache-2.0 license_link: https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507/blob/main/LICENSE pipeline_tag: text-generation --- <a href=\"https://chat.qwen.ai\" target=\"_blank\" style=\"margin: 2px;\"> <img alt=\"Chat\" src=\"https://img.shields.io/badge/%F0%9F%92%9C%EF%B8%8F%20Qwen%20Chat%20-536af5\" style=\"display: inline-block; vertical-align: middle;\"/> </a> We introduce the updated version of the **Qwen3-4B non-thinking mode**, named **Qwen3-4B-Instruct-250... 6.3M 📥" [ref=e157] [cursor=pointer]':
+          - /url: /model/qwen/qwen3-4b-instruct-2507
+          - generic [ref=e158]:
+            - generic [ref=e160]: model
+            - generic [ref=e163]: "49"
+          - heading "Qwen3-4B-Instruct-2507" [level=3] [ref=e164]
+          - paragraph [ref=e165]: by Qwen
+          - paragraph [ref=e166]: "--- library_name: transformers license: apache-2.0 license_link: https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507/blob/main/LICENSE pipeline_tag: text-generation --- <a href=\"https://chat.qwen.ai\" target=\"_blank\" style=\"margin: 2px;\"> <img alt=\"Chat\" src=\"https://img.shields.io/badge/%F0%9F%92%9C%EF%B8%8F%20Qwen%20Chat%20-536af5\" style=\"display: inline-block; vertical-align: middle;\"/> </a> We introduce the updated version of the **Qwen3-4B non-thinking mode**, named **Qwen3-4B-Instruct-250..."
+          - generic [ref=e168]: 6.3M 📥
+        - 'link "model 49 Qwen2.5-VL-3B-Instruct by Qwen --- license_name: qwen-research license_link: https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct/blob/main/LICENSE language: - en pipeline_tag: image-text-to-text tags: - multimodal library_name: transformers --- <a href=\"https://chat.qwenlm.ai/\" target=\"_blank\" style=\"margin: 2px;\"> <img alt=\"Chat\" src=\"https://img.shields.io/badge/%F0%9F%92%9C%EF%B8%8F%20Qwen%20Chat%20-536af5\" style=\"display: inline-block; vertical-align: middle;\"/> </a> In the past five months since Qwen2-VL’s release, num... 7.7M 📥" [ref=e170] [cursor=pointer]':
+          - /url: /model/qwen/qwen2.5-vl-3b-instruct
+          - generic [ref=e171]:
+            - generic [ref=e173]: model
+            - generic [ref=e176]: "49"
+          - heading "Qwen2.5-VL-3B-Instruct" [level=3] [ref=e177]
+          - paragraph [ref=e178]: by Qwen
+          - paragraph [ref=e179]: "--- license_name: qwen-research license_link: https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct/blob/main/LICENSE language: - en pipeline_tag: image-text-to-text tags: - multimodal library_name: transformers --- <a href=\"https://chat.qwenlm.ai/\" target=\"_blank\" style=\"margin: 2px;\"> <img alt=\"Chat\" src=\"https://img.shields.io/badge/%F0%9F%92%9C%EF%B8%8F%20Qwen%20Chat%20-536af5\" style=\"display: inline-block; vertical-align: middle;\"/> </a> In the past five months since Qwen2-VL’s release, num..."
+          - generic [ref=e181]: 7.7M 📥
+        - 'link "model 49 gpt-oss-20b by openai --- license: apache-2.0 pipeline_tag: text-generation library_name: transformers tags: - vllm --- <p align=\"center\"> <img alt=\"gpt-oss-20b\" src=\"https://raw.githubusercontent.com/openai/gpt-oss/main/docs/gpt-oss-20b.svg\"> </p> <p align=\"center\"> <a href=\"https://gpt-oss.com\"><strong>Try gpt-oss</strong></a> · <a href=\"https://cookbook.openai.com/topic/gpt-oss\"><strong>Guides</strong></a> · <a href=\"https://arxiv.org/abs/2508.10925\"><strong>Model card</strong></a> · <a href=\"https://openai.com... 8.2M 📥" [ref=e183] [cursor=pointer]':
+          - /url: /model/openai/gpt-oss-20b
+          - generic [ref=e184]:
+            - generic [ref=e186]: model
+            - generic [ref=e189]: "49"
+          - heading "gpt-oss-20b" [level=3] [ref=e190]
+          - paragraph [ref=e191]: by openai
+          - paragraph [ref=e192]: "--- license: apache-2.0 pipeline_tag: text-generation library_name: transformers tags: - vllm --- <p align=\"center\"> <img alt=\"gpt-oss-20b\" src=\"https://raw.githubusercontent.com/openai/gpt-oss/main/docs/gpt-oss-20b.svg\"> </p> <p align=\"center\"> <a href=\"https://gpt-oss.com\"><strong>Try gpt-oss</strong></a> · <a href=\"https://cookbook.openai.com/topic/gpt-oss\"><strong>Guides</strong></a> · <a href=\"https://arxiv.org/abs/2508.10925\"><strong>Model card</strong></a> · <a href=\"https://openai.com..."
+          - generic [ref=e194]: 8.2M 📥
+        - 'link "model 49 Qwen3-0.6B by Qwen --- library_name: transformers license: apache-2.0 license_link: https://huggingface.co/Qwen/Qwen3-0.6B/blob/main/LICENSE pipeline_tag: text-generation base_model: - Qwen/Qwen3-0.6B-Base --- <a href=\"https://chat.qwen.ai/\" target=\"_blank\" style=\"margin: 2px;\"> <img alt=\"Chat\" src=\"https://img.shields.io/badge/%F0%9F%92%9C%EF%B8%8F%20Qwen%20Chat%20-536af5\" style=\"display: inline-block; vertical-align: middle;\"/> </a> Qwen3 is the latest generation of large language models in Qwen series, offer... 7.8M 📥" [ref=e196] [cursor=pointer]':
+          - /url: /model/qwen/qwen3-0.6b
+          - generic [ref=e197]:
+            - generic [ref=e199]: model
+            - generic [ref=e202]: "49"
+          - heading "Qwen3-0.6B" [level=3] [ref=e203]
+          - paragraph [ref=e204]: by Qwen
+          - paragraph [ref=e205]: "--- library_name: transformers license: apache-2.0 license_link: https://huggingface.co/Qwen/Qwen3-0.6B/blob/main/LICENSE pipeline_tag: text-generation base_model: - Qwen/Qwen3-0.6B-Base --- <a href=\"https://chat.qwen.ai/\" target=\"_blank\" style=\"margin: 2px;\"> <img alt=\"Chat\" src=\"https://img.shields.io/badge/%F0%9F%92%9C%EF%B8%8F%20Qwen%20Chat%20-536af5\" style=\"display: inline-block; vertical-align: middle;\"/> </a> Qwen3 is the latest generation of large language models in Qwen series, offer..."
+          - generic [ref=e207]: 7.8M 📥
+        - 'link "model 49 Qwen2.5-7B-Instruct by Qwen --- license: apache-2.0 license_link: https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/blob/main/LICENSE language: - en pipeline_tag: text-generation base_model: Qwen/Qwen2.5-7B tags: - chat library_name: transformers --- <a href=\"https://chat.qwenlm.ai/\" target=\"_blank\" style=\"margin: 2px;\"> <img alt=\"Chat\" src=\"https://img.shields.io/badge/%F0%9F%92%9C%EF%B8%8F%20Qwen%20Chat%20-536af5\" style=\"display: inline-block; vertical-align: middle;\"/> </a> Qwen2.5 is the latest series of Qwen large la... 7.2M 📥" [ref=e209] [cursor=pointer]':
+          - /url: /model/qwen/qwen2.5-7b-instruct
+          - generic [ref=e210]:
+            - generic [ref=e212]: model
+            - generic [ref=e215]: "49"
+          - heading "Qwen2.5-7B-Instruct" [level=3] [ref=e216]
+          - paragraph [ref=e217]: by Qwen
+          - paragraph [ref=e218]: "--- license: apache-2.0 license_link: https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/blob/main/LICENSE language: - en pipeline_tag: text-generation base_model: Qwen/Qwen2.5-7B tags: - chat library_name: transformers --- <a href=\"https://chat.qwenlm.ai/\" target=\"_blank\" style=\"margin: 2px;\"> <img alt=\"Chat\" src=\"https://img.shields.io/badge/%F0%9F%92%9C%EF%B8%8F%20Qwen%20Chat%20-536af5\" style=\"display: inline-block; vertical-align: middle;\"/> </a> Qwen2.5 is the latest series of Qwen large la..."
+          - generic [ref=e220]: 7.2M 📥
+        - link "model 49 bge-m3 by BAAI Structural intelligence indexing in progress..." [ref=e222] [cursor=pointer]:
+          - /url: /model/baai/bge-m3
+          - generic [ref=e223]:
+            - generic [ref=e225]: model
+            - generic [ref=e228]: "49"
+          - heading "bge-m3" [level=3] [ref=e229]
+          - paragraph [ref=e230]: by BAAI
+          - paragraph [ref=e231]: Structural intelligence indexing in progress...
+        - link "model 48 whisper-large-v3 by openai Structural intelligence indexing in progress..." [ref=e234] [cursor=pointer]:
+          - /url: /model/openai/whisper-large-v3
+          - generic [ref=e235]:
+            - generic [ref=e237]: model
+            - generic [ref=e240]: "48"
+          - heading "whisper-large-v3" [level=3] [ref=e241]
+          - paragraph [ref=e242]: by openai
+          - paragraph [ref=e243]: Structural intelligence indexing in progress...
+        - link "model 48 Qwen3-8B by Qwen Structural intelligence indexing in progress..." [ref=e246] [cursor=pointer]:
+          - /url: /model/qwen/qwen3-8b
+          - generic [ref=e247]:
+            - generic [ref=e249]: model
+            - generic [ref=e252]: "48"
+          - heading "Qwen3-8B" [level=3] [ref=e253]
+          - paragraph [ref=e254]: by Qwen
+          - paragraph [ref=e255]: Structural intelligence indexing in progress...
+        - link "model 48 DeepSeek-OCR by deepseek-ai Structural intelligence indexing in progress..." [ref=e258] [cursor=pointer]:
+          - /url: /model/deepseek-ai/deepseek-ocr
+          - generic [ref=e259]:
+            - generic [ref=e261]: model
+            - generic [ref=e264]: "48"
+          - heading "DeepSeek-OCR" [level=3] [ref=e265]
+          - paragraph [ref=e266]: by deepseek-ai
+          - paragraph [ref=e267]: Structural intelligence indexing in progress...
+        - link "model 48 Llama-3.1-8B-Instruct by meta-llama Structural intelligence indexing in progress..." [ref=e270] [cursor=pointer]:
+          - /url: /model/meta-llama/llama-3.1-8b-instruct
+          - generic [ref=e271]:
+            - generic [ref=e273]: model
+            - generic [ref=e276]: "48"
+          - heading "Llama-3.1-8B-Instruct" [level=3] [ref=e277]
+          - paragraph [ref=e278]: by meta-llama
+          - paragraph [ref=e279]: Structural intelligence indexing in progress...
+        - link "model 48 whisper-large-v3-turbo by openai Structural intelligence indexing in progress..." [ref=e282] [cursor=pointer]:
+          - /url: /model/openai/whisper-large-v3-turbo
+          - generic [ref=e283]:
+            - generic [ref=e285]: model
+            - generic [ref=e288]: "48"
+          - heading "whisper-large-v3-turbo" [level=3] [ref=e289]
+          - paragraph [ref=e290]: by openai
+          - paragraph [ref=e291]: Structural intelligence indexing in progress...
+        - link "model 48 gpt-oss-120b by openai Structural intelligence indexing in progress..." [ref=e294] [cursor=pointer]:
+          - /url: /model/openai/gpt-oss-120b
+          - generic [ref=e295]:
+            - generic [ref=e297]: model
+            - generic [ref=e300]: "48"
+          - heading "gpt-oss-120b" [level=3] [ref=e301]
+          - paragraph [ref=e302]: by openai
+          - paragraph [ref=e303]: Structural intelligence indexing in progress...
+        - link "model 48 Qwen2.5-1.5B-Instruct by Qwen Structural intelligence indexing in progress..." [ref=e306] [cursor=pointer]:
+          - /url: /model/qwen/qwen2.5-1.5b-instruct
+          - generic [ref=e307]:
+            - generic [ref=e309]: model
+            - generic [ref=e312]: "48"
+          - heading "Qwen2.5-1.5B-Instruct" [level=3] [ref=e313]
+          - paragraph [ref=e314]: by Qwen
+          - paragraph [ref=e315]: Structural intelligence indexing in progress...
+        - link "model 48 jina-embeddings-v3 by jinaai Structural intelligence indexing in progress..." [ref=e318] [cursor=pointer]:
+          - /url: /model/jinaai/jina-embeddings-v3
+          - generic [ref=e319]:
+            - generic [ref=e321]: model
+            - generic [ref=e324]: "48"
+          - heading "jina-embeddings-v3" [level=3] [ref=e325]
+          - paragraph [ref=e326]: by jinaai
+          - paragraph [ref=e327]: Structural intelligence indexing in progress...
+        - link "model 47 Qwen3-Embedding-0.6B by Qwen Structural intelligence indexing in progress..." [ref=e330] [cursor=pointer]:
+          - /url: /model/qwen/qwen3-embedding-0.6b
+          - generic [ref=e331]:
+            - generic [ref=e333]: model
+            - generic [ref=e336]: "47"
+          - heading "Qwen3-Embedding-0.6B" [level=3] [ref=e337]
+          - paragraph [ref=e338]: by Qwen
+          - paragraph [ref=e339]: Structural intelligence indexing in progress...
+        - link "model 47 Mistral-7B-Instruct-v0.2 by mistralai Structural intelligence indexing in progress..." [ref=e342] [cursor=pointer]:
+          - /url: /model/mistralai/mistral-7b-instruct-v0.2
+          - generic [ref=e343]:
+            - generic [ref=e345]: model
+            - generic [ref=e348]: "47"
+          - heading "Mistral-7B-Instruct-v0.2" [level=3] [ref=e349]
+          - paragraph [ref=e350]: by mistralai
+          - paragraph [ref=e351]: Structural intelligence indexing in progress...
+        - link "model 47 Llama-3.2-1B-Instruct by meta-llama Structural intelligence indexing in progress..." [ref=e354] [cursor=pointer]:
+          - /url: /model/meta-llama/llama-3.2-1b-instruct
+          - generic [ref=e355]:
+            - generic [ref=e357]: model
+            - generic [ref=e360]: "47"
+          - heading "Llama-3.2-1B-Instruct" [level=3] [ref=e361]
+          - paragraph [ref=e362]: by meta-llama
+          - paragraph [ref=e363]: Structural intelligence indexing in progress...
+        - link "model 47 Qwen2.5-VL-7B-Instruct by Qwen Structural intelligence indexing in progress..." [ref=e366] [cursor=pointer]:
+          - /url: /model/qwen/qwen2.5-vl-7b-instruct
+          - generic [ref=e367]:
+            - generic [ref=e369]: model
+            - generic [ref=e372]: "47"
+          - heading "Qwen2.5-VL-7B-Instruct" [level=3] [ref=e373]
+          - paragraph [ref=e374]: by Qwen
+          - paragraph [ref=e375]: Structural intelligence indexing in progress...
+        - link "model 47 bge-large-en-v1.5 by BAAI Structural intelligence indexing in progress..." [ref=e378] [cursor=pointer]:
+          - /url: /model/baai/bge-large-en-v1.5
+          - generic [ref=e379]:
+            - generic [ref=e381]: model
+            - generic [ref=e384]: "47"
+          - heading "bge-large-en-v1.5" [level=3] [ref=e385]
+          - paragraph [ref=e386]: by BAAI
+          - paragraph [ref=e387]: Structural intelligence indexing in progress...
+        - link "model 47 Kokoro-82M by hexgrad Structural intelligence indexing in progress..." [ref=e390] [cursor=pointer]:
+          - /url: /model/hexgrad/kokoro-82m
+          - generic [ref=e391]:
+            - generic [ref=e393]: model
+            - generic [ref=e396]: "47"
+          - heading "Kokoro-82M" [level=3] [ref=e397]
+          - paragraph [ref=e398]: by hexgrad
+          - paragraph [ref=e399]: Structural intelligence indexing in progress...
+        - link "model 47 multilingual-e5-large by intfloat Structural intelligence indexing in progress..." [ref=e402] [cursor=pointer]:
+          - /url: /model/intfloat/multilingual-e5-large
+          - generic [ref=e403]:
+            - generic [ref=e405]: model
+            - generic [ref=e408]: "47"
+          - heading "multilingual-e5-large" [level=3] [ref=e409]
+          - paragraph [ref=e410]: by intfloat
+          - paragraph [ref=e411]: Structural intelligence indexing in progress...
+        - link "model 47 Qwen3-32B by Qwen Structural intelligence indexing in progress..." [ref=e414] [cursor=pointer]:
+          - /url: /model/qwen/qwen3-32b
+          - generic [ref=e415]:
+            - generic [ref=e417]: model
+            - generic [ref=e420]: "47"
+          - heading "Qwen3-32B" [level=3] [ref=e421]
+          - paragraph [ref=e422]: by Qwen
+          - paragraph [ref=e423]: Structural intelligence indexing in progress...
+        - link "model 47 clip-vit-large-patch14 by openai Structural intelligence indexing in progress..." [ref=e426] [cursor=pointer]:
+          - /url: /model/openai/clip-vit-large-patch14
+          - generic [ref=e427]:
+            - generic [ref=e429]: model
+            - generic [ref=e432]: "47"
+          - heading "clip-vit-large-patch14" [level=3] [ref=e433]
+          - paragraph [ref=e434]: by openai
+          - paragraph [ref=e435]: Structural intelligence indexing in progress...
+        - link "model 46 DeepSeek-R1-Distill-Qwen-32B by deepseek-ai Structural intelligence indexing in progress..." [ref=e438] [cursor=pointer]:
+          - /url: /model/deepseek-ai/deepseek-r1-distill-qwen-32b
+          - generic [ref=e439]:
+            - generic [ref=e441]: model
+            - generic [ref=e444]: "46"
+          - heading "DeepSeek-R1-Distill-Qwen-32B" [level=3] [ref=e445]
+          - paragraph [ref=e446]: by deepseek-ai
+          - paragraph [ref=e447]: Structural intelligence indexing in progress...
+        - link "model 46 Llama-3.2-1B by meta-llama Structural intelligence indexing in progress..." [ref=e450] [cursor=pointer]:
+          - /url: /model/meta-llama/llama-3.2-1b
+          - generic [ref=e451]:
+            - generic [ref=e453]: model
+            - generic [ref=e456]: "46"
+          - heading "Llama-3.2-1B" [level=3] [ref=e457]
+          - paragraph [ref=e458]: by meta-llama
+          - paragraph [ref=e459]: Structural intelligence indexing in progress...
+        - link "model 46 finbert by ProsusAI Structural intelligence indexing in progress..." [ref=e462] [cursor=pointer]:
+          - /url: /model/prosusai/finbert
+          - generic [ref=e463]:
+            - generic [ref=e465]: model
+            - generic [ref=e468]: "46"
+          - heading "finbert" [level=3] [ref=e469]
+          - paragraph [ref=e470]: by ProsusAI
+          - paragraph [ref=e471]: Structural intelligence indexing in progress...
+        - link "model 46 bge-reranker-v2-m3 by BAAI Structural intelligence indexing in progress..." [ref=e474] [cursor=pointer]:
+          - /url: /model/baai/bge-reranker-v2-m3
+          - generic [ref=e475]:
+            - generic [ref=e477]: model
+            - generic [ref=e480]: "46"
+          - heading "bge-reranker-v2-m3" [level=3] [ref=e481]
+          - paragraph [ref=e482]: by BAAI
+          - paragraph [ref=e483]: Structural intelligence indexing in progress...
+        - link "model 46 DeepSeek-R1-Distill-Qwen-1.5B by deepseek-ai Structural intelligence indexing in progress..." [ref=e486] [cursor=pointer]:
+          - /url: /model/deepseek-ai/deepseek-r1-distill-qwen-1.5b
+          - generic [ref=e487]:
+            - generic [ref=e489]: model
+            - generic [ref=e492]: "46"
+          - heading "DeepSeek-R1-Distill-Qwen-1.5B" [level=3] [ref=e493]
+          - paragraph [ref=e494]: by deepseek-ai
+          - paragraph [ref=e495]: Structural intelligence indexing in progress...
+        - link "model 46 Qwen3-Next-80B-A3B-Instruct by Qwen Structural intelligence indexing in progress..." [ref=e498] [cursor=pointer]:
+          - /url: /model/qwen/qwen3-next-80b-a3b-instruct
+          - generic [ref=e499]:
+            - generic [ref=e501]: model
+            - generic [ref=e504]: "46"
+          - heading "Qwen3-Next-80B-A3B-Instruct" [level=3] [ref=e505]
+          - paragraph [ref=e506]: by Qwen
+          - paragraph [ref=e507]: Structural intelligence indexing in progress...
+        - link "model 46 gemma-3-1b-it by google Structural intelligence indexing in progress..." [ref=e510] [cursor=pointer]:
+          - /url: /model/google/gemma-3-1b-it
+          - generic [ref=e511]:
+            - generic [ref=e513]: model
+            - generic [ref=e516]: "46"
+          - heading "gemma-3-1b-it" [level=3] [ref=e517]
+          - paragraph [ref=e518]: by google
+          - paragraph [ref=e519]: Structural intelligence indexing in progress...
+        - link "model 46 stable-diffusion-xl-base-1.0 by stabilityai Structural intelligence indexing in progress..." [ref=e522] [cursor=pointer]:
+          - /url: /model/stabilityai/stable-diffusion-xl-base-1.0
+          - generic [ref=e523]:
+            - generic [ref=e525]: model
+            - generic [ref=e528]: "46"
+          - heading "stable-diffusion-xl-base-1.0" [level=3] [ref=e529]
+          - paragraph [ref=e530]: by stabilityai
+          - paragraph [ref=e531]: Structural intelligence indexing in progress...
+        - link "model 46 WanVideo_comfy by Kijai Structural intelligence indexing in progress..." [ref=e534] [cursor=pointer]:
+          - /url: /model/kijai/wanvideo_comfy
+          - generic [ref=e535]:
+            - generic [ref=e537]: model
+            - generic [ref=e540]: "46"
+          - heading "WanVideo_comfy" [level=3] [ref=e541]
+          - paragraph [ref=e542]: by Kijai
+          - paragraph [ref=e543]: Structural intelligence indexing in progress...
+        - link "model 46 Wan_2.1_ComfyUI_repackaged by Comfy-Org Structural intelligence indexing in progress..." [ref=e546] [cursor=pointer]:
+          - /url: /model/comfy-org/wan_2.1_comfyui_repackaged
+          - generic [ref=e547]:
+            - generic [ref=e549]: model
+            - generic [ref=e552]: "46"
+          - heading "Wan_2.1_ComfyUI_repackaged" [level=3] [ref=e553]
+          - paragraph [ref=e554]: by Comfy-Org
+          - paragraph [ref=e555]: Structural intelligence indexing in progress...
+        - link "model 45 moondream2 by vikhyatk Structural intelligence indexing in progress..." [ref=e558] [cursor=pointer]:
+          - /url: /model/vikhyatk/moondream2
+          - generic [ref=e559]:
+            - generic [ref=e561]: model
+            - generic [ref=e564]: "45"
+          - heading "moondream2" [level=3] [ref=e565]
+          - paragraph [ref=e566]: by vikhyatk
+          - paragraph [ref=e567]: Structural intelligence indexing in progress...
+        - link "model 45 Qwen3-VL-8B-Instruct by Qwen Structural intelligence indexing in progress..." [ref=e570] [cursor=pointer]:
+          - /url: /model/qwen/qwen3-vl-8b-instruct
+          - generic [ref=e571]:
+            - generic [ref=e573]: model
+            - generic [ref=e576]: "45"
+          - heading "Qwen3-VL-8B-Instruct" [level=3] [ref=e577]
+          - paragraph [ref=e578]: by Qwen
+          - paragraph [ref=e579]: Structural intelligence indexing in progress...
+        - link "model 45 mxbai-embed-large-v1 by mixedbread-ai Structural intelligence indexing in progress..." [ref=e582] [cursor=pointer]:
+          - /url: /model/mixedbread-ai/mxbai-embed-large-v1
+          - generic [ref=e583]:
+            - generic [ref=e585]: model
+            - generic [ref=e588]: "45"
+          - heading "mxbai-embed-large-v1" [level=3] [ref=e589]
+          - paragraph [ref=e590]: by mixedbread-ai
+          - paragraph [ref=e591]: Structural intelligence indexing in progress...
+        - link "model 45 Meta-Llama-3-8B by meta-llama Structural intelligence indexing in progress..." [ref=e594] [cursor=pointer]:
+          - /url: /model/meta-llama/meta-llama-3-8b
+          - generic [ref=e595]:
+            - generic [ref=e597]: model
+            - generic [ref=e600]: "45"
+          - heading "Meta-Llama-3-8B" [level=3] [ref=e601]
+          - paragraph [ref=e602]: by meta-llama
+          - paragraph [ref=e603]: Structural intelligence indexing in progress...
+        - link "model 45 Llama-3.2-3B-Instruct by meta-llama Structural intelligence indexing in progress..." [ref=e606] [cursor=pointer]:
+          - /url: /model/meta-llama/llama-3.2-3b-instruct
+          - generic [ref=e607]:
+            - generic [ref=e609]: model
+            - generic [ref=e612]: "45"
+          - heading "Llama-3.2-3B-Instruct" [level=3] [ref=e613]
+          - paragraph [ref=e614]: by meta-llama
+          - paragraph [ref=e615]: Structural intelligence indexing in progress...
+        - link "model 45 Phi-3-mini-4k-instruct by microsoft Structural intelligence indexing in progress..." [ref=e618] [cursor=pointer]:
+          - /url: /model/microsoft/phi-3-mini-4k-instruct
+          - generic [ref=e619]:
+            - generic [ref=e621]: model
+            - generic [ref=e624]: "45"
+          - heading "Phi-3-mini-4k-instruct" [level=3] [ref=e625]
+          - paragraph [ref=e626]: by microsoft
+          - paragraph [ref=e627]: Structural intelligence indexing in progress...
+        - link "model 45 nomic-embed-text-v1.5 by nomic-ai Structural intelligence indexing in progress..." [ref=e630] [cursor=pointer]:
+          - /url: /model/nomic-ai/nomic-embed-text-v1.5
+          - generic [ref=e631]:
+            - generic [ref=e633]: model
+            - generic [ref=e636]: "45"
+          - heading "nomic-embed-text-v1.5" [level=3] [ref=e637]
+          - paragraph [ref=e638]: by nomic-ai
+          - paragraph [ref=e639]: Structural intelligence indexing in progress...
+        - link "model 45 stable-diffusion-v1-5 by stable-diffusion-v1-5 Structural intelligence indexing in progress..." [ref=e642] [cursor=pointer]:
+          - /url: /model/stable-diffusion-v1-5/stable-diffusion-v1-5
+          - generic [ref=e643]:
+            - generic [ref=e645]: model
+            - generic [ref=e648]: "45"
+          - heading "stable-diffusion-v1-5" [level=3] [ref=e649]
+          - paragraph [ref=e650]: by stable-diffusion-v1-5
+          - paragraph [ref=e651]: Structural intelligence indexing in progress...
+  - contentinfo [ref=e654]:
+    - generic [ref=e655]:
+      - generic [ref=e656]:
+        - generic [ref=e657]:
+          - heading "Free2AITools" [level=3] [ref=e658]
+          - paragraph [ref=e659]: Open-Source AI Model Selection Hub. Find the best LLM for your needs with our VRAM calculator and one-click deploy guides.
+          - paragraph [ref=e660]: Powered by the Fair Nexus Index (methodology-based, non-commercial)
+        - generic [ref=e661]:
+          - heading "Resources" [level=4] [ref=e662]
+          - list [ref=e663]:
+            - listitem [ref=e664]:
+              - link "Model Rankings" [ref=e665] [cursor=pointer]:
                 - /url: /ranking
-            - listitem [ref=e256]:
-              - link "FNI Methodology" [ref=e257] [cursor=pointer]:
+            - listitem [ref=e666]:
+              - link "FNI Methodology" [ref=e667] [cursor=pointer]:
                 - /url: /methodology
-            - listitem [ref=e258]:
-              - link "AI Reports" [ref=e259] [cursor=pointer]:
+            - listitem [ref=e668]:
+              - link "AI Reports" [ref=e669] [cursor=pointer]:
                 - /url: /reports
-        - generic [ref=e260]:
-          - heading "Legal" [level=4] [ref=e261]
-          - list [ref=e262]:
-            - listitem [ref=e263]:
-              - link "Data Compliance" [ref=e264] [cursor=pointer]:
+        - generic [ref=e670]:
+          - heading "Legal" [level=4] [ref=e671]
+          - list [ref=e672]:
+            - listitem [ref=e673]:
+              - link "Data Compliance" [ref=e674] [cursor=pointer]:
                 - /url: /compliance
-            - listitem [ref=e265]:
-              - link "About Us" [ref=e266] [cursor=pointer]:
+            - listitem [ref=e675]:
+              - link "About Us" [ref=e676] [cursor=pointer]:
                 - /url: /about
-        - generic [ref=e267]:
-          - heading "Connect" [level=4] [ref=e268]
-          - list [ref=e269]:
-            - listitem [ref=e270]:
-              - link "GitHub" [ref=e271] [cursor=pointer]:
+        - generic [ref=e677]:
+          - heading "Connect" [level=4] [ref=e678]
+          - list [ref=e679]:
+            - listitem [ref=e680]:
+              - link "GitHub" [ref=e681] [cursor=pointer]:
                 - /url: https://github.com/mosesy5688-cell/ai-nexus
-                - img [ref=e272]
+                - img [ref=e682]
                 - text: GitHub
-            - listitem [ref=e274]:
-              - link "Contact" [ref=e275] [cursor=pointer]:
+            - listitem [ref=e684]:
+              - link "Contact" [ref=e685] [cursor=pointer]:
                 - /url: mailto:compliance@free2aitools.com
-      - generic [ref=e276]:
-        - paragraph [ref=e277]: © 2026 Free2AITools. An open-source project to help you find the best AI models.
-        - generic [ref=e278]:
-          - link "How we score models" [ref=e279] [cursor=pointer]:
+      - generic [ref=e686]:
+        - paragraph [ref=e687]: © 2026 Free2AITools. An open-source project to help you find the best AI models.
+        - generic [ref=e688]:
+          - link "How we score models" [ref=e689] [cursor=pointer]:
             - /url: /methodology
-          - generic [ref=e280]: •
-          - link "Data Policy" [ref=e281] [cursor=pointer]:
+          - generic [ref=e690]: •
+          - link "Data Policy" [ref=e691] [cursor=pointer]:
             - /url: /compliance
 ```

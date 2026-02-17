@@ -136,10 +136,10 @@ const hasContent = paperRelations.length > 0 || baseModelRelations.length > 0 ||
         <!-- V12: Explore Same Family button -->
         {baseModels.length > 0 && (
           <a 
-            href={`/models?q=${encodeURIComponent(baseModels[0])}`}
+            href={getRouteFromId(baseModels[0], 'model')}
             class="inline-flex items-center gap-1 mt-3 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-sm font-medium rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all shadow-sm"
           >
-            <span>🔍</span> Explore Same Family
+            <span>🔍</span> View Base Model
           </a>
         )}
       </div>
@@ -153,19 +153,10 @@ const hasContent = paperRelations.length > 0 || baseModelRelations.length > 0 ||
         <div class="flex flex-wrap gap-2">
           {datasets.map(datasetId => (
             <a 
-              href={datasetId.includes('/') 
-                ? `https://huggingface.co/datasets/${datasetId}`
-                : `/datasets/${datasetId}`}
-              target={datasetId.includes('/') ? "_blank" : "_self"}
-              rel={datasetId.includes('/') ? "noopener noreferrer" : undefined}
+              href={getRouteFromId(datasetId, 'dataset')}
               class="inline-flex items-center gap-1 px-3 py-1 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-sm hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors"
             >
-              {datasetId}
-              {datasetId.includes('/') && (
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                </svg>
-              )}
+              {stripPrefix(datasetId)}
             </a>
           ))}
         </div>

@@ -1,0 +1,150 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link "Free2AITools" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e6]: Free2AITools
+        - generic [ref=e8]:
+          - link "Home" [ref=e9] [cursor=pointer]:
+            - /url: /
+          - link "Rankings" [ref=e10] [cursor=pointer]:
+            - /url: /ranking
+          - link "Models" [ref=e11] [cursor=pointer]:
+            - /url: /models
+          - link "Agents" [ref=e12] [cursor=pointer]:
+            - /url: /agents
+          - link "Spaces" [ref=e13] [cursor=pointer]:
+            - /url: /spaces
+          - link "Tools" [ref=e14] [cursor=pointer]:
+            - /url: /tools
+          - link "Datasets" [ref=e15] [cursor=pointer]:
+            - /url: /datasets
+          - link "Papers" [ref=e16] [cursor=pointer]:
+            - /url: /papers
+          - link "Reports" [ref=e17] [cursor=pointer]:
+            - /url: /reports
+          - link "Knowledge" [ref=e18] [cursor=pointer]:
+            - /url: /knowledge
+          - link "View on GitHub" [ref=e19] [cursor=pointer]:
+            - /url: https://github.com/mosesy5688-cell/ai-nexus
+            - img [ref=e20]
+  - generic [ref=e23]:
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - generic [ref=e29]: 🤖
+        - heading "Welcome to Free2AI Tools!" [level=2] [ref=e30]
+        - paragraph [ref=e31]: Your gateway to the open-source AI ecosystem
+      - list [ref=e32]:
+        - listitem [ref=e33]:
+          - generic [ref=e34]: 🔍
+          - generic [ref=e35]: Search 70,000+ AI Models
+        - listitem [ref=e36]:
+          - generic [ref=e37]: 📊
+          - generic [ref=e38]: Compare & Rank with FNI Scores
+        - listitem [ref=e39]:
+          - generic [ref=e40]: 📚
+          - generic [ref=e41]: Explore Papers, Datasets & Agents
+    - generic [ref=e42]:
+      - button "Skip tour" [ref=e43] [cursor=pointer]
+      - button "Next" [ref=e45] [cursor=pointer]
+  - main [ref=e46]:
+    - main [ref=e47]:
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - generic [ref=e50]: 📁
+          - generic [ref=e51]:
+            - heading "Non Existent Page 12345 Archive" [level=1] [ref=e52]
+            - paragraph [ref=e53]: V16.2 Knowledge Mesh Indexed
+        - paragraph [ref=e54]: The authoritative directory of non existent page 12345 intelligence. Sharded across models, agents, datasets, and research.
+      - generic [ref=e55]:
+        - generic [ref=e57]:
+          - generic [ref=e58]: 🔍
+          - textbox "Search alls..." [ref=e59]
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - generic [ref=e62]: "Category:"
+            - combobox [ref=e63] [cursor=pointer]:
+              - option "All Categories" [selected]
+              - option "💬 Text Generation & Content Creation"
+              - option "🔍 Knowledge Retrieval & Data Analysis"
+              - option "🎨 Vision & Multimedia Processing"
+              - option "⚡ Automation & Workflow Integration"
+              - option "🔧 Infrastructure & Optimization"
+              - option "📦 Uncategorized"
+          - generic [ref=e64]: 0 alls indexed in Professional Intelligence Database
+          - generic [ref=e65]:
+            - generic [ref=e66]: "Sort:"
+            - combobox [ref=e67] [cursor=pointer]:
+              - option "🛡️ FNI Score" [selected]
+              - option "🕐 Updated"
+              - option "🔤 Name"
+      - generic [ref=e69]:
+        - paragraph [ref=e70]: Ecosystem Syncing...
+        - paragraph [ref=e71]: The AI leaderboard is rebuilding. Please check back in a moment.
+  - contentinfo [ref=e73]:
+    - generic [ref=e74]:
+      - generic [ref=e75]:
+        - generic [ref=e76]:
+          - heading "Free2AITools" [level=3] [ref=e77]
+          - paragraph [ref=e78]: Open-Source AI Model Selection Hub. Find the best LLM for your needs with our VRAM calculator and one-click deploy guides.
+          - paragraph [ref=e79]: Powered by the Fair Nexus Index (methodology-based, non-commercial)
+        - generic [ref=e80]:
+          - heading "Resources" [level=4] [ref=e81]
+          - list [ref=e82]:
+            - listitem [ref=e83]:
+              - link "Model Rankings" [ref=e84] [cursor=pointer]:
+                - /url: /ranking
+            - listitem [ref=e85]:
+              - link "FNI Methodology" [ref=e86] [cursor=pointer]:
+                - /url: /methodology
+            - listitem [ref=e87]:
+              - link "AI Reports" [ref=e88] [cursor=pointer]:
+                - /url: /reports
+        - generic [ref=e89]:
+          - heading "Legal" [level=4] [ref=e90]
+          - list [ref=e91]:
+            - listitem [ref=e92]:
+              - link "Data Compliance" [ref=e93] [cursor=pointer]:
+                - /url: /compliance
+            - listitem [ref=e94]:
+              - link "About Us" [ref=e95] [cursor=pointer]:
+                - /url: /about
+        - generic [ref=e96]:
+          - heading "Connect" [level=4] [ref=e97]
+          - list [ref=e98]:
+            - listitem [ref=e99]:
+              - link "GitHub" [ref=e100] [cursor=pointer]:
+                - /url: https://github.com/mosesy5688-cell/ai-nexus
+                - img [ref=e101]
+                - text: GitHub
+            - listitem [ref=e103]:
+              - link "Contact" [ref=e104] [cursor=pointer]:
+                - /url: mailto:compliance@free2aitools.com
+      - generic [ref=e105]:
+        - paragraph [ref=e106]: © 2026 Free2AITools. An open-source project to help you find the best AI models.
+        - generic [ref=e107]:
+          - link "How we score models" [ref=e108] [cursor=pointer]:
+            - /url: /methodology
+          - generic [ref=e109]: •
+          - link "Data Policy" [ref=e110] [cursor=pointer]:
+            - /url: /compliance
+  - generic [ref=e113]:
+    - button "Menu" [ref=e114]:
+      - img [ref=e116]
+      - generic: Menu
+    - button "Inspect" [ref=e120]:
+      - img [ref=e122]
+      - generic: Inspect
+    - button "Audit" [ref=e124]:
+      - generic [ref=e125]:
+        - img [ref=e126]
+        - img [ref=e129]
+      - generic: Audit
+    - button "Settings" [ref=e132]:
+      - img [ref=e134]
+      - generic: Settings
+```

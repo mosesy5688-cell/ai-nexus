@@ -2,6 +2,7 @@
 ---
 import Layout from '@/layouts/Layout.astro';
 import { marked } from 'marked';
+import { getRouteFromId } from '@/utils/mesh-routing-core';
 
 import { loadEntityStreams } from '../../utils/packet-loader.js';
 import { hydrateEntity } from '../../utils/entity-cache-reader-core.js';
@@ -19,7 +20,7 @@ try {
     if (entity) {
         report = hydrateEntity(entity, 'report');
         // V16.8.30: Defensive Title Restoration
-        report.title = report.title || report.name || `Daily Technical Briefing: ${slugStr}`;
+        report.title = report.title || report.name || (slugStr.includes('/') ? slugStr.split('/').pop().replace(/-/g, ' ') : slugStr);
     }
 } catch (e) {
     console.warn(`[Report Detail] Unified loader failed for ${slugStr}:`, e.message);
@@ -67,7 +68,7 @@ const contentHtml = report.content ? marked.parse(report.content) : "";
                 )}
               </div>
               <h2 class="text-3xl font-black text-gray-900 dark:text-white mb-4 tracking-tight group-hover:text-indigo-600 transition-colors">
-                <a href={`/model/${item.id?.replace(/^(hf-model|gh-model)--/, '').replace(/--/g, '/')}`}>
+                <a href={getRouteFromId(item.id)}>
                   {item.name || item.id}
                 </a>
               </h2>
