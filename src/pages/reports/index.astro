@@ -102,12 +102,12 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
 <!-- V14.4 Art 5.6: News-style Reports Listing -->
 <Layout title={pageTitle} description={pageDescription}>
   <div class="container mx-auto px-4 py-16">
-    <header class="text-center mb-16 max-w-2xl mx-auto">
-      <h1 class="text-4xl md:text-5xl font-black text-zinc-900 dark:text-white tracking-tighter mb-4">
-        AI Intelligence Reports
+    <header class="text-center mb-12 max-w-xl mx-auto">
+      <h1 class="text-3xl md:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight mb-3">
+        Intelligence Reports
       </h1>
-      <p class="text-lg text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mb-8">
-        Technical briefings, ecosystem trends, and model velocity analysis for decision-makers.
+      <p class="text-base text-zinc-500 dark:text-zinc-400 font-medium leading-normal mb-6">
+        Technical briefings, ecosystem trends, and model velocity analysis for the neural landscape.
       </p>
       
       <div class="flex justify-center items-center gap-6">
@@ -149,16 +149,16 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
             <div class="h-px flex-grow bg-zinc-100 dark:bg-zinc-800"></div>
           </div>
           
-          <div class="relative bg-zinc-900 dark:bg-black rounded-3xl p-10 md:p-12 text-white border border-zinc-800 overflow-hidden group">
+          <div class="relative bg-zinc-900 dark:bg-black rounded-2xl p-8 md:p-10 text-white border border-zinc-800 overflow-hidden group">
             <div class="absolute top-0 right-0 w-64 h-full bg-indigo-500/10 blur-[100px] pointer-events-none transition-opacity group-hover:opacity-100 opacity-50"></div>
             
             <div class="relative max-w-3xl">
-              <div class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-4">Latest Publication • {new Date(finalLatest.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-              <h2 class="text-3xl md:text-5xl font-black tracking-tighter mb-6">{finalLatest.title}</h2>
-              <p class="text-lg md:text-xl text-zinc-400 font-medium leading-relaxed mb-10 italic">"{finalLatest.summary}"</p>
+              <div class="text-[9px] font-bold text-indigo-400 uppercase tracking-[0.1em] mb-3">Latest Publication • {new Date(finalLatest.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
+              <h2 class="text-2xl md:text-3xl font-bold tracking-tight mb-4">{finalLatest.title}</h2>
+              <p class="text-base md:text-lg text-zinc-400 font-medium leading-normal mb-8 italic">"{finalLatest.summary}"</p>
               
-              <a href={getRouteFromId(finalLatest.reportId, 'report')} class="inline-flex items-center gap-4 px-8 py-4 bg-white text-black rounded-xl font-black text-sm uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95 shadow-xl">
-                Read Full Briefing <span>→</span>
+              <a href={getRouteFromId(finalLatest.reportId, 'report')} class="inline-flex items-center gap-3 px-6 py-3 bg-white text-black rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-zinc-200 transition-all active:scale-95 shadow-lg">
+                Access Briefing <span>→</span>
               </a>
             </div>
           </div>
@@ -175,9 +175,9 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
             {olderReports.map(report => <ReportCard report={report} />)}
           </div>
           
-          <div class="text-center mt-12">
-            <a href="/reports/archive" class="px-6 py-3 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-              View Full Archive &rarr;
+          <div class="text-center mt-10">
+            <a href="/reports/archive" class="px-5 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-lg text-[10px] font-bold uppercase tracking-wider text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+              Full Archive &rarr;
             </a>
           </div>
         </section>
