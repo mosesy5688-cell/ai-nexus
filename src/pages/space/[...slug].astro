@@ -157,15 +157,16 @@ const canonicalPath = space ? getRouteFromId(space.id || spaceId, 'space') : und
     )}
   
     {space && (
+      <div slot="core-knowledge" class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
+         <UniversalCore entity={space} type="space" meshRelations={meshRelations} />
+      </div>
+    )}
+
+    {space && (
       <div slot="deep-dive" class="space-y-12">
          {/* Zone 4.2: Primary Documentation / Technical Content */}
          <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
             <SpaceDeepDive space={space} />
-         </div>
-
-         {/* Zone 4.3: Intelligence Hive & Neural Discovery (Repositioned V18.12) */}
-         <div class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
-            <UniversalCore entity={space} type="space" meshRelations={meshRelations} />
          </div>
       </div>
     )}

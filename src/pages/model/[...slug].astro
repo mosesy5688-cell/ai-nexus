@@ -172,20 +172,24 @@ const canonicalPath = model ? getRouteFromId(model.id || model.umid || slugStr, 
     )}
   
     {model && (
+      <div slot="core-knowledge" class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
+         <UniversalCore entity={model} type="model" meshRelations={meshRelations} />
+      </div>
+    )}
+
+    {model && (
       <div slot="deep-dive" class="space-y-12">
          {/* Zone 4.1: Developer Quick Tools (Always-On) */}
          <div class="space-y-8">
             <QuickCommands entity={model} type="model" />
             {hasFNI && (
               <FNITrustPanel 
-                fniScore={model.fni_score}
-                fniPercentile={model.fni_percentile}
-                fniCommentary={model.fni_commentary}
-                modelName={modelName}
-                modelId={modelId}
+                fniScore={model.fni_score} 
+                fniPercentile={model.fni_percentile} 
+                id={model.id}
+                history={model.fni_history}
               />
             )}
-            {model.vram_estimate > 0 && <VramEstimator paramsB={model.params_billions} contextLen={model.context_length} />}
          </div>
 
          {/* Zone 4.2: Primary Documentation / Technical Content */}
@@ -196,17 +200,9 @@ const canonicalPath = model ? getRouteFromId(model.id || model.umid || slugStr, 
               </section>
               <ModelMainColumn 
                 model={model} 
-                modelId={modelId}
-                modelName={modelName}
-                cleanDescription={cleanedDesc}
                 jsonld={jsonld}
               />
             </div>
-         </div>
-
-         {/* Zone 4.3: Intelligence Hive & Neural Discovery (Repositioned V18.12) */}
-         <div class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
-            <UniversalCore entity={model} type="model" meshRelations={meshRelations} />
          </div>
       </div>
     )}
