@@ -62,14 +62,14 @@ const hasContent = paperRelations.length > 0 || baseModelRelations.length > 0 ||
 ---
 
 {hasContent && (
-  <section class="related-research mt-8 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-zinc-100 dark:border-zinc-700">
-    <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-      <span>🔗</span> Knowledge Context & Lineage
+  <section class="related-research mt-6 bg-white dark:bg-zinc-900 rounded-xl p-5 shadow-sm border border-zinc-100 dark:border-zinc-800">
+    <h2 class="text-lg font-bold mb-3 text-zinc-900 dark:text-white flex items-center gap-2 tracking-tight">
+      <span>🔗</span> Knowledge Lineage
     </h2>
     
     {paperRelations.length > 0 && (
-      <div class="mb-4">
-        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+      <div class="mb-3">
+        <h3 class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase mb-2 tracking-widest">
           📄 Research Papers
         </h3>
         <div class="flex flex-wrap gap-2">
