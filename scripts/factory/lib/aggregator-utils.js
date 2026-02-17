@@ -104,8 +104,11 @@ export async function calculateGlobalStats(registryLoader, artifactDir, totalSha
  * Pass 1.5: Pre-process Harvester Deltas (Hash-Join Alignment)
  * O(S) I/O instead of O(S^2)
  */
-export async function preProcessDeltas(artifactDir, totalShards, registryMap) {
-    console.log(`[AGGREGATOR] Pass 1.5/2: Aligning Harvester updates...`);
+/**
+ * Pass 1.5: Pre-process updates (Monolith or Shards)
+ */
+export async function preProcessDeltas(artifactDir, totalShards, registryMap, monolithPath = null) {
+    console.log(`[AGGREGATOR] Pass 1.5/2: Aligning updates for merge...`);
     const deltaDir = './cache/deltas';
     await fs.mkdir(deltaDir, { recursive: true });
 
@@ -123,27 +126,45 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap) {
     };
 
     let updateCount = 0;
-    await processShardsIteratively(artifactDir, totalShards, { slim: true }, async (shard) => {
-        if (shard?.entities) {
-            for (const result of shard.entities) {
-                const incoming = result.enriched || result;
-                const regIdx = registryMap.get(incoming.id);
-                if (regIdx !== undefined) {
-                    const handle = await getStream(regIdx);
-                    await fs.appendFile(handle, JSON.stringify(incoming) + '\n');
-                    updateCount++;
+
+    // A. Check for Monolith first (Most efficient if it exists)
+    if (monolithPath && await fs.access(monolithPath).then(() => true).catch(() => false)) {
+        console.log(`  [DELTAS] Streaming Monolith: ${monolithPath}...`);
+        await partitionMonolithStreamingly(monolithPath, async (incoming) => {
+            const regIdx = registryMap.get(incoming.id);
+            if (regIdx !== undefined) {
+                const handle = await getStream(regIdx);
+                await fs.appendFile(handle, JSON.stringify(incoming) + '\n');
+                updateCount++;
+            }
+        });
+    } else {
+        // B. Fallback to Update Shards
+        console.log(`  [DELTAS] Processing Update Shards from ${artifactDir}...`);
+        await processShardsIteratively(artifactDir, totalShards, { slim: true }, async (shard) => {
+            if (shard?.entities) {
+                for (const result of shard.entities) {
+                    const incoming = result.enriched || result;
+                    const regIdx = registryMap.get(incoming.id);
+                    if (regIdx !== undefined) {
+                        const handle = await getStream(regIdx);
+                        await fs.appendFile(handle, JSON.stringify(incoming) + '\n');
+                        updateCount++;
+                    }
                 }
             }
-        }
-    });
+        });
+    }
 
     // Close all handles
     for (const handle of streams.values()) {
         await (await handle).close();
     }
 
-    console.log(`  [DELTAS] Aligned ${updateCount} updates for processing.`);
+    console.log(`  [DELTAS] Aligned ${updateCount} updates across all shards.`);
 }
+
+import { partitionMonolithStreamingly } from './aggregator-stream-utils.js';
 
 /**
  * Standard Entity Processor
