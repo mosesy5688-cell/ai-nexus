@@ -64,7 +64,7 @@ async function main() {
 
     // V18.12.5.21: Stability Hardening (Art 3.1)
     // ALWAYS use sharded loader for Pass 1 to prevent Buffer Too Large errors on indexing.
-    rankingsAndIndices = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+    const rankingsAndIndices = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
 
 
     const { rankingsMap, registryMap } = rankingsAndIndices;
