@@ -37,6 +37,11 @@ try {
   const type = 'paper';
   const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
   
+  if (!entity || !_meta.available) {
+    Astro.response.status = 404;
+    return Astro.redirect('/404?reason=paper-not-found&id=' + encodeURIComponent(slugStr));
+  }
+
   paper = hydrateEntity(entity, type);
   tagsArray = paper?.tags || [];
   meshRelations = mesh || [];

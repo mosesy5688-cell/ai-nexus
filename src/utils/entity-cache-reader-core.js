@@ -61,13 +61,19 @@ export function getR2PathCandidates(type, normalizedSlug) {
         // 2. [SECONDARY] Entity Storage (The Anchor)
         candidates.push(`cache/entities/${singular}/${prefixed}.json.gz`);
         candidates.push(`cache/entities/${singular}/${prefixed}.json`);
+
+        // 3. [NEW V21.0] Mesh Profiles (Relations)
+        candidates.push(`cache/mesh/profiles/${prefixed}.json.gz`);
+        candidates.push(`cache/mesh/profiles/${prefixed}.json`);
     });
 
-    // 3. [FALLBACK] Direct / Flat Paths (No prefix)
+    // 4. [FALLBACK] Direct / Flat Paths (No prefix)
     candidates.push(`cache/fused/${lowerSlug}.json.gz`);
     candidates.push(`cache/fused/${lowerSlug}.json`);
     candidates.push(`cache/entities/${singular}/${lowerSlug}.json.gz`);
     candidates.push(`cache/entities/${singular}/${lowerSlug}.json`);
+    candidates.push(`cache/mesh/profiles/${lowerSlug}.json.gz`);
+    candidates.push(`cache/mesh/profiles/${lowerSlug}.json`);
 
     // V16.8.31: ArXiv Dotted Fallbacks (R2 reality check)
     if (singular === 'paper' && lowerSlug.includes('.')) {
@@ -183,26 +189,18 @@ export async function fetchEntityFromR2(type, slug, locals) {
     }
 
     // V15.2: Global CDN Fallback (entities.json) REMOVED per memory safety (Art 5.1)
-    // 368MB entities.json exceeds 128MB Worker memory limit.
-    // Fallback logic should rely on sharded rankings if individual entity fetch fails.
-
-    // 2. Dev Shim: Local Filesystem (Art 2.4 / B14 Compatibility)
     if (import.meta.env.DEV || process.env.NODE_ENV === 'test') {
-
         try {
             const fs = await import('node:fs');
             const zlib = await import('node:zlib');
             const r2CandidatePaths = getR2PathCandidates(type, normalized);
             const pluralType = type.endsWith('s') ? type : `${type}s`;
-
-            // Add legacy data directory paths
             const searchPaths = [
                 ...r2CandidatePaths.map(p => `g:/ai-nexus/data/${p}`),
-                ...r2CandidatePaths.map(p => `g:/ai-nexus/data/cache/entities/${type}/${p.split('/').pop()}`),
+                ...r2CandidatePaths.map(p => `g:/ai-nexus/data/cache/entities/${singular}/${p.split('/').pop()}`),
                 `g:/ai-nexus/data/merged.json`,
                 `g:/ai-nexus/data/${pluralType}.json`
             ];
-
             for (const localPath of searchPaths) {
                 if (fs.existsSync(localPath)) {
                     let raw = fs.readFileSync(localPath);
@@ -210,19 +208,15 @@ export async function fetchEntityFromR2(type, slug, locals) {
                         raw = zlib.gunzipSync(raw);
                     }
                     const data = JSON.parse(raw.toString('utf-8'));
-
                     if (localPath.endsWith('merged.json') || localPath.match(/data\/[a-z]+s\.json$/)) {
-                        // Scan list for the entity
                         const list = Array.isArray(data) ? data : (data.entities || []);
                         const found = list.find(m => {
                             const mId = m.id || m.slug || '';
-                            // Try matching regular normalized slug or prefixed version
                             return r2CandidatePaths.some(p => {
                                 const fileName = p.split('/').pop().replace('.json', '');
                                 return (mId.toLowerCase() === fileName) || (normalizeEntitySlug(mId, type) === normalized);
                             });
                         });
-
                         if (found) {
                             return {
                                 entity: found,
@@ -231,11 +225,7 @@ export async function fetchEntityFromR2(type, slug, locals) {
                             };
                         }
                     } else {
-                        return {
-                            ...data,
-                            entity: data.entity || data,
-                            _cache_source: 'local-fs-shim'
-                        };
+                        return { ...data, entity: data.entity || data, _cache_source: 'local-fs-shim' };
                     }
                 }
             }
@@ -243,7 +233,6 @@ export async function fetchEntityFromR2(type, slug, locals) {
             console.warn(`[Reader Shim] Error:`, e.message);
         }
     }
-
     return null;
 }
 
