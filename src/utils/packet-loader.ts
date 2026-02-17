@@ -125,20 +125,26 @@ export async function loadEntityStreams(type: string, slug: string) {
     }
 
     // --- ANCHOR ESTABLISHED ---
-    // 4. Secondary Stream Discovery (Fused & Mesh) - V16.8.6 Prefix-Aware Pathing
+    // 4. Secondary Stream Discovery (Fused & Mesh) - V16.9.0 Prefix-Aware Pathing
     const rawId = entityPack.id || entityPack.slug || slug;
-    const canonicalId = normalizeEntitySlug(rawId, type);
 
-    // Use getR2PathCandidates to get prefix-aware paths for Fused and Mesh
-    const secondaryCandidates = getR2PathCandidates(type, canonicalId);
+    // V21.0 CRITICAL: Avoid stripping prefixes for R2 path generation. 
+    // R2 paths for fused and mesh profiles MUST use the Full ID (prefixed).
+    const fullId = (rawId.includes('--') || rawId.includes(':')) ? rawId : normalizeEntitySlug(rawId, type);
 
-    const fusedPath = secondaryCandidates.find(c => c.includes('/fused/')) || `cache/fused/${canonicalId}.json.gz`;
-    const meshPath = `cache/mesh/profiles/${canonicalId}.json.gz`;
+    // Use getR2PathCandidates to get prefix-aware paths for Fused
+    const secondaryCandidates = getR2PathCandidates(type, fullId);
+    const fusedPath = secondaryCandidates.find(c => c.includes('/fused/')) || `cache/fused/${fullId}.json.gz`;
 
-    // Attempt to fetch Fused Pack (README/HTML)
+    const meshCandidates = secondaryCandidates.filter(c => c.includes('/mesh/profiles/'));
+
+    // Attempt to fetch Fused Pack (README/HTML) - SECONDARY PRIORITY (Entity Anchor already has data)
     let fusedPack = await fetchCompressedJSON(fusedPath);
-    if (!fusedPack && !fusedPath.endsWith('.gz')) {
-        fusedPack = await fetchCompressedJSON(`${fusedPath}.gz`);
+    if (!fusedPack) {
+        console.warn(`[Loader] Fused stream MISS at ${fusedPath}`);
+        if (!fusedPath.endsWith('.gz')) {
+            fusedPack = await fetchCompressedJSON(`${fusedPath}.gz`);
+        }
     }
 
     // --- DATA FUSION (V16.8.8) ---
@@ -162,9 +168,15 @@ export async function loadEntityStreams(type: string, slug: string) {
     }
 
     // Attempt to fetch Mesh Pack (Relations)
-    let meshPack = await fetchCompressedJSON(meshPath);
-    if (!meshPack) meshPack = await fetchCompressedJSON(`${meshPath.replace('.gz', '')}`);
-    if (!meshPack && !meshPath.endsWith('.gz')) meshPack = await fetchCompressedJSON(`${meshPath}.gz`);
+    let meshPack = null;
+    for (const mPath of meshCandidates) {
+        meshPack = await fetchCompressedJSON(mPath);
+        if (meshPack) break;
+    }
+
+    if (!meshPack) {
+        console.warn(`[Loader] Mesh stream MISS for ID: ${fullId}. Tried ${meshCandidates.length} paths.`);
+    }
 
     const mesh = meshPack?.relations || meshPack?.nodes || entityPack.relations || [];
     const finalHtml = entityPack.html_readme || null;
@@ -184,7 +196,7 @@ export async function loadEntityStreams(type: string, slug: string) {
             paths: {
                 entity: entitySourcePath,
                 fused: finalHtml ? fusedPath : 'missing',
-                mesh: mesh ? meshPath : 'missing'
+                mesh: meshPack ? 'loaded' : 'missing'
             }
         }
     };

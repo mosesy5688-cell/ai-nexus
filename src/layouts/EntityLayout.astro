@@ -41,24 +41,35 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
 
 { !hasEntity ? (
   <Layout title={title || "Technical Snapshot"} description="The knowledge graph is currently indexing this entity.">
-     <div class="py-32 text-center max-w-2xl mx-auto px-4">
-        <div class="inline-flex items-center gap-3 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-full mb-8">
-            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-            <span class="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">Technical Snapshot Mode</span>
+     <div class="py-24 text-center max-w-2xl mx-auto px-4">
+        <div class="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-md mb-6 transition-all hover:bg-indigo-100">
+            <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+            <span class="text-[9px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-400">Technical Snapshot: Indexing Node</span>
         </div>
-        <h1 class="text-3xl font-black text-gray-900 dark:text-gray-100 mb-4 tracking-tighter uppercase italic">Deep Hive Sync in Progress</h1>
-        <p class="text-base text-gray-600 dark:text-gray-400 mb-6 font-bold leading-relaxed">
-           The <span class="text-indigo-600 dark:text-indigo-400">Nexus Knowledge Mesh</span> has identified this node, but the full technical profile is currently being re-fused. 
+        <h1 class="text-2xl font-black text-gray-900 dark:text-gray-100 mb-2 tracking-tighter uppercase italic">Deep Hive Sync in Progress</h1>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-8 font-medium max-w-md mx-auto leading-relaxed">
+           The Nexus Knowledge Mesh has identified ID <span class="bg-zinc-100 dark:bg-zinc-800 px-1 rounded font-mono text-[10px] text-zinc-900 dark:text-white uppercase">{displayId || 'Unknown'}</span>, but the technical profil is currently being re-fused via Tier-1 cache.
         </p>
-        <div class="p-6 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 text-left mb-10">
-            <p class="text-[10px] text-zinc-400 uppercase font-black tracking-widest mb-2">Resilience Protocol V18.8</p>
-            <p class="text-xs text-zinc-500 font-medium leading-relaxed">
-                If this node persists in snapshot mode for more than 5 minutes, it may indicate a shard-level propagation delay. Primary catalog data remains accessible via the global index.
-            </p>
+
+        <div class="grid grid-cols-1 gap-4 mb-10 max-w-sm mx-auto">
+            <a href={`/search?q=${encodeURIComponent(displayId)}`} class="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg hover:border-indigo-500 transition-all group">
+                <div class="text-left">
+                    <p class="text-[9px] text-zinc-400 uppercase font-black tracking-widest leading-none mb-1">Search Pipeline</p>
+                    <p class="text-xs font-bold text-zinc-900 dark:text-white">Query Global Registry</p>
+                </div>
+                <span class="text-indigo-500 group-hover:translate-x-1 transition-transform">→</span>
+            </a>
+            <div class="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-800 text-left">
+                <p class="text-[9px] text-zinc-400 uppercase font-black tracking-widest mb-1 leading-none">Status Code 404_RESILIENT</p>
+                <p class="text-[10px] text-zinc-500 font-medium leading-normal">
+                    Node propagation in progress. Primary fused data for {displayId} is currently staged for R2 deployment. 
+                </p>
+            </div>
         </div>
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="/ranking" class="px-8 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-lg font-black uppercase text-[10px] tracking-widest hover:scale-105 transition-transform">Return to Catalog</a>
-            <button onclick="window.location.reload()" class="px-8 py-3 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-lg font-black uppercase text-[10px] tracking-widest hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all">Retry Sync</button>
+
+        <div class="flex flex-wrap items-center justify-center gap-6">
+            <a href="/ranking" class="text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors border-b-2 border-transparent hover:border-zinc-900 dark:hover:border-white pb-1">Catalog Index</a>
+            <button onclick="window.location.reload()" class="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 transition-colors border-b-2 border-transparent hover:border-indigo-600 pb-1">Retry Fetch</button>
         </div>
      </div>
   </Layout>
