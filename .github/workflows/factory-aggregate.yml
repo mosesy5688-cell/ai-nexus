@@ -177,6 +177,17 @@ jobs:
             cp -r output/meta/backup/* output/cache/ 2>/dev/null || true
           fi
           
+          # V18.12.5.23: Copy registry shards to output/cache/ for satellite access
+          # Satellites set CACHE_DIR=output/cache and need registry/part-*.json.gz
+          if [ -d "cache/registry" ] && [ "$(ls -A cache/registry)" ]; then
+            echo "📦 Copying registry shards to output/cache/registry/ for satellites..."
+            mkdir -p output/cache/registry
+            cp -r cache/registry/* output/cache/registry/
+            echo "✅ Copied $(ls cache/registry/*.json.gz 2>/dev/null | wc -l) registry shards"
+          fi
+          # Also copy global registry monolith for loadGlobalRegistry fallback
+          [ -f "cache/global-registry.json.gz" ] && cp cache/global-registry.json.gz output/cache/ || true
+          
           echo "📦 Final output structure for R2:"
           ls -R output/meta/backup/ | head -20
           echo "📦 Final cache structure for Stage 1/4:"
