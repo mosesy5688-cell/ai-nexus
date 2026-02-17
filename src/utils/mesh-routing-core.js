@@ -84,7 +84,8 @@ export const KNOWLEDGE_ALIAS_MAP = {
     'rlhf': 'fine-tuning',
     'direct-preference-optimization': 'fine-tuning',
     'context-window': 'context-length',
-    'mixture-of-experts': 'moe'
+    'mixture-of-experts': 'moe',
+    'transformer-architecture': 'transformer'
 };
 
 /**
@@ -94,7 +95,8 @@ export const KNOWLEDGE_ALIAS_MAP = {
 export function getRouteFromId(id, type = null) {
     if (!id) return '#';
 
-    let resolvedType = type || getTypeFromId(id);
+    const idDerivedType = getTypeFromId(id);
+    let resolvedType = (id.startsWith('knowledge--') || id.startsWith('report--') || id.includes('--')) ? idDerivedType : (type || idDerivedType);
     const lowId = id.toLowerCase();
     let slug = '';
 
