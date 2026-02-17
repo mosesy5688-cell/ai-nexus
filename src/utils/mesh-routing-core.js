@@ -92,14 +92,20 @@ export function getRouteFromId(id, type = null) {
 
     let resolvedType = type || getTypeFromId(id);
     const lowId = id.toLowerCase();
+    let slug = '';
 
-    // V2.1 Rule: Clean SEO URL. Hierarchical format /type/author/name
-    let slug = lowId;
-    if (resolvedType === 'knowledge' || resolvedType === 'report') {
+    if (resolvedType === 'knowledge' || resolvedType === 'concept' || resolvedType === 'report') {
+        // V2.1 Rule: Clean SEO URL. Hierarchical format /type/author/name
+        // Mapping concept to knowledge route as they are usually same destination
+        const baseType = (resolvedType === 'report') ? 'report' : 'knowledge';
         slug = stripPrefix(id).replace(/--/g, '/');
-        if (resolvedType === 'knowledge' && KNOWLEDGE_ALIAS_MAP[slug]) {
+
+        if (baseType === 'knowledge' && KNOWLEDGE_ALIAS_MAP[slug]) {
             slug = KNOWLEDGE_ALIAS_MAP[slug];
         }
+
+        const baseRoute = baseType === 'report' ? 'reports' : 'knowledge';
+        return `/${baseRoute}/${slug}`;
     } else if (resolvedType === 'paper') {
         // V16.8.31 Paper Spec: /paper/ID.version
         // If it starts with arxiv-paper-- or arxiv--, strip it and keep the rest (R2 often keeps dots)
@@ -111,14 +117,12 @@ export function getRouteFromId(id, type = null) {
     }
 
     const routeMap = {
-        'knowledge': `/knowledge/${slug}`,
-        'report': `/reports/${slug}`,
-        'paper': `/paper/${slug}`,
         'dataset': `/dataset/${slug}`,
         'space': `/space/${slug}`,
         'agent': `/agent/${slug}`,
         'tool': `/tool/${slug}`,
-        'model': `/model/${slug}`
+        'model': `/model/${slug}`,
+        'paper': `/paper/${slug}`
     };
 
     const finalPath = routeMap[resolvedType] || `/model/${slug}`;

@@ -114,32 +114,73 @@ if (item.fni_score > 0) {
 
 <script>
     /**
-     * V18.1 Speculative JSON Prefetch
-     * Prefetches the entity's JSON stream from CDN/R2 when hovered for >100ms.
+     * V19.2 Lazy-Hydration System
+     * Resolves missing backend data (descriptions/metrics) via client-side fetch when visible.
      */
     document.addEventListener('astro:page-load', () => {
         const cards = document.querySelectorAll('.entity-card');
-        const prefetched = new Set();
-
-        cards.forEach(card => {
-            let hoverTimer;
-            card.addEventListener('mouseenter', () => {
-                hoverTimer = setTimeout(() => {
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(async entry => {
+                if (entry.isIntersecting) {
+                    const card = entry.target;
+                    if (card.getAttribute('data-hydrated')) return;
+                    
                     const id = card.getAttribute('data-entity-id');
-                    const type = card.getAttribute('data-entity-type');
-                    if (id && type && !prefetched.has(id)) {
-                        const url = `https://cdn.free2aitools.com/cache/entities/${type}/${id.split('/').pop()}.json.gz`;
-                        const link = document.createElement('link');
-                        link.rel = 'prefetch';
-                        link.href = url;
-                        link.as = 'fetch';
-                        document.head.appendChild(link);
-                        prefetched.add(id);
-                        console.debug(`[Prefetch] Speculatively loaded ${id}`);
+                    if (!id) return;
+
+                    try {
+                        // V19.2: Fetch from Fused Storage (Primary)
+                        const res = await fetch(`https://cdn.free2aitools.com/cache/fused/${id}.json.gz`);
+                        if (!res.ok) throw new Error('Not found');
+                        
+                        // Transparent decompression handled by browser (Content-Encoding: gzip)
+                        // If browser doesn't support it, fetch the .json fallback if needed, 
+                        // but production CDN ensures .gz works.
+                        const data = await res.json();
+                        
+                        // 1. Update Description if missing or placeholder
+                        const descEl = card.querySelector('p.text-gray-600');
+                        if (descEl && (descEl.textContent.trim().includes('Structural intelligence') || descEl.textContent.trim().length < 10)) {
+                            descEl.textContent = data.description || data.summary || data.enriched?.display_description || descEl.textContent;
+                        }
+
+                        // 2. Update FNI if missing
+                        if (data.fni_score > 0) {
+                            const fniContainer = card.querySelector('.flex.items-center.gap-2:last-child');
+                            if (fniContainer && !fniContainer.querySelector('.bg-emerald-100, .bg-amber-100, .bg-rose-100')) {
+                                const fni = data.fni_score;
+                                let color = "bg-gray-100 text-gray-500";
+                                if (fni >= 85) color = "bg-emerald-100 text-emerald-700";
+                                else if (fni >= 70) color = "bg-amber-100 text-amber-700";
+                                else if (fni > 0) color = "bg-rose-100 text-rose-700";
+                                
+                                const badge = document.createElement('div');
+                                badge.className = `flex items-center gap-1 px-1.5 py-0.5 rounded ${color} border border-black/5 text-[9px] font-bold`;
+                                badge.innerHTML = `<span>${fni}</span>`;
+                                fniContainer.prepend(badge);
+                            }
+                        }
+
+                        // 3. Update Metrics (Inject if container is empty)
+                        const metricsContainer = card.querySelector('.pt-2.border-t');
+                        if (metricsContainer && metricsContainer.children.length === 0) {
+                            const metrics = [];
+                            if (data.downloads) metrics.push(`<span>${new Intl.NumberFormat('en-US',{notation:'compact'}).format(data.downloads)} 📥</span>`);
+                            if (data.stars) metrics.push(`<span>${new Intl.NumberFormat('en-US',{notation:'compact'}).format(data.stars)} ⭐</span>`);
+                            if (data.citations) metrics.push(`<span>${new Intl.NumberFormat('en-US',{notation:'compact'}).format(data.citations)} 📚</span>`);
+                            metricsContainer.innerHTML = metrics.join('<span class="opacity-20">|</span>');
+                        }
+
+                        card.setAttribute('data-hydrated', 'true');
+                        observer.unobserve(card);
+                    } catch (e) {
+                        // Silent fail - keep placeholder
                     }
-                }, 100);
+                }
             });
-            card.addEventListener('mouseleave', () => clearTimeout(hoverTimer));
-        });
+        }, { rootMargin: '100px' });
+
+        cards.forEach(card => observer.observe(card));
     });
 </script>

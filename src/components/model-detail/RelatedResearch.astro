@@ -16,6 +16,8 @@ interface Props {
 const { modelId } = Astro.props;
 import { R2_CACHE_URL } from '../../config/constants.ts';
 
+import { getRouteFromId, stripPrefix } from '../../utils/mesh-routing-core.js';
+
 interface Relation {
   source_id: string;
   target_id: string;
@@ -30,108 +32,97 @@ interface RelationsResponse {
 }
 
 let relations: Relation[] = [];
-let papers: string[] = [];
-let baseModels: string[] = [];
-let variants: string[] = [];
-let datasets: string[] = [];
+let paperRelations: Relation[] = [];
+let baseModelRelations: Relation[] = [];
+let variantRelations: Relation[] = [];
+let datasetRelations: Relation[] = [];
 
 try {
   // V16.33: CDN-First Resilient Fetch
+  // V18.12: Prefers fused data if available
   const normalizedId = modelId.replace(/:/g, '--');
   const cdnUrl = `${R2_CACHE_URL}/cache/relations/${normalizedId}.json`;
-  const localUrl = `/cache/relations/${normalizedId}.json`;
   
-  let response = await fetch(cdnUrl);
-  
-  if (!response.ok) {
-    console.warn('[RelatedResearch] CDN fetch failed, trying local fallback...');
-    response = await fetch(new URL(localUrl, Astro.url.origin));
-  }
-
+  const response = await fetch(cdnUrl);
   if (response.ok) {
     const data: RelationsResponse = await response.json();
     relations = data.relations || [];
     
-    // Group by type
-    papers = relations
-      .filter(r => r.relation_type === 'paper_id')
-      .map(r => r.target_id.replace('arxiv:', ''));
-    
-    baseModels = relations
-      .filter(r => r.relation_type === 'base_model')
-      .map(r => r.target_id.replace('base:', ''));
-    
-    variants = relations
-      .filter(r => r.relation_type === 'variant' && r.source_id === modelId)
-      .map(r => r.target_id);
-    
-    datasets = relations
-      .filter(r => r.relation_type === 'dataset_id')
-      .map(r => r.target_id.replace('dataset:', ''));
+    // Group by type using standardized routing
+    paperRelations = relations.filter(r => r.relation_type === 'paper_id' || r.target_id.includes('paper'));
+    baseModelRelations = relations.filter(r => r.relation_type === 'base_model');
+    variantRelations = relations.filter(r => r.relation_type === 'variant' && r.source_id === modelId);
+    datasetRelations = relations.filter(r => r.relation_type === 'dataset_id');
   }
 } catch (e) {
   console.error('Failed to fetch relations:', e);
 }
 
-const hasContent = papers.length > 0 || baseModels.length > 0 || variants.length > 0 || datasets.length > 0;
+const hasContent = paperRelations.length > 0 || baseModelRelations.length > 0 || variantRelations.length > 0 || datasetRelations.length > 0;
 ---
 
 {hasContent && (
-  <section class="related-research mt-8 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm">
+  <section class="related-research mt-8 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-zinc-100 dark:border-zinc-700">
     <h2 class="text-xl font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
-      <span>🔗</span> Knowledge Links
+      <span>🔗</span> Knowledge Context & Lineage
     </h2>
     
-    {papers.length > 0 && (
+    {paperRelations.length > 0 && (
       <div class="mb-4">
         <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
           📄 Research Papers
         </h3>
         <div class="flex flex-wrap gap-2">
-          {papers.map(paperId => (
+          {paperRelations.map(rel => (
             <a 
-              href={`/paper/${paperId}`}
+              href={getRouteFromId(rel.target_id, 'paper')}
               class="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
             >
-              📄 arXiv:{paperId}
+              📄 {stripPrefix(rel.target_id)}
             </a>
           ))}
         </div>
       </div>
     )}
     
-    {baseModels.length > 0 && (
+    {baseModelRelations.length > 0 && (
       <div class="mb-4">
         <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
-          🔀 Based On
+          🧬 Based On
         </h3>
         <div class="flex flex-wrap gap-2">
-          {baseModels.map(baseName => (
-            <span class="inline-flex items-center px-3 py-1 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-sm">
-              {baseName}
-            </span>
+          {baseModelRelations.map(rel => (
+            <a 
+              href={getRouteFromId(rel.target_id, 'model')}
+              class="inline-flex items-center px-3 py-1 bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-full text-sm hover:bg-zinc-200 transition-colors"
+            >
+              {stripPrefix(rel.target_id)}
+            </a>
           ))}
         </div>
       </div>
     )}
     
-    {variants.length > 0 && (
+    {variantRelations.length > 0 && (
       <div class="mb-4">
         <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
           🔀 Variants
         </h3>
         <div class="flex flex-wrap gap-2">
-          {variants.map(variantId => {
-            const name = variantId.split(':').pop() || '';
-            // V12: Extract size from name pattern (7b, 70b, etc.)
-            const sizeMatch = name.match(/(\d+\.?\d*)b/i);
-            const sizeB = sizeMatch ? parseFloat(sizeMatch[1]) : null;
-            const vramEst = sizeB ? Math.ceil(sizeB * 0.6 + 2) : null;
+          {variantRelations.map(rel => {
+            const name = stripPrefix(rel.target_id).split('--').pop() || '';
             return (
               <a 
-                href={`/model/${variantId.replace('huggingface:', '').replace(/:/g, '/')}`}
-                class="inline-flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
+                href={getRouteFromId(rel.target_id, 'model')}
+                class="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full text-sm hover:bg-emerald-100 transition-colors"
               >
+                <span>{name}</span>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    )}
                 <span>{name}</span>
                 {vramEst && (
                   <span class="text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-300 px-1.5 py-0.5 rounded">

@@ -24,10 +24,10 @@ const meshId = `knowledge--${slug}`;
 ---
 
 <Layout title={pageTitle} description={frontmatter.description}>
-  <div class="container mx-auto px-4 py-8 max-w-6xl">
-    <div class="flex flex-col lg:flex-row gap-12">
+  <div class="container mx-auto px-4 py-8 max-w-4xl">
+    <div class="flex flex-col gap-12">
       <!-- Main Content -->
-      <main class="flex-1 min-w-0">
+      <main class="w-full">
         <article class="prose dark:prose-invert max-w-none">
           <KnowledgeHeader 
             title={frontmatter.title} 
@@ -48,7 +48,14 @@ const meshId = `knowledge--${slug}`;
           <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
             <span class="text-indigo-600">🕸️</span> Knowledge Mesh
           </h2>
-          <NeuralGraphExplorer currentModelId={meshId} type="concept" />
+          <div class="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800/50 shadow-sm overflow-hidden">
+             <NeuralGraphExplorer currentModelId={meshId} type="concept" />
+          </div>
+        </div>
+
+        <!-- Grounded Context (Sidebar content stacked) -->
+        <div class="mt-12">
+           <KnowledgeSidebar slug={slug || ''} />
         </div>
 
         <!-- CTA & Progress -->
@@ -67,11 +74,6 @@ const meshId = `knowledge--${slug}`;
           </div>
         </div>
       </main>
-
-      <!-- Sidebar -->
-      <aside class="w-full lg:w-80 shrink-0">
-        <KnowledgeSidebar slug={slug || ''} />
-      </aside>
     </div>
   </div>
 </Layout>
