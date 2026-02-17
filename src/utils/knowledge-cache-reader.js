@@ -28,11 +28,10 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     const target = stripPrefix(entityId);
     let allRelations = [];
 
-    // V16.95: Full 7-Source Aggregation (Perfect SSOT Recovery)
-    // V16.96: SSR Memory Protection - Exclude multi-MB files during SSR to prevent 1102 Errors
-    // V18.2.5: Emergency - Use ONLY core relations for SSR to bypass CPU/RAM limits
-    // V21.5: SSR Resilience - Surgical relaxation for Knowledge Articles
-    let sourcesToFetch = options.ssrOnly ? [
+    // V21.5.1: REVERT - SSR relaxation for knowledge-links caused 1102 OOM (54k+ entries).
+    // Extreme Throttling: During SSR, we ONLY trust relations.json. 
+    // Richer mesh data will hydrate on the client-side.
+    const sourcesToFetch = options.ssrOnly ? [
         'cache/relations.json'
     ] : [
         'cache/mesh/graph.json',
@@ -43,12 +42,6 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
         'cache/reports/index.json',
         'cache/mesh/stats.json'
     ];
-
-    // V21.5.1: If SSR AND Researching Knowledge, append specific lightweight links (Satisfies Vitest Art 5.1)
-    if (options.ssrOnly && (entityId?.startsWith('knowledge--') || entityId?.startsWith('concept--'))) {
-        sourcesToFetch.push('cache/relations/knowledge-links.json');
-        sourcesToFetch.push('cache/knowledge/index.json');
-    }
 
     try {
         for (const key of sourcesToFetch) {
@@ -216,8 +209,12 @@ export async function fetchGraphMetadata(locals) {
  * Concept metadata fetcher (Legacy/Refined)
  */
 export async function fetchConceptMetadata(locals) {
+    const isSSR = Boolean(locals?.runtime?.env);
+    // V21.5.2: Skip large index during SSR to prevent 1102 worker crashes
+    if (isSSR) return [];
+
     try {
-        // V21.5: Use loadCachedJSON for environment-aware fetching and .gz support
+        // ... (rest of the logic for client-side)
         const { data } = await loadCachedJSON('cache/knowledge/index.json', { locals });
         const list = data?.articles || (Array.isArray(data) ? data : []);
         if (Array.isArray(list) && list.length > 0) return list;
