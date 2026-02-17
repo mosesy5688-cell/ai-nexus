@@ -44,17 +44,25 @@ export function initNeuralGraph(containerId) {
         const rootId = container.dataset.id;
         const loading = container.querySelector('.graph-loading');
 
-        const normalize = (id) => (id || '').toLowerCase()
-            .replace(/^(replicate|github|arxiv|kb|concept|paper|model|agent|tool|dataset|space)[:\-]+/, '')
-            .replace(/^(hf-model|hf-agent|hf-tool|hf-dataset|hf-space)--/, '')
-            .replace(/--/g, '/')
-            .replace(/:/g, '/');
+        const normalizeId = (id) => {
+            if (!id || typeof id !== 'string') return '';
+            const low = id.toLowerCase();
+            const segments = low.split(/--|[:/]/);
+            if (low.includes('--') || low.includes(':') || low.includes('/')) {
+                const first = segments[0];
+                const typeHints = ['hf', 'gh', 'model', 'paper', 'agent', 'tool', 'dataset', 'space', 'arxiv', 'replicate', 'kb', 'knowledge', 'concept'];
+                if (typeHints.some(p => first.includes(p))) {
+                    return segments.slice(1).join('/');
+                }
+            }
+            return low.replace(/--/g, '/').replace(/:/g, '/');
+        };
 
-        const normRootId = normalize(rootId);
+        const normRootId = normalizeId(rootId);
         let nodes = JSON.parse(container.dataset.nodes || '[]');
         let links = JSON.parse(container.dataset.links || '[]');
 
-        renderGraph({ nodes, links, normRootId, container, hoverCard });
+        renderGraph({ nodes, links, normRootId, container, hoverCard, normalizeId });
 
         // Hydration Logic
         try {
@@ -106,7 +114,7 @@ export function initNeuralGraph(containerId) {
     }
 }
 
-function renderGraph({ nodes, links, normRootId, container, hoverCard }) {
+function renderGraph({ nodes, links, normRootId, container, hoverCard, normalizeId }) {
     if (typeof d3 === 'undefined') return;
     const svg = d3.select("#visual-graph");
     svg.selectAll("*").remove();
@@ -150,11 +158,11 @@ function renderGraph({ nodes, links, normRootId, container, hoverCard }) {
     });
     node.on("mouseleave", () => hoverCard.style.display = 'none');
     node.on("click", (e, d) => {
-        const normId = d.id.toLowerCase().replace(/^(replicate|github|arxiv|kb|concept|paper|model|agent|tool|dataset|space)[:\-]+/, '').replace(/--/g, '/').replace(/:/g, '/');
+        const normId = normalizeId(d.id);
         let path = `/${d.type}/${normId}`;
-        if (d.type === 'concept') path = `/knowledge/${normId}`;
+        if (d.type === 'concept' || d.type === 'knowledge') path = `/knowledge/${normId}`;
         else if (d.type === 'paper') path = `/paper/${normId}`;
-        window.location.href = path;
+        window.location.href = path.replace(/\/+$/, '');
     });
 
     simulation.on("tick", () => {
