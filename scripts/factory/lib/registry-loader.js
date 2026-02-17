@@ -33,9 +33,16 @@ export async function loadRegistryShardsSequentially(consumer, options = {}) {
         })
         .sort();
 
-    // V18.12.5.15 Enhancement: If no local shards found, probe for shards 0-299 
-    // to allow R2 recovery even if cache is cold.
+    // V18.12.5.19: Selective R2 Probing
+    // If we're in a satellite task or factory aggregate, R2 is typically redundant 
+    // because the 'Core' task just wrote fresh local shards.
+    const inhibitR2 = process.env.AGGREGATOR_MODE === 'true' && !process.env.AGGREGATOR_FORCE_R2;
+
     if (validShards.length === 0) {
+        if (inhibitR2) {
+            console.log(`[CACHE] ⚠️ No local shards found. R2 Probe INHIBITED in Aggregator mode.`);
+            return;
+        }
         console.log(`[CACHE] 🔍 No local shards found. Probing for R2 baseline...`);
         for (let i = startShard; i <= 300; i++) {
             const shardName = `part-${String(i).padStart(3, '0')}.json.gz`;
@@ -67,6 +74,7 @@ export async function loadGlobalRegistry(options = {}) {
     const monolithPath = path.join(cacheDir, MONOLITH_FILE);
     const REGISTRY_FLOOR = parseInt(process.env.REGISTRY_FLOOR || '85000');
     const { slim = false } = options;
+    const inhibitR2 = process.env.AGGREGATOR_MODE === 'true' && !process.env.AGGREGATOR_FORCE_R2;
     let allEntities = [];
 
     const zlib = await import('zlib');

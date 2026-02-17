@@ -72,11 +72,11 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id={`mesh-grid-${key}`}>
-                        {tier.nodes.map((node, index) => {
+                        {tier.nodes.slice(0, 6).map((node, index) => {
                             const path = getRouteFromId(node.id, node.type);
                             
                             return (
-                                <a href={path} class={`mesh-node group relative p-4 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 rounded-2xl hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 ${index >= 6 ? 'hidden extra-node' : ''}`}>
+                                <a href={path} class={`mesh-node group relative p-4 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 rounded-2xl hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300`}>
                                     <div class="flex items-start gap-4">
                                         <div class="node-icon-wrapper relative">
                                             <span class="text-3xl filter grayscale group-hover:grayscale-0 transition-all duration-500 block">

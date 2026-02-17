@@ -213,6 +213,7 @@ jobs:
           ENTITIES_PATH: data/merged.json.gz
           FNI_HISTORY_PATH: cache/fni-history.json.gz
           ARTIFACT_DIR: artifacts
+          STRICT_R2_LOCKDOWN: 'true'
         run: |
           echo "🔄 Processing Shard ${{ matrix.shard }}/20..."
           node scripts/factory/shard-processor.js --shard=${{ matrix.shard }} --total=20

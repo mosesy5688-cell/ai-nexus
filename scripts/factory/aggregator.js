@@ -62,7 +62,25 @@ async function main() {
     const { calculateGlobalStats, preProcessDeltas, mergePartitionedShard } = await import('./lib/aggregator-utils.js');
     const { saveRegistryShard } = await import('./lib/registry-saver.js');
 
-    const rankingsAndIndices = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+    // V18.12.5.19: Smart Prep - If harvester monolith exists, use it for indexing to avoid R2 baseline downloads
+    const harvesterExists = await fs.access(entitiesInputPath).then(() => true).catch(() => false);
+    let rankingsAndIndices;
+
+    if (harvesterExists) {
+        console.log(`[AGGREGATOR] 🚀 Harvester monolith found. Using for global indexing (O(1) R2 Bandwidth)...`);
+        rankingsAndIndices = await calculateGlobalStats(async (consumer) => {
+            // Internal wrapper to stream the monolith as a single "shard" for indexing
+            const data = await fs.readFile(entitiesInputPath);
+            const zlib = await import('zlib');
+            const decompressed = (entitiesInputPath.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) ? zlib.gunzipSync(data).toString('utf-8') : data.toString('utf-8');
+            const parsed = JSON.parse(decompressed);
+            const entities = Array.isArray(parsed) ? parsed : (parsed.entities || []);
+            await consumer(entities, 0);
+        }, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+    } else {
+        rankingsAndIndices = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+    }
+
     const { rankingsMap, registryMap } = rankingsAndIndices;
     console.log(`✓ Global rankings and registry mapping aligned for ${rankingsMap.size} entities.`);
 
@@ -74,32 +92,57 @@ async function main() {
     let fullSet = []; // We will accumulate this ONLY for satellite tasks (slimmed)
 
     // 2. Pass 2: Shard-Centric Merge (Heavyweight)
-    // We process each baseline shard sequentially to keep heap usage O(1)
+    // V18.12.5.20: If Harvester monolith exists, we DO NOT fetch baseline shards from R2.
+    // Instead, we treat the monolith as the SOLE source of truth and partition it.
     console.log(`[AGGREGATOR] Pass 2/2: Performing Partitioned Shard Merge (Hash-Join)...`);
 
-    await loadRegistryShardsSequentially(async (baselineEntities, shardIdx) => {
-        // Partitioned Merge: Merge this baseline shard with its corresponding update shard
-        const mergedShard = await mergePartitionedShard(
-            baselineEntities,
-            shardIdx,
-            rankingsMap,
-            { slim: needsSlimming }
-        );
+    if (harvesterExists) {
+        console.log(`[AGGREGATOR] 🚀 Monolith Mode: Partitioning Harvester output into shards...`);
+        // We still use loadRegistryShardsSequentially but we pass it a special consumer 
+        // that only looks at the monolith we already loaded in rankingsAndIndices.
+        // Actually, for maximum safety and memory control, we manually partition here.
+        const data = await fs.readFile(entitiesInputPath);
+        const zlib = await import('zlib');
+        const decompressed = (entitiesInputPath.endsWith('.gz') || (data[0] === 0x1f && data[1] === 0x8b)) ? zlib.gunzipSync(data).toString('utf-8') : data.toString('utf-8');
+        const allEntities = JSON.parse(decompressed);
+        const entities = Array.isArray(allEntities) ? allEntities : (allEntities.entities || []);
 
-        if (!needsSlimming) {
-            // In Core Task, save the full metadata shard immediately to R2/Local
-            await saveRegistryShard(shardIdx, mergedShard.entities);
+        for (let i = 0; i < CONFIG.TOTAL_SHARDS; i++) {
+            const shardEntities = entities.filter((_, idx) => idx % CONFIG.TOTAL_SHARDS === i);
+            if (shardEntities.length > 0) {
+                // Apply global rankings calculated in Pass 1
+                for (const e of shardEntities) {
+                    e.fni_percentile = rankingsMap.get(e.id) || 0;
+                    if (needsSlimming || !taskArg || taskArg === 'health') fullSet.push(e);
+                }
+                if (!needsSlimming) {
+                    await saveRegistryShard(i, shardEntities);
+                }
+                successCount++;
+            }
         }
+    } else {
+        // LEGACY/INCREMENTAL MODE: Only used if no monolith is found
+        await loadRegistryShardsSequentially(async (baselineEntities, shardIdx) => {
+            const mergedShard = await mergePartitionedShard(
+                baselineEntities,
+                shardIdx,
+                rankingsMap,
+                { slim: needsSlimming }
+            );
 
-        // For satellite tasks or final health check, accumulate the slimmed entities
-        if (needsSlimming || !taskArg || taskArg === 'health') {
-            for (const e of mergedShard.entities) fullSet.push(e);
-        }
+            if (!needsSlimming) {
+                await saveRegistryShard(shardIdx, mergedShard.entities);
+            }
 
-        successCount++;
-        // Explicitly clear references to allow GC
-        mergedShard.entities = null;
-    }, { slim: needsSlimming });
+            if (needsSlimming || !taskArg || taskArg === 'health') {
+                for (const e of mergedShard.entities) fullSet.push(e);
+            }
+
+            successCount++;
+            mergedShard.entities = null;
+        }, { slim: needsSlimming });
+    }
 
     if (fullSet.length === 0 && !needsSlimming) {
         // If we didn't accumulate fullSet, we need to load it slimly for health/final stats
