@@ -1,15 +1,11 @@
-/**
- * Aggregator Utilities V18.12.5.16 (Partitioned Edition)
- */
+/** Aggregator Utilities V18.12.5.16 (Partitioned Edition) */
 import fs from 'fs/promises';
 import path from 'path';
 import zlib from 'zlib';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { mergeEntities } from '../../ingestion/lib/entity-merger.js';
 
-/**
- * Iterative Shard Processor (V18.12.5.12 OOM Guard)
- */
+/** Iterative Shard Processor (V18.12.5.12 OOM Guard) */
 export async function processShardsIteratively(defaultArtifactDir, totalShards, options = {}, callback, startShard = 0, endShard = null) {
     const { slim = false } = options;
     const searchPaths = [defaultArtifactDir, './artifacts', './output/cache/shards', './cache/registry', './output/registry'];
@@ -42,8 +38,9 @@ export async function processShardsIteratively(defaultArtifactDir, totalShards, 
                         'pipeline_tag', 'published_date', 'last_modified',
                         'last_updated', 'lastModified', '_updated',
                         'params_billions', 'context_length', 'architecture',
-                        'mmlu', 'gsm8k', 'avg_score', 'humaneval', 'meta_json',
-                        'html_readme'
+                        'mmlu', 'gsm8k', 'avg_score', 'humaneval',
+                        'deploy_score', 'has_gguf', 'has_ollama', 'ollama_id',
+                        'benchmark_avg', 'license', 'source'
                     ];
                     for (let j = 0; j < parsed.entities.length; j++) {
                         const ent = parsed.entities[j].enriched || parsed.entities[j];
@@ -67,9 +64,7 @@ export async function processShardsIteratively(defaultArtifactDir, totalShards, 
     }
 }
 
-/**
- * Pass 1: Global Statistics and Registry Indexing (V18.12.5.16)
- */
+/** Pass 1: Global Statistics and Registry Indexing (V18.12.5.16) */
 export async function calculateGlobalStats(registryLoader, artifactDir, totalShards) {
     console.log(`[AGGREGATOR] Pass 1/2: Global Indexing & Registry Mapping...`);
     const scoreMap = new Map();
@@ -104,10 +99,6 @@ export async function calculateGlobalStats(registryLoader, artifactDir, totalSha
 }
 
 /**
- * Pass 1.5: Pre-process Harvester Deltas (Hash-Join Alignment)
- * O(S) I/O instead of O(S^2)
- */
-/**
  * Pass 1.5: Pre-process updates (Monolith or Shards)
  */
 export async function preProcessDeltas(artifactDir, totalShards, registryMap, monolithPath = null) {
@@ -119,9 +110,10 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap, mo
     const files = await fs.readdir(deltaDir).catch(() => []);
     for (const f of files) await fs.unlink(path.join(deltaDir, f));
 
-    // Optimized: Use memory-buffered writes to prevent I/O saturation (Death by a thousand appendFiles)
+    // Optimized: Use memory-buffered writes to prevent I/O saturation
     const updateBuffers = new Map(); // shardIdx -> string[]
     const FLUSH_THRESHOLD = 5000;
+    let updateCount = 0;
     let totalProcessed = 0;
 
     const flushBuffers = async () => {
