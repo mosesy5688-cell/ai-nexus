@@ -188,6 +188,14 @@ function projectEntity(e, slim) {
         last_modified: e.last_modified || e.last_updated || e.lastModified || e._updated || '',
         last_updated: e.last_updated || e.last_modified || e.lastModified || e._updated || '',
         lastModified: e.lastModified || e.last_updated || e.last_modified || e._updated || '',
-        _updated: e._updated || e.last_updated || e.last_modified || ''
+        _updated: e._updated || e.last_updated || e.last_modified || '',
+        // Frontend-required lightweight fields (DeployabilityBadge, TechSpecsFull, ModelSidebar)
+        deploy_score: e.deploy_score || 0,
+        has_gguf: e.has_gguf || false,
+        has_ollama: e.has_ollama || false,
+        ollama_id: e.ollama_id || '',
+        benchmark_avg: e.benchmark_avg || 0,
+        license: e.license || e.license_spdx || '',
+        source: e.source || ''
     };
 }

@@ -27,7 +27,7 @@ import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 
 // Config (Art 3.1, 3.3)
 const CONFIG = {
-    TOTAL_SHARDS: 100,
+    TOTAL_SHARDS: 20,
     MIN_SUCCESS_RATE: 0.8,
     OUTPUT_DIR: './output',
     ARTIFACT_DIR: './artifacts',
