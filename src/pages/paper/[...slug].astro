@@ -145,15 +145,16 @@ const canonicalPath = paper ? getRouteFromId(paper.id || paperId, 'paper') : und
     )}
   
     {paper && (
+      <div slot="core-knowledge" class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
+         <UniversalCore entity={paper} type="paper" meshRelations={meshRelations} />
+      </div>
+    )}
+
+    {paper && (
       <div slot="deep-dive" class="space-y-12">
          {/* Zone 4.2: Primary Documentation / Technical Content */}
          <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
             <PaperDeepDive paper={paper} />
-         </div>
-
-         {/* Zone 4.3: Intelligence Hive & Neural Discovery (Repositioned V18.12) */}
-         <div class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
-            <UniversalCore entity={paper} type="paper" meshRelations={meshRelations} />
          </div>
       </div>
     )}

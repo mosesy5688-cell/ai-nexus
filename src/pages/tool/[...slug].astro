@@ -156,6 +156,12 @@ const canonicalPath = tool ? getRouteFromId(tool.id || toolId, 'tool') : undefin
     )}
   
     {tool && (
+      <div slot="core-knowledge" class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
+         <UniversalCore entity={tool} type="tool" meshRelations={meshRelations} />
+      </div>
+    )}
+
+    {tool && (
       <div slot="deep-dive" class="space-y-12">
          {/* Zone 4.1: Developer Quick Tools (Always-On) */}
          <div class="space-y-8">
@@ -165,11 +171,6 @@ const canonicalPath = tool ? getRouteFromId(tool.id || toolId, 'tool') : undefin
          {/* Zone 4.2: Primary Documentation / Technical Content */}
          <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
             <ToolDeepDive tool={tool} />
-         </div>
-
-         {/* Zone 4.3: Intelligence Hive & Neural Discovery (Repositioned V18.12) */}
-         <div class="pt-16 border-t border-zinc-100 dark:border-zinc-800">
-            <UniversalCore entity={tool} type="tool" meshRelations={meshRelations} />
          </div>
       </div>
     )}

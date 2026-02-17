@@ -73,8 +73,30 @@ export async function saveDailyAccum(accum) {
     }
 
     // Monolith fallback for small data
-    // V18.2.1: Always save full accum to monolith
-    await saveWithBackup('daily-accum.json.gz', { ...accum, lastUpdated: timestamp }, { compress: true });
+    // V18.2.1: Always save full accum to monolith (Streaming V18.12.5.16)
+    const monolithPath = path.join(cacheDir, 'daily-accum.json.gz');
+    await new Promise((resolve, reject) => {
+        const stream = (async () => {
+            const { createWriteStream } = await import('fs');
+            const zlib = await import('zlib');
+            const output = createWriteStream(monolithPath);
+            const gzip = zlib.createGzip();
+            gzip.pipe(output);
+
+            output.on('error', reject);
+            gzip.on('error', reject);
+            output.on('finish', resolve);
+
+            gzip.write(JSON.stringify({ ...accum, entries: [], lastUpdated: timestamp }).replace(']}', ''));
+            gzip.write(`,"entries":[`);
+            for (let i = 0; i < entries.length; i++) {
+                if (i > 0) gzip.write(',');
+                gzip.write(JSON.stringify(entries[i]));
+            }
+            gzip.write(`]}`);
+            gzip.end();
+        })();
+    });
 
     // Purge stale shards (V18.2.1)
     await purgeStaleShards('daily-accum', shardCount);
