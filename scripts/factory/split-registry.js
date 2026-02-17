@@ -16,7 +16,7 @@ import { pipeline } from 'node:stream/promises';
 import { Writable } from 'node:stream';
 import { StringDecoder } from 'node:string_decoder';
 
-const TOTAL_SHARDS = 20;
+const TOTAL_SHARDS = 100;
 const DATA_DIR = 'data';
 const INPUT_FILE = path.join(DATA_DIR, 'merged.json.gz');
 const INPUT_FILE_PLAIN = path.join(DATA_DIR, 'merged.json');

@@ -1,6 +1,5 @@
 /**
- * Aggregator Utilities V16.8.6 (CES Compliant)
- * V16.8.6: Logic Restoration & Field Promotion
+ * Aggregator Utilities V18.12.5.15 (Partitioned Edition)
  */
 
 import fs from 'fs/promises';
@@ -11,17 +10,13 @@ import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { loadFniHistory, saveFniHistory } from './cache-manager.js';
 import { mergeEntities } from '../../ingestion/lib/entity-merger.js';
 
-
 /**
  * Iterative Shard Processor (V18.12.5.12 OOM Guard)
- * Loads and processes shards one by one to keep heap footprint low.
  */
 export async function processShardsIteratively(defaultArtifactDir, totalShards, options = {}, callback, startShard = 0, endShard = null) {
     const { slim = false } = options;
     const searchPaths = [defaultArtifactDir, './artifacts', './output/cache/shards', './cache/registry', './output/registry'];
     const limit = endShard === null ? totalShards : Math.min(endShard, totalShards);
-
-    console.log(`[AGGREGATOR] Iterative processing shards ${startShard}-${limit - 1}... (Slim Mode: ${slim})`);
 
     for (let i = startShard; i < limit; i++) {
         let shardData = null;
@@ -42,7 +37,6 @@ export async function processShardsIteratively(defaultArtifactDir, totalShards, 
 
                 const parsed = JSON.parse(data);
                 if (slim && parsed.entities) {
-                    // V18.12.5.14: Use Projection instead of delete to avoid Dictionary Mode
                     const slimFields = [
                         'id', 'umid', 'slug', 'name', 'type', 'author', 'description',
                         'tags', 'metrics', 'stars', 'forks', 'downloads', 'likes',
@@ -57,7 +51,6 @@ export async function processShardsIteratively(defaultArtifactDir, totalShards, 
                         for (const f of slimFields) {
                             if (ent[f] !== undefined) projected[f] = ent[f];
                         }
-                        // Replace reference with slim object immediately
                         if (parsed.entities[j].enriched) parsed.entities[j].enriched = projected;
                         else parsed.entities[j] = projected;
                     }
@@ -69,41 +62,147 @@ export async function processShardsIteratively(defaultArtifactDir, totalShards, 
 
         if (shardData) {
             await callback(shardData, i);
-        } else {
-            console.warn(`[WARN] Shard ${i} missing.`);
         }
-        // Force GC hint or at least clear reference
         shardData = null;
     }
 }
 
 /**
- * Validate shard success rate (Art 3.3)
+ * Pass 1: Global Statistics and Update Indexing (V18.12.5.15)
  */
-export function validateShardSuccess(shardResults, totalShards) {
-    const successful = shardResults.filter(s => s !== null).length;
-    const rate = successful / totalShards;
-    console.log(`[AGGREGATOR] Shards: ${successful}/${totalShards} (${(rate * 100).toFixed(1)}%)`);
-    return rate;
+export async function calculateGlobalStats(registryLoader, artifactDir, totalShards) {
+    console.log(`[AGGREGATOR] Pass 1/2: Global Indexing & FNI stats...`);
+    const scoreMap = new Map();
+    const updateIndexMap = new Map();
+
+    await processShardsIteratively(artifactDir, totalShards, { slim: true }, async (shard, idx) => {
+        if (shard?.entities) {
+            for (const ent of shard.entities) {
+                const incoming = ent.enriched || ent;
+                updateIndexMap.set(incoming.id, idx);
+            }
+        }
+    });
+
+    await registryLoader(async (entities) => {
+        for (const e of entities) {
+            scoreMap.set(e.id, e.fni_score || 0);
+        }
+    }, { slim: true });
+
+    const allScores = Array.from(scoreMap.values()).sort((a, b) => b - a);
+    const count = allScores.length;
+
+    // V18.12.5.15 Enhancement: Efficient Rank Mapping (O(N))
+    const scoreToRank = new Map();
+    for (let i = 0; i < allScores.length; i++) {
+        if (!scoreToRank.has(allScores[i])) {
+            scoreToRank.set(allScores[i], i);
+        }
+    }
+
+    const rankingsMap = new Map();
+    for (const [id, score] of scoreMap) {
+        const rank = scoreToRank.get(score) ?? 0;
+        rankingsMap.set(id, Math.round((1 - rank / count) * 100));
+    }
+
+    scoreMap.clear();
+    console.log(`  [STATS] Calculated rankings for ${count} entities.`);
+    return { rankingsMap, updateIndexMap };
 }
 
 /**
- * Calculate percentiles based on fni_score
+ * Standard Entity Processor
+ */
+function processEntity(e, update, mOptions = {}) {
+    let entity = update ? mergeEntities(e, update, mOptions) : e;
+    const id = normalizeId(entity.id, getNodeSource(entity.id, entity.type), entity.type);
+
+    if (!mOptions.slim && entity.meta_json && typeof entity.meta_json === 'object') {
+        try { entity.meta_json = JSON.stringify(entity.meta_json); } catch (err) { }
+    }
+
+    entity.type = entity.type || entity.entity_type || 'model';
+    const finalFni = entity.fni_score ?? entity.fni ?? 0;
+    entity.fni_score = finalFni;
+    entity.fni = finalFni;
+
+    if (!entity.image_url) {
+        entity.image_url = entity.raw_image_url || entity.preview_url || null;
+    }
+
+    return { ...entity, id };
+}
+
+/**
+ * Partitioned Shard Merge
+ */
+export async function mergePartitionedShard(baselineEntities, shardIndex, artifactDir, totalShards, rankingsMap, updateIndexMap, options = {}) {
+    const { slim = false } = options;
+    const shardRegistry = new Map();
+    for (const e of baselineEntities) {
+        shardRegistry.set(e.id, e);
+    }
+
+    const requiredUpdateShards = new Set();
+    for (const id of shardRegistry.keys()) {
+        const uIdx = updateIndexMap.get(id);
+        if (uIdx !== undefined) requiredUpdateShards.add(uIdx);
+    }
+
+    let updateCount = 0;
+    for (const uIdx of requiredUpdateShards) {
+        await processShardsIteratively(artifactDir, totalShards, { slim }, async (shard) => {
+            if (shard?.entities) {
+                for (const result of shard.entities) {
+                    const incoming = result.enriched || result;
+                    const existing = shardRegistry.get(incoming.id);
+                    if (existing) {
+                        const merged = processEntity(existing, incoming, { slim });
+                        merged.fni_percentile = rankingsMap.get(merged.id) || 0;
+                        shardRegistry.set(merged.id, merged);
+                        updateCount++;
+                    }
+                }
+            }
+        }, uIdx, uIdx + 1);
+    }
+
+    for (const ent of shardRegistry.values()) {
+        if (ent.fni_percentile === undefined) ent.fni_percentile = rankingsMap.get(ent.id) || 0;
+    }
+
+    return {
+        entities: Array.from(shardRegistry.values()),
+        updateCount,
+        newCount: 0
+    };
+}
+
+/**
+ * Validate shard success rate
+ */
+export function validateShardSuccess(shardResults, totalShards) {
+    const successful = shardResults.filter(s => s !== null).length;
+    return successful / totalShards;
+}
+
+/**
+ * Calculate percentiles
  */
 export function calculatePercentiles(entities) {
     const sorted = [...entities].sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
-
     return sorted.map((e, i) => ({
         ...e,
-        percentile: Math.round((1 - i / sorted.length) * 100),
+        fni_percentile: Math.round((1 - i / sorted.length) * 100),
     }));
 }
 
 /**
- * Update FNI history with 7-day rolling window (Art 4.2)
+ * Update FNI history
  */
 export async function updateFniHistory(entities) {
-    console.log('[AGGREGATOR] Updating FNI history...');
     const historyData = await loadFniHistory();
     const history = historyData.entities || {};
     const today = new Date().toISOString().split('T')[0];
@@ -116,94 +215,4 @@ export async function updateFniHistory(entities) {
     }
 
     await saveFniHistory({ entities: history });
-    console.log(`  [HISTORY] Updated ${Object.keys(history).length} entities`);
 }
-
-
-/**
- * Build a light index of which IDs are in which shards
- * Returns Map<ID, shardIndex>
- */
-// buildShardIndex removed (V18.12.5.13: Redundant & OOM-prone)
-
-/**
- * Zero-Copy In-Place Merge (V18.12.5.13 FINAL OOM FIX)
- * Uses a single Baseline Index Map to perform O(1) lookups.
- * Directly mutates the passed array to allow GC of old objects immediately.
- */
-export async function mergeShardEntitiesIteratively(baselineArray, artifactDir, totalShards, options = {}) {
-    console.log(`[AGGREGATOR] Performing Zero-Copy In-Place merge on ${baselineArray.length} entities...`);
-    const { slim = false } = options;
-
-    // 1. Build Baseline Index Map (O(N) - once)
-    const idToIndex = new Map();
-    for (let i = 0; i < baselineArray.length; i++) {
-        idToIndex.set(baselineArray[i].id, i);
-    }
-    console.log(`  [BASELINE] Indexed ${idToIndex.size} existing entities.`);
-
-    // 2. Process Shards and Merge In-Place
-    for (let i = 0; i < totalShards; i++) {
-        let updateCount = 0;
-        let newCount = 0;
-
-        await processShardsIteratively(artifactDir, totalShards, { slim }, async (shard, idx) => {
-            if (idx === i && shard?.entities) {
-                for (const result of shard.entities) {
-                    const incoming = result.enriched || result;
-                    const bIdx = idToIndex.get(incoming.id);
-
-                    if (bIdx !== undefined) {
-                        // In-Place Reference Replacement
-                        baselineArray[bIdx] = processEntity(baselineArray[bIdx], incoming, { slim });
-                        updateCount++;
-                    } else {
-                        // Append New Entities
-                        const processed = processEntity(incoming, null, { slim });
-                        baselineArray.push(processed);
-                        idToIndex.set(processed.id, baselineArray.length - 1);
-                        newCount++;
-                    }
-                }
-            }
-        }, i, i + 1);
-
-        if (updateCount > 0 || newCount > 0) {
-            console.log(`  [Merge] Shard ${i}: Applied ${updateCount} updates, added ${newCount} new entities.`);
-        }
-
-        // Hint GC after heavy shard processing
-        if (global.gc) global.gc();
-    }
-
-    // Helper: Standard Entity Processor (V16.11 CES)
-    function processEntity(e, update, mOptions = {}) {
-        let entity = update ? mergeEntities(e, update, mOptions) : e;
-        const id = normalizeId(entity.id, getNodeSource(entity.id, entity.type), entity.type);
-
-        // V18.12.5.14: Skip meta_json stringification in slim mode if it's already there
-        if (!mOptions.slim && entity.meta_json && typeof entity.meta_json === 'object') {
-            try {
-                entity.meta_json = JSON.stringify(entity.meta_json);
-            } catch (err) { /* ignore */ }
-        }
-
-        entity.type = entity.type || entity.entity_type || 'model';
-        const finalFni = entity.fni_score ?? entity.fni ?? 0;
-        entity.fni_score = finalFni;
-        entity.fni = finalFni;
-
-        if (!entity.image_url) {
-            entity.image_url = entity.raw_image_url || entity.preview_url || null;
-        }
-
-        // Return a fresh object with normalized ID
-        return { ...entity, id };
-    }
-
-    idToIndex.clear();
-    return baselineArray;
-}
-
-
-
