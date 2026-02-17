@@ -9,6 +9,19 @@ import { saveWithBackup } from './cache-core.js';
 const MONOLITH_FILE = 'global-registry.json.gz';
 const REGISTRY_DIR = 'registry';
 
+/**
+ * Atomic Shard Saver for Partitioned Aggregation
+ * Persists a single shard to disk and R2.
+ */
+export async function saveRegistryShard(index, entities) {
+    const timestamp = new Date().toISOString();
+    const count = entities.length;
+    const shardName = `registry/part-${String(index).padStart(3, '0')}.json.gz`;
+
+    console.log(`[CACHE] 💾 Persisting Registry Shard ${index} (${count} entities)...`);
+    await saveWithBackup(shardName, { entities, count, lastUpdated: timestamp }, { compress: true });
+}
+
 export async function saveGlobalRegistry(input) {
     const inputEntities = Array.isArray(input) ? input : (input?.entities || []);
     const count = inputEntities.length;

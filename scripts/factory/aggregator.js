@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import fs from 'fs/promises';
 import path from 'path';
 import { generateRankings } from './lib/rankings-generator.js';
@@ -17,7 +18,7 @@ import { generateTrendData } from './lib/trend-data-generator.js';
 import { persistRegistry } from './lib/aggregator-persistence.js';
 import {
     calculatePercentiles, updateFniHistory,
-    processShardsIteratively, mergeShardEntitiesIteratively
+    processShardsIteratively
 } from './lib/aggregator-utils.js';
 import {
     getWeekNumber, generateHealthReport, backupStateFiles
@@ -28,18 +29,18 @@ import { normalizeId, getNodeSource } from '../utils/id-normalizer.js';
 
 // Config (Art 3.1, 3.3)
 const CONFIG = {
-    TOTAL_SHARDS: 20,
+    TOTAL_SHARDS: 100,
     MIN_SUCCESS_RATE: 0.8,
     OUTPUT_DIR: './output',
     ARTIFACT_DIR: './artifacts',
-    CODE_VERSION: 'v16.11.2', // Increment this to bust incremental task cache
+    CODE_VERSION: 'v18.12.5.15', // Increment this to bust incremental task cache
 };
 
 // Configuration & Argument Parsing
 const args = process.argv.slice(2);
 const taskArg = args.find(a => a.startsWith('--task=') || a.startsWith('-t='))?.split('=')[1];
 const CHECKPOINT_THRESHOLD = 5.5 * 3600; // 5.5 hours in seconds
-const AGGREGATE_FLOOR = 85000;
+const AGGREGATE_FLOOR = 125000;
 
 // Main
 async function main() {
@@ -56,88 +57,67 @@ async function main() {
         }
     }
 
-    let allEntities = [];
-    let fullSet = [];
-    // 1. Load Authoritative Baseline (V18.2.3 Zero-Loss Hard Halt)
-    console.log(`[AGGREGATOR] 🧩 Loading sharded baseline...`);
-    // V18.2.5 Optimization (OOM-GUARD): Enable slim mode for satellite/maintenance tasks
-    // Satellite and health tasks don't need heavy content/readme fields.
+    // 1. Pass 1: Global FNI Logic (Lightweight)
+    // Extracts scores from all shards to calculate global rankings
     const needsSlimming = !!taskArg && taskArg !== 'core';
-    const registry = await loadGlobalRegistry({
-        slim: needsSlimming
-    });
-    const baseline = registry.entities || [];
-    registry.entities = null; // CRITICAL: Release registry reference immediately
+    const { loadRegistryShardsSequentially } = await import('./lib/registry-loader.js');
+    const { calculateGlobalStats, mergePartitionedShard } = await import('./lib/aggregator-utils.js');
+    const { saveRegistryShard } = await import('./lib/registry-saver.js');
 
-    if (baseline.length < AGGREGATE_FLOOR) {
-        throw new Error(`[CRITICAL] Registry baseline empty or below floor (${baseline.length}). Aborting to prevent data loss.`);
-    }
-    console.log(`✓ Context loaded: ${baseline.length} entities ready (via Zero-Loss Registry-IO)`);
-    // Note: If allEntities is empty, we MUST have shards to proceed.
+    const rankingsAndIndices = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
+    const { rankingsMap, updateIndexMap } = rankingsAndIndices;
+    console.log(`✓ Global rankings and update indices aligned for ${rankingsMap.size} entities.`);
 
     let successCount = 0;
-    const isSatellite = !!taskArg && taskArg !== 'core' && taskArg !== 'health';
+    let fullSet = []; // We will accumulate this ONLY for satellite tasks (slimmed)
 
-    if (isSatellite) {
-        fullSet = baseline;
-    } else {
-        // V18.12.5.13: Zero-Copy In-Place Merge (FINAL OOM FIX)
-        // Passes the array directly and mutates it to avoid object doubling.
-        fullSet = await mergeShardEntitiesIteratively(baseline, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: needsSlimming });
+    // 2. Pass 2: Shard-Centric Merge (Heavyweight)
+    // We process each baseline shard sequentially to keep heap usage O(1)
+    console.log(`[AGGREGATOR] Pass 2/2: Performing Partitioned Shard Merge...`);
 
-        const checksums = await loadEntityChecksums();
-        await processShardsIteratively(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: true }, async (shard) => {
-            if (shard) successCount++;
-            if (shard?.entities) {
-                for (const result of shard.entities) {
-                    if (result.success && result._checksum) checksums[result.id] = result._checksum;
-                }
-            }
-        });
-        await saveEntityChecksums(checksums);
+    await loadRegistryShardsSequentially(async (baselineEntities, shardIdx) => {
+        // Partitioned Merge: Merge this baseline shard with its corresponding update shard
+        const mergedShard = await mergePartitionedShard(
+            baselineEntities,
+            shardIdx,
+            CONFIG.ARTIFACT_DIR,
+            CONFIG.TOTAL_SHARDS,
+            rankingsMap,
+            updateIndexMap,
+            { slim: needsSlimming }
+        );
+
+        if (!needsSlimming) {
+            // In Core Task, save the full metadata shard immediately to R2/Local
+            await saveRegistryShard(shardIdx, mergedShard.entities);
+        }
+
+        // For satellite tasks or final health check, accumulate the slimmed entities
+        if (needsSlimming || !taskArg || taskArg === 'health') {
+            for (const e of mergedShard.entities) fullSet.push(e);
+        }
+
+        successCount++;
+        // Explicitly clear references to allow GC
+        mergedShard.entities = null;
+    }, { slim: needsSlimming });
+
+    if (fullSet.length === 0 && !needsSlimming) {
+        // If we didn't accumulate fullSet, we need to load it slimly for health/final stats
+        // This is safe because slim mode is OOM-resistant
+        const smallRegistry = await loadGlobalRegistry({ slim: true });
+        fullSet = smallRegistry.entities || [];
     }
 
-    // Post-merge safety check
     if (fullSet.length < AGGREGATE_FLOOR) {
         throw new Error(`[CRITICAL] Data Loss Detected! Only ${fullSet.length} entities in full set (Min: ${AGGREGATE_FLOOR}).`);
     }
 
     if (!taskArg || taskArg === 'health') {
-        if (successCount === 0 && !isSatellite) { // Ensure we have counts even if not core merge
-            await processShardsIteratively(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, { slim: true }, async (shard) => {
-                if (shard) successCount++;
-            });
-        }
         await generateHealthReport(successCount, fullSet, CONFIG.TOTAL_SHARDS, CONFIG.MIN_SUCCESS_RATE, CONFIG.OUTPUT_DIR);
     }
 
-    let rankedEntities = [];
-    if (taskArg && taskArg !== 'core' && taskArg !== 'health' && fullSet.length > 0 && fullSet[0].percentile !== undefined) {
-        rankedEntities = fullSet;
-    } else {
-        const percentiledEntities = calculatePercentiles(fullSet);
-        rankedEntities = percentiledEntities.map(e => ({ ...e, category: getV6Category(e) }));
-    }
-
-    // V18.2.3: Data Slimming (SPEC-SATELLITE-OOM-FIX)
-    // Satellite tasks (Search, Rankings, etc.) and Health checks do NOT need heavy HTML READMEs.
-    if (taskArg && taskArg !== 'core') {
-        const preSlimSize = rankedEntities.length;
-        console.log(`[AGGREGATOR] ✂️ Applying Data Slimming for satellite task: ${taskArg}...`);
-        for (let i = 0; i < rankedEntities.length; i++) {
-            const e = rankedEntities[i];
-            // V18.2.11 Fix: Recover summary before deletion if loadGlobalRegistry didn't already
-            if (!e.description || e.description.length < 5) {
-                const source = e.readme || e.content || '';
-                if (source) {
-                    e.description = source.slice(0, 300).replace(/<[^>]+>/g, ' ').replace(/[#*`]/g, '').trim().slice(0, 250);
-                }
-            }
-            if (e.content) delete e.content;
-            if (e.readme) delete e.readme;
-        }
-        console.log(`[AGGREGATOR] ✅ Slimming complete. Optimized ${preSlimSize} entities.`);
-    }
+    const rankedEntities = fullSet; // fullSet is already slimmed if needsSlimming, and contains rankings
 
     const tasks = [
         { name: 'Trending', id: 'trending', fn: () => generateTrending(rankedEntities, CONFIG.OUTPUT_DIR) },
@@ -166,63 +146,32 @@ async function main() {
         if (taskArg && taskArg !== task.id) continue;
         try {
             if (task.id && await checkIncrementalProgress(task.id, rankedEntities, CONFIG.CODE_VERSION)) continue;
-            if (process.uptime() > CHECKPOINT_THRESHOLD) break;
             console.log(`[AGGREGATOR] Task: ${task.name}...`);
-
-            // Set shared environment for satellite tasks (V18.2.2: Monolith removed)
-            // Satellite tasks now receive rankedEntities directly or use sharded loaders.
             process.env.AGGREGATOR_MODE = 'true';
             process.env.CACHE_DIR = './cache';
-            console.log(`[AGGREGATOR] Executing logic for ${task.id}...`);
-            const promise = task.fn();
-            if (promise instanceof Promise) {
-                await promise;
-            } else {
-                console.warn(`[WARN] Task ${task.id} did not return a promise.`);
-            }
-            console.log(`[AGGREGATOR] Task ${task.id} logic completed.`);
+            await (task.fn() || Promise.resolve());
             if (task.id) await updateTaskChecksum(task.id, rankedEntities, CONFIG.CODE_VERSION);
         } catch (e) {
             console.error(`[AGGREGATOR] ❌ Task ${task.name} failed: ${e.message}`);
-            // V16.6.4 Fix: If a specific task was requested, fail hard so CI detects it
             if (taskArg) process.exit(1);
         }
     }
 
-    // V18.2.1: Monolith save removed to prevent RangeError: Invalid string length.
-    // Sharded persistence is handled by persistRegistry() below.
-
     if (!taskArg || taskArg === 'core') {
         try {
             await updateFniHistory(rankedEntities);
-            process.env.CACHE_DIR = './cache';
-            await fs.mkdir(process.env.CACHE_DIR, { recursive: true });
-
+            await fs.mkdir('./cache', { recursive: true });
             await backupStateFiles(CONFIG.OUTPUT_DIR, await loadFniHistory(), getWeekNumber());
             await updateDailyAccumulator(rankedEntities, CONFIG.OUTPUT_DIR);
-
             if (shouldGenerateReport()) await generateDailyReport(CONFIG.OUTPUT_DIR);
             await generateDailyReportsIndex(CONFIG.OUTPUT_DIR);
-
-            // V18.2.4: Global Trend Injection (100% Detail Page Coverage)
-            // Ensure every entity shard carries its own 7-day sparkline data
-            console.log(`[AGGREGATOR] 💉 Injecting global trend data into shards...`);
-            const history = await loadFniHistory();
-            const entitiesMap = history.entities || {};
-            for (const e of rankedEntities) {
-                const h = entitiesMap[e.id];
-                if (h && h.length >= 2) {
-                    e.fni_trend_7d = h.map(point => point.score).slice(-7);
-                }
-            }
-
-            // V16.11 Persistence Refactor (CES Compliance)
-            await persistRegistry(rankedEntities, CONFIG.OUTPUT_DIR, process.env.CACHE_DIR);
-        } catch (e) { console.error(`[AGGREGATOR] ❌ Finalization failed: ${e.message}`); }
+        } catch (e) {
+            console.error(`[AGGREGATOR] ❌ Finalization failed: ${e.message}`);
+        }
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[AGGREGATOR V16.11.1] Complete! (${duration}s)`);
+    console.log(`[AGGREGATOR V18.12.5.15] Partitioned Aggregation Complete! (${duration}s)`);
 }
 
 main().catch(err => {

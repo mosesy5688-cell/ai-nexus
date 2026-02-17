@@ -82,7 +82,7 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
         const buffer = Buffer.from(body);
 
         // Save to local cache for next time
-        await fs.mkdir(cacheDir, { recursive: true });
+        await fs.mkdir(path.dirname(targetFile), { recursive: true });
         await fs.writeFile(targetFile, buffer);
 
         // Decompress and parse
