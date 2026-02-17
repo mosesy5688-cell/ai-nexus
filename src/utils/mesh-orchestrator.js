@@ -40,10 +40,13 @@ export async function getMeshProfile(locals, rootId, entity, options = {}) {
 
     // V18.12.0: Integrity Guard - Pre-check candidates for existence
     const validIds = new Set(Object.keys(graphMeta));
-    if (specsResult?.data) specsResult.data.forEach(s => {
-        if (s.id) validIds.add(s.id);
-        if (s.umid) validIds.add(s.umid);
-    });
+    if (specsResult?.data?.data) {
+        // V18.12.5.17: Resilient iteration over nested specs array
+        specsResult.data.data.forEach(s => {
+            if (s.id) validIds.add(s.id);
+            if (s.umid) validIds.add(s.umid);
+        });
+    }
 
     const isNodeValid = (id) => {
         if (!id) return false;
