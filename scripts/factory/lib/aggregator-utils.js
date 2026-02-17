@@ -1,13 +1,10 @@
 /**
- * Aggregator Utilities V18.12.5.15 (Partitioned Edition)
+ * Aggregator Utilities V18.12.5.16 (Partitioned Edition)
  */
-
 import fs from 'fs/promises';
 import path from 'path';
-import crypto from 'crypto';
 import zlib from 'zlib';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
-import { loadFniHistory, saveFniHistory } from './cache-manager.js';
 import { mergeEntities } from '../../ingestion/lib/entity-merger.js';
 
 /**
@@ -68,32 +65,23 @@ export async function processShardsIteratively(defaultArtifactDir, totalShards, 
 }
 
 /**
- * Pass 1: Global Statistics and Update Indexing (V18.12.5.15)
+ * Pass 1: Global Statistics and Registry Indexing (V18.12.5.16)
  */
 export async function calculateGlobalStats(registryLoader, artifactDir, totalShards) {
-    console.log(`[AGGREGATOR] Pass 1/2: Global Indexing & FNI stats...`);
+    console.log(`[AGGREGATOR] Pass 1/2: Global Indexing & Registry Mapping...`);
     const scoreMap = new Map();
-    const updateIndexMap = new Map();
+    const registryMap = new Map(); // id -> registryShardIdx
 
-    await processShardsIteratively(artifactDir, totalShards, { slim: true }, async (shard, idx) => {
-        if (shard?.entities) {
-            for (const ent of shard.entities) {
-                const incoming = ent.enriched || ent;
-                updateIndexMap.set(incoming.id, idx);
-            }
-        }
-    });
-
-    await registryLoader(async (entities) => {
+    await registryLoader(async (entities, idx) => {
         for (const e of entities) {
             scoreMap.set(e.id, e.fni_score || 0);
+            registryMap.set(e.id, idx);
         }
     }, { slim: true });
 
     const allScores = Array.from(scoreMap.values()).sort((a, b) => b - a);
     const count = allScores.length;
 
-    // V18.12.5.15 Enhancement: Efficient Rank Mapping (O(N))
     const scoreToRank = new Map();
     for (let i = 0; i < allScores.length; i++) {
         if (!scoreToRank.has(allScores[i])) {
@@ -108,8 +96,53 @@ export async function calculateGlobalStats(registryLoader, artifactDir, totalSha
     }
 
     scoreMap.clear();
-    console.log(`  [STATS] Calculated rankings for ${count} entities.`);
-    return { rankingsMap, updateIndexMap };
+    console.log(`  [STATS] Mapped ${registryMap.size} entities for O(1) merge.`);
+    return { rankingsMap, registryMap };
+}
+
+/**
+ * Pass 1.5: Pre-process Harvester Deltas (Hash-Join Alignment)
+ * O(S) I/O instead of O(S^2)
+ */
+export async function preProcessDeltas(artifactDir, totalShards, registryMap) {
+    console.log(`[AGGREGATOR] Pass 1.5/2: Aligning Harvester updates...`);
+    const deltaDir = './cache/deltas';
+    await fs.mkdir(deltaDir, { recursive: true });
+
+    // Clear old deltas
+    const files = await fs.readdir(deltaDir).catch(() => []);
+    for (const f of files) await fs.unlink(path.join(deltaDir, f));
+
+    // Open append streams for all registry shards
+    const streams = new Map();
+    const getStream = (idx) => {
+        if (!streams.has(idx)) {
+            streams.set(idx, fs.open(path.join(deltaDir, `reg-${idx}.jsonl`), 'a'));
+        }
+        return streams.get(idx);
+    };
+
+    let updateCount = 0;
+    await processShardsIteratively(artifactDir, totalShards, { slim: true }, async (shard) => {
+        if (shard?.entities) {
+            for (const result of shard.entities) {
+                const incoming = result.enriched || result;
+                const regIdx = registryMap.get(incoming.id);
+                if (regIdx !== undefined) {
+                    const handle = await getStream(regIdx);
+                    await fs.appendFile(handle, JSON.stringify(incoming) + '\n');
+                    updateCount++;
+                }
+            }
+        }
+    });
+
+    // Close all handles
+    for (const handle of streams.values()) {
+        await (await handle).close();
+    }
+
+    console.log(`  [DELTAS] Aligned ${updateCount} updates for processing.`);
 }
 
 /**
@@ -136,37 +169,34 @@ function processEntity(e, update, mOptions = {}) {
 }
 
 /**
- * Partitioned Shard Merge
+ * Partitioned Shard Merge (Optimized with Local Deltas)
  */
-export async function mergePartitionedShard(baselineEntities, shardIndex, artifactDir, totalShards, rankingsMap, updateIndexMap, options = {}) {
+export async function mergePartitionedShard(baselineEntities, shardIndex, rankingsMap, options = {}) {
     const { slim = false } = options;
     const shardRegistry = new Map();
     for (const e of baselineEntities) {
         shardRegistry.set(e.id, e);
     }
 
-    const requiredUpdateShards = new Set();
-    for (const id of shardRegistry.keys()) {
-        const uIdx = updateIndexMap.get(id);
-        if (uIdx !== undefined) requiredUpdateShards.add(uIdx);
-    }
-
     let updateCount = 0;
-    for (const uIdx of requiredUpdateShards) {
-        await processShardsIteratively(artifactDir, totalShards, { slim }, async (shard) => {
-            if (shard?.entities) {
-                for (const result of shard.entities) {
-                    const incoming = result.enriched || result;
-                    const existing = shardRegistry.get(incoming.id);
-                    if (existing) {
-                        const merged = processEntity(existing, incoming, { slim });
-                        merged.fni_percentile = rankingsMap.get(merged.id) || 0;
-                        shardRegistry.set(merged.id, merged);
-                        updateCount++;
-                    }
+    const deltaPath = `./cache/deltas/reg-${shardIndex}.jsonl`;
+    try {
+        const content = await fs.readFile(deltaPath, 'utf-8').catch(() => '');
+        if (content) {
+            const lines = content.trim().split('\n');
+            for (const line of lines) {
+                const incoming = JSON.parse(line);
+                const existing = shardRegistry.get(incoming.id);
+                if (existing) {
+                    const merged = processEntity(existing, incoming, { slim });
+                    merged.fni_percentile = rankingsMap.get(merged.id) || 0;
+                    shardRegistry.set(merged.id, merged);
+                    updateCount++;
                 }
             }
-        }, uIdx, uIdx + 1);
+        }
+    } catch (e) {
+        // No deltas for this shard
     }
 
     for (const ent of shardRegistry.values()) {
@@ -186,33 +216,4 @@ export async function mergePartitionedShard(baselineEntities, shardIndex, artifa
 export function validateShardSuccess(shardResults, totalShards) {
     const successful = shardResults.filter(s => s !== null).length;
     return successful / totalShards;
-}
-
-/**
- * Calculate percentiles
- */
-export function calculatePercentiles(entities) {
-    const sorted = [...entities].sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
-    return sorted.map((e, i) => ({
-        ...e,
-        fni_percentile: Math.round((1 - i / sorted.length) * 100),
-    }));
-}
-
-/**
- * Update FNI history
- */
-export async function updateFniHistory(entities) {
-    const historyData = await loadFniHistory();
-    const history = historyData.entities || {};
-    const today = new Date().toISOString().split('T')[0];
-
-    for (const e of entities) {
-        const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
-        if (!history[id]) history[id] = [];
-        history[id].push({ date: today, score: e.fni_score || 0 });
-        history[id] = history[id].slice(-7);
-    }
-
-    await saveFniHistory({ entities: history });
 }

@@ -16,10 +16,8 @@ import { generateDailyReportsIndex } from './lib/daily-reports-index.js';
 import { loadFniHistory, loadEntityChecksums, saveEntityChecksums } from './lib/cache-manager.js';
 import { generateTrendData } from './lib/trend-data-generator.js';
 import { persistRegistry } from './lib/aggregator-persistence.js';
-import {
-    calculatePercentiles, updateFniHistory,
-    processShardsIteratively
-} from './lib/aggregator-utils.js';
+import { processShardsIteratively } from './lib/aggregator-utils.js';
+import { calculatePercentiles, updateFniHistory } from './lib/aggregator-metrics.js';
 import {
     getWeekNumber, generateHealthReport, backupStateFiles
 } from './lib/aggregator-maintenance.js';
@@ -58,32 +56,33 @@ async function main() {
     }
 
     // 1. Pass 1: Global FNI Logic (Lightweight)
-    // Extracts scores from all shards to calculate global rankings
+    // Extracts scores from all shards to calculate global rankings and registry mapping
     const needsSlimming = !!taskArg && taskArg !== 'core';
     const { loadRegistryShardsSequentially } = await import('./lib/registry-loader.js');
-    const { calculateGlobalStats, mergePartitionedShard } = await import('./lib/aggregator-utils.js');
+    const { calculateGlobalStats, preProcessDeltas, mergePartitionedShard } = await import('./lib/aggregator-utils.js');
     const { saveRegistryShard } = await import('./lib/registry-saver.js');
 
     const rankingsAndIndices = await calculateGlobalStats(loadRegistryShardsSequentially, CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS);
-    const { rankingsMap, updateIndexMap } = rankingsAndIndices;
-    console.log(`✓ Global rankings and update indices aligned for ${rankingsMap.size} entities.`);
+    const { rankingsMap, registryMap } = rankingsAndIndices;
+    console.log(`✓ Global rankings and registry mapping aligned for ${rankingsMap.size} entities.`);
+
+    // 1.5. Pass 1.5: Pre-process Harvester Deltas (O(S) Optimization)
+    // Align updates with registry shards BEFORE passing to merge
+    await preProcessDeltas(CONFIG.ARTIFACT_DIR, CONFIG.TOTAL_SHARDS, registryMap);
 
     let successCount = 0;
     let fullSet = []; // We will accumulate this ONLY for satellite tasks (slimmed)
 
     // 2. Pass 2: Shard-Centric Merge (Heavyweight)
     // We process each baseline shard sequentially to keep heap usage O(1)
-    console.log(`[AGGREGATOR] Pass 2/2: Performing Partitioned Shard Merge...`);
+    console.log(`[AGGREGATOR] Pass 2/2: Performing Partitioned Shard Merge (Hash-Join)...`);
 
     await loadRegistryShardsSequentially(async (baselineEntities, shardIdx) => {
         // Partitioned Merge: Merge this baseline shard with its corresponding update shard
         const mergedShard = await mergePartitionedShard(
             baselineEntities,
             shardIdx,
-            CONFIG.ARTIFACT_DIR,
-            CONFIG.TOTAL_SHARDS,
             rankingsMap,
-            updateIndexMap,
             { slim: needsSlimming }
         );
 
