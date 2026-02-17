@@ -68,6 +68,12 @@ export async function loadWithFallback(filename, defaultValue = {}, isCritical =
 
     // 2. Try R2 (Original or .gz)
     const tryR2 = async (targetFile, targetKey) => {
+        // V18.12.5.20: Strict Lockdown Check (Art 3.1 Hardening)
+        if (process.env.STRICT_R2_LOCKDOWN === 'true') {
+            console.warn(`[CACHE] 🚫 R2 Restore BLOCKED: STRICT_R2_LOCKDOWN is enabled for ${targetKey}.`);
+            throw new Error(`R2 Restore blocked by strict compliance policy.`);
+        }
+
         console.log(`[CACHE] R2 Restore: ${targetKey}...`);
         const s3 = createR2Client();
         if (!s3) throw new Error('R2 Client unavailable');

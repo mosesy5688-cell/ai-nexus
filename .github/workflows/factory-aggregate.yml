@@ -153,6 +153,7 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
+          STRICT_R2_LOCKDOWN: 'true'
         run: |
             echo "🔄 Running Merge-Core (V2.0 Sharding)..."
             node scripts/factory/aggregator.js --task=health
@@ -268,10 +269,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: output/cache
+          STRICT_R2_LOCKDOWN: 'true'
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=search
@@ -306,10 +307,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: output/cache
+          STRICT_R2_LOCKDOWN: 'true'
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=rankings
@@ -349,10 +350,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: output/cache
+          STRICT_R2_LOCKDOWN: 'true'
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=trending
@@ -387,10 +388,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: output/cache
+          STRICT_R2_LOCKDOWN: 'true'
         run: |
           export NODE_OPTIONS="--max-old-space-size=7168"
           node scripts/factory/aggregator.js --task=relations
@@ -429,10 +430,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ai-nexus-assets
           CACHE_DIR: output/cache
+          STRICT_R2_LOCKDOWN: 'true'
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=sitemap

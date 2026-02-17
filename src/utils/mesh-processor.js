@@ -41,7 +41,7 @@ export function processRelationsIntoTiers(rawRelations, nodeRegistry, seenIds, g
         return node;
     };
 
-    rawRelations.forEach(rel => {
+    if (Array.isArray(rawRelations)) rawRelations.forEach(rel => {
         if (!rel) return;
 
         let neighborId = rel.target_id;
