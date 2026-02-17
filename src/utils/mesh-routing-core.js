@@ -40,7 +40,11 @@ export function stripPrefix(id) {
     }
 
     // V16.8.31: Dual-separator normalization (Support both -- and /)
-    return result.replace(/[:\/]/g, '--').replace(/^--|--$/g, '');
+    // V21.0: Aggressive normalization for all hf/gh/arxiv source patterns
+    return result
+        .replace(/[:\/]/g, '--')
+        .replace(/^--|--$/g, '')
+        .replace(/--+/g, '--');
 }
 
 export const isMatch = (a, b) => {
@@ -122,10 +126,16 @@ export function getRouteFromId(id, type = null) {
         'agent': `/agent/${slug}`,
         'tool': `/tool/${slug}`,
         'model': `/model/${slug}`,
-        'paper': `/paper/${slug}`
+        'paper': `/paper/${slug}`,
+        'report': `/reports/${slug}`,
+        'knowledge': `/knowledge/${slug}`
     };
 
     const finalPath = routeMap[resolvedType] || `/model/${slug}`;
+
+    // V21.0: Prevent recursive/double-routing for already cleaned paths
+    if (id.startsWith('/') && !id.includes('--')) return id;
+
     return finalPath.endsWith('/') ? finalPath.slice(0, -1) : finalPath;
 }
 

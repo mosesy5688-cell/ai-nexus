@@ -5,26 +5,26 @@
   - banner [ref=e2]:
     - navigation [ref=e3]:
       - generic [ref=e4]:
-        - link "Free AI Tools" [ref=e5] [cursor=pointer]:
+        - link "Free2AITools" [ref=e5] [cursor=pointer]:
           - /url: /
-          - generic [ref=e6]: Free AI Tools
+          - generic [ref=e6]: Free2AITools
         - generic [ref=e8]:
           - link "Home" [ref=e9] [cursor=pointer]:
             - /url: /
-          - link "Models" [ref=e10] [cursor=pointer]:
+          - link "Rankings" [ref=e10] [cursor=pointer]:
+            - /url: /ranking
+          - link "Models" [ref=e11] [cursor=pointer]:
             - /url: /models
-          - link "Agents" [ref=e11] [cursor=pointer]:
+          - link "Agents" [ref=e12] [cursor=pointer]:
             - /url: /agents
-          - link "Spaces" [ref=e12] [cursor=pointer]:
+          - link "Spaces" [ref=e13] [cursor=pointer]:
             - /url: /spaces
-          - link "Tools" [ref=e13] [cursor=pointer]:
+          - link "Tools" [ref=e14] [cursor=pointer]:
             - /url: /tools
-          - link "Datasets" [ref=e14] [cursor=pointer]:
+          - link "Datasets" [ref=e15] [cursor=pointer]:
             - /url: /datasets
-          - link "Papers" [ref=e15] [cursor=pointer]:
+          - link "Papers" [ref=e16] [cursor=pointer]:
             - /url: /papers
-          - link "Compare" [ref=e16] [cursor=pointer]:
-            - /url: /compare
           - link "Reports" [ref=e17] [cursor=pointer]:
             - /url: /reports
           - link "Knowledge" [ref=e18] [cursor=pointer]:
@@ -51,198 +51,305 @@
     - generic [ref=e42]:
       - button "Skip tour" [ref=e43] [cursor=pointer]
       - button "Next" [ref=e45] [cursor=pointer]
-  - generic [ref=e46]:
-    - banner [ref=e47]:
-      - heading "Find the Best Open-Source LLM" [level=1] [ref=e48]
-      - paragraph [ref=e49]: Compare models by size, VRAM requirements, and real-world benchmarks.
-    - generic [ref=e51]:
-      - generic [ref=e53]:
-        - searchbox "Search AI Models" [ref=e54]
-        - generic:
-          - img
-      - generic [ref=e55]:
-        - generic [ref=e56]: "Try:"
-        - button "llama 70b" [ref=e57] [cursor=pointer]
-        - button "code generation" [ref=e58] [cursor=pointer]
-        - button "embedding" [ref=e59] [cursor=pointer]
-      - generic [ref=e61] [cursor=pointer]:
-        - checkbox "Search all 100K+ models" [ref=e62]
-        - generic [ref=e63]: Search all 100K+ models
-      - generic [ref=e64]:
-        - link "💬 Text Generation" [ref=e65] [cursor=pointer]:
-          - /url: /ranking?category=text-generation
-          - generic [ref=e66]: 💬
-          - generic [ref=e67]: Text Generation
-        - link "🖼️ Image" [ref=e68] [cursor=pointer]:
-          - /url: /ranking?category=text-to-image
-          - generic [ref=e69]: 🖼️
-          - generic [ref=e70]: Image
-        - link "💻 Code" [ref=e71] [cursor=pointer]:
-          - /url: /ranking?category=code-generation
-          - generic [ref=e72]: 💻
-          - generic [ref=e73]: Code
-        - link "🔢 Embedding" [ref=e74] [cursor=pointer]:
-          - /url: /ranking?category=feature-extraction
-          - generic [ref=e75]: 🔢
-          - generic [ref=e76]: Embedding
-        - link "🎵 Audio" [ref=e77] [cursor=pointer]:
-          - /url: /ranking?category=automatic-speech-recognition
-          - generic [ref=e78]: 🎵
-          - generic [ref=e79]: Audio
-        - link "🎬 Video" [ref=e80] [cursor=pointer]:
-          - /url: /ranking?category=text-to-video
-          - generic [ref=e81]: 🎬
-          - generic [ref=e82]: Video
-    - generic [ref=e83]:
-      - heading "Explore AI Models by Category" [level=2] [ref=e84]
-      - generic [ref=e85]:
-        - link "💬 Text Generation & Content Creation ChatGPT alternatives, code assistants, content writing, summarization Explore models → Browse" [ref=e86] [cursor=pointer]:
-          - /url: /text-generation
-          - generic [ref=e87]: 💬
-          - heading "Text Generation & Content Creation" [level=3] [ref=e88]
-          - paragraph [ref=e89]: ChatGPT alternatives, code assistants, content writing, summarization
-          - generic [ref=e90]:
-            - generic [ref=e91]: Explore models →
-            - generic [ref=e92]: Browse
-        - link "🔍 Knowledge Retrieval RAG, embeddings, Q&A systems Explore → Browse" [ref=e93] [cursor=pointer]:
-          - /url: /knowledge-retrieval
-          - generic [ref=e94]: 🔍
-          - heading "Knowledge Retrieval" [level=3] [ref=e95]
-          - paragraph [ref=e96]: RAG, embeddings, Q&A systems
-          - generic [ref=e97]:
-            - generic [ref=e98]: Explore →
-            - generic [ref=e99]: Browse
-        - link "🎨 Vision & Multimedia Image generation, video, speech Explore → Browse" [ref=e100] [cursor=pointer]:
-          - /url: /vision-multimedia
-          - generic [ref=e101]: 🎨
-          - heading "Vision & Multimedia" [level=3] [ref=e102]
-          - paragraph [ref=e103]: Image generation, video, speech
-          - generic [ref=e104]:
-            - generic [ref=e105]: Explore →
-            - generic [ref=e106]: Browse
-        - link "⚡ Automation AI agents, workflow tools Explore → Browse" [ref=e107] [cursor=pointer]:
-          - /url: /automation-workflow
-          - generic [ref=e108]: ⚡
-          - heading "Automation" [level=3] [ref=e109]
-          - paragraph [ref=e110]: AI agents, workflow tools
-          - generic [ref=e111]:
-            - generic [ref=e112]: Explore →
-            - generic [ref=e113]: Browse
-        - link "🔧 Infrastructure Fine-tuning, optimization Explore → Browse" [ref=e114] [cursor=pointer]:
-          - /url: /infrastructure-ops
-          - generic [ref=e115]: 🔧
-          - heading "Infrastructure" [level=3] [ref=e116]
-          - paragraph [ref=e117]: Fine-tuning, optimization
-          - generic [ref=e118]:
-            - generic [ref=e119]: Explore →
-            - generic [ref=e120]: Browse
-    - generic [ref=e121]:
-      - generic [ref=e122]:
-        - generic [ref=e123]:
-          - heading "⭐ Top Picks" [level=2] [ref=e124]
-          - paragraph [ref=e125]: Ranked by FNI (Free2AI Nexus Index)
-        - alert [ref=e126]:
-          - strong [ref=e127]: "Error:"
-          - text: "Status: 404"
-      - generic [ref=e128]:
-        - heading "Explore by Entity Type" [level=2] [ref=e129]
-        - generic [ref=e130]:
-          - link "🧠 AI Models LLMs, Vision, Audio Browse →" [ref=e131] [cursor=pointer]:
-            - /url: /models
-            - generic [ref=e132]: 🧠
-            - heading "AI Models" [level=3] [ref=e133]
-            - paragraph [ref=e134]: LLMs, Vision, Audio
-            - generic [ref=e135]: Browse →
-          - link "📊 Datasets Training & eval data Browse →" [ref=e136] [cursor=pointer]:
-            - /url: /datasets
-            - generic [ref=e137]: 📊
-            - heading "Datasets" [level=3] [ref=e138]
-            - paragraph [ref=e139]: Training & eval data
-            - generic [ref=e140]: Browse →
-          - link "📄 Papers Research from arXiv Browse →" [ref=e141] [cursor=pointer]:
-            - /url: /papers
-            - generic [ref=e142]: 📄
-            - heading "Papers" [level=3] [ref=e143]
-            - paragraph [ref=e144]: Research from arXiv
-            - generic [ref=e145]: Browse →
-          - link "🤖 AI Agents AutoGPT, BabyAGI Browse →" [ref=e146] [cursor=pointer]:
-            - /url: /agents
-            - generic [ref=e147]: 🤖
-            - heading "AI Agents" [level=3] [ref=e148]
-            - paragraph [ref=e149]: AutoGPT, BabyAGI
-            - generic [ref=e150]: Browse →
-          - link "🚀 AI Spaces Interactive demos Browse →" [ref=e151] [cursor=pointer]:
-            - /url: /spaces
-            - generic [ref=e152]: 🚀
-            - heading "AI Spaces" [level=3] [ref=e153]
-            - paragraph [ref=e154]: Interactive demos
-            - generic [ref=e155]: Browse →
-          - link "🔧 Dev Tools LangChain, vLLM Browse →" [ref=e156] [cursor=pointer]:
-            - /url: /tools
-            - generic [ref=e157]: 🔧
-            - heading "Dev Tools" [level=3] [ref=e158]
-            - paragraph [ref=e159]: LangChain, vLLM
-            - generic [ref=e160]: Browse →
-  - contentinfo [ref=e161]:
-    - generic [ref=e162]:
-      - generic [ref=e163]:
-        - generic [ref=e164]:
-          - heading "Free2AITools" [level=3] [ref=e165]
-          - paragraph [ref=e166]: Open-Source AI Model Selection Hub. Find the best LLM for your needs with our VRAM calculator and one-click deploy guides.
-          - paragraph [ref=e167]: Powered by the Fair Nexus Index (methodology-based, non-commercial)
-        - generic [ref=e168]:
-          - heading "Resources" [level=4] [ref=e169]
-          - list [ref=e170]:
-            - listitem [ref=e171]:
-              - link "Model Rankings" [ref=e172] [cursor=pointer]:
+  - main [ref=e46]:
+    - generic [ref=e47]:
+      - generic [ref=e48]:
+        - generic [ref=e49]: "Database Status: Active • 125,312 Verified Entities"
+        - heading "The Definitive Open-Source AI Index" [level=1] [ref=e50]
+        - paragraph [ref=e51]: The **Free AI Tools** index for open-source excellence. High-trust technical rankings, structural lineage, and precision performance metrics.
+        - generic [ref=e52]:
+          - generic [ref=e55]: FNI Authority
+          - generic [ref=e58]: Neural Mesh Visuals
+          - generic [ref=e61]: Verified Lineage
+      - generic [ref=e63]:
+        - generic [ref=e65]:
+          - searchbox "Search AI Models" [ref=e66]
+          - generic:
+            - img
+        - generic [ref=e67]:
+          - generic [ref=e68]: "Try:"
+          - button "llama 70b" [ref=e69] [cursor=pointer]
+          - button "code generation" [ref=e70] [cursor=pointer]
+          - button "embedding" [ref=e71] [cursor=pointer]
+        - generic [ref=e73] [cursor=pointer]:
+          - 'checkbox "Persistence: Always search full index" [ref=e74]'
+          - generic [ref=e75]: "Persistence: Always search full index"
+        - generic [ref=e76]:
+          - link "💬 Text Generation" [ref=e77] [cursor=pointer]:
+            - /url: /models?category=text-generation
+            - generic [ref=e78]: 💬
+            - generic [ref=e79]: Text Generation
+          - link "🖼️ Image" [ref=e80] [cursor=pointer]:
+            - /url: /models?category=text-to-image
+            - generic [ref=e81]: 🖼️
+            - generic [ref=e82]: Image
+          - link "💻 Code" [ref=e83] [cursor=pointer]:
+            - /url: /models?category=code-generation
+            - generic [ref=e84]: 💻
+            - generic [ref=e85]: Code
+          - link "🔢 Embedding" [ref=e86] [cursor=pointer]:
+            - /url: /models?category=feature-extraction
+            - generic [ref=e87]: 🔢
+            - generic [ref=e88]: Embedding
+          - link "🎵 Audio" [ref=e89] [cursor=pointer]:
+            - /url: /models?category=automatic-speech-recognition
+            - generic [ref=e90]: 🎵
+            - generic [ref=e91]: Audio
+          - link "🎬 Video" [ref=e92] [cursor=pointer]:
+            - /url: /models?category=text-to-video
+            - generic [ref=e93]: 🎬
+            - generic [ref=e94]: Video
+      - generic [ref=e95]:
+        - heading "Intelligence Segments" [level=2] [ref=e97]
+        - generic [ref=e99]:
+          - link "💬 Browse Text Generation Core LLMs, code assistants, and reasoning engines. Explore segment →" [ref=e100] [cursor=pointer]:
+            - /url: /text-generation
+            - generic [ref=e101]:
+              - generic [ref=e102]: 💬
+              - generic [ref=e103]: Browse
+            - heading "Text Generation" [level=3] [ref=e104]
+            - paragraph [ref=e105]: Core LLMs, code assistants, and reasoning engines.
+            - generic [ref=e106]: Explore segment →
+          - link "🔍 Browse Knowledge Retrieval Embeddings, RAG components, and semantic search. Explore segment →" [ref=e107] [cursor=pointer]:
+            - /url: /knowledge-retrieval
+            - generic [ref=e108]:
+              - generic [ref=e109]: 🔍
+              - generic [ref=e110]: Browse
+            - heading "Knowledge Retrieval" [level=3] [ref=e111]
+            - paragraph [ref=e112]: Embeddings, RAG components, and semantic search.
+            - generic [ref=e113]: Explore segment →
+          - link "🎨 Browse Vision & Multimedia Diffusion, video processing, and audio synthesis. Explore segment →" [ref=e114] [cursor=pointer]:
+            - /url: /vision-multimedia
+            - generic [ref=e115]:
+              - generic [ref=e116]: 🎨
+              - generic [ref=e117]: Browse
+            - heading "Vision & Multimedia" [level=3] [ref=e118]
+            - paragraph [ref=e119]: Diffusion, video processing, and audio synthesis.
+            - generic [ref=e120]: Explore segment →
+          - link "⚡ Browse Automation Agents, task-specific pipelines, and orchestration. Explore segment →" [ref=e121] [cursor=pointer]:
+            - /url: /automation-workflow
+            - generic [ref=e122]:
+              - generic [ref=e123]: ⚡
+              - generic [ref=e124]: Browse
+            - heading "Automation" [level=3] [ref=e125]
+            - paragraph [ref=e126]: Agents, task-specific pipelines, and orchestration.
+            - generic [ref=e127]: Explore segment →
+          - link "🔧 Browse Infrastructure Quantization, serving stacks, and optimization. Explore segment →" [ref=e128] [cursor=pointer]:
+            - /url: /infrastructure-ops
+            - generic [ref=e129]:
+              - generic [ref=e130]: 🔧
+              - generic [ref=e131]: Browse
+            - heading "Infrastructure" [level=3] [ref=e132]
+            - paragraph [ref=e133]: Quantization, serving stacks, and optimization.
+            - generic [ref=e134]: Explore segment →
+      - generic [ref=e135]:
+        - generic [ref=e136]:
+          - generic [ref=e137]:
+            - heading "⭐ Top Picks" [level=2] [ref=e138]
+            - paragraph [ref=e139]: Precision Intelligence, Ranked by Free2AI Nexus Index (FNI)
+          - generic [ref=e140]:
+            - link "model 52 paraphrase-multilingual-MiniLM-L12-v2 by sentence-transformers Structural intelligence indexing in progress..." [ref=e141] [cursor=pointer]:
+              - /url: /model/sentence-transformers/paraphrase-multilingual-minilm-l12-v2
+              - generic [ref=e142]:
+                - generic [ref=e144]: model
+                - generic [ref=e147]: "52"
+              - heading "paraphrase-multilingual-MiniLM-L12-v2" [level=3] [ref=e148]
+              - paragraph [ref=e149]: by sentence-transformers
+              - paragraph [ref=e150]: Structural intelligence indexing in progress...
+            - link "model 51 speaker-diarization-3.1 by pyannote Structural intelligence indexing in progress..." [ref=e152] [cursor=pointer]:
+              - /url: /model/pyannote/speaker-diarization-3.1
+              - generic [ref=e153]:
+                - generic [ref=e155]: model
+                - generic [ref=e158]: "51"
+              - heading "speaker-diarization-3.1" [level=3] [ref=e159]
+              - paragraph [ref=e160]: by pyannote
+              - paragraph [ref=e161]: Structural intelligence indexing in progress...
+            - link "model 50 gpt2 by openai-community Structural intelligence indexing in progress..." [ref=e163] [cursor=pointer]:
+              - /url: /model/openai-community/gpt2
+              - generic [ref=e164]:
+                - generic [ref=e166]: model
+                - generic [ref=e169]: "50"
+              - heading "gpt2" [level=3] [ref=e170]
+              - paragraph [ref=e171]: by openai-community
+              - paragraph [ref=e172]: Structural intelligence indexing in progress...
+            - link "model 49 segmentation-3.0 by pyannote Structural intelligence indexing in progress..." [ref=e174] [cursor=pointer]:
+              - /url: /model/pyannote/segmentation-3.0
+              - generic [ref=e175]:
+                - generic [ref=e177]: model
+                - generic [ref=e180]: "49"
+              - heading "segmentation-3.0" [level=3] [ref=e181]
+              - paragraph [ref=e182]: by pyannote
+              - paragraph [ref=e183]: Structural intelligence indexing in progress...
+            - link "model 49 clip-vit-base-patch32 by openai Structural intelligence indexing in progress..." [ref=e185] [cursor=pointer]:
+              - /url: /model/openai/clip-vit-base-patch32
+              - generic [ref=e186]:
+                - generic [ref=e188]: model
+                - generic [ref=e191]: "49"
+              - heading "clip-vit-base-patch32" [level=3] [ref=e192]
+              - paragraph [ref=e193]: by openai
+              - paragraph [ref=e194]: Structural intelligence indexing in progress...
+            - link "model 49 xlm-roberta-base by FacebookAI Structural intelligence indexing in progress..." [ref=e196] [cursor=pointer]:
+              - /url: /model/facebookai/xlm-roberta-base
+              - generic [ref=e197]:
+                - generic [ref=e199]: model
+                - generic [ref=e202]: "49"
+              - heading "xlm-roberta-base" [level=3] [ref=e203]
+              - paragraph [ref=e204]: by FacebookAI
+              - paragraph [ref=e205]: Structural intelligence indexing in progress...
+            - link "model 49 XTTS-v2 by coqui Structural intelligence indexing in progress..." [ref=e207] [cursor=pointer]:
+              - /url: /model/coqui/xtts-v2
+              - generic [ref=e208]:
+                - generic [ref=e210]: model
+                - generic [ref=e213]: "49"
+              - heading "XTTS-v2" [level=3] [ref=e214]
+              - paragraph [ref=e215]: by coqui
+              - paragraph [ref=e216]: Structural intelligence indexing in progress...
+            - link "model 49 Qwen3-4B-Instruct-2507 by Qwen Structural intelligence indexing in progress..." [ref=e218] [cursor=pointer]:
+              - /url: /model/qwen/qwen3-4b-instruct-2507
+              - generic [ref=e219]:
+                - generic [ref=e221]: model
+                - generic [ref=e224]: "49"
+              - heading "Qwen3-4B-Instruct-2507" [level=3] [ref=e225]
+              - paragraph [ref=e226]: by Qwen
+              - paragraph [ref=e227]: Structural intelligence indexing in progress...
+            - link "model 49 Qwen2.5-VL-3B-Instruct by Qwen Structural intelligence indexing in progress..." [ref=e229] [cursor=pointer]:
+              - /url: /model/qwen/qwen2.5-vl-3b-instruct
+              - generic [ref=e230]:
+                - generic [ref=e232]: model
+                - generic [ref=e235]: "49"
+              - heading "Qwen2.5-VL-3B-Instruct" [level=3] [ref=e236]
+              - paragraph [ref=e237]: by Qwen
+              - paragraph [ref=e238]: Structural intelligence indexing in progress...
+            - link "model 49 gpt-oss-20b by openai Structural intelligence indexing in progress..." [ref=e240] [cursor=pointer]:
+              - /url: /model/openai/gpt-oss-20b
+              - generic [ref=e241]:
+                - generic [ref=e243]: model
+                - generic [ref=e246]: "49"
+              - heading "gpt-oss-20b" [level=3] [ref=e247]
+              - paragraph [ref=e248]: by openai
+              - paragraph [ref=e249]: Structural intelligence indexing in progress...
+            - link "model 49 Qwen3-0.6B by Qwen Structural intelligence indexing in progress..." [ref=e251] [cursor=pointer]:
+              - /url: /model/qwen/qwen3-0.6b
+              - generic [ref=e252]:
+                - generic [ref=e254]: model
+                - generic [ref=e257]: "49"
+              - heading "Qwen3-0.6B" [level=3] [ref=e258]
+              - paragraph [ref=e259]: by Qwen
+              - paragraph [ref=e260]: Structural intelligence indexing in progress...
+            - link "model 49 Qwen2.5-7B-Instruct by Qwen Structural intelligence indexing in progress..." [ref=e262] [cursor=pointer]:
+              - /url: /model/qwen/qwen2.5-7b-instruct
+              - generic [ref=e263]:
+                - generic [ref=e265]: model
+                - generic [ref=e268]: "49"
+              - heading "Qwen2.5-7B-Instruct" [level=3] [ref=e269]
+              - paragraph [ref=e270]: by Qwen
+              - paragraph [ref=e271]: Structural intelligence indexing in progress...
+          - generic [ref=e274]:
+            - generic [ref=e276]: Pulse Synchronizing...
+            - paragraph [ref=e277]: Real-time knowledge mesh indexing active
+          - link "View Technical Index →" [ref=e279] [cursor=pointer]:
+            - /url: /ranking
+            - text: View Technical Index
+            - generic [ref=e280]: →
+        - generic [ref=e281]:
+          - heading "Explore by Entity Type" [level=2] [ref=e282]
+          - generic [ref=e283]:
+            - link "🧠 AI Models LLMs, Vision, Audio Browse →" [ref=e284] [cursor=pointer]:
+              - /url: /models
+              - generic [ref=e285]: 🧠
+              - heading "AI Models" [level=3] [ref=e286]
+              - paragraph [ref=e287]: LLMs, Vision, Audio
+              - generic [ref=e288]: Browse →
+            - link "📊 Datasets Training & eval data Browse →" [ref=e289] [cursor=pointer]:
+              - /url: /datasets
+              - generic [ref=e290]: 📊
+              - heading "Datasets" [level=3] [ref=e291]
+              - paragraph [ref=e292]: Training & eval data
+              - generic [ref=e293]: Browse →
+            - link "📄 Papers Research from arXiv Browse →" [ref=e294] [cursor=pointer]:
+              - /url: /papers
+              - generic [ref=e295]: 📄
+              - heading "Papers" [level=3] [ref=e296]
+              - paragraph [ref=e297]: Research from arXiv
+              - generic [ref=e298]: Browse →
+            - link "🤖 AI Agents AutoGPT, BabyAGI Browse →" [ref=e299] [cursor=pointer]:
+              - /url: /agents
+              - generic [ref=e300]: 🤖
+              - heading "AI Agents" [level=3] [ref=e301]
+              - paragraph [ref=e302]: AutoGPT, BabyAGI
+              - generic [ref=e303]: Browse →
+            - link "🚀 AI Spaces Interactive demos Browse →" [ref=e304] [cursor=pointer]:
+              - /url: /spaces
+              - generic [ref=e305]: 🚀
+              - heading "AI Spaces" [level=3] [ref=e306]
+              - paragraph [ref=e307]: Interactive demos
+              - generic [ref=e308]: Browse →
+            - link "🔧 Dev Tools LangChain, vLLM Browse →" [ref=e309] [cursor=pointer]:
+              - /url: /tools
+              - generic [ref=e310]: 🔧
+              - heading "Dev Tools" [level=3] [ref=e311]
+              - paragraph [ref=e312]: LangChain, vLLM
+              - generic [ref=e313]: Browse →
+  - contentinfo [ref=e314]:
+    - generic [ref=e315]:
+      - generic [ref=e316]:
+        - generic [ref=e317]:
+          - heading "Free2AITools" [level=3] [ref=e318]
+          - paragraph [ref=e319]: Open-Source AI Model Selection Hub. Find the best LLM for your needs with our VRAM calculator and one-click deploy guides.
+          - paragraph [ref=e320]: Powered by the Fair Nexus Index (methodology-based, non-commercial)
+        - generic [ref=e321]:
+          - heading "Resources" [level=4] [ref=e322]
+          - list [ref=e323]:
+            - listitem [ref=e324]:
+              - link "Model Rankings" [ref=e325] [cursor=pointer]:
                 - /url: /ranking
-            - listitem [ref=e173]:
-              - link "FNI Methodology" [ref=e174] [cursor=pointer]:
+            - listitem [ref=e326]:
+              - link "FNI Methodology" [ref=e327] [cursor=pointer]:
                 - /url: /methodology
-            - listitem [ref=e175]:
-              - link "AI Reports" [ref=e176] [cursor=pointer]:
+            - listitem [ref=e328]:
+              - link "AI Reports" [ref=e329] [cursor=pointer]:
                 - /url: /reports
-        - generic [ref=e177]:
-          - heading "Legal" [level=4] [ref=e178]
-          - list [ref=e179]:
-            - listitem [ref=e180]:
-              - link "Data Compliance" [ref=e181] [cursor=pointer]:
+        - generic [ref=e330]:
+          - heading "Legal" [level=4] [ref=e331]
+          - list [ref=e332]:
+            - listitem [ref=e333]:
+              - link "Data Compliance" [ref=e334] [cursor=pointer]:
                 - /url: /compliance
-            - listitem [ref=e182]:
-              - link "About Us" [ref=e183] [cursor=pointer]:
+            - listitem [ref=e335]:
+              - link "About Us" [ref=e336] [cursor=pointer]:
                 - /url: /about
-        - generic [ref=e184]:
-          - heading "Connect" [level=4] [ref=e185]
-          - list [ref=e186]:
-            - listitem [ref=e187]:
-              - link "GitHub" [ref=e188] [cursor=pointer]:
+        - generic [ref=e337]:
+          - heading "Connect" [level=4] [ref=e338]
+          - list [ref=e339]:
+            - listitem [ref=e340]:
+              - link "GitHub" [ref=e341] [cursor=pointer]:
                 - /url: https://github.com/mosesy5688-cell/ai-nexus
-                - img [ref=e189]
+                - img [ref=e342]
                 - text: GitHub
-            - listitem [ref=e191]:
-              - link "Contact" [ref=e192] [cursor=pointer]:
+            - listitem [ref=e344]:
+              - link "Contact" [ref=e345] [cursor=pointer]:
                 - /url: mailto:compliance@free2aitools.com
-      - generic [ref=e193]:
-        - paragraph [ref=e194]: © 2026 Free2AITools. An open-source project to help you find the best AI models.
-        - generic [ref=e195]:
-          - link "How we score models" [ref=e196] [cursor=pointer]:
+      - generic [ref=e346]:
+        - paragraph [ref=e347]: © 2026 Free2AITools. An open-source project to help you find the best AI models.
+        - generic [ref=e348]:
+          - link "How we score models" [ref=e349] [cursor=pointer]:
             - /url: /methodology
-          - generic [ref=e197]: •
-          - link "Data Policy" [ref=e198] [cursor=pointer]:
+          - generic [ref=e350]: •
+          - link "Data Policy" [ref=e351] [cursor=pointer]:
             - /url: /compliance
-  - generic [ref=e201]:
-    - button "Menu" [ref=e202]:
-      - img [ref=e204]
+  - generic [ref=e354]:
+    - button "Menu" [ref=e355]:
+      - img [ref=e357]
       - generic: Menu
-    - button "Inspect" [ref=e208]:
-      - img [ref=e210]
+    - button "Inspect" [ref=e361]:
+      - img [ref=e363]
       - generic: Inspect
-    - button "Audit" [ref=e212]:
-      - generic [ref=e213]:
-        - img [ref=e214]
-        - img [ref=e217]
+    - button "Audit" [ref=e365]:
+      - generic [ref=e366]:
+        - img [ref=e367]
+        - img [ref=e370]
       - generic: Audit
-    - button "Settings" [ref=e220]:
-      - img [ref=e222]
+    - button "Settings" [ref=e373]:
+      - img [ref=e375]
       - generic: Settings
 ```

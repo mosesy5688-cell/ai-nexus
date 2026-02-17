@@ -3,6 +3,7 @@ import Layout from '@/layouts/Layout.astro';
 import ReportCard from '@/components/ReportCard.astro';
 import DailyTrendingSection from '@/components/DailyTrendingSection.astro';
 import TrendChart from '@/components/charts/TrendChart.astro';
+import { getRouteFromId } from '@/utils/mesh-routing-core';
 
 // V16.2: Fetch reports from CDN (SPEC-KNOWLEDGE-MESH-V16.2 Section 8)
 const CDN_BASE = 'https://cdn.free2aitools.com';
@@ -92,7 +93,7 @@ if (!reports || reports.length === 0) {
 }
 
 const finalLatest = reports.length > 0 ? reports[0] : null;
-const olderReports = reports.length > 1 ? reports.slice(1, 5) : [];
+const olderReports = reports.length > 1 ? reports.slice(1) : [];
 
 const pageTitle = "AI Industry Daily Reports";
 const pageDescription = "Stay updated with the latest trends, breakthroughs, and popular models in the open-source AI landscape with our daily reports.";
@@ -156,7 +157,7 @@ const pageDescription = "Stay updated with the latest trends, breakthroughs, and
               <h2 class="text-3xl md:text-5xl font-black tracking-tighter mb-6">{finalLatest.title}</h2>
               <p class="text-lg md:text-xl text-zinc-400 font-medium leading-relaxed mb-10 italic">"{finalLatest.summary}"</p>
               
-              <a href={`/reports/${finalLatest.reportId}`} class="inline-flex items-center gap-4 px-8 py-4 bg-white text-black rounded-xl font-black text-sm uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95 shadow-xl">
+              <a href={getRouteFromId(finalLatest.reportId, 'report')} class="inline-flex items-center gap-4 px-8 py-4 bg-white text-black rounded-xl font-black text-sm uppercase tracking-widest hover:bg-zinc-200 transition-all active:scale-95 shadow-xl">
                 Read Full Briefing <span>→</span>
               </a>
             </div>
