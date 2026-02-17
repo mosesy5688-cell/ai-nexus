@@ -17,7 +17,8 @@ export function processRelationsIntoTiers(rawRelations, nodeRegistry, seenIds, g
         if (nodeRegistry.has(norm)) return nodeRegistry.get(norm);
 
         const meta = graphMeta[id] || optionalMeta || {};
-        let nodeType = meta.t || typeHint || getTypeFromId(id);
+        const idDerived = getTypeFromId(id);
+        let nodeType = (id.includes('--')) ? idDerived : (meta.t || typeHint || idDerived);
 
         if (nodeType === 'knowledge' && KNOWLEDGE_ALIAS_MAP[norm]) {
             norm = KNOWLEDGE_ALIAS_MAP[norm];

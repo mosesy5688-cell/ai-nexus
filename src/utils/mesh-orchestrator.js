@@ -73,8 +73,9 @@ export async function getMeshProfile(locals, rootId, entity, options = {}) {
         if (nodeRegistry.has(norm)) return nodeRegistry.get(norm);
 
         const meta = graphMeta[id] || {};
-        // V16.50: Strict metadata trust. If R2 specifies a type 't', use it.
-        let nodeType = meta.t || typeHint || getTypeFromId(id);
+        const idDerived = getTypeFromId(id);
+        // V16.50: Strict metadata trust. But ID prefix takes precedence for SSOT.
+        let nodeType = (id.includes('--')) ? idDerived : (meta.t || typeHint || idDerived);
 
         // V16.70: Apply Knowledge Aliasing
         if (nodeType === 'knowledge' && KNOWLEDGE_ALIAS_MAP[norm]) {
