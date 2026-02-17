@@ -5,7 +5,9 @@ import { articles as knowledgeArticles } from '../data/knowledge-articles.js';
 import { UNIVERSAL_ICONS, DEFAULT_TIERS } from './mesh-constants.js';
 
 export async function getMeshProfile(locals, rootId, entity, options = {}) {
-    const { type = 'model', ssrOnly = true } = options;
+    // V21.5: Support both object and string for legacy compatibility
+    const opts = typeof options === 'string' ? { type: options } : (options || {});
+    const { type = 'model', ssrOnly = true } = opts;
     const normRoot = stripPrefix(rootId);
 
     // V18.2.5: SSR Lite Protection

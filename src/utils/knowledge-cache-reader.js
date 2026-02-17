@@ -31,7 +31,8 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     // V16.95: Full 7-Source Aggregation (Perfect SSOT Recovery)
     // V16.96: SSR Memory Protection - Exclude multi-MB files during SSR to prevent 1102 Errors
     // V18.2.5: Emergency - Use ONLY core relations for SSR to bypass CPU/RAM limits
-    const sourcesToFetch = options.ssrOnly ? [
+    // V21.5: SSR Resilience - Allow knowledge-links if researching a specific node (Knowledge Article Fix)
+    const sourcesToFetch = (options.ssrOnly && !entityId) ? [
         'cache/relations.json'
     ] : [
         'cache/mesh/graph.json',
@@ -209,16 +210,14 @@ export async function fetchGraphMetadata(locals) {
  * Concept metadata fetcher (Legacy/Refined)
  */
 export async function fetchConceptMetadata(locals) {
-    const R2 = locals?.runtime?.env?.R2_ASSETS;
-    if (!R2) return [];
     try {
-        const file = await R2.get('cache/knowledge/index.json');
-        if (file) {
-            const data = await file.json();
-            const list = data?.articles || (Array.isArray(data) ? data : []);
-            if (Array.isArray(list) && list.length > 0) return list;
-        }
-    } catch (e) { }
+        // V21.5: Use loadCachedJSON for environment-aware fetching and .gz support
+        const { data } = await loadCachedJSON('cache/knowledge/index.json', { locals });
+        const list = data?.articles || (Array.isArray(data) ? data : []);
+        if (Array.isArray(list) && list.length > 0) return list;
+    } catch (e) {
+        console.warn('[KnowledgeReader] Concept load failed:', e.message);
+    }
     // Minimum Fallback
     return [{ id: 'concept--mmlu', title: 'MMLU Benchmark', slug: 'mmlu', icon: '🧪' }];
 }

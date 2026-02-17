@@ -109,7 +109,8 @@ const meshId = article ? `knowledge--${article.slug}` : `knowledge--${slug}`;
 
 let meshTiers = null;
 try {
-  const profile = await getMeshProfile(Astro.locals, meshId, null, 'knowledge');
+  // V21.5: Pass article metadata to enable structural injections
+  const profile = await getMeshProfile(Astro.locals, meshId, article, { type: 'knowledge' });
   meshTiers = profile.tiers;
 } catch (e) {
   console.error('[KnowledgeMesh] Orchestration failed:', e);
