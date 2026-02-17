@@ -54,6 +54,7 @@ export async function loadDailyAccum() {
  * Save Daily Accumulator with Sharding Support (V2.0)
  */
 export async function saveDailyAccum(accum) {
+    const cacheDir = process.env.CACHE_DIR || './cache';
     const entries = accum.entries || [];
     const count = entries.length;
     const timestamp = new Date().toISOString();
