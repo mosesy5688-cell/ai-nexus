@@ -97,113 +97,26 @@ const entityTypes = [
 </Layout>
 
 <script>
-    import { initSearch, performSearch, loadFullSearchIndex, getSearchStatus } from '../scripts/home-search.js';
-    import { getRouteFromId } from '../utils/mesh-routing-core.js';
-
-    const dom = {
-        form: document.getElementById('results-search-form'),
-        box: document.getElementById('results-search-box'),
-        title: document.getElementById('search-title'),
-        results: document.getElementById('search-results-container'),
-        loading: document.getElementById('search-loading'),
-        empty: document.getElementById('search-empty-state'),
-        prompt: document.getElementById('full-search-prompt'),
-        fullBtn: document.getElementById('load-full-index-btn')
-    };
-
-    async function handleSearch() {
-        const query = dom.box.value.trim();
-        const type = dom.form.querySelector('input[name="type"]:checked')?.value || 'all';
-
-        if (query.length < 2) return;
-
-        dom.loading.classList.remove('hidden');
-        dom.results.innerHTML = '';
-        dom.empty.classList.add('hidden');
-        dom.prompt.classList.add('hidden');
-
-        await initSearch();
-        const results = await performSearch(query, 40);
-        const filtered = type === 'all' ? results : results.filter(r => r.type === type);
-
-        // SPEC-SEARCH-V18.2: Clean descriptions (Remove thumbnails/HTML)
-        const cleaned = filtered.map(item => ({
-            ...item,
-            description: (item.description || "").replace(/<img[^>]*>/gi, "").replace(/<p[^>]*>/gi, "").replace(/<\/p>/gi, " ").trim()
-        }));
-
-        dom.loading.classList.add('hidden');
-
-        if (cleaned.length === 0) {
-            dom.empty.classList.remove('hidden');
-            const status = getSearchStatus();
-            if (!status.isFullSearchActive) dom.prompt.classList.remove('hidden');
-        } else {
-            renderResults(cleaned);
-        }
-
-        // Update URL
-        const url = new URL(window.location);
-        url.searchParams.set('q', query);
-        url.searchParams.set('type', type);
-        window.history.replaceState({}, '', url);
-        dom.title.textContent = `Search Results for "${query}"`;
-    }
-
-    function renderResults(items) {
-        dom.results.innerHTML = `
-            <section class="animate-in fade-in duration-500">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
-                        Neural Mesh Matches (${items.length})
-                    </h2>
-                </div>
-                <div class="flex flex-col border-t border-zinc-200 dark:border-zinc-800">
-                    ${items.map(item => {
-                        const type = item.type || 'model';
-                        const slug = item.slug || item.id;
-                        const path = getRouteFromId(slug, type);
-                        const fni = Math.round(item.fni_score || item.fni || 0);
-                        
-                        return `
-                        <a href="${path}" class="flex flex-col gap-1.5 py-3 px-2 border-b border-zinc-100 dark:border-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group">
-                            <!-- Top Row: Type, Name, and FNI Score -->
-                            <div class="flex items-center justify-between gap-2 w-full">
-                                <div class="flex items-center gap-2 min-w-0">
-                                    <span class="text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded uppercase tracking-tighter border border-zinc-200/50 dark:border-zinc-700/50 flex-shrink-0">
-                                        ${type}
-                                    </span>
-                                    <h3 class="text-xs sm:text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 truncate">
-                                        ${item.name}
-                                    </h3>
-                                </div>
-                                
-                                ${fni > 0 ? `
-                                    <div class="text-emerald-600 dark:text-emerald-400 font-black text-[10px] sm:text-[11px] flex-shrink-0">
-                                        FNI ${fni}
-                                    </div>
-                                ` : ''}
-                            </div>
-                            
-                            <!-- Bottom Row: Author and Description (Stacked below) -->
-                            <div class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-zinc-500 dark:text-zinc-400">
-                                <span class="text-[10px] sm:text-[11px] font-medium truncate">
-                                    by ${item.author || 'Open Source'}
-                                </span>
-                                
-                                <p class="text-[10px] sm:text-[11px] line-clamp-1 opacity-70 sm:opacity-100 italic sm:not-italic">
-                                    ${item.description || ''}
-                                </p>
-                            </div>
-                        </a>
-                    `;}).join('')}
-                </div>
-            </section>
-        `;
-    }
-
+    import { loadFullSearchIndex } from '../scripts/home-search.js';
+    import { setupSearchUI } from '../scripts/search-ui-controller.js';
+    
     // Init Logic
-    document.addEventListener('DOMContentLoaded', async () => {
+    document.addEventListener('astro:page-load', async () => {
+        const dom = {
+            form: document.getElementById('results-search-form'),
+            box: document.getElementById('results-search-box'),
+            title: document.getElementById('search-title'),
+            results: document.getElementById('search-results-container'),
+            loading: document.getElementById('search-loading'),
+            empty: document.getElementById('search-empty-state'),
+            prompt: document.getElementById('full-search-prompt'),
+            fullBtn: document.getElementById('load-full-index-btn')
+        };
+
+        if (!dom.form) return;
+
+        const { handleSearch } = setupSearchUI(dom);
+
         const urlParams = new URLSearchParams(window.location.search);
         const q = urlParams.get('q');
         const t = urlParams.get('type') || 'all';
@@ -225,11 +138,11 @@ const entityTypes = [
                 // Update UI state
                 document.querySelectorAll('.type-filter-label').forEach(lbl => {
                     lbl.classList.remove('bg-blue-600', 'text-white');
-                    lbl.classList.add('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                    lbl.classList.add('bg-gray-50', 'dark:bg-gray-900', 'text-gray-500');
                 });
                 const label = radio.closest('.type-filter-label');
                 label.classList.add('bg-blue-600', 'text-white');
-                label.classList.remove('bg-gray-100', 'dark:bg-gray-700', 'text-gray-700', 'dark:text-gray-300');
+                label.classList.remove('bg-gray-50', 'dark:bg-gray-900', 'text-gray-500');
                 handleSearch();
             });
         });
