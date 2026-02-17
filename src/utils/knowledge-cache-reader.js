@@ -31,8 +31,8 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     // V16.95: Full 7-Source Aggregation (Perfect SSOT Recovery)
     // V16.96: SSR Memory Protection - Exclude multi-MB files during SSR to prevent 1102 Errors
     // V18.2.5: Emergency - Use ONLY core relations for SSR to bypass CPU/RAM limits
-    // V21.5: SSR Resilience - Allow knowledge-links if researching a specific node (Knowledge Article Fix)
-    const sourcesToFetch = (options.ssrOnly && !entityId) ? [
+    // V21.5: SSR Resilience - Surgical relaxation for Knowledge Articles
+    let sourcesToFetch = options.ssrOnly ? [
         'cache/relations.json'
     ] : [
         'cache/mesh/graph.json',
@@ -43,6 +43,12 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
         'cache/reports/index.json',
         'cache/mesh/stats.json'
     ];
+
+    // V21.5.1: If SSR AND Researching Knowledge, append specific lightweight links (Satisfies Vitest Art 5.1)
+    if (options.ssrOnly && (entityId?.startsWith('knowledge--') || entityId?.startsWith('concept--'))) {
+        sourcesToFetch.push('cache/relations/knowledge-links.json');
+        sourcesToFetch.push('cache/knowledge/index.json');
+    }
 
     try {
         for (const key of sourcesToFetch) {
