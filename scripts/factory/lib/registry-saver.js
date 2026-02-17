@@ -16,11 +16,11 @@ const REGISTRY_DIR = 'registry';
 export async function saveRegistryShard(index, entities) {
     const timestamp = new Date().toISOString();
     const count = entities.length;
-    const shardName = `registry/part-${String(index).padStart(3, '0')}.json.gz`;
-    const cacheDir = process.env.CACHE_DIR || './cache';
-    const localPath = path.join(cacheDir, shardName);
+    const shardName = `cache/shards/shard-${index}.json.gz`;
+    const outputDir = process.env.OUTPUT_DIR || './output';
+    const localPath = path.join(outputDir, shardName);
 
-    console.log(`[CACHE] 💾 Persisting Registry Shard ${index} (${count} entities) [Streaming]...`);
+    console.log(`[CACHE] 💾 Persisting Registry Shard ${index} (${count} entities) to ${shardName}...`);
 
     const zlib = await import('zlib');
     const { createWriteStream } = await import('fs');
@@ -87,8 +87,8 @@ export async function saveGlobalRegistry(input) {
 
     for (let i = 0; i < shardCount; i++) {
         const shardData = inputEntities.slice(i * SHARD_SIZE, (i + 1) * SHARD_SIZE);
-        const shardName = `registry/part-${String(i).padStart(3, '0')}.json.gz`;
-        await saveWithBackup(shardName, { entities: shardData, count: shardData.length, lastUpdated: timestamp }, { compress: true });
+        const shardName = `cache/shards/shard-${i}.json.gz`;
+        await saveWithBackup(shardName, { entities: shardData, count: shardData.length, lastUpdated: timestamp }, { compress: true, outputDir: process.env.OUTPUT_DIR || './output' });
     }
 
     // 2. Monolith Save (Streaming to bypass V8 limits)

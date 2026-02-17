@@ -40,7 +40,10 @@ export async function processShardsIteratively(defaultArtifactDir, totalShards, 
                         'citations', 'size', 'runtime', 'fni_score', 'fni_percentile',
                         'fni_trend_7d', 'is_rising_star', 'primary_category',
                         'pipeline_tag', 'published_date', 'last_modified',
-                        'last_updated', 'lastModified', '_updated'
+                        'last_updated', 'lastModified', '_updated',
+                        'params_billions', 'context_length', 'architecture',
+                        'mmlu', 'gsm8k', 'avg_score', 'humaneval', 'meta_json',
+                        'html_readme'
                     ];
                     for (let j = 0; j < parsed.entities.length; j++) {
                         const ent = parsed.entities[j].enriched || parsed.entities[j];
@@ -108,7 +111,7 @@ export async function calculateGlobalStats(registryLoader, artifactDir, totalSha
  * Pass 1.5: Pre-process updates (Monolith or Shards)
  */
 export async function preProcessDeltas(artifactDir, totalShards, registryMap, monolithPath = null) {
-    console.log(`[AGGREGATOR] Pass 1.5/2: Aligning updates for merge...`);
+    // V18.12.5.21: Stability Hardening (Art 3.1)
     const deltaDir = './cache/deltas';
     await fs.mkdir(deltaDir, { recursive: true });
 
@@ -116,16 +119,19 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap, mo
     const files = await fs.readdir(deltaDir).catch(() => []);
     for (const f of files) await fs.unlink(path.join(deltaDir, f));
 
-    // Open append streams for all registry shards
-    const streams = new Map();
-    const getStream = (idx) => {
-        if (!streams.has(idx)) {
-            streams.set(idx, fs.open(path.join(deltaDir, `reg-${idx}.jsonl`), 'a'));
-        }
-        return streams.get(idx);
-    };
+    // Optimized: Use memory-buffered writes to prevent I/O saturation (Death by a thousand appendFiles)
+    const updateBuffers = new Map(); // shardIdx -> string[]
+    const FLUSH_THRESHOLD = 5000;
+    let totalProcessed = 0;
 
-    let updateCount = 0;
+    const flushBuffers = async () => {
+        for (const [idx, lines] of updateBuffers.entries()) {
+            if (lines.length > 0) {
+                await fs.appendFile(path.join(deltaDir, `reg-${idx}.jsonl`), lines.join('\n') + '\n');
+                lines.length = 0;
+            }
+        }
+    };
 
     // A. Check for Monolith first (Most efficient if it exists)
     if (monolithPath && await fs.access(monolithPath).then(() => true).catch(() => false)) {
@@ -133,9 +139,14 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap, mo
         await partitionMonolithStreamingly(monolithPath, async (incoming) => {
             const regIdx = registryMap.get(incoming.id);
             if (regIdx !== undefined) {
-                const handle = await getStream(regIdx);
-                await fs.appendFile(handle, JSON.stringify(incoming) + '\n');
+                if (!updateBuffers.has(regIdx)) updateBuffers.set(regIdx, []);
+                updateBuffers.get(regIdx).push(JSON.stringify(incoming));
                 updateCount++;
+                totalProcessed++;
+
+                if (totalProcessed % FLUSH_THRESHOLD === 0) {
+                    await flushBuffers();
+                }
             }
         });
     } else {
@@ -147,19 +158,23 @@ export async function preProcessDeltas(artifactDir, totalShards, registryMap, mo
                     const incoming = result.enriched || result;
                     const regIdx = registryMap.get(incoming.id);
                     if (regIdx !== undefined) {
-                        const handle = await getStream(regIdx);
-                        await fs.appendFile(handle, JSON.stringify(incoming) + '\n');
+                        if (!updateBuffers.has(regIdx)) updateBuffers.set(regIdx, []);
+                        updateBuffers.get(regIdx).push(JSON.stringify(incoming));
                         updateCount++;
+                        totalProcessed++;
+
+                        if (totalProcessed % FLUSH_THRESHOLD === 0) {
+                            await flushBuffers();
+                        }
                     }
                 }
             }
         });
     }
 
-    // Close all handles
-    for (const handle of streams.values()) {
-        await (await handle).close();
-    }
+    // Final flush
+    await flushBuffers();
+    updateBuffers.clear();
 
     console.log(`  [DELTAS] Aligned ${updateCount} updates across all shards.`);
 }
