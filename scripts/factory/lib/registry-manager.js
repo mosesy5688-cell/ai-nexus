@@ -12,6 +12,7 @@ export class RegistryManager {
         this.accumulatorPath = './cache/accumulator.db';
         this.db = null;
         this.count = 0;
+        this.didLoadFromStorage = false;
     }
 
     /**
@@ -64,6 +65,7 @@ export class RegistryManager {
         }, { slim: false });
 
         this.count = total;
+        this.didLoadFromStorage = total > 0;
         console.log(`  [REGISTRY] Hydrated ${total} entities into accumulator.`);
         return { count: total };
     }
@@ -124,6 +126,22 @@ export class RegistryManager {
 
         console.log(`  [REGISTRY] Stats: ${added} added, ${updated} updated.`);
         this.count = this.db.prepare('SELECT count(*) as count FROM registry').get().count;
+        return {
+            didLoadFromStorage: this.didLoadFromStorage,
+            count: this.count,
+            added,
+            updated
+        };
+    }
+
+    /**
+     * Get all entities as an array (Memory Intensive)
+     * Use only when downstream requires a monolith.
+     */
+    getAllEntities() {
+        if (!this.db) return [];
+        const rows = this.db.prepare('SELECT data FROM registry').all();
+        return rows.map(r => JSON.parse(r.data));
     }
 
     /**
