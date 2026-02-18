@@ -498,7 +498,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: agg-packdb
-          path: data/content.db
+          path: data/
           if-no-files-found: error
           retention-days: 1
 
@@ -553,6 +553,11 @@ jobs:
           [ -f "output/search-full.json.gz" ] && mv output/search-full.json.gz output/cache/ || true
           [ -f "output/search-full.json" ] && mv output/search-full.json output/cache/ || true
           [ -f "output/search-manifest.json" ] && mv output/search-manifest.json output/cache/ || true
+          
+          # V19.2: content.db and bundles preservation
+          [ -d "output/data" ] && echo "✅ data/ directory found" || mkdir -p output/data
+          [ -f "output/content.db" ] && mv output/content.db output/data/ || true
+          [ -d "output/bundles" ] && mv output/bundles output/data/ || true
           
           # V17.8: Shard Bridge - Shards from agg-shards download will be in output/*.json.gz
           mkdir -p output/cache/shards

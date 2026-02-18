@@ -89,18 +89,49 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
 }
 
 async function main() {
+    const { loadLocalManifest, saveLocalManifest, calculateHash } = await import('./lib/local-sync.js');
+    const localManifestPath = path.join(process.env.CACHE_DIR || './cache', 'last-upload-manifest.json');
+    const localManifest = await loadLocalManifest(localManifestPath);
+
     const s3 = createR2Client();
     const r2ETagMap = await fetchAllR2ETags(s3, CONFIG.BUCKET, CONFIG.PREFIX_FILTER);
     const checkpoint = await loadCheckpoint();
     const allFiles = await getAllFiles(CONFIG.OUTPUT_DIR);
 
-    const { success, fail, skipped, unchanged } = await processQueue(s3, allFiles, new Set(checkpoint.uploaded), checkpoint, r2ETagMap);
+    // Filter files using local manifest to skip R2 network check if hash matches
+    const filesToUpload = [];
+    let locallySkipped = 0;
+
+    for (const file of allFiles) {
+        const remotePath = toRemotePath(file.path);
+        const localHash = await calculateHash(file.path);
+
+        // Layer 2 Defense: If local manifest says it's already uploaded and hash matches, we can skip R2 check
+        if (localManifest.hashes[remotePath] === localHash && r2ETagMap.has(remotePath)) {
+            locallySkipped++;
+            continue;
+        }
+
+        filesToUpload.push({ ...file, localHash });
+    }
+
+    console.log(`[LOCAL-SYNC] Locally skipped: ${locallySkipped} files (MD5 matched manifest)`);
+
+    const { success, fail, skipped, unchanged } = await processQueue(s3, filesToUpload, new Set(checkpoint.uploaded), checkpoint, r2ETagMap);
+
+    // Update local manifest with new successful hashes
+    for (const file of filesToUpload) {
+        const remotePath = toRemotePath(file.path);
+        localManifest.hashes[remotePath] = file.localHash;
+    }
+    await saveLocalManifest(localManifestPath, localManifest);
+
     await saveCheckpoint(checkpoint);
 
     // V18.2.1: Final Purge of Entropy
     await purgeEntropy(s3, CONFIG.BUCKET, r2ETagMap);
 
-    console.log(`\n✅ Upload Complete! New: ${success}, Unchanged: ${unchanged}, Fail: ${fail}`);
+    console.log(`\n✅ Upload Complete! New: ${success}, Locally Skipped: ${locallySkipped}, Unchanged on R2: ${unchanged}, Fail: ${fail}`);
     if (fail > 0) process.exit(1);
 }
 
