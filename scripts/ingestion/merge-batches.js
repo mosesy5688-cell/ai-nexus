@@ -92,7 +92,7 @@ async function mergeBatches() {
     const registryManager = new RegistryManager();
     await registryManager.load();
     const registryState = await registryManager.mergeCurrentBatch(allEntities);
-    const fullSet = registryState.entities;
+    const fullSet = registryManager.getAllEntities();
 
     const checksums = await loadEntityChecksums();
     await saveEntityChecksums(checksums);
