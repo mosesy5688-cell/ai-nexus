@@ -11,19 +11,28 @@ import { smartWriteWithVersioning } from './lib/smart-writer.js';
 const CACHE_DIR = process.env.CACHE_DIR || './cache';
 const ARTIFACT_DIR = process.env.ARTIFACT_DIR || './artifacts';
 const MESH_DIR = path.join(CACHE_DIR, 'mesh/profiles');
-const TOTAL_SHARDS = 20;
-
 async function main() {
     console.log('[FUSION] 🧪 Commencing Master Fusion (Compressed Shard Logic)...');
 
     let fusedCount = 0;
     let totalEntitiesFound = 0;
 
-    for (let i = 0; i < TOTAL_SHARDS; i++) {
-        const shardPath = path.join(ARTIFACT_DIR, `shard-${i}.json.gz`);
+    const files = await fs.readdir(ARTIFACT_DIR).catch(() => []);
+    const shardFiles = files.filter(f => f.startsWith('part-') && f.endsWith('.json.gz'))
+        .sort((a, b) => {
+            const na = parseInt(a.match(/\d+/)[0]);
+            const nb = parseInt(b.match(/\d+/)[0]);
+            return na - nb;
+        });
+
+    console.log(`[FUSION] Found ${shardFiles.length} shards in ${ARTIFACT_DIR}`);
+
+    for (let i = 0; i < shardFiles.length; i++) {
+        const file = shardFiles[i];
+        const shardPath = path.join(ARTIFACT_DIR, file);
 
         try {
-            console.log(`[FUSION] 📦 Processing Shard ${i}...`);
+            console.log(`[FUSION] 📦 Processing Shard ${i} (${file})...`);
             const compressed = await fs.readFile(shardPath);
             const shardData = JSON.parse(zlib.gunzipSync(compressed));
             const entities = shardData.entities || [];

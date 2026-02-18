@@ -112,10 +112,13 @@ jobs:
       - name: Organize Shards for Fusion
         run: |
           mkdir -p artifacts
-          # Check output/cache/shards (standard) or output/shards (legacy)
-          if [ -d "output/cache/shards" ]; then
-            find output/cache/shards -name "shard-*.json.gz" -exec mv {} artifacts/ \;
+          # V19.2 Fix: Harvest Registry Shards (part-*) instead of incremental Process shards (shard-*)
+          # The full registry is in output/cache/registry/
+          if [ -d "output/cache/registry" ]; then
+            echo "📦 Moving registry shards for fusion..."
+            find output/cache/registry -name "part-*.json.gz" -exec mv {} artifacts/ \;
           elif [ -d "output/shards" ]; then
+            # Fallback for older structures if they somehow persist
             find output/shards -name "shard-*.json.gz" -exec mv {} artifacts/ \;
           fi
           echo "📦 Shards ready in artifacts/: $(ls artifacts | wc -l)"
