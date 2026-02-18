@@ -52,6 +52,7 @@ async function generateCategoryRanking(category, entities, cacheDir) {
             name: e.name || e.slug || 'Unknown',
             type: e.type || 'model',
             author: e.author || '',
+            description: (e.description || e.summary || '').substring(0, 120),
             image_url: e.image_url || null,
             fni_score: Math.round(e.fni_score || e.fni || 0),
             tags: Array.isArray(e.tags) ? e.tags.slice(0, 3) : [],

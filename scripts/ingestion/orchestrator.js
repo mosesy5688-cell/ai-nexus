@@ -1,240 +1,160 @@
 /**
- * Ingestion Pipeline Orchestrator
- * Coordinates fetch → normalize → dedup → compliance → output
+ * Ingestion Pipeline Orchestrator V19.0 — Streaming Architecture
+ * Coordinates fetch → normalize → merge PER SOURCE (streaming)
+ * 
+ * V19.0 Changes:
+ *   - Replaced fetchAll() accumulator with per-source streaming merge
+ *   - Each source is fetched, normalized, deduped, and merged immediately
+ *   - Peak memory: single_source + registry (vs. all_sources combined)
+ *   - Zero data loss: RegistryManager UPSERT preserves all existing entities
+ * 
  * @module ingestion/orchestrator
  */
 
-import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { adapters, getAdapterNames } from './adapters/index.js';
+import { adapters } from './adapters/index.js';
 import { deduplicateEntities } from './deduplicator.js';
+import { fetchSource } from './lib/source-fetcher.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Output paths
 const OUTPUT_DIR = path.join(__dirname, '../../data');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'merged.json');
-const STATE_FILE = path.join(OUTPUT_DIR, '.harvest-state.json');  // V16.4.3 Restoration
+const STATE_FILE = path.join(OUTPUT_DIR, '.harvest-state.json');
 
 // Config and output
 import { DEFAULT_CONFIG } from './ingestion-config.js';
 import { saveOutput } from './output-mapper.js';
 import { RegistryManager } from '../factory/lib/registry-manager.js';
-import { loadState, saveState } from './state-helper.js'; // V16.4.4: Art 5.1 Compliance Extraction
+import { loadState, saveState } from './state-helper.js';
 
-/** Orchestrator Class */
+/** Orchestrator Class — V19.0 Streaming */
 export class Orchestrator {
     constructor(config = {}) {
         this.config = { ...DEFAULT_CONFIG, ...config };
-        // V6.2: Support incremental mode
-        this.mode = config.mode || 'full';  // 'full' | 'incremental'
+        this.mode = config.mode || 'full';
         this.state = loadState(STATE_FILE);
-        this.stats = {
-            fetched: {},
-            normalized: 0,
-            deduplicated: 0,
-            blocked: 0,
-            output: 0
-        };
+        this.stats = { fetched: {}, normalized: 0, deduplicated: 0, blocked: 0, output: 0 };
     }
 
-
-
-    /**
-     * Run the complete ingestion pipeline
-     */
+    /** Run the complete ingestion pipeline (V19.0 Streaming) */
     async run() {
         console.log('═'.repeat(60));
-        console.log(`🚀 V16.4.3 Universal Ingestion Pipeline [${this.mode.toUpperCase()}]`);
+        console.log(`🚀 V19.0 Streaming Ingestion Pipeline [${this.mode.toUpperCase()}]`);
         console.log('═'.repeat(60));
-
         const startTime = Date.now();
 
-        // Phase 0: Load Global Registry (V18.2.4: Load before fetch for pre-comparison)
+        // Phase 0: Load Global Registry (all existing entities as 'archived')
         console.log('\n🧠 Phase 0: Loading Global Registry...');
         const registryManager = new RegistryManager();
         await registryManager.load();
+        console.log(`   ✅ Registry loaded: ${registryManager.count} existing entities preserved.`);
 
-        // Phase 1: Fetch from all sources
-        console.log('\n📥 Phase 1: Fetching from sources...');
-        const rawEntities = await this.fetchAll(registryManager);
+        // Phase 1-3: Stream-Merge per source
+        console.log('\n📥 Phase 1-3: Stream-Fetch-Merge per source...');
+        await this.streamFetchAndMerge(registryManager);
 
-        // Phase 2: Normalize to unified schema
-        console.log('\n🔄 Phase 2: Normalizing to unified schema...');
-        const normalizedEntities = this.normalizeAll(rawEntities);
-
-        // Phase 2.5: Registry Integration (Already loaded in Phase 0)
-        console.log('\n🧠 Phase 2.5: Registry Ready.');
-
-        // Phase 3: Deduplicate
-        console.log('\n✨ Phase 3: Deduplicating...');
-        const uniqueEntities = this.deduplicate(normalizedEntities);
-
-        // Phase 3.5: Merging batches with Archive (Knowledge Continuity)
-        console.log(`\n🔗 Phase 3.5: Merging batches with ${registryManager.entities.length} existing entities...`);
-        const registry = await registryManager.mergeCurrentBatch(uniqueEntities);
-        const fullEntities = registry.entities;
-
-        // V18.2.1 GA: Persist the full merged registry into sharded parts (V2.0 Core)
-        // This ensures unharvested entities are preserved and FNI decay is saved.
+        // Phase 4: Save merged registry (ALL entities: active + archived)
+        console.log('\n💾 Phase 4: Persisting full registry...');
         await registryManager.save();
 
-        // Phase 4: Compliance filtering
-        console.log('\n🛡️ Phase 4: Compliance check...');
-        const compliantEntities = this.filterCompliance(fullEntities);
-
-        // Phase 5: Output (Sharded Persistence)
-        // V18.2.1 GA: We restore the full registry output by passing compliantEntities.
-        // The saveOutput function now handles sharding internally to bypass V8 string limits.
-        console.log('\n💾 Phase 5: Saving sharded output (Full Registry)...');
+        // Phase 5: Export compliant entities for downstream
+        console.log('\n🛡️ Phase 5: Compliance filtering & sharded output...');
+        const allEntities = await this.loadFinalEntities();
+        const compliantEntities = this.filterCompliance(allEntities);
         this.stats.output = await saveOutput(compliantEntities, OUTPUT_DIR, OUTPUT_FILE);
 
-        // V6.2: Save harvest state for incremental mode
+        // Save harvest state
         this.state.lastRun.global = new Date().toISOString();
         saveState(STATE_FILE, this.state);
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-
-        // Summary
         console.log('\n' + '═'.repeat(60));
-        console.log(`📊 Pipeline Summary (${this.mode}):`);
+        console.log(`📊 Pipeline Summary (${this.mode} — V19.0 Streaming):`);
         Object.entries(this.stats.fetched).forEach(([s, c]) => console.log(`   ${s}: ${c}`));
-        console.log(`   Normalized: ${this.stats.normalized} | Dedup: ${this.stats.deduplicated} | Blocked: ${this.stats.blocked}`);
-        console.log(`   Final: ${this.stats.output} | Time: ${duration}s`);
+        console.log(`   Normalized: ${this.stats.normalized} | Blocked: ${this.stats.blocked}`);
+        console.log(`   Final Output: ${this.stats.output} | Time: ${duration}s`);
+        console.log(`   Registry Total: ${registryManager.count} (active + archived)`);
         console.log('═'.repeat(60));
-
         return compliantEntities;
     }
 
-    /** Fetch from all enabled sources */
-    async fetchAll(registryManager) {
-        const results = [];
-
+    /**
+     * V19.0: Stream-Fetch-Merge — process one source at a time
+     * Data preservation: mergeCurrentBatch() does UPSERT, entities not
+     * re-fetched remain as 'archived' with FNI decay applied.
+     */
+    async streamFetchAndMerge(registryManager) {
         for (const [sourceName, sourceConfig] of Object.entries(this.config.sources)) {
             if (!sourceConfig.enabled) {
                 console.log(`   ⏭️ Skipping ${sourceName} (disabled)`);
                 continue;
             }
-
             try {
-                const adapter = adapters[sourceName];
-                if (!adapter) {
-                    console.warn(`   ⚠️ Unknown adapter: ${sourceName}`);
+                // Step 1: Fetch (only this source in RAM)
+                console.log(`\n   📥 [${sourceName}] Fetching...`);
+                const rawEntities = await fetchSource(sourceName, sourceConfig, this.state, registryManager);
+                this.stats.fetched[sourceName] = rawEntities.length;
+
+                if (rawEntities.length === 0) {
+                    console.log(`   ⏭️ [${sourceName}] No entities fetched, skipping.`);
                     continue;
                 }
 
-                // V18.2.4: Rotational Sampling (Prevent Timeout, Achieve Coverage)
-                const currentOffset = this.state.lastRun[sourceName]?.offset || 0;
-                const limit = sourceConfig.options.limit || 5000;
-                const nextOffset = (currentOffset + limit > 150000) ? 0 : currentOffset + limit;
-
-                console.log(`   🔄 Rotational Offset [${sourceName}]: ${currentOffset} → next: ${nextOffset}`);
-
-                // V6.2: Use multi-strategy for HuggingFace to bypass 1K API limit
-                let entities;
-                if (sourceName === 'huggingface' && sourceConfig.options.limit > 1000 && adapter.fetchMultiStrategy) {
-                    console.log(`   📊 Using multi-strategy for HuggingFace (limit: ${sourceConfig.options.limit})...`);
-                    const result = await adapter.fetchMultiStrategy({
-                        limitPerStrategy: Math.ceil(sourceConfig.options.limit / 4),
-                        full: sourceConfig.options.full !== false,
-                        registryManager,
-                        offset: currentOffset // Enable wheel rotation
-                    });
-                    entities = result.models;
-                } else {
-                    entities = await adapter.fetch({
-                        ...sourceConfig.options,
-                        registryManager,
-                        offset: currentOffset // Enable wheel rotation
-                    });
+                // Step 2: Normalize in-flight
+                console.log(`   🔄 [${sourceName}] Normalizing ${rawEntities.length} entities...`);
+                const adapter = adapters[sourceName];
+                const normalized = [];
+                for (const raw of rawEntities) {
+                    try { normalized.push(adapter.normalize(raw)); } catch (_) { /* skip malformed */ }
                 }
+                this.stats.normalized += normalized.length;
 
-                // Update state
-                if (!this.state.lastRun[sourceName]) this.state.lastRun[sourceName] = {};
-                this.state.lastRun[sourceName].offset = nextOffset;
-                this.state.lastRun[sourceName].timestamp = new Date().toISOString();
+                // Step 3: Deduplicate within this source
+                const unique = deduplicateEntities(normalized, this.config.deduplication);
+                console.log(`   ✨ [${sourceName}] Dedup: ${normalized.length} → ${unique.length}`);
 
-                this.stats.fetched[sourceName] = entities.length;
-
-                results.push({
-                    source: sourceName,
-                    adapter: adapter,
-                    entities: entities
-                });
+                // Step 4: Merge into registry (UPSERT — preserves old data)
+                console.log(`   🔗 [${sourceName}] Merging ${unique.length} into registry...`);
+                await registryManager.mergeCurrentBatch(unique);
+                console.log(`   ✅ [${sourceName}] Complete. Registry: ${registryManager.count} total.`);
             } catch (error) {
-                console.error(`   ❌ Error fetching ${sourceName}: ${error.message}`);
+                console.error(`   ❌ Error processing ${sourceName}: ${error.message}`);
                 this.stats.fetched[sourceName] = 0;
             }
         }
-
-        return results;
     }
 
-    /** Normalize all fetched entities */
-    normalizeAll(fetchResults) {
-        const normalized = [];
-
-        for (const { source, adapter, entities } of fetchResults) {
-            console.log(`   Processing ${entities.length} from ${source}...`);
-
-            for (const raw of entities) {
-                try {
-                    const entity = adapter.normalize(raw);
-                    normalized.push(entity);
-                } catch (error) {
-                    console.warn(`   ⚠️ Normalization error: ${error.message}`);
-                }
-            }
-        }
-
-        this.stats.normalized = normalized.length;
-        console.log(`   ✓ Normalized ${normalized.length} entities`);
-
-        return normalized;
-    }
-
-    /** Deduplicate entities by ID */
-    deduplicate(entities) {
-        const unique = deduplicateEntities(entities, this.config.deduplication);
-        this.stats.deduplicated = unique.length;
-        console.log(`   ✓ Deduplicated: ${entities.length} → ${unique.length}`);
-        return unique;
+    /** Load final entities from registry shards for output */
+    async loadFinalEntities() {
+        const { loadRegistryShardsSequentially } = await import('../factory/lib/registry-loader.js');
+        const entities = [];
+        await loadRegistryShardsSequentially(async (batch) => {
+            entities.push(...batch);
+        }, { slim: false });
+        console.log(`   📦 Loaded ${entities.length} entities for compliance filter.`);
+        return entities;
     }
 
     /** Filter entities by compliance status */
     filterCompliance(entities) {
-        if (!this.config.compliance.blockNSFW) {
-            return entities;
-        }
-
+        if (!this.config.compliance.blockNSFW) return entities;
         const compliant = entities.filter(e => {
-            if (e.compliance_status === 'blocked') {
-                this.stats.blocked++;
-                return false;
-            }
+            if (e.compliance_status === 'blocked') { this.stats.blocked++; return false; }
             return true;
         });
-
         console.log(`   ✓ Blocked ${this.stats.blocked} NSFW entities`);
-
         return compliant;
     }
 }
 
-/**
- * Main entry point
- */
+/** Main entry point */
 async function main() {
     const orchestrator = new Orchestrator();
     await orchestrator.run();
 }
 
-// Run if executed directly
-main().catch(err => {
-    console.error('❌ Fatal error:', err);
-    process.exit(1);
-});
-
+main().catch(err => { console.error('❌ Fatal error:', err); process.exit(1); });
 export default Orchestrator;

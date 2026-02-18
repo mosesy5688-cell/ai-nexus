@@ -50,10 +50,10 @@ jobs:
         if: github.event.inputs.skip_harvest != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-          NODE_OPTIONS: '--max-old-space-size=4096'
+          NODE_OPTIONS: '--max-old-space-size=6144'
         run: |
-          echo "📥 [Parallel] Harvesting HuggingFace Models..."
-          node scripts/ingestion/harvest-single.js huggingface --limit 10000
+          echo "📥 [Parallel] Harvesting HuggingFace Models (V19: 30K)..."
+          node scripts/ingestion/harvest-single.js huggingface --limit 30000
           
       - name: Solidify HuggingFace Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
@@ -90,8 +90,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "📥 [Parallel] Harvesting GitHub..."
-          node scripts/ingestion/harvest-single.js github --limit 5000
+          echo "📥 [Parallel] Harvesting GitHub (V19: 10K)..."
+          node scripts/ingestion/harvest-single.js github --limit 10000
           
       - name: Solidify GitHub Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
@@ -126,8 +126,8 @@ jobs:
       - name: Harvest ArXiv Papers
         if: github.event.inputs.skip_harvest != 'true'
         run: |
-          echo "📥 [Parallel] Harvesting ArXiv..."
-          node scripts/ingestion/harvest-single.js arxiv --limit 50000 || echo "ArXiv adapter skipped"
+          echo "📥 [Parallel] Harvesting ArXiv (V19: 100K)..."
+          node scripts/ingestion/harvest-single.js arxiv --limit 100000 || echo "ArXiv adapter skipped"
           
       - name: Harvest HuggingFace Papers
         if: github.event.inputs.skip_harvest != 'true'
@@ -143,8 +143,8 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           NODE_OPTIONS: '--max-old-space-size=4096'
         run: |
-          echo "📥 [Parallel] Harvesting HF Datasets..."
-          node scripts/ingestion/harvest-single.js huggingface-datasets --limit 10000 || echo "HF Datasets adapter skipped"
+          echo "📥 [Parallel] Harvesting HF Datasets (V19: 20K)..."
+          node scripts/ingestion/harvest-single.js huggingface-datasets --limit 20000 || echo "HF Datasets adapter skipped"
 
       - name: Solidify Academic Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
