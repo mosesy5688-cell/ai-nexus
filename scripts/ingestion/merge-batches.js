@@ -111,7 +111,7 @@ async function mergeBatches() {
     // V18.2.3: Streaming Export to bypass V8 string length limit
     console.log(`\n🛡️ [Merge] Performing Final Identity Scrub & Streaming Export...`);
     const { createWriteStream } = await import('fs');
-    const { normalizeId, getNodeSource } = await import('../../utils/id-normalizer.js');
+    const { normalizeId, getNodeSource } = await import('../utils/id-normalizer.js');
 
     const hash = crypto.createHash('sha256');
     let compressedSize = 0;
