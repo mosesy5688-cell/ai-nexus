@@ -201,11 +201,27 @@ jobs:
         run: |
           mkdir -p output/meta/backup
           echo "✅ aggregator.js has prepared baseline backups in output/meta/backup/"
+      # V19.0: SQL Health Check before upload (blocks deployment on failure)
+      - name: V19 SQL Health Check
+        run: |
+          if [ -f "output/data/content.db" ]; then
+            echo "🔍 Running content.db health check..."
+            node scripts/factory/verify-db.js output/data/content.db
+          else
+            echo "⚠️ No content.db found in output — skipping health check"
+          fi
       - name: Upload to R2 via S3 API
         env:
           # V18.2.4: Unified Filter with Gzip Mandate Support
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,global-registry.json.gz,entities/,cache/entities/,cache/fused/,cache/html/,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml
+          # V19.0: Added data/content.db for VFS SQLite delivery
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,global-registry.json.gz,entities/,cache/entities/,cache/fused/,cache/html/,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/content.db
         run: node scripts/factory/r2-upload-s3.js
+      # V19.0: 60s Drain Wait — let CDN edge caches expire before purge
+      - name: CDN Drain Wait (60s)
+        run: |
+          echo "⏳ [V19.0] Waiting 60s for CDN edge cache TTL expiry..."
+          sleep 60
+          echo "✅ Drain wait complete. Proceeding to purge."
       - name: Purge & Warm CDN
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -215,7 +231,7 @@ jobs:
             echo "⚠️ [PURGE] Skipping CDN purge: CLOUDFLARE_ZONE_ID/TOKEN missing"
             exit 0
           fi
-          PURGE_PATHS='["https://cdn.free2aitools.com/cache/trending.json","https://cdn.free2aitools.com/cache/trending.json.gz","https://cdn.free2aitools.com/cache/search-core.json","https://cdn.free2aitools.com/cache/search-core.json.gz","https://cdn.free2aitools.com/cache/relations.json","https://cdn.free2aitools.com/cache/relations.json.gz","https://cdn.free2aitools.com/sitemap.xml"]'
+          PURGE_PATHS='["https://cdn.free2aitools.com/cache/trending.json","https://cdn.free2aitools.com/cache/trending.json.gz","https://cdn.free2aitools.com/cache/search-core.json","https://cdn.free2aitools.com/cache/search-core.json.gz","https://cdn.free2aitools.com/cache/relations.json","https://cdn.free2aitools.com/cache/relations.json.gz","https://cdn.free2aitools.com/sitemap.xml","https://cdn.free2aitools.com/data/content.db"]'
           echo "📡 Purging CDN cache for paths: $PURGE_PATHS"
           curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" \

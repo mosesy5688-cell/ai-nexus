@@ -1,120 +1,161 @@
-/**
- * Registry Manager V16.2
- * SPEC: SPEC-REGISTRY-V16.2
- * 
- * Manages the persistent list of all 140k+ entities in R2.
- */
-
-import { loadGlobalRegistry, saveGlobalRegistry } from './cache-manager.js';
+import Database from 'better-sqlite3';
+import fs from 'fs/promises';
+import path from 'path';
+import { loadRegistryShardsSequentially } from './registry-loader.js';
+import { saveRegistryShard } from './registry-saver.js';
 import { normalizeId, getNodeSource } from '../../utils/id-normalizer.js';
 import { mergeEntities } from '../../ingestion/lib/entity-merger.js';
+import { SHARD_SIZE } from './registry-utils.js';
 
 export class RegistryManager {
     constructor() {
-        this.registry = { entities: [], lastUpdated: null, count: 0 };
+        this.accumulatorPath = './cache/accumulator.db';
+        this.db = null;
+        this.count = 0;
     }
 
     /**
-     * Load the registry from cache/R2
+     * Initialize temporary SQLite accumulator
+     * Allows O(1) memory merging of 1M+ entities.
+     */
+    async initAccumulator() {
+        console.log('[REGISTRY] Initializing SQLite Accumulator...');
+        await fs.mkdir(path.dirname(this.accumulatorPath), { recursive: true });
+        if (await fs.stat(this.accumulatorPath).catch(() => null)) {
+            await fs.unlink(this.accumulatorPath);
+        }
+        this.db = new Database(this.accumulatorPath);
+
+        // Optimized pragmas for heavy ingest
+        this.db.pragma('journal_mode = OFF');
+        this.db.pragma('synchronous = OFF');
+        this.db.pragma('page_size = 16384');
+
+        this.db.exec(`
+            CREATE TABLE registry (
+                id TEXT PRIMARY KEY,
+                data TEXT, -- Full JSON blob
+                fni_score REAL,
+                status TEXT, -- 'archived' or 'active'
+                last_seen TEXT
+            );
+            CREATE INDEX idx_fni ON registry(fni_score DESC);
+        `);
+    }
+
+    /**
+     * Load existing sharded registry into accumulator
      */
     async load() {
-        console.log('[REGISTRY] Loading global registry...');
-        this.registry = await loadGlobalRegistry();
-        console.log(`  [REGISTRY] Found ${this.registry.count} entities in archive`);
-        return this.registry;
+        if (!this.db) await this.initAccumulator();
+
+        console.log('[REGISTRY] Hydrating accumulator from sharded registry...');
+        const insert = this.db.prepare('INSERT INTO registry (id, data, fni_score, status, last_seen) VALUES (?, ?, ?, ?, ?)');
+
+        let total = 0;
+        await loadRegistryShardsSequentially(async (entities) => {
+            const transaction = this.db.transaction((batch) => {
+                for (const e of batch) {
+                    insert.run(e.id, JSON.stringify(e), e.fni_score || 0, 'archived', e._last_seen || '');
+                    total++;
+                }
+            });
+            transaction(entities);
+        }, { slim: false });
+
+        this.count = total;
+        console.log(`  [REGISTRY] Hydrated ${total} entities into accumulator.`);
+        return { count: total };
     }
 
     /**
-     * Merge individual entity metadata intelligently
-     */
-    mergeEntityMetadata(existing, incoming) {
-        return mergeEntities(existing, incoming);
-    }
-
-    /**
-     * Merge current batch entities into the registry
-     * Priority: Balanced Merge (v16.2.3)
+     * Merge current batch entities into the accumulator using UPSERT
      */
     async mergeCurrentBatch(batchEntities) {
-        console.log(`[REGISTRY] Merging ${batchEntities.length} batch entities into registry...`);
+        if (!this.db) await this.initAccumulator();
 
-        const registryMap = new Map();
-        let archivedCount = 0;
-        let activeCount = 0;
-        let mergedCount = 0;
+        console.log(`[REGISTRY] UPSERT-Merging ${batchEntities.length} entities...`);
+        const select = this.db.prepare('SELECT data FROM registry WHERE id = ?');
+        const upsert = this.db.prepare(`
+            INSERT INTO registry (id, data, fni_score, status, last_seen) 
+            VALUES (:id, :data, :fni_score, :status, :last_seen)
+            ON CONFLICT(id) DO UPDATE SET
+                data = excluded.data,
+                fni_score = excluded.fni_score,
+                status = excluded.status,
+                last_seen = excluded.last_seen
+        `);
 
-        // 1. Seed with existing registry
-        for (const e of this.registry.entities) {
-            const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
-            if (registryMap.has(id)) {
-                // V16.96.2: Resolve Collision (Standardize ArXiv versions without data loss)
-                const existing = registryMap.get(id);
-                registryMap.set(id, mergeEntities(existing, e));
-            } else {
-                registryMap.set(id, { ...e, id, status: 'archived' });
-                archivedCount++;
-            }
-        }
+        const now = new Date().toISOString();
+        let updated = 0;
+        let added = 0;
 
-        // 2. Intelligence Merge with current batch
-        for (const e of batchEntities) {
-            const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
-            const existing = registryMap.get(id);
+        const transaction = this.db.transaction((batch) => {
+            for (const e of batch) {
+                const id = normalizeId(e.id, getNodeSource(e.id, e.type), e.type);
+                const existingRow = select.get(id);
 
-            if (existing) {
-                const merged = this.mergeEntityMetadata(existing, e);
-                registryMap.set(id, {
-                    ...merged,
-                    id, // Ensure clean ID
-                    status: 'active', // Promotion to active
-                    _last_seen: new Date().toISOString()
-                });
-                mergedCount++;
-            } else {
-                registryMap.set(id, {
-                    ...e,
-                    id, // Inject normalized ID
+                let finalData;
+                if (existingRow) {
+                    const existing = JSON.parse(existingRow.data);
+                    const merged = mergeEntities(existing, e);
+                    finalData = { ...merged, id, status: 'active', _last_seen: now };
+                    updated++;
+                } else {
+                    finalData = { ...e, id, status: 'active', _last_seen: now };
+                    added++;
+                }
+
+                upsert.run({
+                    id,
+                    data: JSON.stringify(finalData),
+                    fni_score: finalData.fni_score || 0,
                     status: 'active',
-                    _last_seen: new Date().toISOString()
+                    last_seen: now
                 });
-                activeCount++;
             }
-        }
-
-        // 3. Convert back to array and apply FNI decay for archived entities
-        const finalEntities = Array.from(registryMap.values()).map(e => {
-            if (e.status === 'archived') {
-                // FNI Decay: Historical entities sink naturally
-                return { ...e, fni_score: (e.fni_score || 0) * 0.95 };
-            }
-            return e;
         });
 
-        // 4. Sort by FNI and update state
-        this.registry.entities = finalEntities.sort((a, b) => (b.fni_score || 0) - (a.fni_score || 0));
-        this.registry.count = this.registry.entities.length;
+        transaction(batchEntities);
 
-        console.log(`  [REGISTRY] Merge Stats:`);
-        console.log(`    - Archived (Persistent): ${archivedCount}`);
-        console.log(`    - Active (Newly Harvested): ${activeCount}`);
-        console.log(`    - Merged (Updated): ${mergedCount}`);
-        console.log(`    - Final Deduplicated Total: ${this.registry.count}`);
+        // Apply FNI decay for unvisited (archived) entities
+        console.log('[REGISTRY] Applying global FNI decay...');
+        this.db.exec("UPDATE registry SET fni_score = fni_score * 0.95 WHERE status = 'archived'");
 
-        return this.registry;
+        console.log(`  [REGISTRY] Stats: ${added} added, ${updated} updated.`);
+        this.count = this.db.prepare('SELECT count(*) as count FROM registry').get().count;
     }
 
     /**
-     * Save the registry to cache/R2
+     * Save the accumulator back to sharded Registry JSON
+     * Sorts by FNI Score to maintain index parity.
      */
     async save() {
-        console.log('[REGISTRY] Saving global registry...');
-        await saveGlobalRegistry(this.registry);
-    }
+        if (!this.db) return;
 
-    /**
-     * Get the full list for indexing (Sitemap/Search)
-     */
-    getEntitiesForIndexing() {
-        return this.registry.entities;
+        console.log(`[REGISTRY] Exporting ${this.count} entities to sharded storage...`);
+        const select = this.db.prepare('SELECT data FROM registry ORDER BY fni_score DESC');
+
+        let shardIndex = 0;
+        let shardBatch = [];
+
+        for (const row of select.iterate()) {
+            shardBatch.push(JSON.parse(row.data));
+            if (shardBatch.length >= SHARD_SIZE) {
+                await saveRegistryShard(shardIndex++, shardBatch);
+                shardBatch = [];
+            }
+        }
+
+        if (shardBatch.length > 0) {
+            await saveRegistryShard(shardIndex++, shardBatch);
+        }
+
+        console.log(`  [REGISTRY] Saved ${shardIndex} shards.`);
+
+        // Cleanup
+        this.db.close();
+        this.db = null;
+        await fs.unlink(this.accumulatorPath);
     }
 }

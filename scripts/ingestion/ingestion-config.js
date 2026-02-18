@@ -1,35 +1,35 @@
 /**
  * Ingestion Config
- * V16.4.3 Factory: Full L1 Scale Restoration
- * Target: ~300,000 entities (Unified Knowledge Registry)
- * Source: loop1-harvester-v42.yml exact limits
+ * V19.0 Factory: Expanded Data Density
+ * Target: ~500,000+ entities (Deep-Data Enrichment)
+ * Limits aligned with factory-harvest.yml V19.0
  */
 export const DEFAULT_CONFIG = {
     sources: {
-        // V14.4 Factory: EXACT L1 limits from loop1-harvester-v42.yml
+        // V19.0: Expanded limits for data density enrichment
 
-        // Tier 1: HuggingFace Ecosystem
-        huggingface: { enabled: true, options: { limit: 10000 } },           // L1:46
-        'huggingface-datasets': { enabled: true, options: { limit: 10000 } }, // L1:110
-        'huggingface-papers': { enabled: true, options: { limit: 3000 } },    // L1:103
-        'huggingface-spaces': { enabled: true, options: { limit: 2000 } },    // L1:206
+        // Tier 1: HuggingFace Ecosystem (V19: 3x increase)
+        huggingface: { enabled: true, options: { limit: 30000 } },
+        'huggingface-datasets': { enabled: true, options: { limit: 20000 } },
+        'huggingface-papers': { enabled: true, options: { limit: 5000 } },
+        'huggingface-spaces': { enabled: true, options: { limit: 3000 } },
 
-        // Tier 2: GitHub & Academic
-        github: { enabled: true, options: { limit: 5000 } },                  // L1:72
-        arxiv: { enabled: true, options: { limit: 50000, category: 'cs.AI OR cs.LG OR cs.CL OR cs.CV' } }, // L1:96
-        semanticscholar: { enabled: true, options: { limit: 3000 } },         // L1:178
+        // Tier 2: GitHub & Academic (V19: 2x increase)
+        github: { enabled: true, options: { limit: 10000 } },
+        arxiv: { enabled: true, options: { limit: 100000, category: 'cs.AI OR cs.LG OR cs.CL OR cs.CV' } },
+        semanticscholar: { enabled: true, options: { limit: 5000 } },
 
         // Tier 3: AI Model Platforms
-        ollama: { enabled: true, options: { limit: 1000 } },                  // L1:142
-        civitai: { enabled: true, options: { limit: 5000 } },                 // L1:173
-        replicate: { enabled: true, options: { limit: 5000 } },               // L1:154
-        kaggle: { enabled: true, options: { limit: 10000 } },                 // L1:162
+        ollama: { enabled: true, options: { limit: 1000 } },
+        civitai: { enabled: true, options: { limit: 5000 } },
+        replicate: { enabled: true, options: { limit: 5000 } },
+        kaggle: { enabled: true, options: { limit: 10000 } },
 
         // Tier 4: Specialized Sources
-        openllm: { enabled: true, options: { limit: 1000 } },                 // L1:188
-        deepspec: { enabled: true, options: { limit: 2000 } },                // L1:198
-        mcp: { enabled: true, options: { limit: 500 } },                      // L1:147
-        agents: { enabled: true, options: { limit: 200 } }                    // L1:214
+        openllm: { enabled: true, options: { limit: 1000 } },
+        deepspec: { enabled: true, options: { limit: 2000 } },
+        mcp: { enabled: true, options: { limit: 500 } },
+        agents: { enabled: true, options: { limit: 200 } }
 
         // DISABLED:
         // - modelscope: Not needed
