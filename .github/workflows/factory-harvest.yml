@@ -302,32 +302,34 @@ jobs:
           node scripts/factory/cleanup-cache.js
       
       # V18.3: Solidification Recovery Logic
+      - name: Create Data Directory
+        run: mkdir -p data/
       - name: Recover Solidified Batches (Cache Fallback)
         if: github.event.inputs.skip_harvest == 'true'
         uses: actions/cache/restore@v4
         with:
-          path: data/
+          path: data/raw_batch_*.json
           key: harvest-raw-huggingface-${{ github.event.inputs.source_run_id }}
           restore-keys: harvest-raw-huggingface-
       - name: Recover Solidified Batches (GitHub)
         if: github.event.inputs.skip_harvest == 'true'
         uses: actions/cache/restore@v4
         with:
-          path: data/
+          path: data/raw_batch_*.json
           key: harvest-raw-github-${{ github.event.inputs.source_run_id }}
           restore-keys: harvest-raw-github-
       - name: Recover Solidified Batches (Academic)
         if: github.event.inputs.skip_harvest == 'true'
         uses: actions/cache/restore@v4
         with:
-          path: data/
+          path: data/raw_batch_*.json
           key: harvest-raw-academic-${{ github.event.inputs.source_run_id }}
           restore-keys: harvest-raw-academic-
       - name: Recover Solidified Batches (Ecosystem)
         if: github.event.inputs.skip_harvest == 'true'
         uses: actions/cache/restore@v4
         with:
-          path: data/
+          path: data/raw_batch_*.json
           key: harvest-raw-ecosystem-${{ github.event.inputs.source_run_id }}
           restore-keys: harvest-raw-ecosystem-
 
@@ -343,7 +345,8 @@ jobs:
       - name: List Batches (Current or Recovered)
         run: |
           echo "📦 Entity batches ready for merge:"
-          ls -la data/raw_batch_*.json 2>/dev/null || echo "No batch files found"
+          ls -la data/
+          ls -la data/raw_batch_*.json 2>/dev/null || echo "⚠️ No batch files found in data/"
           
       - name: Restore FNI History
         uses: actions/cache@v4
