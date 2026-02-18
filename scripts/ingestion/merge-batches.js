@@ -92,36 +92,31 @@ async function mergeBatches() {
     const registryManager = new RegistryManager();
     await registryManager.load();
     const registryState = await registryManager.mergeCurrentBatch(allEntities);
-    const fullSet = registryManager.getAllEntities();
 
     const checksums = await loadEntityChecksums();
     await saveEntityChecksums(checksums);
 
     // V18.12.5.1: Memory Relief - Clear batch entities from heap
     console.log(`   💡 [Merge] Disposing batch intermediate objects...`);
-    seenIds.clear(); // Free references held in the deduplication Map
+    seenIds.clear();
 
     if (!registryState.didLoadFromStorage && process.env.GITHUB_ACTIONS) {
         throw new Error(`Registry Load Failure - Emergency Abort to Protect 85k Baseline`);
     }
 
-    if (fullSet.length < 85000) {
-        throw new Error(`CRITICAL: Entity count dropped to ${fullSet.length} (Expected >85k).`);
+    if (registryState.count < 85000) {
+        throw new Error(`CRITICAL: Entity count dropped to ${registryState.count} (Expected >85k).`);
     }
 
-    const dedupedSet = scrubIdentities(fullSet);
-    dedupedSet.sort((a, b) => a.id.localeCompare(b.id));
-
-    // V18.12.5.1: Memory Relief - Dispose full registry array before heavy IO
-    console.log(`   💡 [Merge] Disposing registry source array...`);
-    for (let i = 0; i < allEntities.length; i++) allEntities[i] = null;
-    allEntities.length = 0;
-    // Note: fullSet is still needed for manifest, but will be nulled at end of function
-
     // V18.2.3: Streaming Export to bypass V8 string length limit
+    console.log(`\n🛡️ [Merge] Performing Final Identity Scrub & Streaming Export...`);
     const { createWriteStream } = await import('fs');
+    const { normalizeId, getNodeSource } = await import('../../utils/id-normalizer.js');
+
     const hash = crypto.createHash('sha256');
     let compressedSize = 0;
+    let totalVelocity = 0;
+    let exportedCount = 0;
 
     await new Promise((resolve, reject) => {
         const output = createWriteStream(OUTPUT_FILE);
@@ -132,36 +127,52 @@ async function mergeBatches() {
         gzip.on('error', reject);
         output.on('finish', resolve);
 
-        // Monitor stream for hash and size
         gzip.on('data', chunk => {
             compressedSize += chunk.length;
             hash.update(chunk);
         });
 
-        // V18.12.5.6: Revert to standard JSON Array output for compatibility
         gzip.write('[');
-        for (let i = 0; i < dedupedSet.length; i++) {
-            if (i > 0) gzip.write(',');
-            gzip.write(JSON.stringify(dedupedSet[i]));
+
+        // V19.0: Stream from SQLite sorted by ID (O(1) Memory Use)
+        const iterator = registryManager.getStreamingIterator('id ASC');
+        for (const entity of iterator) {
+            // Scrub on the fly (V2.1 Alignment)
+            const oldId = entity.id;
+            const source = getNodeSource(oldId, entity.type);
+            const newId = normalizeId(oldId, source, entity.type);
+            const scrubbed = { ...entity, id: newId };
+
+            if (exportedCount > 0) gzip.write(',');
+            gzip.write(JSON.stringify(scrubbed));
+
+            totalVelocity += (scrubbed.velocity || 0);
+            exportedCount++;
+
+            if (exportedCount % 10000 === 0) {
+                console.log(`   - Streamed ${exportedCount} entities...`);
+            }
         }
+
         gzip.write(']');
         gzip.end();
     });
 
     const mergedHash = hash.digest('hex');
 
-    console.log(`\n✅ [Merge] Complete\n   Total: ${dedupedSet.length} unique entities`);
+    console.log(`\n✅ [Merge] Complete\n   Total: ${exportedCount} unique entities`);
 
     await finalizeMerge({
         manifestFile: MANIFEST_FILE,
         outputFile: OUTPUT_FILE,
-        mergedContent: null, // No longer using full string
+        mergedContent: null,
         mergedHash,
-        allEntitiesCount: dedupedSet.length,
+        allEntitiesCount: exportedCount,
         batchManifests,
         sourceStats,
         batchFilesCount: batchFiles.length,
-        fullSet: dedupedSet,
+        fullSet: [], // Memory Safety: Pass empty array, velocity handled by aggregate
+        avgVelocityOverride: totalVelocity / (exportedCount || 1),
         MAX_BATCH_SIZE_MB,
         MAX_ENTITIES_PER_BATCH,
         byteLength: compressedSize
@@ -171,7 +182,7 @@ async function mergeBatches() {
     console.log(`\n💾 [Merge] Updating sharded baseline...`);
     await registryManager.save();
 
-    return { total: dedupedSet.length, sources: sourceStats };
+    return { total: exportedCount, sources: sourceStats };
 }
 
 mergeBatches().catch(err => {

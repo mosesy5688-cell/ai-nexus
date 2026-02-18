@@ -16,10 +16,11 @@ export async function finalizeMerge(options) {
         fullSet,
         MAX_BATCH_SIZE_MB,
         MAX_ENTITIES_PER_BATCH,
-        byteLength // V18.2.3: Support for streaming export
+        byteLength,
+        avgVelocityOverride
     } = options;
 
-    const avgVelocity = fullSet.reduce((sum, m) => sum + (m.velocity || 0), 0) / (fullSet.length || 1);
+    const avgVelocity = avgVelocityOverride !== undefined ? avgVelocityOverride : (fullSet.reduce((sum, m) => sum + (m.velocity || 0), 0) / (fullSet.length || 1));
     const finalByteLength = byteLength || (mergedContent ? Buffer.byteLength(mergedContent) : 0);
 
     const manifest = {

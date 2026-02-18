@@ -145,6 +145,18 @@ export class RegistryManager {
     }
 
     /**
+     * Get a streaming iterator for entities (Memory Efficient)
+     * Returns an iterator that yields parsed JSON entities.
+     */
+    *getStreamingIterator(orderBy = 'fni_score DESC') {
+        if (!this.db) return;
+        const select = this.db.prepare(`SELECT data FROM registry ORDER BY ${orderBy}`);
+        for (const row of select.iterate()) {
+            yield JSON.parse(row.data);
+        }
+    }
+
+    /**
      * Save the accumulator back to sharded Registry JSON
      * Sorts by FNI Score to maintain index parity.
      */
