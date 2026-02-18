@@ -179,6 +179,12 @@ jobs:
           path: output/
           key: cycle-${{ needs.check-upstream.outputs.upstream-run-id }}-output
           restore-keys: cycle-
+      - name: Restore Upload Manifest from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/cache/last-upload-manifest.json
+          key: r2-upload-manifest-${{ github.run_id }}
+          restore-keys: r2-upload-manifest-
       - name: Restore Fused Entities from Cache
         uses: actions/cache/restore@v4
         with:
@@ -199,7 +205,16 @@ jobs:
           tar -xf mesh-profiles.tar -C output/cache/mesh
       - name: Download All Enrichment Artifacts
         uses: actions/download-artifact@v4
-        with: { path: output/ }
+        with: 
+          path: output_artifacts/
+      - name: Consolidate Enrichment Artifacts
+        run: |
+          # V19.2 Path Correction: Artifacts are downloaded into subdirectories of output_artifacts/
+          # content.db is in output_artifacts/agg-packdb/
+          [ -d "output_artifacts/agg-packdb" ] && mkdir -p output/data && cp -r output_artifacts/agg-packdb/* output/data/ || true
+          [ -d "output_artifacts/rss-feeds" ] && mkdir -p output/rss && cp -r output_artifacts/rss-feeds/* output/rss/ || true
+          echo "✅ Artifacts consolidated into output/"
+          ls -R output/data
       - name: Prepare Registry Backup for S3 Upload
         run: |
           mkdir -p output/meta/backup
@@ -217,8 +232,15 @@ jobs:
         env:
           # V18.2.4: Unified Filter with Gzip Mandate Support
           # V19.0: Added data/content.db for VFS SQLite delivery
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,global-registry.json.gz,entities/,cache/entities/,cache/fused/,cache/html/,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/content.db
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,global-registry.json.gz,entities/,cache/entities/,cache/fused/,cache/html/,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/content.db,data/bundles/
+          CACHE_DIR: output/cache
         run: node scripts/factory/r2-upload-s3.js
+      - name: Save Upload Manifest to Cache
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: output/cache/last-upload-manifest.json
+          key: r2-upload-manifest-${{ github.run_id }}
       # V19.0: 60s Drain Wait — let CDN edge caches expire before purge
       - name: CDN Drain Wait (60s)
         run: |

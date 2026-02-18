@@ -59,22 +59,40 @@ async function main() {
                         } catch (e) { return null; }
                     }).catch(() => null);
 
+                // Load existing fused data to preserve timestamp if unchanged
+                const targetKey = `fused/${id}.json`;
+                const existingPath = path.join(CACHE_DIR, targetKey);
+                const existingData = await fs.readFile(existingPath)
+                    .then(buf => JSON.parse(buf))
+                    .catch(() => null);
+
                 // Perform Deep Fusion
-                // V16.6.5 Fix: If refinement failed, perform "Shallow Fusion" instead of skipping
-                // This ensures 100% data retention even if some enrichment logic fails.
                 const baseData = entityData.enriched || entityData;
+
+                // V19.2 Stability Optimization: Only update timestamp if content actually changes
+                let _fused_at = new Date().toISOString();
+                if (existingData) {
+                    const hasDataChanged =
+                        JSON.stringify(existingData.mesh_profile) !== JSON.stringify(meshData || { relations: [] }) ||
+                        existingData.html_readme !== (entityData.html || baseData.html_readme || '') ||
+                        existingData._fusion_status !== (entityData.success ? 'refined' : 'raw');
+
+                    if (!hasDataChanged) {
+                        _fused_at = existingData._fused_at;
+                    }
+                }
+
                 const fusedEntity = {
                     ...baseData,
                     id: id,
                     html_readme: entityData.html || baseData.html_readme || '',
                     mesh_profile: meshData || { relations: [] },
-                    _fused_at: new Date().toISOString(),
-                    _version: '16.11.0-master-fusion-resilient',
+                    _fused_at,
+                    _version: '16.11.1-stable-fusion',
                     _fusion_status: entityData.success ? 'refined' : 'raw'
                 };
 
                 // Save to ultimate fusion storage (with pre-compression logic in smartWriter)
-                const targetKey = `fused/${id}.json`;
                 await smartWriteWithVersioning(targetKey, fusedEntity, CACHE_DIR, { compress: true });
 
                 fusedCount++;
