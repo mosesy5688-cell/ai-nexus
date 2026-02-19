@@ -118,30 +118,46 @@ export async function loadEntityStreams(type: string, slug: string) {
         }
     }
 
-    // Fallback: Triple-Stream Discovery (Legacy Fused/Mesh)
-    // Only attempt if VFS didn't provide everything, maintaining sub-300ms SLA
+    // --- Dual-Engine Integration: VFS + R2 Fallback Recovery ---
+    // V19.4.5: We MUST merge metadata from both streams if fields are missing.
     if (!html || mesh.length === 0) {
         const secondaryCandidates = getR2PathCandidates(type, fullId);
         const fusedPath = secondaryCandidates.find(c => c.includes('/fused/')) || `cache/fused/${fullId}.json.gz`;
         const meshCandidates = secondaryCandidates.filter(c => c.includes('/mesh/profiles/'));
 
-        // Legacy Fused Probe
+        // Legacy Fallback Reader: Extracting missing content from R2
+        // V19.2 Telemetry: Track fallback rate
+        console.warn(`[TELEMETRY] vfs_fallback_event: ${fullId} (Missing: ${!html ? 'HTML' : ''} ${mesh.length === 0 ? 'Mesh' : ''})`);
+
+        // 1. Recover README/Markdown/Content
         if (!html) {
             const fusedPack = await fetchCompressedJSON(fusedPath);
             if (fusedPack) {
-                const fHtml = fusedPack.html_readme || fusedPack.body || fusedPack.content_html || fusedPack.readme_html || null;
-                html = fHtml;
-                Object.assign(entityPack, { ...fusedPack, html_readme: fHtml });
+                const recoveredHtml = fusedPack.html_readme || fusedPack.body_content || fusedPack.body || fusedPack.content_html || fusedPack.readme_html || fusedPack.readme || null;
+                html = recoveredHtml;
+                // Field Promotion (V19.5): Ensure Engine 2 metadata overwrites partial/missing VFS data
+                Object.assign(entityPack, {
+                    ...entityPack,
+                    ...fusedPack,
+                    html_readme: recoveredHtml,
+                    // Ensure the VFS ID and Type (Anchors) are preserved just in case
+                    id: entityPack.id || fusedPack.id,
+                    type: entityPack.type || fusedPack.type
+                });
             }
         }
 
-        // Legacy Mesh Probe
+        // 2. Recover Knowledge Mesh Relations
         if (mesh.length === 0) {
             for (const mPath of meshCandidates) {
                 const meshPack = await fetchCompressedJSON(mPath);
                 if (meshPack) {
-                    mesh = meshPack.relations || meshPack.nodes || [];
-                    break;
+                    const recoveredMesh = meshPack.relations || meshPack.nodes || meshPack.links || [];
+                    if (recoveredMesh.length > 0) {
+                        mesh = recoveredMesh;
+                        entityPack.relations = recoveredMesh; // Persistent hydration
+                        break;
+                    }
                 }
             }
         }

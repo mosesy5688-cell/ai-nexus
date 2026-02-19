@@ -191,6 +191,10 @@ const canonicalPath = dataset ? getRouteFromId(dataset.id || datasetId, 'dataset
               <FNITrustPanel 
                 fniScore={dataset.fni_score}
                 fniPercentile={dataset.fni_percentile}
+                fniP={dataset.fni_p}
+                fniV={dataset.fni_v}
+                fniC={dataset.fni_c}
+                fniU={dataset.fni_u}
                 fniCommentary={dataset.fni_commentary}
                 modelName={datasetName}
                 modelId={datasetId}

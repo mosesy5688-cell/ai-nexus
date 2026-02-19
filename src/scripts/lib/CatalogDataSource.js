@@ -19,7 +19,14 @@ export class CatalogDataSource {
 
         this.engine = new MiniSearch({
             fields: ['name', 'author', 'description', 'tags'],
-            storeFields: ['id', 'name', 'type', 'fni_score', 'slug', 'description', 'author'],
+            storeFields: [
+                'id', 'name', 'type', 'fni_score', 'fni_percentile',
+                // V19.5 Data Parity: FNI Sub-scores
+                'fni_p', 'fni_v', 'fni_c', 'fni_u',
+                // V19.5 Data Parity: Technical Params
+                'params_billions', 'context_length', 'architecture',
+                'slug', 'description', 'author'
+            ],
             idField: 'id',
             searchOptions: {
                 boost: { name: 3, author: 1.5 },

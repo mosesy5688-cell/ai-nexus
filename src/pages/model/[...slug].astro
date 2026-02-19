@@ -186,7 +186,12 @@ const canonicalPath = model ? getRouteFromId(model.id || model.umid || slugStr, 
               <FNITrustPanel 
                 fniScore={model.fni_score} 
                 fniPercentile={model.fni_percentile} 
-                id={model.id}
+                fniP={model.fni_p}
+                fniV={model.fni_v}
+                fniC={model.fni_c}
+                fniU={model.fni_u}
+                modelName={modelName}
+                modelId={modelId}
                 history={model.fni_history}
               />
             )}

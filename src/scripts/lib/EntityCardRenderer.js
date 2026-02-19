@@ -69,31 +69,33 @@ export class EntityCardRenderer {
         }
 
         return `
-            <a href="${link}" class="entity-card group p-3 bg-white dark:bg-zinc-900 rounded-md transition-all border border-zinc-100 dark:border-zinc-800 hover:border-blue-500/50 block h-full flex flex-col">
+            <a href="${link}" data-astro-prefetch class="entity-card group p-3 bg-white dark:bg-zinc-900 rounded-md transition-all border border-zinc-100 dark:border-zinc-800 hover:border-blue-500/50 block h-full flex flex-col" data-entity-id="${id}" data-entity-type="${type}">
                 <div class="flex items-center justify-between mb-2">
                      <div class="flex items-center gap-2">
                          <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${typeBadgeColor}">${typeLabel}</span>
                          ${isActive ? '<span class="w-1 h-1 rounded-full bg-emerald-500 shrink-0" title="Recently updated"></span>' : ''}
                      </div>
-                     ${(fni > 0 || fniPercentile) ? `
-                        <div class="flex items-center gap-1 px-1.5 py-0.5 rounded ${fniBadgeClass} border border-black/5 dark:border-white/5">
-                            <span class="text-[9px] font-bold">${fni > 0 ? fni : ''}</span>
-                            ${(fniPercentile && typeof fniPercentile === 'string' && fniPercentile.startsWith('top_')) ?
+                     <div class="flex items-center gap-2">
+                         ${(fni > 0 || fniPercentile) ? `
+                            <div class="flex items-center gap-1 px-1.5 py-0.5 rounded ${fniBadgeClass} border border-black/5 dark:border-white/5">
+                                <span class="text-[9px] font-bold">${fni > 0 ? fni : ''}</span>
+                                ${(fniPercentile && typeof fniPercentile === 'string' && fniPercentile.startsWith('top_')) ?
                     `<span class="text-[8px] opacity-80 font-bold border-l border-current/20 pl-1">${fniPercentile.replace('top_', 'Top ')}</span>`
                     : (fniPercentile && typeof fniPercentile === 'number' && fniPercentile >= 90) ?
                         `<span class="text-[8px] opacity-80 font-bold border-l border-current/20 pl-1">Top ${100 - fniPercentile}%</span>`
                         : ''}
-                        </div>
-                     ` : ''}
+                            </div>
+                         ` : ''}
+                     </div>
                 </div>
                 
-                <h3 class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1 mb-0.5" title="${displayTitle}">
+                <h3 class="text-xs sm:text-sm font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-1 mb-1.5" title="${displayTitle}">
                     ${displayTitle}
                 </h3>
                 
-                <p class="text-[10px] text-gray-400 dark:text-zinc-500 mb-2 uppercase tracking-tight font-bold">by ${author}</p>
+                <p class="text-[9px] sm:text-[10px] text-gray-400 dark:text-zinc-500 mb-2 uppercase tracking-tight font-bold italic">by ${author}</p>
                 
-                <p class="text-[11px] text-gray-600 dark:text-zinc-400 line-clamp-2 mb-3 flex-grow leading-snug">
+                <p class="text-[10px] sm:text-[11px] text-gray-600 dark:text-zinc-400 line-clamp-2 mb-3 flex-grow leading-tight">
                     ${cleanDesc}
                 </p>
 

@@ -157,6 +157,23 @@ const canonicalPath = paper ? getRouteFromId(paper.id || paperId, 'paper') : und
 
     {paper && (
       <div slot="deep-dive" class="space-y-12">
+         {/* Zone 4.1: Developer Trust & Verification */}
+         <div class="space-y-8">
+            {paper.fni_score !== undefined && (
+              <FNITrustPanel 
+                fniScore={paper.fni_score}
+                fniPercentile={paper.fni_percentile}
+                fniP={paper.fni_p}
+                fniV={paper.fni_v}
+                fniC={paper.fni_c}
+                fniU={paper.fni_u}
+                fniCommentary={paper.fni_commentary}
+                modelName={paperTitle}
+                modelId={paperId}
+              />
+            )}
+         </div>
+
          {/* Zone 4.2: Primary Documentation / Technical Content */}
          <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
             <PaperDeepDive paper={paper} />

@@ -182,6 +182,10 @@ const canonicalPath = agent ? getRouteFromId(agent.id || normalizedSlug, 'agent'
               <FNITrustPanel 
                 fniScore={agent.fni_score}
                 fniPercentile={agent.fni_percentile}
+                fniP={agent.fni_p}
+                fniV={agent.fni_v}
+                fniC={agent.fni_c}
+                fniU={agent.fni_u}
                 fniCommentary={agent.fni_commentary}
                 modelName={agentName}
                 modelId={agentId}

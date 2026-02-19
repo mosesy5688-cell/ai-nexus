@@ -1,6 +1,5 @@
 /** Unified Entity Hydrator (V16.5) */
-import { applyVramLogic } from './entity-vram-logic.js';
-import { handleModelType, handlePaperType, handleGenericType, heuristicMining, mineRelations } from './entity-type-handlers.js';
+import { beautifyName, beautifyAuthor, extractTechSpecs } from './entity-utils.js';
 
 export function hydrateEntity(data, type, summaryData) {
     if (!data) return null;
@@ -28,6 +27,11 @@ export function hydrateEntity(data, type, summaryData) {
         fni_percentile: computed.fni_percentile ?? entity.fni_percentile ?? entity.percentile,
         fni_commentary: computed.fni_commentary || entity.fni_commentary || meta.fni?.commentary || null,
         fni_metrics: computed.fni_metrics || entity.fni_metrics || meta.fni?.metrics || {},
+        // V16.4.1 FNI Sub-score Promotion
+        fni_p: computed.fni_p ?? entity.fni_p ?? entity.fniP ?? meta.fni?.p ?? meta.p ?? 0,
+        fni_v: computed.fni_v ?? entity.fni_v ?? entity.fniV ?? meta.fni?.v ?? meta.v ?? 0,
+        fni_c: computed.fni_c ?? entity.fni_c ?? entity.fniC ?? meta.fni?.c ?? meta.c ?? 0,
+        fni_u: computed.fni_u ?? entity.fni_u ?? entity.fniU ?? meta.fni?.u ?? meta.u ?? 0,
         name: derivedName,
         relations: computed.relations || entity.relations || meta.extended?.relations || meta.relations || {},
         body_content: entity.body_content || meta.html_readme || meta.readme || null,
@@ -56,79 +60,22 @@ export function hydrateEntity(data, type, summaryData) {
 
     // Elastic Parameter Inference
     if (!hydrated.params_billions || hydrated.params_billions <= 0) {
-        const idStr = (hydrated.id || '').toLowerCase();
-        const paramMatch = idStr.match(/(\d+)([bm])$/);
-        if (paramMatch) {
-            const val = parseFloat(paramMatch[1]);
-            const unit = paramMatch[2];
-            hydrated.params_billions = unit === 'b' ? val : val / 1000;
+        const pVal = entity.params || meta.params || meta.technical?.parameters_b || meta.technical?.size_b || 0;
+        if (pVal > 0) {
+            hydrated.params_billions = parseFloat(pVal);
+        } else {
+            const idStr = (hydrated.id || '').toLowerCase();
+            const paramMatch = idStr.match(/(\d+)([bm])$/);
+            if (paramMatch) {
+                const val = parseFloat(paramMatch[1]);
+                const unit = paramMatch[2];
+                hydrated.params_billions = unit === 'b' ? val : val / 1000;
+            }
         }
     }
 
     if (type === 'model') applyVramLogic(hydrated);
     return hydrated;
-}
-function beautifyName(hydrated) {
-    // V16.8.30 FIX: If we already have a human-readable name (from data unwrap), PROTECT IT.
-    // Only beautify if it's missing, looks like a lone ID, or is a terminal "Unknown".
-    // V16.9.2: Reinforced trigger - always beautify if it's a slug, contains double hyphens or matches raw ID
-    const isSlug = hydrated.name && !hydrated.name.includes(' ') && (hydrated.name.includes('-') || hydrated.name.includes('_') || hydrated.name.includes('--'));
-    const isArXivID = /^\d{4}\.\d{4,5}$/.test(hydrated.name || '');
-    const matchesId = hydrated.name === hydrated.id;
-    const hasValidName = hydrated.name && hydrated.name !== 'Unknown' && hydrated.name !== 'Unknown Model' && hydrated.name !== 'Unknown Entity';
-
-    if (!hasValidName || isSlug || matchesId || isArXivID) {
-        // V16.7: Handle SPEC-ID-V2.0 depth (e.g. hf-model--author--name)
-        const id = hydrated.id || '';
-        const parts = id.split('--');
-        const rawName = parts[parts.length - 1] || id || 'Unknown Entity';
-
-        if (isArXivID || /^\d{4}\.\d{4,5}$/.test(rawName)) {
-            // Paper Identity Protection: Keep the ID but prefix it for clarity if Title is missing
-            hydrated.name = `Paper ${rawName}`;
-        } else {
-            // Clean and Title Case
-            hydrated.name = rawName
-                .replace(/[-_]/g, ' ')
-                .split(' ')
-                .filter(Boolean)
-                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-                .join(' ');
-        }
-
-        // Final sanity check for empty or nonsense names
-        if (!hydrated.name || hydrated.name === 'Model' || hydrated.name === 'Agent') {
-            hydrated.name = rawName || 'Deep Insight Node';
-        }
-    }
-}
-
-/** Reconstructs Provider/Author from ID segments */
-function beautifyAuthor(hydrated) {
-    const id = hydrated.id || '';
-    const parts = id.split('--');
-
-    // If author is missing or looks like a raw slug, reconstruct
-    const hasValidAuthor = hydrated.author && hydrated.author !== 'Unknown' && !hydrated.author.includes('-') && hydrated.author !== '';
-
-    if (!hasValidAuthor && parts.length >= 2) {
-        // Source is usually the first part, author is the middle part(s)
-        // SPEC-ID-V2.1 Formula: {source_prefix}-{type_prefix}--{owner}--{name}
-        // hf-model--meta-llama--llama-3-8b -> author is meta-llama
-        const rawAuthor = (parts.length > 2) ? parts[parts.length - 2] : parts[0];
-
-        hydrated.author = rawAuthor
-            .replace(/[-_]/g, ' ')
-            .split(' ')
-            .filter(Boolean)
-            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-            .join(' ');
-
-        // Final fallback for standalone IDs
-        if (!hydrated.author || hydrated.author === 'Hf' || hydrated.author === 'Gh') {
-            hydrated.author = 'Independent / Community';
-        }
-    }
 }
 
 function attemptWarmCacheFallback(hydrated, summaryData) {
@@ -150,92 +97,6 @@ function attemptWarmCacheFallback(hydrated, summaryData) {
         hydrated.fni_score = hydrated.fni_score || fallback.fni_score || fallback.fni;
     }
 }
-
-function extractTechSpecs(hydrated, entity, meta) {
-    const config = entity.config || meta.config || meta.extended?.config || {};
-
-    // V16.96: Enhanced extraction from nested config (Ghost Fields)
-    const getVal = (paths, fallback = null) => {
-        for (const path of paths) {
-            const val = path.split('.').reduce((obj, key) => obj?.[key], config);
-            if (val !== undefined && val !== null) return val;
-        }
-        return fallback;
-    };
-
-    hydrated.context_length = hydrated.context_length || meta.extended?.context_length ||
-        getVal(['max_position_embeddings', 'n_ctx', 'max_seq_len', 'max_sequence_length', 'model_max_length', 'seq_length', 'n_positions']);
-
-    hydrated.architecture = hydrated.architecture || meta.extended?.architecture ||
-        getVal(['model_type', 'architectures.0', 'arch']);
-
-    hydrated.params_billions = parseFloat(hydrated.params_billions || meta.extended?.params_billions ||
-        getVal(['num_parameters', 'n_params', 'safetensors.total']) || 0) || null;
-
-    // V16.20: Heuristic Parameter Extraction from Name
-    if (!hydrated.params_billions && hydrated.name) {
-        // Match 7b, 7B, 7.5b, 70B etc.
-        const pMatch = hydrated.name.match(/(\d+(\.\d+)?)\s?[Bb]([iI][lL])?/);
-        if (pMatch) hydrated.params_billions = parseFloat(pMatch[1]);
-    }
-
-    // V16.96.2: Universal Field Promotion (Restoring "Ghost Fields")
-    if (meta.params && !hydrated.params_billions) {
-        hydrated.params_billions = parseFloat(meta.params);
-    }
-    if (meta.storage_bytes && !hydrated.size_kb) {
-        hydrated.size_kb = Math.round(meta.storage_bytes / 1024);
-    }
-    const quant = meta.config?.quantization_config?.quant_method || meta.config?.quantization_config?.bits;
-    if (quant && !hydrated.quant_bits) {
-        hydrated.quant_bits = typeof quant === 'number' ? quant : (parseInt(quant) || null);
-    }
-
-    // V16.20: Heuristic Context Extraction from Name (e.g. 128k, 32K)
-    if (!hydrated.context_length && hydrated.name) {
-        const cMatch = hydrated.name.match(/(\d+)\s?[Kk]([wW]|[tT])?/);
-        if (cMatch) {
-            const kVal = parseInt(cMatch[1]);
-            if (!isNaN(kVal)) hydrated.context_length = kVal * 1024;
-        }
-    }
-
-    // V16.21: Parameter-Scale Defaults for Sparse LLMs
-    if (!hydrated.context_length && hydrated.params_billions) {
-        hydrated.context_length = 4096; // Conservative default for modern LLMs
-    }
-
-    hydrated.num_layers = hydrated.num_layers || config.num_hidden_layers || config.n_layer || config.n_layers;
-    hydrated.hidden_size = hydrated.hidden_size || config.hidden_size || config.n_embd || config.d_model || config.dim;
-    hydrated.num_heads = hydrated.num_heads || config.num_attention_heads || config.n_head || config.n_heads;
-
-    // V16.5: MoE & Ghost Field Extraction
-    hydrated.moe_experts = getVal(['num_local_experts', 'num_experts', 'n_experts', 'moe.num_experts']);
-    hydrated.moe_active = getVal(['num_experts_per_tok', 'num_active_experts', 'n_active_experts']);
-    hydrated.kv_heads = getVal(['num_key_value_heads', 'multi_query_attention', 'n_kv_heads']);
-    hydrated.vocab_size = getVal(['vocab_size', 'n_vocab']);
-    hydrated.tie_weights = getVal(['tie_word_embeddings'], false);
-
-    if (!hydrated.body_content) {
-        hydrated.body_content = entity.html_readme || entity.htmlFragment || meta.html_readme || meta.htmlFragment || meta.extended?.html_readme || entity.body_content || entity.readme || meta.readme || meta.model_card || meta.description || meta.abstract || null;
-    }
-
-    // V16.5: Heuristic README Mining (Deep Spec Recovery)
-    heuristicMining(hydrated);
-
-    // Auto-extract gallery images from body content
-    if (hydrated.body_content && (!hydrated.gallery_images || hydrated.gallery_images.length === 0)) {
-        const imgRegex = /!\[.*?\]\((.*?)\)/g;
-        const images = [];
-        let m;
-        while ((m = imgRegex.exec(hydrated.body_content)) !== null) {
-            if (m[1] && !images.includes(m[1])) images.push(m[1]);
-        }
-        hydrated.gallery_images = images.slice(0, 6);
-    }
-}
-
-
 
 export function augmentEntity(hydrated, summaryData) {
     if (!hydrated || !summaryData) return hydrated;

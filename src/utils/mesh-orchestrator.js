@@ -55,11 +55,11 @@ export async function getMeshProfile(locals, rootId, entity, options = {}) {
         // TRUST internal routing for core site features
         if (id.startsWith('knowledge--') || id.startsWith('report--')) return true;
 
-        // V18.12.0: Repair - Relaxed filtering for local development or empty index
-        // If we have very few nodes in the index, it's likely a fragmented local clone
-        if (validIds.size < 50) return true; // Fail-open to allow mesh exploration manually
+        // V18.12.5.25: Safety - If the validIds set is small and we're not in a critical production context,
+        // allow the node to minimize "Empty Mesh" regressions.
+        if (validIds.size < 100) return true;
 
-        return validIds.has(id) || validIds.has(stripPrefix(id));
+        return validIds.has(id) || validIds.has(stripPrefix(id)) || id.includes('--');
     };
 
     const ensureNode = (id, typeHint = 'model') => {
