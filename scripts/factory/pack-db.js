@@ -1,163 +1,110 @@
 /**
- * V19.0 SQLite DB Packer (Sequential Batching)
- * 
- * Features:
- * - Sequential processing (O(1) Memory usage for 670k entities)
- * - Page Alignment (8192 bytes)
- * - Bundle Object Strategy (Externalizes heavy fields > 50KB)
- * - Contentless FTS5 Indexing
- * - Production-level PRAGMAs (VACUUM, journal_mode=OFF)
+ * V19.2 Sharded Binary DB Packer (Stable 1.0 Ratified)
+ * Architecture: Modular (CES Compliant)
  */
 
 import Database from 'better-sqlite3';
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
-import { loadRegistryShardsSequentially } from './lib/registry-loader.js';
+import crypto from 'crypto';
+import { loadTrendingMap, loadTrendMap, collectAndSortMetadata } from './lib/pack-utils.js';
 
-const DB_PATH = './data/content.db';
-const ASSET_BUNDLE_DIR = './data/bundles';
+const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
+const DB_PATH = './output/data/content.db';
+const SHARD_PATH_DIR = './output/data';
 const THRESHOLD_KB = 50;
+const MAX_SHARD_SIZE = 256 * 1024 * 1024;
 
 async function packDatabase() {
-    console.log('[VFS] Initializing A-Grade DB Packing Sequence...');
+    console.log('[VFS] 💎 Commencing Stable 1.0 DB Packing (Modular)...');
 
-    // Ensure output directories exist
     await fs.mkdir(path.dirname(DB_PATH), { recursive: true });
-    await fs.mkdir(ASSET_BUNDLE_DIR, { recursive: true });
+    if (await fs.stat(DB_PATH).catch(() => null)) await fs.unlink(DB_PATH);
 
-    // 1. Create/Open Database
-    if (await fs.stat(DB_PATH).catch(() => null)) {
-        await fs.unlink(DB_PATH);
-    }
+    const trendingMap = await loadTrendingMap(CACHE_DIR);
+    const trendMap = await loadTrendMap(CACHE_DIR);
+    const metadataBatch = await collectAndSortMetadata(CACHE_DIR, trendingMap, trendMap);
+
     const db = new Database(DB_PATH);
-
-    // 2. Set Industrial Pragmas (BEFORE schema creation)
-    db.pragma('page_size = 8192');
-    db.pragma('auto_vacuum = NONE');
-    db.pragma('journal_mode = OFF');
+    db.pragma('page_size = 4096');
+    db.pragma('auto_vacuum = 0');
+    db.pragma('journal_mode = DELETE');
     db.pragma('synchronous = OFF');
-    db.pragma('mmap_size = 134217728'); // 128MB Mapping
+    db.pragma('encoding = "UTF-8"');
 
-    try {
-        // 3. Define Schema
-        db.exec(`
-            -- Metadata Table (Hot Data)
-            CREATE TABLE entities (
-                id TEXT PRIMARY KEY,
-                umid TEXT UNIQUE,
-                slug TEXT,
-                name TEXT,
-                type TEXT,
-                author TEXT,
-                summary TEXT,
-                fni_score REAL,
-                fni_percentile TEXT,
-                stars INTEGER,
-                downloads INTEGER,
-                last_modified TEXT,
-                bundle_key TEXT -- Pointer to R2 Bundle Object
+    db.exec(`
+        CREATE TABLE entities (
+            id TEXT PRIMARY KEY, umid TEXT UNIQUE, slug TEXT, name TEXT, type TEXT, author TEXT, summary TEXT, 
+            fni_score REAL, fni_percentile TEXT, is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
+            last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT
+        );
+        CREATE INDEX idx_fni ON entities(fni_score DESC);
+        CREATE VIRTUAL TABLE search USING fts5(name, summary, author, content='', tokenize='unicode61 remove_diacritics 2');
+    `);
+
+    const insertEntity = db.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertFts = db.prepare(`INSERT INTO search (rowid, name, summary, author) VALUES (?, ?, ?, ?)`);
+
+    let currentShardId = 0, currentShardSize = 0, currentShardHandle = null;
+    const stats = { packed: 0, heavy: 0, bytes: 0 };
+
+    const openShard = () => {
+        if (currentShardId >= 64) { console.error('❌ Shard limit exceeded'); process.exit(1); }
+        if (currentShardHandle) currentShardHandle.end();
+        const name = `fused-shard-${String(currentShardId).padStart(3, '0')}.bin`;
+        currentShardHandle = fsSync.createWriteStream(path.join(SHARD_PATH_DIR, name));
+        currentShardSize = 0;
+        return name;
+    };
+
+    let currentShardName = openShard();
+
+    db.transaction(() => {
+        for (const e of metadataBatch) {
+            const bundleJson = Buffer.from(JSON.stringify({
+                readme: e.readme || e.html_readme || '',
+                changelog: e.changelog || '',
+                benchmarks: e.benchmarks || [],
+                paper_abstract: e.paper_abstract || '',
+                mesh_profile: e.mesh_profile || { relations: [] }
+            }), 'utf8');
+
+            let bundleKey = null, offset = 0, size = 0;
+            if (bundleJson.length > THRESHOLD_KB * 1024) {
+                const padding = (8192 - (currentShardSize % 8192)) % 8192;
+                if (padding > 0) { currentShardHandle.write(Buffer.alloc(padding, 0)); currentShardSize += padding; }
+                if (currentShardSize + bundleJson.length > MAX_SHARD_SIZE) { currentShardId++; currentShardName = openShard(); }
+                bundleKey = `data/${currentShardName}`; offset = currentShardSize; size = bundleJson.length;
+                currentShardHandle.write(bundleJson); currentShardSize += size; stats.heavy++; stats.bytes += size;
+            }
+
+            const res = insertEntity.run(
+                e.id, e.umid || e.id, e.slug || '', e.name || e.displayName || '', e.type || 'model',
+                e.author || '', e.summary || '', e.fni_score || 0, e.fni_percentile || '', e.is_trending ? 1 : 0,
+                e.stars || 0, e.downloads || 0, e.last_modified || '', bundleKey, offset, size, '', e._trend_7d
             );
-
-            CREATE INDEX idx_type ON entities(type);
-            CREATE INDEX idx_slug ON entities(slug);
-
-            -- Contentless FTS5 Table (Search Plane)
-            CREATE VIRTUAL TABLE search USING fts5(
-                name,
-                summary,
-                author,
-                content='', -- Contentless mode
-                tokenize='unicode61 remove_diacritics 2'
-            );
-        `);
-
-        // 4. Batch Inserter Logic
-        const insertEntity = db.prepare(`
-            INSERT INTO entities (id, umid, slug, name, type, author, summary, fni_score, fni_percentile, stars, downloads, last_modified, bundle_key)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-        const insertFts = db.prepare(`INSERT INTO search (rowid, name, summary, author) VALUES (?, ?, ?, ?)`);
-
-        let count = 0;
-        let batchStart = Date.now();
-
-        // 5. Sequential Streaming (The OOM Guard)
-        await loadRegistryShardsSequentially(async (entities, shardIndex) => {
-            const transaction = db.transaction((batch) => {
-                for (const e of batch) {
-                    const umid = e.umid || e.id;
-                    const heavyAssets = {};
-
-                    // Bundle Strategy: Segregate fields > THRESHOLD_KB
-                    const bundleData = {
-                        readme: e.readme || e.html_readme || '',
-                        changelog: e.changelog || '',
-                        benchmarks: e.benchmarks || [],
-                        paper_abstract: e.paper_abstract || ''
-                    };
-
-                    const bundleJson = JSON.stringify(bundleData);
-                    const isHeavy = bundleJson.length > THRESHOLD_KB * 1024;
-                    const bundleKey = isHeavy ? `bundles/${umid}.json` : null;
-
-                    if (isHeavy) {
-                        // Mark for external storage (Factory will upload this to R2)
-                        // In practice, we write it to a local file for the 'upload' stage to pick up
-                        heavyAssets.json = bundleJson;
-                        heavyAssets.path = path.join(ASSET_BUNDLE_DIR, `${umid}.json`);
-                    }
-
-                    // V19.0-FIX: Apply same fallback chain as registry-loader.js projectEntity()
-                    const entityName = e.name || e.title || e.displayName || '';
-                    const entityAuthor = e.author || e.creator || e.organization || '';
-                    const entityDesc = e.description || e.summary || '';
-                    const entitySlug = e.slug || '';
-                    const entityFni = e.fni_score ?? e.fni ?? 0;
-                    const entityPercentile = e.fni_percentile || e.percentile || '';
-                    const entityStars = e.stars || e.github_stars || 0;
-                    const entityDownloads = e.downloads || 0;
-                    const entityModified = e.last_modified || e.last_updated || e.lastModified || e._updated || '';
-
-                    // Insert Metadata
-                    const result = insertEntity.run(
-                        e.id, umid, entitySlug, entityName, e.type || 'model',
-                        entityAuthor, entityDesc, entityFni,
-                        entityPercentile, entityStars, entityDownloads,
-                        entityModified, bundleKey
-                    );
-
-                    // Insert FTS (rowid links to entities.rowid)
-                    insertFts.run(result.lastInsertRowid, entityName, entityDesc, entityAuthor);
-
-                    count++;
-                }
-            });
-
-            transaction(entities);
-            console.log(`[VFS] Shard ${shardIndex} Processed. Total: ${count}. Rate: ${Math.round(count / ((Date.now() - batchStart) / 1000))} ent/s`);
-        }, { slim: false });
-
-        // 6. Final Stabilization
-        console.log('[VFS] Freezing DB...');
-        db.exec("INSERT INTO search(search) VALUES('optimize');");
-        db.exec("INSERT INTO search(search) VALUES('optimize');"); // Double Optimize
-        db.exec("PRAGMA integrity_check;");
-        db.exec("VACUUM;");
-
-        const finalSize = (await fs.stat(DB_PATH)).size;
-        console.log(`[VFS] Pack Complete! Final Size: ${(finalSize / 1024 / 1024).toFixed(2)} MB`);
-
-        if (finalSize > 600 * 1024 * 1024) {
-            console.error('🚨 SCALE GUARD BREACH: content.db exceeds 600MB!');
-            process.exit(1);
+            insertFts.run(res.lastInsertRowid, e.name || '', e.summary || '', e.author || '');
+            if (++stats.packed % 20000 === 0) console.log(`[VFS] Packed ${stats.packed}...`);
         }
+    })();
+    if (currentShardHandle) currentShardHandle.end();
 
-    } catch (err) {
-        console.error('[VFS] Packing Failed:', err);
-        process.exit(1);
-    } finally {
-        db.close();
+    console.log('[VFS] Finalizing hashes...');
+    const manifest = {};
+    for (let i = 0; i <= currentShardId; i++) {
+        const name = `fused-shard-${String(i).padStart(3, '0')}.bin`;
+        const file = path.join(SHARD_PATH_DIR, name);
+        if (fsSync.existsSync(file)) {
+            const hash = crypto.createHash('sha256').update(fsSync.readFileSync(file)).digest('hex');
+            manifest[`data/${name}`] = hash;
+            db.prepare('UPDATE entities SET shard_hash = ? WHERE bundle_key = ?').run(hash, `data/${name}`);
+        }
     }
+    await fs.writeFile(path.join(SHARD_PATH_DIR, 'shards_manifest.json'), JSON.stringify(manifest));
+    db.exec("INSERT INTO search(search) VALUES('optimize'); PRAGMA integrity_check; VACUUM;");
+    db.close();
+    console.log(`[VFS] ✅ Packing Complete! Total: ${stats.packed}, Heavy: ${stats.heavy}, Shards: ${currentShardId + 1}`);
 }
 
-packDatabase();
+packDatabase().catch(err => { console.error('❌ Failure:', err); process.exit(1); });

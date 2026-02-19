@@ -458,53 +458,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 1
 
-  # V19.0: Pack SQLite DB for VFS search
-  aggregate-packdb:
-    name: "Agg: Pack DB"
-    needs: merge-core
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm' }
-      - run: npm ci
-      - name: Restore Core Registry from Cache
-        uses: actions/cache/restore@v4
-        with:
-          path: output/
-          key: intra-cycle-${{ github.run_id }}-core
-      - name: Restore Registry Shards for Pack-DB
-        run: |
-          # pack-db reads from cache/registry/ via registry-loader
-          mkdir -p cache/registry
-          if [ -d "output/cache/registry" ]; then
-            cp output/cache/registry/*.json.gz cache/registry/ 2>/dev/null || true
-            echo "✅ Copied $(ls cache/registry/*.json.gz 2>/dev/null | wc -l) registry shards"
-          else
-            echo "⚠️ No registry shards in output/cache/registry. Checking global registry..."
-          fi
-      - name: Generate content.db
-        run: |
-          mkdir -p data
-          node scripts/factory/pack-db.js
-          # Verify output
-          if [ ! -f "data/content.db" ]; then
-            echo "❌ ERROR: content.db was not generated!"
-            exit 1
-          fi
-          DB_SIZE=$(du -h data/content.db | cut -f1)
-          echo "✅ content.db generated: $DB_SIZE"
-      - name: Upload Pack-DB Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: agg-packdb
-          path: data/
-          if-no-files-found: error
-          retention-days: 1
 
   finalize:
     name: Finalize Aggregation
-    needs: [aggregate-search, aggregate-rankings, aggregate-trending, aggregate-relations, aggregate-sitemap, aggregate-packdb]
+    needs: [aggregate-search, aggregate-rankings, aggregate-trending, aggregate-relations, aggregate-sitemap]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository

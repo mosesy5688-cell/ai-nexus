@@ -1,25 +1,26 @@
 /**
- * Sitemap Generator Module V14.4
- * Constitution Reference: Art 3.1 (Aggregator Phase 2)
+ * Sitemap Generator Module V19.2 (VFS Streaming)
  * 
- * Generates sitemap XML files from entity data
- * - 45,000 URL limit per file (below Google's 50K limit)
- * - Gzip compression
- * - Auto-pagination
+ * Features:
+ * - VFS High-Parity: Queries content.db directly for entity routes.
+ * - Memory Efficiency: Uses streaming cursor (O(1) Memory).
+ * - Multi-Index Paging: 45,000 URLs per file limit.
+ * - Gzip compression.
  */
 
 import fs from 'fs/promises';
 import path from 'path';
 import zlib from 'zlib';
 import { promisify } from 'util';
+import Database from 'better-sqlite3';
 import { getRouteFromId, getTypeFromId } from '../../../src/utils/mesh-routing-core.js';
 
 const gzip = promisify(zlib.gzip);
 
 const BASE_URL = 'https://free2aitools.com';
 const MAX_URLS_PER_FILE = 45000;
+const BATCH_SIZE = 5000;
 
-// Static pages configuration
 const STATIC_PAGES = [
     { path: '/', priority: '1.0', changefreq: 'daily' },
     { path: '/ranking', priority: '0.9', changefreq: 'daily' },
@@ -33,7 +34,6 @@ const STATIC_PAGES = [
     { path: '/reports', priority: '0.6', changefreq: 'daily' },
     { path: '/methodology', priority: '0.5', changefreq: 'monthly' },
     { path: '/about', priority: '0.4', changefreq: 'monthly' },
-    // Category pages
     { path: '/text-generation', priority: '0.8', changefreq: 'daily' },
     { path: '/knowledge-retrieval', priority: '0.7', changefreq: 'daily' },
     { path: '/vision-multimedia', priority: '0.7', changefreq: 'daily' },
@@ -41,9 +41,6 @@ const STATIC_PAGES = [
     { path: '/infrastructure-ops', priority: '0.7', changefreq: 'daily' },
 ];
 
-/**
- * Calculate priority based on FNI score
- */
 function calculatePriority(fniScore) {
     if (!fniScore || fniScore <= 0) return '0.3';
     if (fniScore >= 80) return '0.9';
@@ -53,9 +50,6 @@ function calculatePriority(fniScore) {
     return '0.4';
 }
 
-/**
- * Generate sitemap XML header
- */
 function sitemapHeader() {
     return `<?xml version="1.0" encoding="UTF-8"?>
 <?xml-stylesheet type="text/xsl" href="${BASE_URL}/sitemap.xsl"?>
@@ -63,9 +57,6 @@ function sitemapHeader() {
 `;
 }
 
-/**
- * Generate URL entry
- */
 function urlEntry(loc, priority, changefreq, lastmod) {
     return `  <url>
     <loc>${BASE_URL}${loc}</loc>
@@ -78,73 +69,107 @@ function urlEntry(loc, priority, changefreq, lastmod) {
 
 /**
  * Generate sitemap files
+ * @param {Array|string} source - Either an entity array (legacy) or path to content.db (new VFS)
  */
-export async function generateSitemap(entities, outputDir = './output') {
-    console.log('[SITEMAP] Generating sitemap...');
+export async function generateSitemap(source, outputDir = './output') {
+    console.log('[SITEMAP] 🗺️ Commencing VFS-Parity Sitemap Generation...');
 
     const sitemapDir = path.join(outputDir, 'sitemaps');
     await fs.mkdir(sitemapDir, { recursive: true });
 
-    // Collect all URLs
-    const urls = [];
-
-    // Add static pages
-    for (const page of STATIC_PAGES) {
-        urls.push({
-            loc: page.path,
-            priority: page.priority,
-            changefreq: page.changefreq,
-        });
-    }
-
-    // Add entity pages
-    for (const entity of entities) {
-        const id = entity.id || entity.slug || '';
-        const entityType = entity.type || entity.entity_type || getTypeFromId(id);
-        const route = getRouteFromId(id, entityType);
-
-        if (!route || route === '#') continue;
-
-        urls.push({
-            loc: route,
-            priority: calculatePriority(entity.fni || entity.fni_score),
-            changefreq: 'daily',
-            lastmod: entity._updated || entity.lastModified,
-        });
-    }
-
-    console.log(`  [SITEMAP] Total URLs: ${urls.length}`);
-
-    // Split into files (max 45K per file)
     const sitemapFiles = [];
-    const totalFiles = Math.ceil(urls.length / MAX_URLS_PER_FILE);
+    let currentUrlBatch = [];
+    let fileIndex = 1;
+    let totalUrls = 0;
 
-    for (let i = 0; i < totalFiles; i++) {
-        const start = i * MAX_URLS_PER_FILE;
-        const end = start + MAX_URLS_PER_FILE;
-        const pageUrls = urls.slice(start, end);
+    const flushBatch = async () => {
+        if (currentUrlBatch.length === 0) return;
 
+        const filename = `sitemap-${fileIndex}.xml`;
         let content = sitemapHeader();
-        for (const url of pageUrls) {
+        for (const url of currentUrlBatch) {
             content += urlEntry(url.loc, url.priority, url.changefreq, url.lastmod);
         }
         content += '</urlset>';
 
-        // Write regular XML
-        const filename = totalFiles === 1 ? 'sitemap.xml' : `sitemap-${i + 1}.xml`;
         await fs.writeFile(path.join(sitemapDir, filename), content);
-
-        // Write gzipped version
         const gzipped = await gzip(content);
         await fs.writeFile(path.join(sitemapDir, `${filename}.gz`), gzipped);
 
         sitemapFiles.push(filename);
-        console.log(`  [SITEMAP] ${filename}: ${pageUrls.length} URLs`);
+        console.log(`  [SITEMAP] Generated ${filename} with ${currentUrlBatch.length} URLs.`);
+
+        currentUrlBatch = [];
+        fileIndex++;
+    };
+
+    const addUrl = async (url) => {
+        currentUrlBatch.push(url);
+        totalUrls++;
+        if (currentUrlBatch.length >= MAX_URLS_PER_FILE) {
+            await flushBatch();
+        }
+    };
+
+    // 1. Add static pages to the first batch
+    for (const page of STATIC_PAGES) {
+        await addUrl({
+            loc: page.path,
+            priority: page.priority,
+            changefreq: page.changefreq
+        });
     }
 
-    // Generate sitemap index if multiple files
-    if (totalFiles > 1) {
+    // 2. Add entity pages from source
+    if (typeof source === 'string' && source.endsWith('.db')) {
+        // VFS Mode: Streaming from SQLite
+        console.log(`[SITEMAP] Mode: VFS Streaming (DB: ${source})`);
+        const db = new Database(source, { readonly: true });
+
+        const stmt = db.prepare('SELECT id, type, fni_score, last_modified FROM entities');
+        const cursor = stmt.iterate();
+
+        for (const entity of cursor) {
+            const id = entity.id;
+            const entityType = entity.type || getTypeFromId(id);
+            const route = getRouteFromId(id, entityType);
+
+            if (!route || route === '#') continue;
+
+            await addUrl({
+                loc: route,
+                priority: calculatePriority(entity.fni_score),
+                changefreq: 'daily',
+                lastmod: entity.last_modified
+            });
+        }
+        db.close();
+    } else if (Array.isArray(source)) {
+        // Legacy Mode: Memory array
+        console.log(`[SITEMAP] Mode: Legacy Array (Size: ${source.length})`);
+        for (const entity of source) {
+            const id = entity.id || entity.slug || '';
+            const entityType = entity.type || entity.entity_type || getTypeFromId(id);
+            const route = getRouteFromId(id, entityType);
+
+            if (!route || route === '#') continue;
+
+            await addUrl({
+                loc: route,
+                priority: calculatePriority(entity.fni || entity.fni_score),
+                changefreq: 'daily',
+                lastmod: entity.last_modified || entity._updated || entity.lastModified
+            });
+        }
+    }
+
+    await flushBatch();
+
+    // 3. Generate sitemap index
+    if (sitemapFiles.length > 0) {
         const today = new Date().toISOString().split('T')[0];
+
+        // Always generate index for stability, even if only 1 file
         let indexContent = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 `;
@@ -158,15 +183,14 @@ export async function generateSitemap(entities, outputDir = './output') {
         indexContent += '</sitemapindex>';
 
         await fs.writeFile(path.join(sitemapDir, 'sitemap-index.xml'), indexContent);
-        console.log(`  [SITEMAP] Index: ${sitemapFiles.length} sitemap files`);
+
+        // Final SEO Root Mirror
+        const mirrorSource = sitemapFiles.length === 1 ? sitemapFiles[0] : 'sitemap-index.xml';
+        await fs.copyFile(
+            path.join(sitemapDir, mirrorSource),
+            path.join(outputDir, 'sitemap.xml')
+        );
     }
 
-    // Copy main sitemap to root for compatibility
-    const mainSitemap = totalFiles === 1 ? 'sitemap.xml' : 'sitemap-index.xml';
-    await fs.copyFile(
-        path.join(sitemapDir, mainSitemap),
-        path.join(outputDir, 'sitemap.xml')
-    );
-
-    console.log(`[SITEMAP] Complete: ${urls.length} URLs in ${totalFiles} file(s)`);
+    console.log(`[SITEMAP] ✅ Complete: ${totalUrls} URLs in ${sitemapFiles.length} file(s).`);
 }
