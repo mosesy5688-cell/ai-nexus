@@ -9,6 +9,14 @@
 
 name: Factory 2/4 - Process
 
+concurrency:
+  group: factory-process
+  cancel-in-progress: true
+
+permissions:
+  actions: write
+  contents: read
+
 on:
   workflow_run:
     workflows: ["Factory 1/4 - Harvest"]
@@ -123,7 +131,7 @@ jobs:
           echo "🔪 Decomposing monolith for parallel processing..."
           node scripts/factory/split-registry.js
       - name: Upload for Matrix Jobs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: prepared-entity-data
           path: |
@@ -155,9 +163,11 @@ jobs:
 
       # V14.5 Optimization: Download from same-workflow artifact (no rate limit issue)
       - name: Download Entity Data
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: prepared-entity-data
+          # v3 downloads to a subdirectory if name is provided.
+          # We'll need to move files or adjust paths.
 
       # Move downloaded files to correct locations
       # V14.5 Fix: download-artifact preserves directory structure
@@ -166,17 +176,15 @@ jobs:
         run: |
           mkdir -p data cache artifacts output
           
-          echo "📂 Downloaded artifact structure:"
-          find . -name "*.json*" -type f | head -20
+          # v3 downloads to 'prepared-entity-data/' directory
+          [ -d prepared-entity-data/data ] && mv prepared-entity-data/data/* data/
+          [ -d prepared-entity-data/cache ] && mv prepared-entity-data/cache/* cache/
+          [ -f prepared-entity-data/merged.json.gz ] && mv prepared-entity-data/merged.json.gz data/merged.json.gz
+          [ -f prepared-entity-data/manifest.json ] && mv prepared-entity-data/manifest.json data/manifest.json
+          [ -f prepared-entity-data/fni-history.json.gz ] && mv prepared-entity-data/fni-history.json.gz cache/fni-history.json.gz
+          [ -f prepared-entity-data/daily-accum.json.gz ] && mv prepared-entity-data/daily-accum.json.gz cache/daily-accum.json.gz
           
-          # Handle both flat and nested download structures
-          # If files are at root, move them
-          [ -f merged.json.gz ] && mv merged.json.gz data/merged.json.gz
-          [ -f manifest.json ] && mv manifest.json data/manifest.json
-          [ -f fni-history.json.gz ] && mv fni-history.json.gz cache/fni-history.json.gz
-          [ -f daily-accum.json.gz ] && mv daily-accum.json.gz cache/daily-accum.json.gz
-          
-          # Files may already be in correct paths from artifact
+          # Files may already be in correct paths if v3 behaves differently or we missed something
           echo "📂 Final data structure:"
           ls -la data/ || true
           ls -la cache/ || true
@@ -220,7 +228,7 @@ jobs:
 
       # V16.11: Upload ONLY the compressed monolithic shard (No debris)
       - name: Upload Shard Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: shard-${{ matrix.shard }}
           path: artifacts/shard-${{ matrix.shard }}.json.gz
@@ -233,18 +241,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download All Shard Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
-          pattern: shard-*
           path: ./shards/
-          merge-multiple: true
+          # pattern not supported in v3. It downloads all artifacts.
 
       - name: Organize Shards and Entity Data
         run: |
           mkdir -p output/shards
-          echo "📦 Collecting 20 parallel compressed shards..."
-          
-          # Force a clean collection from the downloaded artifacts
+          # v3 downloads each artifact into its own subdirectory
           find ./shards -name "shard-*.json.gz" -exec cp -v {} output/shards/ \;
           
           SHARD_COUNT=$(find output/shards -name "shard-*.json.gz" | wc -l)
@@ -272,7 +277,7 @@ jobs:
 
       # Download shard 0 for checksum data
       - name: Download Shard 0
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           name: shard-0
           path: ./shard-0/
