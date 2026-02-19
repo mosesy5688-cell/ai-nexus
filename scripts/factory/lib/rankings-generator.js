@@ -4,6 +4,7 @@
  */
 
 import path from 'path';
+import { smartWriteWithVersioning } from './smart-writer.js';
 import { getV6Category } from './category-stats-generator.js';
 
 const CATEGORIES = [
