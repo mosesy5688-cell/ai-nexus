@@ -25,6 +25,9 @@ jobs:
     name: Global Health Audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: read
     
     steps:
       - name: Checkout Code

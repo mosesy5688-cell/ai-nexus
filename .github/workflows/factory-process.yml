@@ -9,6 +9,10 @@
 
 name: Factory 2/4 - Process
 
+permissions:
+  actions: write
+  contents: read
+
 on:
   workflow_run:
     workflows: ["Factory 1/4 - Harvest"]

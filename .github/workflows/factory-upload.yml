@@ -7,6 +7,11 @@
 
 name: Factory 4/4 - Finalize
 
+permissions:
+  actions: write
+  contents: read
+  id-token: write
+
 on:
   workflow_run:
     workflows: ["Factory 3/4 - Aggregate"]
@@ -28,11 +33,6 @@ env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   NODE_OPTIONS: '--max-old-space-size=6144'
   STRICT_R2_LOCKDOWN: 'true'
-
-permissions:
-  actions: write
-  contents: read
-  id-token: write
 
 jobs:
   check-upstream:

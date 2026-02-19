@@ -9,6 +9,10 @@
 
 name: Factory 3/4 - Aggregate
 
+permissions:
+  actions: write
+  contents: read
+
 on:
   workflow_run:
     workflows: ["Factory 2/4 - Process"]
