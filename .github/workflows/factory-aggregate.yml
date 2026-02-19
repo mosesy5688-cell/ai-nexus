@@ -357,7 +357,14 @@ jobs:
         with:
           name: agg-shards
           path: artifacts/
-      - name: Generate Trending
+      - name: Restore FNI History from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            cache/fni-history.json.gz
+            cache/fni-history/
+          key: fni-history-${{ github.run_id }}
+      - name: Generate Trending & Trends
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -368,11 +375,14 @@ jobs:
         run: |
           export NODE_OPTIONS="--max-old-space-size=6144"
           node scripts/factory/aggregator.js --task=trending
-      - name: Upload Trending Artifacts
+          node scripts/factory/aggregator.js --task=trend
+      - name: Upload Trending & Trend Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: agg-trending
-          path: output/cache/trending.json.gz
+          path: |
+            output/cache/trending.json.gz
+            output/cache/trend-data.json.gz
           if-no-files-found: warn
           retention-days: 1
 
@@ -455,6 +465,8 @@ jobs:
           # Move satellite outputs into cache if needed
           [ -f "output/trending.json.gz" ] && mv output/trending.json.gz output/cache/ || true
           [ -f "output/trending.json" ] && mv output/trending.json output/cache/ || true
+          [ -f "output/trend-data.json.gz" ] && mv output/trend-data.json.gz output/cache/ || true
+          [ -f "output/trend-data.json" ] && mv output/trend-data.json output/cache/ || true
           [ -f "output/category_stats.json.gz" ] && mv output/category_stats.json.gz output/cache/ || true
           [ -f "output/category_stats.json" ] && mv output/category_stats.json output/cache/ || true
           [ -f "output/relations.json.gz" ] && mv output/relations.json.gz output/cache/ || true
