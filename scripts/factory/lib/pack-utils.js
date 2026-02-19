@@ -59,30 +59,37 @@ export async function collectAndSortMetadata(cacheDir, trendingMap, trendMap) {
 
     if (fusedFiles.length === 0) throw new Error(`No fused entities found at ${fusedDir}`);
 
-    const metadataBatch = [];
+    const metadataMap = new Map();
     for (const file of fusedFiles) {
         const fullPath = path.join(fusedDir, file);
         try {
             const raw = await fs.readFile(fullPath);
             const entity = file.endsWith('.gz') ? JSON.parse(zlib.gunzipSync(raw)) : JSON.parse(raw);
             const id = entity.id || entity.slug;
+
+            // Deduplication: Prefer more recent or compressed if collision
+            if (metadataMap.has(id) && file.endsWith('.json')) continue;
+
             const trendingInfo = trendingMap.get(id) || { rank: 999999, is_trending: false };
 
-            metadataBatch.push({
+            metadataMap.set(id, {
                 ...entity,
                 _trending_rank: trendingInfo.rank,
                 is_trending: trendingInfo.is_trending,
                 _trend_7d: trendMap.get(id) || ''
             });
 
-            if (metadataBatch.length % 50000 === 0) console.log(`[VFS] Collected ${metadataBatch.length} items...`);
+            if (metadataMap.size % 50000 === 0) console.log(`[VFS] Collected ${metadataMap.size} unique items...`);
         } catch (e) {
             console.error(`[VFS] Failed to read ${file}:`, e.message);
         }
     }
 
+    const metadataBatch = Array.from(metadataMap.values());
+    metadataMap.clear();
+
     // Stable Popularity Sorting
-    console.log('[VFS] Performing Stable Popularity Sorting...');
+    console.log(`[VFS] Performing Stable Popularity Sorting for ${metadataBatch.length} entities...`);
     return metadataBatch.sort((a, b) => {
         const scoreA = a.fni_score ?? a.fni ?? 0;
         const scoreB = b.fni_score ?? b.fni ?? 0;
