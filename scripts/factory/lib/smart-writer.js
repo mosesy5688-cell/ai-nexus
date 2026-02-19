@@ -75,7 +75,8 @@ export async function smartWriteWithVersioning(key, data, outputDir = './output'
     const shouldCompress = options.compress || key.endsWith('.gz');
 
     if (shouldCompress) {
-        content = zlib.gzipSync(content);
+        // V19.3: Use stable MTIME for deterministic MD5 hashes
+        content = zlib.gzipSync(content, { mtime: 0 });
         if (!finalKey.endsWith('.gz')) {
             finalKey += '.gz';
         }
