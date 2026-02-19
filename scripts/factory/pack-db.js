@@ -122,7 +122,8 @@ async function packDatabase() {
     const metaFiles = [
         { key: 'category_stats', file: 'category_stats.json' },
         { key: 'trending', file: 'trending.json' },
-        { key: 'relations', file: 'relations/explicit.json' }
+        { key: 'relations', file: 'relations/explicit.json' },
+        { key: 'knowledge_links', file: 'relations/knowledge-links.json' }
     ];
 
     for (const meta of metaFiles) {

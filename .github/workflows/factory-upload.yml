@@ -266,7 +266,11 @@ jobs:
       - name: Prepare Registry Backup for S3 Upload
         run: |
           mkdir -p output/meta/backup
-          echo "✅ aggregator.js has prepared baseline backups in output/meta/backup/"
+          # V19.3 Optimization: Promote legacy monoliths to root for filter compliance
+          [ -f "output/meta/backup/global-registry.json.gz" ] && cp output/meta/backup/global-registry.json.gz output/ || true
+          [ -f "output/meta/backup/fni-history.json.gz" ] && cp output/meta/backup/fni-history.json.gz output/ || true
+          [ -f "output/meta/backup/daily-accum.json.gz" ] && cp output/meta/backup/daily-accum.json.gz output/ || true
+          echo "✅ aggregator.js has prepared baseline backups in output/meta/backup/ and promoted to root"
       # V19.0: SQL Health Check before upload (blocks deployment on failure)
       - name: V19 SQL Health Check
         run: |
