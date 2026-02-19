@@ -25,10 +25,10 @@ jobs:
     name: Global Health Audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
     permissions:
       actions: write
       contents: read
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -47,7 +47,7 @@ jobs:
 
       - name: Upload Health Report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: health-report
           path: health-report.json

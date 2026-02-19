@@ -10,6 +10,10 @@
 
 name: Factory 1/4 - Harvest
 
+permissions:
+  actions: write
+  contents: read
+
 on:
   schedule:
     - cron: '0 3 * * *'  # Daily 03:00 UTC
@@ -37,9 +41,6 @@ jobs:
     name: Harvest HuggingFace
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    permissions:
-      actions: write
-      contents: read
     
     steps:
       - uses: actions/checkout@v4
@@ -66,7 +67,7 @@ jobs:
           key: harvest-raw-huggingface-${{ github.run_id }}
 
       - name: Upload Batch Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: batch-huggingface
           path: data/raw_batch_*.json
@@ -79,9 +80,6 @@ jobs:
     name: Harvest GitHub
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    permissions:
-      actions: write
-      contents: read
     
     steps:
       - uses: actions/checkout@v4
@@ -107,7 +105,7 @@ jobs:
           key: harvest-raw-github-${{ github.run_id }}
 
       - name: Upload Batch Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: batch-github
           path: data/raw_batch_*.json
@@ -120,9 +118,6 @@ jobs:
     name: Harvest Academic
     runs-on: ubuntu-latest
     timeout-minutes: 180
-    permissions:
-      actions: write
-      contents: read
     
     steps:
       - uses: actions/checkout@v4
@@ -163,7 +158,7 @@ jobs:
           key: harvest-raw-academic-${{ github.run_id }}
 
       - name: Upload Batch Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: batch-academic
           path: data/raw_batch_*.json
@@ -277,7 +272,7 @@ jobs:
           key: harvest-raw-ecosystem-${{ github.run_id }}
 
       - name: Upload Batch Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: batch-ecosystem
           path: data/raw_batch_*.json
@@ -345,11 +340,11 @@ jobs:
       # Download current batch artifacts (if not skipping)
       - name: Download All Batch Artifacts
         if: github.event.inputs.skip_harvest != 'true'
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: data/
-          # pattern: batch-* (pattern not supported in v3, but we download all and v3 might behave differently)
-          # Note: v3 doesn't support 'pattern'. We download all and filter in next step if needed.
+          pattern: batch-*
+          merge-multiple: true
           
       - name: List Batches (Current or Recovered)
         run: |
