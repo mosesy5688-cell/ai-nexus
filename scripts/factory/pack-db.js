@@ -9,6 +9,7 @@ import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { loadTrendingMap, loadTrendMap, collectAndSortMetadata } from './lib/pack-utils.js';
+import { getV6Category } from './lib/category-stats-generator.js';
 
 const CACHE_DIR = process.env.CACHE_DIR || './output/cache';
 const DB_PATH = './output/data/content.db';
@@ -36,14 +37,14 @@ async function packDatabase() {
     db.exec(`
         CREATE TABLE entities (
             id TEXT PRIMARY KEY, umid TEXT UNIQUE, slug TEXT, name TEXT, type TEXT, author TEXT, summary TEXT, 
-            fni_score REAL, fni_percentile TEXT, is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
+            category TEXT, fni_score REAL, fni_percentile TEXT, is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
             last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT
         );
         CREATE INDEX idx_fni ON entities(fni_score DESC);
         CREATE VIRTUAL TABLE search USING fts5(name, summary, author, content='', tokenize='unicode61 remove_diacritics 2');
     `);
 
-    const insertEntity = db.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertEntity = db.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     const insertFts = db.prepare(`INSERT INTO search (rowid, name, summary, author) VALUES (?, ?, ?, ?)`);
 
     let currentShardId = 0, currentShardSize = 0, currentShardHandle = null;
@@ -79,9 +80,11 @@ async function packDatabase() {
                 currentShardHandle.write(bundleJson); currentShardSize += size; stats.heavy++; stats.bytes += size;
             }
 
+            const category = getV6Category(e);
+
             const res = insertEntity.run(
                 e.id, e.umid || e.id, e.slug || '', e.name || e.displayName || '', e.type || 'model',
-                e.author || '', e.summary || '', e.fni_score || 0, e.fni_percentile || '', e.is_trending ? 1 : 0,
+                e.author || '', e.summary || '', category, e.fni_score || 0, e.fni_percentile || '', e.is_trending ? 1 : 0,
                 e.stars || 0, e.downloads || 0, e.last_modified || '', bundleKey, offset, size, '', e._trend_7d
             );
             insertFts.run(res.lastInsertRowid, e.name || '', e.summary || '', e.author || '');

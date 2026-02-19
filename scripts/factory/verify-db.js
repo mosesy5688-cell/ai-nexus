@@ -5,6 +5,7 @@
  */
 import Database from 'better-sqlite3';
 import fs from 'fs';
+import path from 'path';
 
 const DB_PATH = process.argv[2] || './output/data/content.db';
 let failures = 0;
@@ -42,7 +43,7 @@ check('Shard Count', shardFiles.length <= 64, `${shardFiles.length} shards (limi
 
 // 5. Schema Completeness (Stage 4/4)
 const columns = db.prepare("PRAGMA table_info(entities)").all().map(c => c.name);
-const requiredCols = ['bundle_offset', 'bundle_size', 'shard_hash', 'is_trending'];
+const requiredCols = ['bundle_offset', 'bundle_size', 'shard_hash', 'is_trending', 'category'];
 const hasAllCols = requiredCols.every(c => columns.includes(c));
 check('Schema Completeness', hasAllCols, hasAllCols ? 'All V19.2 columns present' : `Missing: ${requiredCols.filter(c => !columns.includes(c))}`);
 
