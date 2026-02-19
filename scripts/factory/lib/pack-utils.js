@@ -11,21 +11,49 @@ import zlib from 'zlib';
  * Load Trending Context for entity prioritization
  */
 export async function loadTrendingMap(cacheDir) {
-    const trendingPath = path.join(cacheDir, 'trending.json.gz');
+    // V19.2 Path Fallback: Check both output/cache and output/ (Artifact download target)
+    const paths = [
+        path.join(cacheDir, 'trending.json.gz'),
+        path.join(path.dirname(cacheDir), 'trending.json.gz'),
+    ];
+
     const trendingMap = new Map();
-    try {
-        const trendingRaw = await fs.readFile(trendingPath);
-        const trendingData = JSON.parse(zlib.gunzipSync(trendingRaw));
-        const items = trendingData.items || trendingData.trending || [];
-        items.forEach((item, index) => {
-            trendingMap.set(item.id || item.slug, {
-                rank: index + 1,
-                is_trending: true
+    let loaded = false;
+
+    for (const trendingPath of paths) {
+        try {
+            const trendingRaw = await fs.readFile(trendingPath);
+            const trendingData = JSON.parse(zlib.gunzipSync(trendingRaw));
+
+            // V18.2.1: Unified Tiered Structure (models, papers, etc.)
+            const items = [
+                ...(trendingData.items || []),
+                ...(trendingData.trending || []),
+                ...(trendingData.models || []),
+                ...(trendingData.papers || []),
+                ...(trendingData.agents || []),
+                ...(trendingData.spaces || []),
+                ...(trendingData.datasets || []),
+                ...(trendingData.tools || [])
+            ];
+
+            items.forEach((item, index) => {
+                if (!item.id && !item.slug) return;
+                trendingMap.set(item.id || item.slug, {
+                    rank: index + 1,
+                    is_trending: true
+                });
             });
-        });
-        console.log(`[VFS] Loaded ${trendingMap.size} trending context items.`);
-    } catch (e) {
-        console.warn(`[VFS] ⚠️ No trending.json.gz found. Proceeding without trending flags.`);
+            console.log(`[VFS] Loaded ${trendingMap.size} trending context items from ${path.basename(trendingPath)}.`);
+            loaded = true;
+            break;
+        } catch (e) {
+            continue;
+        }
+    }
+
+    if (!loaded) {
+        console.warn(`[VFS] ⚠️ No trending.json.gz found in ${cacheDir} or parent. Proceeding without trending flags.`);
     }
     return trendingMap;
 }
@@ -34,17 +62,38 @@ export async function loadTrendingMap(cacheDir) {
  * Load 7d Trend Sparklines for DB embedding
  */
 export async function loadTrendMap(cacheDir) {
-    const trendPath = path.join(cacheDir, 'trend-data.json.gz');
+    // V19.2 Path Fallback
+    const paths = [
+        path.join(cacheDir, 'trend-data.json.gz'),
+        path.join(path.dirname(cacheDir), 'trend-data.json.gz'),
+    ];
+
     const trendMap = new Map();
-    try {
-        const trendRaw = await fs.readFile(trendPath);
-        const trendData = JSON.parse(zlib.gunzipSync(trendRaw));
-        for (const [id, values] of Object.entries(trendData)) {
-            trendMap.set(id, values.join(','));
+    let loaded = false;
+
+    for (const trendPath of paths) {
+        try {
+            const trendRaw = await fs.readFile(trendPath);
+            const trendData = JSON.parse(zlib.gunzipSync(trendRaw));
+
+            // V18.2.3: Handle object-based structure (id -> { scores: [], ... })
+            for (const [id, value] of Object.entries(trendData)) {
+                if (Array.isArray(value)) {
+                    trendMap.set(id, value.join(','));
+                } else if (value && value.scores) {
+                    trendMap.set(id, value.scores.join(','));
+                }
+            }
+            console.log(`[VFS] Loaded ${trendMap.size} trend sparklines from ${path.basename(trendPath)}.`);
+            loaded = true;
+            break;
+        } catch (e) {
+            continue;
         }
-        console.log(`[VFS] Loaded ${trendMap.size} trend sparklines.`);
-    } catch (e) {
-        console.warn(`[VFS] ⚠️ No trend-data.json.gz found. Proceeding without sparklines.`);
+    }
+
+    if (!loaded) {
+        console.warn(`[VFS] ⚠️ No trend-data.json.gz found in ${cacheDir} or parent. Proceeding without sparklines.`);
     }
     return trendMap;
 }
