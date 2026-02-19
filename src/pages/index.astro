@@ -133,12 +133,19 @@ Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-
     <script>
         import { loadHotModels, loadDailyReport } from '../scripts/home-client.js';
 
-        // V6.2: Load category model counts from category_stats API
+        // V19.4: Use inlined Site Metadata (Zero-Latency)
         async function loadCategoryCounts() {
             try {
-                const res = await fetch('https://cdn.free2aitools.com/cache/category_stats.json');
-                if (!res.ok) throw new Error('Failed to fetch category stats');
-                const data = await res.json();
+                // Check for inlined metadata first
+                let data = (window as any).__SITE_META__?.category_stats;
+                
+                if (!data) {
+                    console.log('[Homepage] Inlined category stats MISS, fetching from CDN...');
+                    const res = await fetch('https://cdn.free2aitools.com/cache/category_stats.json');
+                    if (!res.ok) throw new Error('Failed to fetch category stats');
+                    data = await res.json();
+                }
+
                 const categories = data.categories || [];
 
                 for (const cat of categories) {
