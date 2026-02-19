@@ -8,6 +8,7 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import zlib from 'zlib';
 import { loadTrendingMap, loadTrendMap, collectAndSortMetadata } from './lib/pack-utils.js';
 import { getV6Category } from './lib/category-stats-generator.js';
 
@@ -40,6 +41,7 @@ async function packDatabase() {
             category TEXT, fni_score REAL, fni_percentile TEXT, is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
             last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT
         );
+        CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
         CREATE INDEX idx_fni ON entities(fni_score DESC);
         CREATE VIRTUAL TABLE search USING fts5(name, summary, author, content='', tokenize='unicode61 remove_diacritics 2');
     `);
@@ -113,6 +115,47 @@ async function packDatabase() {
             db.prepare('UPDATE entities SET shard_hash = ? WHERE bundle_key = ?').run(hash, `data/${name}`);
         }
     }
+
+    // V19.3: Inject Global Site Metadata (Stats/Rankings/Trending/Relations)
+    console.log('[VFS] 🌐 Injecting Global Site Metadata (V19.3)...');
+    const injectMeta = db.prepare('INSERT OR REPLACE INTO site_metadata (key, value) VALUES (?, ?)');
+    const metaFiles = [
+        { key: 'category_stats', file: 'category_stats.json' },
+        { key: 'trending', file: 'trending.json' },
+        { key: 'relations', file: 'relations/explicit.json' }
+    ];
+
+    for (const meta of metaFiles) {
+        try {
+            const possiblePaths = [
+                path.join(CACHE_DIR, meta.file),
+                path.join(CACHE_DIR, `${meta.file}.gz`),
+                path.join(path.dirname(CACHE_DIR), meta.file),
+                path.join(path.dirname(CACHE_DIR), `${meta.file}.gz`)
+            ];
+
+            let content = null;
+            for (const p of possiblePaths) {
+                try {
+                    const raw = await fs.readFile(p);
+                    content = (p.endsWith('.gz') || (raw[0] === 0x1f && raw[1] === 0x8b))
+                        ? zlib.gunzipSync(raw).toString('utf-8')
+                        : raw.toString('utf-8');
+                    break;
+                } catch (err) { continue; }
+            }
+
+            if (content) {
+                injectMeta.run(meta.key, content);
+                console.log(`  - Injected: ${meta.key} (${Math.round(content.length / 1024)} KB)`);
+            } else {
+                console.warn(`  - Missing: ${meta.key}`);
+            }
+        } catch (e) {
+            console.warn(`  - Failed to inject ${meta.key}:`, e.message);
+        }
+    }
+
     await fs.writeFile(path.join(SHARD_PATH_DIR, 'shards_manifest.json'), JSON.stringify(manifest));
     db.exec("INSERT INTO search(search) VALUES('optimize'); PRAGMA integrity_check; VACUUM;");
     db.close();
