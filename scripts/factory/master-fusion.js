@@ -59,12 +59,21 @@ async function main() {
                         } catch (e) { return null; }
                     }).catch(() => null);
 
-                // Load existing fused data to preserve timestamp if unchanged
+                // Load existing fused data to preserve timestamp if unchanged (V19.3: Gzip Aware)
                 const targetKey = `fused/${id}.json`;
-                const existingPath = path.join(CACHE_DIR, targetKey);
+                const existingPath = path.join(CACHE_DIR, `${targetKey}.gz`);
+                const existingFallback = path.join(CACHE_DIR, targetKey);
+
                 const existingData = await fs.readFile(existingPath)
-                    .then(buf => JSON.parse(buf))
-                    .catch(() => null);
+                    .catch(() => fs.readFile(existingFallback))
+                    .then(buf => {
+                        try {
+                            if (buf[0] === 0x1f && buf[1] === 0x8b) {
+                                return JSON.parse(zlib.gunzipSync(buf));
+                            }
+                            return JSON.parse(buf);
+                        } catch (e) { return null; }
+                    }).catch(() => null);
 
                 // Perform Deep Fusion
                 const baseData = entityData.enriched || entityData;
