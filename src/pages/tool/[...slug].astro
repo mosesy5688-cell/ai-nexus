@@ -163,9 +163,22 @@ const canonicalPath = tool ? getRouteFromId(tool.id || toolId, 'tool') : undefin
 
     {tool && (
       <div slot="deep-dive" class="space-y-12">
-         {/* Zone 4.1: Developer Quick Tools (Always-On) */}
+         {/* Zone 4.1: Developer Trust & Verification */}
          <div class="space-y-8">
             <QuickCommands entity={tool} type="tool" />
+            {tool.fni_score !== undefined && (
+              <FNITrustPanel 
+                fniScore={tool.fni_score}
+                fniPercentile={tool.fni_percentile}
+                fniP={tool.fni_p}
+                fniV={tool.fni_v}
+                fniC={tool.fni_c}
+                fniU={tool.fni_u}
+                fniCommentary={tool.fni_commentary}
+                modelName={toolName}
+                modelId={toolId}
+              />
+            )}
          </div>
 
          {/* Zone 4.2: Primary Documentation / Technical Content */}

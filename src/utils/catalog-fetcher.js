@@ -112,8 +112,15 @@ export function truncateListingItem(item) {
         published_date: item.published_date || '',
         runtime: item.runtime || null,
         size: item.size || '',
-        fni_score: item.fni_score ?? item.fni ?? 0,
-        fni_percentile: item.fni_percentile || '',
+        fni_score: item.fni_score ?? item.fni ?? item.fniScore ?? 0,
+        fni_percentile: item.fni_percentile || item.percentile || item.fniPercentile || '',
+        // V19.5 Data Parity: FNI Sub-scores
+        fni_p: item.fni_p ?? item.fniP ?? 0,
+        fni_v: item.fni_v ?? item.fniV ?? 0,
+        fni_c: item.fni_c ?? item.fniC ?? 0,
+        fni_u: item.fni_u ?? item.fniU ?? 0,
+        // V19.5 Data Parity: Technical Params
+        params_billions: item.params_billions ?? item.params ?? 0,
         pipeline_tag: item.pipeline_tag || item.primary_category || '',
         lastModified: item.lastModified || item._updated || ''
     };

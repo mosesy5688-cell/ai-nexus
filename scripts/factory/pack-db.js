@@ -38,7 +38,12 @@ async function packDatabase() {
     db.exec(`
         CREATE TABLE entities (
             id TEXT PRIMARY KEY, umid TEXT UNIQUE, slug TEXT, name TEXT, type TEXT, author TEXT, summary TEXT, 
-            category TEXT, fni_score REAL, fni_percentile TEXT, is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
+            category TEXT, fni_score REAL, fni_percentile TEXT,
+            fni_p REAL DEFAULT 0, fni_v REAL DEFAULT 0, fni_c REAL DEFAULT 0, fni_u REAL DEFAULT 0,
+            params_billions REAL DEFAULT 0,
+            architecture TEXT,
+            context_length INTEGER DEFAULT 0,
+            is_trending INTEGER DEFAULT 0, stars INTEGER, downloads INTEGER, 
             last_modified TEXT, bundle_key TEXT, bundle_offset INTEGER, bundle_size INTEGER, shard_hash TEXT, trend_7d TEXT
         );
         CREATE TABLE site_metadata (key TEXT PRIMARY KEY, value TEXT);
@@ -46,18 +51,21 @@ async function packDatabase() {
         CREATE VIRTUAL TABLE search USING fts5(name, summary, author, content='', tokenize='unicode61 remove_diacritics 2');
     `);
 
-    const insertEntity = db.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    // V19.2: 26 columns in Stable 1.0 schema
+    const insertEntity = db.prepare(`INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     const insertFts = db.prepare(`INSERT INTO search (rowid, name, summary, author) VALUES (?, ?, ?, ?)`);
 
-    let currentShardId = 0, currentShardSize = 0, currentShardHandle = null;
+    let currentShardId = 0, currentShardSize = 0;
     const stats = { packed: 0, heavy: 0, bytes: 0 };
+    const shardHashes = new Map();
 
     let currentFd = null;
     const openShard = () => {
         if (currentShardId >= 64) { console.error('❌ Shard limit exceeded'); process.exit(1); }
         if (currentFd) fsSync.closeSync(currentFd);
         const name = `fused-shard-${String(currentShardId).padStart(3, '0')}.bin`;
-        currentFd = fsSync.openSync(path.join(SHARD_PATH_DIR, name), 'w');
+        const fullPath = path.join(SHARD_PATH_DIR, name);
+        currentFd = fsSync.openSync(fullPath, 'w');
         currentShardSize = 0;
         return name;
     };
@@ -66,16 +74,28 @@ async function packDatabase() {
 
     db.transaction(() => {
         for (const e of metadataBatch) {
+            // V19.5: Data Parity Expansion
+            const fniMetrics = e.fni_metrics || e.fni?.metrics || {};
+            const pBillions = e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0;
+            const ctxLen = e.context_length ?? e.technical?.context_length ?? 0;
+            const arch = e.architecture ?? e.technical?.architecture ?? '';
+
             const bundleJson = Buffer.from(JSON.stringify({
                 readme: e.readme || e.html_readme || '',
                 changelog: e.changelog || '',
                 benchmarks: e.benchmarks || [],
                 paper_abstract: e.paper_abstract || '',
-                mesh_profile: e.mesh_profile || { relations: [] }
+                mesh_profile: e.mesh_profile || { relations: [] },
+                // V19.5: Included for Engine 1 Detail Page completeness
+                fni_metrics: fniMetrics,
+                params_billions: pBillions,
+                context_length: ctxLen,
+                architecture: arch
             }), 'utf8');
 
             let bundleKey = null, offset = 0, size = 0;
             if (bundleJson.length > THRESHOLD_KB * 1024) {
+                // Security Choice B: 8KB Alignment (SPEC-V19.2)
                 const padding = (8192 - (currentShardSize % 8192)) % 8192;
                 if (padding > 0) {
                     fsSync.writeSync(currentFd, Buffer.alloc(padding, 0));
@@ -95,17 +115,24 @@ async function packDatabase() {
 
             const res = insertEntity.run(
                 e.id, e.umid || e.id, e.slug || '', e.name || e.displayName || '', e.type || 'model',
-                e.author || '', e.summary || '', category, e.fni_score || 0, e.fni_percentile || '', e.is_trending ? 1 : 0,
-                e.stars || 0, e.downloads || 0, e.last_modified || '', bundleKey, offset, size, '', e._trend_7d
+                e.author || '', e.summary || '', category, e.fni_score || 0, e.fni_percentile || '',
+                e.fni_p ?? fniMetrics.p ?? 0, e.fni_v ?? fniMetrics.v ?? 0,
+                e.fni_c ?? fniMetrics.c ?? 0, e.fni_u ?? fniMetrics.u ?? 0,
+                pBillions,
+                arch,
+                ctxLen,
+                e.is_trending ? 1 : 0,
+                e.stars || 0, e.downloads || 0, e.last_modified || '', bundleKey, offset, size,
+                '', // shard_hash (filled in final pass)
+                e._trend_7d
             );
             insertFts.run(res.lastInsertRowid, e.name || '', e.summary || '', e.author || '');
-            if (++stats.packed % 20000 === 0) console.log(`[VFS] Packed ${stats.packed}...`);
+            stats.packed++;
         }
     })();
+
     if (currentFd) fsSync.closeSync(currentFd);
 
-    console.log('[VFS] Finalizing hashes...');
-    const manifest = {};
     for (let i = 0; i <= currentShardId; i++) {
         const name = `fused-shard-${String(i).padStart(3, '0')}.bin`;
         const file = path.join(SHARD_PATH_DIR, name);

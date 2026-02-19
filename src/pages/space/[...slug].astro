@@ -164,6 +164,23 @@ const canonicalPath = space ? getRouteFromId(space.id || spaceId, 'space') : und
 
     {space && (
       <div slot="deep-dive" class="space-y-12">
+         {/* Zone 4.1: Developer Trust & Verification */}
+         <div class="space-y-8">
+            {space.fni_score !== undefined && (
+              <FNITrustPanel 
+                fniScore={space.fni_score}
+                fniPercentile={space.fni_percentile}
+                fniP={space.fni_p}
+                fniV={space.fni_v}
+                fniC={space.fni_c}
+                fniU={space.fni_u}
+                fniCommentary={space.fni_commentary}
+                modelName={spaceName}
+                modelId={spaceId}
+              />
+            )}
+         </div>
+
          {/* Zone 4.2: Primary Documentation / Technical Content */}
          <div class="pt-8 border-t border-gray-100 dark:border-gray-800">
             <SpaceDeepDive space={space} />

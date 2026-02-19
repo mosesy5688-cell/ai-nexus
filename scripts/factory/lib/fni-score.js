@@ -2,41 +2,56 @@
  * FNI V2.0: Universal Scoring Algorithm
  * Unified Source-Based Scoring for HuggingFace, GitHub, and ArXiv.
  */
-export function calculateFNI(entity) {
+export function calculateFNI(entity, options = {}) {
     let score = 0;
     const id = entity.id || entity.slug || '';
     const stats = entity.stats || entity;
+    const type = entity.type || entity.entity_type || 'model';
 
     // --- 1. Source Routing ---
+    let baseScore = 0;
     if (id.startsWith('hf-')) {
-        score = calcHuggingFace(entity.type || entity.entity_type, stats);
+        baseScore = calcHuggingFace(type, stats);
     }
     else if (id.startsWith('gh-')) {
-        score = calcGitHub(stats);
+        baseScore = calcGitHub(stats);
     }
     else if (id.startsWith('arxiv-')) {
-        score = calcArXiv(stats, entity.published_at || entity.publishedAt);
+        baseScore = calcArXiv(stats, entity.published_at || entity.publishedAt);
     }
 
+    score = baseScore;
+
     // --- 2. Heavy Weighting (V16.6 UPGRADE) ---
-    // Add C (Completeness) and U (Utility) for core functional types
-    const type = entity.type || entity.entity_type || 'model';
+    const c = (type === 'model' || type === 'agent' || type === 'tool') ? calcCompleteness(entity) : 0;
+    const u = (type === 'model' || type === 'agent') ? calcUtility(entity) : 0;
+
     if (type === 'model' || type === 'agent') {
-        const c = calcCompleteness(entity);
-        const u = calcUtility(entity);
         // Blend: 70% Popularity/Velocity + 15% Completeness + 15% Utility
-        score = (score * 0.7) + (c * 0.15) + (u * 0.15);
+        score = (baseScore * 0.7) + (c * 0.15) + (u * 0.15);
     } else if (type === 'tool') {
-        const c = calcCompleteness(entity);
         // Blend: 85% Popularity + 15% Completeness
-        score = (score * 0.85) + (c * 0.15);
+        score = (baseScore * 0.85) + (c * 0.15);
     }
 
     // --- 3. Time Decay ---
     const date = entity.last_modified || entity.pushed_at || entity.published_at || entity.updated_at || entity.updatedAt;
-    score = applyTimeDecay(score, date);
+    const finalScore = applyTimeDecay(score, date);
+    const roundedScore = Math.min(100, Math.max(0, Math.round(finalScore)));
 
-    return Math.min(100, Math.max(0, Math.round(score)));
+    if (options.includeMetrics) {
+        return {
+            score: roundedScore,
+            metrics: {
+                p: Math.round(baseScore * (type === 'arxiv' ? 0.7 : 1)), // Rough Pop estimate
+                v: Math.round(baseScore * (type === 'arxiv' ? 0.3 : 0)), // Rough Vel estimate
+                c: Math.round(c),
+                u: Math.round(u)
+            }
+        };
+    }
+
+    return roundedScore;
 }
 
 function calcCompleteness(entity) {

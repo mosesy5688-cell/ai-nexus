@@ -27,9 +27,10 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
         }
 
         // 1. Core Score Calculation
-        const fniScore = calculateFNI(entity);
+        const fniResult = calculateFNI(entity, { includeMetrics: true });
         const finalType = entity.type || entity.entity_type || 'model';
-        const finalFni = fniScore;
+        const finalFni = fniResult.score;
+        const fniMetrics = fniResult.metrics;
 
         // 2. VRAM Estimation
         let vramEstimate = null;
@@ -67,6 +68,11 @@ export async function processEntity(entity, globalStats, entityChecksums, fniHis
             id: id,
             type: finalType,
             fni_score: finalFni,
+            fni_metrics: fniMetrics,
+            fni_p: fniMetrics.p,
+            fni_v: fniMetrics.v,
+            fni_c: fniMetrics.c,
+            fni_u: fniMetrics.u,
             vram_estimate_gb: vramEstimate,
             trend_7d: trend,
             use_cases: useCases,

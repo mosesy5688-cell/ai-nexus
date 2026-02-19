@@ -49,7 +49,13 @@ export const DataNormalizer = {
             category: item.category || item.primary_category || '',
             // Handle legacy 'fni', 'fniScore' and current 'fni_score'
             fni_score: item.fni_score ?? item.fni ?? item.fniScore ?? 0,
-            fni_percentile: item.fni_percentile || item.percentile || ''
+            fni_percentile: item.fni_percentile || item.percentile || '',
+            // V19.5 Data Parity Promotion
+            fni_p: item.fni_p ?? item.fniP ?? item.fni_metrics?.p ?? 0,
+            fni_v: item.fni_v ?? item.fniV ?? item.fni_metrics?.v ?? 0,
+            fni_c: item.fni_c ?? item.fniC ?? item.fni_metrics?.c ?? 0,
+            fni_u: item.fni_u ?? item.fniU ?? item.fni_metrics?.u ?? 0,
+            params_billions: item.params_billions ?? item.params ?? item.technical?.parameters_b ?? 0
         };
     },
 

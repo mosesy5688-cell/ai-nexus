@@ -20,27 +20,27 @@ Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-
 ---
 
 <Layout title={pageTitle} description={pageDescription}>
-    <main class="min-h-screen py-4">
-        <header class="mb-12">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4 tracking-tight">
-                AI Tools <span class="text-emerald-600">Utilities</span>
+    <main class="max-w-[1400px] mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter uppercase">
+                AI Tools <span class="text-emerald-500">Utilities</span>
             </h1>
-            <p class="text-base text-gray-600 dark:text-zinc-400 max-w-2xl">
-                A curated collection of frameworks, libraries, and CLI tools powering the AI revolution.
+            <p class="text-xs font-bold text-gray-400 dark:text-zinc-500 max-w-2xl uppercase tracking-widest">
+                High-Resolution Catalog of Neural Frameworks & SDKs
             </p>
         </header>
 
         <ListingControls type="tool" searchId="tools-search" />
 
-        <div id="tools-catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div id="tools-catalog-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {tools.map((tool: any) => (
-                <div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div class="animate-in fade-in slide-in-from-bottom-1 duration-300">
                     <CatalogCard item={tool} type="tool" />
                 </div>
             ))}
         </div>
 
-        <div id="pagination" class="mt-16 flex justify-center items-center gap-4"></div>
+        <div id="pagination" class="mt-12 flex justify-center items-center gap-4"></div>
     </main>
 
     <script define:vars={{ initialData: tools }}>
