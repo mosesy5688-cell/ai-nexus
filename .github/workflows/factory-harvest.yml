@@ -403,9 +403,13 @@ jobs:
           echo "🌐 [V18.2.3] Auditing Registry Context..."
           mkdir -p cache/registry cache/fni-history cache/daily-accum
           
-          # 1. Monolith Recovery (Additive)
+          # 1. Monolith Recovery (Additive) - V19.3 Path Agnostic
           if [ ! -s "cache/global-registry.json.gz" ]; then
-             echo "  - Missing local monolith. Fetching from R2..."
+             echo "  - Fetching from R2 (Root)..."
+             npx -y wrangler r2 object get $R2_BUCKET/global-registry.json.gz --file=cache/global-registry.json.gz --remote 2>/dev/null || true
+          fi
+          if [ ! -s "cache/global-registry.json.gz" ]; then
+             echo "  - Fetching from R2 (Legacy Backup)..."
              npx -y wrangler r2 object get $R2_BUCKET/meta/backup/global-registry.json.gz --file=cache/global-registry.json.gz --remote 2>/dev/null || true
           fi
 
