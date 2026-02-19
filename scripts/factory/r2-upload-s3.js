@@ -83,8 +83,16 @@ async function processQueue(s3, files, uploadedSet, checkpoint, r2ETagMap) {
                 if (result.skipped) unchanged++; else success++;
             } else fail++;
         }
+
+        const processed = i + batch.length;
+        if (processed % 1000 === 0 || processed === queue.length) {
+            const percent = ((processed / queue.length) * 100).toFixed(1);
+            process.stdout.write(`\r   [PROGRESS] ${percent}% (${processed}/${queue.length}) | New: ${success}, Unchanged: ${unchanged}, Fail: ${fail}`);
+        }
+
         if ((success + unchanged) % 1000 === 0) await saveCheckpoint(checkpoint);
     }
+    console.log(''); // New line after progress
     return { success, fail, skipped: files.length - queue.length, unchanged };
 }
 
