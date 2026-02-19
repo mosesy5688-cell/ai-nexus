@@ -50,11 +50,12 @@ async function packDatabase() {
     let currentShardId = 0, currentShardSize = 0, currentShardHandle = null;
     const stats = { packed: 0, heavy: 0, bytes: 0 };
 
+    let currentFd = null;
     const openShard = () => {
         if (currentShardId >= 64) { console.error('❌ Shard limit exceeded'); process.exit(1); }
-        if (currentShardHandle) currentShardHandle.end();
+        if (currentFd) fsSync.closeSync(currentFd);
         const name = `fused-shard-${String(currentShardId).padStart(3, '0')}.bin`;
-        currentShardHandle = fsSync.createWriteStream(path.join(SHARD_PATH_DIR, name));
+        currentFd = fsSync.openSync(path.join(SHARD_PATH_DIR, name), 'w');
         currentShardSize = 0;
         return name;
     };
@@ -74,10 +75,18 @@ async function packDatabase() {
             let bundleKey = null, offset = 0, size = 0;
             if (bundleJson.length > THRESHOLD_KB * 1024) {
                 const padding = (8192 - (currentShardSize % 8192)) % 8192;
-                if (padding > 0) { currentShardHandle.write(Buffer.alloc(padding, 0)); currentShardSize += padding; }
-                if (currentShardSize + bundleJson.length > MAX_SHARD_SIZE) { currentShardId++; currentShardName = openShard(); }
+                if (padding > 0) {
+                    fsSync.writeSync(currentFd, Buffer.alloc(padding, 0));
+                    currentShardSize += padding;
+                }
+                if (currentShardSize + bundleJson.length > MAX_SHARD_SIZE) {
+                    currentShardId++;
+                    currentShardName = openShard();
+                }
                 bundleKey = `data/${currentShardName}`; offset = currentShardSize; size = bundleJson.length;
-                currentShardHandle.write(bundleJson); currentShardSize += size; stats.heavy++; stats.bytes += size;
+                fsSync.writeSync(currentFd, bundleJson);
+                currentShardSize += size;
+                stats.heavy++; stats.bytes += size;
             }
 
             const category = getV6Category(e);
@@ -91,7 +100,7 @@ async function packDatabase() {
             if (++stats.packed % 20000 === 0) console.log(`[VFS] Packed ${stats.packed}...`);
         }
     })();
-    if (currentShardHandle) currentShardHandle.end();
+    if (currentFd) fsSync.closeSync(currentFd);
 
     console.log('[VFS] Finalizing hashes...');
     const manifest = {};
