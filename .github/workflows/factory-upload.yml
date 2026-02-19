@@ -279,7 +279,7 @@ jobs:
       - name: Upload to R2 via S3 API
         env:
           # V19.2: Added data/ for Sharded VFS and binary bundles
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,global-registry.json.gz,entities/,cache/entities/,cache/fused/,cache/html/,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,global-registry.json.gz,cache/fused/,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/
           CACHE_DIR: output/cache
         run: node scripts/factory/r2-upload-s3.js
       - name: Save Upload Manifest to Cache
