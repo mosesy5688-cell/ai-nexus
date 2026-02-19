@@ -106,12 +106,12 @@ const enrichedTags = (tagsArray || []).map((tagObj: any) => {
 }).filter(tag => !renderedNodes.has(tag.slug));
 ---
 
-<div class="space-y-16">
+<div class="space-y-10">
     <NeuralGraphExplorer currentModelId={entityId} entity={entity} type={type} meshTiers={tiers} />
 
-    <div class="flex flex-col gap-16">
+    <div class="flex flex-col gap-10">
         <div class="mesh-hub-section">
-           <div class="flex items-center justify-between mb-8">
+           <div class="flex items-center justify-between mb-6">
               <div class="flex items-center gap-3">
                  <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
                     <span class="text-xl text-white">🕸️</span>
@@ -121,7 +121,7 @@ const enrichedTags = (tagsArray || []).map((tagObj: any) => {
                     <p class="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Multi-source Relation Matrix</p>
                  </div>
               </div>
-              <div class="h-px flex-1 mx-8 bg-zinc-100 dark:bg-zinc-800 hidden md:block"></div>
+              <div class="h-px flex-1 mx-6 bg-zinc-100 dark:bg-zinc-800 hidden md:block"></div>
               <div class="flex items-center gap-1">
                  <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
                  <span class="text-[8px] font-black text-zinc-500 uppercase">Live Index</span>
@@ -140,8 +140,8 @@ const enrichedTags = (tagsArray || []).map((tagObj: any) => {
         />
 
         {similarEntities.length > 0 && (
-          <div class="related-discovery-zone pt-12 border-t border-zinc-100 dark:border-zinc-800">
-             <div class="flex items-center gap-3 mb-8">
+          <div class="related-discovery-zone pt-8 border-t border-zinc-100 dark:border-zinc-800">
+             <div class="flex items-center gap-3 mb-6">
                <span class="text-xl">🔄</span>
                <h3 class="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-[0.2em]">Neural Associations</h3>
              </div>

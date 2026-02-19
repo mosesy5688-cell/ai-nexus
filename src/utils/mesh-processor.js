@@ -4,7 +4,7 @@ import { getTypeFromId, stripPrefix, KNOWLEDGE_ALIAS_MAP } from './knowledge-cac
  * Pure Logic: Process raw relations into tiers
  * Extracted from mesh-orchestrator.js to comply with CES file size limits.
  */
-export function processRelationsIntoTiers(rawRelations, nodeRegistry, seenIds, graphMeta, tiers, normRoot) {
+export function processRelationsIntoTiers(rawRelations, nodeRegistry, seenIds, graphMeta, tiers, normRoot, isValidNode = () => true) {
     const processedRelations = [];
     const UNIVERSAL_ICONS = {
         'model': '🧠', 'agent': '🤖', 'tool': '⚙️', 'dataset': '📊',
@@ -13,6 +13,12 @@ export function processRelationsIntoTiers(rawRelations, nodeRegistry, seenIds, g
 
     const ensureNode = (id, typeHint = 'model', optionalMeta = {}) => {
         if (!id || typeof id !== 'string') return null;
+
+        // V16.9 Integrity Guard: Block nodes that would 404
+        if (!isValidNode(id)) {
+            return null;
+        }
+
         let norm = stripPrefix(id);
         if (nodeRegistry.has(norm)) return nodeRegistry.get(norm);
 
@@ -60,11 +66,11 @@ export function processRelationsIntoTiers(rawRelations, nodeRegistry, seenIds, g
         const normNeighbor = stripPrefix(neighborId);
         if (normRoot && (normNeighbor === normRoot || seenIds.has(normNeighbor))) return;
 
-        seenIds.add(normNeighbor);
-
         // V16.8.8: Passthrough rich metadata from relation itself
         let node = ensureNode(neighborId, rel.target_type || rel.source_type, rel);
         if (!node) return;
+
+        seenIds.add(normNeighbor);
 
         const relType = (rel.relation_type || 'RELATED').toUpperCase();
         node.relation = relType;

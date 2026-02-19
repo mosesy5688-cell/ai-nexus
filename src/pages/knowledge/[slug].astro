@@ -11,6 +11,8 @@ import KnowledgeHeader from '../../components/knowledge/KnowledgeHeader.astro';
 import KnowledgeContent from '../../components/knowledge/KnowledgeContent.astro';
 import KnowledgeSidebar from '../../components/knowledge/KnowledgeSidebar.astro';
 import KnowledgeRelated from '../../components/knowledge/KnowledgeRelated.astro';
+import KnowledgeGroundedEntities from '../../components/knowledge/KnowledgeGroundedEntities.astro';
+import ReadStatusManager from '../../components/knowledge/ReadStatusManager.astro';
 import { articles } from '../../data/knowledge-articles';
 import { getArticleBySlug } from '../../data/knowledge-base-config';
 import { getRouteFromId, getTypeFromId } from '../../utils/mesh-routing-core.js';
@@ -143,41 +145,8 @@ import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
           </div>
         </div>
 
-        <!-- Linked Entities (Tabular View) -->
-        {meshTiers && (
-          <div class="mt-12 p-8 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-3xl border border-indigo-100 dark:border-indigo-900/30">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Grounded Entities</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {Object.entries(meshTiers).map(([key, tier]: [string, any]) => {
-                // Grounded entities should only show models, agents, tools, etc, not other knowledge base articles
-                if (key === 'explanation') return null;
-                if (tier.nodes.length === 0) return null;
-                
-                return (
-                  <div>
-                    <h3 class="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <span>{tier.icon}</span>
-                      {tier.title}
-                    </h3>
-                    <ul class="space-y-3">
-                      {tier.nodes.map((node: any) => (
-                        <li>
-                          <a href={getRouteFromId(node.id, node.type)} class="group flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-indigo-500 transition-all shadow-sm">
-                            <div class="flex items-center gap-3">
-                               <span class="text-xl">{node.icon}</span>
-                               <span class="text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 transition-colors uppercase">{node.name}</span>
-                            </div>
-                            <span class="text-xs text-gray-400">{node.type.toUpperCase()} →</span>
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* Linked Entities (Tabular View) - V16.2 Extracted */}
+        <KnowledgeGroundedEntities meshTiers={meshTiers} />
 
         {relatedArticles.length > 0 && (
           <KnowledgeRelated articles={relatedArticles} />
@@ -185,21 +154,8 @@ import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
 
         <KnowledgeSidebar slug={slug || ''} />
 
-        <!-- CTA -->
-        <div class="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 p-8 bg-gray-50 dark:bg-gray-800/40 rounded-3xl border border-gray-100 dark:border-gray-700">
-          <div class="flex items-center gap-4">
-             <button id="mark-read-btn" class="px-6 py-3 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-bold rounded-2xl border border-gray-200 dark:border-gray-600 hover:border-emerald-500 hover:text-emerald-600 transition-all shadow-sm">
-                Mark as Read
-             </button>
-             <span id="read-status" class="hidden text-emerald-600 font-bold flex items-center gap-1">
-                <span>✓</span> Read
-             </span>
-          </div>
-          <div class="flex gap-4">
-            <a href="/ranking" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">View Rankings</a>
-            <a href="/models" class="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white font-bold rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all">Browse Models</a>
-          </div>
-        </div>
+        <!-- Progress Tracking & CTA - V16.2 Extracted -->
+        <ReadStatusManager slug={slug || ''} />
       </>
     ) : (
       <div class="min-h-[60vh] flex flex-col items-center justify-center text-center">
@@ -211,37 +167,3 @@ import NeuralGraphExplorer from '../../components/NeuralGraphExplorer.astro';
     )}
   </div>
 </Layout>
-
-<script is:inline define:vars={{ slug }}>
-  (function() {
-      const STORAGE_KEY = 'f2ai_kb_progress';
-      const btn = document.getElementById('mark-read-btn');
-      const status = document.getElementById('read-status');
-      
-      if (!btn || !slug) return;
-
-      // Load initial state
-      let progress = {};
-      try {
-          progress = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-      } catch (e) {}
-
-      if (progress[slug]) {
-          showRead();
-      }
-
-      btn.addEventListener('click', () => {
-          progress[slug] = true;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
-          showRead();
-          
-          // Trigger custom event for other components (like index page)
-          window.dispatchEvent(new CustomEvent('kb-progress-updated', { detail: { slug, read: true } }));
-      });
-
-      function showRead() {
-          btn.classList.add('hidden');
-          status.classList.remove('hidden');
-      }
-  })();
-</script>

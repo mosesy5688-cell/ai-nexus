@@ -1,0 +1,60 @@
+---
+/**
+ * ReadStatusManager - V16.2
+ * Handles "Mark as Read" persistence and status display for Knowledge articles.
+ */
+interface Props {
+  slug: string;
+}
+
+const { slug } = Astro.props;
+---
+
+<div class="mt-12 flex flex-col sm:flex-row items-center justify-between gap-6 p-8 bg-gray-50 dark:bg-gray-800/40 rounded-3xl border border-gray-100 dark:border-gray-700">
+  <div class="flex items-center gap-4">
+     <button id="mark-read-btn" class="px-6 py-3 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 font-bold rounded-2xl border border-gray-200 dark:border-gray-600 hover:border-emerald-500 hover:text-emerald-600 transition-all shadow-sm">
+        Mark as Read
+     </button>
+     <span id="read-status" class="hidden text-emerald-600 font-bold flex items-center gap-1">
+        <span>✓</span> Read
+     </span>
+  </div>
+  <div class="flex gap-4">
+    <a href="/ranking" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">View Rankings</a>
+    <a href="/models" class="px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white font-bold rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all">Browse Models</a>
+  </div>
+</div>
+
+<script is:inline define:vars={{ slug }}>
+  (function() {
+      const STORAGE_KEY = 'f2ai_kb_progress';
+      const btn = document.getElementById('mark-read-btn');
+      const status = document.getElementById('read-status');
+      
+      if (!btn || !slug) return;
+
+      // Load initial state
+      let progress = {};
+      try {
+          progress = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      } catch (e) {}
+
+      if (progress[slug]) {
+          showRead();
+      }
+
+      btn.addEventListener('click', () => {
+          progress[slug] = true;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+          showRead();
+          
+          // Trigger custom event for other components (like index page)
+          window.dispatchEvent(new CustomEvent('kb-progress-updated', { detail: { slug, read: true } }));
+      });
+
+      function showRead() {
+          btn.classList.add('hidden');
+          status.classList.remove('hidden');
+      }
+  })();
+</script>

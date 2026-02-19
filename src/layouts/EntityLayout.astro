@@ -86,26 +86,26 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
     <main class="animate-fade-in relative max-w-5xl mx-auto px-4 lg:px-0" data-repo-path={repoPath}>
       
       {/* Zone 1: HERO (Identity) */}
-      <section id="hero-zone" class="mb-12 animate-slide-up relative z-10" style="animation-delay: 0.1s;">
+      <section id="hero-zone" class="mb-8 animate-slide-up relative z-10" style="animation-delay: 0.1s;">
         <slot name="hero" />
       </section>
 
       {/* Zone 1.5: USE CASES (Value Proposition) */}
-      <section id="use-cases-zone" class="mb-12 animate-slide-up" style="animation-delay: 0.15s;">
+      <section id="use-cases-zone" class="mb-8 animate-slide-up" style="animation-delay: 0.15s;">
         <slot name="use-cases" />
       </section>
 
       {/* V16.17: GALLERY ZONE */}
-      <section id="gallery-zone" class="mb-12 animate-slide-up" style="animation-delay: 0.2s;">
+      <section id="gallery-zone" class="mb-8 animate-slide-up" style="animation-delay: 0.2s;">
         <slot name="gallery" />
       </section>
 
       {/* UNIFIED VERTICAL STACK */}
-      <div class="space-y-16 mb-20">
+      <div class="space-y-10 mb-16">
         
         {/* Zone 2: QUICK INSIGHTS & Technical Specs */}
         <section id="insights-zone" class="animate-slide-up" style="animation-delay: 0.25s;">
-           <div class="flex flex-col gap-8">
+           <div class="flex flex-col gap-6">
               <QuickInsights entity={entity} type={type} />
               <slot name="insights-extra" />
            </div>
@@ -113,17 +113,17 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
 
         {/* Zone 3: CORE (Knowledge Mesh & Relations) */}
         <section id="core-zone" class="animate-slide-up" style="animation-delay: 0.3s;">
-           <div class="space-y-12">
+           <div class="space-y-10">
              {/* 
                 V16.99: STRICT SINGLE-EXECUTION 
                 We must NEVER render the same slot twice, even in hidden divs.
                 Cloudflare Worker CPU limit is 50ms per request.
              */}
-             <div class="z3-core-stack mb-12">
+             <div class="z3-core-stack mb-8">
                 <slot name="core-desktop" />
                 
                 {/* Legacy Support: If route still provides granular slots, stack them vertically */}
-                <div class="space-y-16">
+                <div class="space-y-10">
                    <slot name="core-knowledge" />
                    <slot name="core-similar" />
                    <slot name="core-benchmarks" />
@@ -136,7 +136,7 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
         {/* Zone 4: DEEP DIVE (Technical Documentation) */}
         <section id="deep-dive-section" class="pt-8 border-t border-gray-100 dark:border-gray-800">
           <details id="z4-details" open class="group">
-            <summary class="list-none cursor-pointer flex items-center justify-between mb-8 group-open:mb-8">
+            <summary class="list-none cursor-pointer flex items-center justify-between mb-4 group-open:mb-4">
                <h2 class="text-2xl font-black flex items-center gap-3 text-gray-900 dark:text-white uppercase tracking-tighter">
                   <span class="p-2 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl">🔬</span> 
                   <span>Technical Deep Dive</span>
@@ -146,14 +146,14 @@ const repoPath = hasEntity ? (entity.id || '').replace(/^(model|agent|dataset|pa
                   <span class="text-gray-400 group-open:block hidden text-2xl transition-transform duration-300 group-open:rotate-180">▾</span>
                </div>
             </summary>
-            <div class="space-y-12 animate-slide-up">
+            <div class="space-y-10 animate-slide-up">
               <slot name="deep-dive" />
             </div>
           </details>
         </section>
 
         {/* Zone 5.0: COMMUNITY ENGAGEMENT */}
-        <section id="community-engagement" class="animate-slide-up space-y-12" style="animation-delay: 0.35s;">
+        <section id="community-engagement" class="animate-slide-up space-y-10" style="animation-delay: 0.35s;">
           {hasEntity && (
              <CommunityStats 
                 source={entity.source || 'huggingface'}

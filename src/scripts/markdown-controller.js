@@ -4,13 +4,14 @@
  */
 
 export function initMarkdownCopy() {
+    // 1. Process existing buttons (from MarkdownRenderer)
     document.querySelectorAll('.markdown-copy-btn').forEach(btn => {
         if (btn.getAttribute('data-init')) return;
         btn.setAttribute('data-init', 'true');
 
         btn.addEventListener('click', async () => {
             const b = btn;
-            const code = b.dataset.code || '';
+            const code = b.dataset.code || b.closest('.relative')?.querySelector('code')?.textContent || '';
             const text = b.querySelector('.btn-text');
             const icon = b.querySelector('.btn-icon');
 
@@ -19,14 +20,49 @@ export function initMarkdownCopy() {
                 if (text) text.textContent = 'Done!';
                 if (icon) icon.textContent = '✅';
 
+                b.classList.add('bg-emerald-500/50', 'border-emerald-500/50');
+
                 setTimeout(() => {
                     if (text) text.textContent = 'Copy';
                     if (icon) icon.textContent = '📋';
+                    b.classList.remove('bg-emerald-500/50', 'border-emerald-500/50');
                 }, 2000);
             } catch (err) {
                 console.error('Copy failed', err);
             }
         });
+    });
+
+    // 2. Dynamic Injection for raw HTML or missing buttons
+    document.querySelectorAll('pre').forEach(pre => {
+        if (pre.closest('.relative.group') || pre.querySelector('.markdown-copy-btn')) return;
+
+        const code = pre.querySelector('code');
+        if (!code) return;
+
+        pre.style.position = 'relative';
+        const btn = document.createElement('button');
+        btn.className = 'absolute top-2 right-2 p-2 bg-gray-800/50 hover:bg-gray-700/80 text-white rounded-md opacity-0 hover:opacity-100 transition-all border border-gray-600/30 backdrop-blur-sm z-10';
+        btn.innerHTML = '<span class="btn-icon text-sm">📋</span>';
+        btn.title = 'Copy code';
+
+        // Add hover effect to parent pre
+        pre.classList.add('group');
+        btn.classList.add('group-hover:opacity-100');
+
+        btn.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(code.textContent || '');
+                btn.innerHTML = '<span class="text-sm">✅</span>';
+                btn.classList.add('bg-emerald-500/50');
+                setTimeout(() => {
+                    btn.innerHTML = '<span class="text-sm">📋</span>';
+                    btn.classList.remove('bg-emerald-500/50');
+                }, 2000);
+            } catch (e) { }
+        });
+
+        pre.appendChild(btn);
     });
 }
 

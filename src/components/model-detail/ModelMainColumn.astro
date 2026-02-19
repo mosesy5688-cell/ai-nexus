@@ -17,7 +17,7 @@ interface Props {
   jsonld: any;
 }
 
-const { model, modelName, modelId, cleanDescription, jsonld } = Astro.props;
+const { model, modelId, cleanDescription, jsonld } = Astro.props;
 
 // V8.0: Safely extract meta_json fields (may be string or object)
 let metaJson: Record<string, any> = {};
@@ -32,19 +32,19 @@ try {
 }
 ---
 
-<div class="lg:col-span-2 space-y-8">
+<div class="lg:col-span-2 space-y-6">
 
   {/* V15.8: GGUF File List (Zone 4) */}
   <GGUFList files={model.siblings} modelId={modelId} />
   
   {/* V16.2: Technical Setup & Implementation (Consolidated) */}
   {(model.installation || model.configuration || model.usage) && (
-    <section class="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-8 border border-gray-100 dark:border-gray-800 shadow-inner">
-       <h2 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-8 flex items-center gap-2">
+    <section class="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 shadow-inner">
+       <h2 class="text-xs font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
           <span>⚙️</span> Technical Implementation
        </h2>
        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* V16.10: Visual Architectural Skeleton */}
           <div class="space-y-4">
              <h3 class="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -89,7 +89,7 @@ try {
         </div>
 
        {model.configuration && (
-         <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-800 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
+         <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-0">
             <dt class="text-sm font-bold leading-6 text-gray-900 dark:text-white uppercase tracking-tighter">Config Logic</dt>
             <dd class="mt-1 text-sm leading-6 text-gray-700 dark:text-gray-300 sm:col-span-2 sm:mt-0">
                <MarkdownRenderer content={model.configuration} />
