@@ -8,7 +8,7 @@
  */
 
 import Database from 'better-sqlite3';
-import fetch from 'node-fetch';
+// V19.4: Use native Node 20 fetch instead of node-fetch
 
 const DB_PATH = './output/data/content.db';
 const CDN_BASE = 'https://cdn.free2aitools.com';
