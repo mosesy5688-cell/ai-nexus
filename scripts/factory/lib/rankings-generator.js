@@ -4,7 +4,7 @@
  */
 
 import path from 'path';
-import { smartWriteWithVersioning } from './smart-writer.js';
+import { getV6Category } from './category-stats-generator.js';
 
 const CATEGORIES = [
     'text-generation',
@@ -28,7 +28,7 @@ export async function generateRankings(entities, outputDir = './output') {
 
     // Per-category rankings
     for (const category of CATEGORIES) {
-        const categoryEntities = entities.filter(e => e.category === category);
+        const categoryEntities = entities.filter(e => getV6Category(e) === category);
         await generateCategoryRanking(category, categoryEntities, cacheDir);
     }
 
