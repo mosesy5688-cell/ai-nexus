@@ -247,7 +247,10 @@ jobs:
       - name: Restore VFS Assets from Cache
         uses: actions/cache/restore@v4
         with:
-          path: output/data/
+          path: |
+            output/data/
+            output/sitemaps/
+            output/sitemap.xml
           key: intra-4-4-${{ github.run_id }}-vfs-assets
       - name: Consolidate Enrichment Artifacts
         run: |
