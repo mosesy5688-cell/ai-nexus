@@ -135,6 +135,47 @@ jobs:
           path: fused-entities.tar
           key: intra-4-4-${{ github.run_id }}-fused-tar
 
+  vfs-packing:
+    name: VFS Packing (Stable 1.0)
+    needs: master-fusion
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - name: Restore Fused Entities
+        uses: actions/cache/restore@v4
+        with:
+          path: fused-entities.tar
+          key: intra-4-4-${{ github.run_id }}-fused-tar
+      - name: Extract Fused Entities
+        run: |
+          mkdir -p output/cache/fused
+          tar -xf fused-entities.tar -C output/cache
+      - name: Restore Base Output (Trending Context)
+        uses: actions/cache/restore@v4
+        with:
+          path: output/
+          key: cycle-${{ github.event.workflow_run.id || inputs.run_id }}-output
+          restore-keys: cycle-
+      - name: Execute Stable 1.0 Packer
+        env:
+          CACHE_DIR: ./output/cache
+        run: node scripts/factory/pack-db.js
+      - name: Generate VFS-Parity Sitemaps
+        run: node scripts/factory/vfs-sitemap-gen.js --db=output/data/content.db --out=output
+      - name: V19.2 SQL Health Check
+        run: node scripts/factory/verify-db.js output/data/content.db
+      - name: Save VFS Assets to Cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            output/data/
+            output/sitemaps/
+            output/sitemap.xml
+          key: intra-4-4-${{ github.run_id }}-vfs-assets
+
   rss-feeds:
     name: RSS Feeds
     needs: check-upstream
@@ -166,7 +207,7 @@ jobs:
 
   upload:
     name: Final Upload to R2
-    needs: [mesh-baking, master-fusion, rss-feeds, check-upstream]
+    needs: [mesh-baking, master-fusion, vfs-packing, rss-feeds, check-upstream]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -203,18 +244,22 @@ jobs:
         run: |
           mkdir -p output/cache/mesh
           tar -xf mesh-profiles.tar -C output/cache/mesh
-      - name: Download All Enrichment Artifacts
-        uses: actions/download-artifact@v4
-        with: 
-          path: output_artifacts/
+      - name: Restore VFS Assets from Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: output/data/
+          key: intra-4-4-${{ github.run_id }}-vfs-assets
       - name: Consolidate Enrichment Artifacts
         run: |
-          # V19.2 Path Correction: Artifacts are downloaded into subdirectories of output_artifacts/
-          # content.db is in output_artifacts/agg-packdb/
-          [ -d "output_artifacts/agg-packdb" ] && mkdir -p output/data && cp -r output_artifacts/agg-packdb/* output/data/ || true
+          # V19.2 Path Correction
           [ -d "output_artifacts/rss-feeds" ] && mkdir -p output/rss && cp -r output_artifacts/rss-feeds/* output/rss/ || true
+          
+          # Ensure sitemaps from vfs-packing are in the right place
+          if [ -d "output/sitemaps" ]; then
+            echo "✅ VFS Sitemaps aligned for upload"
+          fi
+          
           echo "✅ Artifacts consolidated into output/"
-          ls -R output/data
       - name: Prepare Registry Backup for S3 Upload
         run: |
           mkdir -p output/meta/backup
@@ -230,9 +275,8 @@ jobs:
           fi
       - name: Upload to R2 via S3 API
         env:
-          # V18.2.4: Unified Filter with Gzip Mandate Support
-          # V19.0: Added data/content.db for VFS SQLite delivery
-          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,global-registry.json.gz,entities/,cache/entities/,cache/fused/,cache/html/,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/content.db,data/bundles/
+          # V19.2: Added data/ for Sharded VFS and binary bundles
+          R2_PREFIX_FILTER: checkpoint.json,entities.json,entities.json.gz,global-registry.json.gz,entities/,cache/entities/,cache/fused/,cache/html/,cache/rankings/,cache/search/,cache/trending.json,cache/trending.json.gz,cache/category_stats.json,cache/category_stats.json.gz,cache/search-core.json,cache/search-core.json.gz,cache/search-full.json,cache/search-full.json.gz,cache/search-manifest.json,cache/relations/,cache/relations.json,cache/relations.json.gz,cache/trend-data.json,cache/knowledge/,cache/mesh/,cache/graph.json,cache/reports/,meta/,sitemaps/,rss/,sitemap.xml,data/
           CACHE_DIR: output/cache
         run: node scripts/factory/r2-upload-s3.js
       - name: Save Upload Manifest to Cache
@@ -242,11 +286,15 @@ jobs:
           path: output/cache/last-upload-manifest.json
           key: r2-upload-manifest-${{ github.run_id }}
       # V19.0: 60s Drain Wait — let CDN edge caches expire before purge
-      - name: CDN Drain Wait (60s)
+      - name: CDN Drain Wait (90s)
         run: |
-          echo "⏳ [V19.0] Waiting 60s for CDN edge cache TTL expiry..."
-          sleep 60
-          echo "✅ Drain wait complete. Proceeding to purge."
+          echo "⏳ [V19.2] Waiting 90s for CDN edge cache TTL expiry..."
+          sleep 90
+          echo "✅ Drain wait complete. Commencing Probing."
+      - name: V19.2 Production Health Probe
+        env:
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        run: node scripts/factory/probe-vfs.js
       - name: Purge & Warm CDN
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

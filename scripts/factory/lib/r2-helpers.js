@@ -101,6 +101,7 @@ export async function uploadFile(s3, bucket, localPath, remotePath, remoteETag, 
             '.txt': 'text/plain',
             '.html': 'text/html',
             '.xml': 'application/xml',
+            '.db': 'application/x-sqlite3',
         };
 
         const ext = path.extname(remotePath).toLowerCase();
