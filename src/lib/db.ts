@@ -16,7 +16,7 @@ import type { R2Bucket } from '@cloudflare/workers-types';
  */
 export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
     const url = new URL(request.url);
-    const filename = url.pathname.split('/').pop();
+    let filename = url.pathname.split('/').pop();
 
     // 1. Filename Whitelisting (V19.4: Allow Shards)
     if (!filename || (!filename.endsWith('.db') && !filename.endsWith('.vfs') && !filename.endsWith('.bin'))) {
@@ -34,8 +34,14 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
     const start = parseInt(match[1]);
     const end = match[2] ? parseInt(match[2]) : undefined;
 
-    // 2. Page Alignment Guard (FinOps + Cache Safety)
-    // Prevents Range request amplification and cache fragmentation
+    // 2. Alignment & Verification (8KB Page boundary)
+    // V19.4: Translate legacy shard names if they appear in metadata
+    if (filename === 'shard_0.bin') filename = 'fused-shard-000.bin';
+    if (filename.startsWith('shard_')) {
+        const num = filename.match(/\d+/)?.[0];
+        if (num) filename = `fused-shard-${num.padStart(3, '0')}.bin`;
+    }
+
     if (start % 8192 !== 0) {
         console.warn(`[VFS-SEC] Misaligned Range Attempt: ${start}`);
         return new Response('Misaligned Range', { status: 403 });

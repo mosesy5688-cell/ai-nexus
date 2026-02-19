@@ -44,6 +44,12 @@ export default defineConfig({
   // See SPEC_SITEMAP_V6.1.md for architecture details
   integrations: [tailwind()],
   vite: {
+    server: {
+      watch: {
+        // V19.4: Ignore public/ and heavy artifacts to reduce watcher overhead
+        ignored: ['**/public/**', '**/.astro/**', '**/dist/**', '**/node_modules/**']
+      }
+    },
     define: {
       'import.meta.env.PUBLIC_BUILD_TIME': JSON.stringify(BUILD_TIME)
     },
