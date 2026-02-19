@@ -71,12 +71,12 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id={`mesh-grid-${key}`}>
-                        {tier.nodes.slice(0, 6).map((node, index) => {
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 relation-group" id={`mesh-grid-${key}`} data-max="8">
+                        {tier.nodes.slice(0, 8).map((node, index) => {
                             const path = getRouteFromId(node.id, node.type);
                             
                             return (
-                                <a href={path} class={`mesh-node group relative p-4 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 rounded-2xl hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300`}>
+                                <a href={path} class={`mesh-node group relative p-4 bg-white dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/50 rounded-2xl hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 ${index >= 8 ? 'hidden extra-node' : ''}`}>
                                     <div class="flex items-start gap-4">
                                         <div class="node-icon-wrapper relative">
                                             <span class="text-3xl filter grayscale group-hover:grayscale-0 transition-all duration-500 block">
@@ -111,12 +111,13 @@ const hasRelations = Object.values(tiers).some(t => t.nodes.length > 0);
                         })}
                     </div>
 
-                    {tier.nodes.length > 6 && (
+                    {tier.nodes.length > 8 && (
                         <button 
-                            class="show-more-nodes-btn mt-6 mx-auto flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-900/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 transition-all duration-300"
+                            class="show-more-nodes-btn mt-6 mx-auto flex items-center gap-2 px-6 py-3 bg-zinc-50 dark:bg-gray-900/80 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl border border-dashed border-zinc-200 dark:border-zinc-700 transition-all duration-300 font-bold shadow-sm"
                             data-target={`mesh-grid-${key}`}
+                            data-count={tier.nodes.length - 8}
                         >
-                            <span class="text-[11px] font-black uppercase tracking-widest">+ Expand {tier.nodes.length - 6} Hidden Relations</span>
+                            <span class="text-[11px] font-black uppercase tracking-widest">+ Expand {tier.nodes.length - 8} Related Discoveries</span>
                         </button>
                     )}
                 </div>

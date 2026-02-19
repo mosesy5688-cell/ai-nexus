@@ -102,7 +102,7 @@ export async function getMeshProfile(locals, rootId, entity, options = {}) {
     };
 
     // 1. Process Relations (Strict Aggregate from R2)
-    const { tiers: processedTiers, processedRelations, nodeRegistry: registry } = processRelationsIntoTiers(rawRelations, nodeRegistry, seenIds, graphMeta, tiers, normRoot);
+    const { tiers: processedTiers, processedRelations, nodeRegistry: registry } = processRelationsIntoTiers(rawRelations, nodeRegistry, seenIds, graphMeta, tiers, normRoot, isNodeValid);
 
     // Merge back
     Object.assign(tiers, processedTiers);

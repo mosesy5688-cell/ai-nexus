@@ -58,11 +58,28 @@ const defaultSchema = {
     ]
 };
 const schemaToUse = jsonld || defaultSchema;
+
+// V19.4: Global Metadata Inlining (SSR -> Client Bridge)
+import { getGlobalStats } from '../utils/config-loader.js';
+const [categoryStats, trendingData] = await Promise.all([
+    getGlobalStats('category_stats', Astro.locals).catch(() => null),
+    getGlobalStats('trending', Astro.locals).catch(() => null)
+]);
+
+const siteMeta = {
+    category_stats: categoryStats,
+    trending: trendingData,
+    _inlined_at: new Date().toISOString()
+};
 ---
 
 <!doctype html>
 <html lang="en">
 <head>
+    <!-- V19.4: Pre-inject Site Metadata to eliminate redundant HTTP hits -->
+    <script is:inline define:vars={{ siteMeta }}>
+        window.__SITE_META__ = siteMeta;
+    </script>
     <!-- Google Tag Manager -->
     <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
     new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -146,7 +163,7 @@ const schemaToUse = jsonld || defaultSchema;
     
     <Header />
     <OnboardingTour />
-    <main class="flex-grow container mx-auto px-4 py-8">
+    <main class="flex-grow container mx-auto px-4 py-6">
         <slot />
     </main>
     <Footer />

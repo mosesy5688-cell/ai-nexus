@@ -62,39 +62,44 @@ const hasContent = paperRelations.length > 0 || baseModelRelations.length > 0 ||
 ---
 
 {hasContent && (
-  <section class="related-research mt-6 bg-white dark:bg-zinc-900 rounded-xl p-5 shadow-sm border border-zinc-100 dark:border-zinc-800">
+  <section class="related-research mt-6 bg-white dark:bg-zinc-900 rounded-xl p-5 shadow-sm border border-zinc-100 dark:border-zinc-800" id="related-research-section">
     <h2 class="text-lg font-bold mb-3 text-zinc-900 dark:text-white flex items-center gap-2 tracking-tight">
       <span>🔗</span> Knowledge Lineage
     </h2>
     
     {paperRelations.length > 0 && (
-      <div class="mb-3">
-        <h3 class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase mb-2 tracking-widest">
+      <div class="mb-5">
+        <h3 class="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase mb-3 tracking-[0.2em]">
           📄 Research Papers
         </h3>
-        <div class="flex flex-wrap gap-2">
-          {paperRelations.map(rel => (
+        <div class="flex flex-wrap gap-2 relation-group" data-max="6">
+          {paperRelations.map((rel, index) => (
             <a 
               href={getRouteFromId(rel.target_id, 'paper')}
-              class="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+              class={`inline-flex items-center gap-1 px-3 py-1 bg-blue-50 dark:bg-blue-900/10 text-blue-700 dark:text-blue-300 rounded-full text-xs font-bold border border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all ${index >= 6 ? 'hidden extra-rel' : ''}`}
             >
               📄 {stripPrefix(rel.target_id)}
             </a>
           ))}
+          {paperRelations.length > 6 && (
+            <button class="expand-rels-btn text-[10px] font-black uppercase text-blue-600 dark:text-blue-400 hover:underline ml-2" data-count={paperRelations.length - 6}>
+              + {paperRelations.length - 6} more
+            </button>
+          )}
         </div>
       </div>
     )}
     
     {baseModelRelations.length > 0 && (
-      <div class="mb-4">
-        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+      <div class="mb-5">
+        <h3 class="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase mb-3 tracking-[0.2em]">
           🧬 Based On
         </h3>
         <div class="flex flex-wrap gap-2">
           {baseModelRelations.map(rel => (
             <a 
               href={getRouteFromId(rel.target_id, 'model')}
-              class="inline-flex items-center px-3 py-1 bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 rounded-full text-sm hover:bg-zinc-200 transition-colors"
+              class="inline-flex items-center px-3 py-1 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 rounded-full text-xs font-bold border border-zinc-100 dark:border-zinc-700 hover:border-indigo-500 transition-all"
             >
               {stripPrefix(rel.target_id)}
             </a>
@@ -104,63 +109,73 @@ const hasContent = paperRelations.length > 0 || baseModelRelations.length > 0 ||
     )}
     
     {variantRelations.length > 0 && (
-      <div class="mb-4">
-        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+      <div class="mb-5">
+        <h3 class="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase mb-3 tracking-[0.2em]">
           🔀 Variants
         </h3>
-        <div class="flex flex-wrap gap-2">
-          {variantRelations.map(rel => {
+        <div class="flex flex-wrap gap-2 relation-group" data-max="6">
+          {variantRelations.map((rel, index) => {
             const name = stripPrefix(rel.target_id).split('--').pop() || '';
             return (
               <a 
                 href={getRouteFromId(rel.target_id, 'model')}
-                class="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full text-sm hover:bg-emerald-100 transition-colors"
+                class={`inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-300 rounded-full text-xs font-bold border border-emerald-100 dark:border-emerald-900/30 hover:border-emerald-500 transition-all ${index >= 6 ? 'hidden extra-rel' : ''}`}
               >
                 <span>{name}</span>
               </a>
             );
           })}
+          {variantRelations.length > 6 && (
+            <button class="expand-rels-btn text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400 hover:underline ml-2" data-count={variantRelations.length - 6}>
+              + {variantRelations.length - 6} more
+            </button>
+          )}
         </div>
-      </div>
-    )}
-                <span>{name}</span>
-                {vramEst && (
-                  <span class="text-xs bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-300 px-1.5 py-0.5 rounded">
-                    ~{vramEst}GB
-                  </span>
-                )}
-              </a>
-            );
-          })}
-        </div>
-        <!-- V12: Explore Same Family button -->
-        {baseModels.length > 0 && (
-          <a 
-            href={getRouteFromId(baseModels[0], 'model')}
-            class="inline-flex items-center gap-1 mt-3 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-sm font-medium rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all shadow-sm"
-          >
-            <span>🔍</span> View Base Model
-          </a>
-        )}
       </div>
     )}
     
-    {datasets.length > 0 && (
-      <div>
-        <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+    {datasetRelations.length > 0 && (
+      <div class="mb-2">
+        <h3 class="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase mb-3 tracking-[0.2em]">
           📊 Training Data
         </h3>
-        <div class="flex flex-wrap gap-2">
-          {datasets.map(datasetId => (
+        <div class="flex flex-wrap gap-2 relation-group" data-max="6">
+          {datasetRelations.map((rel, index) => (
             <a 
-              href={getRouteFromId(datasetId, 'dataset')}
-              class="inline-flex items-center gap-1 px-3 py-1 bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-sm hover:bg-orange-100 dark:hover:bg-orange-900/50 transition-colors"
+              href={getRouteFromId(rel.target_id, 'dataset')}
+              class={`inline-flex items-center gap-1 px-3 py-1 bg-orange-50 dark:bg-orange-900/10 text-orange-700 dark:text-orange-300 rounded-full text-xs font-bold border border-orange-100 dark:border-orange-900/30 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-all ${index >= 6 ? 'hidden extra-rel' : ''}`}
             >
-              {stripPrefix(datasetId)}
+              {stripPrefix(rel.target_id)}
             </a>
           ))}
+          {datasetRelations.length > 6 && (
+            <button class="expand-rels-btn text-[10px] font-black uppercase text-orange-600 dark:text-orange-400 hover:underline ml-2" data-count={paperRelations.length - 6}>
+              + {datasetRelations.length - 6} more
+            </button>
+          )}
         </div>
       </div>
     )}
   </section>
 )}
+
+<script is:inline>
+  function initRelatedFolding() {
+    const buttons = document.querySelectorAll('.expand-rels-btn');
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const group = btn.closest('.relation-group');
+        if (group) {
+          const extra = group.querySelectorAll('.extra-rel');
+          extra.forEach(el => el.classList.toggle('hidden'));
+          const isHidden = extra[0].classList.contains('hidden');
+          const count = btn.dataset.count;
+          btn.textContent = isHidden ? `+ ${count} more` : '- Show less';
+        }
+      });
+    });
+  }
+  initRelatedFolding();
+  document.addEventListener('astro:after-swap', initRelatedFolding);
+  document.addEventListener('astro:page-load', initRelatedFolding);
+</script>
