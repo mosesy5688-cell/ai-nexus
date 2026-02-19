@@ -18,12 +18,16 @@ top.forEach(e => console.log(`  [${e.type}] ${e.name} | FNI: ${e.fni_score} | St
 const fniStats = db.prepare("SELECT count(CASE WHEN fni_score > 0 THEN 1 END) as has_fni, count(CASE WHEN fni_score = 0 OR fni_score IS NULL THEN 1 END) as no_fni FROM entities").get();
 console.log(`\nFNI populated: ${fniStats.has_fni} | FNI missing: ${fniStats.no_fni}`);
 
-// 4. FTS5 with named entities
 const fts = db.prepare("SELECT e.id, e.name, e.type FROM search s JOIN entities e ON e.rowid = s.rowid WHERE search MATCH '\"gpt\"*' AND e.name != '' LIMIT 5").all();
 console.log(`\nFTS5 "gpt" (named only): ${fts.length} results`);
 fts.forEach(r => console.log(`  [${r.type}] ${r.name}`));
 
-// 5. Check field mapping
+// 5. Category Distribution
+const catStats = db.prepare("SELECT category, count(*) as c FROM entities GROUP BY category ORDER BY c DESC").all();
+console.log('\nCategory Distribution:');
+catStats.forEach(s => console.log(`  - ${s.category.padEnd(25)}: ${s.c} entities`));
+
+// 6. Check field mapping
 const sample = db.prepare("SELECT * FROM entities LIMIT 1").get();
 console.log('\nSample entity columns:', Object.keys(sample).join(', '));
 
