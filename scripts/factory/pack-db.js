@@ -58,6 +58,7 @@ async function packDatabase() {
     let currentShardId = 0, currentShardSize = 0;
     const stats = { packed: 0, heavy: 0, bytes: 0 };
     const shardHashes = new Map();
+    const manifest = {};
 
     let currentFd = null;
     const openShard = () => {
