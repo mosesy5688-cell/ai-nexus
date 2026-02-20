@@ -159,15 +159,19 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
     // --- Dual-Engine Integration: VFS + R2 Fallback Recovery ---
     // V19.4.5: We MUST merge metadata from both streams if fields are missing or TRUNCATED.
     // Engine 1 (Fast VFS) often truncates READMEs to snippets to save index space.
+    // However, some entities legitimately have short READMEs (like datasets), so we MUST ALSO 
+    // reliably trigger fallback if the relation mesh is empty, preserving the Knowledge Graph.
     const isHtmlTruncated = !html || html.length < 1500;
+    const isMeshMissing = !mesh || mesh.length === 0;
 
-    if (isHtmlTruncated || mesh.length === 0) {
+    // V21.7 Guard: Only skip Engine 2 fetch if we have BOTH a decent HTML size AND relation links.
+    if (isHtmlTruncated || isMeshMissing) {
         const secondaryCandidates = getR2PathCandidates(type, normalized);
         const fusedCandidates = secondaryCandidates.filter(c => c.includes('/fused/'));
         const meshCandidates = secondaryCandidates.filter(c => c.includes('/mesh/profiles/'));
 
         // Legacy Fallback Reader: Extracting missing content from R2
-        console.warn(`[TELEMETRY] vfs_fallback_event: ${fullId} (Missing/Truncated: ${isHtmlTruncated ? 'HTML' : ''} ${mesh.length === 0 ? 'Mesh' : ''})`);
+        console.warn(`[TELEMETRY] vfs_fallback_event: ${fullId} (Missing/Truncated HTML: ${isHtmlTruncated}, Missing Mesh: ${isMeshMissing})`);
 
         // 1. Recover Monolithic Fused JSON (Contains BOTH Rich Text and Relations)
         let fusedSuccessfullyFetched = false;
