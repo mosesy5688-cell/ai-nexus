@@ -16,7 +16,7 @@ const reportSlug = slugStr.replace(/^daily\//, '');
 
 // V16.7.2: Hybrid Loading - CDN First (Unified Loader)
 try {
-    const { entity, _meta } = await loadEntityStreams('report', slugStr);
+    const { entity, _meta } = await loadEntityStreams('report', slugStr, Astro.locals);
     if (entity) {
         report = hydrateEntity(entity, 'report');
         // V16.8.30: Defensive Title Restoration

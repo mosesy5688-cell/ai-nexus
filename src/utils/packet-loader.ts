@@ -1,5 +1,5 @@
 import { R2_CACHE_URL } from '../config/constants.js';
-import { getR2PathCandidates, normalizeEntitySlug } from './entity-cache-reader-core.js';
+import { getR2PathCandidates, normalizeEntitySlug, fetchEntityFromR2 } from './entity-cache-reader-core.js';
 import { fetchBundleRange } from './vfs-fetcher.js';
 
 const CDN_SECONDARY = 'https://ai-nexus-assets.pages.dev/cache';
@@ -80,7 +80,7 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
  * V19.4: High-Density Parallel Loader
  * Optimized with "Race-to-Hit" strategy (Promise.any)
  */
-export async function loadEntityStreams(type: string, slug: string) {
+export async function loadEntityStreams(type: string, slug: string, locals: any = null) {
     const normalized = normalizeEntitySlug(slug, type).toLowerCase();
     const candidates = getR2PathCandidates(type, normalized);
 
@@ -105,7 +105,20 @@ export async function loadEntityStreams(type: string, slug: string) {
         try {
             entityResult = await Promise.any(otherCandidates.map(p => raceCandidate(p)));
         } catch (err) {
-            return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
+            // V21.5: Final Sequential Recovery (The "Old Engine" Fallback)
+            // If parallel racing fails, we fall back to the sequential reader which is more robust
+            // in some edge cases and handles local filesystem shims in DEV.
+            console.warn(`[Loader] Parallel race failed for ${normalized}, trying sequential recovery...`);
+            const sequentialResult = await fetchEntityFromR2(type, normalized, locals);
+
+            if (!sequentialResult) {
+                return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
+            }
+
+            entityResult = {
+                data: sequentialResult.entity || sequentialResult,
+                path: sequentialResult._cache_path || 'sequential'
+            };
         }
     }
 

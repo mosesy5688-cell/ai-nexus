@@ -41,7 +41,7 @@ try {
   // 2. Efficient Data Loading (3-Stream Parallel V16.5)
   const type = 'model';
   // V16.5: Static Assembly Architecture
-  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
+  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
   
   // 3. Validation & 404 Handling (Zero-Entropy V16.8.15.2)
   // Ensure we have a valid entity and not just a metadata stub (fused fallback with no detail)

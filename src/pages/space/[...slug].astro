@@ -36,9 +36,9 @@ let cleanedDesc = "";
 
 try {
   if (!slug) throw new Error("No slug/ID provided");
-  
+  // V16.5: Static Assembly Architecture
   const type = 'space';
-  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
+  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
   
   if (!entity || !_meta.available) {
     Astro.response.status = 404;
