@@ -92,12 +92,13 @@ async function main() {
                 }
 
                 const fusedEntity = {
+                    ...(existingData || {}),
                     ...baseData,
                     id: id,
-                    html_readme: entityData.html || baseData.html_readme || '',
-                    mesh_profile: meshData || { relations: [] },
+                    html_readme: entityData.html || baseData.html_readme || (existingData && existingData.html_readme) || '',
+                    mesh_profile: meshData || (existingData && existingData.mesh_profile) || { relations: [] },
                     _fused_at,
-                    _version: '16.11.1-stable-fusion',
+                    _version: '19.4.0-legacy-retention-fusion',
                     _fusion_status: entityData.success ? 'refined' : 'raw'
                 };
 
