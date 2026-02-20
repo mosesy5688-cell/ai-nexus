@@ -85,8 +85,9 @@ export class OllamaAdapter extends BaseAdapter {
      */
     normalize(raw) {
         const ollamaId = raw.ollama_id || raw.name || 'unknown';
-
-        return {
+        const modelfileText = raw.modelfile ? `\n\n## Modelfile\n\`\`\`dockerfile\n${raw.modelfile}\n\`\`\`\n` : '';
+        const paramsText = raw.parameters ? `\n\n## Parameters\n\`\`\`text\n${raw.parameters}\n\`\`\`\n` : '';
+        const entity = {
             // Identity
             id: `ollama/${ollamaId}`,
             type: 'model',
@@ -96,8 +97,8 @@ export class OllamaAdapter extends BaseAdapter {
             // Content
             title: raw.name || ollamaId,
             description: `Ollama model: ${ollamaId}. Run locally with: ollama run ${ollamaId}`,
-            body_content: '',
-            tags: ['ollama', 'local-deployment'],  // Inline to avoid 'this' context issues
+            body_content: `${modelfileText}${paramsText}`,
+            tags: ['ollama', 'local-deployment'],
 
             // V6.0: Pipeline tag for category assignment (all Ollama models are text-generation LLMs)
             pipeline_tag: 'text-generation',
@@ -105,13 +106,15 @@ export class OllamaAdapter extends BaseAdapter {
             // Metadata
             author: 'ollama',
             license_spdx: null,
-            meta_json: JSON.stringify({
+            meta_json: {
                 ollama: {
                     id: ollamaId,
-                    url: raw.source_url,
-                    is_fallback: raw.is_fallback || false
+                    url: raw.source_url || `https://ollama.com/library/${ollamaId}`,
+                    is_fallback: raw.is_fallback || false,
+                    details: raw.details || null,
+                    parameters: raw.parameters || null
                 }
-            }),
+            },
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
 
@@ -145,76 +148,76 @@ export class OllamaAdapter extends BaseAdapter {
     }
 
     /**
-     * Fetch Ollama library (structured data)
+     * Fetch Ollama library (Local deployment structured data via JSON API)
+     * Replaces the brittle HTML scraping of ollama.com with the official local API.
      */
     async fetchOllamaLibrary() {
-        // Try to fetch the library page and parse it
+        console.log('[Ollama] Connecting to local daemon JSON API (http://127.0.0.1:11434)...');
         try {
-            const response = await fetch(OLLAMA_LIBRARY_URL, {
-                headers: {
-                    'User-Agent': 'Free2AITools/1.0 (+https://free2aitools.com)'
-                }
+            // 1. Fetch available local models
+            const response = await fetch('http://127.0.0.1:11434/api/tags', {
+                headers: { 'Accept': 'application/json' },
+                // Use a short timeout so CI doesn't drag if Ollama isn't running
+                signal: AbortSignal.timeout(3000)
             });
 
             if (!response.ok) {
-                console.warn('[Ollama] HTTP error:', response.status);
+                console.warn('[Ollama] Local API error:', response.status);
                 return this.getFallbackModels();
             }
 
-            const html = await response.text();
-            return this.parseOllamaLibrary(html);
-
-        } catch (error) {
-            console.warn('[Ollama] Fetch failed, using fallback:', error.message);
-            return this.getFallbackModels();
-        }
-    }
-
-    /**
-     * Parse Ollama library HTML
-     */
-    parseOllamaLibrary(html) {
-        const models = [];
-
-        // Simple regex-based parsing (can be enhanced with cheerio if needed)
-        // Looking for model links like /library/llama3
-        const modelPattern = /href="\/library\/([^"]+)"[^>]*>[\s\S]*?<h2[^>]*>([^<]+)<\/h2>/gi;
-        let match;
-
-        while ((match = modelPattern.exec(html)) !== null) {
-            const [_, slug, name] = match;
-            if (slug && !slug.includes('/')) {
-                models.push({
-                    ollama_id: slug.trim(),
-                    name: name?.trim() || slug.trim(),
-                    source_url: `https://ollama.com/library/${slug.trim()}`
-                });
+            const data = await response.json();
+            if (!data.models || data.models.length === 0) {
+                return this.getFallbackModels();
             }
-        }
 
-        // Also try to find models in JSON data if embedded
-        try {
-            const jsonMatch = html.match(/\{"models":\s*\[[\s\S]*?\]\}/);
-            if (jsonMatch) {
-                const data = JSON.parse(jsonMatch[0]);
-                if (data.models && Array.isArray(data.models)) {
-                    data.models.forEach(m => {
-                        if (!models.find(x => x.ollama_id === m.name)) {
-                            models.push({
-                                ollama_id: m.name,
-                                name: m.name,
-                                pulls: m.pulls || m.download_count || 0,
-                                source_url: `https://ollama.com/library/${m.name}`
-                            });
-                        }
+            const models = [];
+
+            // 2. Extract deep Modelfile data for each local deployment
+            for (const m of data.models) {
+                // Strip the tag for standard naming (e.g., llama3:latest -> llama3)
+                const baseName = m.name.split(':')[0];
+                let pulls = 0;
+                let modelfile = null;
+                let parameters = null;
+
+                try {
+                    const showRes = await fetch('http://127.0.0.1:11434/api/show', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: m.name })
+                    });
+
+                    if (showRes.ok) {
+                        const showData = await showRes.json();
+                        modelfile = showData.modelfile;
+                        parameters = showData.parameters;
+                    }
+                } catch (e) {
+                    console.warn(`[Ollama] Could not fetch deeper details for ${m.name}`);
+                }
+
+                // Push enhanced dataset
+                if (!models.find(x => x.ollama_id === baseName)) {
+                    models.push({
+                        ollama_id: baseName,
+                        name: m.name,
+                        pulls: m.size || 0, // Fallback metric if true pulls aren't exposed locally
+                        source_url: `https://ollama.com/library/${baseName}`,
+                        details: m.details,
+                        modelfile,
+                        parameters,
+                        is_local: true
                     });
                 }
             }
-        } catch (e) {
-            // JSON parsing failed, continue with regex results
-        }
 
-        return models.length > 0 ? models : this.getFallbackModels();
+            return models.length > 0 ? models : this.getFallbackModels();
+
+        } catch (error) {
+            console.warn('[Ollama] Local daemon unreachable, using fallback array:', error.message);
+            return this.getFallbackModels();
+        }
     }
 
     /**
@@ -296,16 +299,32 @@ export class OllamaAdapter extends BaseAdapter {
                 match.ollama_id = ollama.ollama_id;
                 match.ollama_pulls = ollama.pulls || 0;
 
-                // Update meta_json
-                const meta = typeof match.meta_json === 'string'
-                    ? JSON.parse(match.meta_json || '{}')
-                    : (match.meta_json || {});
+                // Safely update meta_json
+                let meta = {};
+                try {
+                    meta = typeof match.meta_json === 'string'
+                        ? JSON.parse(match.meta_json || '{}')
+                        : (match.meta_json || {});
+                } catch (e) {
+                    meta = {};
+                }
+
                 meta.ollama = {
                     id: ollama.ollama_id,
                     url: ollama.source_url,
-                    pulls: ollama.pulls
+                    pulls: ollama.pulls,
+                    details: ollama.details || null,
+                    parameters: ollama.parameters || null
                 };
                 match.meta_json = JSON.stringify(meta);
+
+                // Inject modelfile into body_content if present
+                if (ollama.modelfile) {
+                    match.body_content = match.body_content || '';
+                    if (!match.body_content.includes('## Deploy with Ollama')) {
+                        match.body_content += `\n\n## Deploy with Ollama\n\`\`\`dockerfile\n${ollama.modelfile}\n\`\`\`\n`;
+                    }
+                }
 
                 enriched++;
             } else {

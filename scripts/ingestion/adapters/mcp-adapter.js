@@ -89,6 +89,13 @@ export class MCPAdapter extends BaseAdapter {
         const serverId = raw.id || raw.name || 'unknown';
         const name = raw.name || raw.display_name || serverId;
 
+        // V19.5 Mode B Phase 2: Elevate Meta structures
+        const extractedTools = raw.tools?.map(t => typeof t === 'object' ? t.name : t) || [];
+        const extractedPrompts = raw.prompts?.map(p => typeof p === 'object' ? p.name : p) || [];
+
+        const toolsMd = extractedTools.length > 0 ? `\n\n### 🛠️ Exposed Tools\n- \`${extractedTools.join('`\n- `')}\`` : '';
+        const promptsMd = extractedPrompts.length > 0 ? `\n\n### 📝 Native Prompts\n- \`${extractedPrompts.join('`\n- `')}\`` : '';
+
         const entity = {
             // Identity
             id: `mcp-server--${this.sanitizeName(serverId)}`,
@@ -100,8 +107,12 @@ export class MCPAdapter extends BaseAdapter {
             // Content
             title: name,
             description: this.truncate(raw.description || '', 500),
-            body_content: raw.readme || raw.description || '',
+            body_content: (raw.readme || raw.description || '') + toolsMd + promptsMd,
             tags: this.extractTags(raw),
+
+            // Structural Top-Level Promotion
+            mcp_tools: extractedTools,
+            mcp_prompts: extractedPrompts,
 
             // Metadata
             author: raw.author || raw.vendor || 'unknown',

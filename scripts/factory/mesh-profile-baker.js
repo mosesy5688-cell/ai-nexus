@@ -19,7 +19,8 @@ const TYPE_TO_ROUTE = {
     'dataset': '/dataset',
     'paper': '/paper',
     'space': '/space',
-    'tool': '/tool'
+    'tool': '/tool',
+    'prompt': '/prompt'
 };
 
 

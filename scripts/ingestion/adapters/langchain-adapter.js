@@ -112,14 +112,13 @@ export class LangChainAdapter extends BaseAdapter {
     normalize(raw) {
         const handle = raw.repo_handle || raw.name || 'unknown';
         const owner = raw.owner || 'langchain';
-        const id = `langchain/${owner}/${handle}`;
-
-        // Determine entity type
         const isAgent = this.detectIfAgent(raw);
+        const type = isAgent ? 'agent' : 'prompt';
+        const id = `langchain-${type}--${owner}--${handle}`;
 
         return {
             id,
-            type: isAgent ? 'agent' : 'prompt',
+            type,
             name: raw.full_name || handle,
             author: owner,
             description: raw.description || '',

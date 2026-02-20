@@ -27,10 +27,15 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         type: e.type || 'model',
         author: e.author || '',
         description: (e.description || e.summary || '').substring(0, 150), // Truncated for size
-        tags: Array.isArray(e.tags) ? e.tags.slice(0, 5) : (typeof e.tags === 'string' ? JSON.parse(e.tags || '[]').slice(0, 5) : []),
-        fni_score: Math.round(e.fni_score || 0),
-        image_url: e.image_url || null,
-        slug: e.slug || e.id?.split(/[:/]/).pop()
+        slug: e.slug || e.id?.split(/[:/]/).pop(),
+        params_billions: e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0,
+        context_length: e.context_length ?? e.technical?.context_length ?? 0,
+        stars: e.stars || 0,
+        downloads: e.downloads || 0,
+        fni_p: e.fni_p ?? e.fni_metrics?.p ?? 0,
+        fni_v: e.fni_v ?? e.fni_metrics?.v ?? 0,
+        fni_c: e.fni_c ?? e.fni_metrics?.c ?? 0,
+        fni_u: e.fni_u ?? e.fni_metrics?.u ?? 0
     }));
 
 
@@ -55,7 +60,15 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         tags: Array.isArray(e.tags) ? e.tags.slice(0, 5) : (typeof e.tags === 'string' ? JSON.parse(e.tags || '[]').slice(0, 5) : []),
         fni_score: Math.round(e.fni_score || 0),
         image_url: e.image_url || null,
-        slug: e.slug || e.id?.split(/[:/]/).pop()
+        slug: e.slug || e.id?.split(/[:/]/).pop(),
+        params_billions: e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0,
+        context_length: e.context_length ?? e.technical?.context_length ?? 0,
+        stars: e.stars || 0,
+        downloads: e.downloads || 0,
+        fni_p: e.fni_p ?? e.fni_metrics?.p ?? 0,
+        fni_v: e.fni_v ?? e.fni_metrics?.v ?? 0,
+        fni_c: e.fni_c ?? e.fni_metrics?.c ?? 0,
+        fni_u: e.fni_u ?? e.fni_metrics?.u ?? 0
     }));
     const SHARD_SIZE = 5000;
     const totalShards = Math.ceil(fullEntities.length / SHARD_SIZE);

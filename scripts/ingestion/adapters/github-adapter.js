@@ -182,10 +182,18 @@ export class GitHubAdapter extends BaseAdapter {
                 });
                 if (readmeResponse.ok) {
                     readme = await readmeResponse.text();
-                    // Truncate to 100KB
+
+                    // V19.5 Mode B Phase 3: "Cache Diet"
+                    // Extract installation/Quick-Start commands *before* aggressive architectural truncation
+                    const quickStartBlock = this.extractQuickStartFromReadme(readme);
+
+                    // Truncate to 100KB (V19 Data Suicide Ban: Do NOT arbitrarily truncate small lengths for size optimization)
                     if (readme.length > 100000) {
                         readme = readme.substring(0, 100000) + '\n\n[Content truncated...]';
                     }
+
+                    // Attach the extracted quickStart block dynamically
+                    repo.quick_start = quickStartBlock;
                 }
             } catch (e) {
                 // README fetch failed
@@ -220,8 +228,11 @@ export class GitHubAdapter extends BaseAdapter {
             // Content
             title: name,
             description: this.extractDescription(raw.readme) || raw.description || '',
-            body_content: raw.readme || '',
+            body_content: (raw.readme || '') + (raw.quick_start ? `\n\n### 🚀 Quick Start\n\`\`\`bash\n${raw.quick_start}\n\`\`\`` : ''),
             tags: this.extractTags(raw),
+
+            // Structural Top-Level Promotion
+            github_quick_start: raw.quick_start || null,
 
             // V6.0: Pipeline tag inferred from topics for category assignment
             pipeline_tag: this.inferPipelineTag(raw.topics),
@@ -305,6 +316,40 @@ export class GitHubAdapter extends BaseAdapter {
         }
 
         return assets;
+    }
+
+    /**
+     * V19.5 Phase 3: Extract "Quick Start" commands from raw README string.
+     * Looks for pip, npm, git clone, docker pull. Returns first block found.
+     */
+    extractQuickStartFromReadme(readmeText) {
+        if (!readmeText) return null;
+
+        // Scan for code blocks ```bash or just ```
+        const codeBlockPattern = /```[\w]*\n([\s\S]*?)```/g;
+        let match;
+
+        while ((match = codeBlockPattern.exec(readmeText)) !== null) {
+            const blockContent = match[1].trim();
+            // Verify if block contains typical install commands
+            if (
+                /^(\$ |> )?(pip install|npm install|npm i|yarn add|git clone|docker pull|docker run|brew install)/mi.test(blockContent)
+            ) {
+                // Clean off leading typical shell markers $ or >
+                return blockContent.replace(/^(\$|>)\s/gm, '');
+            }
+        }
+
+        // Secondary fallback - just finding raw code lines without block quotes if they are clearly install instructions
+        const lines = readmeText.split('\n');
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (/^(\$ |> |`|)(pip install|docker pull)[^`]*(`|)$/i.test(trimmed)) {
+                return trimmed.replace(/[`$>]/g, '').trim();
+            }
+        }
+
+        return null;
     }
 
     // ============================================================

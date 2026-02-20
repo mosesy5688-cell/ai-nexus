@@ -20,7 +20,7 @@ export function calculateFNI(entity) {
     const ONE_DAY = 86400000;
 
     let rawPop = 0;
-    if (type === 'model' || type === 'dataset') {
+    if (type === 'model' || type === 'dataset' || type === 'prompt') {
         rawPop = (entity.likes || 0) + ((entity.downloads || 0) * 0.01);
     } else if (type === 'agent' || type === 'tool') {
         rawPop = (entity.stars || entity.likes || 0);
@@ -56,7 +56,7 @@ export function calculateFNI(entity) {
 export async function computeAllFNI(inputFile, outputDir) {
     if (!fs.existsSync(inputFile)) throw new Error(`Input file not found: ${inputFile}`);
     const allEntities = JSON.parse(fs.readFileSync(inputFile, 'utf8'));
-    const FNI_ENTITY_TYPES = ['model', 'agent', 'paper', 'space', 'tool', 'dataset'];
+    const FNI_ENTITY_TYPES = ['model', 'agent', 'paper', 'space', 'tool', 'dataset', 'prompt'];
     const entities = allEntities.filter(e => FNI_ENTITY_TYPES.includes(e.entity_type) || FNI_ENTITY_TYPES.includes(e.type));
 
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });

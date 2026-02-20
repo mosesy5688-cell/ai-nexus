@@ -39,6 +39,14 @@ export const PREFIX_MAP = {
     ollama: {
         model: 'ollama-model--',
     },
+    mcp: {
+        agent: 'mcp-server--',
+        tool: 'mcp-tool--'
+    },
+    langchain: {
+        prompt: 'langchain-prompt--',
+        agent: 'langchain-agent--'
+    },
     knowledge: {
         concept: 'knowledge--',
     },
@@ -60,12 +68,12 @@ function getKnownPrefixes() {
         'civitai--': { s: 'civitai' },
         'kaggle--': { s: 'kaggle' },
         'ollama--': { s: 'ollama' },
-        'model--': { t: 'model' },
         'dataset--': { t: 'dataset' },
         'space--': { t: 'space' },
         'agent--': { t: 'agent' },
         'tool--': { t: 'tool' },
-        'paper--': { t: 'paper' }
+        'paper--': { t: 'paper' },
+        'prompt--': { t: 'prompt' }
     };
 
     // Auto-add from PREFIX_MAP
@@ -194,6 +202,14 @@ export function getNodeSource(id, type) {
         if (lowerId.startsWith('kaggle')) return 'kaggle';
         if (lowerId.startsWith('ollama')) return 'ollama';
         return 'hf';
+    }
+    if (type === 'agent') {
+        const lowerId = (id || '').toLowerCase();
+        if (lowerId.startsWith('mcp')) return 'mcp';
+        if (lowerId.startsWith('langchain')) return 'langchain';
+    }
+    if (type === 'prompt') {
+        return 'langchain'; // Currently only LangChain provides prompt artifacts natively
     }
     return null;
 }

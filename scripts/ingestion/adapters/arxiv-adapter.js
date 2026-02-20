@@ -167,6 +167,27 @@ export class ArXivAdapter extends BaseAdapter {
 
                 const xmlText = await response.text();
                 const batch = parseArxivXML(xmlText);
+
+                // V19.5 Mode B Phase 2: ArXiv HTML Full-Text Fetching
+                console.log(`   📝 Fetching full-text HTML for ${batch.length} papers in batch...`);
+                for (const paper of batch) {
+                    try {
+                        const htmlUrl = `https://arxiv.org/html/${paper.arxiv_id}`;
+                        const htmlRes = await fetch(htmlUrl, {
+                            headers: { 'User-Agent': 'Free2AITools/1.0' },
+                            signal: AbortSignal.timeout(4000)
+                        });
+                        if (htmlRes.ok) {
+                            const htmlText = await htmlRes.text();
+                            // Extract just the body/main content to cut down on Head/CSS noise
+                            const bodyMatch = htmlText.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+                            paper.full_html = bodyMatch ? bodyMatch[1] : htmlText;
+                        }
+                    } catch (e) {
+                        // Suppress timeout/network errors to keep pipeline moving
+                    }
+                }
+
                 papers.push(...batch);
 
                 // ArXiv official: "no more than one request every three seconds"
@@ -207,7 +228,7 @@ export class ArXivAdapter extends BaseAdapter {
             source_url: `https://arxiv.org/abs/${arxivId}`,
             title: cleanTitle(raw.title),
             description: this.truncate(raw.summary, 500),
-            body_content: raw.summary || '',
+            body_content: raw.full_html ? `## Abstract\n${raw.summary}\n\n## Full Paper Semantic Mesh\n${raw.full_html}` : raw.summary || '',
             tags: extractTags(raw),
             author: primaryAuthor,
             license_spdx: 'arXiv',

@@ -173,15 +173,24 @@ export class CivitAIAdapter extends BaseAdapter {
         // Build description
         const description = this.truncate(raw.description || '', 500);
 
-        return {
+        // V19.5 Mode B Phase 2: Elevate trainedWords to eliminate UI JSON-parse lag
+        const trainedWords = modelVersion.trainedWords || [];
+        const wordsMd = trainedWords.length > 0 ? `\n\n### 🏷️ Trigger Words\n\`${trainedWords.join('`, `')}\`` : '';
+
+        // NOTE: The previous code returned an unassigned object here, but then accessed `entity.content_hash` at the bottom!
+        // This is a bug in the old code causing `entity is not defined`! We MUST assign it to `entity`.
+        const entity = {
             id,
             slug,
             name: raw.name,
             author: creator.username || 'unknown',
             description,
-            body_content: raw.description || '',
+            body_content: (raw.description || '') + wordsMd,
             tags: JSON.stringify(tags),
             pipeline_tag: 'text-to-image',
+
+            // Top-Level Promotion
+            civitai_trained_words: trainedWords,
 
             // Source tracking (V4.3.1 Constitution)
             source: 'civitai',

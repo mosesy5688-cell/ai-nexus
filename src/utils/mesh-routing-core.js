@@ -18,12 +18,13 @@ export function stripPrefix(id) {
         'replicate-model', 'replicate-agent', 'replicate-space',
         'civitai-model', 'ollama-model',
         'kaggle-dataset', 'kaggle-model',
+        'langchain-prompt', 'langchain-agent',
 
         // Standardized Dual-Dash Legacy (SPEC-URL-V15.0/V16.2 Support)
         'huggingface', 'github', 'arxiv', 'kaggle', 'civitai', 'ollama', 'replicate',
 
         // Legacy/Direct Format Mapping
-        'knowledge', 'concept', 'report', 'dataset', 'model', 'agent', 'tool', 'space'
+        'knowledge', 'concept', 'report', 'dataset', 'model', 'agent', 'tool', 'space', 'prompt'
     ];
 
     for (const p of prefixes) {
@@ -66,8 +67,9 @@ export function getTypeFromId(id) {
     if (low.startsWith('arxiv-paper--') || low.startsWith('arxiv--') || low.startsWith('hf-paper--') || low.startsWith('paper--')) return 'paper';
     if (low.startsWith('hf-dataset--') || low.startsWith('kaggle-dataset--') || low.startsWith('dataset--')) return 'dataset';
     if (low.startsWith('hf-space--') || low.startsWith('space--')) return 'space';
-    if (low.startsWith('gh-agent--') || low.startsWith('github-agent--') || low.startsWith('hf-agent--') || low.startsWith('replicate-agent--') || low.startsWith('agent--')) return 'agent';
+    if (low.startsWith('gh-agent--') || low.startsWith('github-agent--') || low.startsWith('hf-agent--') || low.startsWith('replicate-agent--') || low.startsWith('langchain-agent--') || low.startsWith('agent--')) return 'agent';
     if (low.startsWith('gh-tool--') || low.startsWith('hf-tool--') || low.startsWith('github-tool--') || low.startsWith('tool--')) return 'tool';
+    if (low.startsWith('langchain-prompt--') || low.startsWith('hf-prompt--') || low.startsWith('prompt--')) return 'prompt';
     if (low.startsWith('gh-model--') || low.startsWith('hf-model--') || low.startsWith('replicate-model--') || low.startsWith('civitai-model--') || low.startsWith('ollama-model--') || low.startsWith('kaggle-model--')) return 'model';
 
     return 'model';
@@ -127,6 +129,7 @@ export function getRouteFromId(id, type = null) {
         'space': `/space/${slug}`,
         'agent': `/agent/${slug}`,
         'tool': `/tool/${slug}`,
+        'prompt': `/prompt/${slug}`,
         'model': `/model/${slug}`,
         'paper': `/paper/${slug}`,
         'report': `/reports/${slug}`,

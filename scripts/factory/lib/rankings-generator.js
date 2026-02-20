@@ -15,7 +15,7 @@ const CATEGORIES = [
     'infrastructure-ops',
 ];
 
-const ENTITY_TYPES = ['model', 'paper', 'agent', 'space', 'dataset', 'tool'];
+const ENTITY_TYPES = ['model', 'paper', 'agent', 'space', 'dataset', 'tool', 'prompt'];
 
 /**
  * Generate all rankings
@@ -54,10 +54,15 @@ async function generateCategoryRanking(category, entities, cacheDir) {
             type: e.type || 'model',
             author: e.author || '',
             description: (e.description || e.summary || '').substring(0, 120),
-            image_url: e.image_url || null,
-            fni_score: Math.round(e.fni_score || e.fni || 0),
-            tags: Array.isArray(e.tags) ? e.tags.slice(0, 3) : [],
-            slug: e.slug || e.id?.split(/[:/]/).pop()
+            slug: e.slug || e.id?.split(/[:/]/).pop(),
+            params_billions: e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0,
+            context_length: e.context_length ?? e.technical?.context_length ?? 0,
+            stars: e.stars || 0,
+            downloads: e.downloads || 0,
+            fni_p: e.fni_p ?? e.fni_metrics?.p ?? 0,
+            fni_v: e.fni_v ?? e.fni_metrics?.v ?? 0,
+            fni_c: e.fni_c ?? e.fni_metrics?.c ?? 0,
+            fni_u: e.fni_u ?? e.fni_metrics?.u ?? 0
         }));
 
         const ranking = {
