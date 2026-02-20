@@ -25,7 +25,7 @@ export function normalizeEntitySlug(id, type = 'model') {
     // V16.8.15: If the input HAD a prefix, we might want to preserve the CANONICAL prefix.
     // But usually, normalizeEntitySlug is used for R2 path generation where prefixes are handled by candidates.
 
-    return base.replace(/[:\/]/g, '--');
+    return base.replace(/[:\/]/g, '--').toLowerCase();
 }
 
 // V16.8.5: SPEC-ID-V2.1 Alignment - "Robust Tri-Stream Discovery"
