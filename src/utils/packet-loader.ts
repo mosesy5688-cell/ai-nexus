@@ -81,7 +81,7 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
  * Optimized with "Race-to-Hit" strategy (Promise.any)
  */
 export async function loadEntityStreams(type: string, slug: string) {
-    const normalized = normalizeEntitySlug(slug, type);
+    const normalized = normalizeEntitySlug(slug, type).toLowerCase();
     const candidates = getR2PathCandidates(type, normalized);
 
     // Step A: Parallel Candidate Racing (P0 Optimization)
@@ -116,6 +116,14 @@ export async function loadEntityStreams(type: string, slug: string) {
         return { entity: null, html: null, mesh: null, _meta: { available: false, source: '404' } };
     }
 
+    // V19.4.15: ID Persistence Logic
+    // If the source data (Registry/VFS) lacks an ID, we MUST inject the normalized ID
+    // to prevent downstream "ID Unknown" UI failures and broken routing.
+    if (!entityPack.id) {
+        entityPack.id = normalized;
+        console.log(`[Hydration] Injected normalized ID: ${normalized}`);
+    }
+
     // --- ANCHOR ESTABLISHED ---
     // V19.4: Transition to VFS Binary Shards for Heavy Assets (HTML/Mesh)
     const rawId = entityPack.bundle_key ? entityPack.id : (entityPack.id || entityPack.slug || slug);
@@ -137,8 +145,7 @@ export async function loadEntityStreams(type: string, slug: string) {
     // --- Dual-Engine Integration: VFS + R2 Fallback Recovery ---
     // V19.4.5: We MUST merge metadata from both streams if fields are missing.
     if (!html || mesh.length === 0) {
-        const secondaryCandidates = getR2PathCandidates(type, fullId);
-        const fusedPath = secondaryCandidates.find(c => c.includes('/fused/')) || `cache/fused/${fullId}.json.gz`;
+        const secondaryCandidates = getR2PathCandidates(type, normalized);
         const meshCandidates = secondaryCandidates.filter(c => c.includes('/mesh/profiles/'));
 
         // Legacy Fallback Reader: Extracting missing content from R2
