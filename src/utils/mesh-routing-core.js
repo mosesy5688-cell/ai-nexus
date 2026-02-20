@@ -147,7 +147,7 @@ export function getRouteFromId(id, type = null) {
 export function normalizeSlug(tag) {
     if (!tag || typeof tag !== 'string') return '';
     return tag.toLowerCase()
-        .replace(/[^a-z0-9]/g, '-')
+        .replace(/[^a-z0-9\.]/g, '-')
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '');
 }
