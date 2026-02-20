@@ -1,5 +1,7 @@
 /** Unified Entity Hydrator (V16.5) */
 import { beautifyName, beautifyAuthor, extractTechSpecs } from './entity-utils.js';
+import { handleModelType, handlePaperType, handleGenericType, mineRelations } from './entity-type-handlers.js';
+import { applyVramLogic } from './entity-vram-logic.js';
 
 export function hydrateEntity(data, type, summaryData) {
     if (!data) return null;
