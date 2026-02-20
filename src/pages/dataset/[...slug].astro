@@ -40,7 +40,7 @@ try {
   if (!slug) throw new Error("No slug/ID provided");
   
   const type = 'dataset';
-  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr);
+  const { entity, html, mesh, _meta } = await loadEntityStreams(type, slugStr, Astro.locals);
   
   if (!entity || !_meta.available) {
     Astro.response.status = 404;
