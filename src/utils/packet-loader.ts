@@ -12,13 +12,15 @@ async function fetchWithResilience(url: string, timeout = 5000) {
     const id = setTimeout(() => controller.abort(), timeout);
 
     try {
-        const response = await fetch(url.replace('cdn.free2aitools.com', 'cdn.free2aitools.com'), { signal: controller.signal });
+        const response = await fetch(url, { signal: controller.signal });
         clearTimeout(id);
         if (response.ok) return response;
         throw new Error(`HTTP ${response.status}`);
     } catch (e: any) {
         clearTimeout(id);
-        const secondaryUrl = url.replace('https://cdn.free2aitools.com', CDN_SECONDARY);
+        // V19.4.6: Fix double /cache path regression. R2_CACHE_URL points to origin, CDN_SECONDARY includes /cache.
+        // If url is https://cdn.free2aitools.com/cache/..., replacement must avoid /cache/cache/
+        const secondaryUrl = url.replace('https://cdn.free2aitools.com/cache', CDN_SECONDARY);
         console.warn(`[Resilience] Primary fetch failed for ${url}, trying secondary: ${secondaryUrl}`);
         return fetch(secondaryUrl, { signal: AbortSignal.timeout(timeout) });
     }
@@ -131,19 +133,26 @@ export async function loadEntityStreams(type: string, slug: string) {
 
         // 1. Recover README/Markdown/Content
         if (!html) {
-            const fusedPack = await fetchCompressedJSON(fusedPath);
-            if (fusedPack) {
-                const recoveredHtml = fusedPack.html_readme || fusedPack.body_content || fusedPack.body || fusedPack.content_html || fusedPack.readme_html || fusedPack.readme || null;
-                html = recoveredHtml;
-                // Field Promotion (V19.5): Ensure Engine 2 metadata overwrites partial/missing VFS data
-                Object.assign(entityPack, {
-                    ...entityPack,
-                    ...fusedPack,
-                    html_readme: recoveredHtml,
-                    // Ensure the VFS ID and Type (Anchors) are preserved just in case
-                    id: entityPack.id || fusedPack.id,
-                    type: entityPack.type || fusedPack.type
-                });
+            // V19.4.8: Multi-candidate recovery to ensure resilient fallback
+            const fusedCandidates = secondaryCandidates.filter(c => c.includes('/fused/'));
+            for (const fPath of fusedCandidates) {
+                const fusedPack = await fetchCompressedJSON(fPath);
+                if (fusedPack) {
+                    const innerEntity = fusedPack.entity || fusedPack;
+                    const recoveredHtml = innerEntity.html_readme || fusedPack.html_readme || innerEntity.body_content || innerEntity.readme || null;
+                    html = recoveredHtml;
+
+                    // Field Promotion (V19.5): Robustly merge Engine 2 metadata
+                    // Ensure we don't accidentally nest the entity or lose safe ID/Type
+                    Object.assign(entityPack, {
+                        ...innerEntity,
+                        ...entityPack, // VFS original data takes precedence for structural markers
+                        html_readme: recoveredHtml,
+                        id: entityPack.id || innerEntity.id || fusedPack.id,
+                        type: entityPack.type || innerEntity.type || fusedPack.type
+                    });
+                    break;
+                }
             }
         }
 
