@@ -131,6 +131,19 @@ export class DatasetsAdapter extends BaseAdapter {
                 // README fetch failed, continue without it
             }
 
+            // V19.5 Mode B Phase 2: Zero-fabrication Schema Extraction via datasets-server
+            let schemaData = null;
+            try {
+                const schemaUrl = `https://datasets-server.huggingface.co/info?dataset=${datasetId}`;
+                const schemaRes = await fetch(schemaUrl, { signal: AbortSignal.timeout(3000) });
+                if (schemaRes.ok) {
+                    const infoData = await schemaRes.json();
+                    schemaData = infoData.dataset_info || null;
+                }
+            } catch (e) {
+                // Datasets-server might not be ready or unsupported for this dataset. Fail open.
+            }
+
             // V17.2: Memory Optimization - Target siblings list (OOM Culprit)
             // 1. Extract what we need first
             const extractedAssets = this.extractAssets({ ...data, readme });
@@ -158,6 +171,7 @@ export class DatasetsAdapter extends BaseAdapter {
                 },
                 readme,
                 _extractedAssets: extractedAssets,
+                _schemaData: schemaData,
                 _filesCount: filesCount,
                 _fetchedAt: new Date().toISOString()
             };
@@ -176,6 +190,37 @@ export class DatasetsAdapter extends BaseAdapter {
         const datasetId = raw.id;
         const [author, name] = this.parseDatasetId(datasetId);
 
+        // V19.5 Mode B: Compile Zero-Fabrication Schema Markdown for Frontend Density
+        let schemaMarkdown = '';
+        let totalRows = 0;
+
+        if (raw._schemaData) {
+            try {
+                // Configuration sets are heavily varied; use the prime default set config
+                const configKey = Object.keys(raw._schemaData).includes('default') ? 'default' : Object.keys(raw._schemaData)[0];
+                if (configKey) {
+                    const info = raw._schemaData[configKey];
+                    const features = info.features || {};
+                    const splits = info.splits || {};
+
+                    Object.values(splits).forEach(s => { totalRows += (s.num_examples || 0); });
+
+                    if (Object.keys(features).length > 0) {
+                        schemaMarkdown += '\n\n## 📊 Structured Schema (Zero-Fabrication)\n';
+                        schemaMarkdown += '| Feature Key | Data Type |\n| :--- | :--- |\n';
+                        Object.entries(features).forEach(([fKey, fVal]) => {
+                            let typeStr = fVal.dtype || fVal._type || 'unknown';
+                            if (fVal._type === 'Sequence' && fVal.feature) typeStr = `Sequence[${fVal.feature.dtype || fVal.feature._type}]`;
+                            schemaMarkdown += `| \`${fKey}\` | \`${typeStr}\` |\n`;
+                        });
+                        if (totalRows > 0) {
+                            schemaMarkdown += `\n**Estimated Rows:** \`${totalRows.toLocaleString()}\`\n`;
+                        }
+                    }
+                }
+            } catch (e) { }
+        }
+
         const entity = {
             // Identity
             id: this.generateId(author, name, 'dataset'),
@@ -186,7 +231,7 @@ export class DatasetsAdapter extends BaseAdapter {
             // Content
             title: name,
             description: this.extractDescription(raw.readme || raw.description),
-            body_content: raw.readme || '',
+            body_content: (raw.readme || '') + schemaMarkdown,
             tags: this.normalizeTags(raw.tags),
 
             // Metadata
@@ -294,6 +339,18 @@ export class DatasetsAdapter extends BaseAdapter {
     }
 
     buildMetaJson(raw) {
+        // Also inject the fetched totalRows here if we had it. It was calculated in normalize() 
+        // but we can recount it for neatness, or just let normalize() append it to strings.
+        let metricRows = 0;
+        if (raw._schemaData) {
+            try {
+                const configKey = Object.keys(raw._schemaData).includes('default') ? 'default' : Object.keys(raw._schemaData)[0];
+                if (configKey && raw._schemaData[configKey].splits) {
+                    Object.values(raw._schemaData[configKey].splits).forEach(s => metricRows += (s.num_examples || 0));
+                }
+            } catch (e) { }
+        }
+
         return {
             size_category: raw.cardData?.size_category || null,
             task_categories: raw.cardData?.task_categories || [],
@@ -304,6 +361,7 @@ export class DatasetsAdapter extends BaseAdapter {
             paperswithcode_id: raw.cardData?.paperswithcode_id || null,
             // V17.2: Use pre-counted file number
             files_count: raw._filesCount || raw.siblings?.length || 0,
+            rows_count: metricRows || null,
             gated: raw.gated || false,
             private: raw.private || false,
             citation: raw.cardData?.citation || null

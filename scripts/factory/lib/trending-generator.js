@@ -33,10 +33,15 @@ export async function generateTrending(entities, outputDir = './output') {
         type: e.type || 'model',
         author: e.author || '',
         tags: Array.isArray(e.tags) ? (typeof e.tags[0] === 'string' ? e.tags.slice(0, 5) : []) : [],
-        fni_score: Math.round(e.fni_score || 0),
-        image_url: e.image_url || null,
-        slug: e.slug || e.id?.split(/[:/]/).pop(),
-        percentile: e.percentile || 0
+        percentile: e.percentile || 0,
+        params_billions: e.params_billions ?? e.params ?? e.technical?.parameters_b ?? 0,
+        context_length: e.context_length ?? e.technical?.context_length ?? 0,
+        stars: e.stars || 0,
+        downloads: e.downloads || 0,
+        fni_p: e.fni_p ?? e.fni_metrics?.p ?? 0,
+        fni_v: e.fni_v ?? e.fni_metrics?.v ?? 0,
+        fni_c: e.fni_c ?? e.fni_metrics?.c ?? 0,
+        fni_u: e.fni_u ?? e.fni_metrics?.u ?? 0
     });
 
     const output = {
@@ -46,6 +51,7 @@ export async function generateTrending(entities, outputDir = './output') {
         spaces: topEntities.filter(e => e.type === 'space').map(formatPruned),
         datasets: topEntities.filter(e => e.type === 'dataset').map(formatPruned),
         tools: topEntities.filter(e => e.type === 'tool').map(formatPruned),
+        prompts: topEntities.filter(e => e.type === 'prompt').map(formatPruned),
         count: topEntities.length,
         generated_at: new Date().toISOString(),
         version: 'V16.6'

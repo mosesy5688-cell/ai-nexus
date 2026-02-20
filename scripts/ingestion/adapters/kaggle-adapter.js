@@ -124,8 +124,52 @@ export class KaggleAdapter extends BaseAdapter {
      */
     async fetchModels(limit) {
         console.log(`   🤖 Fetching models (limit: ${limit})...`);
-        // Note: models implementation omitted for brevity as datasets are primary focus
-        return [];
+        const allModels = [];
+        let page = 1;
+
+        while (allModels.length < limit) {
+            const url = `${KAGGLE_API_BASE}/models/list?sortBy=hottest&page=${page}&pageSize=20`;
+
+            try {
+                const response = await fetch(url, { headers: this.getHeaders() });
+
+                if (!response.ok) {
+                    if (response.status === 429) {
+                        console.warn('   ⚠️ Rate limited, waiting 60s...');
+                        await this.delay(60000);
+                        continue;
+                    }
+                    if (response.status === 401) {
+                        console.error('   ❌ Auth failed - check KAGGLE_USERNAME/KAGGLE_KEY');
+                        break;
+                    }
+                    throw new Error(`Kaggle API error: ${response.status}`);
+                }
+
+                const models = await response.json();
+
+                if (!models || models.length === 0) {
+                    console.log('   No more models');
+                    break;
+                }
+
+                // Filter safe models
+                const safe = models.filter(m => this.isSafeForWork(m));
+                allModels.push(...safe);
+
+                console.log(`   Page ${page}: ${safe.length}/${models.length} models (total: ${allModels.length})`);
+
+                page++;
+                await this.delay(2000); // Rate limiting
+
+            } catch (error) {
+                console.error(`   ❌ Error: ${error.message}`);
+                break;
+            }
+        }
+
+        // Return raw entities with _entityType marker for normalize()
+        return allModels.slice(0, limit).map(m => ({ ...m, _entityType: 'model' }));
     }
 
     /**

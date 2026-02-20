@@ -84,6 +84,31 @@ export class ReplicateAdapter extends BaseAdapter {
 
                 // Filter safe models
                 const safeModels = models.filter(m => this.isSafeForWork(m));
+
+                // Secondary request logic: fetch full README for each safe model
+                // This satisfies the Phase 1 requirement to increase data density for Deep Dive page
+                console.log(`   📝 Fetching deep README context for ${safeModels.length} models...`);
+                for (const model of safeModels) {
+                    try {
+                        const detailUrl = `${REPLICATE_API_BASE}/models/${model.owner}/${model.name}`;
+                        const detailRes = await fetch(detailUrl, {
+                            headers: this.getHeaders(),
+                            signal: AbortSignal.timeout(5000)
+                        });
+
+                        if (detailRes.ok) {
+                            const detailData = await detailRes.json();
+                            // If API returns a markdown readme, bind it to the model payload
+                            model.readme = detailData.readme || null;
+                        } else if (detailRes.status === 429) {
+                            console.warn(`   ⚠️ Rate limited on README fetch, backing off...`);
+                            await this.delay(3000);
+                        }
+                    } catch (e) {
+                        // Suppress timeout/network errors to keep pipeline moving
+                    }
+                }
+
                 allModels.push(...safeModels);
 
                 console.log(`   📦 Got ${safeModels.length}/${models.length} models (total: ${allModels.length})`);
@@ -129,6 +154,7 @@ export class ReplicateAdapter extends BaseAdapter {
             name: model.name,
             author: model.owner,
             description: model.description || '',
+            body_content: model.readme || model.description || '',
             source_url: `https://replicate.com/${modelId}`,
 
             // Metrics

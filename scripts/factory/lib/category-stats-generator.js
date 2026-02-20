@@ -173,6 +173,7 @@ export async function generateCategoryStats(entities, outputDir = './output') {
         total_spaces: entities.filter(e => e.type === 'space').length,
         total_datasets: entities.filter(e => e.type === 'dataset').length,
         total_tools: entities.filter(e => e.type === 'tool').length,
+        total_prompts: entities.filter(e => e.type === 'prompt').length,
         _generated: new Date().toISOString(),
     };
 

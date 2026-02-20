@@ -19,17 +19,24 @@ export function calculateFNI(entity, options = {}) {
     else if (id.startsWith('arxiv-')) {
         baseScore = calcArXiv(stats, entity.published_at || entity.publishedAt);
     }
+    else {
+        // Universal Fallback for Ecosystems (CivitAI, MCP, Replicate, Ollama, Kaggle)
+        const d = parseInt(stats.downloads || stats.downloadCount || stats.pulls || stats.run_count) || 0;
+        const l = parseInt(stats.likes || stats.favoriteCount || stats.upVotes || stats.stars || stats.stargazers_count) || 0;
+        const weightedSum = (d * 1) + (l * 20);
+        baseScore = weightedSum > 0 ? (Math.log10(weightedSum + 1) / 7.5) * 100 : 25; // Base 25 for ecosystem viability
+    }
 
     score = baseScore;
 
     // --- 2. Heavy Weighting (V16.6 UPGRADE) ---
-    const c = (type === 'model' || type === 'agent' || type === 'tool') ? calcCompleteness(entity) : 0;
+    const c = (type === 'model' || type === 'agent' || type === 'tool' || type === 'prompt') ? calcCompleteness(entity) : 0;
     const u = (type === 'model' || type === 'agent') ? calcUtility(entity) : 0;
 
     if (type === 'model' || type === 'agent') {
         // Blend: 70% Popularity/Velocity + 15% Completeness + 15% Utility
         score = (baseScore * 0.7) + (c * 0.15) + (u * 0.15);
-    } else if (type === 'tool') {
+    } else if (type === 'tool' || type === 'prompt') {
         // Blend: 85% Popularity + 15% Completeness
         score = (baseScore * 0.85) + (c * 0.15);
     }
@@ -40,13 +47,15 @@ export function calculateFNI(entity, options = {}) {
     const roundedScore = Math.min(100, Math.max(0, Math.round(finalScore)));
 
     if (options.includeMetrics) {
+        // V16.5 Spec Alignment
+        const decayAmount = score > 0 ? (finalScore / score) * 100 : 0; // Freshness proxy
         return {
             score: roundedScore,
             metrics: {
-                p: Math.round(baseScore * (type === 'arxiv' ? 0.7 : 1)), // Rough Pop estimate
-                v: Math.round(baseScore * (type === 'arxiv' ? 0.3 : 0)), // Rough Vel estimate
-                c: Math.round(c),
-                u: Math.round(u)
+                p: Math.round(Math.min(100, baseScore)), // Popularity
+                v: Math.round(Math.min(100, decayAmount)), // Velocity/Freshness
+                c: Math.round(c), // Credibility/Completeness
+                u: Math.round(u)  // Utility
             }
         };
     }
