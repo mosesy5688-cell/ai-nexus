@@ -40,10 +40,9 @@ export function normalizeSlug(slug) {
     // Rule 5: Underscore → dash
     normalized = normalized.replace(/_/g, '-');
 
-    // Rule 6: Dot → dash (except for ArXiv IDs)
-    if (!isArxivId(normalized)) {
-        normalized = normalized.replace(/\./g, '-');
-    }
+    // Rule 6: Dot Preservation (V21.0 Standard)
+    // We NO LONGER replace dots with dashes, as dots are critical for versioned IDs (Llama-3.1)
+    // and are fully supported by R2 and VFS paths.
 
     // Rule 7: Collapse multiple dashes
     normalized = normalized.replace(/-+/g, '-');

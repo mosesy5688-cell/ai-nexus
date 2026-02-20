@@ -38,13 +38,17 @@ export function getR2PathCandidates(type, normalizedSlug) {
     const lowerSlug = normalizedSlug.toLowerCase();
 
     // V18.2.1: Unified Prefix Map for all storage tiers
+    // V19.5 Alignment: Supporting legacy prefixed IDs (huggingface--, github--, arxiv--) for back-compat
     const prefixMap = {
-        'model': ['hf-model--', 'gh-model--', 'civitai--', 'ollama--', 'replicate--', 'kaggle--', 'hf--', 'gh--'],
-        'dataset': ['hf-dataset--', 'kaggle-dataset--', 'dataset--', 'hf--'],
+        'model': [
+            'hf-model--', 'gh-model--', 'huggingface--', 'github--',
+            'civitai--', 'ollama--', 'replicate--', 'kaggle--', 'hf--', 'gh--'
+        ],
+        'dataset': ['hf-dataset--', 'huggingface--', 'kaggle-dataset--', 'dataset--', 'hf--'],
         'paper': ['arxiv-paper--', 'arxiv--', 'paper--', 'hf-paper--'],
-        'space': ['hf-space--', 'space--'],
-        'agent': ['gh-agent--', 'hf-agent--', 'agent--'],
-        'tool': ['gh-tool--', 'hf-tool--', 'tool--', 'github-tool--']
+        'space': ['hf-space--', 'huggingface--', 'space--'],
+        'agent': ['gh-agent--', 'hf-agent--', 'github--', 'huggingface--', 'agent--'],
+        'tool': ['gh-tool--', 'hf-tool--', 'github--', 'huggingface--', 'tool--', 'github-tool--']
     };
     const prefixes = prefixMap[singular] || [];
 
@@ -75,12 +79,8 @@ export function getR2PathCandidates(type, normalizedSlug) {
     candidates.push(`cache/mesh/profiles/${lowerSlug}.json.gz`);
     candidates.push(`cache/mesh/profiles/${lowerSlug}.json`);
 
-    // V16.8.31: ArXiv Dotted Fallbacks (R2 reality check)
-    if (singular === 'paper' && lowerSlug.includes('.')) {
-        const hyphenated = lowerSlug.replace(/\./g, '-');
-        candidates.push(`cache/entities/paper/${hyphenated}.json.gz`);
-        candidates.push(`cache/entities/paper/${hyphenated}.json`);
-    }
+    // V21.0: Removed dotted-to-hyphenated fallback for papers. 
+    // We strictly preserve dots for all versioned assets (ArXiv/Llama).
 
     // V16.9.1: Reports Daily Subfolder Alignment
     if (singular === 'report') {
