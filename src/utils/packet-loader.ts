@@ -177,14 +177,29 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
                     html = recoveredHtml;
 
                     // Field Promotion (V19.5): Robustly merge Engine 2 metadata
-                    // Ensure we don't accidentally nest the entity or lose safe ID/Type
-                    Object.assign(entityPack, {
-                        ...innerEntity,
-                        ...entityPack, // VFS original data takes precedence for structural markers
-                        html_readme: recoveredHtml,
-                        id: entityPack.id || innerEntity.id || fusedPack.id,
-                        type: entityPack.type || innerEntity.type || fusedPack.type
-                    });
+                    // CRITICAL FIX: Do NOT blindly spread `...entityPack` last, as it overwrites rich Engine 2 data with empty Engine 1 stubs.
+                    // Instead, selectively promote rich fields from Engine 2 into the Engine 1 base.
+
+                    const promotedFields = ['fni_score', 'fni_percentile', 'fni_commentary', 'fni_metrics', 'html_readme', 'readme', 'description', 'body_content', 'mesh_profile', 'relations'];
+
+                    for (const field of promotedFields) {
+                        if (innerEntity[field] !== undefined && innerEntity[field] !== null && innerEntity[field] !== '') {
+                            // Only overwrite if Engine 1's field is empty, zero, or an empty array/object
+                            const isE1Empty = !entityPack[field] ||
+                                entityPack[field] === 0 ||
+                                (Array.isArray(entityPack[field]) && entityPack[field].length === 0) ||
+                                (typeof entityPack[field] === 'object' && Object.keys(entityPack[field] || {}).length === 0);
+
+                            if (isE1Empty) {
+                                entityPack[field] = innerEntity[field];
+                            }
+                        }
+                    }
+
+                    // Ensure structural integrity
+                    entityPack.id = entityPack.id || innerEntity.id || fusedPack.id;
+                    entityPack.type = entityPack.type || innerEntity.type || fusedPack.type;
+
                     break;
                 }
             }
