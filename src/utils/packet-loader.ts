@@ -1,6 +1,7 @@
 import { R2_CACHE_URL } from '../config/constants.js';
 import { getR2PathCandidates, normalizeEntitySlug, fetchEntityFromR2 } from './entity-cache-reader-core.js';
 import { fetchBundleRange } from './vfs-fetcher.js';
+import { promoteEngine2Fields } from './dual-engine-merger.js';
 
 const CDN_SECONDARY = 'https://ai-nexus-assets.pages.dev/cache';
 
@@ -156,56 +157,52 @@ export async function loadEntityStreams(type: string, slug: string, locals: any 
     }
 
     // --- Dual-Engine Integration: VFS + R2 Fallback Recovery ---
-    // V19.4.5: We MUST merge metadata from both streams if fields are missing.
-    if (!html || mesh.length === 0) {
+    // V19.4.5: We MUST merge metadata from both streams if fields are missing or TRUNCATED.
+    // Engine 1 (Fast VFS) often truncates READMEs to snippets to save index space.
+    const isHtmlTruncated = !html || html.length < 1500;
+
+    if (isHtmlTruncated || mesh.length === 0) {
         const secondaryCandidates = getR2PathCandidates(type, normalized);
+        const fusedCandidates = secondaryCandidates.filter(c => c.includes('/fused/'));
         const meshCandidates = secondaryCandidates.filter(c => c.includes('/mesh/profiles/'));
 
         // Legacy Fallback Reader: Extracting missing content from R2
-        // V19.2 Telemetry: Track fallback rate
-        console.warn(`[TELEMETRY] vfs_fallback_event: ${fullId} (Missing: ${!html ? 'HTML' : ''} ${mesh.length === 0 ? 'Mesh' : ''})`);
+        console.warn(`[TELEMETRY] vfs_fallback_event: ${fullId} (Missing/Truncated: ${isHtmlTruncated ? 'HTML' : ''} ${mesh.length === 0 ? 'Mesh' : ''})`);
 
-        // 1. Recover README/Markdown/Content
-        if (!html) {
-            // V19.4.8: Multi-candidate recovery to ensure resilient fallback
-            const fusedCandidates = secondaryCandidates.filter(c => c.includes('/fused/'));
-            for (const fPath of fusedCandidates) {
-                const fusedPack = await fetchCompressedJSON(fPath);
-                if (fusedPack) {
-                    const innerEntity = fusedPack.entity || fusedPack;
+        // 1. Recover Monolithic Fused JSON (Contains BOTH Rich Text and Relations)
+        let fusedSuccessfullyFetched = false;
+
+        for (const fPath of fusedCandidates) {
+            const fusedPack = await fetchCompressedJSON(fPath);
+            if (fusedPack) {
+                fusedSuccessfullyFetched = true;
+                const innerEntity = fusedPack.entity || fusedPack;
+
+                // Recover HTML
+                if (isHtmlTruncated) {
                     const recoveredHtml = innerEntity.html_readme || fusedPack.html_readme || innerEntity.body_content || innerEntity.readme || null;
-                    html = recoveredHtml;
-
-                    // Field Promotion (V19.5): Robustly merge Engine 2 metadata
-                    // CRITICAL FIX: Do NOT blindly spread `...entityPack` last, as it overwrites rich Engine 2 data with empty Engine 1 stubs.
-                    // Instead, selectively promote rich fields from Engine 2 into the Engine 1 base.
-
-                    const promotedFields = ['fni_score', 'fni_percentile', 'fni_commentary', 'fni_metrics', 'html_readme', 'readme', 'description', 'body_content', 'mesh_profile', 'relations'];
-
-                    for (const field of promotedFields) {
-                        if (innerEntity[field] !== undefined && innerEntity[field] !== null && innerEntity[field] !== '') {
-                            // Only overwrite if Engine 1's field is empty, zero, or an empty array/object
-                            const isE1Empty = !entityPack[field] ||
-                                entityPack[field] === 0 ||
-                                (Array.isArray(entityPack[field]) && entityPack[field].length === 0) ||
-                                (typeof entityPack[field] === 'object' && Object.keys(entityPack[field] || {}).length === 0);
-
-                            if (isE1Empty) {
-                                entityPack[field] = innerEntity[field];
-                            }
-                        }
+                    if (recoveredHtml && recoveredHtml.length > (html?.length || 0)) {
+                        html = recoveredHtml;
                     }
-
-                    // Ensure structural integrity
-                    entityPack.id = entityPack.id || innerEntity.id || fusedPack.id;
-                    entityPack.type = entityPack.type || innerEntity.type || fusedPack.type;
-
-                    break;
                 }
+
+                // Recover Mesh from Fused
+                if (mesh.length === 0) {
+                    const recoveredMesh = innerEntity.relations || fusedPack.relations || innerEntity.mesh_profile?.relations || [];
+                    if (recoveredMesh.length > 0) {
+                        mesh = recoveredMesh;
+                        entityPack.relations = recoveredMesh;
+                    }
+                }
+
+                // Field Promotion (V19.5): Robustly merge Engine 2 metadata
+                promoteEngine2Fields(entityPack, innerEntity, fusedPack);
+
+                break;
             }
         }
 
-        // 2. Recover Knowledge Mesh Relations
+        // 2. Dedicated Mesh Recovery (If Fused failed to provide relations)
         if (mesh.length === 0) {
             for (const mPath of meshCandidates) {
                 const meshPack = await fetchCompressedJSON(mPath);
