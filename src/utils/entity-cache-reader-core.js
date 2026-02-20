@@ -54,7 +54,9 @@ export function getR2PathCandidates(type, normalizedSlug) {
 
     const candidates = [];
 
-    // V18.2.5 FIX: Always try prefixes regardless of hyphens (google--gemma needs hf-model-- prefix)
+    // V21.1 FIX: "Prefix Doubling Correction". 
+    // We must ensure 'meta-llama--llama' gets prefixed with 'hf-model--'.
+    // We only skip prefixing if the slug ALREADY starts with a known source prefix from the map.
     prefixes.forEach(p => {
         const prefixed = lowerSlug.startsWith(p) ? lowerSlug : `${p}${lowerSlug}`;
 
