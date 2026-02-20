@@ -47,14 +47,28 @@ export async function fetchCompressedJSON(path: string): Promise<any | null> {
 
         const buffer = await res.arrayBuffer();
         const uint8 = new Uint8Array(buffer);
-        const isGzip = uint8.length > 2 && uint8[0] === 0x1f && uint8[1] === 0x8b;
 
-        if (isGzip) {
-            const ds = new DecompressionStream('gzip');
-            const decompressedRes = new Response(new Response(buffer).body?.pipeThrough(ds));
-            return decompressedRes.json();
+        // V19.4.9: Robust Magic Byte Detection (0x1f 0x8b)
+        // Detects "Fake Gzip" (JSON content with .gz extension) and handles raw JSON safely
+        const isTrueGzip = uint8.length > 2 && uint8[0] === 0x1f && uint8[1] === 0x8b;
+
+        if (isTrueGzip) {
+            try {
+                const ds = new DecompressionStream('gzip');
+                const decompressedRes = new Response(new Response(buffer).body?.pipeThrough(ds));
+                return decompressedRes.json();
+            } catch (decompError: any) {
+                console.warn(`[Loader] Gzip decompression failed for ${targetUrl}, attempting raw JSON parse:`, decompError.message);
+                return JSON.parse(new TextDecoder().decode(buffer));
+            }
         } else {
-            return JSON.parse(new TextDecoder().decode(buffer));
+            // V19.4.9: Support for plain JSON in .gz container
+            try {
+                return JSON.parse(new TextDecoder().decode(buffer));
+            } catch (jsonError: any) {
+                console.error(`[Loader] Failed to parse target ${targetUrl} as JSON:`, jsonError.message);
+                return null;
+            }
         }
     } catch (e: any) {
         console.error(`[Loader] Fetch error for ${targetUrl}:`, e.message);
