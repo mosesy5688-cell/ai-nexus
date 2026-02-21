@@ -32,7 +32,9 @@ export async function fetchMeshRelations(locals, entityId = null, options = { ss
     // Extreme Throttling: During SSR, we ONLY trust relations.json. 
     // Richer mesh data will hydrate on the client-side.
     const sourcesToFetch = options.ssrOnly ? [
-        'cache/relations.json'
+        'cache/relations.json',
+        'cache/relations/explicit.json',
+        'cache/mesh/graph.json'
     ] : [
         'cache/mesh/graph.json',
         'cache/relations.json',

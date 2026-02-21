@@ -148,18 +148,18 @@ if (item.fni_score > 0) {
                         }
 
                         // 2. Update FNI if missing
-                        if (data.fni_score > 0) {
+                        const fni = Math.round(data.fni_score ?? data.fni ?? 0);
+                        if (fni > 0) {
                             const fniContainer = card.querySelector('.flex.items-center.gap-2:last-child');
-                            if (fniContainer && !fniContainer.querySelector('.bg-emerald-100, .bg-amber-100, .bg-rose-100')) {
-                                const fni = data.fni_score;
-                                let color = "bg-gray-100 text-gray-500";
-                                if (fni >= 85) color = "bg-emerald-100 text-emerald-700";
-                                else if (fni >= 70) color = "bg-amber-100 text-amber-700";
-                                else if (fni > 0) color = "bg-rose-100 text-rose-700";
+                            if (fniContainer && !fniContainer.querySelector('.bg-emerald-100, .bg-amber-100, .bg-rose-100, .bg-gray-100')) {
+                                let color = "bg-gray-100 dark:bg-zinc-800 text-gray-500";
+                                if (fni >= 85) color = "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400";
+                                else if (fni >= 70) color = "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400";
+                                else if (fni > 0) color = "bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400";
                                 
                                 const badge = document.createElement('div');
-                                badge.className = `flex items-center gap-1 px-1.5 py-0.5 rounded ${color} border border-black/5 text-[9px] font-bold`;
-                                badge.innerHTML = `<span>${fni}</span>`;
+                                badge.className = `flex items-center gap-1 px-1.5 py-0.5 rounded ${color} border border-black/5 dark:border-white/5`;
+                                badge.innerHTML = `<span class="text-[9px] font-bold">${fni}</span>`;
                                 fniContainer.prepend(badge);
                             }
                         }
@@ -168,12 +168,19 @@ if (item.fni_score > 0) {
                         const metricsContainer = card.querySelector('.pt-2.border-t');
                         if (metricsContainer && metricsContainer.children.length === 0) {
                             const metrics = [];
-                            if (data.params_billions) metrics.push(`<span>${data.params_billions}B 🧠</span>`);
-                            if (data.context_length) metrics.push(`<span>${new Intl.NumberFormat('en-US',{notation:'compact'}).format(data.context_length)} 📏</span>`);
-                            if (data.downloads) metrics.push(`<span>${new Intl.NumberFormat('en-US',{notation:'compact'}).format(data.downloads)} 📥</span>`);
-                            if (data.stars) metrics.push(`<span>${new Intl.NumberFormat('en-US',{notation:'compact'}).format(data.stars)} ⭐</span>`);
-                            if (data.citations) metrics.push(`<span>${new Intl.NumberFormat('en-US',{notation:'compact'}).format(data.citations)} 📚</span>`);
-                            metricsContainer.innerHTML = metrics.join('<span class="opacity-20">|</span>');
+                            const formatCompact = (num) => new Intl.NumberFormat('en-US',{notation:'compact'}).format(num);
+                            if (data.params_billions) metrics.push({value: `${data.params_billions}B`, label: 'Params'});
+                            if (data.context_length) metrics.push({value: formatCompact(data.context_length), label: 'Context'});
+                            if (data.downloads) metrics.push({value: formatCompact(data.downloads), label: 'Downloads'});
+                            if (data.stars || data.github_stars) metrics.push({value: formatCompact(data.stars || data.github_stars), label: 'Stars'});
+                            if (data.citations) metrics.push({value: formatCompact(data.citations), label: 'Citations'});
+                            
+                            metricsContainer.innerHTML = metrics.map(m => 
+                                `<div class="flex items-center gap-1" title="${m.label}">
+                                    <span>${m.value}</span>
+                                    <span class="opacity-60">${m.label.charAt(0)}</span>
+                                </div>`
+                            ).join('');
                         }
 
                         card.setAttribute('data-hydrated', 'true');

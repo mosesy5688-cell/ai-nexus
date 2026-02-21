@@ -20,6 +20,14 @@ const {
 } = Astro.props;
 
 const isMoe = Boolean(experts && experts > 0);
+
+// V16.11: Clean up messy backend architecture strings (e.g., _LLAMAFORCAUSALLM)
+const displayArch = (architecture || 'Transformer')
+  .replace(/ForCausalLM$/i, '')
+  .replace(/_ForCausalLM$/i, '')
+  .replace(/^_+/, '')
+  .replace(/_/g, ' ')
+  .trim();
 ---
 
 <div class={`architecture-schema bg-black/5 dark:bg-white/5 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 ${className}`}>
@@ -33,8 +41,8 @@ const isMoe = Boolean(experts && experts > 0);
         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Structural Engineering View</p>
       </div>
     </div>
-    <div class="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 text-[9px] font-black rounded border border-indigo-200 dark:border-indigo-800 uppercase tracking-widest">
-      {architecture || 'Transformer'}
+    <div class="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 text-[9px] font-black rounded border border-indigo-200 dark:border-indigo-800 uppercase tracking-widest truncate max-w-[150px]">
+      {displayArch}
     </div>
   </div>
 

@@ -7,7 +7,19 @@ const { model, type = 'model' } = Astro.props;
 
 // V6.3: Derive display values with fallbacks
 const displayName = model.displayName || model.name || model.canonical_name || 'Unknown Entity';
-const source = model.source || (model.slug?.startsWith('huggingface') || model.id?.startsWith('huggingface') ? 'Hugging Face' : model.slug?.startsWith('ollama') || model.id?.startsWith('ollama') ? 'Ollama' : 'Unknown');
+
+let source = model.source;
+if (!source) {
+  const idStr = (model.id || model.slug || '').toLowerCase();
+  if (idStr.includes('huggingface') || idStr.includes('hf-') || idStr.includes('hf--')) source = 'Hugging Face';
+  else if (idStr.includes('ollama')) source = 'Ollama';
+  else if (idStr.includes('github') || idStr.includes('gh-')) source = 'GitHub';
+  else if (idStr.includes('civitai')) source = 'Civitai';
+  else if (idStr.includes('arxiv')) source = 'arXiv';
+  else if (idStr.includes('kaggle')) source = 'Kaggle';
+  else if (idStr.includes('replicate')) source = 'Replicate';
+  else source = 'Community / Independent';
+}
 
 // V16.7: Type-aware labels
 const typeLabel = type === 'agent' || type === 'tool' ? 'Runtime' : (type === 'dataset' ? 'Format' : 'Primary Category');

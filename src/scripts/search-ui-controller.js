@@ -131,22 +131,30 @@ export async function hydrateSearchResult(el) {
     if (!id || !type) return;
 
     try {
-        const cleanId = id.includes('/') ? id.split('/').pop() : id;
-        const res = await fetch(`https://cdn.free2aitools.com/cache/fused/${type}/${cleanId}.json`);
+        const cleanId = id.replace(/[:/]/g, '--').toLowerCase();
+
+        // V16.9.2: Corrected architecture pathing, no type folder for fused.
+        const res = await fetch(`https://cdn.free2aitools.com/cache/fused/${cleanId}.json`);
+
         if (!res.ok) return;
 
         const data = await res.json();
         if (data) {
+            const inner = data.entity || data;
             const descEl = el.querySelector('.result-desc');
             const fniEl = el.querySelector('.fni-badge');
 
-            if (descEl && data.description && (!descEl.textContent.trim() || descEl.textContent.length < 10)) {
-                descEl.textContent = data.description.substring(0, 160) + (data.description.length > 160 ? '...' : '');
+            const rawDesc = inner.description || inner.summary || inner.body_content || '';
+
+            if (descEl && rawDesc && (!descEl.textContent.trim() || descEl.textContent.length < 10)) {
+                let cleanDesc = rawDesc.replace(/<[^>]*>?/gm, ''); // Strip HTML
+                descEl.textContent = cleanDesc.substring(0, 160) + (cleanDesc.length > 160 ? '...' : '');
                 descEl.classList.remove('italic', 'opacity-70');
             }
 
-            if (fniEl && data.fni_score) {
-                fniEl.textContent = `FNI ${Math.round(data.fni_score)}`;
+            const fniScore = inner.fni_score || inner.fni || 0;
+            if (fniEl && fniScore > 0) {
+                fniEl.textContent = `FNI ${Math.round(fniScore)}`;
                 fniEl.classList.remove('hidden');
             }
 
