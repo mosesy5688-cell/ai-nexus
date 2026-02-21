@@ -13,8 +13,10 @@ interface Props {
 
 const { model } = Astro.props;
 
+import { cleanArchitecture } from '@/utils/architecture-cleaner';
+
 const params = model.params_billions ? `${model.params_billions}B` : 'Large Scale';
-const arch = model.architecture || 'Neural Transformer';
+const arch = cleanArchitecture(model.architecture || 'Neural Transformer');
 const ctx = model.context_length ? `${Math.round(model.context_length / 1024)}k` : 'Standard (2k-4k)';
 const vram = model.vram_gb ? `~${Math.ceil(model.vram_gb)}GB (Q4)` : 'Computing...';
 const license = (model.license || model.license_spdx) ? (model.license || model.license_spdx).toUpperCase() : 'Proprietary/Restricted';
