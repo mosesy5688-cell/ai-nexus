@@ -28,11 +28,19 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
         return new Response('Range Required', { status: 416 });
     }
 
-    const match = rangeHeader.match(/bytes=(\d+)-(\d+)?/);
-    if (!match) return new Response('Invalid Range', { status: 416 });
+    // V19.4.2: Industrial Strength Range Parsing (Handle bytes=0-8191, bytes=0-, etc)
+    const rangeClean = rangeHeader.trim().toLowerCase();
+    const rangeMatch = rangeClean.match(/^bytes=(\d+)-(\d+)?$/);
 
-    const start = parseInt(match[1]);
-    const end = match[2] ? parseInt(match[2]) : undefined;
+    if (!rangeMatch) {
+        console.warn(`[VFS-SEC] Invalid Range Format: ${rangeHeader}`);
+        return new Response('Invalid Range', { status: 416 });
+    }
+
+    const start = parseInt(rangeMatch[1], 10);
+    const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : undefined;
+
+    if (isNaN(start)) return new Response('Bad Request', { status: 400 });
 
     // 2. Alignment & Verification (8KB Page boundary)
     // V19.4: Translate legacy shard names if they appear in metadata

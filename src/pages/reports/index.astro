@@ -33,9 +33,15 @@ try {
             }
             
             // V18.3: Handle trend-data.json vs trending.json vs legacy reports.json format
-            if (data.models || (data.top_models && data.days)) {
-                // We have multiple entities, just show a pulse summary
-                const count = (data.models ? (data.models.length || 0) : (data.top_models?.length || 0));
+            const hasEntities = data.models || data.top_models || (typeof data === 'object' && Object.keys(data).length > 10);
+            
+            if (hasEntities) {
+                // Determine model count for the summary
+                let count = 0;
+                if (data.models) count = data.models.length;
+                else if (data.top_models) count = data.top_models.length;
+                else count = Object.keys(data).length;
+
                 reports = [
                     {
                         reportId: data.generated_at ? data.generated_at.split('T')[0] : new Date().toISOString().split('T')[0],

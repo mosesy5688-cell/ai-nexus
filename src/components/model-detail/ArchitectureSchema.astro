@@ -19,20 +19,12 @@ const {
   layers, heads, experts, activeExperts, hiddenSize, architecture, className = '' 
 } = Astro.props;
 
+import { cleanArchitecture } from '@/utils/architecture-cleaner';
+
 const isMoe = Boolean(experts && experts > 0);
 
 // V16.11: Clean up messy backend architecture strings (e.g., _LLAMAFORCAUSALLM)
-const archRaw = typeof architecture === 'string' ? architecture : (typeof architecture === 'object' && architecture?.name ? architecture.name : String(architecture || 'Transformer'));
-const displayArch = archRaw
-  .replace(/_?ForCausalLM\s*$/i, '')
-  .replace(/_?Model\s*$/i, '')
-  .replace(/ForSequentialGeneration$/i, '')
-  .replace(/ConditionalGeneration$/i, '')
-  .replace(/LM$/i, '')
-  .replace(/^_+/, '')
-  .replace(/_/g, ' ')
-  .replace(/([a-z])([A-Z])/g, '$1 $2') // Insert space between camelCase
-  .trim();
+const displayArch = cleanArchitecture(architecture);
 ---
 
 <div class={`architecture-schema bg-black/5 dark:bg-white/5 rounded-2xl p-6 border border-gray-100 dark:border-gray-800 ${className}`}>
@@ -46,7 +38,7 @@ const displayArch = archRaw
         <p class="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Structural Engineering View</p>
       </div>
     </div>
-    <div class="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 text-[9px] font-black rounded border border-indigo-200 dark:border-indigo-800 uppercase tracking-widest truncate max-w-[150px]">
+    <div class="arch-badge px-2 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 text-[9px] font-black rounded border border-indigo-200 dark:border-indigo-800 uppercase tracking-widest truncate max-w-[150px]">
       {displayArch}
     </div>
   </div>
@@ -133,9 +125,18 @@ const displayArch = archRaw
       const mined = e.detail;
       if (!mined || !mined.architecture) return;
       
-      const badge = document.querySelector('.architecture-schema .badge');
-      if (badge) {
-        badge.textContent = mined.architecture;
+      const badge = document.querySelector('.architecture-schema .arch-badge');
+      if (badge && mined.architecture) {
+        // V16.11.2: Re-apply cleaning logic on client-side sync (Inline the logic to avoid ESM import issues in some browsers if not bundled)
+        const cleaned = mined.architecture
+          .replace(/ForCausalLM\s*$/i, '')
+          .replace(/_?ForCausalLM/gi, '')
+          .replace(/_?Model\s*$/i, '')
+          .replace(/^_+/, '')
+          .replace(/_/g, ' ')
+          .replace(/([a-z])([A-Z])/g, '$1 $2')
+          .trim();
+        badge.textContent = cleaned;
         badge.classList.add('animate-pulse');
       }
     });
