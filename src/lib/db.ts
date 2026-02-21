@@ -28,10 +28,16 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
 
     const rangeHeader = request.headers.get('Range');
     if (!rangeHeader) {
-        return new Response('Range Required', {
-            status: 416,
-            headers: { 'x-vfs-proxy-ver': 'v19.4.3', 'Access-Control-Allow-Origin': '*' }
-        });
+        // V21.8: Support standard 200 OK for probes or non-VFS fetches
+        const object = await env.R2_ASSETS.get(`data/${filename}`);
+        if (!object) return new Response('Not Found', { status: 404 });
+
+        const headers = new Headers() as any;
+        object.writeHttpMetadata(headers);
+        headers.set('x-vfs-proxy-ver', 'v19.4.4');
+        headers.set('Access-Control-Allow-Origin', '*');
+        headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+        return new Response(object.body as any, { status: 200, headers });
     }
 
     let start: number;
