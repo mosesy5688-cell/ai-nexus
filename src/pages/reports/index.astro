@@ -10,7 +10,7 @@ const CDN_BASE = 'https://cdn.free2aitools.com';
 let reports = [];
 
 try {
-    const paths = [`${CDN_BASE}/cache/reports/index.json.gz`, `${CDN_BASE}/cache/reports/index.json`];
+    const paths = [`${CDN_BASE}/cache/trends.json.gz`, `${CDN_BASE}/cache/trends.json`, `${CDN_BASE}/cache/reports/index.json.gz`];
     for (const p of paths) {
         const res = await fetch(p);
         if (res.ok) {
@@ -32,13 +32,26 @@ try {
                 data = JSON.parse(new TextDecoder().decode(uint8));
             }
             
-            reports = (data.reports || []).map(r => ({
-                reportId: r.id,
-                title: r.title,
-                date: r.date,
-                summary: `${r.highlights || 0} highlights from AI ecosystem today`,
-                highlights: r.highlights
-            }));
+            // V18.3: Handle trends.json format vs legacy reports.json format
+            if (data.top_models && data.days) {
+                reports = [
+                    {
+                        reportId: data.generated_at ? data.generated_at.split('T')[0] : new Date().toISOString().split('T')[0],
+                        title: `Live Market Pulse`,
+                        date: data.generated_at ? data.generated_at.split('T')[0] : new Date().toISOString().split('T')[0],
+                        summary: `Tracking ${data.top_models.length} breakthrough models and ecosystem shifts.`,
+                        highlights: data.top_models.length
+                    }
+                ];
+            } else {
+                reports = (data.reports || []).map(r => ({
+                    reportId: r.id,
+                    title: r.title,
+                    date: r.date,
+                    summary: `${r.highlights || 0} highlights from AI ecosystem today`,
+                    highlights: r.highlights
+                }));
+            }
             if (reports.length > 0) break;
         }
     }

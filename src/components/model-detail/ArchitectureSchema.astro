@@ -22,9 +22,10 @@ const {
 const isMoe = Boolean(experts && experts > 0);
 
 // V16.11: Clean up messy backend architecture strings (e.g., _LLAMAFORCAUSALLM)
-const displayArch = (architecture || 'Transformer')
-  .replace(/ForCausalLM$/i, '')
-  .replace(/_ForCausalLM$/i, '')
+const archRaw = typeof architecture === 'string' ? architecture : (typeof architecture === 'object' && architecture?.name ? architecture.name : String(architecture || 'Transformer'));
+const displayArch = archRaw
+  .replace(/_?ForCausalLM\s*$/i, '')
+  .replace(/_?Model\s*$/i, '')
   .replace(/^_+/, '')
   .replace(/_/g, ' ')
   .trim();
