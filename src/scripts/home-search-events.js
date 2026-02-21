@@ -68,13 +68,19 @@ export function renderResults(results) {
         const typeLabel = isKnowledge ? 'Guide' : (r.type || 'Model').toUpperCase();
 
         return `
-    <a href="${path}" class="flex items-center justify-between p-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-700/50 last:border-0 group">
-      <div class="flex items-center gap-2 overflow-hidden">
-        <span class="text-[8px] font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 rounded uppercase tracking-tighter">${typeLabel}</span>
-        <div class="font-bold text-xs text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 truncate">${r.name}</div>
+    <a href="${path}" class="flex flex-col p-2.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-700/50 last:border-0 group">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 overflow-hidden">
+          <span class="text-[8px] font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-400 rounded uppercase tracking-tighter">${typeLabel}</span>
+          <div class="font-bold text-xs text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 truncate">${r.name}</div>
+        </div>
+        <div class="text-[10px] text-zinc-400 font-black ml-2 tabular-nums">
+          ${r.fni_score ?? r.fni ?? '-'}
+        </div>
       </div>
-      <div class="text-[10px] text-zinc-400 font-black ml-2 tabular-nums">
-        ${r.fni_score ?? r.fni ?? '-'}
+      <div class="flex items-center justify-between mt-1">
+        <div class="text-[10px] text-zinc-500 truncate italic pr-4">${r.description || ''}</div>
+        <div class="text-[10px] text-zinc-400 flex-shrink-0">⭐ ${r.likes || 0}</div>
       </div>
     </a>
   `}).join('');

@@ -96,9 +96,17 @@ export function renderResults(items, container) {
                                 by ${item.author || 'Open Source'}
                             </span>
                             
-                            <p class="result-desc text-[10px] sm:text-[11px] line-clamp-1 opacity-70 sm:opacity-100 italic sm:not-italic">
-                                ${item.description || ''}
-                            </p>
+                            <div class="flex items-center gap-2 overflow-hidden">
+                                <p class="result-desc text-[10px] sm:text-[11px] line-clamp-1 italic sm:not-italic flex-1">
+                                    ${item.description || ''}
+                                </p>
+                                
+                                <div class="flex items-center gap-2 flex-shrink-0 text-[10px] font-medium opacity-60">
+                                    <span class="flex items-center gap-0.5">⭐ ${item.likes || 0}</span>
+                                    <span class="hidden sm:inline">•</span>
+                                    <span class="hidden sm:inline">${item.last_updated ? new Date(item.last_updated).toLocaleDateString() : 'Active'}</span>
+                                </div>
+                            </div>
                         </div>
                     </a>
                 `;
