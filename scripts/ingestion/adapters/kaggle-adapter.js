@@ -58,12 +58,14 @@ export class KaggleAdapter extends BaseAdapter {
             return [];
         }
 
-        console.log(`📥 [Kaggle] Fetching up to ${limit} entities (datasets only)...`);
+        console.log(`📥 [Kaggle] Fetching up to ${limit} entities (datasets & models)...`);
 
-        const datasets = await this.fetchDatasets(limit);
+        const datasets = await this.fetchDatasets(Math.floor(limit / 2));
+        const models = await this.fetchModels(Math.floor(limit / 2));
 
-        console.log(`✅ [Kaggle] Total: ${datasets.length} datasets`);
-        return datasets;
+        const combined = [...datasets, ...models];
+        console.log(`✅ [Kaggle] Total: ${datasets.length} datasets, ${models.length} models`);
+        return combined;
     }
 
     /**

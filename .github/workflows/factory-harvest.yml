@@ -264,6 +264,12 @@ jobs:
           echo "📥 Harvesting AI Agents..."
           node scripts/ingestion/harvest-single.js agents --limit 200 || echo "Agents adapter skipped"
 
+      - name: Harvest LangChain Hub
+        if: github.event.inputs.skip_harvest != 'true'
+        run: |
+          echo "✨ Harvesting LangChain Prompts..."
+          node scripts/ingestion/harvest-single.js langchain --limit 5000 || echo "LangChain adapter skipped"
+
       - name: Solidify Ecosystem Batches (Cache)
         if: github.event.inputs.skip_harvest != 'true'
         uses: actions/cache/save@v4

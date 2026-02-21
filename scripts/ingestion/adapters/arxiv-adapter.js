@@ -59,7 +59,7 @@ export class ArXivAdapter extends BaseAdapter {
 
         // Default: fetch from combined categories
         const category = 'cs.AI OR cs.LG OR cs.CL OR cs.CV';
-        return this.fetchFromCategory({ category, limit, sortBy, sortOrder, offset: options.offset || 0 });
+        return this.fetchFromCategory({ category, limit, sortBy, sortOrder, offset: options.offset || 0, onBatch: options.onBatch });
     }
 
     /**
@@ -70,35 +70,48 @@ export class ArXivAdapter extends BaseAdapter {
             limitsPerCategory = 8000,
             sortBy = 'submittedDate',
             sortOrder = 'descending',
-            offset = 0
+            offset = 0,
+            onBatch // V17.5: Stream support
         } = options;
 
         console.log(`📥 [ArXiv] Fetching ~${limitsPerCategory * AI_CATEGORIES.length} papers...`);
 
         const allPapers = [];
         const seenIds = new Set();
+        let fetchedCount = 0;
+
+        const dedupeAndBatch = async (batch) => {
+            const uniqueBatch = [];
+            for (const p of batch) {
+                if (!seenIds.has(p.arxiv_id)) {
+                    seenIds.add(p.arxiv_id);
+                    uniqueBatch.push(p);
+                }
+            }
+            if (uniqueBatch.length > 0) {
+                fetchedCount += uniqueBatch.length;
+                if (onBatch) {
+                    await onBatch(uniqueBatch);
+                } else {
+                    allPapers.push(...uniqueBatch);
+                }
+            }
+        };
 
         for (const cat of AI_CATEGORIES) {
             console.log(`   [ArXiv] Category: ${cat}`);
-            const papers = await this.fetchFromCategory({
+            await this.fetchFromCategory({
                 category: cat,
                 limit: limitsPerCategory,
                 sortBy,
                 sortOrder,
-                offset // Pass through
+                offset, // Pass through
+                onBatch: dedupeAndBatch
             });
-
-            // Deduplicate across categories
-            for (const paper of papers) {
-                if (!seenIds.has(paper.arxiv_id)) {
-                    seenIds.add(paper.arxiv_id);
-                    allPapers.push(paper);
-                }
-            }
-            console.log(`   [ArXiv] ${cat}: ${papers.length} papers (total: ${allPapers.length})`);
+            console.log(`   [ArXiv] ${cat} complete (total unique so far: ${fetchedCount})`);
         }
 
-        console.log(`✅ [ArXiv] Fetched ${allPapers.length} unique papers total`);
+        console.log(`✅ [ArXiv] Fetched ${fetchedCount} unique papers total`);
         return allPapers;
     }
 
@@ -111,7 +124,8 @@ export class ArXivAdapter extends BaseAdapter {
             limit = 200,
             sortBy = 'submittedDate',
             sortOrder = 'descending',
-            offset = 0
+            offset = 0,
+            onBatch
         } = options;
 
         const batchSize = 50;  // V14.5.2: Reduced batch size for gentler crawling
@@ -188,7 +202,11 @@ export class ArXivAdapter extends BaseAdapter {
                     }
                 }
 
-                papers.push(...batch);
+                if (onBatch) {
+                    await onBatch(batch);
+                } else {
+                    papers.push(...batch);
+                }
 
                 // ArXiv official: "no more than one request every three seconds"
                 // Using 3.5s to be safe and respectful of their infrastructure
