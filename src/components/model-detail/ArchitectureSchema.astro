@@ -26,8 +26,12 @@ const archRaw = typeof architecture === 'string' ? architecture : (typeof archit
 const displayArch = archRaw
   .replace(/_?ForCausalLM\s*$/i, '')
   .replace(/_?Model\s*$/i, '')
+  .replace(/ForSequentialGeneration$/i, '')
+  .replace(/ConditionalGeneration$/i, '')
+  .replace(/LM$/i, '')
   .replace(/^_+/, '')
   .replace(/_/g, ' ')
+  .replace(/([a-z])([A-Z])/g, '$1 $2') // Insert space between camelCase
   .trim();
 ---
 
