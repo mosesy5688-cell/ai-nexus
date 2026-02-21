@@ -22,6 +22,18 @@ export async function initSearch() {
 
     isLoading = true;
     try {
+        console.log('[HomeSearch] Warming up VFS Cache (Speculative Prefetch 128KB)...');
+        // V21.9: Fetch first 128KB specifically to warm up Cloudflare Edge Cache 
+        // and satisfy initial B-tree lookups in a single request.
+        try {
+            await fetch('/api/vfs-proxy/content.db', {
+                headers: { 'Range': 'bytes=0-131071' },
+                cache: 'force-cache'
+            });
+        } catch (warmupErr) {
+            console.warn('[HomeSearch] Warm-up fetch failed, proceeding with standard mount.', warmupErr);
+        }
+
         console.log('[HomeSearch] Mounting SQLite VFS to /api/vfs-proxy/content.db');
         dbWorker = await createDbWorker(
             [
