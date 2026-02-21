@@ -129,6 +129,8 @@ const canonicalPath = model ? getRouteFromId(model.id || model.umid || slugStr, 
         entityId={modelId}
         hasImage={Boolean(model.image_url)}
         trend_7d={model.trend_7d}
+        contextLength={model.context_length}
+        downloads={model.downloads}
       />
     )}
 

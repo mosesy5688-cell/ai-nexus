@@ -84,20 +84,25 @@ export async function loadCachedJSON(path, options = {}) {
 
         if (res.ok) {
             let data;
-            if (isGzip) {
+            const buffer = await res.arrayBuffer();
+            const uint8 = new Uint8Array(buffer);
+
+            // Magic byte check (0x1f 0x8b) for gzip
+            const isTrueGzip = isGzip && uint8.length > 2 && uint8[0] === 0x1f && uint8[1] === 0x8b;
+
+            if (isTrueGzip) {
                 // V18.12.0: Resilient client-side decompression for Gzip/Fake-Gzip assets
                 try {
-                    const resClone = res.clone();
                     const ds = new DecompressionStream('gzip');
-                    const decompressedStream = resClone.body.pipeThrough(ds);
+                    const decompressedStream = new Response(buffer).body.pipeThrough(ds);
                     const decompressedRes = new Response(decompressedStream);
                     data = await decompressedRes.json();
                 } catch (decompressError) {
                     console.warn(`[loadCachedJSON] Gzip failed for ${fetchUrl}, falling back to plain JSON.`);
-                    data = await res.json();
+                    data = JSON.parse(new TextDecoder().decode(buffer));
                 }
             } else {
-                data = await res.json();
+                data = JSON.parse(new TextDecoder().decode(buffer));
             }
 
             return {

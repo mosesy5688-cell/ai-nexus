@@ -6,6 +6,7 @@
 export function promoteEngine2Fields(entityPack: any, innerEntity: any, fusedPack: any) {
     const promotedFields = [
         'fni_score', 'fni_percentile', 'fni_commentary', 'fni_metrics',
+        'fni_p', 'fni_v', 'fni_c', 'fni_u',
         'html_readme', 'readme', 'description', 'body_content',
         'mesh_profile', 'relations',
         // V19.5 High-Density Component UI Metrics

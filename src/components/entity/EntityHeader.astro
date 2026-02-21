@@ -22,6 +22,9 @@ interface Props {
   entityId?: string;
   hasImage?: boolean;
   trend_7d?: number[];
+  contextLength?: number;
+  downloads?: number;
+  stars?: number;
 }
 
 const {
@@ -40,7 +43,10 @@ const {
   sourceUrl,
   entityId = '',
   hasImage = false,
-  trend_7d: rawTrend = []
+  trend_7d: rawTrend = [],
+  contextLength,
+  downloads,
+  stars
 } = Astro.props;
 
 const trend_7d = rawTrend || [];
@@ -84,17 +90,12 @@ const colors = typeColors[entityType] || typeColors.model;
 
 // V16.2: Hardened description cleaning
 const descriptionStr = typeof description === 'string' ? description : (description ? String(description) : '');
+const descriptionStr = typeof description === 'string' ? description : (description ? String(description) : '');
 const cleanDescription = (descriptionStr && descriptionStr !== 'null')
-  ? descriptionStr
-      .replace(/^---[\s\S]*?---\s*/m, '')           // Remove YAML frontmatter
-      .replace(/<[^>]*>?/gm, '')                     // Remove HTML tags
-      .replace(/!\[.*?\]\(.*?\)/g, '')              // Remove Markdown images
-      .replace(/\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/gi, '') // Remove GitHub alerts
-      .replace(/!\[GitHub.*?\]\(.*?\)/gi, '')        // Remove unparsed GitHub badges
-      .replace(/!\[.*?badge.*?\]\(.*?\)/gi, '')       // Remove generic badges
-      .replace(/&nbsp;/g, ' ')                       // Replace nbsp
-      .replace(/\s+/g, ' ')                          // Collapse multiple newlines
-      .trim() 
+  ? descriptionStr.replace(/^---[\s\S]*?---\s*/m, '').replace(/<[^>]*>?/gm, '')
+      .replace(/!\[.*?\]\(.*?\)/g, '').replace(/\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/gi, '')
+      .replace(/!\[GitHub.*?\]\(.*?\)/gi, '').replace(/!\[.*?badge.*?\]\(.*?\)/gi, '')
+      .replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() 
   : '';
 
 const displayAuthor = (author && author !== 'Unknown' && author !== '') ? author : 'Independent / Community';
@@ -165,7 +166,25 @@ const relativeTime = formatRelativeTime(lastUpdated);
       {paramsB && (
         <div class="px-4 py-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center">
            <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Scale</span>
-           <span class="text-xl font-black text-zinc-900 dark:text-white leading-none tracking-tighter">{paramsB}B</span>
+           <span class="text-xl font-black text-zinc-900 dark:text-white leading-none tracking-tighter">{paramsB >= 1 ? paramsB : paramsB + 'B'}</span>
+        </div>
+      )}
+
+      {contextLength && contextLength > 0 && (
+        <div class="px-4 py-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center min-w-[90px]">
+           <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Context Window</span>
+           <span class="text-2xl font-black text-zinc-900 dark:text-white leading-none tracking-tighter">
+             {contextLength >= 1000 ? (contextLength / 1000) + 'K' : contextLength}
+           </span>
+        </div>
+      )}
+
+      {(downloads !== undefined && downloads > 0) && (
+        <div class="px-4 py-3 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center min-w-[90px]">
+           <span class="text-[8px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">Downloads</span>
+           <span class="text-2xl font-black text-zinc-900 dark:text-white leading-none tracking-tighter">
+             {downloads >= 1000000 ? (downloads / 1000000).toFixed(1) + 'M' : downloads >= 1000 ? (downloads / 1000).toFixed(1) + 'K' : downloads.toLocaleString()}
+           </span>
         </div>
       )}
       

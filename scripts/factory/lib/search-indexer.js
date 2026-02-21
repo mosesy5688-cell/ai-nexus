@@ -57,6 +57,7 @@ export async function generateSearchIndices(entities, outputDir = './output') {
         name: e.name || e.slug || 'Unknown',
         type: e.type || 'model',
         author: e.author || '',
+        description: (e.description || e.summary || '').substring(0, 150),
         tags: Array.isArray(e.tags) ? e.tags.slice(0, 5) : (typeof e.tags === 'string' ? JSON.parse(e.tags || '[]').slice(0, 5) : []),
         fni_score: Math.round(e.fni_score || 0),
         image_url: e.image_url || null,
