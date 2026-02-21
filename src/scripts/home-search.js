@@ -22,26 +22,33 @@ export async function initSearch() {
 
     isLoading = true;
     try {
-        const sessionBuster = `v=${Date.now()}`;
-        console.log(`[HomeSearch] Warming up VFS Cache (Prefetch 128KB - ${sessionBuster})...`);
+        // SPEC-V19.3: Consistency Lock Logic 
+        // 1. Learn current version via HEAD
+        const headRes = await fetch('/api/vfs-proxy/content.db', { method: 'HEAD', cache: 'no-cache' });
+        const rawEtag = headRes.headers.get('ETag') || '';
+        const vHash = rawEtag.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16) || `v${Date.now()}`;
+        const vParam = `v=${vHash}`;
 
+        console.log(`[HomeSearch] Locking consistency to version: ${vHash}`);
+
+        // 2. Speculative warm-up with version lock
         try {
-            await fetch(`/api/vfs-proxy/content.db?${sessionBuster}`, {
+            await fetch(`/api/vfs-proxy/content.db?${vParam}`, {
                 headers: { 'Range': 'bytes=0-131071' },
-                cache: 'no-cache'
+                cache: 'default'
             });
         } catch (warmupErr) {
-            console.warn('[HomeSearch] Warm-up fetch failed.', warmupErr);
+            console.warn('[HomeSearch] Prefetch failed, continuing mount...', warmupErr);
         }
 
-        console.log(`[HomeSearch] Mounting SQLite VFS to /api/vfs-proxy/content.db?${sessionBuster}`);
+        console.log(`[HomeSearch] Mounting SQLite VFS (${vParam})`);
         dbWorker = await createDbWorker(
             [
                 {
                     from: "inline",
                     config: {
                         serverMode: "full",
-                        url: `/api/vfs-proxy/content.db?${sessionBuster}`,
+                        url: `/api/vfs-proxy/content.db?${vParam}`,
                         requestChunkSize: VFS_CONFIG.requestChunkSize
                     }
                 }
