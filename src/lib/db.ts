@@ -28,47 +28,83 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
         return new Response('Range Required', { status: 416 });
     }
 
-    // V19.4.2: Industrial Strength Range Parsing (Handle bytes=0-8191, bytes=0-, etc)
-    const rangeClean = rangeHeader.trim().toLowerCase();
-    const rangeMatch = rangeClean.match(/^bytes=(\d+)-(\d+)?$/);
+    let start: number;
+    let end: number | undefined;
 
-    if (!rangeMatch) {
-        console.warn(`[VFS-SEC] Invalid Range Format: ${rangeHeader}`);
-        return new Response('Invalid Range', { status: 416 });
+    // V19.4.3: High-Compatibility Range Parsing (Industrial Grade)
+    // Handles 'bytes=0-8191', 'bytes=0-', 'bytes= 0- ', etc.
+    try {
+        const rangeValue = rangeHeader.trim().toLowerCase();
+        if (!rangeValue.startsWith('bytes=')) {
+            return new Response('Invalid Range Prefix', { status: 416 });
+        }
+
+        const rawRanges = rangeValue.replace('bytes=', '').trim();
+        const firstRange = rawRanges.split(',')[0].trim(); // Take only the first range if multiple
+        const parts = firstRange.split('-');
+
+        // Handle bytes=0-8191 (parts: ['0', '8191'])
+        // Handle bytes=0- (parts: ['0', ''])
+        // Handle bytes=-8191 (parts: ['', '8191'])
+
+        if (parts[0] === '') {
+            // Suffix range (last N bytes) - R2 supports suffix: N
+            const suffix = parseInt(parts[1], 10);
+            if (isNaN(suffix)) return new Response('Invalid Suffix', { status: 416 });
+
+            const object = await env.R2_ASSETS.get(`data/${filename}`, {
+                range: { suffix }
+            });
+            if (!object) return new Response('Not Found', { status: 404 });
+            const headers = new Headers() as any;
+            object.writeHttpMetadata(headers);
+            headers.set('Access-Control-Allow-Origin', '*');
+            return new Response(object.body as any, { status: 206, headers });
+        }
+
+        start = parseInt(parts[0], 10);
+        end = parts[1] ? parseInt(parts[1], 10) : undefined;
+
+        if (isNaN(start)) {
+            return new Response('Invalid Range Start', { status: 416 });
+        }
+
+        // 2. Alignment & Verification (8KB Page boundary)
+        // V19.4: Loosen for small probes (< 8KB) if they start at 0
+        if (start !== 0 && start % 8192 !== 0) {
+            // Check if it's a very small probe (often used to find file size)
+            const length = end ? (end - start + 1) : 8192;
+            if (length > 8192) {
+                console.warn(`[VFS-SEC] Misaligned Range Attempt: ${start}`);
+                return new Response('Misaligned Range', { status: 403 });
+            }
+        }
+
+        // V19.4: Translate legacy shard names if they appear in metadata
+        if (filename === 'shard_0.bin') filename = 'fused-shard-000.bin';
+        if (filename.startsWith('shard_')) {
+            const num = filename.match(/\d+/)?.[0];
+            if (num) filename = `fused-shard-${num.padStart(3, '0')}.bin`;
+        }
+
+        // 3. Fetch from R2 (V19.4: Target /data prefix)
+        const object = await env.R2_ASSETS.get(`data/${filename}`, {
+            range: { offset: start, length: end ? (end - start + 1) : undefined }
+        });
+
+        if (!object) return new Response('Not Found', { status: 404 });
+
+        const headers = new Headers() as any;
+        object.writeHttpMetadata(headers);
+        headers.set('ETag', object.httpEtag);
+        headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+        headers.set('Access-Control-Allow-Origin', '*');
+
+        return new Response(object.body as any, { status: 206, headers });
+    } catch (e) {
+        console.warn(`[VFS-SEC] Range Processing Error: ${rangeHeader} - ${e}`);
+        return new Response('Internal Proxy Error', { status: 500 });
     }
-
-    const start = parseInt(rangeMatch[1], 10);
-    const end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : undefined;
-
-    if (isNaN(start)) return new Response('Bad Request', { status: 400 });
-
-    // 2. Alignment & Verification (8KB Page boundary)
-    // V19.4: Translate legacy shard names if they appear in metadata
-    if (filename === 'shard_0.bin') filename = 'fused-shard-000.bin';
-    if (filename.startsWith('shard_')) {
-        const num = filename.match(/\d+/)?.[0];
-        if (num) filename = `fused-shard-${num.padStart(3, '0')}.bin`;
-    }
-
-    if (start % 8192 !== 0) {
-        console.warn(`[VFS-SEC] Misaligned Range Attempt: ${start}`);
-        return new Response('Misaligned Range', { status: 403 });
-    }
-
-    // 3. Fetch from R2 (V19.4: Target /data prefix)
-    const object = await env.R2_ASSETS.get(`data/${filename}`, {
-        range: { offset: start, length: end ? (end - start + 1) : undefined }
-    });
-
-    if (!object) return new Response('Not Found', { status: 404 });
-
-    const headers = new Headers() as any;
-    object.writeHttpMetadata(headers);
-    headers.set('ETag', object.httpEtag);
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('Access-Control-Allow-Origin', '*');
-
-    return new Response(object.body as any, { headers });
 }
 
 /**

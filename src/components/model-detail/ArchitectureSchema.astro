@@ -129,7 +129,6 @@ const displayArch = cleanArchitecture(architecture);
       if (badge && mined.architecture) {
         // V16.11.2: Re-apply cleaning logic on client-side sync (Inline the logic to avoid ESM import issues in some browsers if not bundled)
         const cleaned = mined.architecture
-          .replace(/ForCausalLM\s*$/i, '')
           .replace(/_?ForCausalLM/gi, '')
           .replace(/_?Model\s*$/i, '')
           .replace(/^_+/, '')

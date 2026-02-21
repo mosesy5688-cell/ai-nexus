@@ -6,10 +6,12 @@ export function cleanArchitecture(arch: any): string {
     const raw = typeof arch === 'string' ? arch : (typeof arch === 'object' && arch?.name ? arch.name : String(arch || 'Transformer'));
 
     return raw
-        .replace(/ForCausalLM\s*$/i, '')
-        .replace(/_?ForCausalLM\s*$/i, '')
+        .replace(/_?ForCausalLM/gi, '')
+        .replace(/_?ForSequenceClassification/gi, '')
+        .replace(/_?ForQuestionAnswering/gi, '')
+        .replace(/_?ForTokenClassification/gi, '')
+        .replace(/_?ForMaskedLM/gi, '')
         .replace(/_?Model\s*$/i, '')
-        .replace(/_ForCausalLM/gi, '')
         .replace(/ForSequentialGeneration$/i, '')
         .replace(/ConditionalGeneration$/i, '')
         .replace(/LM$/i, '')
