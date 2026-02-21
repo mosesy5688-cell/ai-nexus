@@ -37,72 +37,76 @@ async function harvestSingle(sourceName, options = {}) {
         await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
         // Fetch from source
-        console.log(`   Fetching...`);
+        console.log(`   Fetching and streaming...`);
+        const CHUNK_SIZE = 1500;
+        const results = { source: sourceName, total: 0, chunks: [] };
+        let currentChunk = [];
+        let chunkIndex = 0;
+
+        // V17.5 Memory Protection: Provide an `onBatch` callback to adapters that support streaming
+        // This prevents 100K Full-Text HTML entities from accumulating in RAM before chunking.
+        const processBatch = async (rawBatch) => {
+            for (let i = 0; i < rawBatch.length; i++) {
+                try {
+                    const norm = adapter.normalize(rawBatch[i]);
+                    if (norm) {
+                        currentChunk.push(norm);
+                        results.total++;
+                    }
+                } catch (e) {
+                    if (results.total < 5) console.warn(`   ⚠️ Normalize error [${results.total}]: ${e.message}`);
+                }
+
+                rawBatch[i] = null; // Free raw object
+
+                // Write chunk to disk if it reaches the limit
+                if (currentChunk.length >= CHUNK_SIZE) {
+                    const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}_${chunkIndex}.json`);
+                    await fs.writeFile(batchFile, JSON.stringify(currentChunk, null, 2));
+                    results.chunks.push(batchFile);
+                    console.log(`   ✓ Chunk ${chunkIndex} saved to: ${batchFile}`);
+                    currentChunk = [];
+                    chunkIndex++;
+                    if (global.gc) global.gc();
+                }
+            }
+        };
+
         let rawEntities = [];
         try {
-            rawEntities = await adapter.fetch({ limit });
+            rawEntities = await adapter.fetch({ limit, onBatch: processBatch });
         } catch (fetchError) {
             console.error(`   ❌ Fetch error: ${fetchError.message}`);
             console.error(fetchError.stack);
-            // Create empty batch file to avoid workflow failure
             rawEntities = [];
         }
 
-        console.log(`   ✓ Fetched ${rawEntities.length} raw entities`);
-
-        // Warn if no data
-        if (rawEntities.length === 0) {
-            console.warn(`   ⚠️ WARNING: No data fetched from ${sourceName}!`);
-            console.warn(`   This may indicate rate limiting or API issues.`);
+        // For backward compatibility: if adapter doesn't use `onBatch`, it returns the full array.
+        if (rawEntities && rawEntities.length > 0) {
+            console.log(`   ✓ Adapter returned ${rawEntities.length} buffered entities. Normalizing synchronously...`);
+            await processBatch(rawEntities);
+            rawEntities = [];
+            if (global.gc) global.gc();
         }
 
-        // Normalize
-        console.log(`   Normalizing...`);
-        const normalized = rawEntities.map((raw, i) => {
-            try {
-                return adapter.normalize(raw);
-            } catch (e) {
-                if (i < 5) console.warn(`   ⚠️ Normalize error [${i}]: ${e.message}`);
-                return null;
-            }
-        }).filter(Boolean);
-        console.log(`   ✓ Normalized ${normalized.length} entities`);
-
-        // V17.2 Memory Protection: Clear raw array immediately to free up heap
-        // This is critical when normalized output + raw input together exceed memory limit
-        rawEntities = [];
-        if (global.gc) global.gc();
-
-        // Physical Chunking V16.2.3: Ensure no single file exceeds ~50MB
-        // V16.2.3 Update: 1500 limit for heavy GitHub/ArXiv metadata
-        const CHUNK_SIZE = 1500;
-        const results = { source: sourceName, total: normalized.length, chunks: [] };
-
-        if (normalized.length <= CHUNK_SIZE) {
-            const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}.json`);
-            await fs.writeFile(batchFile, JSON.stringify(normalized, null, 2));
+        // Write any remaining items
+        if (currentChunk.length > 0) {
+            const batchFile = path.join(OUTPUT_DIR, results.chunks.length === 0 ? `raw_batch_${sourceName}.json` : `raw_batch_${sourceName}_${chunkIndex}.json`);
+            await fs.writeFile(batchFile, JSON.stringify(currentChunk, null, 2));
             results.chunks.push(batchFile);
-            console.log(`   ✓ Saved to: ${batchFile}`);
-        } else {
-            console.log(`   📦 Splitting into ${Math.ceil(normalized.length / CHUNK_SIZE)} chunks...`);
-            for (let i = 0; i < normalized.length; i += CHUNK_SIZE) {
-                const chunk = normalized.slice(i, i + CHUNK_SIZE);
-                const chunkIndex = Math.floor(i / CHUNK_SIZE);
-                const batchFile = path.join(OUTPUT_DIR, `raw_batch_${sourceName}_${chunkIndex}.json`);
-                await fs.writeFile(batchFile, JSON.stringify(chunk, null, 2));
-                results.chunks.push(batchFile);
-                console.log(`   ✓ Chunk ${chunkIndex} saved to: ${batchFile}`);
-            }
+            console.log(`   ✓ Final chunk saved to: ${batchFile}`);
+            currentChunk = [];
         }
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`\n✅ [Harvest] Complete`);
         console.log(`   Source: ${sourceName}`);
-        console.log(`   Entities: ${normalized.length}`);
+        console.log(`   Entities: ${results.total}`);
         console.log(`   Chunks: ${results.chunks.length}`);
         console.log(`   Time: ${duration}s`);
 
-        return { source: sourceName, count: normalized.length, duration, chunks: results.chunks };
+        return { source: sourceName, count: results.total, duration, chunks: results.chunks };
+
     } catch (error) {
         console.error(`\n❌ [Harvest] Failed: ${error.message}`);
         console.error(error.stack);

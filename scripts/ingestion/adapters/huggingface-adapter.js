@@ -52,7 +52,8 @@ export class HuggingFaceAdapter extends BaseAdapter {
             console.log(`📥 [HuggingFace] Using MULTI-STRATEGY for ${limit} models...`);
             const result = await this.fetchMultiStrategy({
                 limitPerStrategy: Math.min(1000, Math.ceil(limit / 4)),
-                strategyIndices: [0, 1, 2, 3], full
+                strategyIndices: [0, 1, 2, 3], full,
+                onBatch: options.onBatch // Stream callback
             });
             return result.models;
         }
@@ -88,7 +89,12 @@ export class HuggingFaceAdapter extends BaseAdapter {
                 }
                 return this.fetchFullModel(modelId);
             }));
-            fullModels.push(...batchResults.filter(m => m !== null && this.isSafeForWork(m)));
+            const validResults = batchResults.filter(m => m !== null && this.isSafeForWork(m));
+            if (options.onBatch) {
+                await options.onBatch(validResults);
+            } else {
+                fullModels.push(...validResults);
+            }
             if ((i + batchSize) % 50 === 0) console.log(`   Progress: ${Math.min(i + batchSize, models.length)}/${models.length}`);
             if (i + batchSize < models.length) await delay(delayMs);
         }
@@ -146,10 +152,21 @@ export class HuggingFaceAdapter extends BaseAdapter {
                             }
                             return this.fetchFullModel(modelId);
                         }));
-                        allModels.push(...batchResults.filter(m => m !== null && this.isSafeForWork(m)));
+                        const validResults = batchResults.filter(m => m !== null && this.isSafeForWork(m));
+                        if (options.onBatch) {
+                            await options.onBatch(validResults);
+                        } else {
+                            allModels.push(...validResults);
+                        }
                         if (i + batchSize < newModels.length) await delay(delayMs);
                     }
-                } else { allModels.push(...newModels); }
+                } else {
+                    if (options.onBatch) {
+                        await options.onBatch(newModels);
+                    } else {
+                        allModels.push(...newModels);
+                    }
+                }
                 await delay(10000); // V14.5: Increased from 2s to 10s to allow rate limit window reset
             } catch (error) { console.error(`   ❌ Strategy failed: ${error.message}`); }
         }

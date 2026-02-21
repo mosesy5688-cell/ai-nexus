@@ -67,7 +67,12 @@ export class DatasetsAdapter extends BaseAdapter {
             const batchResults = await Promise.all(
                 batch.map(d => this.fetchFullDataset(d.id))
             );
-            fullDatasets.push(...batchResults.filter(d => d !== null));
+            const validResults = batchResults.filter(d => d !== null);
+            if (options.onBatch) {
+                await options.onBatch(validResults);
+            } else {
+                fullDatasets.push(...validResults);
+            }
 
             // Progress log
             if ((i + batchSize) % 50 === 0 || i + batchSize >= datasets.length) {
@@ -80,7 +85,7 @@ export class DatasetsAdapter extends BaseAdapter {
             }
         }
 
-        console.log(`✅ [HF Datasets] Fetched ${fullDatasets.length} complete datasets`);
+        console.log(`✅ [HF Datasets] Fetched ${options.onBatch ? datasets.length : fullDatasets.length} complete datasets`);
         return fullDatasets;
     }
 

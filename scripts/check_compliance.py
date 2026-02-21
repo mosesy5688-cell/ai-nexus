@@ -59,7 +59,9 @@ IGNORE_FILES = {
     # Tier 4: Authorized Internal Documents (Art 9.1 Exemption)
     'perf-audit.yml', 'TEST_STRATEGY_MASTER_V6.0.md', 'audit-seo.cjs',
     # Tier 5: Cache Reader (CES Compliance Fix)
-    'entity-cache-reader.js'
+    'entity-cache-reader.js',
+    # Tier 6: Public Prompt Entities (False Positive Bypasses for Art 9.1)
+    'prompts.astro', 'PromptDeepDive.astro'
 }
 
 # File extensions to scan for code quality

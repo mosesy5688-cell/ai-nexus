@@ -146,7 +146,12 @@ export class GitHubAdapter extends BaseAdapter {
             const batchResults = await Promise.all(
                 batch.map(r => this.fetchFullRepo(r.full_name))
             );
-            fullRepos.push(...batchResults.filter(r => r !== null));
+            const validResults = batchResults.filter(r => r !== null);
+            if (options.onBatch) {
+                await options.onBatch(validResults);
+            } else {
+                fullRepos.push(...validResults);
+            }
 
             if ((i + batchSize) % 50 === 0 || i + batchSize >= allRepos.length) {
                 console.log(`   Progress: ${Math.min(i + batchSize, allRepos.length)}/${allRepos.length}`);
@@ -155,7 +160,7 @@ export class GitHubAdapter extends BaseAdapter {
             await this.delay(1000);
         }
 
-        console.log(`✅ [GitHub] Fetched ${fullRepos.length} complete repositories`);
+        console.log(`✅ [GitHub] Fetched ${options.onBatch ? allRepos.length : fullRepos.length} complete repositories`);
         return fullRepos;
     }
     /**
