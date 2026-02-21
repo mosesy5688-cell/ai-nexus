@@ -47,6 +47,9 @@ export async function initSearch() {
         return true;
     } catch (e) {
         console.error('[HomeSearch] VFS Mount Error:', e);
+        if (e.message?.includes('429') || e.toString().includes('429')) {
+            console.warn('[HomeSearch] Rate limit detected. Search may be degraded.');
+        }
         isLoading = false;
         return false;
     }
@@ -67,7 +70,8 @@ export async function performSearch(query, limit = 20, filters = {}) {
 
     const start = performance.now();
     try {
-        let sql = `SELECT * FROM entities e`;
+        const columns = `e.id, e.slug, e.name, e.type, e.author, e.summary, e.fni_score, e.stars, e.downloads, e.last_modified`;
+        let sql = `SELECT ${columns} FROM entities e`;
         const params = [];
 
         // 1. Full Text Search
@@ -75,7 +79,7 @@ export async function performSearch(query, limit = 20, filters = {}) {
             // FTS5 MATCH escaping
             const safeQuery = query.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().split(/\s+/).filter(t => t.length > 0).map(t => `"${t}"*`).join(' AND ');
             if (safeQuery) {
-                sql = `SELECT e.* FROM search s JOIN entities e ON s.rowid = e.rowid WHERE search MATCH ?`;
+                sql = `SELECT ${columns} FROM search s JOIN entities e ON s.rowid = e.rowid WHERE search MATCH ?`;
                 params.push(safeQuery);
             }
         } else {

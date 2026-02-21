@@ -125,7 +125,7 @@ async function packDatabase() {
                 arch,
                 ctxLen,
                 e.is_trending ? 1 : 0,
-                e.stars || 0, e.downloads || 0, e.last_modified || '', bundleKey, offset, size,
+                e.stars || e.likes || 0, e.downloads || 0, e.last_modified || '', bundleKey, offset, size,
                 '', // shard_hash (filled in final pass)
                 e._trend_7d
             );
