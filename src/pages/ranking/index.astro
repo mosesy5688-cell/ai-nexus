@@ -39,8 +39,8 @@ const CATEGORY_META: Record<string, { label: string; icon: string; description: 
   }
 };
 
-// V18.10.2: Explicit Edge Caching
-Astro.response.headers.set('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+// V18.10.2: Explicit Edge Caching with Revalidation Guard
+Astro.response.headers.set('Cache-Control', 'public, max-age=0, must-revalidate, s-maxage=60');
 ---
 
 <Layout title={title} description={description}>
