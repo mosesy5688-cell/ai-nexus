@@ -48,7 +48,7 @@ async function processVfsProxy(request: Request, env: { R2_ASSETS: R2Bucket }) {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Access-Control-Allow-Headers': 'Range, Content-Type',
-        'Accept-Ranges': 'bytes',
+        // V18.10.2: Explicit Edge Caching with Revalidation Guard
         'Cache-Control': 'public, max-age=0, must-revalidate, s-maxage=60',
         'x-vfs-proxy-ver': '1.4.0-hardened',
         'ETag': etag
@@ -147,7 +147,7 @@ export const VFS_CONFIG = {
     wasmUrl: '/assets/sqlite/sql-wasm.wasm'
 };
 
-const MAX_SEARCH_SEATS = 5;
+const MAX_SEARCH_SEATS = 20; // V21.9: Increased from 5 to 20 to accommodate VFS parallel chunk fetching
 let activeSeats = 0;
 export async function acquireSearchSeat(): Promise<boolean> {
     if (activeSeats >= MAX_SEARCH_SEATS) return false;
