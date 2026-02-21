@@ -22,26 +22,33 @@ export async function initSearch() {
 
     isLoading = true;
     try {
-        console.log('[HomeSearch] Warming up VFS Cache (Speculative Prefetch 128KB)...');
-        // V21.9: Fetch first 128KB specifically to warm up Cloudflare Edge Cache 
-        // and satisfy initial B-tree lookups in a single request.
+        // SPEC-V19.3: Consistency Lock Logic 
+        // 1. Learn current version via HEAD
+        const headRes = await fetch('/api/vfs-proxy/content.db', { method: 'HEAD', cache: 'no-cache' });
+        const rawEtag = headRes.headers.get('ETag') || '';
+        const vHash = rawEtag.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16) || `v${Date.now()}`;
+        const vParam = `v=${vHash}`;
+
+        console.log(`[HomeSearch] Locking consistency to version: ${vHash}`);
+
+        // 2. Speculative warm-up with version lock
         try {
-            await fetch('/api/vfs-proxy/content.db', {
+            await fetch(`/api/vfs-proxy/content.db?${vParam}`, {
                 headers: { 'Range': 'bytes=0-131071' },
-                cache: 'force-cache'
+                cache: 'default'
             });
         } catch (warmupErr) {
-            console.warn('[HomeSearch] Warm-up fetch failed, proceeding with standard mount.', warmupErr);
+            console.warn('[HomeSearch] Prefetch failed, continuing mount...', warmupErr);
         }
 
-        console.log('[HomeSearch] Mounting SQLite VFS to /api/vfs-proxy/content.db');
+        console.log(`[HomeSearch] Mounting SQLite VFS (${vParam})`);
         dbWorker = await createDbWorker(
             [
                 {
                     from: "inline",
                     config: {
                         serverMode: "full",
-                        url: "/api/vfs-proxy/content.db",
+                        url: `/api/vfs-proxy/content.db?${vParam}`,
                         requestChunkSize: VFS_CONFIG.requestChunkSize
                     }
                 }
