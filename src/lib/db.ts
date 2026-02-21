@@ -103,18 +103,13 @@ export async function handleVfsProxy(request: Request, env: { R2_ASSETS: R2Bucke
         if (num) filename = `fused-shard-${num.padStart(3, '0')}.bin`;
     }
 
-    // 2. Alignment & Verification (8KB Page boundary)
-    // V19.4: Loosen for small probes (< 8KB) if they start at 0
-    if (start !== 0 && start % 8192 !== 0) {
-        // Check if it's a very small probe (often used to find file size)
-        const length = end ? (end - start + 1) : 8192;
-        if (length > 8192) {
-            console.warn(`[VFS-SEC] Misaligned Range Attempt: ${start}`);
-            return new Response('Misaligned Range', {
-                status: 403,
-                headers: { 'x-vfs-proxy-ver': 'v19.4.3', 'Access-Control-Allow-Origin': '*' }
-            });
-        }
+    // 4. Alignment & Integrity Guard (SPEC-V19.2)
+    // sql.js-httpvfs uses 8KB segments. We enforce this for all data fetches.
+    // Exception: Small probes (size < 4KB) used for integrity verification or header reading.
+    const length = end ? (end - start + 1) : 8192;
+    if (length > 4096 && (start % 8192 !== 0)) {
+        console.warn(`[VFS-PROXY] Invalid Offset Alignment: ${start} for ${filename}`);
+        return new Response('Alignment Error', { status: 416 });
     }
 
     try {
@@ -156,7 +151,7 @@ export function buildHardenedQuery(userQuery: string): string {
     const tokens = userQuery
         .replace(/[^\w\s\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]/g, ' ')
         .split(/\s+/)
-        .filter(t => t.length >= 3)
+        .filter(t => t.length >= 2)
         .slice(0, 5);
 
     if (tokens.length === 0) return '';
@@ -172,8 +167,8 @@ export function buildHardenedQuery(userQuery: string): string {
 export const VFS_CONFIG = {
     requestChunkSize: 8192,
     cacheSize: 6 * 1024 * 1024, // 6MB WASM Cache (128MB RAM Constraint)
-    workerUrl: '/workers/sql-http-worker.js',
-    wasmUrl: 'https://cdn.free2aitools.com/wasm/sql-wasm.wasm'
+    workerUrl: '/assets/sqlite/sqlite.worker.js',
+    wasmUrl: '/assets/sqlite/sql-wasm.wasm'
 };
 
 /**
