@@ -9,6 +9,7 @@
   # V19.2: Enable SharedArrayBuffer for high-performance WASM VFS
   Cross-Origin-Embedder-Policy: require-corp
   Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: cross-origin
 
 # Model detail pages - no cache to ensure fresh dynamic content
 /model/*
