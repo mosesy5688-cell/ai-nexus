@@ -208,7 +208,7 @@ export function buildHardenedQuery(userQuery: string): string {
  * BROWSER VFS CONFIGURATION
  */
 export const VFS_CONFIG = {
-    requestChunkSize: 4096,
+    requestChunkSize: 32768, // V21.9: Increased from 4K/8K to 32K to mitigate 429 rate-limiting
     cacheSize: 6 * 1024 * 1024, // 6MB WASM Cache (128MB RAM Constraint)
     workerUrl: '/assets/sqlite/sqlite.worker.js',
     wasmUrl: '/assets/sqlite/sql-wasm.wasm'
