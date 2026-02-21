@@ -10,7 +10,7 @@ const CDN_BASE = 'https://cdn.free2aitools.com';
 let reports = [];
 
 try {
-    const paths = [`${CDN_BASE}/cache/trends.json.gz`, `${CDN_BASE}/cache/trends.json`, `${CDN_BASE}/cache/reports/index.json.gz`];
+    const paths = [`${CDN_BASE}/cache/trend-data.json.gz`, `${CDN_BASE}/cache/trending.json.gz`, `${CDN_BASE}/cache/reports/index.json.gz`];
     for (const p of paths) {
         const res = await fetch(p);
         if (res.ok) {
@@ -32,15 +32,17 @@ try {
                 data = JSON.parse(new TextDecoder().decode(uint8));
             }
             
-            // V18.3: Handle trends.json format vs legacy reports.json format
-            if (data.top_models && data.days) {
+            // V18.3: Handle trend-data.json vs trending.json vs legacy reports.json format
+            if (data.models || (data.top_models && data.days)) {
+                // We have multiple entities, just show a pulse summary
+                const count = (data.models ? (data.models.length || 0) : (data.top_models?.length || 0));
                 reports = [
                     {
                         reportId: data.generated_at ? data.generated_at.split('T')[0] : new Date().toISOString().split('T')[0],
-                        title: `Live Market Pulse`,
+                        title: `Neural Mesh Live Briefing`,
                         date: data.generated_at ? data.generated_at.split('T')[0] : new Date().toISOString().split('T')[0],
-                        summary: `Tracking ${data.top_models.length} breakthrough models and ecosystem shifts.`,
-                        highlights: data.top_models.length
+                        summary: `Today's synchronization includes ${count} high-velocity models and autonomous agents.`,
+                        highlights: count
                     }
                 ];
             } else {

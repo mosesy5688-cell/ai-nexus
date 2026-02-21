@@ -133,12 +133,31 @@ export async function hydrateSearchResult(el) {
     try {
         const cleanId = id.replace(/[:/]/g, '--').toLowerCase();
 
-        // V16.9.2: Corrected architecture pathing, no type folder for fused.
-        const res = await fetch(`https://cdn.free2aitools.com/cache/fused/${cleanId}.json`);
+        // V19.2: Enforce Gzip checks to avoid 404s in R2 (Search Hydration)
+        const paths = [
+            `https://cdn.free2aitools.com/cache/fused/${cleanId}.json.gz`,
+            `https://cdn.free2aitools.com/cache/fused/${cleanId}.json`
+        ];
 
-        if (!res.ok) return;
+        let data = null;
+        for (const p of paths) {
+            const res = await fetch(p);
+            if (!res.ok) continue;
 
-        const data = await res.json();
+            const buffer = await res.arrayBuffer();
+            const uint8 = new Uint8Array(buffer);
+            const isGzip = uint8[0] === 0x1f && uint8[1] === 0x8b;
+
+            if (isGzip) {
+                const ds = new DecompressionStream('gzip');
+                const decompressedStream = new Response(buffer).body.pipeThrough(ds);
+                data = await new Response(decompressedStream).json();
+            } else {
+                data = JSON.parse(new TextDecoder().decode(buffer));
+            }
+            if (data) break;
+        }
+
         if (data) {
             const inner = data.entity || data;
             const descEl = el.querySelector('.result-desc');
